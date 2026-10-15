@@ -11,7 +11,8 @@ enum SessionLook {
   done('Concluída', AppColors.blue),
   failed('Falhou', AppColors.red),
   interrupted('Interrompida', AppColors.textMuted),
-  stopped('Parada', AppColors.textMuted);
+  stopped('Parada', AppColors.textMuted),
+  merged('Merge feito', AppColors.teal);
 
   const SessionLook(this.label, this.color);
 
@@ -26,6 +27,7 @@ enum SessionLook {
     SessionStatus.failed => failed,
     SessionStatus.interrupted => interrupted,
     SessionStatus.stopped => stopped,
+    SessionStatus.merged => merged,
   };
 }
 

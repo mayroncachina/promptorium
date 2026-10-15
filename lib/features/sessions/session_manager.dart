@@ -154,6 +154,12 @@ class _Proc {
   final Map<String, DateTime> pendingAt = {};
   final Set<String> subagents = {};
   bool stopping = false;
+
+  /// Set by [SessionManager.release]: the exit records nothing.
+  bool released = false;
+
+  /// Completed once [SessionManager._onExit] ran.
+  final Completer<void> exited = Completer<void>();
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
@@ -201,8 +207,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     final ws = r.workspace;
     final git = ref.read(gitServiceFactoryProvider)(ws.path);
     String path = ws.path, branch;
+    String? base;
     try {
       if (r.useWorktree) {
+        // The worktree starts at the root's HEAD: that branch is the merge
+        // target of the Review (Fase 9).
+        base = await git.currentBranch();
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
@@ -222,6 +232,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       title: title,
       permissionMode: r.permissionMode.cliValue,
       taskId: r.taskId,
+      baseBranch: base,
     );
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
@@ -282,6 +293,11 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> _resume(String id) async {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não encontrada.');
+    if (s.status == SessionStatus.merged) {
+      throw const SessionException(
+        'Esta sessão já foi integrada (merge) e o worktree foi removido.',
+      );
+    }
     await _note(id, 'Sessão retomada (--resume)');
     final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
     final limits = await _agentLimits(s.agentName, ws?.path);
@@ -343,6 +359,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       title: name,
       permissionMode: parent.permissionMode,
       taskId: parent.taskId,
+      // Same merge target as the parent (its worktree came from there).
+      baseBranch: parent.worktreePath != ws.path ? parent.baseBranch : null,
       // total_cost_usd keeps counting the parent's cost.
       costUsd: parent.costUsd,
     );
@@ -412,6 +430,19 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     p.stopping = true;
     await p.process.stop();
+  }
+
+  /// Ends the live process (if any) **without** recording "parada" and waits
+  /// until its exit is processed. Used by the Review merge before removing
+  /// the worktree (the caller sets the final status).
+  Future<void> release(String id) async {
+    final p = _procs[id];
+    if (p == null) return;
+    p
+      ..stopping = true
+      ..released = true;
+    await p.process.stop(timeout: const Duration(seconds: 2));
+    await p.exited.future.timeout(const Duration(seconds: 5), onTimeout: () {});
   }
 
   /// App closing: SIGTERM every live process (SIGKILL after [timeout]) so no
@@ -600,10 +631,22 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   Future<void> _onExit(String id, _Proc p) async {
+    try {
+      await _recordExit(id, p);
+    } finally {
+      if (!p.exited.isCompleted) p.exited.complete();
+    }
+  }
+
+  Future<void> _recordExit(String id, _Proc p) async {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
     _procs.remove(id);
     if (!ref.mounted || _shuttingDown) return;
+    if (p.released) {
+      _publish();
+      return;
+    }
     _publish();
     final s = await _repo.getById(id);
     if (s == null) return;

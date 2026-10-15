@@ -79,3 +79,13 @@ abstract final class AppFonts {
   static const sans = 'IBM Plex Sans';
   static const mono = 'JetBrains Mono';
 }
+
+/// Review-screen colors from the mockup (Review.dc.html) not in [AppColors].
+abstract final class ReviewColors {
+  /// Line numbers of the diff.
+  static const lineNumber = Color(0xFF4A5260);
+
+  /// "Aceitar hunk" (also used for accepted hunks).
+  static const acceptBorder = Color(0xFF2F6B5E);
+  static const acceptBg = Color(0xFF11201D);
+}

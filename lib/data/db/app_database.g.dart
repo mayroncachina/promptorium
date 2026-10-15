@@ -1553,6 +1553,37 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _baseBranchMeta = const VerificationMeta(
+    'baseBranch',
+  );
+  @override
+  late final GeneratedColumn<String> baseBranch = GeneratedColumn<String>(
+    'base_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mergeCommitMeta = const VerificationMeta(
+    'mergeCommit',
+  );
+  @override
+  late final GeneratedColumn<String> mergeCommit = GeneratedColumn<String>(
+    'merge_commit',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prUrlMeta = const VerificationMeta('prUrl');
+  @override
+  late final GeneratedColumn<String> prUrl = GeneratedColumn<String>(
+    'pr_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1570,6 +1601,9 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     tokensOut,
     startedAt,
     endedAt,
+    baseBranch,
+    mergeCommit,
+    prUrl,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1683,6 +1717,27 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
       );
     }
+    if (data.containsKey('base_branch')) {
+      context.handle(
+        _baseBranchMeta,
+        baseBranch.isAcceptableOrUnknown(data['base_branch']!, _baseBranchMeta),
+      );
+    }
+    if (data.containsKey('merge_commit')) {
+      context.handle(
+        _mergeCommitMeta,
+        mergeCommit.isAcceptableOrUnknown(
+          data['merge_commit']!,
+          _mergeCommitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pr_url')) {
+      context.handle(
+        _prUrlMeta,
+        prUrl.isAcceptableOrUnknown(data['pr_url']!, _prUrlMeta),
+      );
+    }
     return context;
   }
 
@@ -1754,6 +1809,18 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}ended_at'],
       ),
+      baseBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_branch'],
+      ),
+      mergeCommit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}merge_commit'],
+      ),
+      prUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pr_url'],
+      ),
     );
   }
 
@@ -1787,6 +1854,16 @@ class Session extends DataClass implements Insertable<Session> {
   final int tokensOut;
   final DateTime startedAt;
   final DateTime? endedAt;
+
+  /// Branch the worktree was created from (merge target of the Review;
+  /// schema v5). Null for rows written before / sessions without worktree.
+  final String? baseBranch;
+
+  /// Hash of the merge commit made by the Review (schema v5, Fase 9).
+  final String? mergeCommit;
+
+  /// URL of the pull request opened by the Review (schema v5).
+  final String? prUrl;
   const Session({
     required this.id,
     required this.workspaceId,
@@ -1803,6 +1880,9 @@ class Session extends DataClass implements Insertable<Session> {
     required this.tokensOut,
     required this.startedAt,
     this.endedAt,
+    this.baseBranch,
+    this.mergeCommit,
+    this.prUrl,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1836,6 +1916,15 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || endedAt != null) {
       map['ended_at'] = Variable<DateTime>(endedAt);
     }
+    if (!nullToAbsent || baseBranch != null) {
+      map['base_branch'] = Variable<String>(baseBranch);
+    }
+    if (!nullToAbsent || mergeCommit != null) {
+      map['merge_commit'] = Variable<String>(mergeCommit);
+    }
+    if (!nullToAbsent || prUrl != null) {
+      map['pr_url'] = Variable<String>(prUrl);
+    }
     return map;
   }
 
@@ -1866,6 +1955,15 @@ class Session extends DataClass implements Insertable<Session> {
       endedAt: endedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(endedAt),
+      baseBranch: baseBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(baseBranch),
+      mergeCommit: mergeCommit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mergeCommit),
+      prUrl: prUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prUrl),
     );
   }
 
@@ -1892,6 +1990,9 @@ class Session extends DataClass implements Insertable<Session> {
       tokensOut: serializer.fromJson<int>(json['tokensOut']),
       startedAt: serializer.fromJson<DateTime>(json['startedAt']),
       endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      baseBranch: serializer.fromJson<String?>(json['baseBranch']),
+      mergeCommit: serializer.fromJson<String?>(json['mergeCommit']),
+      prUrl: serializer.fromJson<String?>(json['prUrl']),
     );
   }
   @override
@@ -1915,6 +2016,9 @@ class Session extends DataClass implements Insertable<Session> {
       'tokensOut': serializer.toJson<int>(tokensOut),
       'startedAt': serializer.toJson<DateTime>(startedAt),
       'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'baseBranch': serializer.toJson<String?>(baseBranch),
+      'mergeCommit': serializer.toJson<String?>(mergeCommit),
+      'prUrl': serializer.toJson<String?>(prUrl),
     };
   }
 
@@ -1934,6 +2038,9 @@ class Session extends DataClass implements Insertable<Session> {
     int? tokensOut,
     DateTime? startedAt,
     Value<DateTime?> endedAt = const Value.absent(),
+    Value<String?> baseBranch = const Value.absent(),
+    Value<String?> mergeCommit = const Value.absent(),
+    Value<String?> prUrl = const Value.absent(),
   }) => Session(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1952,6 +2059,9 @@ class Session extends DataClass implements Insertable<Session> {
     tokensOut: tokensOut ?? this.tokensOut,
     startedAt: startedAt ?? this.startedAt,
     endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
+    mergeCommit: mergeCommit.present ? mergeCommit.value : this.mergeCommit,
+    prUrl: prUrl.present ? prUrl.value : this.prUrl,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -1976,6 +2086,13 @@ class Session extends DataClass implements Insertable<Session> {
       tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
       startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
       endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      baseBranch: data.baseBranch.present
+          ? data.baseBranch.value
+          : this.baseBranch,
+      mergeCommit: data.mergeCommit.present
+          ? data.mergeCommit.value
+          : this.mergeCommit,
+      prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
     );
   }
 
@@ -1996,7 +2113,10 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('tokensIn: $tokensIn, ')
           ..write('tokensOut: $tokensOut, ')
           ..write('startedAt: $startedAt, ')
-          ..write('endedAt: $endedAt')
+          ..write('endedAt: $endedAt, ')
+          ..write('baseBranch: $baseBranch, ')
+          ..write('mergeCommit: $mergeCommit, ')
+          ..write('prUrl: $prUrl')
           ..write(')'))
         .toString();
   }
@@ -2018,6 +2138,9 @@ class Session extends DataClass implements Insertable<Session> {
     tokensOut,
     startedAt,
     endedAt,
+    baseBranch,
+    mergeCommit,
+    prUrl,
   );
   @override
   bool operator ==(Object other) =>
@@ -2037,7 +2160,10 @@ class Session extends DataClass implements Insertable<Session> {
           other.tokensIn == this.tokensIn &&
           other.tokensOut == this.tokensOut &&
           other.startedAt == this.startedAt &&
-          other.endedAt == this.endedAt);
+          other.endedAt == this.endedAt &&
+          other.baseBranch == this.baseBranch &&
+          other.mergeCommit == this.mergeCommit &&
+          other.prUrl == this.prUrl);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -2056,6 +2182,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<int> tokensOut;
   final Value<DateTime> startedAt;
   final Value<DateTime?> endedAt;
+  final Value<String?> baseBranch;
+  final Value<String?> mergeCommit;
+  final Value<String?> prUrl;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -2073,6 +2202,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.tokensOut = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
+    this.baseBranch = const Value.absent(),
+    this.mergeCommit = const Value.absent(),
+    this.prUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -2091,6 +2223,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.tokensOut = const Value.absent(),
     this.startedAt = const Value.absent(),
     this.endedAt = const Value.absent(),
+    this.baseBranch = const Value.absent(),
+    this.mergeCommit = const Value.absent(),
+    this.prUrl = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -2113,6 +2248,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<int>? tokensOut,
     Expression<DateTime>? startedAt,
     Expression<DateTime>? endedAt,
+    Expression<String>? baseBranch,
+    Expression<String>? mergeCommit,
+    Expression<String>? prUrl,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2131,6 +2269,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (tokensOut != null) 'tokens_out': tokensOut,
       if (startedAt != null) 'started_at': startedAt,
       if (endedAt != null) 'ended_at': endedAt,
+      if (baseBranch != null) 'base_branch': baseBranch,
+      if (mergeCommit != null) 'merge_commit': mergeCommit,
+      if (prUrl != null) 'pr_url': prUrl,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2151,6 +2292,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<int>? tokensOut,
     Value<DateTime>? startedAt,
     Value<DateTime?>? endedAt,
+    Value<String?>? baseBranch,
+    Value<String?>? mergeCommit,
+    Value<String?>? prUrl,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -2169,6 +2313,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       tokensOut: tokensOut ?? this.tokensOut,
       startedAt: startedAt ?? this.startedAt,
       endedAt: endedAt ?? this.endedAt,
+      baseBranch: baseBranch ?? this.baseBranch,
+      mergeCommit: mergeCommit ?? this.mergeCommit,
+      prUrl: prUrl ?? this.prUrl,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2223,6 +2370,15 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (endedAt.present) {
       map['ended_at'] = Variable<DateTime>(endedAt.value);
     }
+    if (baseBranch.present) {
+      map['base_branch'] = Variable<String>(baseBranch.value);
+    }
+    if (mergeCommit.present) {
+      map['merge_commit'] = Variable<String>(mergeCommit.value);
+    }
+    if (prUrl.present) {
+      map['pr_url'] = Variable<String>(prUrl.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2247,6 +2403,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('tokensOut: $tokensOut, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
+          ..write('baseBranch: $baseBranch, ')
+          ..write('mergeCommit: $mergeCommit, ')
+          ..write('prUrl: $prUrl, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6823,6 +6982,9 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<int> tokensOut,
   Value<DateTime> startedAt,
   Value<DateTime?> endedAt,
+  Value<String?> baseBranch,
+  Value<String?> mergeCommit,
+  Value<String?> prUrl,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -6841,6 +7003,9 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<int> tokensOut,
   Value<DateTime> startedAt,
   Value<DateTime?> endedAt,
+  Value<String?> baseBranch,
+  Value<String?> mergeCommit,
+  Value<String?> prUrl,
   Value<int> rowid,
 });
 
@@ -6991,6 +7156,21 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<DateTime> get endedAt => $composableBuilder(
     column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mergeCommit => $composableBuilder(
+    column: $table.mergeCommit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prUrl => $composableBuilder(
+    column: $table.prUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7165,6 +7345,21 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mergeCommit => $composableBuilder(
+    column: $table.mergeCommit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prUrl => $composableBuilder(
+    column: $table.prUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -7263,6 +7458,19 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get endedAt =>
       $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mergeCommit => $composableBuilder(
+    column: $table.mergeCommit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get prUrl =>
+      $composableBuilder(column: $table.prUrl, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -7409,6 +7617,9 @@ class $$SessionsTableTableManager
                 Value<int> tokensOut = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> baseBranch = const Value.absent(),
+                Value<String?> mergeCommit = const Value.absent(),
+                Value<String?> prUrl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -7426,6 +7637,9 @@ class $$SessionsTableTableManager
                 tokensOut: tokensOut,
                 startedAt: startedAt,
                 endedAt: endedAt,
+                baseBranch: baseBranch,
+                mergeCommit: mergeCommit,
+                prUrl: prUrl,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7445,6 +7659,9 @@ class $$SessionsTableTableManager
                 Value<int> tokensOut = const Value.absent(),
                 Value<DateTime> startedAt = const Value.absent(),
                 Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> baseBranch = const Value.absent(),
+                Value<String?> mergeCommit = const Value.absent(),
+                Value<String?> prUrl = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -7462,6 +7679,9 @@ class $$SessionsTableTableManager
                 tokensOut: tokensOut,
                 startedAt: startedAt,
                 endedAt: endedAt,
+                baseBranch: baseBranch,
+                mergeCommit: mergeCommit,
+                prUrl: prUrl,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

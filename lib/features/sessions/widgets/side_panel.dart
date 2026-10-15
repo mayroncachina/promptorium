@@ -8,6 +8,7 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
@@ -457,8 +458,10 @@ class _ChangedFiles extends ConsumerWidget {
         body,
         const SizedBox(height: 10),
         InkWell(
-          onTap: () =>
-              ref.read(navigationProvider.notifier).go(AppSection.review),
+          onTap: () {
+            ref.read(selectedReviewProvider.notifier).select(sessionId);
+            ref.read(navigationProvider.notifier).go(AppSection.review);
+          },
           child: const Text(
             'Abrir no Review',
             style: TextStyle(fontSize: 12, color: AppColors.blue),

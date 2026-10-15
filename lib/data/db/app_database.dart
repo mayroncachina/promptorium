@@ -128,6 +128,16 @@ class Sessions extends Table {
   DateTimeColumn get startedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get endedAt => dateTime().nullable()();
 
+  /// Branch the worktree was created from (merge target of the Review;
+  /// schema v5). Null for rows written before / sessions without worktree.
+  TextColumn get baseBranch => text().nullable()();
+
+  /// Hash of the merge commit made by the Review (schema v5, Fase 9).
+  TextColumn get mergeCommit => text().nullable()();
+
+  /// URL of the pull request opened by the Review (schema v5).
+  TextColumn get prUrl => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -282,7 +292,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -308,6 +318,12 @@ class AppDatabase extends _$AppDatabase {
       // v4 (Fase 8): requirement of a task (planner output).
       if (from < 4) {
         await m.addColumn(tasks, tasks.requirement);
+      }
+      // v5 (Fase 9): base branch, merge commit and PR of a session (Review).
+      if (from < 5) {
+        await m.addColumn(sessions, sessions.baseBranch);
+        await m.addColumn(sessions, sessions.mergeCommit);
+        await m.addColumn(sessions, sessions.prUrl);
       }
     },
     beforeOpen: (details) async {

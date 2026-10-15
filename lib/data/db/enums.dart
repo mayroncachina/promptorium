@@ -29,12 +29,15 @@ enum SessionStatus {
   failed,
 
   /// Stopped by the user.
-  stopped;
+  stopped,
+
+  /// Merged by the Review (Fase 9): worktree removed, cannot be resumed.
+  merged;
 
   /// Whether the session no longer runs (sets `endedAt`).
   bool get isTerminal => switch (this) {
     running || waitingApproval => false,
-    interrupted || completed || failed || stopped => true,
+    interrupted || completed || failed || stopped || merged => true,
   };
 }
 

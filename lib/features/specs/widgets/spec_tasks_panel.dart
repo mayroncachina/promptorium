@@ -14,8 +14,29 @@ Color _taskColor(TaskStatus s) => switch (s) {
   TaskStatus.done => AppColors.blue,
 };
 
+/// Session shown per task in the traceability: the merged one (it carries the
+/// merge commit, Fase 9), otherwise the most recent.
+Map<int, Session> traceSessions(Iterable<Session> sessions) {
+  final out = <int, Session>{};
+  for (final s in sessions) {
+    final id = s.taskId;
+    if (id == null) continue;
+    final cur = out[id];
+    final bool better;
+    if (cur == null) {
+      better = true;
+    } else if ((s.mergeCommit != null) != (cur.mergeCommit != null)) {
+      better = s.mergeCommit != null;
+    } else {
+      better = s.startedAt.isAfter(cur.startedAt);
+    }
+    if (better) out[id] = s;
+  }
+  return out;
+}
+
 /// One line of the traceability block: requirement → tasks → sessions →
-/// commit (Fase 9 fills the commit; "—" until then).
+/// commit (hash of the Review merge, `sessions.merge_commit`; "—" before).
 typedef TraceRow = ({
   String requirement,
   String? text,
@@ -271,8 +292,17 @@ class _TraceLine extends StatelessWidget {
           color: session == null ? AppColors.textMuted : AppColors.text,
         ),
         arrow,
-        // Commit / merge: Fase 9 (Review).
-        chip('commit —', color: AppColors.textMuted),
+        if (session?.mergeCommit case final commit?)
+          Tooltip(
+            message: 'Commit de merge $commit',
+            child: chip(
+              'merge ${commit.length > 7 ? commit.substring(0, 7) : commit}',
+              key: ValueKey('trace-commit-${task.code}'),
+              color: AppColors.teal,
+            ),
+          )
+        else
+          chip('commit —', color: AppColors.textMuted),
       ]);
     }
     return Wrap(

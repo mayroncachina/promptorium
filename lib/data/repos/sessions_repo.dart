@@ -33,6 +33,7 @@ class SessionsRepo {
     String? agentName,
     String? title,
     String? permissionMode,
+    String? baseBranch,
     double costUsd = 0,
     SessionStatus status = SessionStatus.running,
   }) => _db
@@ -48,6 +49,7 @@ class SessionsRepo {
           agentName: Value(agentName),
           title: Value(title),
           permissionMode: Value(permissionMode),
+          baseBranch: Value(baseBranch),
           costUsd: Value(costUsd),
           status: Value(status),
         ),
@@ -105,6 +107,21 @@ class SessionsRepo {
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(permissionMode: Value(mode)),
       );
+
+  /// Review merge (Fase 9): status `merged` + hash of the merge commit.
+  Future<int> setMerged(String id, String commit, {DateTime? at}) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(
+          status: const Value(SessionStatus.merged),
+          mergeCommit: Value(commit),
+          endedAt: Value(at ?? DateTime.now()),
+        ),
+      );
+
+  /// Pull request opened by the Review.
+  Future<int> setPrUrl(String id, String url) => (_db.update(
+    _t,
+  )..where((s) => s.id.equals(id))).write(SessionsCompanion(prUrl: Value(url)));
 
   /// All sessions (every workspace), newest first.
   Stream<List<Session>> watchAll() => (_db.select(

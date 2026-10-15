@@ -20,6 +20,19 @@ const v1TasksAndConversations = [
       'session_id TEXT NULL, created_at INTEGER NOT NULL DEFAULT 0)'),
 ];
 
+/// v2–v4 shape of `sessions` (touched by the v5 upgrade).
+const v2Sessions =
+    'CREATE TABLE sessions (id TEXT NOT NULL PRIMARY KEY, '
+    'workspace_id INTEGER NOT NULL REFERENCES workspaces (id), '
+    'task_id INTEGER NULL, agent_name TEXT NULL, title TEXT NULL, '
+    'permission_mode TEXT NULL, '
+    'worktree_path TEXT NOT NULL, branch TEXT NOT NULL, '
+    "status TEXT NOT NULL DEFAULT 'running', model TEXT NOT NULL, "
+    'cost_usd REAL NOT NULL DEFAULT 0, '
+    'tokens_in INTEGER NOT NULL DEFAULT 0, '
+    'tokens_out INTEGER NOT NULL DEFAULT 0, '
+    'started_at INTEGER NOT NULL DEFAULT 0, ended_at INTEGER NULL)';
+
 void main() {
   test('v1 → v2 adds sessions.title and sessions.permission_mode', () async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -74,7 +87,7 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 4);
+    expect(v.data.values.single, 5);
   });
 
   test('v2 → v4 adds conversation columns, conversation_events, '
@@ -89,6 +102,7 @@ void main() {
             'created_at INTEGER NOT NULL DEFAULT 0)',
           );
           v1TasksAndConversations.forEach(raw.execute);
+          raw.execute(v2Sessions);
           raw.execute("INSERT INTO workspaces (path, name) VALUES ('/r', 'r')");
           raw.execute(
             "INSERT INTO conversations (workspace_id, title, model) "
@@ -144,6 +158,7 @@ void main() {
             );
             raw.execute(v1TasksAndConversations.first);
             raw.execute('ALTER TABLE tasks ADD COLUMN body TEXT NULL');
+            raw.execute(v2Sessions);
             raw.execute(
               "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
             );
@@ -171,7 +186,58 @@ void main() {
       expect(old.requirement, isNull);
       expect(await tasks.nextCode(1), 'TASK-008');
       final v = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(v.data.values.single, 4);
+      expect(v.data.values.single, 5);
     },
   );
+
+  test('v4 → v5 adds sessions.base_branch, merge_commit and pr_url '
+      '(existing rows preserved; merged status round-trips)', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final db = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(
+            'CREATE TABLE workspaces (id INTEGER NOT NULL PRIMARY KEY '
+            'AUTOINCREMENT, path TEXT NOT NULL UNIQUE, name TEXT NOT NULL, '
+            'created_at INTEGER NOT NULL DEFAULT 0)',
+          );
+          raw.execute(v2Sessions);
+          raw.execute("INSERT INTO workspaces (path, name) VALUES ('/r', 'r')");
+          raw.execute(
+            'INSERT INTO sessions (id, workspace_id, worktree_path, branch, '
+            "model, title, status) VALUES ('old', 1, '/wt', 'pr/x', "
+            "'haiku', 'Antiga', 'completed')",
+          );
+          raw.userVersion = 4;
+        },
+      ),
+    );
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final repo = SessionsRepo(db);
+    final old = (await repo.getById('old'))!;
+    expect(old.title, 'Antiga');
+    expect(old.status, SessionStatus.completed);
+    expect(old.baseBranch, isNull);
+    expect(old.mergeCommit, isNull);
+    expect(old.prUrl, isNull);
+    await repo.setMerged('old', 'abc123');
+    await repo.setPrUrl('old', 'https://example.com/pr/1');
+    final m = (await repo.getById('old'))!;
+    expect(m.status, SessionStatus.merged);
+    expect(m.mergeCommit, 'abc123');
+    expect(m.prUrl, 'https://example.com/pr/1');
+    expect(m.endedAt, isNotNull);
+    await repo.insert(
+      id: 'new',
+      workspaceId: 1,
+      worktreePath: '/wt2',
+      branch: 'pr/y',
+      model: 'haiku',
+      baseBranch: 'main',
+    );
+    expect((await repo.getById('new'))!.baseBranch, 'main');
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, 5);
+  });
 }

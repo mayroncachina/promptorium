@@ -291,13 +291,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     for (final t in tasks) {
       if (t.specId != null) (tasksBySpec[t.specId!] ??= []).add(t);
     }
-    final latest = <int, Session>{};
-    for (final s in sessions) {
-      final id = s.taskId;
-      if (id == null) continue;
-      final cur = latest[id];
-      if (cur == null || s.startedAt.isAfter(cur.startedAt)) latest[id] = s;
-    }
+    final latest = traceSessions(sessions);
     final text = _controller?.text ?? '';
     final doc = SpecDocument.parse(text);
     final ready = spec != null && _controller != null && !_loading;
