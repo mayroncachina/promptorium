@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
@@ -45,14 +46,27 @@ const plan = ProjectPlanData(
 void main() {
   late Directory tmp;
   late ProviderContainer c;
+  late List<String> trashed;
+  var trashFails = false;
 
   setUp(() async {
     tmp = Directory.systemTemp.createTempSync('promptorium-project-');
+    trashed = [];
+    trashFails = false;
     c = ProviderContainer(
       overrides: [
         databaseOverride(memoryDatabase()),
         processRunnerProvider.overrideWithValue(gitRun),
         repoSetupProvider.overrideWithValue(RepoSetup(run: gitRun)),
+        gitServiceFactoryProvider.overrideWithValue(
+          (root) =>
+              GitService(root, run: gitRun, worktreesBase: '${tmp.path}/wt'),
+        ),
+        trashFolderProvider.overrideWithValue((path) async {
+          if (trashFails) throw const ProjectException('sem lixeira');
+          trashed.add(path);
+          await Directory(path).rename('${tmp.path}/lixeira');
+        }),
       ],
     );
     await c.read(appSettingsProvider.notifier).load();
@@ -194,5 +208,74 @@ void main() {
     expect(out.files, hasLength(2));
     expect(File('${ws.path}/CLAUDE.md').existsSync(), isFalse);
     expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
+  });
+
+  test('deleteProject: worktrees removed, folder to the trash, everything '
+      'the app kept about it gone', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'receitas',
+    );
+    await c
+        .read(projectPlansRepoProvider)
+        .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
+    await service().materialize(ws);
+    final wt = await c
+        .read(gitServiceFactoryProvider)(ws.path)
+        .addWorktree('x');
+    await c
+        .read(sessionsRepoProvider)
+        .insert(
+          id: 's1',
+          workspaceId: ws.id,
+          worktreePath: wt.path,
+          branch: wt.branch,
+          model: 'haiku',
+        );
+    final summary = await service().deleteSummary(ws);
+    expect(summary, (sessions: 1, tasks: 3, specs: 2, worktrees: 1));
+
+    await service().deleteProject(ws);
+    expect(trashed, [ws.path]);
+    expect(Directory(ws.path).existsSync(), isFalse);
+    expect(File('${tmp.path}/lixeira/CLAUDE.md').existsSync(), isTrue);
+    expect(Directory(wt.path).existsSync(), isFalse);
+    expect(await c.read(workspacesRepoProvider).getById(ws.id), isNull);
+    expect(await c.read(projectPlansRepoProvider).get(ws.id), isNull);
+    expect(await c.read(sessionsRepoProvider).getById('s1'), isNull);
+    expect(
+      await c.read(tasksRepoProvider).watchByWorkspace(ws.id).first,
+      isEmpty,
+    );
+    expect(
+      c
+          .read(appSettingsProvider.notifier)
+          .getInt(AppSettingKeys.activeWorkspace),
+      isNull,
+    );
+  });
+
+  test('deleteProject keeps everything when the trash fails, and refuses '
+      'unsafe folders', () async {
+    final ws = await service().createProject(parent: tmp.path, name: 'x');
+    trashFails = true;
+    await expectLater(
+      service().deleteProject(ws),
+      throwsA(isA<ProjectException>()),
+    );
+    expect(Directory(ws.path).existsSync(), isTrue);
+    expect(await c.read(workspacesRepoProvider).getById(ws.id), isNotNull);
+
+    expect(isUnsafeProjectPath('/', home: '/home/u'), isTrue);
+    expect(isUnsafeProjectPath('/home', home: '/home/u'), isTrue);
+    expect(isUnsafeProjectPath('/home/u', home: '/home/u'), isTrue);
+    expect(isUnsafeProjectPath('/home/u/', home: '/home/u'), isTrue);
+    expect(isUnsafeProjectPath('relativo/x', home: '/home/u'), isTrue);
+    expect(isUnsafeProjectPath('/srv', home: '/home/u'), isTrue);
+    expect(
+      isUnsafeProjectPath('/home/u/workspace/app', home: '/home/u'),
+      isFalse,
+    );
+    expect(isUnsafeProjectPath('/srv/app', home: '/home/u'), isFalse);
   });
 }

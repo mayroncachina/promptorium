@@ -68,6 +68,7 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
   bool materialized = false,
   bool withWorkspace = true,
   Size size = const Size(1440, 900),
+  String path = '/r',
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -85,7 +86,9 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
   if (withWorkspace) {
     final ws = await db
         .into(db.workspaces)
-        .insertReturning(WorkspacesCompanion.insert(path: '/r', name: 'r'));
+        .insertReturning(
+          WorkspacesCompanion.insert(path: path, name: path.split('/').last),
+        );
     await AppSettingsRepo(db).setInt(AppSettingKeys.activeWorkspace, ws.id);
     if (data != null) {
       await db
@@ -412,6 +415,53 @@ void main() {
       expect(tester.takeException(), isNull, reason: step.name);
       await unmount(tester, c);
     }
+  });
+
+  testWidgets('Apagar projeto lists what goes away and needs the project '
+      'name', (tester) async {
+    final (c, _) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(vision: vision),
+    );
+    await tester.tap(find.byKey(const ValueKey('project-delete')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('delete-project-dialog')), findsOneWidget);
+    expect(find.text('Apagar o projeto r?'), findsOneWidget);
+    // /r is too close to the root: refused before any typing.
+    expect(find.textContaining('não pode ser apagada pelo app'), findsOne);
+    FilledButton confirm() => tester.widget<FilledButton>(
+      find.byKey(const ValueKey('delete-project-confirm')),
+    );
+    expect(confirm().onPressed, isNull);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    await unmount(tester, c);
+
+    // A normal path: the name must be typed exactly.
+    final (c2, db) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(vision: vision),
+      path: '/home/x/workspace/receitas',
+    );
+    await tester.tap(find.byKey(const ValueKey('project-delete')));
+    await tester.pumpAndSettle();
+    expect(confirm().onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('delete-project-name')),
+      'receita',
+    );
+    await tester.pump();
+    expect(confirm().onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('delete-project-name')),
+      'receitas',
+    );
+    await tester.pump();
+    expect(confirm().onPressed, isNotNull);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(await db.select(db.workspaces).get(), hasLength(1));
+    await unmount(tester, c2);
   });
 
   testWidgets('Descartar plano asks first and removes only the draft', (

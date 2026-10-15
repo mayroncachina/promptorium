@@ -9,6 +9,8 @@ import '../../core/git/git_service.dart';
 import '../../core/git/repo_setup.dart';
 import '../../data/providers.dart';
 import '../../data/repos/tasks_repo.dart';
+import '../prompt/conversation_manager.dart';
+import '../sessions/session_manager.dart';
 import '../specs/spec_service.dart';
 import 'project_plan.dart';
 
@@ -100,6 +102,72 @@ class ProjectService {
     final ws = await _ref.read(workspaceActionsProvider).addFolder(path);
     await _ref.read(projectPlansRepoProvider).start(ws.id);
     return ws;
+  }
+
+  Future<DeleteSummary> deleteSummary(Workspace ws) async {
+    final sessions = await _ref
+        .read(sessionsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final tasks = await _ref
+        .read(tasksRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final specs = await _ref
+        .read(specsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    return (
+      sessions: sessions.length,
+      tasks: tasks.length,
+      specs: specs.length,
+      worktrees: sessions.where((s) => s.worktreePath != ws.path).length,
+    );
+  }
+
+  /// "Apagar projeto": stops its live sessions and conversations, removes the
+  /// session worktrees, moves the project folder to the trash and removes
+  /// the workspace with everything the app keeps about it (plan, specs,
+  /// tasks, sessions, conversations — database cascade). Nothing is removed
+  /// from the app when the folder cannot be trashed.
+  Future<void> deleteProject(Workspace ws) async {
+    if (isUnsafeProjectPath(ws.path)) {
+      throw ProjectException('Por segurança, ${ws.path} não pode ser apagada.');
+    }
+    final sessions = await _ref
+        .read(sessionsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final manager = _ref.read(sessionManagerProvider.notifier);
+    for (final s in sessions) {
+      await manager.release(s.id);
+    }
+    final conversations = await _ref
+        .read(conversationsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final chats = _ref.read(conversationManagerProvider.notifier);
+    for (final c in conversations) {
+      await chats.stop(c.id);
+    }
+    final git = _ref.read(gitServiceFactoryProvider)(ws.path);
+    for (final s in sessions) {
+      final wt = s.worktreePath;
+      if (wt == ws.path || !await Directory(wt).exists()) continue;
+      try {
+        await git.removeWorktree(wt, force: true);
+      } catch (_) {
+        // Not a worktree of this repository any more: delete only folders
+        // the app created (under its worktrees base).
+        if (wt.startsWith('${git.worktreesBase}/')) {
+          await Directory(wt).delete(recursive: true);
+        }
+      }
+    }
+    if (await Directory(ws.path).exists()) {
+      await _ref.read(trashFolderProvider)(ws.path);
+    }
+    await _ref.read(workspaceActionsProvider).remove(ws.id);
   }
 
   /// Whether the workspace already has a `CLAUDE.md`.
@@ -208,5 +276,44 @@ class ProjectService {
     );
   }
 }
+
+/// Moves a folder to the desktop trash (recoverable). Overridden in tests.
+typedef TrashFolder = Future<void> Function(String path);
+
+Future<void> _gioTrash(String path) async {
+  final ProcessResult r;
+  try {
+    r = await Process.run('gio', ['trash', '--', path]);
+  } on ProcessException catch (e) {
+    throw ProjectException(
+      'Não foi possível mover para a lixeira (gio não encontrado): '
+      '${e.message}',
+    );
+  }
+  if (r.exitCode != 0) {
+    throw ProjectException(
+      'Não foi possível mover para a lixeira: ${'${r.stderr}'.trim()}',
+    );
+  }
+}
+
+final trashFolderProvider = Provider<TrashFolder>((ref) => _gioTrash);
+
+/// Folders "Apagar projeto" refuses to trash: `/`, the home folder and its
+/// parents, and relative paths.
+bool isUnsafeProjectPath(String path, {String? home}) {
+  final p = path.endsWith('/') && path.length > 1
+      ? path.substring(0, path.length - 1)
+      : path;
+  if (!p.startsWith('/') || p == '/') return true;
+  final h = home ?? Platform.environment['HOME'];
+  if (h != null && h.isNotEmpty) {
+    if (p == h || h.startsWith('$p/')) return true;
+  }
+  return p.split('/').where((x) => x.isNotEmpty).length < 2;
+}
+
+/// What "Apagar projeto" removes (shown in the confirmation).
+typedef DeleteSummary = ({int sessions, int tasks, int specs, int worktrees});
 
 final projectServiceProvider = Provider(ProjectService.new);

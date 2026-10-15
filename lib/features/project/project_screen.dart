@@ -8,6 +8,7 @@ import '../sessions/widgets/session_style.dart';
 import 'new_project_dialog.dart';
 import 'project_plan.dart';
 import 'project_planner.dart';
+import 'project_service.dart';
 import 'widgets/create_step.dart';
 import 'widgets/project_widgets.dart';
 import 'widgets/roadmap_step.dart';
@@ -205,100 +206,131 @@ class _Stepper extends ConsumerWidget {
     final planner = ref.read(projectPlannerProvider.notifier);
     return Container(
       width: 232,
-      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       decoration: const BoxDecoration(
         color: AppColors.panel,
         border: Border(right: BorderSide(color: AppColors.border)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  (data.vision.name.isEmpty ? 'Projeto' : data.vision.name)
-                      .toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: sectionTitleStyle,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  workspace.path,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+      // Short windows: the column scrolls instead of overflowing; otherwise
+      // the Spacer keeps the actions at the bottom.
+      child: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+            sliver: SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (data.vision.name.isEmpty
+                                  ? 'Projeto'
+                                  : data.vision.name)
+                              .toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: sectionTitleStyle,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          workspace.path,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          const _StepItem(
-            number: 1,
-            title: 'Pasta e repositório',
-            subtitle: 'git init · commit inicial',
-            state: _StepState.done,
-          ),
-          for (final s in ProjectStep.values)
-            _StepItem(
-              key: ValueKey('project-stepper-${s.name}'),
-              number: s.index + 2,
-              title: s.label,
-              subtitle: _summary(s),
-              state: s == current
-                  ? _StepState.current
-                  : done || s.index < current.index
-                  ? _StepState.done
-                  : _StepState.todo,
-              onTap: !done && !busy && s != current && data.reachable(s)
-                  ? () => planner.goTo(workspace, s)
-                  : null,
-            ),
-          const Spacer(),
-          if (plan.costUsd > 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
-              child: Text(
-                'Planner · ${formatCost(plan.costUsd)}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+                  const SizedBox(height: 12),
+                  const _StepItem(
+                    number: 1,
+                    title: 'Pasta e repositório',
+                    subtitle: 'git init · commit inicial',
+                    state: _StepState.done,
+                  ),
+                  for (final s in ProjectStep.values)
+                    _StepItem(
+                      key: ValueKey('project-stepper-${s.name}'),
+                      number: s.index + 2,
+                      title: s.label,
+                      subtitle: _summary(s),
+                      state: s == current
+                          ? _StepState.current
+                          : done || s.index < current.index
+                          ? _StepState.done
+                          : _StepState.todo,
+                      onTap: !done && !busy && s != current && data.reachable(s)
+                          ? () => planner.goTo(workspace, s)
+                          : null,
+                    ),
+                  const Spacer(),
+                  if (plan.costUsd > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
+                      child: Text(
+                        'Planner · ${formatCost(plan.costUsd)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceRaised,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      done
+                          ? 'Projeto criado. O plano fica aqui como referência.'
+                          : 'O planner só lê o repositório. Nada é gravado até '
+                                'Criar projeto.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    key: const ValueKey('project-discard'),
+                    onPressed: busy ? null : () => _discard(context, ref),
+                    child: const Text(
+                      'Descartar plano',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey('project-delete'),
+                    onPressed: busy
+                        ? null
+                        : () => showDialog<void>(
+                            context: context,
+                            barrierColor: AppColors.scrim,
+                            builder: (_) =>
+                                DeleteProjectDialog(workspace: workspace),
+                          ),
+                    child: const Text(
+                      'Apagar projeto',
+                      style: TextStyle(fontSize: 12, color: AppColors.red),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceRaised,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              done
-                  ? 'Projeto criado. O plano fica aqui como referência.'
-                  : 'O planner só lê o repositório. Nada é gravado até '
-                        'Criar projeto.',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            key: const ValueKey('project-discard'),
-            onPressed: busy ? null : () => _discard(context, ref),
-            child: const Text(
-              'Descartar plano',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -415,6 +447,205 @@ class _StepItem extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Apagar projeto": shows what goes away and asks for the project name.
+class DeleteProjectDialog extends ConsumerStatefulWidget {
+  const DeleteProjectDialog({super.key, required this.workspace});
+
+  final Workspace workspace;
+
+  @override
+  ConsumerState<DeleteProjectDialog> createState() =>
+      _DeleteProjectDialogState();
+}
+
+class _DeleteProjectDialogState extends ConsumerState<DeleteProjectDialog> {
+  final _name = TextEditingController();
+  late final Future<DeleteSummary> _summary = ref
+      .read(projectServiceProvider)
+      .deleteSummary(widget.workspace);
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _delete() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref.read(projectServiceProvider).deleteProject(widget.workspace);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ws = widget.workspace;
+    final unsafe = isUnsafeProjectPath(ws.path);
+    final typed = _name.text.trim() == ws.name;
+    const body = TextStyle(fontSize: 13, color: AppColors.text, height: 1.45);
+    const muted = TextStyle(fontSize: 12, color: AppColors.textSecondary);
+    return Align(
+      alignment: const Alignment(0, -0.5),
+      child: Material(
+        key: const ValueKey('delete-project-dialog'),
+        color: AppColors.panel,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: SessionColors.stopBorder),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Text(
+                  'Apagar o projeto ${ws.name}?',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.red,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Isto vai:', style: muted),
+                    const SizedBox(height: 6),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: '• Mover a pasta '),
+                          TextSpan(
+                            text: ws.path,
+                            style: const TextStyle(fontFamily: AppFonts.mono),
+                          ),
+                          const TextSpan(
+                            text: ' para a lixeira (dá para restaurar de lá).',
+                          ),
+                        ],
+                      ),
+                      style: body,
+                    ),
+                    FutureBuilder<DeleteSummary>(
+                      future: _summary,
+                      builder: (context, snap) {
+                        final s = snap.data;
+                        return Text(
+                          s == null
+                              ? '• Remover do Promptorium o plano, as specs, as '
+                                    'tarefas, as sessões e as conversas.'
+                              : '• Remover do Promptorium o plano, '
+                                    '${s.specs} specs, ${s.tasks} tarefas, '
+                                    '${s.sessions} sessões e as conversas '
+                                    '(sessões vivas são paradas).\n'
+                                    '• Apagar ${s.worktrees} worktrees de sessão.',
+                          style: body,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Commits já enviados para um repositório remoto '
+                      'continuam lá.',
+                      style: muted,
+                    ),
+                    const SizedBox(height: 14),
+                    if (unsafe)
+                      Text(
+                        'Por segurança, ${ws.path} não pode ser apagada pelo '
+                        'app.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.red,
+                        ),
+                      )
+                    else ...[
+                      Text(
+                        'Para confirmar, digite o nome do projeto: ${ws.name}',
+                        style: muted,
+                      ),
+                      const SizedBox(height: 6),
+                      TextField(
+                        key: const ValueKey('delete-project-name'),
+                        controller: _name,
+                        enabled: !_busy,
+                        autofocus: true,
+                        onChanged: (_) => setState(() {}),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 12,
+                          color: AppColors.text,
+                        ),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.red,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      key: const ValueKey('delete-project-confirm'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.red,
+                        foregroundColor: AppColors.onAmber,
+                      ),
+                      onPressed: !unsafe && typed && !_busy ? _delete : null,
+                      child: Text(_busy ? 'Apagando…' : 'Apagar projeto'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
