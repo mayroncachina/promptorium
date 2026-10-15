@@ -33,8 +33,11 @@ pela própria stdin/stdout (`--permission-prompt-tool stdio`). Cada sessão de t
 Rodapé fixo: CLI, sessões ativas/aguardando, subagentes, MCP, tokens do dia, uso 5h / semana (do
 `rate_limit_event`).
 
-O app nunca usa `bypassPermissions` / `--dangerously-skip-permissions` e nunca escreve
-`~/.claude.json` ou `.mcp.json` diretamente (só via `claude mcp …`).
+O app só usa `--dangerously-skip-permissions` quando você escolhe o modo **"sem perguntar nada
+(perigoso)"** em Nova sessão (desligado por padrão, com aviso; a escolha fica lembrada para a
+próxima sessão; nunca é pré-selecionado por um agente). O planner, as conversas do Prompt e as
+sondagens nunca usam. O app nunca escreve `~/.claude.json` ou `.mcp.json` diretamente (só via
+`claude mcp …`).
 
 ## Atalhos de teclado
 
@@ -130,7 +133,7 @@ sessões, conversas, preferências). Nenhum segredo (tokens/variáveis de MCP) �
 ```bash
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test
-flutter test                      # 281 testes; os 3 de integração ficam pulados
+flutter test                      # 284 testes; os 3 de integração ficam pulados
 ```
 
 Testes de **integração** chamam o Claude Code CLI de verdade e **gastam alguns centavos** do

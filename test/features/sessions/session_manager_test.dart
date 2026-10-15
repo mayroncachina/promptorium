@@ -142,6 +142,48 @@ void main() {
     expect(c.read(navigationProvider), AppSection.sessions);
   });
 
+  test('"sem perguntar": --dangerously-skip-permissions on create and on '
+      'resume (stored as bypassPermissions)', () async {
+    final db = memoryDatabase();
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: db,
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(
+        workspace: ws,
+        title: 'Livre',
+        prompt: 'Faça',
+        permissionMode: ClaudePermissionMode.skipPermissions,
+      ),
+    );
+    expect(cli.args.single, contains('--dangerously-skip-permissions'));
+    expect(cli.args.single, isNot(contains('--permission-mode')));
+    expect(
+      (await c.read(sessionsRepoProvider).getById(id))!.permissionMode,
+      'bypassPermissions',
+    );
+    cli.last.emit(fixtureLines().last); // result
+    await settle();
+    await cli.last.finish(0);
+    await settle();
+    await m.send(id, 'De novo');
+    await settle();
+    expect(cli.args.last, containsAllInOrder(['--resume', id]));
+    expect(cli.args.last, contains('--dangerously-skip-permissions'));
+  });
+
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();
     final cli = FakeCli();

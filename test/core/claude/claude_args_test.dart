@@ -119,12 +119,33 @@ void main() {
       () => const ClaudeOptions(maxTurns: 0).toArgs(),
       throwsArgumentError,
     );
-    expect(ClaudePermissionMode.fromCli('bypassPermissions'), isNull);
     expect(ClaudePermissionMode.fromCli('plan'), ClaudePermissionMode.plan);
+    // Only the opt-in mode skips permissions; no other mode or default does.
+    expect(const ClaudeOptions().toArgs().join(' '), isNot(contains('danger')));
     for (final m in ClaudePermissionMode.values) {
+      if (m == ClaudePermissionMode.skipPermissions) continue;
       final args = ClaudeOptions(permissionMode: m).toArgs().join(' ');
       expect(args, isNot(contains('bypass')));
       expect(args, isNot(contains('dangerously')));
     }
   });
+
+  test(
+    'skipPermissions (the user\'s opt-in) is --dangerously-skip-permissions '
+    'without --permission-mode, and round-trips through the stored value',
+    () {
+      final args = const ClaudeOptions(
+        permissionMode: ClaudePermissionMode.skipPermissions,
+      ).toArgs();
+      expect(args, contains('--dangerously-skip-permissions'));
+      expect(args, isNot(contains('--permission-mode')));
+      expect(args, isNot(contains('bypassPermissions')));
+      expect(
+        ClaudePermissionMode.fromCli(
+          ClaudePermissionMode.skipPermissions.cliValue,
+        ),
+        ClaudePermissionMode.skipPermissions,
+      );
+    },
+  );
 }

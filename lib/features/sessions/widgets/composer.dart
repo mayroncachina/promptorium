@@ -15,14 +15,20 @@ String permissionLabel(ClaudePermissionMode? m) => switch (m) {
   ClaudePermissionMode.plan => 'planejar',
   ClaudePermissionMode.auto => 'automático',
   ClaudePermissionMode.dontAsk => 'não perguntar',
+  ClaudePermissionMode.skipPermissions => 'sem perguntar nada (perigoso)',
 };
 
-/// Modes offered in the UI (plano, Fase 5: default / acceptEdits / plan).
+/// Modes offered in the UI (plano, Fase 5: default / acceptEdits / plan; the
+/// user's opt-in skipPermissions).
 const uiPermissionModes = [
   ClaudePermissionMode.defaultMode,
   ClaudePermissionMode.acceptEdits,
   ClaudePermissionMode.plan,
+  ClaudePermissionMode.skipPermissions,
 ];
+
+/// `app_settings` key of the last mode chosen in "Nova sessão".
+const lastPermissionModeKey = 'session.permissionMode';
 
 /// Message box under the timeline. Sends with `ClaudeProcess.send`; a
 /// session without a live process is resumed first (`--resume`).

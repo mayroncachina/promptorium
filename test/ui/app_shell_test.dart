@@ -1,3 +1,7 @@
+import 'package:promptorium/features/sessions/widgets/composer.dart'
+    show lastPermissionModeKey;
+import 'package:promptorium/data/repos/app_settings_repo.dart';
+import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -184,5 +188,44 @@ void main() {
     await ctrl(tester, LogicalKeyboardKey.keyN);
     expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
     expect(item(tester, AppSection.sessions).active, isTrue);
+  });
+
+  testWidgets('Nova sessão: "sem perguntar" is opt-in, warns, and is '
+      'remembered for the next session', (tester) async {
+    final db = await pumpShell(tester);
+    await tester.tap(find.byKey(const ValueKey('title-action')));
+    await tester.pumpAndSettle();
+    ClaudePermissionMode mode() => tester
+        .widget<DropdownButtonFormField<ClaudePermissionMode>>(
+          find.byKey(const ValueKey('new-session-mode')),
+        )
+        .initialValue!;
+    expect(mode(), ClaudePermissionMode.defaultMode);
+    expect(
+      find.byKey(const ValueKey('new-session-skip-warning')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('new-session-mode')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('bypassPermissions — sem perguntar nada (perigoso)').last,
+    );
+    await tester.pumpAndSettle();
+    expect(mode(), ClaudePermissionMode.skipPermissions);
+    expect(
+      find.byKey(const ValueKey('new-session-skip-warning')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    // Only a created session remembers the choice (none was created).
+    await tester.tap(find.byKey(const ValueKey('title-action')));
+    await tester.pumpAndSettle();
+    expect(mode(), ClaudePermissionMode.defaultMode);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(await AppSettingsRepo(db).get(lastPermissionModeKey), isNull);
   });
 }

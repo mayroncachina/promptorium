@@ -1,13 +1,18 @@
 import 'package:flutter/foundation.dart';
 
 /// Permission modes accepted by the app (plano, Fase 0.2).
-/// `bypassPermissions` is deliberately absent (anti-padrão 0.5).
+///
+/// [skipPermissions] is an opt-in exception to anti-padrão 0.5, chosen per
+/// session by the user ("sem perguntar"): it is written as
+/// `--dangerously-skip-permissions` (stored as `bypassPermissions`). The
+/// planner, the Prompt conversations and the probes never use it.
 enum ClaudePermissionMode {
   defaultMode('default'),
   acceptEdits('acceptEdits'),
   plan('plan'),
   auto('auto'),
-  dontAsk('dontAsk');
+  dontAsk('dontAsk'),
+  skipPermissions('bypassPermissions');
 
   const ClaudePermissionMode(this.cliValue);
 
@@ -165,7 +170,9 @@ class ClaudeOptions {
       if (forkSession) '--fork-session',
       if (model != null && model!.isNotEmpty) ...['--model', model!],
       if (agent != null && agent!.isNotEmpty) ...['--agent', agent!],
-      if (permissionMode != null) ...[
+      if (permissionMode == ClaudePermissionMode.skipPermissions)
+        '--dangerously-skip-permissions'
+      else if (permissionMode != null) ...[
         '--permission-mode',
         permissionMode!.cliValue,
       ],

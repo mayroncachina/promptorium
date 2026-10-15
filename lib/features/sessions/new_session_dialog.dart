@@ -6,7 +6,8 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import 'agent_names.dart';
 import 'session_manager.dart';
-import 'widgets/composer.dart' show permissionLabel, uiPermissionModes;
+import 'widgets/composer.dart'
+    show lastPermissionModeKey, permissionLabel, uiPermissionModes;
 import 'widgets/session_style.dart';
 
 /// "Nova sessão" (title bar button / Ctrl+N; "Testar em sessão" of the
@@ -74,7 +75,16 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   late final _prompt = TextEditingController(text: widget.initialPrompt ?? '');
   late String? _agent = widget.initialAgent;
   String _model = 'inherit';
-  ClaudePermissionMode _mode = ClaudePermissionMode.defaultMode;
+
+  /// Last mode chosen here (remembered), else `default`.
+  late ClaudePermissionMode _mode = () {
+    final saved = ClaudePermissionMode.fromCli(
+      ref.read(appSettingsProvider.notifier).get(lastPermissionModeKey),
+    );
+    return saved != null && uiPermissionModes.contains(saved)
+        ? saved
+        : ClaudePermissionMode.defaultMode;
+  }();
 
   /// Whether the mode was taken from the initial agent already.
   bool _modeFromAgent = false;
@@ -85,7 +95,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     _agent = name;
     final ref = agents.where((a) => a.name == name).firstOrNull;
     final mode = ClaudePermissionMode.fromCli(ref?.permissionMode);
-    if (mode != null && uiPermissionModes.contains(mode)) _mode = mode;
+    // Never preselected: skipping permissions is only the user's choice.
+    if (mode != null &&
+        mode != ClaudePermissionMode.skipPermissions &&
+        uiPermissionModes.contains(mode)) {
+      _mode = mode;
+    }
   }
 
   bool _worktree = true;
@@ -131,6 +146,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 taskId: widget.taskId,
               ),
             );
+      if (fork == null) {
+        await ref
+            .read(appSettingsProvider.notifier)
+            .set(lastPermissionModeKey, _mode.cliValue);
+      }
       if (widget.taskId != null && _agent != null) {
         await ref.read(tasksRepoProvider).assignAgent(widget.taskId!, _agent);
       }
@@ -324,6 +344,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       onChanged: (v) => setState(() => _mode = v),
                     ),
                   ),
+                  if (_mode == ClaudePermissionMode.skipPermissions)
+                    const Padding(
+                      key: ValueKey('new-session-skip-warning'),
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(
+                        '--dangerously-skip-permissions: o agente edita '
+                        'arquivos e roda qualquer comando sem pedir '
+                        'aprovação, inclusive fora do worktree. Use só em '
+                        'projetos e máquinas em que você confia.',
+                        style: TextStyle(fontSize: 11, color: AppColors.red),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   CheckboxListTile(
                     key: const ValueKey('new-session-worktree'),

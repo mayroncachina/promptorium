@@ -116,7 +116,7 @@ Só chegam ao app as chamadas que nenhuma regra resolveu (`acceptEdits`/allow ru
 - ❌ `flutter_markdown`, `riverpod_generator`, `sqlite3_flutter_libs` (com sqlite3 3.x)
 - ❌ Ler stdout do CLI sem `LineSplitter` (cada linha = 1 JSON); ❌ quebrar em tipos desconhecidos — **ignorar** `type`/`subtype` que não conhecer
 - ❌ Fechar a stdin da sessão enquanto ela está viva
-- ❌ `--dangerously-skip-permissions` / `bypassPermissions`
+- ❌ `--dangerously-skip-permissions` / `bypassPermissions` — **exceção (pedido do usuário, pós-F12)**: modo opt-in por sessão "sem perguntar nada (perigoso)" em Nova sessão (`ClaudePermissionMode.skipPermissions`, gravado como `bypassPermissions`, emitido como `--dangerously-skip-permissions` sem `--permission-mode`; reaplicado no `--resume`; nunca pré-selecionado por agente; planner/Prompt/sondagens continuam sem).
 - ❌ Editar `~/.claude.json` na mão — usar `claude mcp add/remove/list`
 - ❌ Depender do formato dos `.jsonl` de transcrição para lógica — só exibição, com parse tolerante
 - ❌ Inventar flags; conferir em `cli-reference` (lembrar: `--help` não lista tudo)
