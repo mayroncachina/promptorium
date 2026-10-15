@@ -685,11 +685,185 @@ class _IdeasEditorState extends ConsumerState<_IdeasEditor> {
       ),
       const SizedBox(height: 4),
       const Text(
-        'Ficam registradas no plano, mas não viram specs nem tarefas.',
+        'Ficam no plano sem virar tarefas. Para trazer uma para o roadmap, '
+        'clique nela.',
         style: _hint,
       ),
     ],
   );
+}
+
+/// Actions of one "Depois" idea: plan it with the planner, turn it into an
+/// empty spec, or remove it.
+Future<void> showIdeaDialog(
+  BuildContext context, {
+  required Workspace workspace,
+  required String idea,
+}) => showDialog<void>(
+  context: context,
+  barrierColor: AppColors.scrim,
+  builder: (_) => _IdeaDialog(workspace: workspace, idea: idea),
+);
+
+class _IdeaDialog extends ConsumerStatefulWidget {
+  const _IdeaDialog({required this.workspace, required this.idea});
+
+  final Workspace workspace;
+  final String idea;
+
+  @override
+  ConsumerState<_IdeaDialog> createState() => _IdeaDialogState();
+}
+
+class _IdeaDialogState extends ConsumerState<_IdeaDialog> {
+  RoadmapPhase _phase = RoadmapPhase.mvp;
+
+  ProjectPlanner get _planner => ref.read(projectPlannerProvider.notifier);
+
+  void _close() => Navigator.of(context).pop();
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = ref.watch(
+      projectPlannerProvider.select(
+        (m) => m[widget.workspace.id]?.isBusy ?? false,
+      ),
+    );
+    return Align(
+      alignment: const Alignment(0, -0.5),
+      child: Material(
+        key: const ValueKey('roadmap-idea-dialog'),
+        color: AppColors.panel,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Text(
+                  'Trazer a ideia para o roadmap',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceRaised,
+                        border: Border.all(color: AppColors.border),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        widget.idea,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Fase da nova spec', style: _label),
+                    const SizedBox(height: 6),
+                    SegmentedButton<RoadmapPhase>(
+                      key: const ValueKey('roadmap-idea-phase'),
+                      showSelectedIcon: false,
+                      segments: [
+                        for (final p in RoadmapPhase.values)
+                          ButtonSegment(value: p, label: Text(p.label)),
+                      ],
+                      selected: {_phase},
+                      onSelectionChanged: (s) =>
+                          setState(() => _phase = s.first),
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      key: const ValueKey('roadmap-idea-plan'),
+                      onPressed: busy
+                          ? null
+                          : () {
+                              _close();
+                              _planner.planIdea(
+                                widget.workspace,
+                                widget.idea,
+                                _phase,
+                              );
+                            },
+                      child: const Text('Gerar spec e tarefas com o planner'),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'O planner escreve requisitos, critérios e tarefas e '
+                      'liga as dependências às tarefas que já existem.',
+                      style: _hint,
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      key: const ValueKey('roadmap-idea-empty'),
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              await _planner.ideaToSpec(
+                                widget.workspace,
+                                widget.idea,
+                                _phase,
+                              );
+                              if (mounted) _close();
+                            },
+                      child: const Text(
+                        'Criar spec vazia (eu escrevo as tarefas)',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Row(
+                  children: [
+                    TextButton(
+                      key: const ValueKey('roadmap-idea-remove'),
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              await _planner.removeIdea(
+                                widget.workspace,
+                                widget.idea,
+                              );
+                              if (mounted) _close();
+                            },
+                      child: const Text(
+                        'Remover ideia',
+                        style: TextStyle(color: AppColors.red),
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton(onPressed: _close, child: const Text('Fechar')),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Small "+ …" text button of the roadmap columns.

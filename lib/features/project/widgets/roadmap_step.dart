@@ -197,7 +197,9 @@ class _Phases extends StatelessWidget {
         badge: 'ideias',
         badgeColor: AppColors.textSecondary,
         border: AppColors.border,
-        subtitle: 'Fora do escopo do MVP. Não viram tarefas.',
+        subtitle:
+            'Fora do escopo por enquanto. Clique para trazer uma ideia '
+            'para o roadmap.',
         workspace: workspace,
         roadmap: roadmap,
         specs: const [],
@@ -321,20 +323,30 @@ class _PhaseColumn extends StatelessWidget {
               specIndex: i,
             ),
           ),
-        for (final idea in ideas)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
+        for (final (i, idea) in ideas.indexed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
               color: AppColors.surfaceRaised,
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              idea,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
+              shape: RoundedRectangleBorder(
+                side: const BorderSide(color: AppColors.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: InkWell(
+                key: ValueKey('roadmap-idea-$i'),
+                onTap: () =>
+                    showIdeaDialog(context, workspace: workspace, idea: idea),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    idea,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

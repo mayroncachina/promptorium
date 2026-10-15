@@ -345,6 +345,49 @@ void main() {
     await unmount(tester, c);
   });
 
+  testWidgets('Depois: an idea opens its actions; empty spec and removal', (
+    tester,
+  ) async {
+    final (c, db) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(
+        vision: vision,
+        stack: stack,
+        roadmap: Roadmap(
+          specs: [
+            RoadmapSpec(
+              title: 'Esqueleto',
+              phase: RoadmapPhase.foundation,
+              tasks: [RoadmapTask(code: 'T1', title: 'Criar o projeto')],
+            ),
+          ],
+          later: ['App nativo', 'Modo offline'],
+        ),
+      ),
+      step: ProjectStep.roadmap,
+    );
+    await tester.tap(find.byKey(const ValueKey('roadmap-idea-0')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('roadmap-idea-dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey('roadmap-idea-plan')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('roadmap-idea-empty')));
+    await tester.pumpAndSettle();
+    var r = (await stored(db)).roadmap;
+    expect(r.specs.last.title, 'App nativo');
+    expect(r.specs.last.phase, RoadmapPhase.mvp);
+    expect(r.later, ['Modo offline']);
+    expect(find.byKey(const ValueKey('roadmap-idea-dialog')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('roadmap-idea-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('roadmap-idea-remove')));
+    await tester.pumpAndSettle();
+    r = (await stored(db)).roadmap;
+    expect(r.later, isEmpty);
+    expect(find.text('Modo offline'), findsNothing);
+    await unmount(tester, c);
+  });
+
   testWidgets('every step fits the minimum window (1100×700)', (tester) async {
     for (final step in ProjectStep.values) {
       final (c, _) = await pumpProject(

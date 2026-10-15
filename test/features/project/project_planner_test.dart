@@ -291,4 +291,103 @@ void main() {
     planner().clearError(ws.id);
     expect(c.read(projectPlannerProvider)[ws.id], isNull);
   });
+
+  test('Ideia → spec: planner run with one spec, codes after the existing '
+      'ones, idea removed; empty spec and removal by hand', () async {
+    await planner().start(ws);
+    await c
+        .read(projectPlansRepoProvider)
+        .update(
+          ws.id,
+          ProjectPlansCompanion(
+            data: Value(
+              const ProjectPlanData(
+                vision: VisionPlan(summary: 'Receitas', mvp: ['Cadastro']),
+                roadmap: Roadmap(
+                  specs: [
+                    RoadmapSpec(
+                      title: 'Esqueleto',
+                      phase: RoadmapPhase.foundation,
+                      tasks: [RoadmapTask(code: 'T1', title: 'Criar')],
+                    ),
+                  ],
+                  later: ['Modo offline', 'App nativo', 'Importar receitas'],
+                ),
+              ).encode(),
+            ),
+          ),
+        );
+
+    final f = planner().planIdea(ws, 'Modo offline', RoadmapPhase.mvp);
+    await settle();
+    expect(
+      c.read(projectPlannerProvider)[ws.id]?.busy,
+      contains('Modo offline'),
+    );
+    final args = cli.args.last;
+    expect(jsonDecode(option(args, '--json-schema')), ideaSpecSchema);
+    final sent = cli.last.writtenJson.single['message']['content'] as String;
+    expect(sent, contains('Ideia: Modo offline'));
+    expect(sent, contains('Phase: mvp'));
+    expect(sent, contains('- T1: Criar'));
+    expect(sent, contains('a partir de T2'));
+    cli.last.emit(
+      resultLine({
+        'spec': {
+          'title': 'Modo offline',
+          'phase': 'foundation', // the user's choice wins
+          'objective': 'Usar sem internet.',
+          'requirements': [
+            {'id': 'R1', 'text': 'Receitas offline'},
+          ],
+          'acceptance': ['Abre sem rede'],
+          'tasks': [
+            {
+              'code': 'T2',
+              'title': 'Cache local',
+              'description': '',
+              'requirement': 'R1',
+              'dependsOn': ['T1'],
+            },
+          ],
+        },
+      }),
+    );
+    await f;
+    var data = (await load()).$2;
+    expect(data.roadmap.specs.last.title, 'Modo offline');
+    expect(data.roadmap.specs.last.phase, RoadmapPhase.mvp);
+    expect(data.roadmap.specs.last.tasks.single.code, 'T2');
+    expect(data.roadmap.later, ['App nativo', 'Importar receitas']);
+    expect(data.roadmap.edited, isTrue);
+
+    await planner().ideaToSpec(ws, 'App nativo', RoadmapPhase.mvp);
+    await planner().removeIdea(ws, 'Importar receitas');
+    data = (await load()).$2;
+    expect(data.roadmap.specs.last.title, 'App nativo');
+    expect(data.roadmap.specs.last.tasks, isEmpty);
+    expect(data.roadmap.later, isEmpty);
+
+    // A planner answer without tasks is an error; nothing changes.
+    final g = planner().planIdea(ws, 'Outra', RoadmapPhase.mvp);
+    await settle();
+    cli.last.emit(
+      resultLine({
+        'spec': {
+          'title': 'Outra',
+          'phase': 'mvp',
+          'objective': '',
+          'requirements': <Object>[],
+          'acceptance': <String>[],
+          'tasks': <Object>[],
+        },
+      }),
+    );
+    await g;
+    expect(
+      c.read(projectPlannerProvider)[ws.id]?.error,
+      'O planner não gerou a spec com tarefas.',
+    );
+    expect((await load()).$2.roadmap.specs, hasLength(3));
+  });
 }

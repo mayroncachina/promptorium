@@ -55,35 +55,37 @@ final stackSchema = _object({
   'claudeMd': _str,
 });
 
-final roadmapSchema = _object({
-  'specs': {
+final _specSchema = _object({
+  'title': _str,
+  'phase': {
+    'type': 'string',
+    'enum': ['foundation', 'mvp'],
+  },
+  'objective': _str,
+  'requirements': {
+    'type': 'array',
+    'items': _object({'id': _str, 'text': _str}),
+  },
+  'acceptance': _strList,
+  'tasks': {
     'type': 'array',
     'items': _object({
+      'code': _str,
       'title': _str,
-      'phase': {
-        'type': 'string',
-        'enum': ['foundation', 'mvp'],
-      },
-      'objective': _str,
-      'requirements': {
-        'type': 'array',
-        'items': _object({'id': _str, 'text': _str}),
-      },
-      'acceptance': _strList,
-      'tasks': {
-        'type': 'array',
-        'items': _object({
-          'code': _str,
-          'title': _str,
-          'description': _str,
-          'requirement': _str,
-          'dependsOn': _strList,
-        }),
-      },
+      'description': _str,
+      'requirement': _str,
+      'dependsOn': _strList,
     }),
   },
+});
+
+final roadmapSchema = _object({
+  'specs': {'type': 'array', 'items': _specSchema},
   'later': _strList,
 });
+
+/// One spec out of a "Depois" idea.
+final ideaSpecSchema = _object({'spec': _specSchema});
 
 const _base =
     'Você é o planner do Promptorium e está ajudando a planejar um projeto '
@@ -131,6 +133,17 @@ const roadmapSystemPrompt =
     'ou indiretamente, das tarefas da fundação. Itens fora do escopo vão em '
     'later e não viram tarefas.';
 
+const ideaSystemPrompt =
+    '$_base Etapa Roadmap: o usuário decidiu trazer para o roadmap uma ideia '
+    'que estava fora do escopo. Escreva UMA spec para ela, na phase pedida: '
+    'title, objective (1 ou 2 frases), requirements (R1, R2…), acceptance '
+    '(critérios verificáveis) e tasks pequenas e verificáveis (title no '
+    'imperativo, até 70 caracteres; description com o que fazer e como '
+    'verificar; requirement = id de um requisito desta spec). Use os codes '
+    'novos indicados. Em dependsOn, use codes desta spec ou das tarefas já '
+    'existentes listadas — toda tarefa do mvp depende, direta ou '
+    'indiretamente, da fundação.';
+
 String _json(Object? v) => const JsonEncoder.withIndent('  ').convert(v);
 
 /// User message of a stack run.
@@ -174,6 +187,83 @@ String roadmapPrompt(VisionPlan vision, StackPlan stack, {String? request}) {
       ..writeln('Pedido do usuário: ${request.trim()}');
   }
   return b.toString().trimRight();
+}
+
+/// User message of an idea run.
+String ideaPrompt(String idea, RoadmapPhase phase, ProjectPlanData data) {
+  final roadmap = data.roadmap;
+  final b = StringBuffer()
+    ..writeln('Ideia: $idea')
+    ..writeln(
+      'Phase: ${phase == RoadmapPhase.foundation ? 'foundation' : 'mvp'}',
+    )
+    ..writeln()
+    ..writeln('Visão do projeto (JSON):')
+    ..writeln(_json(data.vision.toJson()))
+    ..writeln()
+    ..writeln('Stack:');
+  for (final d in data.stack.decisions) {
+    b.writeln('- ${d.area}: ${d.choice}');
+  }
+  b
+    ..writeln()
+    ..writeln('Roadmap atual (tarefas existentes):');
+  for (final s in roadmap.specs) {
+    b.writeln('## ${s.phase.label} · ${s.title}');
+    for (final t in s.tasks) {
+      b.writeln('- ${t.code}: ${t.title}');
+    }
+  }
+  final next = int.parse(roadmap.nextTaskCode().substring(1));
+  b
+    ..writeln()
+    ..writeln('Codes novos: a partir de T$next (T$next, T${next + 1}, …).');
+  return b.toString().trimRight();
+}
+
+/// [roadmap] with the spec of an idea run added: codes already in use are
+/// renamed (with the spec's own references), [idea] leaves "Depois" and the
+/// result is normalized and marked as edited.
+Roadmap addIdeaSpec(Roadmap roadmap, RoadmapSpec spec, String idea) {
+  final used = {for (final t in roadmap.tasks) t.code};
+  var n = 0;
+  String fresh() {
+    String c;
+    do {
+      c = 'T${++n}';
+    } while (used.contains(c));
+    used.add(c);
+    return c;
+  }
+
+  final rename = <String, String>{};
+  for (final t in spec.tasks) {
+    if (t.code.isEmpty || used.contains(t.code) || rename.containsKey(t.code)) {
+      rename[t.code] = fresh();
+    } else {
+      used.add(t.code);
+    }
+  }
+  final tasks = [
+    for (final t in spec.tasks)
+      RoadmapTask(
+        code: rename[t.code] ?? t.code,
+        title: t.title,
+        description: t.description,
+        requirement: t.requirement,
+        dependsOn: [for (final d in t.dependsOn) rename[d] ?? d],
+      ),
+  ];
+  return roadmap
+      .copyWith(
+        specs: [...roadmap.specs, spec.withTasks(tasks)],
+        later: [
+          for (final l in roadmap.later)
+            if (l != idea) l,
+        ],
+      )
+      .normalized()
+      .copyWith(edited: true);
 }
 
 Map _map(Result r) {
@@ -411,6 +501,60 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       final (_, latest) = await _load(ws);
       await _save(ws, latest.copyWith(roadmap: roadmap));
     },
+  );
+
+  /// Turns a "Depois" idea into a spec with tasks written by the planner.
+  Future<void> planIdea(
+    Workspace ws,
+    String idea,
+    RoadmapPhase phase,
+  ) => _guarded(ws, 'Planejando “$idea”…', () async {
+    final (_, data) = await _load(ws);
+    final r = await _run(
+      ws,
+      _options(ideaSystemPrompt, ideaSpecSchema),
+      ideaPrompt(idea, phase, data),
+    );
+    final m = _map(r);
+    final spec = m['spec'] is Map
+        ? RoadmapSpec.fromJson(m['spec'] as Map)
+        : null;
+    if (spec == null || spec.title.isEmpty || spec.tasks.isEmpty) {
+      throw const PlannerException('O planner não gerou a spec com tarefas.');
+    }
+    final (_, latest) = await _load(ws);
+    await _save(
+      ws,
+      latest.copyWith(
+        roadmap: addIdeaSpec(latest.roadmap, spec.copyWith(phase: phase), idea),
+      ),
+    );
+  });
+
+  /// Turns a "Depois" idea into an empty spec (tasks written by hand).
+  Future<void> ideaToSpec(Workspace ws, String idea, RoadmapPhase phase) =>
+      editRoadmap(
+        ws,
+        (r) => r.copyWith(
+          specs: [
+            ...r.specs,
+            RoadmapSpec(title: idea, phase: phase),
+          ],
+          later: [
+            for (final l in r.later)
+              if (l != idea) l,
+          ],
+        ),
+      );
+
+  Future<void> removeIdea(Workspace ws, String idea) => editRoadmap(
+    ws,
+    (r) => r.copyWith(
+      later: [
+        for (final l in r.later)
+          if (l != idea) l,
+      ],
+    ),
   );
 
   Future<void> _guarded(

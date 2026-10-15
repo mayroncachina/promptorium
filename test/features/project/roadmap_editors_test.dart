@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/features/project/project_plan.dart';
+import 'package:promptorium/features/project/project_planner.dart';
 import 'package:promptorium/features/project/widgets/roadmap_editors.dart';
 
 const roadmap = Roadmap(
@@ -84,5 +85,34 @@ void main() {
           .edited,
       isFalse,
     );
+  });
+
+  test('idea spec: colliding codes renamed with their references, idea '
+      'leaves "Depois", MVP waits for the foundation', () {
+    final r = addIdeaSpec(
+      roadmap.copyWith(later: ['Modo offline', 'App nativo']),
+      const RoadmapSpec(
+        title: 'Modo offline',
+        phase: RoadmapPhase.mvp,
+        tasks: [
+          RoadmapTask(code: 'T2', title: 'Cache local'),
+          RoadmapTask(
+            code: 'T5',
+            title: 'Sincronizar',
+            dependsOn: ['T2', 'T3'],
+          ),
+        ],
+      ),
+      'Modo offline',
+    );
+    expect(r.later, ['App nativo']);
+    expect(r.edited, isTrue);
+    final spec = r.specs.last;
+    expect(spec.title, 'Modo offline');
+    // T2 was taken: renamed to the first free code (T4); T5 kept; its
+    // reference to the renamed task follows, T3 (existing) stays.
+    expect(spec.tasks.map((t) => t.code), ['T4', 'T5']);
+    expect(spec.tasks[0].dependsOn, ['T1']);
+    expect(spec.tasks[1].dependsOn, ['T4', 'T3']);
   });
 }
