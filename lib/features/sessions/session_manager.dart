@@ -16,6 +16,7 @@ import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
 import 'timeline.dart';
@@ -264,6 +265,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       );
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
       await _repo.setStatus(id, SessionStatus.running);
+      await _syncTask(id, SessionStatus.running);
     });
     await proc.process.send(msg);
   }
@@ -538,6 +540,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         p.pending.add(e);
         p.pendingAt[e.requestId] = DateTime.now();
         await _repo.setStatus(id, SessionStatus.waitingApproval);
+        await _syncTask(id, SessionStatus.waitingApproval);
         _notify(
           'Aprovação pendente',
           '${p.title}: ${e.displayName ?? e.toolName} '
@@ -569,10 +572,11 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
         await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
         p.subagents.clear();
-        await _repo.setStatus(
-          id,
-          e.isSuccess ? SessionStatus.completed : SessionStatus.failed,
-        );
+        final status = e.isSuccess
+            ? SessionStatus.completed
+            : SessionStatus.failed;
+        await _repo.setStatus(id, status);
+        await _syncTask(id, status, fromResult: true);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
@@ -663,6 +667,30 @@ class SessionManager extends Notifier<SessionManagerState> {
   // --- helpers ---------------------------------------------------------------
 
   SessionsRepo get _repo => ref.read(sessionsRepoProvider);
+
+  /// Moves the session's task (`sessions.task_id`) on the kanban
+  /// ([taskStatusForSession]). Errors only log.
+  Future<void> _syncTask(
+    String id,
+    SessionStatus status, {
+    bool fromResult = false,
+  }) async {
+    try {
+      final taskId = (await _repo.getById(id))?.taskId;
+      if (taskId == null) return;
+      final tasks = ref.read(tasksRepoProvider);
+      final task = await tasks.getById(taskId);
+      if (task == null) return;
+      final next = taskStatusForSession(
+        task.status,
+        status,
+        fromResult: fromResult,
+      );
+      if (next != null) await tasks.setStatus(taskId, next);
+    } catch (e) {
+      debugPrint('sessão $id: tarefa não atualizada — $e');
+    }
+  }
 
   SessionTimelineNotifier _timeline(String id) =>
       ref.read(sessionTimelineProvider(id).notifier);

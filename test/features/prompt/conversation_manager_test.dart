@@ -69,6 +69,19 @@ void main() {
       expect(o.permissionMode, ClaudePermissionMode.acceptEdits);
     });
 
+    test('Refinar (DT-35) = default without disallowed tools: edits ask for '
+        'approval; never acceptEdits / bypass', () {
+      final a = args(PromptMode.refine);
+      expect(a, containsAllInOrder(['--permission-mode', 'default']));
+      expect(a, isNot(contains('acceptEdits')));
+      expect(a, isNot(contains('--disallowedTools')));
+      expect(a, containsAllInOrder(['--permission-prompt-tool', 'stdio']));
+      expect(a.join(' '), isNot(contains('bypassPermissions')));
+      expect(a.join(' '), isNot(contains('dangerously')));
+      expect(PromptMode.selectable, isNot(contains(PromptMode.refine)));
+      expect(PromptMode.fromName('refine'), PromptMode.refine);
+    });
+
     test('registry: Claude Code active, Codex / Gemini CLI coming soon', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);

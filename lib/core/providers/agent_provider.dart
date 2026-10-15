@@ -12,9 +12,17 @@ enum PromptMode {
   plan('Planejar', 'propõe um plano antes de agir', 'planejamento'),
 
   /// May edit the workspace folder (`--permission-mode acceptEdits`).
-  edit('Editar', 'pode editar a pasta do workspace', 'pode editar');
+  edit('Editar', 'pode editar a pasta do workspace', 'pode editar'),
+
+  /// Internal mode of "Refinar com IA" (Specs, DT-35): `--permission-mode
+  /// default` without disallowed tools — reads freely, but every edit /
+  /// command asks for approval inline. Not offered in the mode switch.
+  refine('Refinar', 'edições pedem aprovação', 'edita com aprovação');
 
   const PromptMode(this.label, this.hint, this.access);
+
+  /// Modes offered in the Prompt mode switch.
+  static const selectable = [ask, plan, edit];
 
   final String label;
 

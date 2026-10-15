@@ -1,11 +1,717 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../ui/widgets/placeholder_screen.dart';
+import '../../core/providers/agent_provider.dart' show PromptMode;
+import '../../data/providers.dart';
+import '../../ui/shell/navigation.dart';
+import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/code_editor/app_code_editor.dart';
+import '../../ui/widgets/zoom_control.dart';
+import '../prompt/conversation_manager.dart';
+import '../sessions/widgets/session_style.dart';
+import '../tasks/new_task_dialog.dart';
+import 'spec_service.dart';
+import 'task_planner.dart';
+import 'widgets/spec_list.dart';
+import 'widgets/spec_tasks_panel.dart';
 
-class SpecsScreen extends StatelessWidget {
+/// Editor modes of the mockup (Editar / Dividido / Visualizar).
+enum SpecViewMode {
+  edit('Editar'),
+  split('Dividido'),
+  preview('Visualizar');
+
+  const SpecViewMode(this.label);
+
+  final String label;
+}
+
+/// First message of "Refinar com IA" (Prompt screen, mode
+/// [PromptMode.refine]: edits ask for approval inline — DT-35).
+String refineSpecPrompt(Spec spec) =>
+    'Refine a spec @${spec.path} (${spec.code}). Melhore o objetivo, '
+    'deixe os requisitos verificáveis (um por linha, no formato '
+    '"- R1 · texto"), complete os critérios de aceite e liste as perguntas '
+    'em aberto. Edite somente esse arquivo e mantenha o frontmatter '
+    '(id, status). Antes de editar, resuma o que pretende mudar.';
+
+/// Whether the open spec has unsaved changes (asked before switching).
+class SpecDirty extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool v) {
+    if (state != v) state = v;
+  }
+}
+
+final specDirtyProvider = NotifierProvider<SpecDirty, bool>(SpecDirty.new);
+
+/// Specs screen (plano, Fase 8; docs/mockups/Specs.dc.html): list of
+/// `specs/SPEC-*.md`, re_editor with modes, generated tasks + traceability.
+class SpecsScreen extends ConsumerStatefulWidget {
   const SpecsScreen({super.key});
 
+  static const editorKey = 'specs';
+
   @override
-  Widget build(BuildContext context) =>
-      const PlaceholderScreen(title: 'Specs', editorKey: 'specs');
+  ConsumerState<SpecsScreen> createState() => _SpecsScreenState();
+}
+
+class _SpecsScreenState extends ConsumerState<SpecsScreen> {
+  SpecViewMode _mode = SpecViewMode.split;
+  int? _syncedWorkspace;
+  int? _loadedSpecId;
+  CodeLineEditingController? _controller;
+  String _saved = '';
+  bool _missing = false;
+  bool _loading = false;
+  bool _generating = false;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _controller?.removeListener(_onText);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  // --- data --------------------------------------------------------------------
+
+  Future<void> _sync(Workspace ws) async {
+    try {
+      await ref.read(specServiceProvider).sync(ws);
+    } catch (e) {
+      _snack('Falha ao ler specs/: $e');
+    }
+  }
+
+  Future<void> _load(Workspace ws, Spec spec) async {
+    _loadedSpecId = spec.id;
+    setState(() => _loading = true);
+    String? text;
+    try {
+      text = await ref.read(specServiceProvider).read(ws, spec);
+    } catch (e) {
+      _snack('Falha ao abrir ${spec.path}: $e');
+    }
+    if (!mounted || _loadedSpecId != spec.id) return;
+    _controller?.removeListener(_onText);
+    _controller?.dispose();
+    _lastText = text ?? '';
+    _controller = CodeLineEditingController.fromText(text ?? '')
+      ..addListener(_onText);
+    setState(() {
+      _saved = text ?? '';
+      _missing = text == null;
+      _loading = false;
+    });
+    ref.read(specDirtyProvider.notifier).set(false);
+  }
+
+  String? _lastText;
+
+  /// Controller listener: re_editor may notify while it builds, so the
+  /// rebuild (preview + unsaved indicator) is deferred to after the frame.
+  void _onText() {
+    final text = _controller?.text;
+    if (text == _lastText) return;
+    _lastText = text;
+    void apply() {
+      if (!mounted) return;
+      ref.read(specDirtyProvider.notifier).set(_dirty);
+      setState(() {});
+    }
+
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => apply());
+    } else {
+      apply();
+    }
+  }
+
+  bool get _dirty => _controller != null && _controller!.text != _saved;
+
+  Future<Spec?> _save(Workspace ws, Spec spec) async {
+    final c = _controller;
+    if (c == null) return spec;
+    try {
+      final text = c.text;
+      final saved = await ref.read(specServiceProvider).save(ws, spec, text);
+      if (!mounted) return saved;
+      setState(() {
+        _saved = text;
+        _missing = false;
+      });
+      ref.read(specDirtyProvider.notifier).set(_dirty);
+      return saved;
+    } catch (e) {
+      _snack('Falha ao salvar: $e');
+      return null;
+    }
+  }
+
+  Future<void> _select(Spec spec) async {
+    if (spec.id == _loadedSpecId) return;
+    if (_dirty && !await _confirmDiscard()) return;
+    ref.read(selectedSpecProvider.notifier).select(spec.id);
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        title: const Text('Descartar alterações?'),
+        content: const Text('A spec aberta tem alterações não salvas.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Continuar editando'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  // --- actions -------------------------------------------------------------------
+
+  Future<void> _approve(Workspace ws, Spec spec) async {
+    final c = _controller;
+    if (c == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final r = await ref.read(specServiceProvider).approve(ws, spec, c.text);
+      if (!mounted) return;
+      _saved = r.text;
+      c.text = r.text;
+      ref.read(specDirtyProvider.notifier).set(false);
+      _snack('${spec.code} aprovada.');
+    } catch (e) {
+      _snack('Falha ao aprovar: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _refine(Workspace ws, Spec spec) async {
+    if (_busy) return;
+    if (_dirty && await _save(ws, spec) == null) return;
+    setState(() => _busy = true);
+    try {
+      final id = await ref
+          .read(conversationManagerProvider.notifier)
+          .create(
+            workspace: ws,
+            text: refineSpecPrompt(spec),
+            mode: PromptMode.refine,
+          );
+      ref.read(selectedConversationProvider.notifier).select(id);
+      ref.read(navigationProvider.notifier).go(AppSection.prompt);
+    } catch (e) {
+      _snack('Falha ao abrir a conversa: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _generate(Workspace ws, Spec spec) async {
+    if (_generating) return;
+    // The planner reads the file on disk.
+    if (_dirty && await _save(ws, spec) == null) return;
+    setState(() => _generating = true);
+    try {
+      final r = await ref
+          .read(taskPlannerProvider)
+          .generate(workspace: ws, spec: spec);
+      _snack(
+        '${r.tasks.length} tarefas criadas '
+        '(${r.tasks.first.code}–${r.tasks.last.code}) · '
+        'US\$ ${r.costUsd.toStringAsFixed(4)}',
+      );
+    } on PlannerException catch (e) {
+      _snack(e.message);
+    } catch (e) {
+      _snack('Falha ao gerar tarefas: $e');
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // --- build ---------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final ws = ref.watch(activeWorkspaceProvider);
+    if (ws == null) {
+      return _Shell(
+        header: const _Header(path: null, title: 'Specs'),
+        body: const Center(
+          child: Text(
+            'Selecione um workspace na barra de título.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ),
+      );
+    }
+    if (_syncedWorkspace != ws.id) {
+      _syncedWorkspace = ws.id;
+      _loadedSpecId = null;
+      Future.microtask(() => _sync(ws));
+    }
+    final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    final tasks = ref.watch(tasksProvider(ws.id)).value ?? const <Task>[];
+    final sessions =
+        ref.watch(sessionsProvider(ws.id)).value ?? const <Session>[];
+    final selectedId = ref.watch(selectedSpecProvider);
+    final spec =
+        specs.where((s) => s.id == selectedId).firstOrNull ?? specs.firstOrNull;
+    if (spec != null && spec.id != _loadedSpecId) {
+      _loadedSpecId = spec.id;
+      Future.microtask(() => _load(ws, spec));
+    }
+    final tasksBySpec = <int, List<Task>>{};
+    for (final t in tasks) {
+      if (t.specId != null) (tasksBySpec[t.specId!] ??= []).add(t);
+    }
+    final latest = <int, Session>{};
+    for (final s in sessions) {
+      final id = s.taskId;
+      if (id == null) continue;
+      final cur = latest[id];
+      if (cur == null || s.startedAt.isAfter(cur.startedAt)) latest[id] = s;
+    }
+    final text = _controller?.text ?? '';
+    final doc = SpecDocument.parse(text);
+    final ready = spec != null && _controller != null && !_loading;
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final listW = c.maxWidth < 1150 ? 220.0 : 260.0;
+        final sideW = c.maxWidth < 1150 ? 280.0 : 320.0;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: listW,
+              child: SpecList(
+                specs: specs,
+                selectedId: spec?.id,
+                tasksBySpec: tasksBySpec,
+                onSelect: _select,
+              ),
+            ),
+            Expanded(
+              child: _Shell(
+                header: _Header(
+                  path: spec?.path,
+                  title: spec == null ? 'Specs' : (doc.title ?? spec.title),
+                  dirty: _dirty,
+                  mode: _mode,
+                  onMode: (m) => setState(() => _mode = m),
+                  onSave: ready ? () => _save(ws, spec) : null,
+                  onRefine: ready && !_busy ? () => _refine(ws, spec) : null,
+                  onApprove:
+                      ready && !_busy && doc.status != SpecStatus.approved
+                      ? () => _approve(ws, spec)
+                      : null,
+                  approved: doc.status == SpecStatus.approved,
+                ),
+                body: spec == null
+                    ? const Center(
+                        child: Text(
+                          'Crie uma spec com "Nova spec".',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    : !ready
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : CallbackShortcuts(
+                        bindings: {
+                          const SingleActivator(
+                            LogicalKeyboardKey.keyS,
+                            control: true,
+                          ): () =>
+                              _save(ws, spec),
+                        },
+                        child: _EditorBody(
+                          mode: _mode,
+                          controller: _controller!,
+                          text: text,
+                          missing: _missing,
+                          onSave: () => _save(ws, spec),
+                        ),
+                      ),
+              ),
+            ),
+            SizedBox(
+              width: sideW,
+              child: spec == null
+                  ? const ColoredBox(color: AppColors.panel)
+                  : SpecTasksPanel(
+                      tasks: tasksBySpec[spec.id] ?? const [],
+                      requirements: doc.requirements,
+                      latestSession: latest,
+                      generating: _generating,
+                      onGenerate: ready ? () => _generate(ws, spec) : null,
+                      onNewTask: () =>
+                          showNewTaskDialog(context, specId: spec.id),
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Shell extends StatelessWidget {
+  const _Shell({required this.header, required this.body});
+
+  final Widget header;
+  final Widget body;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: AppColors.background,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        Expanded(child: body),
+      ],
+    ),
+  );
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.path,
+    required this.title,
+    this.dirty = false,
+    this.mode,
+    this.onMode,
+    this.onSave,
+    this.onRefine,
+    this.onApprove,
+    this.approved = false,
+  });
+
+  final String? path;
+  final String title;
+  final bool dirty;
+  final SpecViewMode? mode;
+  final ValueChanged<SpecViewMode>? onMode;
+  final VoidCallback? onSave;
+  final VoidCallback? onRefine;
+  final VoidCallback? onApprove;
+  final bool approved;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (path != null)
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  path!,
+                  key: const ValueKey('spec-path'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              if (dirty) ...[
+                const SizedBox(width: 8),
+                const Text(
+                  '● não salvo',
+                  key: ValueKey('spec-unsaved'),
+                  style: TextStyle(fontSize: 11, color: AppColors.amber),
+                ),
+              ],
+            ],
+          ),
+        const SizedBox(height: 2),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+    final hasActions = onSave != null || onRefine != null || onApprove != null;
+    final actions = <Widget>[
+      Flexible(
+        child: SmallButton(
+          key: const ValueKey('spec-save'),
+          label: 'Salvar',
+          onTap: dirty ? onSave : null,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Flexible(
+        child: SmallButton(
+          key: const ValueKey('spec-refine'),
+          label: 'Refinar com IA',
+          onTap: onRefine,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Flexible(
+        child: SmallButton(
+          key: const ValueKey('spec-approve'),
+          label: approved ? 'Aprovada' : 'Aprovar spec',
+          color: AppColors.teal,
+          border: SessionColors.runningToolBorder,
+          background: SessionColors.runningToolBg,
+          onTap: onApprove,
+        ),
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          // Narrow (1100×700 window): actions go to a second row.
+          if (c.maxWidth >= 900 || mode == null) {
+            return Row(
+              children: [
+                Expanded(child: titleBlock),
+                if (mode != null) ...[
+                  const SizedBox(width: 10),
+                  _ModeSwitch(mode: mode!, onMode: onMode!),
+                ],
+                const SizedBox(width: 10),
+                const ZoomControl(editorKey: SpecsScreen.editorKey),
+                if (hasActions) ...[
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: actions,
+                    ),
+                  ),
+                ],
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: titleBlock),
+                  const SizedBox(width: 10),
+                  const ZoomControl(editorKey: SpecsScreen.editorKey),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _ModeSwitch(mode: mode!, onMode: onMode!),
+                  if (hasActions) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: actions,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({required this.mode, required this.onMode});
+
+  final SpecViewMode mode;
+  final ValueChanged<SpecViewMode> onMode;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(2),
+    decoration: BoxDecoration(
+      color: AppColors.panel,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final m in SpecViewMode.values)
+          InkWell(
+            key: ValueKey('spec-mode-${m.name}'),
+            onTap: () => onMode(m),
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: m == mode ? AppColors.amberTint : null,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                m.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: m == mode ? AppColors.amber : AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class _EditorBody extends StatelessWidget {
+  const _EditorBody({
+    required this.mode,
+    required this.controller,
+    required this.text,
+    required this.missing,
+    required this.onSave,
+  });
+
+  final SpecViewMode mode;
+  final CodeLineEditingController controller;
+  final String text;
+  final bool missing;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = AppCodeEditor(
+      controller: controller,
+      editorKey: SpecsScreen.editorKey,
+      language: CodeLanguage.markdown,
+      baseFontSize: 12,
+      wordWrap: true,
+      onSave: onSave,
+      hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
+    );
+    final preview = SpecPreview(text: text);
+    return switch (mode) {
+      SpecViewMode.edit => editor,
+      SpecViewMode.preview => preview,
+      SpecViewMode.split => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: editor),
+          const VerticalDivider(width: 1, color: AppColors.border),
+          Expanded(child: preview),
+        ],
+      ),
+    };
+  }
+}
+
+/// Rendered spec (frontmatter shown as a status line, like the mockup).
+class SpecPreview extends StatelessWidget {
+  const SpecPreview({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final doc = SpecDocument.parse(text);
+    final theme = Theme.of(context);
+    final style = MarkdownStyleSheet.fromTheme(theme).copyWith(
+      p: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.text),
+      h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+      h2: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.amber,
+      ),
+      h3: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: AppColors.amber,
+      ),
+      listBullet: const TextStyle(fontSize: 13, color: AppColors.text),
+      code: const TextStyle(
+        fontFamily: AppFonts.mono,
+        fontSize: 12,
+        color: AppColors.teal,
+        backgroundColor: AppColors.surfaceRaised,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      blockquoteDecoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border, width: 3)),
+      ),
+      a: const TextStyle(color: AppColors.amber),
+    );
+    final status = doc.status;
+    return ColoredBox(
+      color: AppColors.background,
+      child: ListView(
+        key: const ValueKey('spec-preview'),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+        children: [
+          if (doc.hasFrontmatter)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                [
+                  if (doc.id != null) doc.id!,
+                  'Status: ${status == null ? (doc.rawStatus ?? '—') : specStatusLabel(status)}',
+                ].join(' · '),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          MarkdownBody(data: doc.body, styleSheet: style),
+        ],
+      ),
+    );
+  }
 }

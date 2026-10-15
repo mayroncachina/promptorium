@@ -72,7 +72,7 @@ class Tasks extends Table {
   IntColumn get workspaceId =>
       integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
 
-  /// `T-001`.
+  /// `TASK-001` (Fase 8; rows created before use `T-001`).
   TextColumn get code => text()();
   TextColumn get title => text()();
   TextColumn get status =>
@@ -81,6 +81,10 @@ class Tasks extends Table {
 
   /// Free text of the task (schema v3; e.g. the Prompt answer it came from).
   TextColumn get body => text().nullable()();
+
+  /// Spec requirement the task implements, e.g. `R2` (schema v4, Fase 8:
+  /// traceability requirement → task → session → commit).
+  TextColumn get requirement => text().nullable()();
 
   /// Codes of the tasks this one depends on (JSON array).
   TextColumn get dependsOn => text()
@@ -278,7 +282,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -300,6 +304,10 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(conversations, conversations.messageCount);
         await m.addColumn(conversations, conversations.updatedAt);
         await m.createTable(conversationEvents);
+      }
+      // v4 (Fase 8): requirement of a task (planner output).
+      if (from < 4) {
+        await m.addColumn(tasks, tasks.requirement);
       }
     },
     beforeOpen: (details) async {

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +9,7 @@ import '../../data/repos/specs_repo.dart';
 import '../../data/repos/tasks_repo.dart';
 import '../sessions/session_manager.dart' show slugify;
 import '../sessions/timeline.dart';
+import '../specs/spec_service.dart' show nextSpecCode;
 import 'conversation_manager.dart' show conversationTitle;
 
 // --- transcript ----------------------------------------------------------------
@@ -217,15 +217,7 @@ Future<Spec> createSpecFromConversation(
   DateTime? now,
 }) async {
   final dir = Directory('${workspace.path}/specs');
-  var max = await repo.maxNumber(workspace.id);
-  if (await dir.exists()) {
-    await for (final f in dir.list()) {
-      final name = f.uri.pathSegments.where((s) => s.isNotEmpty).last;
-      final m = RegExp(r'^SPEC-(\d+)').firstMatch(name);
-      if (m != null) max = math.max(max, int.parse(m.group(1)!));
-    }
-  }
-  final code = 'SPEC-${(max + 1).toString().padLeft(3, '0')}';
+  final code = await nextSpecCode(repo, workspace);
   final slug = slugify(title, maxLength: 40);
   final rel = 'specs/$code${slug.isEmpty ? '' : '-$slug'}.md';
   final file = File('${workspace.path}/$rel');

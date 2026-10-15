@@ -805,6 +805,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _requirementMeta = const VerificationMeta(
+    'requirement',
+  );
+  @override
+  late final GeneratedColumn<String> requirement = GeneratedColumn<String>(
+    'requirement',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   late final GeneratedColumnWithTypeConverter<List<String>, String> dependsOn =
       GeneratedColumn<String>(
@@ -837,6 +848,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
     status,
     agentName,
     body,
+    requirement,
     dependsOn,
     createdAt,
   ];
@@ -900,6 +912,15 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
       );
     }
+    if (data.containsKey('requirement')) {
+      context.handle(
+        _requirementMeta,
+        requirement.isAcceptableOrUnknown(
+          data['requirement']!,
+          _requirementMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -953,6 +974,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       ),
+      requirement: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}requirement'],
+      ),
       dependsOn: $TasksTable.$converterdependsOn.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -982,7 +1007,7 @@ class Task extends DataClass implements Insertable<Task> {
   final int? specId;
   final int workspaceId;
 
-  /// `T-001`.
+  /// `TASK-001` (Fase 8; rows created before use `T-001`).
   final String code;
   final String title;
   final TaskStatus status;
@@ -990,6 +1015,10 @@ class Task extends DataClass implements Insertable<Task> {
 
   /// Free text of the task (schema v3; e.g. the Prompt answer it came from).
   final String? body;
+
+  /// Spec requirement the task implements, e.g. `R2` (schema v4, Fase 8:
+  /// traceability requirement → task → session → commit).
+  final String? requirement;
 
   /// Codes of the tasks this one depends on (JSON array).
   final List<String> dependsOn;
@@ -1003,6 +1032,7 @@ class Task extends DataClass implements Insertable<Task> {
     required this.status,
     this.agentName,
     this.body,
+    this.requirement,
     required this.dependsOn,
     required this.createdAt,
   });
@@ -1027,6 +1057,9 @@ class Task extends DataClass implements Insertable<Task> {
     if (!nullToAbsent || body != null) {
       map['body'] = Variable<String>(body);
     }
+    if (!nullToAbsent || requirement != null) {
+      map['requirement'] = Variable<String>(requirement);
+    }
     {
       map['depends_on'] = Variable<String>(
         $TasksTable.$converterdependsOn.toSql(dependsOn),
@@ -1050,6 +1083,9 @@ class Task extends DataClass implements Insertable<Task> {
           ? const Value.absent()
           : Value(agentName),
       body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      requirement: requirement == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requirement),
       dependsOn: Value(dependsOn),
       createdAt: Value(createdAt),
     );
@@ -1071,6 +1107,7 @@ class Task extends DataClass implements Insertable<Task> {
       ),
       agentName: serializer.fromJson<String?>(json['agentName']),
       body: serializer.fromJson<String?>(json['body']),
+      requirement: serializer.fromJson<String?>(json['requirement']),
       dependsOn: serializer.fromJson<List<String>>(json['dependsOn']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1089,6 +1126,7 @@ class Task extends DataClass implements Insertable<Task> {
       ),
       'agentName': serializer.toJson<String?>(agentName),
       'body': serializer.toJson<String?>(body),
+      'requirement': serializer.toJson<String?>(requirement),
       'dependsOn': serializer.toJson<List<String>>(dependsOn),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1103,6 +1141,7 @@ class Task extends DataClass implements Insertable<Task> {
     TaskStatus? status,
     Value<String?> agentName = const Value.absent(),
     Value<String?> body = const Value.absent(),
+    Value<String?> requirement = const Value.absent(),
     List<String>? dependsOn,
     DateTime? createdAt,
   }) => Task(
@@ -1114,6 +1153,7 @@ class Task extends DataClass implements Insertable<Task> {
     status: status ?? this.status,
     agentName: agentName.present ? agentName.value : this.agentName,
     body: body.present ? body.value : this.body,
+    requirement: requirement.present ? requirement.value : this.requirement,
     dependsOn: dependsOn ?? this.dependsOn,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -1129,6 +1169,9 @@ class Task extends DataClass implements Insertable<Task> {
       status: data.status.present ? data.status.value : this.status,
       agentName: data.agentName.present ? data.agentName.value : this.agentName,
       body: data.body.present ? data.body.value : this.body,
+      requirement: data.requirement.present
+          ? data.requirement.value
+          : this.requirement,
       dependsOn: data.dependsOn.present ? data.dependsOn.value : this.dependsOn,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -1145,6 +1188,7 @@ class Task extends DataClass implements Insertable<Task> {
           ..write('status: $status, ')
           ..write('agentName: $agentName, ')
           ..write('body: $body, ')
+          ..write('requirement: $requirement, ')
           ..write('dependsOn: $dependsOn, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1161,6 +1205,7 @@ class Task extends DataClass implements Insertable<Task> {
     status,
     agentName,
     body,
+    requirement,
     dependsOn,
     createdAt,
   );
@@ -1176,6 +1221,7 @@ class Task extends DataClass implements Insertable<Task> {
           other.status == this.status &&
           other.agentName == this.agentName &&
           other.body == this.body &&
+          other.requirement == this.requirement &&
           other.dependsOn == this.dependsOn &&
           other.createdAt == this.createdAt);
 }
@@ -1189,6 +1235,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
   final Value<TaskStatus> status;
   final Value<String?> agentName;
   final Value<String?> body;
+  final Value<String?> requirement;
   final Value<List<String>> dependsOn;
   final Value<DateTime> createdAt;
   const TasksCompanion({
@@ -1200,6 +1247,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.status = const Value.absent(),
     this.agentName = const Value.absent(),
     this.body = const Value.absent(),
+    this.requirement = const Value.absent(),
     this.dependsOn = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -1212,6 +1260,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     this.status = const Value.absent(),
     this.agentName = const Value.absent(),
     this.body = const Value.absent(),
+    this.requirement = const Value.absent(),
     this.dependsOn = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
@@ -1226,6 +1275,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Expression<String>? status,
     Expression<String>? agentName,
     Expression<String>? body,
+    Expression<String>? requirement,
     Expression<String>? dependsOn,
     Expression<DateTime>? createdAt,
   }) {
@@ -1238,6 +1288,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       if (status != null) 'status': status,
       if (agentName != null) 'agent_name': agentName,
       if (body != null) 'body': body,
+      if (requirement != null) 'requirement': requirement,
       if (dependsOn != null) 'depends_on': dependsOn,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -1252,6 +1303,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
     Value<TaskStatus>? status,
     Value<String?>? agentName,
     Value<String?>? body,
+    Value<String?>? requirement,
     Value<List<String>>? dependsOn,
     Value<DateTime>? createdAt,
   }) {
@@ -1264,6 +1316,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
       status: status ?? this.status,
       agentName: agentName ?? this.agentName,
       body: body ?? this.body,
+      requirement: requirement ?? this.requirement,
       dependsOn: dependsOn ?? this.dependsOn,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -1298,6 +1351,9 @@ class TasksCompanion extends UpdateCompanion<Task> {
     if (body.present) {
       map['body'] = Variable<String>(body.value);
     }
+    if (requirement.present) {
+      map['requirement'] = Variable<String>(requirement.value);
+    }
     if (dependsOn.present) {
       map['depends_on'] = Variable<String>(
         $TasksTable.$converterdependsOn.toSql(dependsOn.value),
@@ -1320,6 +1376,7 @@ class TasksCompanion extends UpdateCompanion<Task> {
           ..write('status: $status, ')
           ..write('agentName: $agentName, ')
           ..write('body: $body, ')
+          ..write('requirement: $requirement, ')
           ..write('dependsOn: $dependsOn, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -6159,6 +6216,7 @@ typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<TaskStatus> status,
   Value<String?> agentName,
   Value<String?> body,
+  Value<String?> requirement,
   Value<List<String>> dependsOn,
   Value<DateTime> createdAt,
 });
@@ -6171,6 +6229,7 @@ typedef $$TasksTableUpdateCompanionBuilder = TasksCompanion Function({
   Value<TaskStatus> status,
   Value<String?> agentName,
   Value<String?> body,
+  Value<String?> requirement,
   Value<List<String>> dependsOn,
   Value<DateTime> createdAt,
 });
@@ -6269,6 +6328,11 @@ class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requirement => $composableBuilder(
+    column: $table.requirement,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6394,6 +6458,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get dependsOn => $composableBuilder(
     column: $table.dependsOn,
     builder: (column) => ColumnOrderings(column),
@@ -6477,6 +6546,11 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => column,
+  );
 
   GeneratedColumnWithTypeConverter<List<String>, String> get dependsOn =>
       $composableBuilder(column: $table.dependsOn, builder: (column) => column);
@@ -6596,6 +6670,7 @@ class $$TasksTableTableManager
                 Value<TaskStatus> status = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TasksCompanion(
@@ -6607,6 +6682,7 @@ class $$TasksTableTableManager
                 status: status,
                 agentName: agentName,
                 body: body,
+                requirement: requirement,
                 dependsOn: dependsOn,
                 createdAt: createdAt,
               ),
@@ -6620,6 +6696,7 @@ class $$TasksTableTableManager
                 Value<TaskStatus> status = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => TasksCompanion.insert(
@@ -6631,6 +6708,7 @@ class $$TasksTableTableManager
                 status: status,
                 agentName: agentName,
                 body: body,
+                requirement: requirement,
                 dependsOn: dependsOn,
                 createdAt: createdAt,
               ),

@@ -10,7 +10,9 @@ import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
+import '../../features/tasks/new_task_dialog.dart';
 import '../../features/tasks/tasks_screen.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
@@ -83,6 +85,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       ref.read(selectedConversationProvider.notifier).select(null);
     } else if (section == AppSection.agents) {
       ref.read(selectedAgentProvider.notifier).newDraft();
+    } else if (section == AppSection.specs) {
+      showNewSpecDialog(context);
+    } else if (section == AppSection.tasks) {
+      showNewTaskDialog(context);
     } else {
       _notImplemented(section.actionLabel ?? '');
     }

@@ -76,6 +76,7 @@ class ClaudeCodeProvider implements AgentProvider {
         PromptMode.ask => ClaudePermissionMode.defaultMode,
         PromptMode.plan => ClaudePermissionMode.plan,
         PromptMode.edit => ClaudePermissionMode.acceptEdits,
+        PromptMode.refine => ClaudePermissionMode.defaultMode,
       },
       disallowedTools: o.mode == PromptMode.ask
           ? readOnlyDisallowedTools

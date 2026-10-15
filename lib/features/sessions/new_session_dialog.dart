@@ -10,13 +10,25 @@ import 'widgets/composer.dart' show permissionLabel, uiPermissionModes;
 import 'widgets/session_style.dart';
 
 /// "Nova sessão" (title bar button / Ctrl+N; "Testar em sessão" of the
-/// Agentes screen passes [agent]). Returns the new session id.
-Future<String?> showNewSessionDialog(BuildContext context, {String? agent}) =>
-    showDialog<String>(
-      context: context,
-      barrierColor: AppColors.scrim,
-      builder: (_) => NewSessionDialog(initialAgent: agent),
-    );
+/// Agentes screen passes [agent]; "Executar com agente" of the Tarefas screen
+/// passes [title], [prompt], [agent] and [taskId], which links
+/// `sessions.task_id`). Returns the new session id.
+Future<String?> showNewSessionDialog(
+  BuildContext context, {
+  String? agent,
+  String? title,
+  String? prompt,
+  int? taskId,
+}) => showDialog<String>(
+  context: context,
+  barrierColor: AppColors.scrim,
+  builder: (_) => NewSessionDialog(
+    initialAgent: agent,
+    initialTitle: title,
+    initialPrompt: prompt,
+    taskId: taskId,
+  ),
+);
 
 /// "Fork" of a session: asks the first message of the fork.
 Future<String?> showForkDialog(BuildContext context, Session parent) =>
@@ -27,13 +39,27 @@ Future<String?> showForkDialog(BuildContext context, Session parent) =>
     );
 
 class NewSessionDialog extends ConsumerStatefulWidget {
-  const NewSessionDialog({super.key, this.forkOf, this.initialAgent});
+  const NewSessionDialog({
+    super.key,
+    this.forkOf,
+    this.initialAgent,
+    this.initialTitle,
+    this.initialPrompt,
+    this.taskId,
+  });
 
   /// When set, the dialog creates a fork of this session.
   final Session? forkOf;
 
   /// Agent preselected (`--agent`).
   final String? initialAgent;
+
+  /// Prefilled fields ("Executar com agente").
+  final String? initialTitle;
+  final String? initialPrompt;
+
+  /// Task the new session implements (`sessions.task_id`).
+  final int? taskId;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
@@ -42,10 +68,10 @@ class NewSessionDialog extends ConsumerStatefulWidget {
 class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   late final _title = TextEditingController(
     text: widget.forkOf == null
-        ? ''
+        ? (widget.initialTitle ?? '')
         : 'Fork de ${sessionTitle(widget.forkOf!)}',
   );
-  final _prompt = TextEditingController();
+  late final _prompt = TextEditingController(text: widget.initialPrompt ?? '');
   late String? _agent = widget.initialAgent;
   String _model = 'inherit';
   ClaudePermissionMode _mode = ClaudePermissionMode.defaultMode;
@@ -102,8 +128,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 model: _model,
                 permissionMode: _mode,
                 useWorktree: _worktree,
+                taskId: widget.taskId,
               ),
             );
+      if (widget.taskId != null && _agent != null) {
+        await ref.read(tasksRepoProvider).assignAgent(widget.taskId!, _agent);
+      }
       ref.read(selectedSessionProvider.notifier).select(id);
       if (mounted) Navigator.of(context).pop(id);
     } on SessionException catch (e) {

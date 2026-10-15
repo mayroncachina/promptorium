@@ -667,7 +667,10 @@ class _ModeSwitch extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final m in PromptMode.values)
+          for (final m in [
+            ...PromptMode.selectable,
+            if (!PromptMode.selectable.contains(mode)) mode,
+          ])
             Material(
               color: m == mode ? AppColors.amberTint : Colors.transparent,
               borderRadius: BorderRadius.circular(4),

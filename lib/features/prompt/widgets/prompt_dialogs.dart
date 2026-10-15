@@ -243,6 +243,7 @@ ClaudePermissionMode sessionModeFor(PromptMode mode) => switch (mode) {
   PromptMode.ask => ClaudePermissionMode.defaultMode,
   PromptMode.plan => ClaudePermissionMode.plan,
   PromptMode.edit => ClaudePermissionMode.acceptEdits,
+  PromptMode.refine => ClaudePermissionMode.defaultMode,
 };
 
 const continueSessionPrompt =

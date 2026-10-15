@@ -259,11 +259,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('answer-create-task')));
     await pumpFor(tester);
     final tasks = await db.select(db.tasks).get();
-    expect(tasks.single.code, 'T-001');
+    expect(tasks.single.code, 'TASK-001');
     expect(tasks.single.status, TaskStatus.backlog);
     expect(tasks.single.body, answer);
     expect(tasks.single.title, startsWith('Use Process.start'));
-    expect(find.textContaining('Tarefa T-001 criada'), findsOneWidget);
+    expect(find.textContaining('Tarefa TASK-001 criada'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

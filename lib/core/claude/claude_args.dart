@@ -44,6 +44,7 @@ class ClaudeOptions {
     this.agentsJson,
     this.maxBudgetUsd,
     this.maxTurns,
+    this.jsonSchema,
     this.includePartialMessages = true,
   });
 
@@ -80,6 +81,12 @@ class ClaudeOptions {
   final double? maxBudgetUsd;
   final int? maxTurns;
 
+  /// `--json-schema <schema>`: structured output. Verified on CLI 2.1.300
+  /// (plano, Fase 8): the model answers through a `StructuredOutput` tool and
+  /// the `result` event carries the object in `structured_output` (and the
+  /// same JSON as a string in `result`).
+  final String? jsonSchema;
+
   /// `--include-partial-messages` (live `stream_event` deltas).
   final bool includePartialMessages;
 
@@ -109,6 +116,7 @@ class ClaudeOptions {
     String? agentsJson,
     double? maxBudgetUsd,
     int? maxTurns,
+    String? jsonSchema,
     bool? includePartialMessages,
   }) => ClaudeOptions(
     sessionId: sessionId ?? this.sessionId,
@@ -125,6 +133,7 @@ class ClaudeOptions {
     agentsJson: agentsJson ?? this.agentsJson,
     maxBudgetUsd: maxBudgetUsd ?? this.maxBudgetUsd,
     maxTurns: maxTurns ?? this.maxTurns,
+    jsonSchema: jsonSchema ?? this.jsonSchema,
     includePartialMessages:
         includePartialMessages ?? this.includePartialMessages,
   );
@@ -172,6 +181,10 @@ class ClaudeOptions {
       ],
       if (maxBudgetUsd != null) ...['--max-budget-usd', _num(maxBudgetUsd!)],
       if (maxTurns != null) ...['--max-turns', '$maxTurns'],
+      if (jsonSchema != null && jsonSchema!.isNotEmpty) ...[
+        '--json-schema',
+        jsonSchema!,
+      ],
       // Variadic flags: one value per argv entry (values may contain spaces).
       if (allowedTools.isNotEmpty) ...['--allowedTools', ...allowedTools],
       if (disallowedTools.isNotEmpty) ...[

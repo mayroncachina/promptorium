@@ -3,8 +3,10 @@
 /// ⚠ Stored by name: renaming a value is a schema migration.
 library;
 
-/// Lifecycle of a spec file (`specs/SPEC-NNN-*.md`, frontmatter `status`).
-enum SpecStatus { draft, review, approved, done }
+/// Lifecycle of a spec file (`specs/SPEC-NNN-*.md`, frontmatter `status`:
+/// `ideia` / `rascunho` / `em-revisao` / `aprovada`; see `spec_file.dart`).
+/// `done` is kept for rows written before Fase 8 (no frontmatter value).
+enum SpecStatus { draft, review, approved, done, idea }
 
 /// Kanban column of a task (Fase 8).
 enum TaskStatus { backlog, running, review, done }

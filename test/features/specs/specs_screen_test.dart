@@ -1,0 +1,162 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/specs/specs_screen.dart';
+import 'package:promptorium/ui/theme/app_theme.dart';
+import 'package:re_editor/re_editor.dart' show CodeEditor;
+
+import '../../helpers/test_db.dart';
+import '../sessions/session_test_utils.dart';
+import 'spec_file_test.dart' show sample;
+
+/// Real file IO does not run under FakeAsync: let it run, then pump, until
+/// [until] holds (bounded; the full suite runs files in parallel).
+Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
+  for (var i = 0; i < 300; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+    if (i >= 5 && (until?.call() ?? true)) return;
+  }
+}
+
+String readSpec(Directory tmp) =>
+    File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync();
+
+void main() {
+  late Directory tmp;
+
+  setUp(() {
+    tmp = Directory.systemTemp.createTempSync('promptorium-specs-ui-');
+    Directory('${tmp.path}/specs').createSync();
+    File('${tmp.path}/specs/SPEC-002-sessoes.md').writeAsStringSync(sample);
+  });
+
+  tearDown(() => tmp.deleteSync(recursive: true));
+
+  Future<void> pump(WidgetTester tester, Size size) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = memoryDatabase();
+    final c = ProviderContainer(
+      overrides: sessionOverrides(
+        db: db,
+        cli: FakeCli(),
+        notifier: FakeNotifier(),
+      ),
+    );
+    await tester.runAsync(() async {
+      final ws = await db
+          .into(db.workspaces)
+          .insertReturning(
+            WorkspacesCompanion.insert(path: tmp.path, name: 'ws'),
+          );
+      await db
+          .into(db.appSettings)
+          .insert(
+            AppSettingsCompanion.insert(
+              key: AppSettingKeys.activeWorkspace,
+              value: '${ws.id}',
+            ),
+          );
+      await c.read(appSettingsProvider.notifier).load();
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SpecsScreen()),
+        ),
+      ),
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      await tester.pump(Duration.zero);
+    });
+    await settleIo(
+      tester,
+      until: () =>
+          find.byType(CodeEditor).evaluate().isNotEmpty ||
+          find.byKey(const ValueKey('spec-preview')).evaluate().isNotEmpty,
+    );
+  }
+
+  testWidgets('lists specs/, opens the file in the editor and renders the '
+      'preview; modes switch; fits 1100×700', (tester) async {
+    await pump(tester, const Size(1044, 628));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('spec-item-SPEC-002')), findsOneWidget);
+    expect(find.text('specs/SPEC-002-sessoes.md'), findsOneWidget);
+    expect(find.byType(CodeEditor), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-preview')), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+    // Traceability lists the requirements of the file.
+    expect(find.byKey(const ValueKey('trace-R1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('trace-R3')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('spec-mode-preview')));
+    await tester.pump();
+    expect(find.byType(CodeEditor), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-edit')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('spec-preview')), findsNothing);
+    expect(find.byType(CodeEditor), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('"Aprovar spec" writes status: aprovada in the file', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1440, 900));
+    expect(find.text('Aprovar spec'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('spec-approve')));
+    await settleIo(
+      tester,
+      until: () =>
+          readSpec(tmp).contains('status: aprovada') &&
+          find.text('Aprovada').evaluate().isNotEmpty,
+    );
+    expect(
+      File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync(),
+      contains('status: aprovada'),
+    );
+    expect(find.text('Aprovada'), findsWidgets);
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+  });
+
+  testWidgets('editing marks "não salvo"; Salvar writes the file', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1440, 900));
+    final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
+    editor.controller!.text = sample.replaceFirst(
+      '# Sessões com stream-json',
+      '# Sessões revisadas',
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsOneWidget);
+    // Preview follows the editor.
+    expect(find.text('Sessões revisadas'), findsWidgets);
+    await tester.tap(find.byKey(const ValueKey('spec-save')));
+    await settleIo(
+      tester,
+      until: () =>
+          readSpec(tmp).contains('# Sessões revisadas') &&
+          find.byKey(const ValueKey('spec-unsaved')).evaluate().isEmpty,
+    );
+    expect(
+      File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync(),
+      contains('# Sessões revisadas'),
+    );
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+  });
+}

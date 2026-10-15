@@ -31,6 +31,7 @@ class TasksRepo {
     int? specId,
     String? agentName,
     String? body,
+    String? requirement,
     List<String> dependsOn = const [],
     TaskStatus status = TaskStatus.backlog,
   }) => _db
@@ -43,24 +44,37 @@ class TasksRepo {
           specId: Value(specId),
           agentName: Value(agentName),
           body: Value(body),
+          requirement: Value(requirement),
           dependsOn: Value(dependsOn),
           status: Value(status),
         ),
       );
 
-  /// Next free `T-NNN` code of the workspace.
-  Future<String> nextCode(int workspaceId) async {
+  /// Highest task number of the workspace (`TASK-NNN`, or the `T-NNN` codes
+  /// written before Fase 8). 0 = none.
+  Future<int> maxNumber(int workspaceId) async {
     final rows = await (_db.select(
       _t,
     )..where((t) => t.workspaceId.equals(workspaceId))).get();
     var max = 0;
     for (final r in rows) {
-      final m = RegExp(r'^T-(\d+)$').firstMatch(r.code);
+      final m = RegExp(r'^(?:TASK|T)-(\d+)$').firstMatch(r.code);
       final n = m == null ? 0 : int.parse(m.group(1)!);
       if (n > max) max = n;
     }
-    return 'T-${(max + 1).toString().padLeft(3, '0')}';
+    return max;
   }
+
+  /// `TASK-NNN` code for number [n].
+  static String codeFor(int n) => 'TASK-${n.toString().padLeft(3, '0')}';
+
+  /// Next free `TASK-NNN` code of the workspace (sequential per workspace).
+  Future<String> nextCode(int workspaceId) async =>
+      codeFor(await maxNumber(workspaceId) + 1);
+
+  /// Runs [action] in a transaction (several inserts that must all land).
+  Future<T> transaction<T>(Future<T> Function() action) =>
+      _db.transaction(action);
 
   Future<int> update(int id, TasksCompanion changes) =>
       (_db.update(_t)..where((t) => t.id.equals(id))).write(changes);

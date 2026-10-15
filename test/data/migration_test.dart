@@ -74,11 +74,11 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 3);
+    expect(v.data.values.single, 4);
   });
 
-  test('v2 → v3 adds conversation columns, conversation_events and '
-      'tasks.body', () async {
+  test('v2 → v4 adds conversation columns, conversation_events, '
+      'tasks.body and tasks.requirement', () async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     final db = AppDatabase(
       NativeDatabase.memory(
@@ -116,13 +116,62 @@ void main() {
 
     final tasks = TasksRepo(db);
     expect((await tasks.getById(1))!.body, isNull);
-    expect(await tasks.nextCode(1), 'T-002');
+    expect((await tasks.getById(1))!.requirement, isNull);
+    // Old `T-NNN` codes count for the next `TASK-NNN` (Fase 8).
+    expect(await tasks.nextCode(1), 'TASK-002');
     final t = await tasks.insert(
       workspaceId: 1,
-      code: 'T-002',
+      code: 'TASK-002',
       title: 'Nova',
       body: 'corpo',
+      requirement: 'R1',
     );
     expect(t.body, 'corpo');
+    expect(t.requirement, 'R1');
   });
+
+  test(
+    'v3 → v4 adds tasks.requirement and preserves the existing rows',
+    () async {
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      final db = AppDatabase(
+        NativeDatabase.memory(
+          setup: (raw) {
+            raw.execute(
+              'CREATE TABLE workspaces (id INTEGER NOT NULL PRIMARY KEY '
+              'AUTOINCREMENT, path TEXT NOT NULL UNIQUE, name TEXT NOT NULL, '
+              'created_at INTEGER NOT NULL DEFAULT 0)',
+            );
+            raw.execute(v1TasksAndConversations.first);
+            raw.execute('ALTER TABLE tasks ADD COLUMN body TEXT NULL');
+            raw.execute(
+              "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+            );
+            raw.execute(
+              'INSERT INTO tasks (workspace_id, code, title, status, '
+              'agent_name, depends_on, body) VALUES '
+              "(1, 'T-007', 'Antiga', 'review', 'dev', "
+              "'[\"T-001\"]', 'corpo antigo')",
+            );
+            raw.userVersion = 3;
+          },
+        ),
+      );
+      addTearDown(db.close);
+      await db.ensureOpen();
+
+      final tasks = TasksRepo(db);
+      final old = (await tasks.getById(1))!;
+      expect(old.code, 'T-007');
+      expect(old.title, 'Antiga');
+      expect(old.status, TaskStatus.review);
+      expect(old.agentName, 'dev');
+      expect(old.dependsOn, ['T-001']);
+      expect(old.body, 'corpo antigo');
+      expect(old.requirement, isNull);
+      expect(await tasks.nextCode(1), 'TASK-008');
+      final v = await db.customSelect('PRAGMA user_version').getSingle();
+      expect(v.data.values.single, 4);
+    },
+  );
 }

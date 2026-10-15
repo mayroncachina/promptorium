@@ -85,7 +85,7 @@ void main() {
           workspaceId: ws.id,
           answer: answer,
         );
-        expect(t.code, 'T-001');
+        expect(t.code, 'TASK-001');
         expect(t.status, TaskStatus.backlog);
         expect(t.body, answer);
         expect(t.title, startsWith('Use Process.start e um LineSplitter'));
@@ -95,7 +95,7 @@ void main() {
           workspaceId: ws.id,
           answer: 'Outra',
         );
-        expect(again.code, 'T-002');
+        expect(again.code, 'TASK-002');
         expect(again.title, 'Outra');
       },
     );
