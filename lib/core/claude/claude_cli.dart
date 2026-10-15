@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../process/process_runner.dart';
+import 'claude_process.dart' show ProcessStarter;
 
 /// Result of locating the Claude Code CLI.
 class ClaudeCliInfo {
@@ -83,3 +84,7 @@ final claudeExecutableProvider = Provider<String>(
       ref.watch(resolvedClaudeCliProvider)?.executable ??
       ref.watch(claudeExecutableCandidatesProvider).first,
 );
+
+/// `Process.start` replacement for `claude -p` processes (sessions and Prompt
+/// conversations; tests feed fake CLI output). Null = real `Process.start`.
+final claudeProcessStarterProvider = Provider<ProcessStarter?>((ref) => null);

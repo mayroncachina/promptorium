@@ -307,15 +307,34 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 
 **Implementar**
 1. Interface `AgentProvider` (start/send/stop/eventos); implementação `ClaudeCodeProvider` (reusa `ClaudeProcess`). Codex/Gemini = DT-08.
-2. Conversas sem tarefa, rodando na pasta do workspace (sem worktree). Modos: **Perguntar** = `--permission-mode plan`… *(ajustar após teste: alternativa `--tools Read,Glob,Grep`)*, **Planejar** = `plan`, **Editar** = `acceptEdits`.
+2. Conversas sem tarefa, rodando na pasta do workspace (sem worktree). Modos: **Perguntar** = somente leitura (ver notas), **Planejar** = `plan`, **Editar** = `acceptEdits`.
 3. Histórico de conversas; `@arquivo` anexa contexto; `/comando` insere prompt salvo.
 4. Ações: Copiar, Criar tarefa, Salvar como prompt, Transformar em spec, Continuar como sessão.
 5. Ícone do botão de provedor vem do provedor ativo.
 
 **Verificação**
-- [ ] No modo Perguntar, pedir para editar um arquivo não altera nada no disco
-- [ ] `/testes` insere o corpo do prompt salvo
-- [ ] "Continuar como sessão" cria sessão com worktree e o histórico como contexto
+- [x] No modo Perguntar, pedir para editar um arquivo não altera nada no disco (CLI real, ver notas; args cobertos por teste)
+- [x] `/testes` insere o corpo do prompt salvo (widget test; também incrementa `uses`)
+- [x] "Continuar como sessão" cria sessão com worktree e o histórico como contexto (teste com CLI falso: worktree novo + `--session-id <nova> --resume <conversa> --fork-session`; contexto via fork já sondado na Fase 5 (c)(d). Conferência manual no app pendente)
+
+**Notas da execução (2026-10-15):**
+- Nenhum pacote novo. Arquivos: `lib/core/providers/{agent_provider,claude_code_provider,agent_registry}.dart`; `lib/features/prompt/{conversation_manager,prompt_actions,prompt_screen}.dart` e `widgets/{conversation_list,prompt_composer,prompt_side_panel,prompt_dialogs}.dart`; testes em `test/features/prompt/`. `docs/pesquisa/perguntar-somente-leitura.py` = sonda do modo Perguntar.
+- **Decisão — modo Perguntar** (sonda real, CLI 2.1.300, haiku, `--max-budget-usd 0.05`, diretório temporário com `a.txt`; pedido: "mude a.txt e crie b.txt"; o responder **aprovava todo** `control_request`, simulando um usuário que clica Aprovar):
+  - **Opção A `--permission-mode plan` — reprovada.** O modelo gravou um arquivo de plano em `~/.claude/plans/…md` **sem pedir aprovação** (fora do workspace; removido após o teste) e foi buscar `ExitPlanMode`, cuja aprovação sai do modo plano e libera edições. Estourou o orçamento (US$ 0,056, `error_max_budget_usd`) antes de editar. Não é somente leitura.
+  - **Opção B `--permission-mode default --disallowedTools Edit Write NotebookEdit Bash` — aprovada.** `system/init.tools` já vem sem as quatro; o modelo tentou `Write` ×2 e `Bash` e recebeu `No such tool available: Write. Write is disabled for this session, in subagents as well as here.` 0 pedidos de aprovação, `a.txt` intacto, nenhum `b.txt`. US$ 0,0061, `success`, 5 turnos. Confirma a semântica da 0.2: nome puro em `--disallowedTools` **remove** a ferramenta (também nos subagentes).
+  - Custo total da sondagem: ≈ US$ 0,062.
+  - Lista final (`ClaudeCodeProvider.readOnlyDisallowedTools`): as 4 testadas + `Monitor` (roda comandos), `EnterWorktree` (cria worktree), `CronCreate`, `CronDelete`, `RemoteTrigger`, `Workflow` — todas presentes em `system/init.tools` da 2.1.300. MCP continua passando por aprovação (DT-25).
+- **Planejar** = `--permission-mode plan` (aviso: grava plano em `~/.claude/plans` e "ExitPlanMode" aprovado libera edições — DT-26). **Editar** = `acceptEdits`. Nenhum modo usa `bypassPermissions`.
+- **`AgentProvider`** (`core/providers`): `id`, `displayName`, `icon` (`AppIconData`), `enabled`, `models`, `start(AgentStartOptions) → AgentRun` (`events`/`logs`/`send`/`approve`/`deny`/`stop`/`exitCode`). Eventos no vocabulário `ClaudeEvent` (o que a timeline entende) — outros provedores terão de traduzir (DT-08). Registro `agentProvidersProvider`: Claude Code ativo; Codex e Gemini CLI = `ComingSoonProvider` (desabilitados, "em breve" no menu). `claudeProcessStarterProvider` mudou para `core/claude/claude_cli.dart` (reexportado por `session_manager.dart`).
+- **Esquema v3** (`onUpgrade`): `conversations` + `claude_session_id`, `mode` (`ask|plan|edit`), `tokens_in/out`, `cost_usd`, `message_count`, `updated_at`; nova tabela `conversation_events` (mesmo formato de `session_events`); `tasks.body`. `conversations.session_id` (FK para `sessions`) passou a significar "sessão criada por Continuar como sessão". Testes de migração v1→v3 e v2→v3.
+- **`ConversationManager`** (`conversationManagerProvider`): um processo por conversa viva, cwd = raiz do workspace. 1º início com `--session-id <uuid>`; o id só é gravado em `claude_session_id` ao chegar o `system/init` (se o processo morrer antes, o próximo início usa outro UUID em vez de um `--resume` inválido); depois sempre `--resume`. Mudar modo/modelo com o processo vivo ⇒ no próximo envio para o processo e reinicia com `--resume` (nota na timeline). Persistência igual às sessões (sem `stream_event`); custo = último `total_cost_usd` cumulativo, tokens somados, `UsageTracker` recebe o delta. Encerrado junto com as sessões ao fechar a janela.
+- **Reuso da timeline:** `StoredTimelineNotifier` (base de `SessionTimelineNotifier` e `ConversationTimelineNotifier`); `TimelineListView` extraído de `TimelineView` (com `footer`, `maxWidth` 760, `assistantName` "Claude Code · Modelo"). Aprovações chegam **inline** no rodapé da conversa com o mesmo `ApprovalCard` (agora aceita `onApprove`/`onDeny`/`onOpen`); não entram na fila da tela de Sessões.
+- **Composer:** `@` (início de palavra) abre a lista de `git ls-files --cached --others --exclude-standard` filtrada (nome do arquivo primeiro); escolher insere `@caminho ` e vira chip (removível). `/` só no início de linha (para não confundir com caminhos) lista `saved_prompts`; escolher troca `/consulta` pelo corpo e incrementa `uses`. ↑/↓, Enter/Tab escolhem, Esc fecha. Ctrl+Enter envia. Menu de provedor (ícone do provedor ativo), modelo (`inherit/opus/sonnet/haiku/fable`), modo com dica do mockup; "Parar" enquanto responde.
+- **Ações:** Copiar (clipboard); Criar tarefa = `tasks` (`T-NNN` seguinte, backlog, título = 1ª linha da resposta sem Markdown, ≤ 70, corpo = resposta); Salvar como prompt = diálogo comando/descrição/corpo (corpo = última pergunta; comando `[a-z0-9-]`); Transformar em spec = `specs/SPEC-NNN-<slug>.md` (NNN = maior entre `specs` e arquivos `specs/SPEC-*`) com frontmatter `id`/`status: rascunho` e corpo = objetivo + conversa resumida (cada mensagem cortada, ferramentas omitidas — DT-28) + seções vazias; registra em `specs` (`draft`). Continuar como sessão = diálogo (título + 1ª mensagem pedindo um resumo) → `SessionManager.create(NewSessionRequest(resumeFrom:, origin:))` com worktree novo; liga `conversations.session_id`, seleciona a sessão e vai para Sessões. Modo da sessão: Perguntar→`default`, Planejar→`plan`, Editar→`acceptEdits`.
+- **Painel direito:** Pasta, Acesso (pelo modo), Tokens (entrada com cache + saída), chips dos `@arquivos` citados; Prompts salvos com `/comando`, usos, descrição, "Novo" e clique que insere no cursor.
+- **Seed:** `seedSavedPrompts` no passo "Abrindo banco local…" (falha só loga); flag `prompts.seeded` em `app_settings` (apagar um padrão não o recria). `savedPromptsProvider` virou `autoDispose` (stream do drift não fica aberto fora da tela).
+- Botão "Nova conversa" da barra de título limpa a seleção (rascunho); a conversa é criada no primeiro envio (título = 1ª linha).
+- Widget tests: as fontes de teste têm glifos largos, por isso os botões do topo são `Flexible` (reticências) e os chips limitam o texto.
 
 ---
 

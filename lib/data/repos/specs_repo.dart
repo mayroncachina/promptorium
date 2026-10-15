@@ -24,6 +24,20 @@ class SpecsRepo {
           ))
           .getSingleOrNull();
 
+  /// Highest `SPEC-NNN` number registered in the workspace (0 = none).
+  Future<int> maxNumber(int workspaceId) async {
+    final rows = await (_db.select(
+      _t,
+    )..where((s) => s.workspaceId.equals(workspaceId))).get();
+    var max = 0;
+    for (final r in rows) {
+      final m = RegExp(r'^SPEC-(\d+)$').firstMatch(r.code);
+      final n = m == null ? 0 : int.parse(m.group(1)!);
+      if (n > max) max = n;
+    }
+    return max;
+  }
+
   Future<Spec> insert({
     required int workspaceId,
     required String code,

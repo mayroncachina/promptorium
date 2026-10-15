@@ -79,6 +79,13 @@ abstract final class AppIcons {
     'M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5',
   ]);
 
+  /// Provider mark of the Prompt mockup (Claude Code).
+  static final sparkle = AppIconData([
+    'M12 4l1.8 4.6L18.5 10l-4.7 1.6L12 16.4l-1.8-4.8L5.5 10l4.7-1.4z',
+  ], strokeWidth: 2);
+
+  static final chevronUp = AppIconData(['M6 15l6-6 6 6'], strokeWidth: 2);
+
   static final check = AppIconData([
     'M5 12.5l4.5 4.5L19 7.5',
   ], strokeWidth: 2.2);

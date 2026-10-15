@@ -95,10 +95,25 @@ String? alwaysAllowLabel(List<Map<String, dynamic>> suggestions) {
   return 'Sempre permitir$where';
 }
 
+/// One pending approval. Answers go to [SessionManager] unless [onApprove] /
+/// [onDeny] are given (Prompt conversations reuse the card inline).
 class ApprovalCard extends ConsumerStatefulWidget {
-  const ApprovalCard({super.key, required this.approval});
+  const ApprovalCard({
+    super.key,
+    required this.approval,
+    this.onApprove,
+    this.onDeny,
+    this.onOpen,
+  });
 
   final PendingApproval approval;
+
+  /// `always` = "Sempre permitir" (first permission suggestion).
+  final Future<void> Function({required bool always})? onApprove;
+  final Future<void> Function()? onDeny;
+
+  /// Tap on the header (default: select the session).
+  final VoidCallback? onOpen;
 
   @override
   ConsumerState<ApprovalCard> createState() => _ApprovalCardState();
@@ -112,6 +127,32 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
     setState(() => _busy = true);
     try {
       await action(ref.read(sessionManagerProvider.notifier));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _approve({required bool always}) {
+    final custom = widget.onApprove;
+    final a = widget.approval;
+    if (custom == null) {
+      return _run((m) => m.approve(a.sessionId, a.requestId, always: always));
+    }
+    return _guard(() => custom(always: always));
+  }
+
+  Future<void> _deny() {
+    final custom = widget.onDeny;
+    final a = widget.approval;
+    if (custom == null) return _run((m) => m.deny(a.sessionId, a.requestId));
+    return _guard(custom);
+  }
+
+  Future<void> _guard(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -135,8 +176,11 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            onTap: () =>
-                ref.read(selectedSessionProvider.notifier).select(a.sessionId),
+            onTap:
+                widget.onOpen ??
+                () => ref
+                    .read(selectedSessionProvider.notifier)
+                    .select(a.sessionId),
             child: Text(
               '${a.sessionTitle} · ${approvalVerb(r.toolName)}',
               maxLines: 2,
@@ -191,9 +235,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
                   key: ValueKey('deny-${a.requestId}'),
                   label: 'Negar',
                   expand: true,
-                  onTap: _busy
-                      ? null
-                      : () => _run((m) => m.deny(a.sessionId, a.requestId)),
+                  onTap: _busy ? null : _deny,
                 ),
               ),
               const SizedBox(width: 6),
@@ -202,9 +244,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
                   key: ValueKey('approve-${a.requestId}'),
                   label: 'Aprovar',
                   expand: true,
-                  onTap: _busy
-                      ? null
-                      : () => _run((m) => m.approve(a.sessionId, a.requestId)),
+                  onTap: _busy ? null : () => _approve(always: false),
                 ),
               ),
             ],
@@ -215,12 +255,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
               alignment: Alignment.centerLeft,
               child: InkWell(
                 key: ValueKey('always-${a.requestId}'),
-                onTap: _busy
-                    ? null
-                    : () => _run(
-                        (m) =>
-                            m.approve(a.sessionId, a.requestId, always: true),
-                      ),
+                onTap: _busy ? null : () => _approve(always: true),
                 child: Text(
                   always,
                   style: const TextStyle(

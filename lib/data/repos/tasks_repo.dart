@@ -30,6 +30,7 @@ class TasksRepo {
     required String title,
     int? specId,
     String? agentName,
+    String? body,
     List<String> dependsOn = const [],
     TaskStatus status = TaskStatus.backlog,
   }) => _db
@@ -41,10 +42,25 @@ class TasksRepo {
           title: title,
           specId: Value(specId),
           agentName: Value(agentName),
+          body: Value(body),
           dependsOn: Value(dependsOn),
           status: Value(status),
         ),
       );
+
+  /// Next free `T-NNN` code of the workspace.
+  Future<String> nextCode(int workspaceId) async {
+    final rows = await (_db.select(
+      _t,
+    )..where((t) => t.workspaceId.equals(workspaceId))).get();
+    var max = 0;
+    for (final r in rows) {
+      final m = RegExp(r'^T-(\d+)$').firstMatch(r.code);
+      final n = m == null ? 0 : int.parse(m.group(1)!);
+      if (n > max) max = n;
+    }
+    return 'T-${(max + 1).toString().padLeft(3, '0')}';
+  }
 
   Future<int> update(int id, TasksCompanion changes) =>
       (_db.update(_t)..where((t) => t.id.equals(id))).write(changes);

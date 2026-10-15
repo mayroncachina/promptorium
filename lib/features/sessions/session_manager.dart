@@ -20,9 +20,7 @@ import 'session_changes.dart';
 import 'timeline.dart';
 import 'timeline_provider.dart';
 
-/// `Process.start` replacement for sessions (tests feed fake CLI output).
-/// Null = real `Process.start`.
-final claudeProcessStarterProvider = Provider<ProcessStarter?>((ref) => null);
+export '../../core/claude/claude_cli.dart' show claudeProcessStarterProvider;
 
 /// Generates session ids (`--session-id`, UUID v4).
 final sessionIdGeneratorProvider = Provider<String Function()>(
@@ -46,6 +44,8 @@ class NewSessionRequest {
     this.useWorktree = true,
     this.taskId,
     this.maxBudgetUsd,
+    this.resumeFrom,
+    this.origin,
   });
 
   final Workspace workspace;
@@ -63,6 +63,13 @@ class NewSessionRequest {
 
   /// `--max-budget-usd` of the first process (not reapplied on resume).
   final double? maxBudgetUsd;
+
+  /// Claude session to carry over (`--resume ID --fork-session
+  /// --session-id NEW`): "Continuar como sessão" of the Prompt screen.
+  final String? resumeFrom;
+
+  /// Note shown at the top of the timeline (e.g. where the context came from).
+  final String? origin;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -213,10 +220,13 @@ class SessionManager extends Notifier<SessionManagerState> {
       permissionMode: r.permissionMode.cliValue,
       taskId: r.taskId,
     );
+    if (r.origin != null) await _note(id, r.origin!);
     await _start(
       id,
       ClaudeOptions(
         sessionId: id,
+        resumeId: r.resumeFrom,
+        forkSession: r.resumeFrom != null,
         model: _model(r.model),
         agent: r.agent,
         permissionMode: r.permissionMode,
@@ -653,13 +663,13 @@ String sessionTitle(Session s) => (s.title?.isNotEmpty ?? false)
     ? s.title!
     : 'Sessão ${s.id.substring(0, math.min(8, s.id.length))}';
 
-/// Worktree slug: ascii lowercase title + 6 chars of the id
-/// (`GitService.slugPattern`).
-String sessionSlug(String title, String id) {
+/// ASCII, lowercase, `-`-separated slug of [text] (accents folded), at most
+/// [maxLength] characters. May be empty.
+String slugify(String text, {int maxLength = 32}) {
   const from = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
   const to = 'aaaaaeeeeiiiiooooouuuucn';
   final buf = StringBuffer();
-  for (final ch in title.toLowerCase().split('')) {
+  for (final ch in text.toLowerCase().split('')) {
     final i = from.indexOf(ch);
     buf.write(i >= 0 ? to[i] : ch);
   }
@@ -667,9 +677,16 @@ String sessionSlug(String title, String id) {
       .toString()
       .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'^-+|-+$'), '');
-  if (slug.length > 32) {
-    slug = slug.substring(0, 32).replaceAll(RegExp(r'-+$'), '');
+  if (slug.length > maxLength) {
+    slug = slug.substring(0, maxLength).replaceAll(RegExp(r'-+$'), '');
   }
+  return slug;
+}
+
+/// Worktree slug: ascii lowercase title + 6 chars of the id
+/// (`GitService.slugPattern`).
+String sessionSlug(String title, String id) {
+  final slug = slugify(title);
   final suffix = id.replaceAll('-', '');
   final tail = suffix.substring(0, math.min(6, suffix.length)).toLowerCase();
   return slug.isEmpty ? 'sessao-$tail' : '$slug-$tail';

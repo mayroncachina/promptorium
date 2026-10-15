@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
+import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
@@ -77,6 +78,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _onAction(AppSection section) {
     if (section == AppSection.sessions) {
       _newSession();
+    } else if (section == AppSection.prompt) {
+      // Draft of a new conversation (the composer creates it on send).
+      ref.read(selectedConversationProvider.notifier).select(null);
     } else {
       _notImplemented(section.actionLabel ?? '');
     }

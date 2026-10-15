@@ -4,6 +4,7 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'features/prompt/conversation_manager.dart';
 import 'features/sessions/session_manager.dart';
 import 'features/sessions/widgets/session_terminal.dart';
 import 'ui/theme/tokens.dart';
@@ -63,10 +64,10 @@ class _CloseHandler with WindowListener {
     _closing = true;
     try {
       container.read(sessionTerminalsProvider.notifier).killAll();
-      await container
-          .read(sessionManagerProvider.notifier)
-          .shutdown()
-          .timeout(const Duration(seconds: 4));
+      await Future.wait([
+        container.read(sessionManagerProvider.notifier).shutdown(),
+        container.read(conversationManagerProvider.notifier).shutdown(),
+      ]).timeout(const Duration(seconds: 4));
     } catch (e) {
       debugPrint('encerramento: $e');
     }

@@ -13,6 +13,9 @@ abstract final class AppSettingKeys {
 
   /// Token usage of one day (`yyyy-mm-dd`, JSON; see `UsageTracker`).
   static String usage(String day) => 'usage.$day';
+
+  /// '1' once the default saved prompts were inserted (Fase 6).
+  static const savedPromptsSeeded = 'prompts.seeded';
 }
 
 class AppSettingsRepo {

@@ -6,6 +6,7 @@ import '../../core/git/git_service.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
+import '../prompt/prompt_actions.dart' show seedSavedPrompts;
 
 /// Values produced by startup steps and consumed by later steps / the app.
 class StartupContext {
@@ -96,6 +97,15 @@ class OpenDatabaseStep extends StartupStep {
             'Confira as permissões de ~/.local/share/promptorium/'
             '${AppDatabase.fileName}.sqlite.',
       );
+    }
+    // First run: default saved prompts of the Prompt screen (best effort).
+    try {
+      await seedSavedPrompts(
+        ctx.ref.read(savedPromptsRepoProvider),
+        ctx.ref.read(appSettingsProvider.notifier),
+      );
+    } catch (e) {
+      debugPrint('prompts salvos: falha ao criar os padrões — $e');
     }
   }
 }

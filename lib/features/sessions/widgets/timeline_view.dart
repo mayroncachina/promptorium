@@ -30,33 +30,92 @@ class TimelineView extends ConsumerWidget {
       ))
         ?a.request.toolUseId,
     };
-    final items = snap.items;
-    if (items.isEmpty) {
+    return TimelineListView(
+      key: ValueKey('timeline-$sessionId'),
+      items: snap.items,
+      loading: snap.loading,
+      root: root,
+      waitingTools: waitingTools,
+    );
+  }
+}
+
+/// Scrollable list of timeline items (sessions and Prompt conversations).
+/// Reversed, so the end stays visible while new items arrive. [footer] is
+/// shown after the last item (inline approvals, answer actions).
+class TimelineListView extends StatelessWidget {
+  const TimelineListView({
+    super.key,
+    required this.items,
+    this.loading = false,
+    this.root,
+    this.waitingTools = const {},
+    this.footer,
+    this.maxWidth,
+    this.assistantName = 'Claude',
+    this.emptyText = 'Nenhum evento ainda.',
+  });
+
+  final List<TimelineItem> items;
+  final bool loading;
+  final String? root;
+  final Set<String> waitingTools;
+  final Widget? footer;
+
+  /// Centers the content in a column of at most this width.
+  final double? maxWidth;
+  final String assistantName;
+  final String emptyText;
+
+  Widget _wrap(Widget child) => maxWidth == null
+      ? child
+      : Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth!),
+            child: child,
+          ),
+        );
+
+  @override
+  Widget build(BuildContext context) {
+    final foot = footer;
+    if (items.isEmpty && foot == null) {
       return Center(
         child: Text(
-          snap.loading ? 'Carregando…' : 'Nenhum evento ainda.',
+          loading ? 'Carregando…' : emptyText,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       );
     }
+    final extra = foot == null ? 0 : 1;
     return ListView.builder(
-      key: ValueKey('timeline-$sessionId'),
       reverse: true,
       padding: const EdgeInsets.all(20),
-      itemCount: items.length,
+      itemCount: items.length + extra,
       itemBuilder: (context, i) {
-        final idx = items.length - 1 - i;
+        if (foot != null && i == 0) {
+          return _wrap(
+            Padding(
+              padding: EdgeInsets.only(top: items.isEmpty ? 0 : 10),
+              child: foot,
+            ),
+          );
+        }
+        final idx = items.length - 1 - (i - extra);
         final item = items[idx];
         final prev = idx > 0 ? items[idx - 1] : null;
         final gap = prev == null
             ? 0.0
             : (item is ToolItem && prev is ToolItem ? 4.0 : 14.0);
-        return Padding(
-          padding: EdgeInsets.only(top: gap),
-          child: TimelineItemView(
-            item: item,
-            root: root,
-            waitingTools: waitingTools,
+        return _wrap(
+          Padding(
+            padding: EdgeInsets.only(top: gap),
+            child: TimelineItemView(
+              item: item,
+              root: root,
+              waitingTools: waitingTools,
+              assistantName: assistantName,
+            ),
           ),
         );
       },
@@ -71,19 +130,25 @@ class TimelineItemView extends StatelessWidget {
     this.root,
     this.waitingTools = const {},
     this.nested = false,
+    this.assistantName = 'Claude',
   });
 
   final TimelineItem item;
   final String? root;
   final Set<String> waitingTools;
   final bool nested;
+  final String assistantName;
 
   @override
   Widget build(BuildContext context) {
     final it = item;
     return switch (it) {
       UserItem() => _UserBubble(it),
-      AssistantTextItem() => _AssistantText(it, nested: nested),
+      AssistantTextItem() => _AssistantText(
+        it,
+        nested: nested,
+        name: assistantName,
+      ),
       ToolItem() => ToolCard(tool: it, root: root, waitingTools: waitingTools),
       NoticeItem() => _Notice(it),
     };
@@ -132,10 +197,11 @@ class _UserBubble extends StatelessWidget {
 }
 
 class _AssistantText extends StatelessWidget {
-  const _AssistantText(this.item, {this.nested = false});
+  const _AssistantText(this.item, {this.nested = false, this.name = 'Claude'});
 
   final AssistantTextItem item;
   final bool nested;
+  final String name;
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +228,7 @@ class _AssistantText extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${nested ? 'Subagente' : 'Claude'} · ${formatClock(item.at)}'
+              '${nested ? 'Subagente' : name} · ${formatClock(item.at)}'
               '${item.live ? ' · escrevendo…' : ''}',
               style: const TextStyle(
                 fontSize: 11,

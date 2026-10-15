@@ -33,6 +33,56 @@ void main() {
 
   tearDown(() => tmp.deleteSync(recursive: true));
 
+  test(
+    'create with resumeFrom ("Continuar como sessão" do Prompt): new '
+    'worktree, --resume <conversa> --fork-session --session-id <nova>',
+    () async {
+      final db = memoryDatabase();
+      final cli = FakeCli();
+      final c = sessionContainer(
+        sessionOverrides(
+          db: db,
+          cli: cli,
+          notifier: FakeNotifier(),
+          worktreesBase: '${tmp.path}/wt',
+        ),
+      );
+      addTearDown(c.dispose);
+      await c.read(appSettingsProvider.notifier).load();
+      final ws = await c
+          .read(workspacesRepoProvider)
+          .add(path: repo, name: 'repo');
+      final id = await c
+          .read(sessionManagerProvider.notifier)
+          .create(
+            NewSessionRequest(
+              workspace: ws,
+              title: 'Parser',
+              prompt: 'Resuma e aguarde.',
+              model: 'sonnet',
+              resumeFrom: 'conv-sid',
+              origin: 'Continuação da conversa "Parser" do Prompt',
+            ),
+          );
+      final row = (await c.read(sessionsRepoProvider).getById(id))!;
+      expect(row.worktreePath, isNot(repo));
+      expect(Directory(row.worktreePath).existsSync(), isTrue);
+      expect(cli.cwds.single, row.worktreePath);
+      final args = cli.args.single;
+      expect(args, containsAllInOrder(['--session-id', id]));
+      expect(args, containsAllInOrder(['--resume', 'conv-sid']));
+      expect(args, contains('--fork-session'));
+      expect(
+        cli.last.writtenJson.single['message']['content'],
+        'Resuma e aguarde.',
+      );
+      await settle();
+      final events = await c.read(sessionsRepoProvider).events(id);
+      expect(events.first.type, AppEventTypes.note);
+      expect(events.first.json, contains('Continuação da conversa'));
+    },
+  );
+
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();
     final cli = FakeCli();

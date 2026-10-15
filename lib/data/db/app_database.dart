@@ -79,6 +79,9 @@ class Tasks extends Table {
       textEnum<TaskStatus>().withDefault(Constant(TaskStatus.backlog.name))();
   TextColumn get agentName => text().nullable()();
 
+  /// Free text of the task (schema v3; e.g. the Prompt answer it came from).
+  TextColumn get body => text().nullable()();
+
   /// Codes of the tasks this one depends on (JSON array).
   TextColumn get dependsOn => text()
       .map(const StringListConverter())
@@ -153,12 +156,48 @@ class Conversations extends Table {
   TextColumn get title => text()();
   TextColumn get provider => text().withDefault(const Constant('claude'))();
   TextColumn get model => text()();
+
+  /// Session created from this conversation by "Continuar como sessão".
   TextColumn get sessionId => text().nullable().references(
     Sessions,
     #id,
     onDelete: KeyAction.setNull,
   )();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Claude Code session id of the conversation itself (`--session-id` on
+  /// the first start, `--resume` afterwards). Schema v3.
+  TextColumn get claudeSessionId => text().nullable()();
+
+  /// `PromptMode.name`: ask / plan / edit (schema v3).
+  TextColumn get mode => text().withDefault(const Constant('ask'))();
+  IntColumn get tokensIn => integer().withDefault(const Constant(0))();
+  IntColumn get tokensOut => integer().withDefault(const Constant(0))();
+
+  /// Last cumulative `total_cost_usd` (see plano, Fase 5).
+  RealColumn get costUsd => real().withDefault(const Constant(0))();
+
+  /// User messages + Claude answers (list meta).
+  IntColumn get messageCount => integer().withDefault(const Constant(0))();
+
+  /// Last activity (history order / grouping). Null = [createdAt].
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+}
+
+/// Raw stream-json lines of a conversation (same format as [SessionEvents]).
+class ConversationEvents extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get conversationId =>
+      integer().references(Conversations, #id, onDelete: KeyAction.cascade)();
+  IntColumn get seq => integer()();
+  TextColumn get type => text()();
+  TextColumn get json => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {conversationId, seq},
+  ];
 }
 
 /// `/comando` prompts.
@@ -217,6 +256,7 @@ class AppSettings extends Table {
     Sessions,
     SessionEvents,
     Conversations,
+    ConversationEvents,
     SavedPrompts,
     AgentSettings,
     McpToolRules,
@@ -238,7 +278,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -248,6 +288,18 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.addColumn(sessions, sessions.title);
         await m.addColumn(sessions, sessions.permissionMode);
+      }
+      // v3 (Fase 6): Prompt conversations, task body.
+      if (from < 3) {
+        await m.addColumn(tasks, tasks.body);
+        await m.addColumn(conversations, conversations.claudeSessionId);
+        await m.addColumn(conversations, conversations.mode);
+        await m.addColumn(conversations, conversations.tokensIn);
+        await m.addColumn(conversations, conversations.tokensOut);
+        await m.addColumn(conversations, conversations.costUsd);
+        await m.addColumn(conversations, conversations.messageCount);
+        await m.addColumn(conversations, conversations.updatedAt);
+        await m.createTable(conversationEvents);
       }
     },
     beforeOpen: (details) async {

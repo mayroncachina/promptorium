@@ -85,7 +85,9 @@ final conversationsProvider = StreamProvider.family<List<Conversation>, int>(
       ref.watch(conversationsRepoProvider).watchByWorkspace(workspaceId),
 );
 
-final savedPromptsProvider = StreamProvider<List<SavedPrompt>>(
+/// Auto-dispose: only the Prompt screen listens (no drift stream left open
+/// after leaving it).
+final savedPromptsProvider = StreamProvider.autoDispose<List<SavedPrompt>>(
   (ref) => ref.watch(savedPromptsRepoProvider).watchAll(),
 );
 
