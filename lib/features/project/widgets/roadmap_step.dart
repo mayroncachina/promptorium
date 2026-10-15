@@ -9,6 +9,34 @@ import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
 import 'project_widgets.dart';
+import 'roadmap_editors.dart';
+
+Future<bool> _confirmRegenerate(BuildContext context) async =>
+    await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        title: const Text('Regerar o roadmap?', style: TextStyle(fontSize: 15)),
+        content: const Text(
+          'Você editou este roadmap. O planner gera um novo do zero e as '
+          'suas edições se perdem.',
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const ValueKey('roadmap-regenerate-confirm'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Regerar'),
+          ),
+        ],
+      ),
+    ) ??
+    false;
 
 /// Step 4 · Roadmap: specs and tasks in phases (Fundação first, then MVP;
 /// out-of-scope ideas under "Depois") and the execution order.
@@ -38,6 +66,8 @@ class RoadmapStep extends ConsumerWidget {
                 title: 'Roadmap',
                 subtitle: roadmap.isReady
                     ? '${roadmap.specs.length} specs · $taskCount tarefas'
+                          '${roadmap.edited ? ' · editado por você' : ''}'
+                          ' · clique numa spec ou tarefa para editar'
                     : 'Specs e tarefas geradas a partir da visão e da stack.',
                 actions: [
                   PlannerButton(
@@ -46,7 +76,13 @@ class RoadmapStep extends ConsumerWidget {
                         ? 'Regerar com o planner'
                         : 'Gerar roadmap',
                     onTap: busy == null
-                        ? () => planner.planRoadmap(workspace)
+                        ? () async {
+                            if (roadmap.edited) {
+                              final ok = await _confirmRegenerate(context);
+                              if (!ok) return;
+                            }
+                            await planner.planRoadmap(workspace);
+                          }
                         : null,
                   ),
                 ],
@@ -76,7 +112,7 @@ class RoadmapStep extends ConsumerWidget {
               ),
               Expanded(
                 child: roadmap.isReady
-                    ? _Phases(roadmap: roadmap)
+                    ? _Phases(workspace: workspace, roadmap: roadmap)
                     : const StepEmpty(
                         title: 'Sem roadmap ainda',
                         text:
@@ -108,39 +144,67 @@ class RoadmapStep extends ConsumerWidget {
 }
 
 class _Phases extends StatelessWidget {
-  const _Phases({required this.roadmap});
+  const _Phases({required this.workspace, required this.roadmap});
 
+  final Workspace workspace;
   final Roadmap roadmap;
 
   static const minColumn = 260.0;
 
+  List<(int, RoadmapSpec)> _of(RoadmapPhase p) => [
+    for (final (i, s) in roadmap.specs.indexed)
+      if (s.phase == p) (i, s),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    Future<void> addSpec(RoadmapPhase p) => showSpecEditor(
+      context,
+      workspace: workspace,
+      roadmap: roadmap,
+      phase: p,
+    );
     final columns = [
       _PhaseColumn(
+        key: const ValueKey('roadmap-phase-foundation'),
         title: RoadmapPhase.foundation.label,
         badge: 'sequencial',
         badgeColor: AppColors.amber,
         border: SessionColors.approvalBorder,
         subtitle: 'Roda primeiro. Cada merge libera a próxima.',
-        specs: roadmap.ofPhase(RoadmapPhase.foundation),
+        workspace: workspace,
+        roadmap: roadmap,
+        specs: _of(RoadmapPhase.foundation),
+        addLabel: 'Spec da Fundação',
+        onAdd: () => addSpec(RoadmapPhase.foundation),
       ),
       _PhaseColumn(
+        key: const ValueKey('roadmap-phase-mvp'),
         title: RoadmapPhase.mvp.label,
         badge: 'em paralelo',
         badgeColor: AppColors.teal,
         border: AppColors.border,
         subtitle: 'Liberado após o merge da Fundação.',
-        specs: roadmap.ofPhase(RoadmapPhase.mvp),
+        workspace: workspace,
+        roadmap: roadmap,
+        specs: _of(RoadmapPhase.mvp),
+        addLabel: 'Spec do MVP',
+        onAdd: () => addSpec(RoadmapPhase.mvp),
       ),
       _PhaseColumn(
+        key: const ValueKey('roadmap-phase-later'),
         title: 'Depois',
         badge: 'ideias',
         badgeColor: AppColors.textSecondary,
         border: AppColors.border,
         subtitle: 'Fora do escopo do MVP. Não viram tarefas.',
+        workspace: workspace,
+        roadmap: roadmap,
         specs: const [],
         ideas: roadmap.later,
+        addLabel: 'Editar ideias',
+        onAdd: () =>
+            showIdeasEditor(context, workspace: workspace, roadmap: roadmap),
       ),
     ];
     return LayoutBuilder(
@@ -174,12 +238,17 @@ class _Phases extends StatelessWidget {
 
 class _PhaseColumn extends StatelessWidget {
   const _PhaseColumn({
+    super.key,
     required this.title,
     required this.badge,
     required this.badgeColor,
     required this.border,
     required this.subtitle,
+    required this.workspace,
+    required this.roadmap,
     required this.specs,
+    required this.addLabel,
+    required this.onAdd,
     this.ideas = const [],
   });
 
@@ -188,8 +257,14 @@ class _PhaseColumn extends StatelessWidget {
   final Color badgeColor;
   final Color border;
   final String subtitle;
-  final List<RoadmapSpec> specs;
+  final Workspace workspace;
+  final Roadmap roadmap;
+
+  /// (index in the roadmap, spec).
+  final List<(int, RoadmapSpec)> specs;
   final List<String> ideas;
+  final String addLabel;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -222,7 +297,30 @@ class _PhaseColumn extends StatelessWidget {
           style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 10),
-        for (final s in specs) _SpecCard(spec: s),
+        for (final (i, s) in specs)
+          _SpecCard(
+            key: ValueKey('roadmap-spec-$i'),
+            spec: s,
+            onEdit: () => showSpecEditor(
+              context,
+              workspace: workspace,
+              roadmap: roadmap,
+              index: i,
+            ),
+            onEditTask: (code) => showTaskEditor(
+              context,
+              workspace: workspace,
+              roadmap: roadmap,
+              specIndex: i,
+              code: code,
+            ),
+            onAddTask: () => showTaskEditor(
+              context,
+              workspace: workspace,
+              roadmap: roadmap,
+              specIndex: i,
+            ),
+          ),
         for (final idea in ideas)
           Container(
             margin: const EdgeInsets.only(bottom: 8),
@@ -241,104 +339,166 @@ class _PhaseColumn extends StatelessWidget {
             ),
           ),
         if (specs.isEmpty && ideas.isEmpty)
-          const Text(
-            'Nada aqui.',
-            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Nada aqui.',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
           ),
+        AddButton(
+          key: ValueKey('roadmap-add-$title'),
+          label: addLabel,
+          onTap: onAdd,
+        ),
       ],
     ),
   );
 }
 
 class _SpecCard extends StatelessWidget {
-  const _SpecCard({required this.spec});
+  const _SpecCard({
+    super.key,
+    required this.spec,
+    required this.onEdit,
+    required this.onEditTask,
+    required this.onAddTask,
+  });
 
   final RoadmapSpec spec;
+  final VoidCallback onEdit;
+  final ValueChanged<String> onEditTask;
+  final VoidCallback onAddTask;
 
   @override
   Widget build(BuildContext context) => Container(
     margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
       color: AppColors.surfaceRaised,
       border: Border.all(color: AppColors.border),
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          spec.title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
-          ),
-        ),
-        if (spec.objective.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(
-            spec.objective,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        for (final t in spec.tasks)
-          Container(
-            key: ValueKey('project-roadmap-task-${t.code}'),
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              border: Border.all(color: AppColors.border),
+    child: Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              key: const ValueKey('roadmap-spec-edit'),
+              onTap: onEdit,
               borderRadius: BorderRadius.circular(6),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      t.code,
+                      spec.title,
                       style: const TextStyle(
-                        fontFamily: AppFonts.mono,
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
                       ),
                     ),
-                    const Spacer(),
-                    if (t.requirement.isNotEmpty)
+                    if (spec.objective.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
-                        t.requirement,
+                        spec.objective,
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.textSecondary,
                         ),
                       ),
+                    ],
+                    if (spec.requirements.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        spec.requirements.map((r) => r.id).join(' · '),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  t.title,
-                  style: const TextStyle(fontSize: 13, color: AppColors.text),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  t.dependsOn.isEmpty
-                      ? 'sem dependências'
-                      : 'depende de ${t.dependsOn.join(', ')}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (final t in spec.tasks)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Material(
+                  color: AppColors.background,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: InkWell(
+                    key: ValueKey('project-roadmap-task-${t.code}'),
+                    onTap: () => onEditTask(t.code),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                t.code,
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.mono,
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (t.requirement.isNotEmpty)
+                                Text(
+                                  t.requirement,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            t.title,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            t.dependsOn.isEmpty
+                                ? 'sem dependências'
+                                : 'depende de ${t.dependsOn.join(', ')}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ],
+              ),
+            AddButton(
+              key: const ValueKey('roadmap-add-task'),
+              label: 'Tarefa',
+              onTap: onAddTask,
             ),
-          ),
-      ],
+          ],
+        ),
+      ),
     ),
   );
 }

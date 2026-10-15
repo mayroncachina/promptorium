@@ -462,6 +462,17 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   Future<void> editClaudeMd(Workspace ws, String text) =>
       _edit(ws, (d) => d.copyWith(stack: d.stack.copyWith(claudeMd: text)));
 
+  /// A change made by hand in the Roadmap step; the result is
+  /// [Roadmap.normalized] (same rules as the planner output) and marked as
+  /// edited.
+  Future<void> editRoadmap(Workspace ws, Roadmap Function(Roadmap) change) =>
+      _edit(
+        ws,
+        (d) => d.copyWith(
+          roadmap: change(d.roadmap).normalized().copyWith(edited: true),
+        ),
+      );
+
   Future<void> goTo(Workspace ws, ProjectStep step) => ref
       .read(projectPlansRepoProvider)
       .update(ws.id, ProjectPlansCompanion(step: Value(step.name)));

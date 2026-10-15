@@ -332,6 +332,21 @@ class RoadmapSpec {
   final List<String> acceptance;
   final List<RoadmapTask> tasks;
 
+  RoadmapSpec copyWith({
+    String? title,
+    RoadmapPhase? phase,
+    String? objective,
+    List<SpecRequirement>? requirements,
+    List<String>? acceptance,
+  }) => RoadmapSpec(
+    title: title ?? this.title,
+    phase: phase ?? this.phase,
+    objective: objective ?? this.objective,
+    requirements: requirements ?? this.requirements,
+    acceptance: acceptance ?? this.acceptance,
+    tasks: tasks,
+  );
+
   RoadmapSpec withTasks(List<RoadmapTask> tasks) => RoadmapSpec(
     title: title,
     phase: phase,
@@ -378,13 +393,41 @@ class RoadmapSpec {
 
 @immutable
 class Roadmap {
-  const Roadmap({this.specs = const [], this.later = const []});
+  const Roadmap({
+    this.specs = const [],
+    this.later = const [],
+    this.edited = false,
+  });
 
   /// Foundation specs first, then the MVP (see [normalized]).
   final List<RoadmapSpec> specs;
 
   /// Out-of-scope ideas (not turned into tasks).
   final List<String> later;
+
+  /// Changed by the user after the planner generated it (regenerating
+  /// discards the changes, so the UI asks first).
+  final bool edited;
+
+  Roadmap copyWith({
+    List<RoadmapSpec>? specs,
+    List<String>? later,
+    bool? edited,
+  }) => Roadmap(
+    specs: specs ?? this.specs,
+    later: later ?? this.later,
+    edited: edited ?? this.edited,
+  );
+
+  /// A task code not used yet (`T<n>`).
+  String nextTaskCode() {
+    final used = {for (final t in tasks) t.code};
+    var n = used.length + 1;
+    while (used.contains('T$n')) {
+      n++;
+    }
+    return 'T$n';
+  }
 
   bool get isReady => specs.any((s) => s.tasks.isNotEmpty);
 
@@ -462,7 +505,7 @@ class Roadmap {
       ];
       out.add(s.withTasks(tasks));
     }
-    return Roadmap(specs: out, later: later);
+    return Roadmap(specs: out, later: later, edited: edited);
   }
 
   /// Tasks grouped by when they can start: wave 0 has no dependencies, wave
@@ -522,12 +565,14 @@ class Roadmap {
               RoadmapSpec.fromJson(s),
       ],
       later: _strings(j['later']),
+      edited: j['edited'] == true,
     );
   }
 
   Map<String, Object?> toJson() => {
     'specs': [for (final s in specs) s.toJson()],
     'later': later,
+    if (edited) 'edited': true,
   };
 }
 
