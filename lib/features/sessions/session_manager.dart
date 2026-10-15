@@ -188,6 +188,11 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// next message (no process, e.g. "Pausar agente").
   final Map<String, List<String>> _notices = {};
 
+  /// Screen that was open when each session was created (Tarefas, Projeto,
+  /// Skills…): clicking its "concluída / falhou" notification goes back
+  /// there. Kept for the app session only (default: Sessões).
+  final Map<String, AppSection> _origins = {};
+
   /// Set by [shutdown]: exits are not recorded (the next launch marks the
   /// sessions as interrupted) and no new process starts.
   bool _shuttingDown = false;
@@ -215,6 +220,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       throw const SessionException('Informe o prompt inicial.');
     }
     final id = ref.read(sessionIdGeneratorProvider)();
+    _origins[id] = ref.read(navigationProvider);
     final ws = r.workspace;
     final git = ref.read(gitServiceFactoryProvider)(ws.path);
     String path = ws.path, branch;
@@ -644,6 +650,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           '${p.title}: ${e.displayName ?? e.toolName} '
               '${toolTarget(e.toolName, e.input)}',
           id,
+          approval: true,
         );
       case ControlCancel():
         if (_take(id, e.requestId) != null) await _afterAnswer(id);
@@ -820,15 +827,20 @@ class SessionManager extends Notifier<SessionManagerState> {
     _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
-  void _notify(String title, String body, String id) {
+  /// Native notification. The click goes back to the screen the session was
+  /// created from; approvals always go to Sessões (only answered there).
+  void _notify(String title, String body, String id, {bool approval = false}) {
     ref
         .read(appNotifierProvider)
         .show(
           title,
           body,
           onClick: () {
+            final origin = _origins[id] ?? AppSection.sessions;
             ref.read(selectedSessionProvider.notifier).select(id);
-            ref.read(navigationProvider.notifier).go(AppSection.sessions);
+            ref
+                .read(navigationProvider.notifier)
+                .go(approval ? AppSection.sessions : origin);
           },
         );
   }

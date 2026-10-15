@@ -11,6 +11,7 @@ import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/features/sessions/timeline_provider.dart';
 import 'package:promptorium/ui/shell/footer_stats.dart';
+import 'package:promptorium/ui/shell/navigation.dart';
 
 import '../../core/claude/claude_event_test.dart' show permissionRequestLine;
 import '../../core/git/git_test_utils.dart';
@@ -82,6 +83,64 @@ void main() {
       expect(events.first.json, contains('Continuação da conversa'));
     },
   );
+
+  test('notification clicks: approvals → Sessões; done/failed → the screen '
+      'the session was created from', () async {
+    final db = memoryDatabase();
+    final cli = FakeCli();
+    final notifier = FakeNotifier();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: db,
+        cli: cli,
+        notifier: notifier,
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    await c.read(workspaceActionsProvider).select(ws.id);
+    final nav = c.read(navigationProvider.notifier);
+    final m = c.read(sessionManagerProvider.notifier);
+
+    // Created from Tarefas ("Executar com agente").
+    nav.go(AppSection.tasks);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'TASK-001', prompt: 'Faça'),
+    );
+    final lines = fixtureLines();
+    cli.last.emit(permissionLine('req-1'));
+    await settle();
+    nav.go(AppSection.code);
+    final approval = notifier.shown.indexWhere(
+      (n) => n.$1 == 'Aprovação pendente',
+    );
+    notifier.clicks[approval]!();
+    expect(c.read(navigationProvider), AppSection.sessions);
+    expect(c.read(selectedSessionProvider), id);
+
+    await m.approve(id, 'req-1');
+    cli.last.emit(lines.last); // result
+    await settle();
+    nav.go(AppSection.code);
+    final done = notifier.shown.indexWhere((n) => n.$1 == 'Sessão concluída');
+    notifier.clicks[done]!();
+    expect(c.read(navigationProvider), AppSection.tasks);
+
+    // Created from the Sessões screen itself: stays there.
+    nav.go(AppSection.sessions);
+    await m.create(
+      NewSessionRequest(workspace: ws, title: 'Outra', prompt: 'Faça'),
+    );
+    cli.last.emit(lines.last);
+    await settle();
+    nav.go(AppSection.code);
+    notifier.clicks.last!();
+    expect(c.read(navigationProvider), AppSection.sessions);
+  });
 
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();

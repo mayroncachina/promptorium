@@ -130,7 +130,7 @@ sessões, conversas, preferências). Nenhum segredo (tokens/variáveis de MCP) �
 ```bash
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test
-flutter test                      # 277 testes; os 3 de integração ficam pulados
+flutter test                      # 278 testes; os 3 de integração ficam pulados
 ```
 
 Testes de **integração** chamam o Claude Code CLI de verdade e **gastam alguns centavos** do
