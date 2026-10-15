@@ -90,6 +90,7 @@ Versões **instaladas** (conferidas com o `pubspec.lock`):
 | `window_manager` | ^0.5.2 | 0.5.2 | Tamanho, título e fundo da janela |
 | `local_notifier` | ^0.1.6 | 0.1.6 | Notificações nativas |
 | `tray_manager` | ^0.8.0 | 0.8.0 | Bandeja (opcional; ainda sem uso — DT-49) |
+| `file_selector` | ^1.1.0 | 1.1.0 | Seletor de pastas nativo (adicionar workspace) |
 | `path_provider` | ^2.1.6 | 2.1.6 | Diretórios do sistema |
 | `uuid` | ^4.6.0 | 4.6.0 | IDs de sessão |
 | `yaml` | ^3.1.4 | 3.1.4 | Frontmatter de agentes/specs |
@@ -127,7 +128,7 @@ sessões, conversas, preferências). Nenhum segredo (tokens/variáveis de MCP) �
 ```bash
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test
-flutter test                      # 225 testes; os 3 de integração ficam pulados
+flutter test                      # 226 testes; os 3 de integração ficam pulados
 ```
 
 Testes de **integração** chamam o Claude Code CLI de verdade e **gastam alguns centavos** do

@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -163,6 +164,17 @@ final gitRootResolverProvider = Provider<Future<String> Function(String)>(
   (ref) =>
       (folder) => resolveGitRoot(folder, run: ref.read(processRunnerProvider)),
 );
+
+/// Opens the native folder chooser; returns null when cancelled.
+/// Overridden in widget tests, where platform channels do not answer.
+final directoryPickerProvider =
+    Provider<Future<String?> Function({String? initialDirectory})>(
+      (ref) =>
+          ({initialDirectory}) => getDirectoryPath(
+            initialDirectory: initialDirectory,
+            confirmButtonText: 'Selecionar',
+          ),
+    );
 
 /// Select / add / remove workspaces (title bar selector).
 class WorkspaceActions {

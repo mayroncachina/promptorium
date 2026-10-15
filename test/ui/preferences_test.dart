@@ -19,6 +19,7 @@ Future<ProviderContainer> pumpLoadedShell(
   AppDatabase db, {
   Future<String> Function(String)? resolver,
   String? Function(String root)? branchOf,
+  Future<String?> Function({String? initialDirectory})? directoryPicker,
 }) async {
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
@@ -28,6 +29,8 @@ Future<ProviderContainer> pumpLoadedShell(
       // Not closed by the container: the same database is reopened later.
       appDatabaseProvider.overrideWithValue(db),
       if (resolver != null) gitRootResolverProvider.overrideWithValue(resolver),
+      if (directoryPicker != null)
+        directoryPickerProvider.overrideWithValue(directoryPicker),
       // No real git under FakeAsync.
       currentBranchProvider.overrideWith(
         (ref, root) async => branchOf?.call(root),
@@ -171,6 +174,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('/srv/other'), findsNothing);
     expect(c.read(activeWorkspaceProvider), isNull);
+    await unmount(tester, c);
+  });
+
+  testWidgets('workspace selector adds a folder chosen in the file picker', (
+    tester,
+  ) async {
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    final starts = <String?>[];
+    String? answer;
+    Future<String?> picker({String? initialDirectory}) async {
+      starts.add(initialDirectory);
+      return answer;
+    }
+
+    final c = await pumpLoadedShell(
+      tester,
+      db,
+      resolver: (folder) async => '/home/x/proj',
+      directoryPicker: picker,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('title-workspace')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('workspace-add')));
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('workspace-path-field'));
+    final browse = find.byKey(const ValueKey('workspace-browse'));
+
+    // Cancelled: nothing added, the form stays open with the typed path,
+    // and the chooser starts at that path when it exists.
+    await tester.enterText(field, '/');
+    await tester.tap(browse);
+    await tester.pumpAndSettle();
+    expect(starts, ['/']);
+    expect(find.byKey(const ValueKey('workspace-picker')), findsOneWidget);
+    expect(tester.widget<TextField>(field).controller!.text, '/');
+    expect(await WorkspacesRepoHelper.byPath(db, '/home/x/proj'), isNull);
+
+    // Chosen: added and selected right away.
+    answer = '/home/x/proj/lib';
+    await tester.tap(browse);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('workspace-picker')), findsNothing);
+    expect(workspaceName(tester), 'proj');
+    expect(await WorkspacesRepoHelper.byPath(db, '/home/x/proj'), isNotNull);
     await unmount(tester, c);
   });
 }

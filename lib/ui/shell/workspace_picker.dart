@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,7 +9,8 @@ import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 
 /// Workspace selector opened from the title bar: lists the registered
-/// workspaces, selects one, removes one or adds a git folder by path.
+/// workspaces, selects one, removes one or adds a git folder (typed path or
+/// native folder chooser).
 Future<void> showWorkspacePicker(BuildContext context) => showDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
@@ -56,6 +59,26 @@ class _WorkspacePickerState extends ConsumerState<WorkspacePicker> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Opens the folder chooser (starting at the typed path, if it exists) and
+  /// adds the chosen folder right away; cancelling keeps the form as is.
+  Future<void> _browse() async {
+    if (_busy) return;
+    final typed = expandHome(_path.text.trim());
+    final start = typed.isNotEmpty && Directory(typed).existsSync()
+        ? typed
+        : Platform.environment['HOME'];
+    final String? picked;
+    try {
+      picked = await ref.read(directoryPickerProvider)(initialDirectory: start);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Falha ao abrir o seletor: $e');
+      return;
+    }
+    if (picked == null || !mounted) return;
+    _path.text = picked;
+    await _add();
   }
 
   @override
@@ -151,24 +174,41 @@ class _WorkspacePickerState extends ConsumerState<WorkspacePicker> {
           style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 6),
-        TextField(
-          key: const ValueKey('workspace-path-field'),
-          controller: _path,
-          autofocus: true,
-          enabled: !_busy,
-          style: const TextStyle(
-            fontFamily: AppFonts.mono,
-            fontSize: 12,
-            color: AppColors.text,
-          ),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: '~/workspace/projeto',
-            hintStyle: const TextStyle(color: AppColors.textMuted),
-            errorText: _error,
-            border: const OutlineInputBorder(),
-          ),
-          onSubmitted: (_) => _add(),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                key: const ValueKey('workspace-path-field'),
+                controller: _path,
+                autofocus: true,
+                enabled: !_busy,
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 12,
+                  color: AppColors.text,
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: '~/workspace/projeto',
+                  hintStyle: const TextStyle(color: AppColors.textMuted),
+                  errorText: _error,
+                  border: const OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _add(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 40,
+              child: OutlinedButton.icon(
+                key: const ValueKey('workspace-browse'),
+                onPressed: _busy ? null : _browse,
+                icon: AppIcon(AppIcons.folder, size: 14),
+                label: const Text('Procurar…'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Row(
