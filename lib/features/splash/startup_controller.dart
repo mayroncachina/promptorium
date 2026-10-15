@@ -205,7 +205,9 @@ final startupStepsProvider = Provider<List<StartupStep>>(
     OpenDatabaseStep(),
     LoadWorkspacesStep(),
     ListWorktreesStep(),
-    StubStep('Conectando servidores MCP…'), // TODO(Fase 11): claude mcp list
+    // Stub on purpose: `claude mcp list` starts every server (slow); the MCP
+    // screen runs it lazily per workspace (DT-48).
+    StubStep('Conectando servidores MCP…'),
     RestoreSessionsStep(),
   ],
 );

@@ -141,42 +141,54 @@ void main() {
     );
   });
 
-  test('names cannot escape the agents dir nor overwrite another agent',
-      () async {
-    for (final bad in ['', ' ', '../evil', 'a/b', '..', '/abs', 'x/../y',
-        'a\\b', '-flag', 'ok\n']) {
+  test(
+    'names cannot escape the agents dir nor overwrite another agent',
+    () async {
+      for (final bad in [
+        '',
+        ' ',
+        '../evil',
+        'a/b',
+        '..',
+        '/abs',
+        'x/../y',
+        'a\\b',
+        '-flag',
+        'ok\n',
+      ]) {
+        await expectLater(
+          repo.save(
+            AgentFile.create(name: bad, description: 'x'),
+            AgentScope.global,
+          ),
+          throwsA(isA<AgentException>()),
+          reason: 'nome "$bad"',
+        );
+      }
+      expect(Directory('$home/.claude/agents').existsSync(), isFalse);
+
+      // Renaming onto an existing agent is refused and keeps both files.
+      final a = await repo.save(
+        AgentFile.create(name: 'alpha', description: 'A'),
+        AgentScope.project,
+      );
+      final b = await repo.save(
+        AgentFile.create(name: 'beta', description: 'B'),
+        AgentScope.project,
+      );
+      final before = File(b).readAsStringSync();
       await expectLater(
         repo.save(
-          AgentFile.create(name: bad, description: 'x'),
-          AgentScope.global,
+          AgentFile.parse(File(a).readAsStringSync()).withValue('name', 'beta'),
+          AgentScope.project,
+          previousPath: a,
         ),
         throwsA(isA<AgentException>()),
-        reason: 'nome "$bad"',
       );
-    }
-    expect(Directory('$home/.claude/agents').existsSync(), isFalse);
-
-    // Renaming onto an existing agent is refused and keeps both files.
-    final a = await repo.save(
-      AgentFile.create(name: 'alpha', description: 'A'),
-      AgentScope.project,
-    );
-    final b = await repo.save(
-      AgentFile.create(name: 'beta', description: 'B'),
-      AgentScope.project,
-    );
-    final before = File(b).readAsStringSync();
-    await expectLater(
-      repo.save(
-        AgentFile.parse(File(a).readAsStringSync()).withValue('name', 'beta'),
-        AgentScope.project,
-        previousPath: a,
-      ),
-      throwsA(isA<AgentException>()),
-    );
-    expect(File(a).existsSync(), isTrue);
-    expect(File(b).readAsStringSync(), before);
-  });
+      expect(File(a).existsSync(), isTrue);
+      expect(File(b).readAsStringSync(), before);
+    },
+  );
 
   test('MCP server names come from ~/.claude.json and .mcp.json', () async {
     write('$home/.claude.json', '''

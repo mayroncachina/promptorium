@@ -1,7 +1,8 @@
 # Débito técnico — Promptorium
 
-Itens identificados durante o desenho dos mockups (2026-10-14) que **não** entram no MVP inicial,
-mas são necessários para o Promptorium ser uma IDE robusta.
+Itens identificados durante o desenho dos mockups (2026-10-14) e ao longo das fases 1–12 que **não**
+entraram no MVP, mas são necessários para o Promptorium ser uma IDE robusta. Itens riscados foram
+resolvidos (a fase está indicada). Revisado na Fase 12 (2026-10-15).
 
 Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 
@@ -16,7 +17,7 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | ~~DT-07~~ | ~~Uso do plano (5h / semanal) no rodapé~~ | — | **Resolvido na pesquisa:** vem no evento `rate_limit_event` do stream-json. Entra na Fase 5 |
 | DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Fase 6: interface `AgentProvider` + registro com Codex/Gemini CLI como "em breve" (desabilitados); ícone do botão segue o provedor ativo. Falta a implementação: cada provedor precisa traduzir sua saída para `ClaudeEvent` (vocabulário da timeline) e ter sua própria noção de modo somente leitura |
 | DT-09 | **Ícone: arte vetorial / bordas** | Baixa | Fase 1 gerou os PNGs recortando `icon.webp` (1254px) com máscara de cantos arredondados aproximada via ffmpeg (raio ≈ 200px). Ideal: SVG de origem + ícone simbólico para o painel |
-| DT-10 | **Instalação desktop** (`.desktop` + ícones hicolor) | Média | `linux/promptorium.desktop` existe (`Exec=promptorium`, `Icon=promptorium`, `StartupWMClass=dev.promptorium.promptorium`), mas ainda não é instalado; previsto na Fase 12 |
+| ~~DT-10~~ | ~~Instalação desktop (`.desktop` + ícones hicolor)~~ | — | **Resolvido na Fase 12:** `scripts/install.sh` (bundle em `~/.local/share/promptorium/app/`, link `~/.local/bin/promptorium`, `.desktop` com `Exec` absoluto, ícones hicolor 32–512, caches; idempotente, nunca toca o banco) e `scripts/uninstall.sh`. `desktop-file-validate` OK. Falta: pacote do sistema (deb/Flatpak/AppImage) e ícone simbólico (DT-09) |
 | DT-11 | **Splash em janela própria** (720×440, sem decoração) | Baixa | Fase 2 desenha o cartão 720×440 dentro da janela 1440×900. Redimensionar via `window_manager` (`setSize`/`setTitleBarStyle`) exige mexer também no runner GTK, que já abre em 1440×900 |
 | DT-12 | **Paleta de comandos real** (Ctrl+K) e busca de arquivos (Ctrl+P na tela Código) | Média | Fase 2 só tem um stub com "Ir para …" de cada tela. **Fase 10:** Ctrl+P "Ir para arquivo" feito na tela Código (fuzzy simples, só o worktree selecionado); Ctrl+K continua stub |
 | ~~DT-13~~ | ~~Persistir zoom por editor e última tela ativa~~ | — | **Resolvido na Fase 3:** `app_settings` (`editor.zoom.<editor>`, `ui.lastSection`) |
@@ -54,6 +55,8 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-45 | **MCP: segredos em argv e em argumentos** | Média | `claude mcp add -e K=V` / `-H` passa os valores pela linha de comando (visíveis em `ps` durante a execução). Args mascarados só por heurística (flag com `token/key/secret/passw/auth`); um token posicional aparece. Avaliar `add-json` via arquivo temporário 0600 ou stdin |
 | DT-46 | **MCP: status e processos** | Média | `claude mcp list` sobe todos os servidores (health-check) a cada abertura por workspace (timeout 90 s; no timeout o processo recebe SIGTERM e, após 3 s, SIGKILL — filhos que ignorem o sinal podem sobrar). O CLI também grava metadados no `~/.claude.json` ao rodar. Sem "Desativar" (não há comando no CLI 2.1.300 — só remover), sem aprovar servidor de `.mcp.json` pendente pela UI (só `claude` interativo), sem login OAuth (`claude mcp login`), sem editar servidor (remover + adicionar) |
 | DT-47 | **MCP: regras e inventário** | Baixa | Regras globais por nome de servidor (não por workspace/escopo) e não removidas ao remover o servidor; o planner (Fase 8) não aplica as regras; inventário depende do truque do `--model` inexistente (pode mudar em versões futuras) e não mostra a descrição das ferramentas (o init só traz nomes); log recente faz LIKE em `session_events` (custo cresce com o banco) e não inclui as conversas do Prompt |
+| DT-48 | **Splash: passo "Conectando servidores MCP…" é stub** | Baixa | `claude mcp list` sobe todos os servidores (pode levar dezenas de segundos), por isso a Fase 11 roda só ao abrir a tela MCP; o rodapé mostra MCP depois do primeiro `system/init`/list. Avaliar rodar em segundo plano após o splash |
+| DT-49 | **Bandeja não implementada** | Baixa | `tray_manager` 0.8.0 está no `pubspec.yaml` (tabela 0.4, "opcional"), mas nenhum código o usa. Implementar (ícone + menu: mostrar janela, sessões aguardando) ou remover a dependência |
 
 ## Requisitos de UX já decididos
 
@@ -67,3 +70,22 @@ O editor usado para criar e editar specs — e o editor da tela de Código — p
 - Modo dividido (fonte + visualização) nas specs
 
 > Fase 8: implementado em `AppCodeEditor` (`lib/ui/widgets/code_editor/`) + tela de Specs; Ctrl+H substitui, Ctrl+S salva, controle `− 100% +` no cabeçalho.
+
+## Conferência manual pendente (Fase 12)
+
+Coberto por testes automatizados (CLI falso / repositórios temporários / sondas reais isoladas),
+mas **não conferido à mão no app rodando** — nenhuma fase tirou capturas de tela nem usou o app
+contra a configuração real do usuário:
+
+| Item | Onde | Referência |
+|---|---|---|
+| Janela abre escura, título, ícone na barra de tarefas/menu após `scripts/install.sh` | desktop real | F1, DT-10 (binário instalado inicia — rodado 6 s com dados isolados) |
+| Splash com `claude` ausente do PATH mostra o erro do primeiro passo | app | F2 |
+| Notificação nativa de aprovação/sessão concluída e o clique que foca a janela | GNOME/libnotify | F5, DT-24 |
+| Fechar e reabrir o app → sessão "interrompida" → Retomar mantém o histórico | app + CLI real | F5 |
+| Terminal `claude --resume` na aba da sessão | app + CLI real | F5, DT-17 |
+| "Continuar como sessão" (Prompt) com contexto da conversa | app + CLI real | F6, DT-29 |
+| Ctrl+F / Ctrl+H no editor de specs e de código | app | F8 |
+| Criar PR com `gh` instalado e autenticado | app + GitHub | F9, DT-38 |
+| Terminal da tela Código rodando `flutter run -d linux` no worktree | app | F10, DT-43 |
+| Tela MCP com a config real (`claude mcp list` sobe todos os servidores) | app | F11, DT-46 |

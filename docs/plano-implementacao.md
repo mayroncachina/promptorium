@@ -483,13 +483,25 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 
 ---
 
-## Fase 12 — Verificação final e empacotamento
+## Fase 12 — Verificação final e empacotamento (CONCLUÍDA em 2026-10-15)
 
 1. Rodar todas as checklists anteriores.
 2. `grep` de anti-padrões: `flutter_markdown:`, `bypassPermissions`, `dangerously-skip-permissions`, `riverpod_generator`, `Process.run('claude'` em sessões.
 3. `flutter test` + `flutter analyze` limpos.
 4. `flutter build linux --release`; `.desktop` + ícones instalados em `~/.local/share/applications` e `~/.local/share/icons`.
 5. Atualizar `debito-tecnico.md` com o que ficou de fora.
+
+**Verificação**
+- [x] Checklists F1–F11 revisadas: tudo marcado está coberto por teste ou sonda registrada; o que depende de conferência manual no app foi consolidado em `debito-tecnico.md` → "Conferência manual pendente". Único item em aberto: F10 "Terminal roda `flutter run -d linux`" (manual)
+- [x] Anti-padrões: nenhum `flutter_markdown:` no pubspec, nenhum `riverpod_generator`/`riverpod_annotation`; `bypassPermissions` só no comentário de proibição (`claude_args.dart`); sessões/conversas/planner/inventário MCP usam `Process.start` (`Process.run` só para `claude --version`, `git`, `gh`, `claude mcp …` curtos); nenhuma escrita em `~/.claude.json`/`.mcp.json`; cores hex fora de `lib/ui/theme` só na paleta de sintaxe (`code_editor_theme.dart`)
+- [x] `dart format --set-exit-if-changed lib test` (1 arquivo de teste formatado), `flutter analyze` sem problemas, `flutter test` 3× seguidas: 225 passaram, 3 pulados (integração), 0 falhas. "Aprovar spec" (instável 1× na F8): já usa `settleIo` (`runAsync` + `pump` em laço até a condição, limite 12 s); 6 execuções extras de specs+code+review em paralelo sem falha
+- [x] `flutter build linux --release` → `build/linux/x64/release/bundle` (35 MB)
+- [x] `scripts/install.sh` / `scripts/uninstall.sh` (DT-10): instalado, `desktop-file-validate` OK, segunda execução idempotente, sha256 do banco do usuário inalterado; binário instalado iniciou e rodou 6 s (`timeout`, saída 124) com `HOME`/`XDG_DATA_HOME`/`CLAUDE_CONFIG_DIR` temporários (sem tocar no banco nem na config real)
+- [x] README final; `debito-tecnico.md` revisado (DT-10 resolvido, DT-48/DT-49 novos, lista de conferência manual)
+
+**Notas da execução (2026-10-15):**
+- Instalação: bundle copiado para uma pasta temporária dentro de `~/.local/share/promptorium/` e trocado por `app/` (só essa subpasta é substituída); `.desktop` = `linux/promptorium.desktop` com `Exec=<caminho absoluto>`; `gtk-update-icon-cache -f -t` (o hicolor do usuário não tem `index.theme`). O ícone da janela continua vindo do bundle (`/proc/self/exe` resolve o link). O uninstall só remove o link se apontar para a instalação e o `.desktop` se o `Exec` for o da instalação.
+- O passo "Conectando servidores MCP…" do splash continua stub de propósito (DT-48); comentário `TODO(Fase 11)` trocado pela explicação. `tray_manager` está no pubspec mas sem uso (DT-49).
 
 ---
 
