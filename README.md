@@ -18,6 +18,7 @@ pela própria stdin/stdout (`--permission-prompt-tool stdio`). Cada sessão de t
 
 | Tela | O que faz |
 |---|---|
+| **Projeto** | Planejamento de um projeto com o planner, em etapas: **Visão** (conversa; o plano — resumo, público, MVP, fora do escopo, dúvidas — é atualizado a cada resposta), **Stack e convenções** (uma escolha por área com alternativas clicáveis + `CLAUDE.md` editável), **Roadmap** (specs da Fundação e do MVP, tarefas com dependências, ordem de execução) e **Revisar e criar** (grava `CLAUDE.md` e `specs/`, cria as tarefas, commita na branch atual e abre a sessão da 1ª tarefa). O planner é somente leitura (`claude -p --json-schema`, a Visão continua com `--resume`); o rascunho fica em `project_plans`. **Novo projeto…** (seletor de workspace ou barra de título) cria a pasta, roda `git init` e abre o planejamento |
 | **Splash** | Animação do frasco com progresso ligado aos passos reais: `claude --version`, banco, workspaces, worktrees, sessões. Erro claro se o CLI não for encontrado |
 | **Sessões** | Lista com filtros; timeline ao vivo (texto em streaming, cards de Read/Edit/Bash…, subagentes aninhados); composer (Ctrl+Enter, anexar spec); **fila de aprovações** de todas as sessões (Aprovar / Negar / Sempre permitir) + notificação nativa; detalhes (tokens, custo, session id, arquivos alterados, diff); terminal `claude --resume` embutido; Fork, Parar, Retomar (sessões vivas viram "interrompidas" ao reabrir o app) |
 | **Prompt** | Conversa livre na raiz do workspace (sem worktree). Modos **Perguntar** (somente leitura), **Planejar** (`plan`), **Editar** (`acceptEdits`); `@arquivo` e `/prompt-salvo`; ações Copiar, Criar tarefa, Salvar como prompt, Transformar em spec, Continuar como sessão |
@@ -38,7 +39,7 @@ O app nunca usa `bypassPermissions` / `--dangerously-skip-permissions` e nunca e
 
 | Atalho | Ação |
 |---|---|
-| Ctrl+1 … Ctrl+8 | Ir para Sessões, Prompt, Specs, Tarefas, Agentes, Review, Código, MCP |
+| Ctrl+1 … Ctrl+9 | Ir para Sessões, Prompt, Specs, Tarefas, Agentes, Review, Código, MCP, Projeto |
 | Ctrl+K | Paleta de comandos ("Ir para …"; ainda stub — DT-12) |
 | Ctrl+N | Nova sessão |
 | Ctrl+= / Ctrl+- / Ctrl+0 | Zoom do editor da tela ativa (Specs e Código têm zoom próprio) |
@@ -128,7 +129,7 @@ sessões, conversas, preferências). Nenhum segredo (tokens/variáveis de MCP) �
 ```bash
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test
-flutter test                      # 234 testes; os 3 de integração ficam pulados
+flutter test                      # 254 testes; os 3 de integração ficam pulados
 ```
 
 Testes de **integração** chamam o Claude Code CLI de verdade e **gastam alguns centavos** do
@@ -174,10 +175,10 @@ lib/
     providers/               AgentProvider, ClaudeCodeProvider, registro de provedores
     config/                  AppInfo
   data/
-    db/                      drift: tabelas, enums, migrações (schema v5), código gerado
+    db/                      drift: tabelas, enums, migrações (schema v6), código gerado
     repos/                   repositórios por agregado
     providers.dart           providers Riverpod do banco/repos
-  features/                  splash, sessions, prompt, specs, tasks, agents, review, code, mcp, settings
+  features/                  splash, project, sessions, prompt, specs, tasks, agents, review, code, mcp, settings
   ui/
     theme/                   tokens de cor e tipografia
     shell/                   barra de título, barra lateral, rodapé, atalhos

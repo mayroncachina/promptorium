@@ -46,12 +46,13 @@ Future<void> ctrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('renders 8 navigation items in mockup order plus the gear', (
+  testWidgets('renders 9 navigation items in mockup order plus the gear', (
     tester,
   ) async {
     await pumpShell(tester);
 
     expect(AppSection.navItems.map((s) => s.label), [
+      'Projeto',
       'Sessões',
       'Prompt',
       'Specs',
@@ -61,13 +62,13 @@ void main() {
       'Código',
       'Servidores MCP',
     ]);
-    expect(find.byType(SideBarItem), findsNWidgets(9));
+    expect(find.byType(SideBarItem), findsNWidgets(10));
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
     }
     expect(find.byKey(const ValueKey('nav-settings')), findsOneWidget);
 
-    // Gear is below the 8 items.
+    // Gear is below the 9 items.
     final gearY = tester
         .getTopLeft(find.byKey(const ValueKey('nav-settings')))
         .dy;
@@ -99,10 +100,16 @@ void main() {
     expect(find.byKey(const ValueKey('title-action')), findsNothing);
   });
 
-  testWidgets('Ctrl+1..8 switch screens and zoom shortcuts hit the editor', (
+  testWidgets('Ctrl+1..9 switch screens and zoom shortcuts hit the editor', (
     tester,
   ) async {
     await pumpShell(tester);
+
+    // Projeto came last: Ctrl+9, the older digits are unchanged.
+    await ctrl(tester, LogicalKeyboardKey.digit9);
+    expect(item(tester, AppSection.project).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit1);
+    expect(item(tester, AppSection.sessions).active, isTrue);
 
     await ctrl(tester, LogicalKeyboardKey.digit7);
     expect(item(tester, AppSection.code).active, isTrue);

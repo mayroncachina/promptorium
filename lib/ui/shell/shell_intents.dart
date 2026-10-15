@@ -35,6 +35,7 @@ const _digits = [
   LogicalKeyboardKey.digit6,
   LogicalKeyboardKey.digit7,
   LogicalKeyboardKey.digit8,
+  LogicalKeyboardKey.digit9,
 ];
 
 /// Global shortcuts of the shell.
@@ -62,8 +63,8 @@ final Map<ShortcutActivator, Intent> shellShortcuts = {
       const ZoomIntent(ZoomOp.reset),
   const SingleActivator(LogicalKeyboardKey.numpad0, control: true):
       const ZoomIntent(ZoomOp.reset),
-  for (var i = 0; i < AppSection.navItems.length; i++)
+  for (var i = 0; i < AppSection.shortcutItems.length; i++)
     SingleActivator(_digits[i], control: true): GoToSectionIntent(
-      AppSection.navItems[i],
+      AppSection.shortcutItems[i],
     ),
 };

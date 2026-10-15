@@ -21,10 +21,10 @@ Future<void> showCommandPalette(
   required void Function(AppSection) onNavigate,
 }) {
   final commands = [
-    for (final (i, s) in AppSection.values.indexed)
+    for (final s in AppSection.values)
       PaletteCommand(
         label: 'Ir para ${s.label}',
-        shortcut: i < AppSection.navItems.length ? 'Ctrl ${i + 1}' : null,
+        shortcut: s.shortcutLabel,
         run: () => onNavigate(s),
       ),
   ];

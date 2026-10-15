@@ -315,6 +315,40 @@ void main() {
     );
     await unmount(tester, c);
   });
+
+  testWidgets('"Novo projeto…" in the workspace selector opens the dialog', (
+    tester,
+  ) async {
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    final c = await pumpLoadedShell(tester, db);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('title-workspace')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('workspace-new-project')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('workspace-picker')), findsNothing);
+    expect(find.byKey(const ValueKey('new-project-dialog')), findsOneWidget);
+    final create = find.byKey(const ValueKey('new-project-create'));
+    expect(tester.widget<FilledButton>(create).onPressed, isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('new-project-parent')),
+      '/srv',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('new-project-name')),
+      'receitas',
+    );
+    await tester.pump();
+    expect(find.text('Será criada: /srv/receitas'), findsOneWidget);
+    expect(tester.widget<FilledButton>(create).onPressed, isNotNull);
+    await tester.tap(find.byKey(const ValueKey('new-project-remote')));
+    await tester.pump();
+    await tester.tap(create);
+    await tester.pump();
+    expect(find.text('Informe a URL do repositório remoto.'), findsOneWidget);
+    await unmount(tester, c);
+  });
 }
 
 String? workspaceName(WidgetTester tester) => tester

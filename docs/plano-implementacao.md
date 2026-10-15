@@ -503,6 +503,17 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 - Instalação: bundle copiado para uma pasta temporária dentro de `~/.local/share/promptorium/` e trocado por `app/` (só essa subpasta é substituída); `.desktop` = `linux/promptorium.desktop` com `Exec=<caminho absoluto>`; `gtk-update-icon-cache -f -t` (o hicolor do usuário não tem `index.theme`). O ícone da janela continua vindo do bundle (`/proc/self/exe` resolve o link). O uninstall só remove o link se apontar para a instalação e o `.desktop` se o `Exec` for o da instalação.
 - O passo "Conectando servidores MCP…" do splash continua stub de propósito (DT-48); comentário `TODO(Fase 11)` trocado pela explicação. `tray_manager` está no pubspec mas sem uso (DT-49).
 
+## Pós-F12 — Tela Projeto (planejamento de projeto novo)
+
+Desenho aprovado no canvas "Promptorium — Novo projeto" (https://claude.ai/artifact/5JdhLWnuSytMAD2otLhp7R): Pasta e repositório → Visão → Stack e convenções → Roadmap → Revisar e criar.
+
+- Seletor de workspace: "Procurar…" (seletor de pastas nativo, `file_selector`); pasta sem git oferece `git init` (com commit inicial, opcionalmente com `origin`) ou `git clone` (`RepoSetup`). O commit inicial é obrigatório: worktrees de sessão partem de um commit.
+- "Novo projeto…" (seletor de workspace / barra de título na tela Projeto): cria `<pasta>/<nome>`, `git init` + commit vazio, workspace ativo e plano vazio.
+- Planner: `runReadOnlyClaude` (extraído do `TaskPlanner`) com `--json-schema`; Visão = `--session-id` no 1º turno e `--resume` nos seguintes, devolve `{reply, plan, suggestions}`; Stack = `{decisions, claudeMd}` (escolhas do usuário ficam fixas); Roadmap = `{specs[phase foundation|mvp, requirements, acceptance, tasks], later}`, normalizado no app (Fundação primeiro, códigos únicos, dependências conhecidas, tarefa do MVP sem dependência espera toda a Fundação).
+- Rascunho em `project_plans` (schema v6, uma linha por workspace, JSON em `data`).
+- "Criar projeto": `CLAUDE.md` + uma spec aprovada por item do roadmap (`SpecService.create(render:)`), tarefas numa transação com dependências traduzidas para `TASK-NNN`, commit "Plano inicial do projeto" só com esses arquivos (`git commit -- <arquivos>`), depois o diálogo de nova sessão preenchido com a 1ª tarefa.
+- **Sondagem real (CLI 2.1.300, haiku, `--max-budget-usd` 0,05/0,1, 3 chamadas, US$ 0,022)** com os schemas e prompts do app em stream-json: Visão turno 1 (`--session-id`) e turno 2 (`--resume`, mesmo `session_id`) → `structured_output` completo; Roadmap (schema com `enum` e objetos aninhados) → 8 specs, 29 tarefas, dependências coerentes, `later` preenchido. Transcrições não gravadas.
+
 ---
 
 ## Ordem e dependências

@@ -40,6 +40,12 @@ abstract final class AppIcons {
 
   static final plus = AppIconData(['M12 5v14M5 12h14'], strokeWidth: 2.4);
 
+  /// Compass of the Projeto screen.
+  static final project = AppIconData([
+    svgCircle(12, 12, 9),
+    'M15.5 8.5l-2 5-5 2 2-5z',
+  ]);
+
   static final sessions = AppIconData([
     svgRect(3, 4, 18, 16, 2),
     'M7 9l3 3-3 3M12 15h5',

@@ -139,11 +139,13 @@ class SpecService {
     return _upsert(ws, code: spec.code, rel: spec.path, doc: doc);
   }
 
-  /// "Nova spec": `specs/SPEC-NNN-<slug>.md` with [body] (default template).
+  /// "Nova spec": `specs/SPEC-NNN-<slug>.md` with [body], or the text
+  /// [render] builds for the new code (default template).
   Future<Spec> create(
     Workspace ws, {
     required String title,
     String? body,
+    String Function(String code)? render,
   }) async {
     final t = title.trim();
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
@@ -159,7 +161,8 @@ class SpecService {
     } on FileSystemException {
       throw SpecException('O arquivo $rel já existe.');
     }
-    final text = body ?? newSpecMarkdown(code: code, title: t);
+    final text =
+        body ?? render?.call(code) ?? newSpecMarkdown(code: code, title: t);
     await file.writeAsString(text);
     final doc = SpecDocument.parse(text);
     final existing = await _repo.getByCode(ws.id, code);

@@ -5,6 +5,7 @@ import '../widgets/app_icon.dart';
 
 /// Top-level screens of the IDE, in sidebar order (see docs/mockups/Main.dc.html).
 enum AppSection {
+  project('Projeto', 'Novo projeto'),
   sessions('Sessões', 'Nova sessão'),
   prompt('Prompt', 'Nova conversa'),
   specs('Specs', 'Nova spec'),
@@ -27,6 +28,7 @@ enum AppSection {
 
   /// Sections shown as the main sidebar items (everything except settings).
   static const navItems = [
+    project,
     sessions,
     prompt,
     specs,
@@ -37,7 +39,28 @@ enum AppSection {
     mcp,
   ];
 
+  /// Ctrl+1…9 targets. Projeto came after the others, so it takes Ctrl+9
+  /// and the older shortcuts keep their digits.
+  static const shortcutItems = [
+    sessions,
+    prompt,
+    specs,
+    tasks,
+    agents,
+    review,
+    code,
+    mcp,
+    project,
+  ];
+
+  /// `Ctrl 3` (null = no shortcut).
+  String? get shortcutLabel {
+    final i = shortcutItems.indexOf(this);
+    return i < 0 ? null : 'Ctrl ${i + 1}';
+  }
+
   AppIconData get icon => switch (this) {
+    project => AppIcons.project,
     sessions => AppIcons.sessions,
     prompt => AppIcons.prompt,
     specs => AppIcons.specs,

@@ -10,6 +10,7 @@ import 'repos/agent_settings_repo.dart';
 import 'repos/app_settings_repo.dart';
 import 'repos/conversations_repo.dart';
 import 'repos/mcp_tool_rules_repo.dart';
+import 'repos/project_plans_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
 import 'repos/specs_repo.dart';
@@ -56,6 +57,9 @@ final mcpToolRulesRepoProvider = Provider(
 final appSettingsRepoProvider = Provider(
   (ref) => AppSettingsRepo(ref.watch(appDatabaseProvider)),
 );
+final projectPlansRepoProvider = Provider(
+  (ref) => ProjectPlansRepo(ref.watch(appDatabaseProvider)),
+);
 
 // --- lists used by the screens ----------------------------------------------
 
@@ -71,6 +75,11 @@ final specsProvider = StreamProvider.family<List<Spec>, int>(
 final tasksProvider = StreamProvider.family<List<Task>, int>(
   (ref, workspaceId) =>
       ref.watch(tasksRepoProvider).watchByWorkspace(workspaceId),
+);
+
+/// Planning draft of a workspace (null = never planned).
+final projectPlanProvider = StreamProvider.family<ProjectPlan?, int>(
+  (ref, workspaceId) => ref.watch(projectPlansRepoProvider).watch(workspaceId),
 );
 
 final sessionsProvider = StreamProvider.family<List<Session>, int>(

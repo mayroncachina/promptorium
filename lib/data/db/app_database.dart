@@ -253,6 +253,30 @@ class McpToolRules extends Table {
   Set<Column> get primaryKey => {server, tool};
 }
 
+/// Planning of a project (Projeto screen): one row per workspace.
+class ProjectPlans extends Table {
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// `ProjectStep.name` (vision, stack, roadmap, create).
+  TextColumn get step => text().withDefault(const Constant('vision'))();
+
+  /// JSON of `ProjectPlanData` (conversation, vision, stack, roadmap).
+  TextColumn get data => text().withDefault(const Constant('{}'))();
+
+  /// Claude session of the Visão conversation (`--resume`).
+  TextColumn get plannerSessionId => text().nullable()();
+  RealColumn get costUsd => real().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Set by "Criar projeto" (files, specs and tasks written).
+  DateTimeColumn get materializedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {workspaceId};
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -275,6 +299,7 @@ class AppSettings extends Table {
     AgentSettings,
     McpToolRules,
     AppSettings,
+    ProjectPlans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -292,7 +317,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -324,6 +349,10 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(sessions, sessions.baseBranch);
         await m.addColumn(sessions, sessions.mergeCommit);
         await m.addColumn(sessions, sessions.prUrl);
+      }
+      // v6: planning of a new project (Projeto screen).
+      if (from < 6) {
+        await m.createTable(projectPlans);
       }
     },
     beforeOpen: (details) async {

@@ -87,7 +87,7 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 5);
+    expect(v.data.values.single, 6);
   });
 
   test('v2 → v4 adds conversation columns, conversation_events, '
@@ -186,7 +186,7 @@ void main() {
       expect(old.requirement, isNull);
       expect(await tasks.nextCode(1), 'TASK-008');
       final v = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(v.data.values.single, 5);
+      expect(v.data.values.single, 6);
     },
   );
 
@@ -238,6 +238,6 @@ void main() {
     );
     expect((await repo.getById('new'))!.baseBranch, 'main');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 5);
+    expect(v.data.values.single, 6);
   });
 }

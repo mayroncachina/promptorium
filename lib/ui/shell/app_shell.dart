@@ -5,6 +5,8 @@ import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/widgets/add_server_dialog.dart';
+import '../../features/project/new_project_dialog.dart';
+import '../../features/project/project_screen.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
@@ -92,6 +94,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       showNewTaskDialog(context);
     } else if (section == AppSection.mcp) {
       showAddMcpServerDialog(context);
+    } else if (section == AppSection.project) {
+      showNewProjectDialog(context);
     } else {
       _notImplemented(section.actionLabel ?? '');
     }
@@ -109,6 +113,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   }
 
   static Widget _screenFor(AppSection s) => switch (s) {
+    AppSection.project => const ProjectScreen(),
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),
     AppSection.specs => const SpecsScreen(),

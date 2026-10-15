@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/git_root.dart';
 import '../../core/git/repo_setup.dart';
 import '../../data/providers.dart';
+import '../../features/project/new_project_dialog.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 
@@ -214,23 +215,27 @@ class _WorkspacePickerState extends ConsumerState<WorkspacePicker> {
     );
   }
 
-  Widget _addButton() => InkWell(
-    key: const ValueKey('workspace-add'),
-    onTap: () => setState(() => _adding = true),
-    child: Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          AppIcon(AppIcons.plus, size: 14, color: AppColors.amber),
-          const SizedBox(width: 8),
-          const Text(
-            'Adicionar pasta…',
-            style: TextStyle(fontSize: 13, color: AppColors.amber),
-          ),
-        ],
+  Widget _addButton() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _ActionRow(
+        key: const ValueKey('workspace-add'),
+        icon: AppIcons.plus,
+        label: 'Adicionar pasta…',
+        onTap: () => setState(() => _adding = true),
       ),
-    ),
+      _ActionRow(
+        key: const ValueKey('workspace-new-project'),
+        icon: AppIcons.project,
+        label: 'Novo projeto…',
+        hint: 'cria a pasta, o repositório e planeja com o planner',
+        onTap: () {
+          final nav = Navigator.of(context);
+          nav.pop();
+          showNewProjectDialog(nav.context);
+        },
+      ),
+    ],
   );
 
   Widget _addForm() => Padding(
@@ -474,6 +479,53 @@ class _WorkspacePickerState extends ConsumerState<WorkspacePicker> {
       ),
     );
   }
+}
+
+class _ActionRow extends StatelessWidget {
+  const _ActionRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.hint,
+  });
+
+  final AppIconData icon;
+  final String label;
+  final String? hint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          AppIcon(icon, size: 14, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: AppColors.amber),
+          ),
+          if (hint != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                hint!,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class _WorkspaceRow extends StatelessWidget {
