@@ -22,7 +22,15 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | ~~DT-13~~ | ~~Persistir zoom por editor e última tela ativa~~ | — | **Resolvido na Fase 3:** `app_settings` (`editor.zoom.<editor>`, `ui.lastSection`) |
 | ~~DT-14~~ | ~~Seletor de workspace na barra de título~~ | — | **Resolvido na Fase 3:** lista/seleciona/remove/adiciona pasta git; ativo em `app_settings` (`workspace.active`). Branch atual no botão: Fase 4 |
 | DT-15 | **Seletor de pasta nativo** ao adicionar workspace | Baixa | Fase 3 usa campo de texto com caminho (sem pacote de file picker). Avaliar `file_selector` (registrar na tabela 0.4) |
-| DT-16 | **Migrações do banco** | Média | `schemaVersion = 1` sem `onUpgrade`. Na primeira mudança de esquema: `drift_dev schema dump` + `stepByStep` e testes de migração |
+| DT-16 | **Migrações do banco** | Média | Fase 5 subiu para v2 com `onUpgrade` manual (`addColumn`) + teste v1→v2 com SQL escrito à mão. Falta `drift_dev schema dump` + `stepByStep` e testes gerados |
+| DT-17 | **Terminal interativo fora da timeline** | Média | O que acontece em `claude --resume` no PTY não vira `session_events` (só seria visível lendo a transcrição `.jsonl`, formato interno — anti-padrão 0.5). Custo/tokens dessa parte não entram no banco |
+| DT-18 | **Fork sem alterações não commitadas** | Média | Fork cria worktree a partir da branch do pai; arquivos sujos do pai não são copiados (a conversa do fork "acha" que estão lá). Avaliar `git stash create` + `stash apply` no novo worktree |
+| DT-19 | **Mudar modo de permissão com a sessão viva** | Baixa | Hoje só vale ao retomar. Verificar se o stream-json aceita `control_request` `set_permission_mode` (não listado na 0.2) |
+| DT-20 | **Thinking e deltas no log** | Baixa | `stream_event` não é gravado; blocos `thinking` não aparecem na timeline (só no log bruto, quando vêm no `assistant`) |
+| DT-21 | **Excluir sessão / limpar worktrees** | Média | Sem ação de excluir sessão nem remover worktree/branch `pr/<slug>` (merge + limpeza é Fase 9) |
+| DT-22 | **Composer: anexar spec, `/comandos`, `@arquivos`** | Média | Placeholder do mockup; Fases 6/8 |
+| DT-23 | **Configurações por agente na sessão** | Média | `agent_settings` (orçamento, máx. turnos, MCPs) ainda não é aplicado ao iniciar a sessão (Fase 7). `--max-budget-usd` só existe no `NewSessionRequest` (não reaplicado no `--resume`) |
+| DT-24 | **Notificações: conferência manual** | Baixa | Clique da notificação depende do servidor de notificações (libnotify/GNOME); verificar no desktop real. Sem agrupamento/histórico (ver DT-05) |
 
 ## Requisitos de UX já decididos
 

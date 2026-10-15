@@ -1,0 +1,691 @@
+import 'dart:async';
+import 'dart:convert' show jsonEncode;
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../core/claude/claude_args.dart';
+import '../../core/claude/claude_cli.dart';
+import '../../core/claude/claude_event.dart';
+import '../../core/claude/claude_process.dart';
+import '../../core/claude/usage_tracker.dart';
+import '../../core/git/git_service.dart';
+import '../../data/providers.dart';
+import '../../data/repos/sessions_repo.dart';
+import '../../ui/shell/navigation.dart';
+import 'app_notifier.dart';
+import 'session_changes.dart';
+import 'timeline.dart';
+import 'timeline_provider.dart';
+
+/// `Process.start` replacement for sessions (tests feed fake CLI output).
+/// Null = real `Process.start`.
+final claudeProcessStarterProvider = Provider<ProcessStarter?>((ref) => null);
+
+/// Generates session ids (`--session-id`, UUID v4).
+final sessionIdGeneratorProvider = Provider<String Function()>(
+  (ref) => const Uuid().v4,
+);
+
+/// Models offered by the "Nova sessão" dialog (plano 0.2). `inherit` = do not
+/// pass `--model` (CLI / agent default).
+const sessionModels = ['inherit', 'opus', 'sonnet', 'haiku', 'fable'];
+
+/// Input of [SessionManager.create].
+@immutable
+class NewSessionRequest {
+  const NewSessionRequest({
+    required this.workspace,
+    required this.title,
+    required this.prompt,
+    this.agent,
+    this.model = 'inherit',
+    this.permissionMode = ClaudePermissionMode.defaultMode,
+    this.useWorktree = true,
+    this.taskId,
+    this.maxBudgetUsd,
+  });
+
+  final Workspace workspace;
+  final String title;
+  final String prompt;
+
+  /// Subagent name passed as `--agent` (null = none).
+  final String? agent;
+  final String model;
+  final ClaudePermissionMode permissionMode;
+
+  /// false = run in the workspace root (no `git worktree add`).
+  final bool useWorktree;
+  final int? taskId;
+
+  /// `--max-budget-usd` of the first process (not reapplied on resume).
+  final double? maxBudgetUsd;
+}
+
+/// A `can_use_tool` request waiting for the user (approvals queue).
+@immutable
+class PendingApproval {
+  const PendingApproval({
+    required this.sessionId,
+    required this.sessionTitle,
+    required this.request,
+    required this.receivedAt,
+  });
+
+  final String sessionId;
+  final String sessionTitle;
+  final PermissionRequest request;
+  final DateTime receivedAt;
+
+  String get requestId => request.requestId;
+}
+
+/// Runtime state of a session with a live process.
+@immutable
+class LiveSession {
+  const LiveSession({
+    this.alive = true,
+    this.approvals = const [],
+    this.subagentsRunning = 0,
+  });
+
+  final bool alive;
+  final List<PendingApproval> approvals;
+
+  /// Task / Agent tool calls without a result yet.
+  final int subagentsRunning;
+}
+
+@immutable
+class SessionManagerState {
+  const SessionManagerState({this.live = const {}, this.lastInit});
+
+  /// Sessions whose `claude -p` process is running (by session id).
+  final Map<String, LiveSession> live;
+
+  /// Last `system/init` of any session (MCP servers in the footer).
+  final SystemInit? lastInit;
+
+  bool isAlive(String id) => live[id]?.alive ?? false;
+
+  /// Approvals of every session, oldest first.
+  List<PendingApproval> get approvals =>
+      [for (final s in live.values) ...s.approvals]
+        ..sort((a, b) => a.receivedAt.compareTo(b.receivedAt));
+
+  int get subagentsRunning =>
+      live.values.fold(0, (n, s) => n + s.subagentsRunning);
+}
+
+/// Thrown for user-facing failures (shown in dialogs / snackbars).
+class SessionException implements Exception {
+  const SessionException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Mutable bookkeeping of one running process.
+class _Proc {
+  _Proc(this.process, this.title, this.lastCost);
+
+  final ClaudeProcess process;
+  String title;
+
+  /// Last cumulative `total_cost_usd` seen (for the per-turn delta).
+  double lastCost;
+  final List<PermissionRequest> pending = [];
+  final DateTime started = DateTime.now();
+  final Map<String, DateTime> pendingAt = {};
+  final Set<String> subagents = {};
+  bool stopping = false;
+  Future<void> queue = Future.value();
+  Map<String, dynamic>? lastJson;
+  int? lastSeq;
+  StreamSubscription<ClaudeEvent>? sub;
+  StreamSubscription<String>? logSub;
+}
+
+/// Creates sessions and owns one [ClaudeProcess] per live session
+/// (plano, Fase 5). Every CLI event is persisted in `session_events`
+/// (except `stream_event` deltas, which only feed the live timeline) and
+/// updates the session status / cost / tokens.
+class SessionManager extends Notifier<SessionManagerState> {
+  final Map<String, _Proc> _procs = {};
+
+  /// In-flight [resume] calls (two quick sends must not start two processes).
+  final Map<String, Future<void>> _resuming = {};
+
+  /// Set by [shutdown]: exits are not recorded (the next launch marks the
+  /// sessions as interrupted) and no new process starts.
+  bool _shuttingDown = false;
+
+  @override
+  SessionManagerState build() {
+    ref.onDispose(() {
+      for (final p in _procs.values) {
+        p.stopping = true;
+        p.process.stop(timeout: const Duration(seconds: 2));
+      }
+    });
+    return const SessionManagerState();
+  }
+
+  // --- public API ------------------------------------------------------------
+
+  /// Creates the worktree (optional), the `sessions` row and the process, then
+  /// sends [NewSessionRequest.prompt]. Returns the session id.
+  Future<String> create(NewSessionRequest r) async {
+    final title = r.title.trim();
+    final prompt = r.prompt.trim();
+    if (title.isEmpty) throw const SessionException('Informe um título.');
+    if (prompt.isEmpty) {
+      throw const SessionException('Informe o prompt inicial.');
+    }
+    final id = ref.read(sessionIdGeneratorProvider)();
+    final ws = r.workspace;
+    final git = ref.read(gitServiceFactoryProvider)(ws.path);
+    String path = ws.path, branch;
+    try {
+      if (r.useWorktree) {
+        final wt = await git.addWorktree(sessionSlug(title, id));
+        path = wt.path;
+        branch = wt.branch;
+      } else {
+        branch = await git.currentBranch() ?? 'HEAD';
+      }
+    } on GitException catch (e) {
+      throw SessionException('Falha ao criar o worktree: $e');
+    }
+    await _repo.insert(
+      id: id,
+      workspaceId: ws.id,
+      worktreePath: path,
+      branch: branch,
+      model: r.model,
+      agentName: r.agent,
+      title: title,
+      permissionMode: r.permissionMode.cliValue,
+      taskId: r.taskId,
+    );
+    await _start(
+      id,
+      ClaudeOptions(
+        sessionId: id,
+        model: _model(r.model),
+        agent: r.agent,
+        permissionMode: r.permissionMode,
+        maxBudgetUsd: r.maxBudgetUsd,
+      ),
+      cwd: path,
+      title: title,
+    );
+    await send(id, prompt);
+    return id;
+  }
+
+  /// Sends a user message; resumes the session (`--resume`, same worktree)
+  /// when it has no live process.
+  Future<void> send(String id, String text) async {
+    final msg = text.trim();
+    if (msg.isEmpty) return;
+    var p = _procs[id];
+    if (p == null) {
+      await resume(id);
+      p = _procs[id];
+      if (p == null) return;
+    }
+    final proc = p;
+    await _enqueue(id, proc, () async {
+      final json = AppEventTypes.userMessage(msg, DateTime.now());
+      final row = await _repo.appendEvent(
+        id,
+        type: AppEventTypes.user,
+        json: _encode(json),
+      );
+      _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      await _repo.setStatus(id, SessionStatus.running);
+    });
+    await proc.process.send(msg);
+  }
+
+  /// Starts `claude --resume <id>` in the session's worktree (no message).
+  Future<void> resume(String id) {
+    if (_procs.containsKey(id)) return Future.value();
+    return _resuming[id] ??= _resume(id).whenComplete(() {
+      // Block body: returning the removed Future would await itself.
+      _resuming.remove(id);
+    });
+  }
+
+  Future<void> _resume(String id) async {
+    final s = await _repo.getById(id);
+    if (s == null) throw SessionException('Sessão $id não encontrada.');
+    await _note(id, 'Sessão retomada (--resume)');
+    await _start(
+      id,
+      ClaudeOptions(
+        resumeId: id,
+        model: _model(s.model),
+        agent: s.agentName,
+        permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
+      ),
+      cwd: s.worktreePath,
+      title: _titleOf(s),
+      baseCost: s.costUsd,
+    );
+    await _repo.setStatus(id, SessionStatus.completed);
+  }
+
+  /// Fork: new session (`--resume <id> --fork-session --session-id <new>`) in
+  /// a **new worktree** created from the parent's branch (uncommitted changes
+  /// of the parent are not copied). Without a worktree (parent ran in the
+  /// workspace root) the fork also runs in the root. Returns the new id.
+  Future<String> fork(
+    String id, {
+    required String prompt,
+    String? title,
+  }) async {
+    final parent = await _repo.getById(id);
+    if (parent == null) throw SessionException('Sessão $id não encontrada.');
+    final ws = await ref
+        .read(workspacesRepoProvider)
+        .getById(parent.workspaceId);
+    if (ws == null) throw const SessionException('Workspace não encontrado.');
+    final newId = ref.read(sessionIdGeneratorProvider)();
+    final name = (title?.trim().isNotEmpty ?? false)
+        ? title!.trim()
+        : 'Fork de ${_titleOf(parent)}';
+    String path = ws.path, branch = parent.branch;
+    if (parent.worktreePath != ws.path) {
+      try {
+        final wt = await ref
+            .read(gitServiceFactoryProvider)(ws.path)
+            .addWorktree(sessionSlug(name, newId), baseBranch: parent.branch);
+        path = wt.path;
+        branch = wt.branch;
+      } on GitException catch (e) {
+        throw SessionException('Falha ao criar o worktree do fork: $e');
+      }
+    }
+    await _repo.insert(
+      id: newId,
+      workspaceId: ws.id,
+      worktreePath: path,
+      branch: branch,
+      model: parent.model,
+      agentName: parent.agentName,
+      title: name,
+      permissionMode: parent.permissionMode,
+      taskId: parent.taskId,
+      // total_cost_usd keeps counting the parent's cost.
+      costUsd: parent.costUsd,
+    );
+    await _note(newId, 'Fork de "${_titleOf(parent)}" (${_short(id)})');
+    await _start(
+      newId,
+      ClaudeOptions(
+        sessionId: newId,
+        resumeId: id,
+        forkSession: true,
+        model: _model(parent.model),
+        agent: parent.agentName,
+        permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
+      ),
+      cwd: path,
+      title: name,
+      baseCost: parent.costUsd,
+    );
+    await send(newId, prompt);
+    return newId;
+  }
+
+  /// Approves a pending request. [always] sends the first
+  /// `permission_suggestion` back as `updatedPermissions` ("Sempre permitir").
+  Future<void> approve(
+    String id,
+    String requestId, {
+    bool always = false,
+  }) async {
+    final p = _procs[id];
+    final req = _take(id, requestId);
+    if (p == null || req == null) return;
+    final suggestion = req.permissionSuggestions.isEmpty
+        ? null
+        : req.permissionSuggestions.first;
+    await p.process.allow(
+      requestId,
+      updatedPermissions: always && suggestion != null ? [suggestion] : null,
+    );
+    await _afterAnswer(id);
+  }
+
+  Future<void> deny(
+    String id,
+    String requestId, {
+    String message = 'O usuário negou esta ação no Promptorium.',
+  }) async {
+    final p = _procs[id];
+    final req = _take(id, requestId);
+    if (p == null || req == null) return;
+    await p.process.deny(requestId, message);
+    await _afterAnswer(id);
+  }
+
+  /// SIGTERM (then SIGKILL); the session becomes `stopped`.
+  Future<void> stop(String id) async {
+    final p = _procs[id];
+    if (p == null) {
+      final s = await _repo.getById(id);
+      if (s != null && !s.status.isTerminal) {
+        await _repo.setStatus(id, SessionStatus.stopped);
+      }
+      return;
+    }
+    p.stopping = true;
+    await p.process.stop();
+  }
+
+  /// App closing: SIGTERM every live process (SIGKILL after [timeout]) so no
+  /// `claude` is left orphaned. Statuses stay as they are; the splash of the
+  /// next launch turns running / waiting sessions into `interrupted`.
+  Future<void> shutdown({Duration timeout = const Duration(seconds: 2)}) async {
+    _shuttingDown = true;
+    await Future.wait([
+      for (final p in _procs.values.toList())
+        p.process.stop(timeout: timeout).then((_) {}, onError: (_) {}),
+    ]);
+  }
+
+  /// Changes the permission mode used the next time the process starts.
+  Future<void> setPermissionMode(String id, ClaudePermissionMode mode) =>
+      _repo.setPermissionMode(id, mode.cliValue);
+
+  /// Whether the session has a running `claude -p` process.
+  bool isAlive(String id) => _procs.containsKey(id);
+
+  // --- process lifecycle -----------------------------------------------------
+
+  Future<void> _start(
+    String id,
+    ClaudeOptions options, {
+    required String cwd,
+    required String title,
+    double baseCost = 0,
+  }) async {
+    if (_shuttingDown) {
+      throw const SessionException('O aplicativo está sendo encerrado.');
+    }
+    final ClaudeProcess process;
+    try {
+      process = await ClaudeProcess.start(
+        options,
+        workingDirectory: cwd,
+        executable: ref.read(claudeExecutableProvider),
+        starter: ref.read(claudeProcessStarterProvider),
+      );
+    } catch (e) {
+      await _note(id, 'Falha ao iniciar o Claude Code: $e', error: true);
+      await _repo.setStatus(id, SessionStatus.failed);
+      throw SessionException('Falha ao iniciar o Claude Code: $e');
+    }
+    final p = _Proc(process, title, baseCost);
+    _procs[id] = p;
+    p.logSub = process.logs.listen(
+      (l) => debugPrint('claude[$id] $l'),
+      onError: (_) {},
+    );
+    p.sub = process.events.listen(
+      (e) => _enqueue(id, p, () => _handle(id, p, e)),
+      onDone: () => _enqueue(id, p, () => _onExit(id, p)),
+    );
+    _publish();
+  }
+
+  Future<void> _enqueue(String id, _Proc p, Future<void> Function() job) {
+    final next = p.queue.then((_) => job()).catchError((
+      Object e,
+      StackTrace st,
+    ) {
+      debugPrint('sessão $id: $e\n$st');
+    });
+    p.queue = next;
+    return next;
+  }
+
+  Future<void> _handle(String id, _Proc p, ClaudeEvent e) async {
+    if (!ref.mounted) return;
+    // 1. Persist (one row per stdout line; stream deltas are not stored).
+    int? seq;
+    if (e is! StreamDelta && e is! StreamOther) {
+      if (identical(e.json, p.lastJson) && e.json.isNotEmpty) {
+        seq = p.lastSeq; // same line expanded into several ToolResults
+      } else {
+        final row = await _repo.appendEvent(
+          id,
+          type: eventTypeKey(e),
+          json: eventJson(e),
+        );
+        p
+          ..lastJson = e.json
+          ..lastSeq = row.seq;
+        seq = row.seq;
+      }
+    }
+
+    // 2. Status / usage.
+    switch (e) {
+      case SystemInit():
+        state = SessionManagerState(live: state.live, lastInit: e);
+      case PermissionRequest():
+        p.pending.add(e);
+        p.pendingAt[e.requestId] = DateTime.now();
+        await _repo.setStatus(id, SessionStatus.waitingApproval);
+        _notify(
+          'Aprovação pendente',
+          '${p.title}: ${e.displayName ?? e.toolName} '
+              '${toolTarget(e.toolName, e.input)}',
+          id,
+        );
+      case ControlCancel():
+        if (_take(id, e.requestId) != null) await _afterAnswer(id);
+      case AssistantMessage():
+        for (final b in e.blocks) {
+          if (b is ToolUseBlock && ToolItem.isSubagentTool(b.name)) {
+            p.subagents.add(b.id);
+          }
+        }
+      case ToolResult():
+        p.subagents.remove(e.toolUseId);
+      case Result():
+        final delta = math.max(0.0, e.totalCostUsd - p.lastCost);
+        p.lastCost = math.max(p.lastCost, e.totalCostUsd);
+        final u = e.usage;
+        await _repo.recordResult(
+          id,
+          totalCostUsd: p.lastCost,
+          tokensIn:
+              u.inputTokens +
+              u.cacheCreationInputTokens +
+              u.cacheReadInputTokens,
+          tokensOut: u.outputTokens,
+        );
+        await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
+        p.subagents.clear();
+        await _repo.setStatus(
+          id,
+          e.isSuccess ? SessionStatus.completed : SessionStatus.failed,
+        );
+        ref.invalidate(sessionChangesProvider(id));
+        _notify(
+          e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
+          p.title,
+          id,
+        );
+      case RateLimit():
+        await ref.read(usageTrackerProvider).handle(e);
+      default:
+        break;
+    }
+
+    // 3. Timeline.
+    _timeline(id).push(e, seq: seq);
+    if (e is AssistantMessage ||
+        e is ToolResult ||
+        e is Result ||
+        e is PermissionRequest) {
+      _publish();
+    }
+  }
+
+  Future<void> _onExit(String id, _Proc p) async {
+    await p.logSub?.cancel();
+    final code = await p.process.exitCode;
+    _procs.remove(id);
+    if (!ref.mounted || _shuttingDown) return;
+    _publish();
+    final s = await _repo.getById(id);
+    if (s == null) return;
+    if (p.stopping) {
+      await _note(id, 'Sessão parada pelo usuário');
+      await _repo.setStatus(id, SessionStatus.stopped);
+    } else if (!s.status.isTerminal) {
+      await _note(
+        id,
+        'O processo do Claude Code encerrou (código $code)',
+        error: true,
+      );
+      await _repo.setStatus(id, SessionStatus.failed);
+      _notify('Sessão falhou', '${p.title}: processo encerrou ($code)', id);
+    }
+  }
+
+  PermissionRequest? _take(String id, String requestId) {
+    final p = _procs[id];
+    if (p == null) return null;
+    final i = p.pending.indexWhere((r) => r.requestId == requestId);
+    if (i < 0) return null;
+    final req = p.pending.removeAt(i);
+    p.pendingAt.remove(requestId);
+    _publish();
+    return req;
+  }
+
+  /// After the last pending request is answered: waiting → running.
+  Future<void> _afterAnswer(String id) async {
+    if (_procs[id]?.pending.isNotEmpty ?? false) return;
+    final s = await _repo.getById(id);
+    if (s?.status == SessionStatus.waitingApproval) {
+      await _repo.setStatus(id, SessionStatus.running);
+    }
+  }
+
+  void _publish() {
+    if (!ref.mounted) return;
+    state = SessionManagerState(
+      lastInit: state.lastInit,
+      live: {
+        for (final MapEntry(:key, :value) in _procs.entries)
+          key: LiveSession(
+            alive: value.process.isRunning,
+            subagentsRunning: value.subagents.length,
+            approvals: [
+              for (final r in value.pending)
+                PendingApproval(
+                  sessionId: key,
+                  sessionTitle: value.title,
+                  request: r,
+                  receivedAt: value.pendingAt[r.requestId] ?? value.started,
+                ),
+            ],
+          ),
+      },
+    );
+  }
+
+  // --- helpers ---------------------------------------------------------------
+
+  SessionsRepo get _repo => ref.read(sessionsRepoProvider);
+
+  SessionTimelineNotifier _timeline(String id) =>
+      ref.read(sessionTimelineProvider(id).notifier);
+
+  Future<void> _note(String id, String text, {bool error = false}) async {
+    final json = AppEventTypes.noteMessage(text, error: error);
+    final row = await _repo.appendEvent(
+      id,
+      type: AppEventTypes.note,
+      json: _encode(json),
+    );
+    _timeline(id).push(UnknownEvent(json), seq: row.seq);
+  }
+
+  void _notify(String title, String body, String id) {
+    ref
+        .read(appNotifierProvider)
+        .show(
+          title,
+          body,
+          onClick: () {
+            ref.read(selectedSessionProvider.notifier).select(id);
+            ref.read(navigationProvider.notifier).go(AppSection.sessions);
+          },
+        );
+  }
+
+  static String? _model(String m) => m.isEmpty || m == 'inherit' ? null : m;
+
+  static String _short(String id) => id.length > 8 ? id.substring(0, 8) : id;
+
+  static String _titleOf(Session s) =>
+      (s.title?.isNotEmpty ?? false) ? s.title! : 'Sessão ${_short(s.id)}';
+
+  static String _encode(Map<String, dynamic> j) => jsonEncode(j);
+}
+
+/// Title shown for a session row.
+String sessionTitle(Session s) => (s.title?.isNotEmpty ?? false)
+    ? s.title!
+    : 'Sessão ${s.id.substring(0, math.min(8, s.id.length))}';
+
+/// Worktree slug: ascii lowercase title + 6 chars of the id
+/// (`GitService.slugPattern`).
+String sessionSlug(String title, String id) {
+  const from = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
+  const to = 'aaaaaeeeeiiiiooooouuuucn';
+  final buf = StringBuffer();
+  for (final ch in title.toLowerCase().split('')) {
+    final i = from.indexOf(ch);
+    buf.write(i >= 0 ? to[i] : ch);
+  }
+  var slug = buf
+      .toString()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  if (slug.length > 32) {
+    slug = slug.substring(0, 32).replaceAll(RegExp(r'-+$'), '');
+  }
+  final suffix = id.replaceAll('-', '');
+  final tail = suffix.substring(0, math.min(6, suffix.length)).toLowerCase();
+  return slug.isEmpty ? 'sessao-$tail' : '$slug-$tail';
+}
+
+final sessionManagerProvider =
+    NotifierProvider<SessionManager, SessionManagerState>(SessionManager.new);
+
+/// Session shown in the Sessions screen (null = first of the list).
+class SelectedSession extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? id) => state = id;
+}
+
+final selectedSessionProvider = NotifierProvider<SelectedSession, String?>(
+  SelectedSession.new,
+);

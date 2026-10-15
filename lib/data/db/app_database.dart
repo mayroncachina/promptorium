@@ -19,7 +19,12 @@ class StringListConverter extends TypeConverter<List<String>, String> {
   @override
   List<String> fromSql(String fromDb) {
     if (fromDb.trim().isEmpty) return const [];
-    final decoded = jsonDecode(fromDb);
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(fromDb);
+    } on FormatException {
+      return const [];
+    }
     return decoded is List ? decoded.map((e) => '$e').toList() : const [];
   }
 
@@ -98,6 +103,12 @@ class Sessions extends Table {
     onDelete: KeyAction.setNull,
   )();
   TextColumn get agentName => text().nullable()();
+
+  /// Name shown in the list (schema v2). Null for v1 rows.
+  TextColumn get title => text().nullable()();
+
+  /// CLI `--permission-mode` value used to (re)start the process (schema v2).
+  TextColumn get permissionMode => text().nullable()();
   TextColumn get worktreePath => text()();
   TextColumn get branch => text()();
   TextColumn get status => textEnum<SessionStatus>().withDefault(
@@ -227,11 +238,18 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      // v2 (Fase 5): session title and permission mode.
+      if (from < 2) {
+        await m.addColumn(sessions, sessions.title);
+        await m.addColumn(sessions, sessions.permissionMode);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

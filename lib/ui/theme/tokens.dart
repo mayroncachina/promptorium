@@ -58,6 +58,22 @@ abstract final class AppColors {
   static const scrim = Color(0x99000000);
 }
 
+/// Sessions-screen colors from the mockup (1 · Sessões) not in [AppColors].
+abstract final class SessionColors {
+  static const selectedBg = Color(0xFF1F2430);
+  static const selectedBorder = Color(0xFF2E3542);
+  static const approvalBg = Color(0xFF241E12);
+  static const approvalBorder = Color(0xFF5C4520);
+  static const stopBorder = Color(0xFF5A2E2A);
+  static const runningToolBorder = Color(0xFF2F6B5E);
+  static const runningToolBg = Color(0xFF11201D);
+  static const addBg = Color(0xFF12241F);
+  static const delBg = Color(0xFF2A1715);
+
+  /// Terminal selection highlight.
+  static const terminalSelection = Color(0x553A4458);
+}
+
 /// Font families bundled in assets/fonts (registered in pubspec.yaml).
 abstract final class AppFonts {
   static const sans = 'IBM Plex Sans';

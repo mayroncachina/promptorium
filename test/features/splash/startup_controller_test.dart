@@ -92,7 +92,7 @@ void main() {
       expect(tried, ['claude', '/home/x/.local/bin/claude']);
       expect(s.status, StartupStatus.done);
       expect(s.completed, s.total);
-      expect(s.total, 5);
+      expect(s.total, 6);
       expect(s.progress, 1);
       expect(s.claude?.version, '2.1.300');
       expect(s.claude?.executable, '/home/x/.local/bin/claude');

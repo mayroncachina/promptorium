@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/usage_tracker.dart';
+import '../../data/providers.dart';
+import '../../features/sessions/session_manager.dart';
+
 enum CliStatus { unknown, connected, notFound }
 
 /// Data shown in the fixed footer. `null` = not known yet (rendered as "—").
 ///
-/// Fase 2 only fills [cliStatus] (from the startup check). Fase 5 wires the
-/// sessions, MCP and `rate_limit_event` data (see plano, Fase 0.2).
+/// Built by [FooterStatsController] from the live providers.
 @immutable
 class FooterStats {
   const FooterStats({
@@ -70,15 +73,73 @@ class FooterStats {
       );
 }
 
+/// CLI status found by the startup check.
+class CliStatusController extends Notifier<(CliStatus, String?)> {
+  @override
+  (CliStatus, String?) build() => (CliStatus.unknown, null);
+
+  void set(CliStatus status, {String? version}) => state = (status, version);
+}
+
+final cliStatusProvider =
+    NotifierProvider<CliStatusController, (CliStatus, String?)>(
+      CliStatusController.new,
+    );
+
+/// Footer data (plano, Fase 5 item 11): CLI status, sessions of the active
+/// workspace, approvals and subagents of every live session, today's tokens
+/// (`UsageTracker`), plan usage (last `rate_limit_event`) and MCP servers of
+/// the last `system/init` (the MCP screen is Fase 11).
 class FooterStatsController extends Notifier<FooterStats> {
   @override
-  FooterStats build() => const FooterStats();
+  FooterStats build() {
+    final (cli, version) = ref.watch(cliStatusProvider);
+    final manager = ref.watch(sessionManagerProvider);
+    final ws = ref.watch(activeWorkspaceProvider);
+    final sessions = ws == null
+        ? null
+        : ref.watch(sessionsProvider(ws.id)).value;
+    final today = ref.watch(dailyUsageProvider);
+    final rate = ref.watch(rateLimitProvider);
+    final mcp = manager.lastInit?.mcpServers;
+
+    int? active;
+    if (sessions != null) {
+      active = sessions
+          .where(
+            (s) =>
+                manager.isAlive(s.id) &&
+                (s.status == SessionStatus.running ||
+                    s.status == SessionStatus.waitingApproval),
+          )
+          .length;
+    }
+    final hasUsage = today.results > 0;
+    return FooterStats(
+      cliStatus: cli,
+      claudeVersion: version,
+      sessionsActive: active,
+      sessionsTotal: sessions?.length,
+      sessionsWaiting: manager.approvals.map((a) => a.sessionId).toSet().length,
+      subagentsRunning: manager.subagentsRunning,
+      mcpConnected: mcp?.where((m) => m.isConnected).length,
+      mcpTotal: mcp?.length,
+      mcpFailed: mcp?.where((m) => m.isFailed).length,
+      tokensToday: hasUsage ? today.totalTokens : null,
+      tokensIn: hasUsage ? today.usage.inputTokens : null,
+      tokensOut: hasUsage ? today.usage.outputTokens : null,
+      tokensCache: hasUsage
+          ? today.usage.cacheReadInputTokens +
+                today.usage.cacheCreationInputTokens
+          : null,
+      usage5h: rate?.fiveHourUtilization,
+      usage5hResetsAt: rate?.fiveHourResetsAt,
+      usageWeek: rate?.sevenDayUtilization,
+    );
+  }
 
   void setCli(CliStatus status, {String? version}) =>
-      state = state.copyWith(cliStatus: status, claudeVersion: version);
-
-  /// Generic setter for later phases.
-  void replace(FooterStats stats) => state = stats;
+      ref.read(cliStatusProvider.notifier).set(status, version: version);
 }
 
 final footerStatsProvider =

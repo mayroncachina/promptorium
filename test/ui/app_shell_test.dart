@@ -152,4 +152,29 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets('"Nova sessão" and Ctrl+N open the new session dialog', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await tester.tap(find.byKey(const ValueKey('title-action')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
+    // Without a workspace the dialog explains what to do.
+    await tester.enterText(
+      find.byKey(const ValueKey('new-session-title')),
+      't',
+    );
+    await tester.tap(find.byKey(const ValueKey('new-session-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-session-error')), findsOneWidget);
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('new-session-dialog')), findsNothing);
+
+    await ctrl(tester, LogicalKeyboardKey.digit3);
+    await ctrl(tester, LogicalKeyboardKey.keyN);
+    expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
+    expect(item(tester, AppSection.sessions).active, isTrue);
+  });
 }

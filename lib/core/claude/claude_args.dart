@@ -34,6 +34,7 @@ class ClaudeOptions {
     this.resumeId,
     this.forkSession = false,
     this.model,
+    this.agent,
     this.permissionMode,
     this.allowedTools = const [],
     this.disallowedTools = const [],
@@ -47,7 +48,8 @@ class ClaudeOptions {
   });
 
   /// New session id (`--session-id`, must be a UUID). Exclusive with
-  /// [resumeId].
+  /// [resumeId], except with [forkSession] (then it is the fork's id —
+  /// verified on CLI 2.1.300, plano Fase 5).
   final String? sessionId;
 
   /// Session to resume (`--resume`).
@@ -58,6 +60,10 @@ class ClaudeOptions {
 
   /// `opus`, `sonnet`, `haiku`, `fable`, `inherit` or a full model id.
   final String? model;
+
+  /// `--agent <name>`: runs the main thread as that subagent (its prompt,
+  /// tools and model). Listed in `claude --help` 2.1.300; see plano Fase 5.
+  final String? agent;
   final ClaudePermissionMode? permissionMode;
 
   /// Permission rules, e.g. `Read`, `Bash(git *)`, `mcp__srv__tool`.
@@ -93,6 +99,7 @@ class ClaudeOptions {
     String? resumeId,
     bool? forkSession,
     String? model,
+    String? agent,
     ClaudePermissionMode? permissionMode,
     List<String>? allowedTools,
     List<String>? disallowedTools,
@@ -108,6 +115,7 @@ class ClaudeOptions {
     resumeId: resumeId ?? this.resumeId,
     forkSession: forkSession ?? this.forkSession,
     model: model ?? this.model,
+    agent: agent ?? this.agent,
     permissionMode: permissionMode ?? this.permissionMode,
     allowedTools: allowedTools ?? this.allowedTools,
     disallowedTools: disallowedTools ?? this.disallowedTools,
@@ -125,9 +133,10 @@ class ClaudeOptions {
   ///
   /// Throws [ArgumentError] for contradictory options.
   List<String> toArgs() {
-    if (sessionId != null && resumeId != null) {
+    if (sessionId != null && resumeId != null && !forkSession) {
       throw ArgumentError(
-        'Use sessionId (nova sessão) OU resumeId, não ambos.',
+        'Use sessionId (nova sessão) OU resumeId, não ambos '
+        '(exceto com forkSession).',
       );
     }
     if (forkSession && resumeId == null) {
@@ -146,6 +155,7 @@ class ClaudeOptions {
       if (resumeId != null) ...['--resume', resumeId!],
       if (forkSession) '--fork-session',
       if (model != null && model!.isNotEmpty) ...['--model', model!],
+      if (agent != null && agent!.isNotEmpty) ...['--agent', agent!],
       if (permissionMode != null) ...[
         '--permission-mode',
         permissionMode!.cliValue,

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
+import '../../core/git/git_service.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
@@ -34,8 +35,7 @@ class StartupException implements Exception {
 
 /// One initialization step. Throw [StartupException] to stop the sequence.
 ///
-/// Later phases replace the stubs in [startupStepsProvider]:
-/// Fase 5 — sessões; Fase 11 — MCP.
+/// Later phases replace the stubs in [startupStepsProvider]: Fase 11 — MCP.
 abstract class StartupStep {
   const StartupStep();
 
@@ -105,7 +105,7 @@ class LoadWorkspacesStep extends StartupStep {
   const LoadWorkspacesStep();
 
   @override
-  String get label => 'Carregando workspaces e worktrees…';
+  String get label => 'Carregando workspaces…';
 
   @override
   Future<void> run(StartupContext ctx) async {
@@ -119,7 +119,61 @@ class LoadWorkspacesStep extends StartupStep {
     } else {
       await settings.set(AppSettingKeys.activeWorkspace, '${list.first.id}');
     }
-    // TODO(Fase 5): list session worktrees (GitService.listWorktrees).
+  }
+}
+
+/// Worktrees of the active workspace (`git worktree list`), loaded by the
+/// splash ([ListWorktreesStep]); used by the Code screen (Fase 10).
+class WorkspaceWorktrees extends Notifier<List<GitWorktree>> {
+  @override
+  List<GitWorktree> build() => const [];
+
+  void set(List<GitWorktree> list) => state = list;
+}
+
+final workspaceWorktreesProvider =
+    NotifierProvider<WorkspaceWorktrees, List<GitWorktree>>(
+      WorkspaceWorktrees.new,
+    );
+
+/// (c') `git worktree list` of the active workspace. Never fails the startup.
+class ListWorktreesStep extends StartupStep {
+  const ListWorktreesStep();
+
+  @override
+  String get label => 'Listando worktrees…';
+
+  @override
+  Future<void> run(StartupContext ctx) async {
+    final id = ctx.ref
+        .read(appSettingsProvider.notifier)
+        .getInt(AppSettingKeys.activeWorkspace);
+    if (id == null) return;
+    final ws = await ctx.ref.read(workspacesRepoProvider).getById(id);
+    if (ws == null) return;
+    try {
+      final list = await ctx.ref
+          .read(gitServiceFactoryProvider)(ws.path)
+          .listWorktrees();
+      ctx.ref.read(workspaceWorktreesProvider.notifier).set(list);
+    } catch (e) {
+      debugPrint('worktrees de ${ws.path}: $e');
+    }
+  }
+}
+
+/// (e) Sessions left running when the app closed become `interrupted`
+/// (they show "Retomar", which uses `--resume`).
+class RestoreSessionsStep extends StartupStep {
+  const RestoreSessionsStep();
+
+  @override
+  String get label => 'Restaurando sessões…';
+
+  @override
+  Future<void> run(StartupContext ctx) async {
+    final n = await ctx.ref.read(sessionsRepoProvider).markLiveAsInterrupted();
+    if (n > 0) debugPrint('$n sessão(ões) marcada(s) como interrompida(s)');
   }
 }
 
@@ -140,8 +194,9 @@ final startupStepsProvider = Provider<List<StartupStep>>(
     ClaudeCliStep(),
     OpenDatabaseStep(),
     LoadWorkspacesStep(),
+    ListWorktreesStep(),
     StubStep('Conectando servidores MCP…'), // TODO(Fase 11): claude mcp list
-    StubStep('Restaurando sessões…'), // TODO(Fase 5)
+    RestoreSessionsStep(),
   ],
 );
 

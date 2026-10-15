@@ -1331,6 +1331,26 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _permissionModeMeta = const VerificationMeta(
+    'permissionMode',
+  );
+  @override
+  late final GeneratedColumn<String> permissionMode = GeneratedColumn<String>(
+    'permission_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _worktreePathMeta = const VerificationMeta(
     'worktreePath',
   );
@@ -1435,6 +1455,8 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     workspaceId,
     taskId,
     agentName,
+    title,
+    permissionMode,
     worktreePath,
     branch,
     status,
@@ -1483,6 +1505,21 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
       context.handle(
         _agentNameMeta,
         agentName.isAcceptableOrUnknown(data['agent_name']!, _agentNameMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('permission_mode')) {
+      context.handle(
+        _permissionModeMeta,
+        permissionMode.isAcceptableOrUnknown(
+          data['permission_mode']!,
+          _permissionModeMeta,
+        ),
       );
     }
     if (data.containsKey('worktree_path')) {
@@ -1567,6 +1604,14 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.string,
         data['${effectivePrefix}agent_name'],
       ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      permissionMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}permission_mode'],
+      ),
       worktreePath: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}worktree_path'],
@@ -1623,6 +1668,12 @@ class Session extends DataClass implements Insertable<Session> {
   final int workspaceId;
   final int? taskId;
   final String? agentName;
+
+  /// Name shown in the list (schema v2). Null for v1 rows.
+  final String? title;
+
+  /// CLI `--permission-mode` value used to (re)start the process (schema v2).
+  final String? permissionMode;
   final String worktreePath;
   final String branch;
   final SessionStatus status;
@@ -1637,6 +1688,8 @@ class Session extends DataClass implements Insertable<Session> {
     required this.workspaceId,
     this.taskId,
     this.agentName,
+    this.title,
+    this.permissionMode,
     required this.worktreePath,
     required this.branch,
     required this.status,
@@ -1657,6 +1710,12 @@ class Session extends DataClass implements Insertable<Session> {
     }
     if (!nullToAbsent || agentName != null) {
       map['agent_name'] = Variable<String>(agentName);
+    }
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || permissionMode != null) {
+      map['permission_mode'] = Variable<String>(permissionMode);
     }
     map['worktree_path'] = Variable<String>(worktreePath);
     map['branch'] = Variable<String>(branch);
@@ -1686,6 +1745,12 @@ class Session extends DataClass implements Insertable<Session> {
       agentName: agentName == null && nullToAbsent
           ? const Value.absent()
           : Value(agentName),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      permissionMode: permissionMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(permissionMode),
       worktreePath: Value(worktreePath),
       branch: Value(branch),
       status: Value(status),
@@ -1710,6 +1775,8 @@ class Session extends DataClass implements Insertable<Session> {
       workspaceId: serializer.fromJson<int>(json['workspaceId']),
       taskId: serializer.fromJson<int?>(json['taskId']),
       agentName: serializer.fromJson<String?>(json['agentName']),
+      title: serializer.fromJson<String?>(json['title']),
+      permissionMode: serializer.fromJson<String?>(json['permissionMode']),
       worktreePath: serializer.fromJson<String>(json['worktreePath']),
       branch: serializer.fromJson<String>(json['branch']),
       status: $SessionsTable.$converterstatus.fromJson(
@@ -1731,6 +1798,8 @@ class Session extends DataClass implements Insertable<Session> {
       'workspaceId': serializer.toJson<int>(workspaceId),
       'taskId': serializer.toJson<int?>(taskId),
       'agentName': serializer.toJson<String?>(agentName),
+      'title': serializer.toJson<String?>(title),
+      'permissionMode': serializer.toJson<String?>(permissionMode),
       'worktreePath': serializer.toJson<String>(worktreePath),
       'branch': serializer.toJson<String>(branch),
       'status': serializer.toJson<String>(
@@ -1750,6 +1819,8 @@ class Session extends DataClass implements Insertable<Session> {
     int? workspaceId,
     Value<int?> taskId = const Value.absent(),
     Value<String?> agentName = const Value.absent(),
+    Value<String?> title = const Value.absent(),
+    Value<String?> permissionMode = const Value.absent(),
     String? worktreePath,
     String? branch,
     SessionStatus? status,
@@ -1764,6 +1835,10 @@ class Session extends DataClass implements Insertable<Session> {
     workspaceId: workspaceId ?? this.workspaceId,
     taskId: taskId.present ? taskId.value : this.taskId,
     agentName: agentName.present ? agentName.value : this.agentName,
+    title: title.present ? title.value : this.title,
+    permissionMode: permissionMode.present
+        ? permissionMode.value
+        : this.permissionMode,
     worktreePath: worktreePath ?? this.worktreePath,
     branch: branch ?? this.branch,
     status: status ?? this.status,
@@ -1782,6 +1857,10 @@ class Session extends DataClass implements Insertable<Session> {
           : this.workspaceId,
       taskId: data.taskId.present ? data.taskId.value : this.taskId,
       agentName: data.agentName.present ? data.agentName.value : this.agentName,
+      title: data.title.present ? data.title.value : this.title,
+      permissionMode: data.permissionMode.present
+          ? data.permissionMode.value
+          : this.permissionMode,
       worktreePath: data.worktreePath.present
           ? data.worktreePath.value
           : this.worktreePath,
@@ -1803,6 +1882,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('workspaceId: $workspaceId, ')
           ..write('taskId: $taskId, ')
           ..write('agentName: $agentName, ')
+          ..write('title: $title, ')
+          ..write('permissionMode: $permissionMode, ')
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('status: $status, ')
@@ -1822,6 +1903,8 @@ class Session extends DataClass implements Insertable<Session> {
     workspaceId,
     taskId,
     agentName,
+    title,
+    permissionMode,
     worktreePath,
     branch,
     status,
@@ -1840,6 +1923,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.workspaceId == this.workspaceId &&
           other.taskId == this.taskId &&
           other.agentName == this.agentName &&
+          other.title == this.title &&
+          other.permissionMode == this.permissionMode &&
           other.worktreePath == this.worktreePath &&
           other.branch == this.branch &&
           other.status == this.status &&
@@ -1856,6 +1941,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<int> workspaceId;
   final Value<int?> taskId;
   final Value<String?> agentName;
+  final Value<String?> title;
+  final Value<String?> permissionMode;
   final Value<String> worktreePath;
   final Value<String> branch;
   final Value<SessionStatus> status;
@@ -1871,6 +1958,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.workspaceId = const Value.absent(),
     this.taskId = const Value.absent(),
     this.agentName = const Value.absent(),
+    this.title = const Value.absent(),
+    this.permissionMode = const Value.absent(),
     this.worktreePath = const Value.absent(),
     this.branch = const Value.absent(),
     this.status = const Value.absent(),
@@ -1887,6 +1976,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     required int workspaceId,
     this.taskId = const Value.absent(),
     this.agentName = const Value.absent(),
+    this.title = const Value.absent(),
+    this.permissionMode = const Value.absent(),
     required String worktreePath,
     required String branch,
     this.status = const Value.absent(),
@@ -1907,6 +1998,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<int>? workspaceId,
     Expression<int>? taskId,
     Expression<String>? agentName,
+    Expression<String>? title,
+    Expression<String>? permissionMode,
     Expression<String>? worktreePath,
     Expression<String>? branch,
     Expression<String>? status,
@@ -1923,6 +2016,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (workspaceId != null) 'workspace_id': workspaceId,
       if (taskId != null) 'task_id': taskId,
       if (agentName != null) 'agent_name': agentName,
+      if (title != null) 'title': title,
+      if (permissionMode != null) 'permission_mode': permissionMode,
       if (worktreePath != null) 'worktree_path': worktreePath,
       if (branch != null) 'branch': branch,
       if (status != null) 'status': status,
@@ -1941,6 +2036,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<int>? workspaceId,
     Value<int?>? taskId,
     Value<String?>? agentName,
+    Value<String?>? title,
+    Value<String?>? permissionMode,
     Value<String>? worktreePath,
     Value<String>? branch,
     Value<SessionStatus>? status,
@@ -1957,6 +2054,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       workspaceId: workspaceId ?? this.workspaceId,
       taskId: taskId ?? this.taskId,
       agentName: agentName ?? this.agentName,
+      title: title ?? this.title,
+      permissionMode: permissionMode ?? this.permissionMode,
       worktreePath: worktreePath ?? this.worktreePath,
       branch: branch ?? this.branch,
       status: status ?? this.status,
@@ -1984,6 +2083,12 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     }
     if (agentName.present) {
       map['agent_name'] = Variable<String>(agentName.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (permissionMode.present) {
+      map['permission_mode'] = Variable<String>(permissionMode.value);
     }
     if (worktreePath.present) {
       map['worktree_path'] = Variable<String>(worktreePath.value);
@@ -2027,6 +2132,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('workspaceId: $workspaceId, ')
           ..write('taskId: $taskId, ')
           ..write('agentName: $agentName, ')
+          ..write('title: $title, ')
+          ..write('permissionMode: $permissionMode, ')
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('status: $status, ')
@@ -5795,6 +5902,8 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   required int workspaceId,
   Value<int?> taskId,
   Value<String?> agentName,
+  Value<String?> title,
+  Value<String?> permissionMode,
   required String worktreePath,
   required String branch,
   Value<SessionStatus> status,
@@ -5811,6 +5920,8 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<int> workspaceId,
   Value<int?> taskId,
   Value<String?> agentName,
+  Value<String?> title,
+  Value<String?> permissionMode,
   Value<String> worktreePath,
   Value<String> branch,
   Value<SessionStatus> status,
@@ -5914,6 +6025,16 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<String> get agentName => $composableBuilder(
     column: $table.agentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get permissionMode => $composableBuilder(
+    column: $table.permissionMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6079,6 +6200,16 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get permissionMode => $composableBuilder(
+    column: $table.permissionMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get worktreePath => $composableBuilder(
     column: $table.worktreePath,
     builder: (column) => ColumnOrderings(column),
@@ -6185,6 +6316,14 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<String> get agentName =>
       $composableBuilder(column: $table.agentName, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get permissionMode => $composableBuilder(
+    column: $table.permissionMode,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get worktreePath => $composableBuilder(
     column: $table.worktreePath,
@@ -6349,6 +6488,8 @@ class $$SessionsTableTableManager
                 Value<int> workspaceId = const Value.absent(),
                 Value<int?> taskId = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> permissionMode = const Value.absent(),
                 Value<String> worktreePath = const Value.absent(),
                 Value<String> branch = const Value.absent(),
                 Value<SessionStatus> status = const Value.absent(),
@@ -6364,6 +6505,8 @@ class $$SessionsTableTableManager
                 workspaceId: workspaceId,
                 taskId: taskId,
                 agentName: agentName,
+                title: title,
+                permissionMode: permissionMode,
                 worktreePath: worktreePath,
                 branch: branch,
                 status: status,
@@ -6381,6 +6524,8 @@ class $$SessionsTableTableManager
                 required int workspaceId,
                 Value<int?> taskId = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> permissionMode = const Value.absent(),
                 required String worktreePath,
                 required String branch,
                 Value<SessionStatus> status = const Value.absent(),
@@ -6396,6 +6541,8 @@ class $$SessionsTableTableManager
                 workspaceId: workspaceId,
                 taskId: taskId,
                 agentName: agentName,
+                title: title,
+                permissionMode: permissionMode,
                 worktreePath: worktreePath,
                 branch: branch,
                 status: status,

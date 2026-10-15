@@ -15,6 +15,11 @@ class ZoomIntent extends Intent {
   final ZoomOp op;
 }
 
+/// Ctrl+N: "Nova sessão".
+class NewSessionIntent extends Intent {
+  const NewSessionIntent();
+}
+
 class GoToSectionIntent extends Intent {
   const GoToSectionIntent(this.section);
 
@@ -36,6 +41,8 @@ const _digits = [
 final Map<ShortcutActivator, Intent> shellShortcuts = {
   const SingleActivator(LogicalKeyboardKey.keyK, control: true):
       const OpenPaletteIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+      const NewSessionIntent(),
   // Ctrl+= / Ctrl++ (with or without Shift, main row or numpad).
   const SingleActivator(LogicalKeyboardKey.equal, control: true):
       const ZoomIntent(ZoomOp.zoomIn),

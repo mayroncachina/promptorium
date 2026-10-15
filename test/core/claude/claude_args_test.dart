@@ -86,6 +86,26 @@ void main() {
     expect(o.copyWith(model: 'haiku').toArgs(), contains('haiku'));
   });
 
+  test('fork with a chosen id and --agent', () {
+    const o = ClaudeOptions(
+      resumeId: 'abc',
+      forkSession: true,
+      sessionId: 'new-id',
+      agent: 'implementer',
+      includePartialMessages: false,
+    );
+    expect(o.toArgs(), [
+      ...base,
+      '--session-id',
+      'new-id',
+      '--resume',
+      'abc',
+      '--fork-session',
+      '--agent',
+      'implementer',
+    ]);
+  });
+
   test('rejects contradictory options and never bypasses permissions', () {
     expect(
       () => const ClaudeOptions(sessionId: 'a', resumeId: 'b').toArgs(),

@@ -35,8 +35,9 @@ claude -p --input-format stream-json --output-format stream-json --verbose
        --include-partial-messages
        --session-id <uuid>            # nova sessão (UUID válido)
        | --resume <uuid>              # retomar (repassar de novo --mcp-config/--settings/--add-dir)
-       [--fork-session]               # com --resume: cria novo id
+       [--fork-session]               # com --resume: cria novo id (aceita --session-id <uuid> junto — testado)
        --model <opus|sonnet|haiku|fable|inherit|id>
+       --agent <nome>                 # thread principal roda como o subagente (Fase 5; listado no --help)
        --permission-mode <default|acceptEdits|plan|auto|dontAsk>
        --permission-prompt-tool stdio # aprovações pela própria stdin/stdout
        --allowedTools "Read" "Bash(git *)"   --disallowedTools ...
@@ -277,10 +278,28 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 **Referências:** mockup 1 · Sessões; Fase 4.
 
 **Verificação**
-- [ ] Criar sessão → worktree criado, timeline mostra eventos em tempo real
-- [ ] Pedido de permissão aparece na fila e na notificação; negar gera mensagem de recusa na timeline
-- [ ] Fechar e reabrir o app → retomar mantém o histórico
-- [ ] Rodapé mostra % de 5h/semana após a primeira resposta
+- [x] Criar sessão → worktree criado, timeline mostra eventos em tempo real (teste com CLI falso + integração real `test/integration/session_manager_integration_test.dart`, 2026-10-15: worktree criado, 1 aprovação, `out.txt` gravado, `success`, US$ 0,0035)
+- [x] Pedido de permissão aparece na fila e na notificação; negar gera mensagem de recusa na timeline (testes: fila, `deny` grava `control_response`; o `tool_result` de erro vira card "erro". Notificação nativa: conferência visual pendente)
+- [x] Fechar e reabrir o app → retomar mantém o histórico (timeline é reconstruída de `session_events`; `RestoreSessionsStep` marca interrompidas; Retomar/enviar usa `--resume`. Teste manual no app pendente)
+- [x] Rodapé mostra % de 5h/semana após a primeira resposta (teste do `footerStatsProvider` com o `rate_limit_event` do fixture)
+
+**Notas da execução (2026-10-15):**
+- Nenhum pacote novo (usa `xterm`, `flutter_pty`, `local_notifier`, `yaml`, `uuid`, `flutter_markdown_plus` já listados). Arquivos: `lib/features/sessions/{session_manager,timeline,timeline_provider,session_changes,agent_names,app_notifier,new_session_dialog,sessions_screen}.dart` e `widgets/{session_list_panel,timeline_view,composer,side_panel,diff_raw_views,session_terminal,session_style}.dart`; testes em `test/features/sessions/`, `test/data/migration_test.dart`, `test/integration/session_manager_integration_test.dart`.
+- **Sondagem do CLI 2.1.300 (haiku, ~US$ 0,015):** (a) `total_cost_usd` do `result` é **cumulativo na linhagem da sessão** (inclui turnos anteriores, `--resume` e o pai de um fork); `usage` é **por turno**. → `sessions.cost_usd` = último `total_cost_usd`; tokens somados; `UsageTracker.handle(e, costDelta:)` recebe só o delta (antes somava o cumulativo — corrigido). (b) `system/init` só sai depois da 1ª mensagem (e de novo a cada turno). (c) `--resume` funciona de outro worktree do mesmo repositório. (d) `--resume X --fork-session --session-id Y` cria a sessão Y. (e) `--agent <nome>` funciona com agentes de `<repo>/.claude/agents`.
+- **Decisão — agente:** `--agent <nome>` (novo campo `ClaudeOptions.agent`), não `--append-system-prompt` + `--allowedTools`. Motivo: `--allowedTools` **auto-aprova** ferramentas (não restringe), então mapear `tools:` do frontmatter para ele pularia aprovações; `--agent` aplica prompt, `tools` (restrição) e `model` do próprio agente, como o CLI define. Repassado em todo `--resume`. A lista do diálogo lê só `name:`/`description:` do frontmatter (`yaml`) de `~/.claude/agents` e `<workspace>/.claude/agents` (projeto sobrescreve global). `inherit` = não passar `--model`.
+- **Decisão — fork:** nova linha em `sessions` com novo UUID, `--resume <pai> --fork-session --session-id <novo>` (por isso `ClaudeOptions` aceita `sessionId`+`resumeId` quando `forkSession`), num **novo worktree** criado a partir da branch do pai (`addWorktree(slug, baseBranch: pai.branch)`). Alterações não commitadas do pai não vão junto (avisado no diálogo). Pai sem worktree ⇒ fork na raiz. O custo do fork começa com o do pai (o CLI soma).
+- **Esquema v2** (`schemaVersion = 2`, `onUpgrade` com `addColumn`): `sessions.title`, `sessions.permission_mode` (texto do CLI). Teste de migração v1→v2. Repositório: `recordResult`, `setPermissionMode`, `watchAll`; `insert` aceita `title`/`permissionMode`/`costUsd`.
+- **Status:** `running` → `waitingApproval` (há `control_request` pendente) → `running` (respondido/cancelado) → `completed` (`result` success; com processo vivo a UI mostra **"Ociosa"**) / `failed` (`result` de erro ou processo morreu sozinho) / `stopped` (Parar) / `interrupted` (app fechado; `markLiveAsInterrupted` no passo "Restaurando sessões…" do splash). Rótulos/cores em `SessionLook`.
+- **Persistência:** uma linha de `session_events` por linha do stdout (`type` = `type/subtype`), **exceto `stream_event`** (deltas ao vivo, consolidados pelo `assistant` — gravá-los geraria centenas de linhas por turno). Eventos do app: `promptorium_user` (mensagem enviada; o CLI não ecoa a stdin), `promptorium_note` (retomada, encerramento, falhas), `invalid_line`. Fila por sessão serializa gravação → timeline (ordem garantida).
+- **Timeline:** `Timeline` (redutor puro) + `sessionTimelineProvider(id)` (carrega `session_events`, depois aplica eventos ao vivo; descarta duplicados por `seq`). Texto ao vivo via `StreamDelta` (cursor ▍) substituído pelo `TextBlock` final; cards Read/Edit/Write/Bash/Glob/Grep/outros com alvo relativo ao worktree e resumo (linhas, +/−, erro, executando, aguardando aprovação); clique expande o resultado (40 linhas); mensagens com `parent_tool_use_id` aninhadas no card Task/Agent (borda lilás); `ListView(reverse: true)` mantém o fim visível. Thinking não é exibido.
+- **Composer:** Ctrl+Enter / Enviar → `SessionManager.send` (sem processo vivo ⇒ `--resume` com modelo/agente/modo salvos, mesmo worktree). "Permissão: …" troca o modo salvo — vale no próximo (re)início (não há API listada para mudar o processo vivo). "Anexar spec" ficou de fora (Fase 8). Retomar: sessão interrompida/falha envia "Continue de onde parou."; parada/concluída só reabre o processo.
+- **Aprovações:** painel direito agrega todas as sessões (ordem de chegada); Negar / Aprovar / "Sempre permitir <regra> <destino>" (= `updatedPermissions: [primeira permission_suggestion]`); `control_cancel_request` remove o card. Notificações (`local_notifier`, `setup` no `main`, falha só loga): aprovação pendente, sessão concluída/falhou; clique foca a janela (`window_manager`), seleciona a sessão e vai para Sessões.
+- **Terminal:** aba com `xterm` + `flutter_pty` rodando `claude --resume <id>` (+ `--model/--agent/--permission-mode`) no worktree; mantido por sessão em `sessionTerminalsProvider`. Com o processo headless vivo, pede para parar antes (dois processos na mesma sessão conflitam); o composer recusa enviar com o terminal aberto.
+- **Diff / Detalhes:** `sessionChangesProvider(id)` = `git status` + `git diff --numstat HEAD` + `git diff HEAD` (`DiffParser`), invalidado a cada `result`; aba "Diff · n" simples (Review completo é Fase 9). Detalhes: spec/tarefa (se `taskId`), duração (tique de 1 s enquanto roda), tokens, custo, session id (copiar).
+- **Splash:** novos passos `ListWorktreesStep` ("Listando worktrees…", `workspaceWorktreesProvider`, nunca falha) e `RestoreSessionsStep`; total 6 passos.
+- **Rodapé:** `footerStatsProvider` agora é derivado (CLI em `cliStatusProvider`; `setCli` mantido): sessões ativas/total do workspace ativo, sessões aguardando, subagentes = `tool_use` Task/Agent sem resultado, tokens do dia (`dailyUsageProvider`), 5h/semana do último `rate_limit_event`, MCP do último `system/init`.
+- Atalho **Ctrl+N** e botão "Nova sessão" abrem o diálogo (vai para Sessões).
+- **Encerramento (revisão):** `main` usa `UncontrolledProviderScope` + `windowManager.setPreventClose(true)`; ao fechar a janela, `SessionTerminals.killAll()` e `SessionManager.shutdown()` (SIGTERM → SIGKILL após 2 s, limite total 4 s) e então `windowManager.destroy()` — nenhum `claude` fica órfão. O status não é alterado no encerramento (o splash seguinte marca como interrompidas). `resume` concorrente (dois envios rápidos) reutiliza o mesmo início. Cores do mockup de Sessões (`SessionColors`) movidas para `ui/theme/tokens.dart`.
 
 ---
 

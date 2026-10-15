@@ -31,6 +31,9 @@ class SessionsRepo {
     required String model,
     int? taskId,
     String? agentName,
+    String? title,
+    String? permissionMode,
+    double costUsd = 0,
     SessionStatus status = SessionStatus.running,
   }) => _db
       .into(_t)
@@ -43,6 +46,9 @@ class SessionsRepo {
           model: model,
           taskId: Value(taskId),
           agentName: Value(agentName),
+          title: Value(title),
+          permissionMode: Value(permissionMode),
+          costUsd: Value(costUsd),
           status: Value(status),
         ),
       );
@@ -74,6 +80,36 @@ class SessionsRepo {
     updates: {_t},
     updateKind: UpdateKind.update,
   );
+
+  /// Records one `result`: [totalCostUsd] is the CLI's cumulative cost of the
+  /// session (replaces the stored value); tokens are added.
+  Future<void> recordResult(
+    String id, {
+    required double totalCostUsd,
+    int tokensIn = 0,
+    int tokensOut = 0,
+  }) => _db.customUpdate(
+    'UPDATE sessions SET cost_usd = ?, '
+    'tokens_in = tokens_in + ?, tokens_out = tokens_out + ? WHERE id = ?',
+    variables: [
+      Variable.withReal(totalCostUsd),
+      Variable.withInt(tokensIn),
+      Variable.withInt(tokensOut),
+      Variable.withString(id),
+    ],
+    updates: {_t},
+    updateKind: UpdateKind.update,
+  );
+
+  Future<int> setPermissionMode(String id, String? mode) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(permissionMode: Value(mode)),
+      );
+
+  /// All sessions (every workspace), newest first.
+  Stream<List<Session>> watchAll() => (_db.select(
+    _t,
+  )..orderBy([(s) => OrderingTerm.desc(s.startedAt)])).watch();
 
   /// On app start: sessions left `running`/`waitingApproval` become
   /// `interrupted` (Fase 5, item 8). Returns how many changed.

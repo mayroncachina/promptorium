@@ -26,10 +26,13 @@ class DailyUsage {
 
   int get totalTokens => usage.total;
 
-  DailyUsage add(Result r) => DailyUsage(
+  /// [costDelta] overrides `r.totalCostUsd`: that field is **cumulative**
+  /// over the session lineage (resume / fork included — verified on CLI
+  /// 2.1.300), while `usage` is per turn.
+  DailyUsage add(Result r, {double? costDelta}) => DailyUsage(
     day: day,
     usage: usage + r.usage,
-    costUsd: costUsd + r.totalCostUsd,
+    costUsd: costUsd + (costDelta ?? r.totalCostUsd),
     results: results + 1,
   );
 
@@ -87,7 +90,7 @@ class DailyUsageController extends Notifier<DailyUsage> {
   }
 
   /// Adds one `result` to today's total (starting a new day if needed).
-  Future<void> record(Result r) {
+  Future<void> record(Result r, {double? costDelta}) {
     final day = usageDay(ref.read(usageClockProvider)());
     final base = state.day == day
         ? state
@@ -95,7 +98,7 @@ class DailyUsageController extends Notifier<DailyUsage> {
             day,
             ref.read(appSettingsProvider)[AppSettingKeys.usage(day)],
           );
-    final next = base.add(r);
+    final next = base.add(r, costDelta: costDelta);
     state = next;
     return ref
         .read(appSettingsProvider.notifier)
@@ -120,17 +123,19 @@ final rateLimitProvider = NotifierProvider<RateLimitController, RateLimit?>(
 );
 
 /// Feeds session events into [dailyUsageProvider] / [rateLimitProvider].
-/// Fase 5 calls [handle] for every event of every session and binds the
-/// footer to those providers.
+/// `SessionManager` calls [handle] for every event of every session, passing
+/// [costDelta] (cost of this turn) for `result` events.
 class UsageTracker {
   UsageTracker(this._ref);
 
   final Ref _ref;
 
-  Future<void> handle(ClaudeEvent event) async {
+  Future<void> handle(ClaudeEvent event, {double? costDelta}) async {
     switch (event) {
       case Result():
-        await _ref.read(dailyUsageProvider.notifier).record(event);
+        await _ref
+            .read(dailyUsageProvider.notifier)
+            .record(event, costDelta: costDelta);
       case RateLimit():
         _ref.read(rateLimitProvider.notifier).record(event);
       default:

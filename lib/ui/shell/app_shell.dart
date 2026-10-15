@@ -6,6 +6,7 @@ import '../../features/code/code_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
+import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/specs/specs_screen.dart';
@@ -60,6 +61,27 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  bool _newSessionOpen = false;
+
+  Future<void> _newSession() async {
+    if (_newSessionOpen) return;
+    _newSessionOpen = true;
+    _go(AppSection.sessions);
+    try {
+      await showNewSessionDialog(context);
+    } finally {
+      _newSessionOpen = false;
+    }
+  }
+
+  void _onAction(AppSection section) {
+    if (section == AppSection.sessions) {
+      _newSession();
+    } else {
+      _notImplemented(section.actionLabel ?? '');
+    }
+  }
+
   void _notImplemented(String what) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -102,6 +124,12 @@ class _AppShellState extends ConsumerState<AppShell> {
               return null;
             },
           ),
+          NewSessionIntent: CallbackAction<NewSessionIntent>(
+            onInvoke: (_) {
+              _newSession();
+              return null;
+            },
+          ),
           GoToSectionIntent: CallbackAction<GoToSectionIntent>(
             onInvoke: (i) {
               _go(i.section);
@@ -118,7 +146,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 TitleBar(
                   section: section,
                   onOpenPalette: _openPalette,
-                  onAction: () => _notImplemented(section.actionLabel ?? ''),
+                  onAction: () => _onAction(section),
                   onWorkspace: () => showWorkspacePicker(context),
                 ),
                 Expanded(
