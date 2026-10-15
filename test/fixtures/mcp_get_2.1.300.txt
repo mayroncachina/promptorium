@@ -1,0 +1,10 @@
+fake-ok:
+  Scope: User config (available in all your projects)
+  Status: ✔ Connected
+  Type: stdio
+  Command: python3
+  Args: -I /tmp/sonda/bin/fake_mcp.py
+  Environment:
+    TOKEN_Y=zzz
+
+To remove this server, run: claude mcp remove fake-ok -s user

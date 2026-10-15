@@ -10,6 +10,7 @@ import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../data/providers.dart';
 import '../../data/repos/conversations_repo.dart';
+import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show PendingApproval, sessionIdGeneratorProvider;
 import '../sessions/timeline.dart';
@@ -248,6 +249,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final resume = conv.claudeSessionId;
     final sid = resume ?? ref.read(sessionIdGeneratorProvider)();
     final mode = PromptMode.fromName(conv.mode);
+    final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
     final AgentRun run;
     try {
       run = await provider.start(
@@ -257,6 +259,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           sessionId: resume == null ? sid : null,
           resumeId: resume,
           model: conv.model,
+          mcpAllowedTools: mcp.allowed,
+          mcpDisallowedTools: mcp.disallowed,
         ),
       );
     } catch (e) {

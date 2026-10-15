@@ -1,0 +1,6 @@
+Checking MCP server health…
+
+usr-fake: /bin/false  - ✘ Failed to connect — CONNECTION_CLOSED: Connection closed
+fake-ok: python3 -I /tmp/sonda/bin/fake_mcp.py - ✔ Connected
+web-bad: http://127.0.0.1:9/mcp (HTTP) - ✘ Failed to connect — ECONNREFUSED: ECONNREFUSED: Unable to connect. Is the computer able to access the url?
+eco: /bin/true  - ⏸ Pending approval (run `claude` to approve)

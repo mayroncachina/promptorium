@@ -16,6 +16,7 @@ import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../mcp/mcp_rules.dart';
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -246,6 +247,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     );
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
+    final mcp = await _mcpRules();
     await _start(
       id,
       ClaudeOptions(
@@ -257,6 +259,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         permissionMode: r.permissionMode,
         maxBudgetUsd: r.maxBudgetUsd ?? limits.budgetUsd,
         maxTurns: limits.maxTurns,
+        allowedTools: mcp.allowed,
+        disallowedTools: mcp.disallowed,
       ),
       cwd: path,
       title: title,
@@ -352,6 +356,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     await _note(id, 'Sessão retomada (--resume)');
     final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
     final limits = await _agentLimits(s.agentName, ws?.path);
+    final mcp = await _mcpRules();
     await _start(
       id,
       ClaudeOptions(
@@ -361,6 +366,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
+        allowedTools: mcp.allowed,
+        disallowedTools: mcp.disallowed,
       ),
       cwd: s.worktreePath,
       title: _titleOf(s),
@@ -417,6 +424,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     );
     await _note(newId, 'Fork de "${_titleOf(parent)}" (${_short(id)})');
     final limits = await _agentLimits(parent.agentName, ws.path);
+    final mcp = await _mcpRules();
     await _start(
       newId,
       ClaudeOptions(
@@ -428,6 +436,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
+        allowedTools: mcp.allowed,
+        disallowedTools: mcp.disallowed,
       ),
       cwd: path,
       title: name,
@@ -544,6 +554,12 @@ class SessionManager extends Notifier<SessionManagerState> {
       return (budgetUsd: null, maxTurns: null);
     }
   }
+
+  /// MCP tool rules (Fase 11): "Permitido" → `--allowedTools`, "Bloqueado"
+  /// → `--disallowedTools`. Sessions have no read-only mode, so "Permitido"
+  /// always applies (re-read on every start / resume / fork).
+  Future<McpRuleArgs> _mcpRules() =>
+      readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
 
   // --- process lifecycle -----------------------------------------------------
 

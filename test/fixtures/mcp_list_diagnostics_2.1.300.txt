@@ -1,0 +1,13 @@
+Checking MCP server health…
+
+pr-stdio: /bin/false  - ✘ Failed to connect — CONNECTION_CLOSED: Connection closed
+lo-srv: /bin/true  - ✘ Failed to connect — CONNECTION_CLOSED: Connection closed
+
+MCP config diagnostics ⚠
+
+For help configuring MCP servers, see: https://code.claude.com/docs/en/mcp
+
+[Conflicting scopes]
+├ Server "pr-stdio" is defined in multiple scopes with different endpoints: user (/bin/false), project (python3 -I /tmp/sonda/bin/fake_mcp.py --flag x). OAuth tokens are stored per endpoint, so authenticating in one context will not carry over.
+└ Keep the correct endpoint and remove the others: `claude mcp remove pr-stdio -s user` or `claude mcp remove pr-stdio -s project`
+

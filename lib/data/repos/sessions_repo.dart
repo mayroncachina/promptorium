@@ -186,4 +186,28 @@ class SessionsRepo {
 
   Stream<List<SessionEvent>> watchEvents(String sessionId) =>
       _events(sessionId).watch();
+
+  /// Newest-first events of the workspace's sessions whose JSON contains
+  /// [needle] (exact substring: `%`, `_` and `\\` are escaped), with their
+  /// session. Used by the MCP log (Fase 11).
+  Future<List<(SessionEvent, Session)>> recentEventsContaining(
+    int workspaceId,
+    List<String> needles, {
+    int limit = 80,
+  }) async {
+    if (needles.isEmpty) return const [];
+    final s = _db.sessions;
+    String esc(String v) =>
+        v.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
+    Expression<bool>? cond;
+    for (final n in needles) {
+      final e = _e.json.like('%${esc(n)}%', escapeChar: r'\');
+      cond = cond == null ? e : (cond | e);
+    }
+    final q = _db.select(_e).join([innerJoin(s, s.id.equalsExp(_e.sessionId))])
+      ..where(s.workspaceId.equals(workspaceId) & cond!)
+      ..orderBy([OrderingTerm.desc(_e.id)])
+      ..limit(limit);
+    return [for (final r in await q.get()) (r.readTable(_e), r.readTable(s))];
+  }
 }

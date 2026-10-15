@@ -47,6 +47,8 @@ class AgentStartOptions {
     this.forkSession = false,
     this.model,
     this.maxBudgetUsd,
+    this.mcpAllowedTools = const [],
+    this.mcpDisallowedTools = const [],
   });
 
   final String workingDirectory;
@@ -62,6 +64,13 @@ class AgentStartOptions {
   /// Model alias / id; null or `inherit` = provider default.
   final String? model;
   final double? maxBudgetUsd;
+
+  /// MCP tools marked "Permitido" (`mcp__srv__tool`, Fase 11). Ignored by
+  /// the read-only modes ([PromptMode.ask], [PromptMode.refine]).
+  final List<String> mcpAllowedTools;
+
+  /// MCP tools marked "Bloqueado" (always applied).
+  final List<String> mcpDisallowedTools;
 }
 
 /// One running agent process (a conversation turn loop).

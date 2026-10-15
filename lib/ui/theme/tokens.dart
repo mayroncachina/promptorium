@@ -70,6 +70,9 @@ abstract final class SessionColors {
   static const addBg = Color(0xFF12241F);
   static const delBg = Color(0xFF2A1715);
 
+  /// Border of the "Bloqueado" pill (MCP screen).
+  static const blockedBorder = Color(0xFF3A4250);
+
   /// Terminal selection highlight.
   static const terminalSelection = Color(0x553A4458);
 

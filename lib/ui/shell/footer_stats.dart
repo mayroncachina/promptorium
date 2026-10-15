@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
 import '../../data/providers.dart';
+import '../../features/mcp/mcp_state.dart';
 import '../../features/sessions/session_manager.dart';
 
 enum CliStatus { unknown, connected, notFound }
@@ -89,7 +90,8 @@ final cliStatusProvider =
 /// Footer data (plano, Fase 5 item 11): CLI status, sessions of the active
 /// workspace, approvals and subagents of every live session, today's tokens
 /// (`UsageTracker`), plan usage (last `rate_limit_event`) and MCP servers of
-/// the last `system/init` (the MCP screen is Fase 11).
+/// the newest `claude mcp list` / `system/init` ([mcpStatusBoardProvider],
+/// Fase 11).
 class FooterStatsController extends Notifier<FooterStats> {
   @override
   FooterStats build() {
@@ -101,7 +103,7 @@ class FooterStatsController extends Notifier<FooterStats> {
         : ref.watch(sessionsProvider(ws.id)).value;
     final today = ref.watch(dailyUsageProvider);
     final rate = ref.watch(rateLimitProvider);
-    final mcp = manager.lastInit?.mcpServers;
+    final mcp = ref.watch(mcpStatusBoardProvider);
 
     int? active;
     if (sessions != null) {
@@ -122,9 +124,9 @@ class FooterStatsController extends Notifier<FooterStats> {
       sessionsTotal: sessions?.length,
       sessionsWaiting: manager.approvals.map((a) => a.sessionId).toSet().length,
       subagentsRunning: manager.subagentsRunning,
-      mcpConnected: mcp?.where((m) => m.isConnected).length,
-      mcpTotal: mcp?.length,
-      mcpFailed: mcp?.where((m) => m.isFailed).length,
+      mcpConnected: mcp.isEmpty ? null : mcp.connected,
+      mcpTotal: mcp.isEmpty ? null : mcp.total,
+      mcpFailed: mcp.isEmpty ? null : mcp.failed,
       tokensToday: hasUsage ? today.totalTokens : null,
       tokensIn: hasUsage ? today.usage.inputTokens : null,
       tokensOut: hasUsage ? today.usage.outputTokens : null,

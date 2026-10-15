@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
+import '../../features/mcp/widgets/add_server_dialog.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
@@ -89,6 +90,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       showNewSpecDialog(context);
     } else if (section == AppSection.tasks) {
       showNewTaskDialog(context);
+    } else if (section == AppSection.mcp) {
+      showAddMcpServerDialog(context);
     } else {
       _notImplemented(section.actionLabel ?? '');
     }

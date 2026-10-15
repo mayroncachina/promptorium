@@ -61,6 +61,10 @@ class ClaudeCodeProvider implements AgentProvider {
     'fable',
   ];
 
+  /// Modes that never auto-approve MCP tools ("Permitido" keeps asking).
+  static bool ignoresMcpAllow(PromptMode m) =>
+      m == PromptMode.ask || m == PromptMode.refine;
+
   /// CLI options for [o] (pure; tested).
   static ClaudeOptions optionsFor(AgentStartOptions o) {
     final model = o.model == null || o.model!.isEmpty || o.model == 'inherit'
@@ -78,9 +82,13 @@ class ClaudeCodeProvider implements AgentProvider {
         PromptMode.edit => ClaudePermissionMode.acceptEdits,
         PromptMode.refine => ClaudePermissionMode.defaultMode,
       },
-      disallowedTools: o.mode == PromptMode.ask
-          ? readOnlyDisallowedTools
-          : const [],
+      // MCP rules (Fase 11): "Perguntar" / "Refinar" ignore "Permitido" (an
+      // MCP tool may write; it keeps asking) and respect "Bloqueado".
+      allowedTools: ignoresMcpAllow(o.mode) ? const [] : o.mcpAllowedTools,
+      disallowedTools: [
+        if (o.mode == PromptMode.ask) ...readOnlyDisallowedTools,
+        ...o.mcpDisallowedTools,
+      ],
     );
   }
 

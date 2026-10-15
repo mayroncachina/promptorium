@@ -22,6 +22,8 @@ class McpToolRulesRepo {
             ..orderBy([(r) => OrderingTerm.asc(r.tool)]))
           .watch();
 
+  Future<List<McpToolRule>> getAll() => _db.select(_t).get();
+
   Future<List<McpToolRule>> getForServer(String server) =>
       (_db.select(_t)..where((r) => r.server.equals(server))).get();
 
