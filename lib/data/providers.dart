@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/git/git_root.dart';
+import '../core/git/repo_setup.dart';
 import '../core/process/process_runner.dart';
 import 'db/app_database.dart';
 import 'repos/agent_settings_repo.dart';
@@ -196,6 +197,23 @@ class WorkspaceActions {
     await select(ws.id);
     return ws;
   }
+
+  /// `git init` in [folder] (see [RepoSetup.init]), then adds it.
+  Future<Workspace> initFolder(
+    String folder, {
+    bool commitFiles = true,
+    String? remoteUrl,
+  }) async {
+    await _ref
+        .read(repoSetupProvider)
+        .init(folder, commitFiles: commitFiles, remoteUrl: remoteUrl);
+    return addFolder(folder);
+  }
+
+  /// `git clone` [url] into [folder] (see [RepoSetup.clone]), then adds the
+  /// clone.
+  Future<Workspace> cloneInto(String folder, String url) async =>
+      addFolder(await _ref.read(repoSetupProvider).clone(folder, url));
 
   /// Unregisters the workspace (data rows cascade; files are untouched).
   Future<void> remove(int id) async {

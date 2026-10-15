@@ -13,6 +13,16 @@ class InvalidWorkspaceFolder implements Exception {
   String toString() => details == null ? message : '$message — $details';
 }
 
+/// An existing folder that is not inside a git repository: the workspace
+/// selector offers to `git init` it or clone into it (see `RepoSetup`).
+class NotAGitRepository extends InvalidWorkspaceFolder {
+  const NotAGitRepository(this.path, {super.details})
+    : super('A pasta não é um repositório git.');
+
+  /// Absolute folder (`~` expanded).
+  final String path;
+}
+
 /// Expands a leading `~` with `$HOME`.
 String expandHome(String path, {String? home}) {
   final h = home ?? Platform.environment['HOME'];
@@ -24,8 +34,8 @@ String expandHome(String path, {String? home}) {
 
 /// Returns the repository root of [folder] (`git rev-parse --show-toplevel`).
 ///
-/// Throws [InvalidWorkspaceFolder] if the folder does not exist, is not inside
-/// a git repository or git is not installed.
+/// Throws [InvalidWorkspaceFolder] if the folder does not exist or git is not
+/// installed, and [NotAGitRepository] if it is not inside a git repository.
 Future<String> resolveGitRoot(
   String folder, {
   required ProcessRunner run,
@@ -50,10 +60,7 @@ Future<String> resolveGitRoot(
   }
   final out = '${result.stdout}'.trim();
   if (result.exitCode != 0 || out.isEmpty) {
-    throw InvalidWorkspaceFolder(
-      'A pasta não é um repositório git.',
-      details: '${result.stderr}'.trim(),
-    );
+    throw NotAGitRepository(path, details: '${result.stderr}'.trim());
   }
   return out;
 }

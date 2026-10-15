@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_root.dart';
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
@@ -20,6 +21,7 @@ Future<ProviderContainer> pumpLoadedShell(
   Future<String> Function(String)? resolver,
   String? Function(String root)? branchOf,
   Future<String?> Function({String? initialDirectory})? directoryPicker,
+  RepoSetup? repoSetup,
 }) async {
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
@@ -31,6 +33,7 @@ Future<ProviderContainer> pumpLoadedShell(
       if (resolver != null) gitRootResolverProvider.overrideWithValue(resolver),
       if (directoryPicker != null)
         directoryPickerProvider.overrideWithValue(directoryPicker),
+      if (repoSetup != null) repoSetupProvider.overrideWithValue(repoSetup),
       // No real git under FakeAsync.
       currentBranchProvider.overrideWith(
         (ref, root) async => branchOf?.call(root),
@@ -222,6 +225,96 @@ void main() {
     expect(await WorkspacesRepoHelper.byPath(db, '/home/x/proj'), isNotNull);
     await unmount(tester, c);
   });
+
+  testWidgets('a non-git folder offers git init, init + remote and clone', (
+    tester,
+  ) async {
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    final repos = <String>{'/home/x/repo'};
+    Future<String> resolver(String folder) async =>
+        repos.contains(folder) ? folder : throw NotAGitRepository(folder);
+    final setup = _FakeRepoSetup(repos);
+
+    final c = await pumpLoadedShell(
+      tester,
+      db,
+      resolver: resolver,
+      repoSetup: setup,
+    );
+    await tester.pumpAndSettle();
+    Future<void> submit(String path) async {
+      await tester.tap(find.byKey(const ValueKey('title-workspace')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('workspace-add')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('workspace-path-field')),
+        path,
+      );
+      await tester.tap(find.byKey(const ValueKey('workspace-add-confirm')));
+      await tester.pumpAndSettle();
+    }
+
+    final confirm = find.byKey(const ValueKey('workspace-setup-confirm'));
+    final url = find.byKey(const ValueKey('workspace-setup-url'));
+
+    // Plain folder: the choices replace the form; "Voltar" returns to it.
+    await submit('/home/x/plain');
+    expect(find.byKey(const ValueKey('workspace-setup')), findsOneWidget);
+    expect(find.text('/home/x/plain'), findsOneWidget);
+    await tester.tap(find.text('Voltar'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('workspace-setup')), findsNothing);
+    expect(find.byKey(const ValueKey('workspace-path-field')), findsOneWidget);
+
+    // Init + remote: the URL is required; the files box goes to git init.
+    await tester.tap(find.byKey(const ValueKey('workspace-add-confirm')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('workspace-setup-remote')));
+    await tester.pumpAndSettle();
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(find.text('Informe a URL do repositório.'), findsOneWidget);
+    expect(setup.calls, isEmpty);
+    await tester.tap(
+      find.byKey(const ValueKey('workspace-setup-commit-files')),
+    );
+    await tester.enterText(url, 'git@host:org/plain.git');
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(setup.calls, [
+      'init /home/x/plain files=false remote=git@host:org/plain.git',
+    ]);
+    expect(find.byKey(const ValueKey('workspace-picker')), findsNothing);
+    expect(workspaceName(tester), 'plain');
+
+    // Clone into a non-empty folder: subfolder shown, git errors surfaced.
+    await submit('/home/x/busy');
+    await tester.tap(find.byKey(const ValueKey('workspace-setup-clone')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('workspace-setup-commit-files')),
+      findsNothing,
+    );
+    await tester.enterText(url, 'https://host/org/fail.git');
+    await tester.pump();
+    expect(find.text('Destino: /home/x/busy/fail'), findsOneWidget);
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(find.text("fatal: repository 'x' not found"), findsOneWidget);
+
+    await tester.enterText(url, 'https://host/org/app.git');
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(setup.calls.last, 'clone /home/x/busy https://host/org/app.git');
+    expect(workspaceName(tester), 'app');
+    expect(
+      await WorkspacesRepoHelper.byPath(db, '/home/x/busy/app'),
+      isNotNull,
+    );
+    await unmount(tester, c);
+  });
 }
 
 String? workspaceName(WidgetTester tester) => tester
@@ -239,4 +332,40 @@ abstract final class WorkspacesRepoHelper {
   static Future<Workspace?> byPath(AppDatabase db, String path) => (db.select(
     db.workspaces,
   )..where((w) => w.path.equals(path))).getSingleOrNull();
+}
+
+/// Records init / clone and turns the folder into a "repository" for the
+/// fake resolver. URLs containing `fail` fail like git does.
+class _FakeRepoSetup extends RepoSetup {
+  _FakeRepoSetup(this.repos);
+
+  final Set<String> repos;
+  final calls = <String>[];
+
+  @override
+  bool isEmptyFolder(String folder) => false;
+
+  @override
+  Future<void> init(
+    String folder, {
+    bool commitFiles = true,
+    String? remoteUrl,
+  }) async {
+    calls.add('init $folder files=$commitFiles remote=$remoteUrl');
+    repos.add(folder);
+  }
+
+  @override
+  Future<String> clone(String folder, String url) async {
+    if (url.contains('fail')) {
+      throw const GitException(
+        'git clone falhou',
+        stderr: "fatal: repository 'x' not found\n",
+      );
+    }
+    calls.add('clone $folder $url');
+    final dest = RepoSetup.cloneDestination(folder, url, folderEmpty: false);
+    repos.add(dest);
+    return dest;
+  }
 }
