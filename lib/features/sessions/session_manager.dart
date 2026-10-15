@@ -15,6 +15,7 @@ import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
+import '../agents/agent_repository.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
 import 'timeline.dart';
@@ -61,7 +62,8 @@ class NewSessionRequest {
   final bool useWorktree;
   final int? taskId;
 
-  /// `--max-budget-usd` of the first process (not reapplied on resume).
+  /// `--max-budget-usd`; null = the agent's budget (`agent_settings`), if
+  /// any. Resumes reapply the agent's budget (DT-23).
   final double? maxBudgetUsd;
 
   /// Claude session to carry over (`--resume ID --fork-session
@@ -221,6 +223,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       taskId: r.taskId,
     );
     if (r.origin != null) await _note(id, r.origin!);
+    final limits = await _agentLimits(r.agent, ws.path);
     await _start(
       id,
       ClaudeOptions(
@@ -230,7 +233,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(r.model),
         agent: r.agent,
         permissionMode: r.permissionMode,
-        maxBudgetUsd: r.maxBudgetUsd,
+        maxBudgetUsd: r.maxBudgetUsd ?? limits.budgetUsd,
+        maxTurns: limits.maxTurns,
       ),
       cwd: path,
       title: title,
@@ -277,6 +281,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não encontrada.');
     await _note(id, 'Sessão retomada (--resume)');
+    final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    final limits = await _agentLimits(s.agentName, ws?.path);
     await _start(
       id,
       ClaudeOptions(
@@ -284,6 +290,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(s.model),
         agent: s.agentName,
         permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
+        maxBudgetUsd: limits.budgetUsd,
+        maxTurns: limits.maxTurns,
       ),
       cwd: s.worktreePath,
       title: _titleOf(s),
@@ -337,6 +345,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       costUsd: parent.costUsd,
     );
     await _note(newId, 'Fork de "${_titleOf(parent)}" (${_short(id)})');
+    final limits = await _agentLimits(parent.agentName, ws.path);
     await _start(
       newId,
       ClaudeOptions(
@@ -346,6 +355,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(parent.model),
         agent: parent.agentName,
         permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
+        maxBudgetUsd: limits.budgetUsd,
+        maxTurns: limits.maxTurns,
       ),
       cwd: path,
       title: name,
@@ -418,6 +429,37 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
+
+  /// Limits of the agent (DT-23): budget from `agent_settings` of the
+  /// effective definition (project wins) → `--max-budget-usd`; `maxTurns` of
+  /// the frontmatter → `--max-turns` (passed explicitly: not verified that
+  /// `--agent` applies it to the main thread). Errors = no limits.
+  Future<({double? budgetUsd, int? maxTurns})> _agentLimits(
+    String? agent,
+    String? workspacePath,
+  ) async {
+    if (agent == null || agent.isEmpty) {
+      return (budgetUsd: null, maxTurns: null);
+    }
+    try {
+      final entry = await ref
+          .read(agentRepositoryProvider(workspacePath))
+          .find(agent);
+      if (entry == null) return (budgetUsd: null, maxTurns: null);
+      final setting = await ref
+          .read(agentSettingsRepoProvider)
+          .get(agent, entry.scope);
+      final budget = setting?.budgetUsd;
+      final turns = entry.file.maxTurns;
+      return (
+        budgetUsd: budget != null && budget > 0 ? budget : null,
+        maxTurns: turns != null && turns >= 1 ? turns : null,
+      );
+    } catch (e) {
+      debugPrint('agente $agent: limites não lidos — $e');
+      return (budgetUsd: null, maxTurns: null);
+    }
+  }
 
   // --- process lifecycle -----------------------------------------------------
 

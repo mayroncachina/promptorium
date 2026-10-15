@@ -9,12 +9,13 @@ import 'session_manager.dart';
 import 'widgets/composer.dart' show permissionLabel, uiPermissionModes;
 import 'widgets/session_style.dart';
 
-/// "Nova sessão" (title bar button / Ctrl+N). Returns the new session id.
-Future<String?> showNewSessionDialog(BuildContext context) =>
+/// "Nova sessão" (title bar button / Ctrl+N; "Testar em sessão" of the
+/// Agentes screen passes [agent]). Returns the new session id.
+Future<String?> showNewSessionDialog(BuildContext context, {String? agent}) =>
     showDialog<String>(
       context: context,
       barrierColor: AppColors.scrim,
-      builder: (_) => const NewSessionDialog(),
+      builder: (_) => NewSessionDialog(initialAgent: agent),
     );
 
 /// "Fork" of a session: asks the first message of the fork.
@@ -26,10 +27,13 @@ Future<String?> showForkDialog(BuildContext context, Session parent) =>
     );
 
 class NewSessionDialog extends ConsumerStatefulWidget {
-  const NewSessionDialog({super.key, this.forkOf});
+  const NewSessionDialog({super.key, this.forkOf, this.initialAgent});
 
   /// When set, the dialog creates a fork of this session.
   final Session? forkOf;
+
+  /// Agent preselected (`--agent`).
+  final String? initialAgent;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
@@ -42,9 +46,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         : 'Fork de ${sessionTitle(widget.forkOf!)}',
   );
   final _prompt = TextEditingController();
-  String? _agent;
+  late String? _agent = widget.initialAgent;
   String _model = 'inherit';
   ClaudePermissionMode _mode = ClaudePermissionMode.defaultMode;
+
+  /// Whether the mode was taken from the initial agent already.
+  bool _modeFromAgent = false;
+
+  /// `--agent` does not apply the frontmatter `permissionMode` to the main
+  /// thread (sondado na Fase 7): choosing an agent preselects its mode.
+  void _pickAgent(String? name, List<AgentRef> agents) {
+    _agent = name;
+    final ref = agents.where((a) => a.name == name).firstOrNull;
+    final mode = ClaudePermissionMode.fromCli(ref?.permissionMode);
+    if (mode != null && uiPermissionModes.contains(mode)) _mode = mode;
+  }
+
   bool _worktree = true;
   bool _busy = false;
   String? _error;
@@ -105,6 +122,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final agents = fork == null
         ? ref.watch(agentListProvider(ws?.path)).value ?? const <AgentRef>[]
         : const <AgentRef>[];
+    if (!_modeFromAgent && _agent != null && agents.isNotEmpty) {
+      _modeFromAgent = true;
+      _pickAgent(_agent, agents);
+    }
+    // A preselected agent that is not in the list (yet) stays selectable.
+    final agentItems = [
+      for (final a in agents)
+        (a.name, a.project ? '${a.name} · projeto' : a.name),
+      if (_agent != null && !agents.any((a) => a.name == _agent))
+        (_agent!, _agent!),
+    ];
 
     InputDecoration deco(String hint) => InputDecoration(
       hintText: hint,
@@ -224,13 +252,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                               value: _agent,
                               items: [
                                 (null, 'nenhum'),
-                                for (final a in agents)
-                                  (
-                                    a.name,
-                                    a.project ? '${a.name} · projeto' : a.name,
-                                  ),
+                                for (final (n, l) in agentItems) (n, l),
                               ],
-                              onChanged: (v) => setState(() => _agent = v),
+                              onChanged: (v) =>
+                                  setState(() => _pickAgent(v, agents)),
                             ),
                           ],
                         ),
@@ -256,14 +281,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     ],
                   ),
                   label('Modo de permissão'),
-                  dropdown<ClaudePermissionMode>(
-                    key: const ValueKey('new-session-mode'),
-                    value: _mode,
-                    items: [
-                      for (final m in uiPermissionModes)
-                        (m, '${m.cliValue} — ${permissionLabel(m)}'),
-                    ],
-                    onChanged: (v) => setState(() => _mode = v),
+                  // Rebuilt when an agent preselects the mode (initialValue).
+                  KeyedSubtree(
+                    key: ValueKey('new-session-mode-${_mode.cliValue}'),
+                    child: dropdown<ClaudePermissionMode>(
+                      key: const ValueKey('new-session-mode'),
+                      value: _mode,
+                      items: [
+                        for (final m in uiPermissionModes)
+                          (m, '${m.cliValue} — ${permissionLabel(m)}'),
+                      ],
+                      onChanged: (v) => setState(() => _mode = v),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   CheckboxListTile(

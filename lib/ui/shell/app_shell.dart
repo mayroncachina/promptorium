@@ -81,6 +81,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     } else if (section == AppSection.prompt) {
       // Draft of a new conversation (the composer creates it on send).
       ref.read(selectedConversationProvider.notifier).select(null);
+    } else if (section == AppSection.agents) {
+      ref.read(selectedAgentProvider.notifier).newDraft();
     } else {
       _notImplemented(section.actionLabel ?? '');
     }

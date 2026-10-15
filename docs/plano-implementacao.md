@@ -74,7 +74,7 @@ claude -p --input-format stream-json --output-format stream-json --verbose
 | Subagentes globais / projeto | `~/.claude/agents/*.md` / `<repo>/.claude/agents/*.md` — frontmatter YAML: `name`, `description` (obrigatórios), `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `mcpServers`, `color`, … corpo = prompt. Precedência: `--agents` > projeto > usuário |
 | MCP usuário / local / projeto | `~/.claude.json` (`mcpServers` no topo / `projects["/abs"].mcpServers`) / `<repo>/.mcp.json`. Tipos: `stdio`(command,args,env), `http`(url,headers), `sse`(obsoleto) |
 | Transcrições | `~/.claude/projects/<cwd com não-alfanuméricos → '-'>/<session-id>.jsonl` — **formato interno, pode mudar** |
-| Listar agentes | `claude agents --json` |
+| Listar agentes | ⚠ `claude agents --json` (2.1.300) lista **sessões ativas** (`pid`, `cwd`, `kind`, `sessionId`, `name`, `status`), não definições. Para conferir definições sem custo: `system/init.agents` de um `claude -p` com `--model` inválido (ver Fase 7) |
 
 ### 0.3 Aprovações — decisão revista
 
@@ -347,11 +347,20 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 4. "Testar em sessão".
 
 **Verificação**
-- [ ] Agente salvo aparece em `claude agents --json`
-- [ ] Mesmo nome no projeto sobrescreve o global (conferir no `system/init.agents`)
-- [ ] Teste de round-trip do frontmatter (ler → salvar → ler igual)
+- [x] Agente salvo aparece ~~em `claude agents --json`~~ no `system/init.agents` (ver notas: `agents --json` lista sessões, não definições)
+- [x] Mesmo nome no projeto sobrescreve o global (conferido no `system/init` com `--agent`: modelo do arquivo de projeto; teste do `AgentRepository`)
+- [x] Teste de round-trip do frontmatter (ler → salvar → ler igual; byte a byte quando nada muda, incluindo campos desconhecidos, comentários e bloco `|`)
 
 **Anti-padrões:** não apagar campos desconhecidos do frontmatter ao salvar.
+
+**Notas da execução (2026-10-15):**
+- Nenhum pacote novo (`yaml` já listado). Arquivos: `lib/features/agents/{agent_file,agent_repository,agents_screen}.dart`, `widgets/{agent_editor,agent_style}.dart`; `features/sessions/agent_names.dart` agora deriva de `agentEntriesProvider`; testes em `test/features/agents/` e `test/features/sessions/session_agent_limits_test.dart`.
+- **`AgentFile`**: lê com `yaml`, guarda cada chave de topo com o **texto original** (linha da chave + continuação + comentários/linhas em branco acima). Chave não alterada é regravada igual; alterada é escrita à mão (escalar puro só quando o `yaml` relê a mesma string, senão aspas duplas; listas/mapas em bloco); novas chaves vão para o fim; remover mantém o comentário acima. `tools`/`disallowedTools`: string com vírgulas (estilo da doc, também para campo novo) ou lista YAML, conforme o original; vírgulas dentro de parênteses (`Bash(git a, b)`) não separam. `mcpServers`: nomes (strings) editáveis, definições inline preservadas. CRLF/BOM normalizados para LF.
+- **`AgentRepository`** (`home` injetável via `agentHomeProvider`): lista `~/.claude/agents` e `<workspace>/.claude/agents`, marca `overridesGlobal`/`overriddenByProject`; `save` grava `<name>.md` (temporário + rename), nome `[a-z0-9-]`, description obrigatória, recusa sobrescrever outro arquivo; renomear/mover = grava o novo e apaga o antigo (UI confirma o mover); arquivo cujo nome difere de `<name>.md` mantém o caminho; `delete` (UI confirma). Arquivo inválido é ignorado na lista. `readMcpServerNames`: só **nomes** de `~/.claude.json` (`mcpServers` + `projects[ws].mcpServers`) e `.mcp.json`.
+- **Tela**: lista Globais / Projeto (“sobrescreve o global” em âmbar; global sobrescrito = “sobrescrito no projeto”); editor com Identidade (nome, quando usar, modelo Opus/Sonnet/Haiku/Fable/Herdar → `opus/sonnet/haiku/fable/inherit` — Herdar/`default` não criam a chave se ela não existia; id de modelo desconhecido aparece como pílula extra), escopo, prompt (TextField multilinha mono — re_editor ficou para a Fase 10), ferramentas (8 pílulas + campo “Outras”; nenhuma = herda todas), execução (modo com dica, orçamento, máx. de turnos, chips MCP), **prévia ao vivo** = exatamente o texto que será gravado + caminho. Cabeçalho com sessões/concluídas/custo médio do agente no workspace. Salvar / Excluir / Testar em sessão (salva se houver mudanças e abre a Nova sessão com o agente e o modo dele pré-selecionados; se a sessão for criada, vai para Sessões). “Novo agente” da barra de título abre rascunho.
+- **`agent_settings`**: `budgetUsd` é o único dado próprio; `permissionMode`, `maxTurns` e `mcpServers` são espelhos do frontmatter (o arquivo é a fonte). Renomear/mover move a linha.
+- **DT-23 resolvido**: `SessionManager` (create, `--resume` e fork) acha a definição efetiva do agente (projeto > global) e passa `--max-budget-usd` (de `agent_settings` do escopo efetivo; `NewSessionRequest.maxBudgetUsd` explícito vence) e `--max-turns` (de `maxTurns` do frontmatter, **passado explicitamente**: não dá para verificar sem custo se `--agent` aplica `maxTurns` à thread principal). Erro de leitura = sem limites.
+- **Sondagem do CLI 2.1.300 (custo US$ 0):** `claude -p … --model modelo-inexistente-xyz` emite `system/init` (com `agents`, `tools`, `permissionMode`) e um `result` `success` com `total_cost_usd: 0` sem chamar a API. Num repositório temporário com `.claude/agents/teste-promptorium.md` **gravado pelo `AgentRepository`**: (a) `claude agents --json` → 2 itens com `pid/cwd/kind/startedAt/sessionId/name/status` (sessões ativas), sem o agente; (b) `system/init.agents` = `[claude, Explore, general-purpose, Plan, statusline-setup, teste-promptorium]` ✓; (c) com `--agent teste-promptorium`: `tools` = `[Read, Grep]` (restrição aplicada) e `model` = o do arquivo; (d) override: com `CLAUDE_CONFIG_DIR` temporário contendo um global de mesmo nome (modelo diferente), o `model` do init é o do **projeto** ✓; (e) `permissionMode: plan` (ou `acceptEdits`) no frontmatter **não** muda o `permissionMode` do init com `--agent` → a Nova sessão pré-seleciona o modo do agente e o app passa `--permission-mode`; (f) num `git worktree` do repositório, o agente de projeto **não commitado** da raiz também aparece. Nada foi criado em `~/.claude/agents`; transcrições das sondas removidas.
 
 ---
 

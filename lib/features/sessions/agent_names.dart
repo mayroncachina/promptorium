@@ -1,70 +1,75 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:yaml/yaml.dart';
 
-/// A subagent definition found on disk (only what the "Nova sessão" dialog
-/// needs; the full editor is Fase 7).
+import '../agents/agent_file.dart';
+import '../agents/agent_repository.dart';
+
+/// A subagent offered by the "Nova sessão" dialog: the effective definition
+/// for the workspace (a project agent replaces a global one with that name).
 class AgentRef {
-  const AgentRef({required this.name, required this.project, this.description});
+  const AgentRef({
+    required this.name,
+    required this.project,
+    this.description,
+    this.permissionMode,
+    this.maxTurns,
+  });
 
   final String name;
 
   /// `<workspace>/.claude/agents` (overrides a global agent with that name).
   final bool project;
   final String? description;
+
+  /// `permissionMode` of the frontmatter. `--agent` does not apply it to the
+  /// main thread (sondado na Fase 7), so the dialog preselects it.
+  final String? permissionMode;
+  final int? maxTurns;
 }
 
 /// `name:` (and `description:`) from the YAML frontmatter of an agent file,
 /// or null when the file has no valid frontmatter / name.
 ({String name, String? description})? parseAgentFrontmatter(String source) {
-  final text = source.replaceFirst('﻿', '');
-  final lines = text.split('\n');
-  if (lines.isEmpty || lines.first.trim() != '---') return null;
-  final end = lines.indexWhere((l) => l.trim() == '---', 1);
-  if (end < 0) return null;
   try {
-    final doc = loadYaml(lines.sublist(1, end).join('\n'));
-    if (doc is! YamlMap) return null;
-    final name = doc['name'];
-    if (name is! String || name.trim().isEmpty) return null;
-    final desc = doc['description'];
-    return (name: name.trim(), description: desc is String ? desc : null);
-  } catch (_) {
+    final f = AgentFile.parse(source);
+    final name = f.name?.trim();
+    if (name == null || name.isEmpty || f.value('name') is! String) {
+      return null;
+    }
+    return (name: name, description: f.description);
+  } on AgentFormatException {
     return null;
   }
 }
 
-/// Agents from `~/.claude/agents/*.md` and `<workspace>/.claude/agents/*.md`;
-/// a project agent replaces a global one with the same name. Sorted by name.
-Future<List<AgentRef>> listAgents({String? workspacePath, String? home}) async {
+/// The effective agents of [entries] (project wins), sorted by name.
+List<AgentRef> effectiveAgents(List<AgentEntry> entries) {
   final byName = <String, AgentRef>{};
-  Future<void> scan(String dir, bool project) async {
-    final d = Directory(dir);
-    if (!await d.exists()) return;
-    await for (final f in d.list()) {
-      if (f is! File || !f.path.endsWith('.md')) continue;
-      try {
-        final fm = parseAgentFrontmatter(await f.readAsString());
-        if (fm == null) continue;
-        byName[fm.name] = AgentRef(
-          name: fm.name,
-          project: project,
-          description: fm.description,
-        );
-      } catch (_) {
-        // unreadable file: ignore
-      }
-    }
+  for (final e in entries) {
+    if (byName.containsKey(e.name) && !e.isProject) continue;
+    byName[e.name] = AgentRef(
+      name: e.name,
+      project: e.isProject,
+      description: e.file.description,
+      permissionMode: e.file.permissionMode,
+      maxTurns: e.file.maxTurns,
+    );
   }
-
-  final h = home ?? Platform.environment['HOME'];
-  if (h != null && h.isNotEmpty) await scan('$h/.claude/agents', false);
-  if (workspacePath != null) await scan('$workspacePath/.claude/agents', true);
   return byName.values.toList()..sort((a, b) => a.name.compareTo(b.name));
 }
 
+/// Agents from `~/.claude/agents/*.md` and `<workspace>/.claude/agents/*.md`
+/// ([AgentRepository]); a project agent replaces a global one with the same
+/// name. Sorted by name.
+Future<List<AgentRef>> listAgents({
+  String? workspacePath,
+  String? home,
+}) async => effectiveAgents(
+  await AgentRepository(home: home, workspacePath: workspacePath).list(),
+);
+
 /// Agents available for a workspace path (null = global only).
 final agentListProvider = FutureProvider.family<List<AgentRef>, String?>(
-  (ref, workspacePath) => listAgents(workspacePath: workspacePath),
+  (ref, workspacePath) async => effectiveAgents(
+    await ref.watch(agentEntriesProvider(workspacePath).future),
+  ),
 );
