@@ -17,6 +17,7 @@ import 'session_style.dart';
 class SessionTerminal {
   SessionTerminal(this.sessionId);
 
+  /// Session id (Sessões) or worktree path (Código).
   final String sessionId;
   final terminal = Terminal(maxLines: 10000);
   final controller = TerminalController();
@@ -28,11 +29,13 @@ class SessionTerminal {
     required List<String> args,
     required String cwd,
     required VoidCallback onExit,
+    Map<String, String>? environment,
   }) {
     final p = Pty.start(
       executable,
       arguments: args,
       workingDirectory: cwd,
+      environment: environment,
       columns: terminal.viewWidth,
       rows: terminal.viewHeight,
     );
@@ -245,31 +248,46 @@ class SessionTerminalView extends ConsumerWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: TerminalView(
-              term.terminal,
-              controller: term.controller,
-              autofocus: true,
-              theme: _terminalTheme,
-              textStyle: const TerminalStyle(
-                fontFamily: AppFonts.mono,
-                fontSize: 13,
-              ),
-              onSecondaryTapDown: (details, offset) async {
-                final selection = term.controller.selection;
-                if (selection != null) {
-                  final text = term.terminal.buffer.getText(selection);
-                  term.controller.clearSelection();
-                  await Clipboard.setData(ClipboardData(text: text));
-                } else {
-                  final data = await Clipboard.getData('text/plain');
-                  final text = data?.text;
-                  if (text != null) term.terminal.paste(text);
-                }
-              },
-            ),
+            child: AppTerminalView(term: term),
           ),
         ),
       ],
     );
   }
+}
+
+/// xterm view of a [SessionTerminal] with the app theme; right click copies
+/// the selection or pastes (Sessões and Código, Fase 10).
+class AppTerminalView extends StatelessWidget {
+  const AppTerminalView({
+    super.key,
+    required this.term,
+    this.autofocus = true,
+    this.fontSize = 13,
+  });
+
+  final SessionTerminal term;
+  final bool autofocus;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) => TerminalView(
+    term.terminal,
+    controller: term.controller,
+    autofocus: autofocus,
+    theme: _terminalTheme,
+    textStyle: TerminalStyle(fontFamily: AppFonts.mono, fontSize: fontSize),
+    onSecondaryTapDown: (details, offset) async {
+      final selection = term.controller.selection;
+      if (selection != null) {
+        final text = term.terminal.buffer.getText(selection);
+        term.controller.clearSelection();
+        await Clipboard.setData(ClipboardData(text: text));
+      } else {
+        final data = await Clipboard.getData('text/plain');
+        final text = data?.text;
+        if (text != null) term.terminal.paste(text);
+      }
+    },
+  );
 }

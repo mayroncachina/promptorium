@@ -10,7 +10,7 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-01 | **Painel Git** — status, stage, commit, branches, histórico | Alta | Hoje só existe o Review no fim do fluxo |
 | DT-02 | **Busca global e substituição** (Ctrl+Shift+F) | Alta | Buscar em todos os arquivos do worktree |
 | DT-03 | **Tela de Configurações** | Alta | Engrenagem já existe na barra lateral, sem tela. Caminho do CLI, tema, atalhos, provedores, orçamento padrão |
-| DT-04 | **Diagnósticos via LSP** (erros e avisos no editor, aba "Problemas") | Média | No MVP pode ser só `flutter analyze` |
+| DT-04 | **Diagnósticos via LSP** (erros e avisos no editor, aba "Problemas") | Média | No MVP pode ser só `flutter analyze`. Fase 10: aba "Problemas · 0" existe como stub |
 | DT-05 | **Central de notificações** e **folha de atalhos** | Média | Histórico de "sessão terminou", "aprovação pendente" |
 | DT-06 | **Checkpoints** — voltar o worktree para antes de uma alteração do agente | Média | |
 | ~~DT-07~~ | ~~Uso do plano (5h / semanal) no rodapé~~ | — | **Resolvido na pesquisa:** vem no evento `rate_limit_event` do stream-json. Entra na Fase 5 |
@@ -18,7 +18,7 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-09 | **Ícone: arte vetorial / bordas** | Baixa | Fase 1 gerou os PNGs recortando `icon.webp` (1254px) com máscara de cantos arredondados aproximada via ffmpeg (raio ≈ 200px). Ideal: SVG de origem + ícone simbólico para o painel |
 | DT-10 | **Instalação desktop** (`.desktop` + ícones hicolor) | Média | `linux/promptorium.desktop` existe (`Exec=promptorium`, `Icon=promptorium`, `StartupWMClass=dev.promptorium.promptorium`), mas ainda não é instalado; previsto na Fase 12 |
 | DT-11 | **Splash em janela própria** (720×440, sem decoração) | Baixa | Fase 2 desenha o cartão 720×440 dentro da janela 1440×900. Redimensionar via `window_manager` (`setSize`/`setTitleBarStyle`) exige mexer também no runner GTK, que já abre em 1440×900 |
-| DT-12 | **Paleta de comandos real** (Ctrl+K) e busca de arquivos (Ctrl+P na tela Código) | Média | Fase 2 só tem um stub com "Ir para …" de cada tela |
+| DT-12 | **Paleta de comandos real** (Ctrl+K) e busca de arquivos (Ctrl+P na tela Código) | Média | Fase 2 só tem um stub com "Ir para …" de cada tela. **Fase 10:** Ctrl+P "Ir para arquivo" feito na tela Código (fuzzy simples, só o worktree selecionado); Ctrl+K continua stub |
 | ~~DT-13~~ | ~~Persistir zoom por editor e última tela ativa~~ | — | **Resolvido na Fase 3:** `app_settings` (`editor.zoom.<editor>`, `ui.lastSection`) |
 | ~~DT-14~~ | ~~Seletor de workspace na barra de título~~ | — | **Resolvido na Fase 3:** lista/seleciona/remove/adiciona pasta git; ativo em `app_settings` (`workspace.active`). Branch atual no botão: Fase 4 |
 | DT-15 | **Seletor de pasta nativo** ao adicionar workspace | Baixa | Fase 3 usa campo de texto com caminho (sem pacote de file picker). Avaliar `file_selector` (registrar na tabela 0.4) |
@@ -46,6 +46,11 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-37 | **Merge do Review: limites** | Média | Exige a raiz **já** na branch base (não faz checkout); arquivos não rastreados na raiz não bloqueiam (se o merge os sobrescrever, o git recusa e a mensagem aparece); `worktree remove --force` descarta arquivos ignorados do worktree; o commit pendente roda os hooks do usuário; em conflito o commit pendente é desfeito com `reset HEAD~1` (o que estava *staged* volta como não *staged*); sem rebase/squash nem "resolver conflito" na UI |
 | DT-38 | **Criar PR: conferência real pendente** | Média | `gh` não instalado na máquina de desenvolvimento — só testado com runner falso e remote bare local. Não verifica `gh auth status` antes; sem PR rascunho/revisores; se o push for rejeitado (branch remota divergente) só mostra o erro |
 | DT-39 | **Lista "Aguardando review" roda git a cada mudança** | Baixa | `reviewQueueProvider` recalcula (status + `rev-list`) para cada sessão candidata sempre que `sessions`/`tasks` emitem (custo/tokens atualizam a linha). Com muitas sessões concluídas, considerar cache por HEAD/mtime |
+| DT-40 | **Código: marcas na margem aproximadas** | Baixa | Verde = diff contra o merge-base da sessão (na raiz, `HEAD`): inclui edições do **usuário** já salvas e não distingue autor. Âmbar usa prefixo/sufixo comuns — várias regiões editadas viram um bloco contínuo. Linhas removidas não aparecem (só adicionadas/alteradas) |
+| DT-41 | **Aviso de edição ao agente** | Média | Não envia no meio do turno (stream-json durante turno não verificado — sondar e, se seguro, enviar na hora); entregue após o `result` como nova mensagem (gasta um turno). Fila só em memória (some ao fechar o app); sessão ociosa (não ativa) não é avisada; editar pelo terminal não avisa |
+| DT-42 | **Código: árvore e editor** | Média | Sem observar o disco (árvore atualiza a cada 10 s e após ações); pasta vazia criada fora do app não aparece; sem "mostrar ignorados"; sem arrastar/soltar ou multisseleção; symlink que aponta para fora do worktree não abre. Abas não são restauradas ao reabrir o app; sem "Salvar tudo"; BOM UTF-8 é removido ao salvar; reload por mudança externa perde o histórico de desfazer |
+| DT-43 | **Código: terminal** | Baixa | Um terminal por worktree, altura fixa (160 px, recolhível, sem redimensionar), sem abas de terminal; `flutter run -d linux` no terminal ainda não conferido manualmente no app |
+| DT-44 | **Código: gravação não atômica** | Baixa | Salvar grava **no lugar** (`writeAsString(flush: true)`) para manter permissões/dono/hard links (Dart não tem `chmod` para copiar o modo num temporário + rename). Uma falha no meio (disco cheio, E/S) pode deixar o arquivo truncado: o erro aparece no toast "Falha ao salvar", a aba continua suja com o texto completo (basta salvar de novo) e a checagem de `mtime` mostra "mudou no disco" — não é silencioso, mas não há rollback automático |
 
 ## Requisitos de UX já decididos
 

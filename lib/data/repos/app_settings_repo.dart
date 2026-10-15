@@ -14,6 +14,9 @@ abstract final class AppSettingKeys {
   /// Token usage of one day (`yyyy-mm-dd`, JSON; see `UsageTracker`).
   static String usage(String day) => 'usage.$day';
 
+  /// Worktree selected in the Code screen for a workspace (path).
+  static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';
+
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 }

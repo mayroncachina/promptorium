@@ -84,11 +84,18 @@ abstract final class AppIcons {
     'M12 4l1.8 4.6L18.5 10l-4.7 1.6L12 16.4l-1.8-4.8L5.5 10l4.7-1.4z',
   ], strokeWidth: 2);
 
+  static final chevronRight = AppIconData(['M9 6l6 6-6 6'], strokeWidth: 2);
+
   static final chevronUp = AppIconData(['M6 15l6-6 6 6'], strokeWidth: 2);
 
   static final check = AppIconData([
     'M5 12.5l4.5 4.5L19 7.5',
   ], strokeWidth: 2.2);
+
+  /// Warning triangle (Código: agent banner, file changed on disk).
+  static final warning = AppIconData([
+    'M12 9v4M12 17h.01M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  ], strokeWidth: 2);
 
   static final close = AppIconData(['M6 6l12 12M18 6L6 18'], strokeWidth: 2);
 

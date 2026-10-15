@@ -4,6 +4,7 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'features/code/worktree_terminal.dart';
 import 'features/prompt/conversation_manager.dart';
 import 'features/sessions/session_manager.dart';
 import 'features/sessions/widgets/session_terminal.dart';
@@ -64,6 +65,7 @@ class _CloseHandler with WindowListener {
     _closing = true;
     try {
       container.read(sessionTerminalsProvider.notifier).killAll();
+      container.read(worktreeTerminalsProvider.notifier).killAll();
       await Future.wait([
         container.read(sessionManagerProvider.notifier).shutdown(),
         container.read(conversationManagerProvider.notifier).shutdown(),

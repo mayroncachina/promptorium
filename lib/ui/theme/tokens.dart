@@ -72,6 +72,9 @@ abstract final class SessionColors {
 
   /// Terminal selection highlight.
   static const terminalSelection = Color(0x553A4458);
+
+  /// Bottom panel (terminal) of the Code screen.
+  static const terminalPanel = Color(0xFF0B0D10);
 }
 
 /// Font families bundled in assets/fonts (registered in pubspec.yaml).

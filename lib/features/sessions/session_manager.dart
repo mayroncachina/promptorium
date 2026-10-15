@@ -155,6 +155,9 @@ class _Proc {
   final Set<String> subagents = {};
   bool stopping = false;
 
+  /// A message was sent and its `result` has not arrived yet (turn running).
+  bool busy = false;
+
   /// Set by [SessionManager.release]: the exit records nothing.
   bool released = false;
 
@@ -176,6 +179,13 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// In-flight [resume] calls (two quick sends must not start two processes).
   final Map<String, Future<void>> _resuming = {};
+
+  /// Notices of manual edits (Código, Fase 10) waiting for the session to be
+  /// idle, by session id. Sending in the middle of a turn is not listed in
+  /// plano 0.2 (stream-json input during a turn not verified), so they are
+  /// delivered after the turn's `result` (live process) or prepended to the
+  /// next message (no process, e.g. "Pausar agente").
+  final Map<String, List<String>> _notices = {};
 
   /// Set by [shutdown]: exits are not recorded (the next launch marks the
   /// sessions as interrupted) and no new process starts.
@@ -258,8 +268,12 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Sends a user message; resumes the session (`--resume`, same worktree)
   /// when it has no live process.
   Future<void> send(String id, String text) async {
-    final msg = text.trim();
+    var msg = text.trim();
     if (msg.isEmpty) return;
+    final notices = _notices.remove(id);
+    if (notices != null && notices.isNotEmpty) {
+      msg = '${notices.join('\n')}\n\n$msg';
+    }
     var p = _procs[id];
     if (p == null) {
       await resume(id);
@@ -278,7 +292,44 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _repo.setStatus(id, SessionStatus.running);
       await _syncTask(id, SessionStatus.running);
     });
+    proc.busy = true;
     await proc.process.send(msg);
+  }
+
+  /// Message sent to the agent when the user saves [path] by hand.
+  static String userEditNotice(String path) =>
+      'O usuário editou $path manualmente; releia antes de alterar.';
+
+  /// Code screen: the user saved [path] (relative to the worktree) while the
+  /// session works there. Queued and sent when the session is idle (see
+  /// [_notices]); a live idle process gets it right away. Returns true when
+  /// it was sent now.
+  Future<bool> notifyUserEdit(String id, String path) async {
+    final text = userEditNotice(path);
+    final list = _notices.putIfAbsent(id, () => []);
+    if (!list.contains(text)) list.add(text);
+    final p = _procs[id];
+    if (p != null && !p.busy && p.pending.isEmpty && !p.stopping) {
+      await _flushNotices(id);
+      return true;
+    }
+    return false;
+  }
+
+  /// Notices not delivered yet (tests / UI).
+  List<String> pendingNotices(String id) =>
+      List.unmodifiable(_notices[id] ?? const []);
+
+  Future<void> _flushNotices(String id) async {
+    final p = _procs[id];
+    if (p == null || p.busy || p.stopping || _shuttingDown) return;
+    if (!(_notices[id]?.isNotEmpty ?? false)) return;
+    final text = _notices.remove(id)!.join('\n');
+    try {
+      await send(id, text);
+    } catch (e) {
+      debugPrint('sessão $id: aviso de edição não enviado — $e');
+    }
   }
 
   /// Starts `claude --resume <id>` in the session's worktree (no message).
@@ -603,6 +654,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
         await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
         p.subagents.clear();
+        p.busy = false;
         final status = e.isSuccess
             ? SessionStatus.completed
             : SessionStatus.failed;
@@ -614,6 +666,10 @@ class SessionManager extends Notifier<SessionManagerState> {
           p.title,
           id,
         );
+        // Not awaited: send() enqueues behind this job.
+        if (_notices[id]?.isNotEmpty ?? false) {
+          unawaited(Future<void>.microtask(() => _flushNotices(id)));
+        }
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
       default:

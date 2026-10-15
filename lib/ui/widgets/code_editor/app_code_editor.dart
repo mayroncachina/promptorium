@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +11,12 @@ import 'code_language.dart';
 import 'find_panel.dart';
 
 export 'package:re_editor/re_editor.dart'
-    show CodeLineEditingController, CodeFindController;
+    show
+        CodeLineEditingController,
+        CodeFindController,
+        CodeLineOptions,
+        CodeLineSelection,
+        TextLineBreak;
 
 export 'code_language.dart';
 
@@ -56,6 +62,7 @@ class AppCodeEditor extends ConsumerStatefulWidget {
     this.wordWrap = false,
     this.autofocus = false,
     this.hint,
+    this.lineMarks,
   });
 
   final CodeLineEditingController controller;
@@ -79,6 +86,10 @@ class AppCodeEditor extends ConsumerStatefulWidget {
   final bool wordWrap;
   final bool autofocus;
   final String? hint;
+
+  /// Colored stripe left of the line numbers, by 0-based line index (Código:
+  /// changed by the agent × unsaved edit). Repaints when it changes.
+  final ValueListenable<Map<int, Color>>? lineMarks;
 
   @override
   ConsumerState<AppCodeEditor> createState() => _AppCodeEditorState();
@@ -157,6 +168,12 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
       indicatorBuilder:
           (context, editingController, chunkController, notifier) => Row(
             children: [
+              if (widget.lineMarks != null)
+                CodeLineMarks(
+                  controller: editingController,
+                  notifier: notifier,
+                  marks: widget.lineMarks!,
+                ),
               DefaultCodeLineNumber(
                 controller: editingController,
                 notifier: notifier,
@@ -177,4 +194,75 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
           CodeFindPanel(controller: controller, readOnly: readOnly),
     );
   }
+}
+
+/// 3 px stripe per marked line, aligned with the visible paragraphs of the
+/// editor (re_editor `indicatorBuilder`; same offsets as
+/// `DefaultCodeLineNumber`).
+class CodeLineMarks extends StatelessWidget {
+  const CodeLineMarks({
+    super.key,
+    required this.controller,
+    required this.notifier,
+    required this.marks,
+    this.width = 3,
+  });
+
+  final CodeLineEditingController controller;
+  final CodeIndicatorValueNotifier notifier;
+  final ValueListenable<Map<int, Color>> marks;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width + 3,
+    height: double.infinity,
+    child: CustomPaint(
+      painter: _MarksPainter(
+        controller: controller,
+        notifier: notifier,
+        marks: marks,
+        width: width,
+      ),
+    ),
+  );
+}
+
+class _MarksPainter extends CustomPainter {
+  _MarksPainter({
+    required this.controller,
+    required this.notifier,
+    required this.marks,
+    required this.width,
+  }) : super(repaint: Listenable.merge([notifier, marks]));
+
+  final CodeLineEditingController controller;
+  final CodeIndicatorValueNotifier notifier;
+  final ValueListenable<Map<int, Color>> marks;
+  final double width;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final value = notifier.value;
+    final m = marks.value;
+    if (value == null || value.paragraphs.isEmpty || m.isEmpty) return;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    final lines = controller.codeLines;
+    var line = controller.index2lineIndex(value.paragraphs.first.index);
+    final paint = Paint();
+    for (final p in value.paragraphs) {
+      final color = m[line];
+      if (color != null) {
+        paint.color = color;
+        canvas.drawRect(Rect.fromLTWH(0, p.top, width, p.height), paint);
+      }
+      line += p.index < lines.length ? lines[p.index].lineCount : 1;
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MarksPainter old) =>
+      old.marks != marks || old.notifier != notifier;
 }

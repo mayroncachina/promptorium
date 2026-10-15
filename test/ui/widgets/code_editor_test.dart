@@ -58,7 +58,10 @@ void main() {
     expect(CodeLanguage.forPath('lib/main.dart'), CodeLanguage.dart);
     expect(CodeLanguage.forPath('pubspec.yaml'), CodeLanguage.yaml);
     expect(CodeLanguage.forPath('a/.mcp.json'), CodeLanguage.json);
-    expect(CodeLanguage.forPath('Makefile'), CodeLanguage.plaintext);
+    expect(CodeLanguage.forPath('Makefile'), CodeLanguage.makefile);
+    expect(CodeLanguage.forPath('linux/CMakeLists.txt'), CodeLanguage.cmake);
+    expect(CodeLanguage.forPath('tool/run.sh'), CodeLanguage.shell);
+    expect(CodeLanguage.forPath('notas.xyz'), CodeLanguage.plaintext);
   });
 
   testWidgets('zoom control changes the editor fontSize and persists per '
