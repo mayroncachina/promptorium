@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_root.dart';
+import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
@@ -17,6 +18,7 @@ Future<ProviderContainer> pumpLoadedShell(
   WidgetTester tester,
   AppDatabase db, {
   Future<String> Function(String)? resolver,
+  String? Function(String root)? branchOf,
 }) async {
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
@@ -26,6 +28,10 @@ Future<ProviderContainer> pumpLoadedShell(
       // Not closed by the container: the same database is reopened later.
       appDatabaseProvider.overrideWithValue(db),
       if (resolver != null) gitRootResolverProvider.overrideWithValue(resolver),
+      // No real git under FakeAsync.
+      currentBranchProvider.overrideWith(
+        (ref, root) async => branchOf?.call(root),
+      ),
     ],
   );
   await c.read(appSettingsProvider.notifier).load();
@@ -103,7 +109,12 @@ void main() {
     }
 
     final other = await WorkspacesRepoHelper.add(db, '/srv/other');
-    final c = await pumpLoadedShell(tester, db, resolver: resolver);
+    final c = await pumpLoadedShell(
+      tester,
+      db,
+      resolver: resolver,
+      branchOf: (root) => root == '/srv/other' ? 'feat/login' : null,
+    );
     await tester.pumpAndSettle();
     expect(find.text('Selecionar…'), findsOneWidget);
 
@@ -133,6 +144,7 @@ void main() {
     expect(asked, ['/missing', '/plain', '/home/x/proj/lib']);
     expect(find.byKey(const ValueKey('workspace-picker')), findsNothing);
     expect(workspaceName(tester), 'proj');
+    expect(find.byKey(const ValueKey('title-workspace-branch')), findsNothing);
     final added = await WorkspacesRepoHelper.byPath(db, '/home/x/proj');
     expect(
       await AppSettingsRepo(db).get(AppSettingKeys.activeWorkspace),
@@ -145,6 +157,11 @@ void main() {
     await tester.tap(find.byKey(ValueKey('workspace-item-${other.id}')));
     await tester.pumpAndSettle();
     expect(workspaceName(tester), 'other');
+    expect(
+      find.byKey(const ValueKey('title-workspace-branch')),
+      findsOneWidget,
+    );
+    expect(find.text('feat/login'), findsOneWidget);
     expect(c.read(activeWorkspaceProvider)?.id, other.id);
 
     // Remove the active one: selection cleared.

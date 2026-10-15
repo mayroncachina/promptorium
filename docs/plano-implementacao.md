@@ -241,12 +241,24 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 **Referências:** 0.2, 0.3; `pesquisa/stream-json-exemplo.jsonl`; `pesquisa/permissao-stdio-responder.py` (portar para Dart).
 
 **Verificação**
-- [ ] Teste: parse do fixture gera `init → stream_event… → assistant → rate_limit_event → result` sem `UnknownEvent` (exceto `system/hook_*`)
-- [ ] Teste de integração manual (`--model haiku --max-budget-usd 0.05`): pedido de Bash gera `control_request`; responder allow → comando roda
-- [ ] Teste do `DiffParser` com diff real
-- [ ] Teste do `GitService` num repositório temporário (criar/remover worktree)
+- [x] Teste: parse do fixture gera `init → stream_event… → assistant → rate_limit_event → result` sem `UnknownEvent` (exceto `system/hook_*`, que viram `SystemOther`)
+- [x] Teste de integração manual (`--model haiku --max-budget-usd 0.05`): pedido de Bash gera `control_request`; responder allow → comando roda (2026-10-15: `success`, 2 turnos, US$ 0,0028, 0 eventos desconhecidos)
+- [x] Teste do `DiffParser` com diff real (inclui `git apply -R --check` de um hunk isolado)
+- [x] Teste do `GitService` num repositório temporário (criar/remover worktree, status, diff, merge, log)
 
 **Anti-padrões:** 0.5 inteiro; não usar `Process.run` para sessões longas.
+
+**Notas da execução (2026-10-15):**
+- Nenhum pacote novo. Arquivos: `lib/core/claude/{claude_event,claude_args,claude_process,usage_tracker}.dart`, `lib/core/git/{git_service,diff_parser}.dart`; testes em `test/core/{claude,git}/` e `test/integration/`.
+- `ClaudeEvent` (sealed): `SystemInit`, `SystemStatus`, `SystemOther`, `StreamDelta` (text/thinking), `StreamOther` (demais `stream_event`), `AssistantMessage` (blocos `TextBlock`/`ThinkingBlock`/`ToolUseBlock`/`OtherBlock`), `ToolResult`, `RateLimit`, `PermissionRequest`, `ControlCancel`, `Result` (+ `Usage`), `UnknownEvent` (`raw` = linha inválida). `fromJson` nunca lança; `ClaudeEvent.expand` gera um `ToolResult` por bloco quando uma linha `user` traz vários; `parseLine` decodifica a linha. Cuidado: em subclasses, `json` resolve para o `json` de `dart:convert` se ele for importado sem `show` (escopo léxico vence o membro herdado).
+- `ClaudeOptions` (imutável, `toArgs()`) no lugar de um builder; `ClaudePermissionMode` não tem `bypassPermissions`. Flags variádicas (`--allowedTools`, `--disallowedTools`) saem no fim, um valor por argv; `--mcp-config` repetido por arquivo.
+- `ClaudeProcess.allow` sem `updatedInput` reenvia o `input` original do pedido (guardado até a resposta / `control_cancel_request`), igual ao responder Python. Escritas na stdin são serializadas (IOSink não aceita escrita durante `flush`); eventos emitidos antes do primeiro ouvinte ficam em buffer. Escrita após a saída do processo é descartada com aviso em `logs`.
+- Executável: `ClaudeCliStep` grava o CLI detectado em `resolvedClaudeCliProvider`; `claudeExecutableProvider` devolve esse caminho (ou o primeiro candidato).
+- `GitService`: diretório base dos worktrees configurável (`worktreesBase`, padrão `~/.promptorium/worktrees`) — testes usam pasta temporária. Worktree = `<base>/<repoName>-<slug>`, branch `pr/<slug>`, slug validado (`[a-z0-9_][a-z0-9._-]*`). `status` usa `--porcelain=v1 -z -uall` (renomeações com `origPath`). Extras: `deleteBranch`, `mergeAbort`, `git(args)` genérico. `GitException` guarda stderr **e** stdout (conflito de merge sai no stdout).
+- `DiffParser`: fim do hunk decidido pelos contadores do cabeçalho (uma linha removida `-- x` aparece como `--- x`); trata `\ No newline at end of file`, caminhos entre aspas (escapes octais UTF-8), renomeação sem hunk, binário. `hunkPatch(file, hunk)` = cabeçalho do arquivo + um hunk.
+- `UsageTracker` (`usageTrackerProvider.handle(event)`): `dailyUsageProvider` (soma por dia local, `app_settings` chave `usage.<yyyy-mm-dd>` em JSON) e `rateLimitProvider` (último `rate_limit_event`, só em memória). Fase 5 chama `handle` para cada evento e liga o rodapé.
+- Barra de título: branch atual (`currentBranchProvider(path)`, `FutureProvider.family`) ao lado do nome do workspace; recarrega ao abrir o seletor. Widget tests sobrescrevem o provider (sem git real sob FakeAsync).
+- Teste de integração real: `test/integration/claude_permission_test.dart`, tag `integration` com `skip` em `dart_test.yaml` → fora do `flutter test` padrão. Rodar: `flutter test --run-skipped -t integration test/integration`.
 
 ---
 

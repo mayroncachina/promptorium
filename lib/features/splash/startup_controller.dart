@@ -61,6 +61,7 @@ class ClaudeCliStep extends StartupStep {
         candidates: ctx.ref.read(claudeExecutableCandidatesProvider),
       );
       ctx.claude = info;
+      ctx.ref.read(resolvedClaudeCliProvider.notifier).set(info);
       footer.setCli(CliStatus.connected, version: info.version);
     } on ClaudeCliNotFound catch (e) {
       footer.setCli(CliStatus.notFound);
@@ -118,7 +119,7 @@ class LoadWorkspacesStep extends StartupStep {
     } else {
       await settings.set(AppSettingKeys.activeWorkspace, '${list.first.id}');
     }
-    // TODO(Fase 4): list worktrees with GitService.
+    // TODO(Fase 5): list session worktrees (GitService.listWorktrees).
   }
 }
 

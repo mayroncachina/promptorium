@@ -10,6 +10,9 @@ abstract final class AppSettingKeys {
 
   /// Zoom percent of one editor ('specs', 'code').
   static String editorZoom(String editor) => 'editor.zoom.$editor';
+
+  /// Token usage of one day (`yyyy-mm-dd`, JSON; see `UsageTracker`).
+  static String usage(String day) => 'usage.$day';
 }
 
 class AppSettingsRepo {

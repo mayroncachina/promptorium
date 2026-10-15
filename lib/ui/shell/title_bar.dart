@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 
 import '../theme/tokens.dart';
@@ -149,11 +150,17 @@ class _WorkspaceButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // TODO(Fase 4): show the current branch next to the name (GitService).
     final active = ref.watch(activeWorkspaceProvider);
+    final branch = active == null
+        ? null
+        : ref.watch(currentBranchProvider(active.path)).value;
     return _BarButton(
       key: const ValueKey('title-workspace'),
-      onTap: onTap,
+      onTap: () {
+        // Branch may have changed outside the app: refresh on open.
+        if (active != null) ref.invalidate(currentBranchProvider(active.path));
+        onTap();
+      },
       background: AppColors.surfaceRaised,
       semanticLabel: 'Selecionar workspace',
       child: Row(
@@ -177,6 +184,22 @@ class _WorkspaceButton extends ConsumerWidget {
               ),
             ),
           ),
+          if (branch != null) ...[
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: Text(
+                branch,
+                key: const ValueKey('title-workspace-branch'),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 11,
+                  color: AppColors.teal,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(width: 8),
           AppIcon(
             AppIcons.chevronDown,

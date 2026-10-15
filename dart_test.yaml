@@ -1,0 +1,7 @@
+# Tags used by the test suite.
+tags:
+  # Calls the real Claude Code CLI (costs a few cents). Excluded from the
+  # default run; run with:
+  #   flutter test --run-skipped -t integration test/integration
+  integration:
+    skip: "Teste de integração real (CLI claude); use --run-skipped -t integration"

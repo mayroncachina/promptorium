@@ -64,3 +64,22 @@ Future<ClaudeCliInfo> detectClaudeCli({
     details: lastDetails,
   );
 }
+
+/// CLI found by the startup check (`ClaudeCliStep`); null until it runs.
+class ResolvedClaudeCli extends Notifier<ClaudeCliInfo?> {
+  @override
+  ClaudeCliInfo? build() => null;
+
+  void set(ClaudeCliInfo? info) => state = info;
+}
+
+final resolvedClaudeCliProvider =
+    NotifierProvider<ResolvedClaudeCli, ClaudeCliInfo?>(ResolvedClaudeCli.new);
+
+/// Executable used to start sessions (`ClaudeProcess.start`): the one that
+/// answered `--version` in the splash, else the first candidate.
+final claudeExecutableProvider = Provider<String>(
+  (ref) =>
+      ref.watch(resolvedClaudeCliProvider)?.executable ??
+      ref.watch(claudeExecutableCandidatesProvider).first,
+);
