@@ -32,6 +32,30 @@ abstract final class AppColors {
 
   /// Accent: lilac (subagents, AI actions).
   static const lilac = Color(0xFFC79BF2);
+
+  /// Raised controls on panels (workspace selector, chips).
+  static const surfaceRaised = Color(0xFF1A1E26);
+
+  /// Active nav item background (amber tint).
+  static const amberTint = Color(0xFF2A2418);
+
+  /// Text/icons drawn on top of amber.
+  static const onAmber = Color(0xFF1A1206);
+
+  /// Dimmed text (splash footer, idle status).
+  static const textMuted = Color(0xFF7C8595);
+
+  /// Splash: liquid fill.
+  static const liquid = Color(0xFF0E5E55);
+
+  /// Splash: bubbles.
+  static const bubble = Color(0xFF7FE6D2);
+
+  /// Splash: chevron and caret.
+  static const glowText = Color(0xFFB8FFF2);
+
+  /// Modal barrier behind dialogs (command palette).
+  static const scrim = Color(0x99000000);
 }
 
 /// Font families bundled in assets/fonts (registered in pubspec.yaml).

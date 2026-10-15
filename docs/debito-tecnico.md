@@ -17,6 +17,10 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Seletor já desenhado na tela de Prompt; ícone do botão segue o provedor ativo |
 | DT-09 | **Ícone: arte vetorial / bordas** | Baixa | Fase 1 gerou os PNGs recortando `icon.webp` (1254px) com máscara de cantos arredondados aproximada via ffmpeg (raio ≈ 200px). Ideal: SVG de origem + ícone simbólico para o painel |
 | DT-10 | **Instalação desktop** (`.desktop` + ícones hicolor) | Média | `linux/promptorium.desktop` existe (`Exec=promptorium`, `Icon=promptorium`, `StartupWMClass=dev.promptorium.promptorium`), mas ainda não é instalado; previsto na Fase 12 |
+| DT-11 | **Splash em janela própria** (720×440, sem decoração) | Baixa | Fase 2 desenha o cartão 720×440 dentro da janela 1440×900. Redimensionar via `window_manager` (`setSize`/`setTitleBarStyle`) exige mexer também no runner GTK, que já abre em 1440×900 |
+| DT-12 | **Paleta de comandos real** (Ctrl+K) e busca de arquivos (Ctrl+P na tela Código) | Média | Fase 2 só tem um stub com "Ir para …" de cada tela |
+| DT-13 | **Persistir zoom por editor e última tela ativa** | Baixa | `editorZoomProvider` fica em memória até a Fase 3 (banco) |
+| DT-14 | **Seletor de workspace** na barra de título | Alta | Stub ("—"); ligar na Fase 3 |
 
 ## Requisitos de UX já decididos
 

@@ -172,10 +172,21 @@ Só chegam ao app as chamadas que nenhuma regra resolveu (`acceptEdits`/allow ru
 **Referências:** mockups 0 · Splash, 1 · Sessões (shell); tokens da Fase 1.
 
 **Verificação**
-- [ ] Clicar em cada ícone troca a tela; o ícone ativo fica em âmbar
-- [ ] Redimensionar para 1100×700 não gera scroll de página
-- [ ] Renomear temporariamente o binário `claude` → splash mostra erro do primeiro passo
-- [ ] Widget test: `AppShell` renderiza 9 itens de navegação
+- [x] Clicar em cada ícone troca a tela; o ícone ativo fica em âmbar (widget test)
+- [x] Redimensionar para 1100×700 não gera scroll de página (widget test sem overflow em 1100×700)
+- [x] Renomear temporariamente o binário `claude` → splash mostra erro do primeiro passo (coberto por teste com runner injetado e caminho inexistente; teste manual pendente)
+- [x] Widget test: `AppShell` renderiza 8 itens de navegação + engrenagem (9 `SideBarItem`)
+
+**Notas da execução (2026-10-14):**
+- Nenhum pacote novo. Ícones e splash desenhados com `CustomPainter` a partir dos paths SVG dos mockups (`lib/ui/widgets/svg_path.dart`: parser mínimo M/L/H/V/C/S/Q/T/A/Z).
+- "9 itens" do plano = 8 seções + engrenagem (Configurações).
+- Splash: a intro do mockup (laço de 7 s) toca uma vez a 1,75× (≈2,6 s, duração mínima); só onda, bolhas, cursor e brilho continuam em laço. Respeita `disableAnimations`.
+- Splash desenhado como cartão 720×440 centralizado na janela 1440×900 (a janela não é redimensionada — ver DT-11).
+- Detecção do CLI tenta `claude` no PATH e depois `~/.local/bin/claude` (atalhos de desktop costumam não ter `~/.local/bin` no PATH).
+- `StartupController` (`lib/features/splash/startup_controller.dart`): passos em `startupStepsProvider`; banco, workspaces, MCP e sessões são `StubStep` com TODO da fase responsável.
+- `footerStatsProvider`: só o status do CLI é real; o resto mostra "—" até a Fase 5.
+- Zoom: `editorZoomProvider('specs'|'code')`, 70–200 %, passo 10; Ctrl+=/-/0 agem no editor da tela ativa. Ainda não persiste (Fase 3).
+- `version` do pubspec passou para `0.1.0+1` (igual ao mockup; `AppInfo.version`).
 
 ---
 
