@@ -4,7 +4,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
 
-/// Left navigation bar (56px): 9 sections + settings gear at the bottom.
+/// Left navigation bar (56px): 10 sections + settings gear at the bottom.
 class SideBar extends StatelessWidget {
   const SideBar({super.key, required this.active, required this.onSelect});
 

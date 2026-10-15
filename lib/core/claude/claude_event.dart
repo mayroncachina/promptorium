@@ -129,6 +129,7 @@ class SystemInit extends ClaudeEvent {
             ),
       ],
       agents = _strings(json['agents']),
+      skills = _strings(json['skills']),
       permissionMode = _str(json['permissionMode']) ?? '',
       cwd = _str(json['cwd']) ?? '',
       claudeCodeVersion = _str(json['claude_code_version']);
@@ -137,6 +138,9 @@ class SystemInit extends ClaudeEvent {
   final List<String> tools;
   final List<McpServerStatus> mcpServers;
   final List<String> agents;
+
+  /// Skill names the session can load (user, project, plugins, built-in).
+  final List<String> skills;
   final String permissionMode;
   final String cwd;
   final String? claudeCodeVersion;

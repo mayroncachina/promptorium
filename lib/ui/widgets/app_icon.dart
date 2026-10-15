@@ -72,6 +72,11 @@ abstract final class AppIcons {
     'M12 4v4M9 13v1M15 13v1M9 17h6',
   ]);
 
+  /// Wand of the Skills screen.
+  static final skills = AppIconData([
+    'M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5',
+  ]);
+
   static final review = AppIconData([
     svgCircle(6, 5, 2),
     svgCircle(6, 19, 2),

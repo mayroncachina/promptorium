@@ -46,7 +46,7 @@ Future<void> ctrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('renders 9 navigation items in mockup order plus the gear', (
+  testWidgets('renders 10 navigation items in mockup order plus the gear', (
     tester,
   ) async {
     await pumpShell(tester);
@@ -58,17 +58,18 @@ void main() {
       'Specs',
       'Tarefas',
       'Agentes',
+      'Skills',
       'Review',
       'Código',
       'Servidores MCP',
     ]);
-    expect(find.byType(SideBarItem), findsNWidgets(10));
+    expect(find.byType(SideBarItem), findsNWidgets(11));
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
     }
     expect(find.byKey(const ValueKey('nav-settings')), findsOneWidget);
 
-    // Gear is below the 9 items.
+    // Gear is below the 10 items.
     final gearY = tester
         .getTopLeft(find.byKey(const ValueKey('nav-settings')))
         .dy;

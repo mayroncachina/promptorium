@@ -130,12 +130,16 @@ class McpInventory {
     required this.toolsByServer,
     required this.servers,
     required this.at,
+    this.skills = const [],
   });
 
   /// Server key ([mcpServerKey]) → tool names (without `mcp__srv__`).
   final Map<String, List<String>> toolsByServer;
   final List<McpServerStatus> servers;
   final DateTime at;
+
+  /// Skills listed by the same `system/init` (Skills screen).
+  final List<String> skills;
 
   static McpInventory fromInit(SystemInit init) {
     final keys = [for (final s in init.mcpServers) mcpServerKey(s.name)];
@@ -152,6 +156,7 @@ class McpInventory {
       toolsByServer: by,
       servers: init.mcpServers,
       at: DateTime.now(),
+      skills: init.skills,
     );
   }
 }

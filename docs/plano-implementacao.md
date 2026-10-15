@@ -514,6 +514,16 @@ Desenho aprovado no canvas "Promptorium — Novo projeto" (https://claude.ai/art
 - "Criar projeto": `CLAUDE.md` + uma spec aprovada por item do roadmap (`SpecService.create(render:)`), tarefas numa transação com dependências traduzidas para `TASK-NNN`, commit "Plano inicial do projeto" só com esses arquivos (`git commit -- <arquivos>`), depois o diálogo de nova sessão preenchido com a 1ª tarefa.
 - **Sondagem real (CLI 2.1.300, haiku, `--max-budget-usd` 0,05/0,1, 3 chamadas, US$ 0,022)** com os schemas e prompts do app em stream-json: Visão turno 1 (`--session-id`) e turno 2 (`--resume`, mesmo `session_id`) → `structured_output` completo; Roadmap (schema com `enum` e objetos aninhados) → 8 specs, 29 tarefas, dependências coerentes, `later` preenchido. Transcrições não gravadas.
 
+## Pós-F12 — Tela Skills (usar, criar e baixar)
+
+Desenho no canvas "Promptorium — Skills" (https://claude.ai/artifact/1G7CNTnbDBVhV6PpG5Za8S): Instaladas, Catálogo, Nova skill. A tela "Publicar" do canvas foi descartada: o catálogo é **somente leitura** para o app (decisão do usuário) — só baixa e atualiza.
+
+- Skills locais: `SkillRepository` lê/grava `<escopo>/.claude/skills/<nome>/SKILL.md` com o `AgentFile` (frontmatter preservado); renomear/mudar de escopo move a pasta inteira. Plugins e embutidas: `system/init.skills`, pela mesma sondagem gratuita do inventário MCP (cache compartilhado).
+- Catálogo: repositório GitHub com uma pasta por skill, `<nome>/SKILL.md` na raiz ou `skills/<nome>/SKILL.md` (mesmo nome nos dois: vale `skills/`; pastas ocultas ignoradas), clonado por HTTPS em `~/.promptorium/catalogs/<owner>__<nome>` (cache do app: `fetch` + `checkout -B`/`reset --hard` na branch padrão a cada sync; `GIT_TERMINAL_PROMPT=0`). Repositório vazio: clone funciona, `HEAD` sem commit → estado "vazio"; branch padrão cai em `main` sem `origin/HEAD` (conferido no `mayroncachina/promptorium-skills` real).
+- Instalar copia a pasta e grava `.promptorium-origin.json` (repo, caminho, commit, hash FNV-1a 64 dos arquivos). Atualização = hash do catálogo ≠ hash de origem; mudança local = hash atual ≠ hash de origem (pede confirmação antes de sobrescrever).
+- Nova skill com o Claude: `runReadOnlyClaude` + `--json-schema {name, description, allowedTools, body}`; "a partir de uma sessão" manda a transcrição (mensagens do usuário e do agente principal, últimos 12 mil caracteres). Não sondado no CLI real (schema plano, mesmo mecanismo do planner).
+- Uso: sessões cujo `session_events` tem `tool_use` `Skill` com `"skill":"<nome>"`.
+
 ---
 
 ## Ordem e dependências

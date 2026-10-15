@@ -25,6 +25,7 @@ pela própria stdin/stdout (`--permission-prompt-tool stdio`). Cada sessão de t
 | **Specs** | Arquivos `specs/SPEC-NNN-*.md` com frontmatter (`id`, `status`); editor de código (realce, números de linha, Ctrl+F/Ctrl+H, zoom salvo), modos Editar / Dividido / Visualizar; Refinar com IA, Aprovar spec, **Gerar tarefas com o planner** (`--json-schema`); rastreabilidade requisito → tarefa → sessão → merge |
 | **Tarefas** | Kanban Backlog / Em execução / Review / Feito ligado ao status das sessões; dependências bloqueiam; arrastar muda o status; "Executar com agente" cria a sessão |
 | **Agentes** | `~/.claude/agents` e `<repo>/.claude/agents` (Global / Projeto, "sobrescreve o global"); editor com prévia ao vivo do `.md` (preserva campos desconhecidos e comentários), orçamento e máx. de turnos aplicados às sessões; Testar em sessão |
+| **Skills** | **Instaladas**: skills de projeto (`.claude/skills/<nome>/SKILL.md`) e globais (`~/.claude/skills`), editor do `SKILL.md` (name, description com contador, `allowed-tools`, instruções com prévia; campos desconhecidos preservados), arquivos, origem, uso nas sessões, Testar em sessão, Copiar para Global/Projeto, Remover; skills de plugins e embutidas listadas só para leitura (do `system/init`). **Catálogo** (somente leitura): repositórios GitHub com uma pasta por skill, `<nome>/SKILL.md` na raiz ou em `skills/<nome>/SKILL.md` (padrão `mayroncachina/promptorium-skills`, outros podem ser adicionados), clonados em `~/.promptorium/catalogs/` e sincronizados com git; Instalar no projeto ou global (registra origem e hash em `.promptorium-origin.json`), aviso de versão nova e de mudança local, Atualizar. **Nova skill**: escrever com o Claude (descrição ou a partir de uma sessão, `claude -p --json-schema` somente leitura) ou em branco |
 | **Review** | Sessões aguardando review; diff contra o merge-base (commits + não commitados + não rastreados); rejeitar hunk (`git apply -R`); comentários por linha enviados ao agente; Criar PR (`git push` + `gh pr create`, se `gh` existir); Fazer merge (`--no-ff`, remove worktree e branch, tarefa → Feito) |
 | **Código** | Seletor de worktree (raiz + sessões); árvore respeitando `.gitignore` com marcas A/M/D; editor em abas (Ctrl+S, Ctrl+W, Ctrl+P), marcas na margem (alterado pelo agente × edição não salva); aviso/“Pausar agente” quando há sessão ativa e aviso automático ao agente ao salvar; terminal do `$SHELL` no worktree |
 | **MCP** | Servidores por escopo (Global / Local / Projeto, sobrescritos), status (`claude mcp list` / `system/init`), detalhes com segredos mascarados; regra por ferramenta Permitido / Pedir / Bloqueado (`--allowedTools` / `--disallowedTools`); adicionar/remover via `claude mcp add/remove`; testar conexão; log recente |
@@ -129,7 +130,7 @@ sessões, conversas, preferências). Nenhum segredo (tokens/variáveis de MCP) �
 ```bash
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test
-flutter test                      # 254 testes; os 3 de integração ficam pulados
+flutter test                      # 269 testes; os 3 de integração ficam pulados
 ```
 
 Testes de **integração** chamam o Claude Code CLI de verdade e **gastam alguns centavos** do
@@ -178,7 +179,7 @@ lib/
     db/                      drift: tabelas, enums, migrações (schema v6), código gerado
     repos/                   repositórios por agregado
     providers.dart           providers Riverpod do banco/repos
-  features/                  splash, project, sessions, prompt, specs, tasks, agents, review, code, mcp, settings
+  features/                  splash, project, sessions, prompt, specs, tasks, agents, skills, review, code, mcp, settings
   ui/
     theme/                   tokens de cor e tipografia
     shell/                   barra de título, barra lateral, rodapé, atalhos

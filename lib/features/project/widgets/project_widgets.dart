@@ -38,6 +38,8 @@ class StepHeader extends StatelessWidget {
             children: [
               Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -47,6 +49,8 @@ class StepHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
@@ -55,7 +59,19 @@ class StepHeader extends StatelessWidget {
             ],
           ),
         ),
-        for (final a in actions) ...[const SizedBox(width: 8), a],
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          // Narrow windows: the actions wrap instead of squeezing the title.
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: actions,
+            ),
+          ),
+        ],
       ],
     ),
   );
@@ -82,38 +98,41 @@ class SidePanel extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: width,
     decoration: const BoxDecoration(
-      color: AppColors.panel,
       border: Border(left: BorderSide(color: AppColors.border)),
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: sectionTitleStyle,
+    // Material (not a colored box): list tiles inside paint their ink on it.
+    child: Material(
+      color: AppColors.panel,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: sectionTitleStyle,
+                  ),
                 ),
-              ),
-              ?trailing,
-            ],
-          ),
-        ),
-        Expanded(child: child),
-        if (footer != null)
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.border)),
+                ?trailing,
+              ],
             ),
-            child: footer,
           ),
-      ],
+          Expanded(child: child),
+          if (footer != null)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border)),
+              ),
+              child: footer,
+            ),
+        ],
+      ),
     ),
   );
 }

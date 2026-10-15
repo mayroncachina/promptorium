@@ -13,6 +13,8 @@ import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/skills/skills_screen.dart';
+import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/tasks/new_task_dialog.dart';
@@ -96,6 +98,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
       showNewProjectDialog(context);
+    } else if (section == AppSection.skills) {
+      showNewSkillDialog(context);
     } else {
       _notImplemented(section.actionLabel ?? '');
     }
@@ -119,6 +123,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.specs => const SpecsScreen(),
     AppSection.tasks => const TasksScreen(),
     AppSection.agents => const AgentsScreen(),
+    AppSection.skills => const SkillsScreen(),
     AppSection.review => const ReviewScreen(),
     AppSection.code => const CodeScreen(),
     AppSection.mcp => const McpScreen(),
