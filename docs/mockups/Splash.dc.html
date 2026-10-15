@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Splash</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+.pm-stage{animation:pm-stage 7s ease-in-out infinite}
+.pm-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:pm-draw 7s ease-out infinite}
+.pm-liquid{animation:pm-rise 7s cubic-bezier(.3,.7,.2,1) infinite}
+.pm-wave{animation:pm-wave 2.2s linear infinite}
+.pm-bubble{transform-box:fill-box;transform-origin:center;opacity:0;animation:pm-bubble 2.4s ease-in infinite}
+.pm-b2{animation-delay:.8s}.pm-b3{animation-delay:1.6s}
+.pm-node{transform-box:fill-box;transform-origin:center;transform:scale(0);animation:pm-pop 7s ease-out infinite}
+.pm-n2{animation-delay:.18s}.pm-n3{animation-delay:.36s}
+.pm-link{stroke-dasharray:1;stroke-dashoffset:1;animation:pm-link 7s ease-out infinite}
+.pm-chev{opacity:0;animation:pm-chev 7s ease-out infinite}
+.pm-caret{animation:pm-blink 1s steps(1) infinite}
+.pm-title{opacity:0;animation:pm-title 7s ease-out infinite}
+.pm-glow{animation:pm-glow 7s ease-in-out infinite}
+@keyframes pm-stage{0%{opacity:0;transform:scale(.96)}5%{opacity:1;transform:scale(1)}92%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.02)}}
+@keyframes pm-draw{0%{stroke-dashoffset:1}20%{stroke-dashoffset:0}100%{stroke-dashoffset:0}}
+@keyframes pm-rise{0%,14%{transform:translateY(62px)}42%,100%{transform:translateY(0)}}
+@keyframes pm-wave{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+@keyframes pm-bubble{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}80%{opacity:.9}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+@keyframes pm-pop{0%,46%{transform:scale(0)}53%{transform:scale(1.18)}57%,100%{transform:scale(1)}}
+@keyframes pm-link{0%,55%{stroke-dashoffset:1}64%,100%{stroke-dashoffset:0}}
+@keyframes pm-chev{0%,40%{opacity:0;transform:translateX(-6px)}48%,100%{opacity:1;transform:translateX(0)}}
+@keyframes pm-blink{0%{opacity:1}50%{opacity:0}}
+@keyframes pm-title{0%,24%{opacity:0;transform:translateY(6px)}34%,100%{opacity:1;transform:translateY(0)}}
+@keyframes pm-glow{0%,40%{opacity:0}60%,88%{opacity:.55}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.pm-stage,.pm-draw,.pm-liquid,.pm-wave,.pm-bubble,.pm-node,.pm-link,.pm-chev,.pm-caret,.pm-title,.pm-glow{animation:none!important;opacity:1!important;transform:none!important;stroke-dashoffset:0!important}}
+</style>
+</helmet>
+<div style="width: 720px; height: 440px; box-sizing: border-box; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 14px; overflow: hidden; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif">
+
+<div class="pm-stage" style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+<div style="position: relative; width: 168px; height: 168px">
+<div class="pm-glow" style="position: absolute; inset: 24px; border-radius: 50%; background: #4FD1B5; filter: blur(42px)"></div>
+<svg width="168" height="168" viewBox="0 0 200 200" role="img" aria-label="Ícone do Promptorium" style="position: relative">
+<defs>
+<clipPath id="pm-inside"><path d="M91 78 V104 L52 162 Q47 170 57 170 H143 Q153 170 148 162 L109 104 V78 Z"></path></clipPath>
+</defs>
+<g clip-path="url(#pm-inside)">
+<g class="pm-liquid">
+<g class="pm-wave">
+<path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124 V200 H0 Z" fill="#0E5E55"></path>
+<path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124" fill="none" stroke="#4FD1B5" stroke-width="3"></path>
+</g>
+</g>
+<circle class="pm-bubble" cx="100" cy="118" r="5" fill="#7FE6D2"></circle>
+<circle class="pm-bubble pm-b2" cx="94" cy="122" r="3.5" fill="#7FE6D2"></circle>
+<circle class="pm-bubble pm-b3" cx="104" cy="120" r="2.5" fill="#7FE6D2"></circle>
+</g>
+<g class="pm-chev">
+<path d="M78 136 L92 145 L78 154" fill="none" stroke="#B8FFF2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</g>
+<rect class="pm-caret" x="98" y="151" width="22" height="5" rx="2" fill="#B8FFF2"></rect>
+<path class="pm-draw" pathLength="1" d="M84 70 H116 M91 72 V104 L50 164 Q44 176 58 176 H142 Q156 176 150 164 L109 104 V72" fill="none" stroke="#F2A541" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"></path>
+<line class="pm-link" pathLength="1" x1="89" y1="47" x2="109" y2="35" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line>
+<line class="pm-link" pathLength="1" x1="118" y1="42" x2="116" y2="52" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line>
+<circle class="pm-node" cx="82" cy="51" r="9" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle>
+<circle class="pm-node pm-n2" cx="119" cy="30" r="12" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle>
+<circle class="pm-node pm-n3" cx="115" cy="58" r="6.5" fill="#0E5E55" stroke="#F2A541" stroke-width="4"></circle>
+</svg>
+</div>
+<div class="pm-title" style="display: flex; flex-direction: column; align-items: center; gap: 2px">
+<h1 style="margin: 0; font-size: 30px; font-weight: 600; letter-spacing: 0.3px">Promptorium</h1>
+<p style="margin: 0; font-size: 13px; color: #A0A8B6">o laboratório de onde operam seus agentes</p>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 14px; width: 280px">
+<div role="progressbar" aria-label="Carregando" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{pct}}" style="width: 100%; height: 4px; border-radius: 2px; background: #252B35; overflow: hidden">
+<div style="width: {{pctCss}}; height: 100%; border-radius: 2px; background: #F2A541; transition: width 0.12s linear"></div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 18px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{labelColor}}">
+<span style="width: 6px; height: 6px; border-radius: 50%; background: {{labelColor}}"></span>{{label}}
+</div>
+</div>
+
+<div style="position: absolute; left: 18px; right: 18px; bottom: 14px; display: flex; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #7C8595">
+<span>v0.1.0 · Linux</span><span style="flex: 1"></span><span>Claude Code 2.1.300</span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":720,"height":440}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { t: 0 };
+  }
+  componentDidMount() {
+    this.start = Date.now();
+    this.timer = setInterval(() => this.setState({ t: (Date.now() - this.start) % 7000 }), 100);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+  }
+  renderVals() {
+    const t = (this.state && this.state.t) || 0;
+    const p = Math.max(0, Math.min(1, (t - 600) / 5200));
+    const steps = [
+      'Verificando Claude Code CLI…',
+      'Abrindo banco local…',
+      'Carregando workspaces e worktrees…',
+      'Conectando servidores MCP…',
+      'Restaurando sessões…'
+    ];
+    const done = p >= 1;
+    const label = done ? 'Pronto' : steps[Math.min(steps.length - 1, Math.floor(p * steps.length))];
+    const pct = Math.round(p * 100);
+    return { pct, pctCss: pct + '%', label, labelColor: done ? '#4FD1B5' : '#A0A8B6' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Review</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer">
+<span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span>
+</button>
+<button type="button" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="flex: 1; text-align: left">Buscar ou executar comando…</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span>
+</button>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Sessões" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg>
+</a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path><path d="M12 8l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"></path></svg>
+</a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
+</a>
+<a href="Tarefas.dc.html" aria-label="Tarefas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg>
+</a>
+<a href="Agentes.dc.html" aria-label="Agentes" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"></rect><path d="M12 4v4M9 13v1M15 13v1M9 17h6"></path></svg>
+</a>
+<a href="Review.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg>
+</a>
+<a href="Codigo.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg>
+</a>
+<a href="MCP.dc.html" aria-label="Servidores MCP" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"></path></svg>
+</a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+</button>
+</nav>
+
+<aside aria-label="Arquivos alterados" style="overflow-y: auto;flex: 1 1 260px; display: flex; flex-direction: column; background: #14171D; border-right: 1px solid #252B35; min-width: 0">
+<div style="padding: 14px 14px 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Aguardando review · 2</h2>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px">
+<button type="button" style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 8px; border: 1px solid #2E3542; background: #1F2430; color: #E7E9EE; text-align: left; font-size: 13px; cursor: pointer"><span style="font-weight: 500">Barra de status</span><span style="font-size: 11px; color: #A0A8B6">TASK-011 · implementer</span></button>
+<button type="button" style="display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 8px; border: 1px solid transparent; background: none; color: #E7E9EE; text-align: left; font-size: 13px; cursor: pointer"><span style="font-weight: 500">Tema escuro e tokens</span><span style="font-size: 11px; color: #A0A8B6">TASK-013 · reviewer</span></button>
+</div>
+<div style="padding: 8px 14px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Arquivos · 4</h2>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<sc-for list="{{files}}" as="f" hint-placeholder-count="4">
+<button type="button" style="display: flex; gap: 8px; padding: 7px 10px; border-radius: 6px; border: none; background: {{f.bg}}; color: #E7E9EE; text-align: left; font-family: inherit; font-size: 12px; cursor: pointer">
+<span style="width: 14px; color: {{f.stateColor}}">{{f.state}}</span><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.path}}</span><span style="color: #4FD1B5">{{f.add}}</span><span style="color: #F27A6E">{{f.del}}</span>
+</button>
+</sc-for>
+</div>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 20px; border-bottom: 1px solid #252B35">
+<div style="flex: 1 1 300px">
+<h1 style="margin: 0; font-size: 16px; font-weight: 600">Barra de status</h1>
+<div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">pr/status-bar → main · 4 arquivos · <span style="color: #4FD1B5">+126</span> <span style="color: #F27A6E">−18</span> · testes ok</div>
+</div>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Pedir ajustes ao agente</button>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Criar PR</button>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Fazer merge</button>
+</div>
+
+<div style="flex: 1; min-height: 0; padding: 16px 20px; overflow: auto">
+<div style="border-radius: 8px; border: 1px solid #252B35; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #14171D; border-bottom: 1px solid #252B35; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<span style="flex: 1">lib/ui/status_bar.dart</span>
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 4px; border: 1px solid #252B35; background: none; color: #A0A8B6; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; cursor: pointer">Rejeitar hunk</button>
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 4px; border: 1px solid #2F6B5E; background: #11201D; color: #4FD1B5; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; cursor: pointer">Aceitar hunk</button>
+</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7">
+<sc-for list="{{diff}}" as="d" hint-placeholder-count="16">
+<div style="display: flex; background: {{d.bg}}">
+<span style="width: 40px; text-align: right; padding-right: 8px; color: #4A5260; flex: none">{{d.n}}</span>
+<span style="width: 16px; color: {{d.signColor}}; flex: none">{{d.sign}}</span>
+<span style="white-space: pre; color: {{d.color}}">{{d.text}}</span>
+</div>
+<sc-if value="{{d.comment}}" hint-placeholder-val="{{false}}">
+<div style="margin: 6px 12px 8px 64px; padding: 10px 12px; border-radius: 8px; background: #14171D; border: 1px solid #2E3542; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px">
+<div style="font-size: 11px; color: #A0A8B6; margin-bottom: 6px">Seu comentário · será enviado ao agente</div>
+<label for="rv-comment" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Comentário</label>
+<textarea id="rv-comment" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px; border-radius: 6px; border: 1px solid #252B35; background: #0E1014; color: #E7E9EE; font-size: 13px; resize: vertical">Use o tema do app em vez de cor fixa aqui.</textarea>
+<div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px">
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Cancelar</button>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Comentar</button>
+</div>
+</div>
+</sc-if>
+</sc-for>
+</div>
+</div>
+</div>
+</main>
+</div>
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/6</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">2 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/4</span><span style="color: #F27A6E">· 1 falhou</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Tokens hoje</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">512k</span><span style="font-family: 'JetBrains Mono', monospace">↑380k ↓132k · cache 1.2M</span></span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Uso 5h</span><span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span><span>· reinicia em 2h13</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Semana</span><span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span></span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const files = [
+      { path: 'lib/ui/status_bar.dart', state: 'A', add: '+64', del: '', active: true },
+      { path: 'lib/ui/app_shell.dart', state: 'M', add: '+22', del: '−9' },
+      { path: 'lib/core/session_stats.dart', state: 'A', add: '+31', del: '' },
+      { path: 'test/ui/status_bar_test.dart', state: 'A', add: '+9', del: '−9' }
+    ].map((f) => ({ ...f, bg: f.active ? '#1F2430' : 'transparent', stateColor: f.state === 'A' ? '#4FD1B5' : '#F2A541' }));
+    const L = [
+      [' ', "import 'package:flutter/material.dart';"],
+      [' ', "import '../core/session_stats.dart';"],
+      [' ', ''],
+      [' ', 'class StatusBar extends StatelessWidget {'],
+      [' ', '  const StatusBar({super.key, required this.stats});'],
+      [' ', '  final SessionStats stats;'],
+      [' ', ''],
+      ['-', '  static const _bg = Color(0xFF14171D);'],
+      ['+', '  @override'],
+      ['+', '  Widget build(BuildContext context) {'],
+      ['+', '    return Container('],
+      ['+', '      height: 28,'],
+      ['+', '      color: const Color(0xFF14171D),', true],
+      ['+', '      child: Row(children: ['],
+      ['+', '        _Dot(online: stats.cliConnected),'],
+      ['+', "        Text('${stats.active} sessões ativas'),"],
+      ['+', '        const Spacer(),'],
+      ['+', "        Text('Hoje: ${stats.costToday}'),"],
+      ['+', '      ]),'],
+      ['+', '    );'],
+      ['+', '  }'],
+      [' ', '}']
+    ];
+    let n = 0;
+    const diff = L.map(([sign, text, comment]) => {
+      n += 1;
+      const add = sign === '+', del = sign === '-';
+      return { n, sign: sign.trim(), text, comment: !!comment,
+        bg: add ? '#122420' : del ? '#2A1615' : 'transparent',
+        signColor: add ? '#4FD1B5' : '#F27A6E',
+        color: '#E7E9EE' };
+    });
+    return { files, diff };
+  }
+}
+</script>
+</body>
+</html>

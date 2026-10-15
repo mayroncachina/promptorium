@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Promptorium
+GenericName=IDE para Claude Code
+Comment=Gerencie sessões, tarefas, specs e agentes do Claude Code CLI
+Exec=promptorium
+Icon=promptorium
+Terminal=false
+Categories=Development;IDE;
+Keywords=claude;ai;agents;ide;
+StartupWMClass=dev.promptorium.promptorium
+StartupNotify=true

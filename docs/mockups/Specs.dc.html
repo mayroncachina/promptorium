@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Specs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer">
+<span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span>
+</button>
+<button type="button" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="flex: 1; text-align: left">Buscar ou executar comando…</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span>
+</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; background: #F2A541; border: none; border-radius: 6px; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Nova spec</button>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Sessões" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg>
+</a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path><path d="M12 8l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"></path></svg>
+</a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
+</a>
+<a href="Tarefas.dc.html" aria-label="Tarefas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg>
+</a>
+<a href="Agentes.dc.html" aria-label="Agentes" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"></rect><path d="M12 4v4M9 13v1M15 13v1M9 17h6"></path></svg>
+</a>
+<a href="Review.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg>
+</a>
+<a href="Codigo.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg>
+</a>
+<a href="MCP.dc.html" aria-label="Servidores MCP" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"></path></svg>
+</a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+</button>
+</nav>
+
+<aside aria-label="Lista de specs" style="overflow-y: auto;flex: 1 1 260px; display: flex; flex-direction: column; background: #14171D; border-right: 1px solid #252B35; min-width: 0">
+<div style="padding: 14px 14px 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Specs</h2>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px">
+<sc-for list="{{specs}}" as="s" hint-placeholder-count="5">
+<button type="button" style="display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 8px; border: 1px solid {{s.border}}; background: {{s.bg}}; color: #E7E9EE; text-align: left; cursor: pointer; font-size: 13px">
+<span style="display: flex; gap: 8px; width: 100%"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">{{s.id}}</span><span style="flex: 1"></span><span style="font-size: 11px; color: {{s.color}}">{{s.status}}</span></span>
+<span style="font-weight: 500">{{s.title}}</span>
+<span style="font-size: 11px; color: #A0A8B6">{{s.meta}}</span>
+</button>
+</sc-for>
+</div>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 20px; border-bottom: 1px solid #252B35">
+<div style="flex: 1 1 300px">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">specs/SPEC-002-sessoes.md</div>
+<h1 style="margin: 2px 0 0; font-size: 16px; font-weight: 600">Sessões com stream-json</h1>
+</div>
+<div role="group" aria-label="Modo do editor" style="display: flex; padding: 2px; border-radius: 6px; background: #14171D; border: 1px solid #252B35">
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 4px; border: none; background: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Editar</button>
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 4px; border: none; background: #2A2418; color: #F2A541; font-size: 12px; cursor: pointer">Dividido</button>
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 4px; border: none; background: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Visualizar</button>
+</div>
+<div role="group" aria-label="Zoom do editor" style="display: flex; align-items: center; height: 30px; border-radius: 6px; background: #14171D; border: 1px solid #252B35">
+<button type="button" aria-label="Diminuir zoom (Ctrl -)" onClick="{{zoomOut}}" style="width: 30px; height: 28px; border: none; background: none; color: #E7E9EE; font-size: 15px; cursor: pointer">−</button>
+<button type="button" aria-label="Zoom padrão (Ctrl 0)" onClick="{{zoomReset}}" style="min-width: 48px; height: 28px; border: none; border-left: 1px solid #252B35; border-right: 1px solid #252B35; background: none; color: #A0A8B6; font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer">{{zoomLabel}}</button>
+<button type="button" aria-label="Aumentar zoom (Ctrl =)" onClick="{{zoomIn}}" style="width: 30px; height: 28px; border: none; background: none; color: #E7E9EE; font-size: 15px; cursor: pointer">+</button>
+</div>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Refinar com IA</button>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #2F6B5E; background: #11201D; color: #4FD1B5; font-size: 12px; cursor: pointer">Aprovar spec</button>
+</div>
+
+<div style="flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-height: 0">
+<div style="padding: 16px 0; border-right: 1px solid #252B35; font-family: 'JetBrains Mono', monospace; font-size: {{fontPx}}; line-height: 1.75; overflow: auto">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="20">
+<div style="display: flex; gap: 14px; padding-right: 16px"><span style="width: 34px; text-align: right; color: #4A5260; flex: none">{{l.n}}</span><span style="color: {{l.color}}; white-space: pre-wrap">{{l.text}}</span></div>
+</sc-for>
+</div>
+<article style="padding: 20px 28px; overflow: auto">
+<h2 style="margin: 0 0 6px; font-size: 20px; font-weight: 600">Sessões com stream-json</h2>
+<p style="margin: 0 0 16px; color: #A0A8B6">Status: Em revisão · Autor: você</p>
+<h3 style="margin: 0 0 6px; font-size: 14px; color: #F2A541">Objetivo</h3>
+<p style="margin: 0 0 16px">Executar o Claude Code CLI em modo não interativo com saída stream-json e exibir cada evento em tempo real na timeline da sessão.</p>
+<h3 style="margin: 0 0 6px; font-size: 14px; color: #F2A541">Requisitos</h3>
+<ul style="margin: 0 0 16px; padding-left: 18px">
+<li>R1 · Cada sessão roda em um git worktree próprio</li>
+<li>R2 · Eventos são persistidos no SQLite</li>
+<li>R3 · Retomar sessão com --resume</li>
+<li>R4 · Pedidos de permissão viram aprovações na UI</li>
+</ul>
+<h3 style="margin: 0 0 6px; font-size: 14px; color: #F2A541">Critérios de aceite</h3>
+<ul style="margin: 0; padding-left: 18px">
+<li>Timeline atualiza em menos de 200 ms por evento</li>
+<li>Fechar o app não perde a sessão</li>
+<li>Custo e tokens aparecem ao fim de cada turno</li>
+</ul>
+</article>
+</div>
+</main>
+
+<aside aria-label="Tarefas da spec" style="overflow-y: auto;flex: 1 1 320px; display: flex; flex-direction: column; gap: 18px; padding: 16px; background: #14171D; border-left: 1px solid #252B35; min-width: 0">
+<section>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Tarefas geradas · 5</h2>
+</div>
+<button type="button" style="width: 100%; height: 34px; margin-bottom: 12px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Gerar tarefas com o planner</button>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{tasks}}" as="t" hint-placeholder-count="5">
+<div style="padding: 9px 10px; border-radius: 8px; background: #1A1E26; border: 1px solid #252B35">
+<div style="display: flex; gap: 8px; font-size: 11px"><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">{{t.id}}</span><span style="color: #A0A8B6">{{t.req}}</span><span style="flex: 1"></span><span style="color: {{t.color}}">{{t.status}}</span></div>
+<div style="margin-top: 3px; font-weight: 500">{{t.title}}</div>
+<div style="margin-top: 3px; font-size: 11px; color: #A0A8B6">{{t.dep}}</div>
+</div>
+</sc-for>
+</div>
+</section>
+<section>
+<h2 style="margin: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Rastreabilidade</h2>
+<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; font-family: 'JetBrains Mono', monospace">
+<span style="padding: 3px 8px; border-radius: 4px; background: #1A1E26">R1</span><span style="color: #7C8595">→</span>
+<span style="padding: 3px 8px; border-radius: 4px; background: #1A1E26">TASK-020</span><span style="color: #7C8595">→</span>
+<span style="padding: 3px 8px; border-radius: 4px; background: #1A1E26">sessão 7f3a</span><span style="color: #7C8595">→</span>
+<span style="padding: 3px 8px; border-radius: 4px; background: #1A1E26; color: #4FD1B5">commit a91c</span>
+</div>
+</section>
+</aside>
+</div>
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/6</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">2 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/4</span><span style="color: #F27A6E">· 1 falhou</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Tokens hoje</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">512k</span><span style="font-family: 'JetBrains Mono', monospace">↑380k ↓132k · cache 1.2M</span></span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Uso 5h</span><span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span><span>· reinicia em 2h13</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Semana</span><span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span></span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const specs = [
+      { id: 'SPEC-001', title: 'Shell da IDE', status: 'Aprovada', color: '#4FD1B5', meta: '4 tarefas · 3 feitas' },
+      { id: 'SPEC-002', title: 'Sessões com stream-json', status: 'Em revisão', color: '#F2A541', meta: '5 tarefas · 1 em execução', active: true },
+      { id: 'SPEC-003', title: 'Editor de agentes', status: 'Rascunho', color: '#A0A8B6', meta: 'sem tarefas' },
+      { id: 'SPEC-004', title: 'Kanban de tarefas', status: 'Rascunho', color: '#A0A8B6', meta: 'sem tarefas' },
+      { id: 'SPEC-005', title: 'Review e merge', status: 'Ideia', color: '#7C8595', meta: 'sem tarefas' }
+    ].map((s) => ({ ...s, bg: s.active ? '#1F2430' : 'transparent', border: s.active ? '#2E3542' : 'transparent' }));
+    const H = '#F2A541', T = '#E7E9EE', M = '#A0A8B6', K = '#C79BF2';
+    const src = [
+      ['---', M], ['id: SPEC-002', K], ['status: em-revisao', K], ['---', M], ['', T],
+      ['# Sessões com stream-json', H], ['', T],
+      ['## Objetivo', H], ['Executar o Claude Code CLI em modo não', T], ['interativo com saída stream-json e exibir', T], ['cada evento em tempo real na timeline.', T], ['', T],
+      ['## Requisitos', H], ['- R1 · Cada sessão roda em um worktree', T], ['- R2 · Eventos persistidos no SQLite', T], ['- R3 · Retomar sessão com --resume', T], ['- R4 · Permissões viram aprovações', T], ['', T],
+      ['## Critérios de aceite', H], ['- [ ] Timeline &lt; 200 ms por evento', T], ['- [ ] Fechar o app não perde a sessão', T], ['- [ ] Custo e tokens ao fim do turno', T]
+    ];
+    const lines = src.map((l, i) => ({ n: i + 1, text: l[0].replace('&lt;', '<'), color: l[1] }));
+    const tasks = [
+      { id: 'TASK-020', req: 'R1', title: 'GitService: criar e remover worktrees', status: 'Feito', color: '#8EA4C8', dep: 'sem dependências' },
+      { id: 'TASK-021', req: 'R2', title: 'ClaudeProcess: parser stream-json', status: 'Executando', color: '#4FD1B5', dep: 'depende de TASK-020' },
+      { id: 'TASK-022', req: 'R2', title: 'Persistir eventos com drift', status: 'Backlog', color: '#A0A8B6', dep: 'depende de TASK-021' },
+      { id: 'TASK-023', req: 'R3', title: 'Retomar sessão com --resume', status: 'Backlog', color: '#A0A8B6', dep: 'depende de TASK-022' },
+      { id: 'TASK-024', req: 'R4', title: 'Fila de aprovações na UI', status: 'Backlog', color: '#A0A8B6', dep: 'depende de TASK-021' }
+    ];
+    const zoom = (this.state && this.state.zoom) || 100;
+    const setZoom = (z) => this.setState({ zoom: Math.max(70, Math.min(200, z)) });
+    return {
+      specs, lines, tasks,
+      fontPx: (12 * zoom / 100).toFixed(1) + 'px',
+      zoomLabel: zoom + '%',
+      zoomIn: () => setZoom(zoom + 10),
+      zoomOut: () => setZoom(zoom - 10),
+      zoomReset: () => setZoom(100)
+    };
+  }
+}
+</script>
+</body>
+</html>

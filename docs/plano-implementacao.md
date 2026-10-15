@@ -1,0 +1,361 @@
+# Plano de implementação — Promptorium
+
+IDE desktop (Flutter, Linux) para gerenciar sessões, tarefas, specs e agentes do **Claude Code CLI**.
+
+- Mockups (9 telas): https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
+- Débito técnico: [`debito-tecnico.md`](debito-tecnico.md)
+- Material de pesquisa: [`pesquisa/`](pesquisa/)
+
+**Como usar este plano:** cada fase é autocontida e pode ser executada numa conversa nova.
+Antes de cada fase, leia a seção **Fase 0 — APIs permitidas** e as referências citadas na fase.
+Não invente métodos nem flags: se algo não estiver listado aqui ou na documentação citada, verifique antes.
+
+---
+
+## Fase 0 — Descoberta de documentação (CONCLUÍDA em 2026-10-14)
+
+### 0.1 Ambiente
+
+| Item | Situação |
+|---|---|
+| Flutter local | **3.32.8 / Dart 3.8.1 — desatualizado.** Estável atual: 3.47.7 / Dart 3.13.5 |
+| Toolchain Linux | OK (clang 18, cmake 3.28, ninja, GTK3, libsqlite3-dev) |
+| Faltam | `libayatana-appindicator3-dev` (tray), `libnotify-dev` (notificações) |
+| Claude Code CLI | 2.1.300 em `~/.local/bin/claude` |
+
+**Decisão:** atualizar o Flutter (`flutter upgrade`) antes da Fase 1. Muitos pacotes atuais exigem Dart ≥ 3.10.
+
+### 0.2 Claude Code CLI — APIs permitidas
+
+Fontes: `claude --help` (v2.1.300), code.claude.com/docs/en/{cli-reference, headless, sub-agents, mcp, statusline, sessions, agent-sdk/typescript, agent-sdk/user-input}. Exemplo real de saída: [`pesquisa/stream-json-exemplo.jsonl`](pesquisa/stream-json-exemplo.jsonl).
+
+**Comando base de uma sessão:**
+```
+claude -p --input-format stream-json --output-format stream-json --verbose
+       --include-partial-messages
+       --session-id <uuid>            # nova sessão (UUID válido)
+       | --resume <uuid>              # retomar (repassar de novo --mcp-config/--settings/--add-dir)
+       [--fork-session]               # com --resume: cria novo id
+       --model <opus|sonnet|haiku|fable|inherit|id>
+       --permission-mode <default|acceptEdits|plan|auto|dontAsk>
+       --permission-prompt-tool stdio # aprovações pela própria stdin/stdout
+       --allowedTools "Read" "Bash(git *)"   --disallowedTools ...
+       --append-system-prompt <txt>   (ou --append-system-prompt-file)
+       --mcp-config <arquivo|json> --strict-mcp-config
+       --agents <json|arquivo>
+       --max-budget-usd <n>  --max-turns <n>   # --max-turns existe, mas não aparece no --help
+       --json-schema <schema>         # saída estruturada (usar em "gerar tarefas")
+```
+
+**Entrada (stdin, NDJSON, uma linha por mensagem):**
+```json
+{"type":"user","message":{"role":"user","content":"texto"},"parent_tool_use_id":null}
+```
+⚠ A stdin **deve continuar aberta** enquanto a sessão estiver viva (senão: "Tool permission stream closed before response received").
+
+**Saída (stdout, NDJSON) — tipos de evento:**
+
+| `type` / `subtype` | Uso no app |
+|---|---|
+| `system/init` | `session_id`, `model`, `tools[]`, `mcp_servers[{name,status}]`, `agents[]`, `permissionMode` |
+| `system/status`, `system/api_retry`, `system/permission_denied`, `system/hook_*` | status / ignorar desconhecidos |
+| `stream_event` | `event.type` = message_start / content_block_start / content_block_delta (`text_delta`, `thinking_delta`) / …_stop — texto ao vivo |
+| `assistant` | **uma linha por bloco de conteúdo** (text, thinking, tool_use), mesmo `message.id` |
+| `user` com `tool_result` | resultado de ferramenta; `parent_tool_use_id != null` ⇒ mensagem de **subagente** |
+| `rate_limit_event` | `rate_limit_info.unifiedWindows.five_hour.utilization` (0–1), `.seven_day`, `resetsAt` (epoch) → rodapé |
+| `control_request` (`subtype: can_use_tool`) | pedido de aprovação (ver 0.3) |
+| `result` | `subtype` (success / error_max_turns / error_max_budget_usd / error_during_execution), `total_cost_usd`, `usage{input_tokens, output_tokens, cache_*}`, `num_turns`, `duration_ms`, `permission_denials[]` |
+
+**Arquivos do Claude Code:**
+
+| O quê | Onde |
+|---|---|
+| Subagentes globais / projeto | `~/.claude/agents/*.md` / `<repo>/.claude/agents/*.md` — frontmatter YAML: `name`, `description` (obrigatórios), `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `mcpServers`, `color`, … corpo = prompt. Precedência: `--agents` > projeto > usuário |
+| MCP usuário / local / projeto | `~/.claude.json` (`mcpServers` no topo / `projects["/abs"].mcpServers`) / `<repo>/.mcp.json`. Tipos: `stdio`(command,args,env), `http`(url,headers), `sse`(obsoleto) |
+| Transcrições | `~/.claude/projects/<cwd com não-alfanuméricos → '-'>/<session-id>.jsonl` — **formato interno, pode mudar** |
+| Listar agentes | `claude agents --json` |
+
+### 0.3 Aprovações — decisão revista
+
+**Usar `--permission-prompt-tool stdio`** (testado ao vivo na v2.1.300). Não é preciso servidor MCP interno — é o mesmo caminho do Agent SDK.
+Exemplo funcional (Python, ~15 linhas): [`pesquisa/permissao-stdio-responder.py`](pesquisa/permissao-stdio-responder.py).
+
+CLI → app (stdout):
+```json
+{"type":"control_request","request_id":"…","request":{"subtype":"can_use_tool","tool_name":"Bash","display_name":"Bash","input":{"command":"…"},"description":"…","permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"…"}],"behavior":"allow","destination":"localSettings"}],"decision_reason":"…","tool_use_id":"toolu_…"}}
+```
+App → CLI (stdin):
+```json
+{"type":"control_response","response":{"subtype":"success","request_id":"<mesmo id>","response":{"behavior":"allow","updatedInput":{…}}}}
+{"type":"control_response","response":{"subtype":"success","request_id":"<mesmo id>","response":{"behavior":"deny","message":"motivo"}}}
+```
+"Sempre permitir" = allow + `"updatedPermissions":[<uma das permission_suggestions>]`.
+Só chegam ao app as chamadas que nenhuma regra resolveu (`acceptEdits`/allow rules resolvem antes). Tratar `control_cancel_request` fechando o card.
+
+> Consequência: o servidor "promptorium-approvals" do mockup MCP deixa de existir.
+
+### 0.4 Pacotes Flutter — versões alvo (após `flutter upgrade`)
+
+| Necessidade | Pacote | Versão | Notas |
+|---|---|---|---|
+| Estado | `flutter_riverpod` | ^3.4 | **sem** riverpod_generator; `Notifier`/`AsyncNotifier` + `NotifierProvider` |
+| Banco | `drift` ^2.35, `drift_flutter` ^0.3, dev: `drift_dev`, `build_runner` | | `driftDatabase(name:, native: DriftNativeOptions(databaseDirectory: …))`; sqlite embutido no build (não usar `sqlite3_flutter_libs`) |
+| Terminal | `xterm` 4.0.0 + `flutter_pty` 0.4.2 | | copiar fiação de `~/.pub-cache/hosted/pub.dev/xterm-4.0.0/example/lib/main.dart` |
+| Painéis | `multi_split_view` ^3.6 | | `MultiSplitView(initialAreas: [Area(size:…), Area(flex:1)], builder:)` |
+| Editor | `re_editor` 0.10 + `re_highlight` | | `CodeEditor(controller: CodeLineEditingController(), style: CodeEditorStyle(fontSize:…))`; busca: copiar `example/lib/find.dart`; **zoom = reconstruir com outro `fontSize`** |
+| Markdown | `flutter_markdown_plus` | ^1.0 | `flutter_markdown` foi **descontinuado** |
+| Janela | `window_manager` | ^0.5 | `ensureInitialized()` + `waitUntilReadyToShow` |
+| Notificações | `local_notifier` | 0.1.6 | precisa `libnotify-dev` |
+| Bandeja (opcional) | `tray_manager` | ^0.8 | precisa `libayatana-appindicator3-dev`; API mudou na 0.8 — conferir README |
+| Utilidades | `path_provider`, `uuid` ^4.6, `yaml` (frontmatter) | | |
+| Diff | — | | parsear `git diff --unified` manualmente |
+
+### 0.5 Anti-padrões (valem para todas as fases)
+
+- ❌ `flutter_markdown`, `riverpod_generator`, `sqlite3_flutter_libs` (com sqlite3 3.x)
+- ❌ Ler stdout do CLI sem `LineSplitter` (cada linha = 1 JSON); ❌ quebrar em tipos desconhecidos — **ignorar** `type`/`subtype` que não conhecer
+- ❌ Fechar a stdin da sessão enquanto ela está viva
+- ❌ `--dangerously-skip-permissions` / `bypassPermissions`
+- ❌ Editar `~/.claude.json` na mão — usar `claude mcp add/remove/list`
+- ❌ Depender do formato dos `.jsonl` de transcrição para lógica — só exibição, com parse tolerante
+- ❌ Inventar flags; conferir em `cli-reference` (lembrar: `--help` não lista tudo)
+
+---
+
+## Fase 1 — Ambiente e esqueleto do projeto
+
+**Implementar**
+1. `flutter upgrade` (alvo 3.47.x) e `sudo apt install libnotify-dev libayatana-appindicator3-dev`.
+2. `flutter create --platforms=linux --org dev.promptorium --project-name promptorium .` na raiz do repositório; `git init`.
+3. Adicionar dependências da tabela 0.4 (`flutter pub add …`).
+4. Estrutura:
+   ```
+   lib/
+     main.dart  app.dart
+     core/      claude/ (processo, eventos)  git/  fs/  config/
+     data/      db/ (drift)  repos/
+     features/  splash/ sessions/ prompt/ specs/ tasks/ agents/ review/ code/ mcp/ settings/
+     ui/        theme/ (tokens)  shell/ (barra lateral, rodapé, título)  widgets/
+   test/  fixtures/ (copiar docs/pesquisa/stream-json-exemplo.jsonl)
+   ```
+5. Tokens de tema copiados dos mockups: fundo `#0E1014`, painel `#14171D`, borda `#252B35`, texto `#E7E9EE`, secundário `#A0A8B6`, âmbar `#F2A541`, verde-água `#4FD1B5`, azul `#8EA4C8`, vermelho `#F27A6E`, lilás `#C79BF2`; fontes IBM Plex Sans + JetBrains Mono (empacotar em `assets/fonts`).
+6. `window_manager`: tamanho inicial 1440×900, mínimo 1100×700, título "Promptorium".
+7. Ícone: recortar a imagem do canvas, gerar 512/256/128/64/48/32 em `assets/icon/`; arquivo `.desktop` em `linux/`.
+
+**Referências:** tabela 0.4; README do window_manager 0.5.
+
+**Verificação**
+- [x] `flutter --version` ≥ 3.47 (3.47.7 / Dart 3.13.5)
+- [x] `flutter analyze` sem problemas
+- [x] `flutter run -d linux` abre janela escura com título correto (bundle debug executado sem erros; conferência visual pendente)
+- [x] `grep -r "flutter_markdown:" pubspec.yaml` não retorna nada
+
+**Anti-padrões:** não adicionar pacotes fora da tabela sem registrar aqui.
+
+**Notas da execução (2026-10-14):**
+- `cupertino_icons` (padrão do `flutter create`) removido — fora da tabela 0.4.
+- `tray_manager` 0.8.0 resolveu sem conflito e foi adicionado.
+- `sqlite3_flutter_libs 0.6.0+eol` e `sqlcipher_flutter_libs 0.7.0+eol` aparecem como **transitivas** de `drift_flutter`; são shims vazios do sqlite3 3.x (não violam o anti-padrão 0.5, que trata de dependência direta).
+- IBM Plex Sans: o Google Fonts só publica a versão variável; os TTF estáticos vieram de `IBM/plex/packages/plex-sans/fonts/complete/ttf`.
+- Ícone da janela: definido no runner GTK (`linux/runner/my_application.cc`, `gtk_window_set_icon_from_file`), pois `windowManager.setIcon` é documentado como só Windows. O runner também usa título "Promptorium", 1440×900 e fundo `#0E1014`.
+
+---
+
+## Fase 2 — Shell da IDE + Splash
+
+**Implementar**
+1. `AppShell`: barra de título (logo, seletor de workspace, busca Ctrl+K, botão de ação contextual), barra lateral com 9 itens + engrenagem (ordem dos mockups: Sessões, Prompt, Specs, Tarefas, Agentes, Review, Código, MCP), área de conteúdo, **rodapé fixo** (CLI conectado, sessões, subagentes, MCP, tokens hoje, uso 5h, semana).
+2. Navegação entre telas (placeholders) — sem scroll de página: cada tela ocupa a janela; só painéis internos rolam.
+3. Atalhos globais (`Shortcuts`/`Actions`): Ctrl+K (paleta — stub), Ctrl+=, Ctrl+-, Ctrl+0 (zoom do editor focado).
+4. **Splash** (`CustomPainter` + `AnimationController`, sem pacote): contorno do frasco desenhando, líquido subindo com onda, bolhas, nós conectando, cursor `_` piscando; barra de progresso ligada a passos reais de inicialização: verificar `claude --version` → abrir banco → carregar workspaces → ler MCPs → restaurar sessões. Erro em um passo = mensagem clara (ex.: "Claude Code CLI não encontrado").
+
+**Referências:** mockups 0 · Splash, 1 · Sessões (shell); tokens da Fase 1.
+
+**Verificação**
+- [ ] Clicar em cada ícone troca a tela; o ícone ativo fica em âmbar
+- [ ] Redimensionar para 1100×700 não gera scroll de página
+- [ ] Renomear temporariamente o binário `claude` → splash mostra erro do primeiro passo
+- [ ] Widget test: `AppShell` renderiza 9 itens de navegação
+
+---
+
+## Fase 3 — Camada de dados (drift)
+
+**Implementar** tabelas:
+`workspaces(id, path, name)`, `specs(id, workspaceId, code, title, status, path)`, `tasks(id, specId, code, title, status, agentName, dependsOn)`, `sessions(id uuid, workspaceId, taskId?, agentName, worktreePath, branch, status, model, costUsd, tokensIn, tokensOut, startedAt, endedAt)`, `session_events(id, sessionId, seq, type, json)`, `conversations(id, workspaceId, title, provider, model, sessionId)`, `saved_prompts(id, command, description, body, uses)`, `agent_settings(agentName, scope, permissionMode, budgetUsd, maxTurns, mcpServers)`, `mcp_tool_rules(server, tool, rule)`.
+Repositórios + providers Riverpod (`AsyncNotifier`).
+
+**Referências:** drift docs (getting started / Flutter setup), `driftDatabase(...)` em 0.4.
+
+**Verificação**
+- [ ] `dart run build_runner build` sem erros
+- [ ] Testes de repositório com banco em memória (CRUD de cada tabela)
+- [ ] Banco criado em `~/.local/share/promptorium/` (via `path_provider`)
+
+**Anti-padrões:** não guardar segredos (tokens de MCP) no banco.
+
+---
+
+## Fase 4 — Núcleo: ClaudeProcess, eventos, Git
+
+**Implementar**
+1. `sealed class ClaudeEvent` com `fromJson` para cada linha da tabela 0.2 + `UnknownEvent` (fallback).
+2. `ClaudeProcess`: `Process.start('claude', args, workingDirectory:)`; stdout → `utf8.decoder` → `LineSplitter` → `jsonDecode` → `ClaudeEvent`; `send(String)` escreve a linha de entrada; `respondPermission(requestId, allow|deny, …)`; `stop()` (SIGTERM); stderr para log.
+3. `ClaudeArgsBuilder`: monta args a partir de agente + configurações (flags da 0.2).
+4. `GitService`: `worktree add -b pr/<slug> ~/.promptorium/worktrees/<slug>`, `worktree remove`, `diff --unified`, `status --porcelain`, `merge`, `log`.
+5. `DiffParser` (hunks `@@`, linhas `+`/`-`/espaço).
+6. `UsageTracker`: soma `result.usage` por dia; guarda o último `rate_limit_event`.
+
+**Referências:** 0.2, 0.3; `pesquisa/stream-json-exemplo.jsonl`; `pesquisa/permissao-stdio-responder.py` (portar para Dart).
+
+**Verificação**
+- [ ] Teste: parse do fixture gera `init → stream_event… → assistant → rate_limit_event → result` sem `UnknownEvent` (exceto `system/hook_*`)
+- [ ] Teste de integração manual (`--model haiku --max-budget-usd 0.05`): pedido de Bash gera `control_request`; responder allow → comando roda
+- [ ] Teste do `DiffParser` com diff real
+- [ ] Teste do `GitService` num repositório temporário (criar/remover worktree)
+
+**Anti-padrões:** 0.5 inteiro; não usar `Process.run` para sessões longas.
+
+---
+
+## Fase 5 — Tela de Sessões
+
+**Implementar**
+1. Lista de sessões (status, agente, custo, tempo) com filtros.
+2. Timeline: balões do usuário/Claude, cards de ferramenta (Read/Edit/Bash com resultado), texto ao vivo via `text_delta`, mensagens de subagente agrupadas (`parent_tool_use_id`).
+3. Composer → `send()`; seletor de modo de permissão.
+4. **Fila de aprovações** de todas as sessões (`control_request`) com Aprovar / Negar / Sempre permitir; notificação nativa (`local_notifier`) quando algo aguarda.
+5. Detalhes: spec, duração, tokens, custo, session id, arquivos alterados (git status do worktree).
+6. Ações: abrir terminal (PTY com `claude --resume <id>`), Fork (`--resume --fork-session`), Parar.
+7. Rodapé alimentado por `UsageTracker` e contagem de sessões/subagentes.
+8. Ao reabrir o app: sessões "executando" viram "interrompidas" com botão Retomar (`--resume`).
+
+**Referências:** mockup 1 · Sessões; Fase 4.
+
+**Verificação**
+- [ ] Criar sessão → worktree criado, timeline mostra eventos em tempo real
+- [ ] Pedido de permissão aparece na fila e na notificação; negar gera mensagem de recusa na timeline
+- [ ] Fechar e reabrir o app → retomar mantém o histórico
+- [ ] Rodapé mostra % de 5h/semana após a primeira resposta
+
+---
+
+## Fase 6 — Tela de Prompt (conversa livre)
+
+**Implementar**
+1. Interface `AgentProvider` (start/send/stop/eventos); implementação `ClaudeCodeProvider` (reusa `ClaudeProcess`). Codex/Gemini = DT-08.
+2. Conversas sem tarefa, rodando na pasta do workspace (sem worktree). Modos: **Perguntar** = `--permission-mode plan`… *(ajustar após teste: alternativa `--tools Read,Glob,Grep`)*, **Planejar** = `plan`, **Editar** = `acceptEdits`.
+3. Histórico de conversas; `@arquivo` anexa contexto; `/comando` insere prompt salvo.
+4. Ações: Copiar, Criar tarefa, Salvar como prompt, Transformar em spec, Continuar como sessão.
+5. Ícone do botão de provedor vem do provedor ativo.
+
+**Verificação**
+- [ ] No modo Perguntar, pedir para editar um arquivo não altera nada no disco
+- [ ] `/testes` insere o corpo do prompt salvo
+- [ ] "Continuar como sessão" cria sessão com worktree e o histórico como contexto
+
+---
+
+## Fase 7 — Tela de Agentes
+
+**Implementar**
+1. Ler agentes de `~/.claude/agents` e `<repo>/.claude/agents` (pacote `yaml`), mostrar grupos Global / Projeto e marcar "sobrescreve global".
+2. Editor: nome, quando usar (`description`), modelo, escopo, prompt (corpo), ferramentas (`tools`), modo de permissão, orçamento, máx. de turnos (`maxTurns` no frontmatter e `--max-turns`), MCPs.
+3. Salvar = escrever o `.md` (prévia ao vivo). Campos que não existem no frontmatter ficam em `agent_settings`.
+4. "Testar em sessão".
+
+**Verificação**
+- [ ] Agente salvo aparece em `claude agents --json`
+- [ ] Mesmo nome no projeto sobrescreve o global (conferir no `system/init.agents`)
+- [ ] Teste de round-trip do frontmatter (ler → salvar → ler igual)
+
+**Anti-padrões:** não apagar campos desconhecidos do frontmatter ao salvar.
+
+---
+
+## Fase 8 — Specs e Tarefas
+
+**Implementar**
+1. **Editor de specs** com `re_editor`: realce Markdown, números de linha, busca/substituição (copiar `find.dart` do exemplo), **zoom Ctrl+= / Ctrl+- / Ctrl+0 + controle `− 100% +`** (salvo por editor), modos Editar / Dividido / Visualizar (`flutter_markdown_plus`).
+2. Specs são arquivos `specs/SPEC-NNN-*.md` no repositório com frontmatter (`id`, `status`).
+3. "Gerar tarefas com o planner": `claude -p --agents planner … --json-schema <schema de tarefas>` → tarefas com dependências.
+4. "Refinar com IA" e "Aprovar spec".
+5. Kanban (Backlog / Em execução / Review / Feito) ligado ao status das sessões; dependências bloqueiam; "Executar com agente" cria sessão (Fase 5).
+6. Rastreabilidade requisito → tarefa → sessão → commit.
+
+**Verificação**
+- [ ] Zoom muda o tamanho da fonte e persiste ao reabrir
+- [ ] Ctrl+F encontra e substitui
+- [ ] Gerar tarefas cria registros válidos (schema respeitado)
+- [ ] Sessão concluída move o card para Review
+
+---
+
+## Fase 9 — Review
+
+**Implementar**
+1. Lista "aguardando review"; arquivos alterados (A/M/D) do worktree vs. branch base.
+2. Diff com `DiffParser`; aceitar/rejeitar hunk (rejeitar = `git apply -R` do hunk no worktree).
+3. Comentário inline → vira mensagem para a sessão (`--resume`) com arquivo:linha.
+4. Botões: Pedir ajustes, Criar PR (`git push` + `gh pr create`, se `gh` existir), Fazer merge (merge na branch base + remover worktree).
+
+**Verificação**
+- [ ] Rejeitar hunk altera o arquivo no worktree
+- [ ] Merge limpa o worktree e move a tarefa para Feito
+- [ ] Comentário chega na timeline da sessão
+
+---
+
+## Fase 10 — Código
+
+**Implementar**
+1. Seletor de worktree (main + worktrees das sessões); árvore de arquivos com marcas A/M.
+2. Editor em abas (`re_editor`, mesmo componente/zoom da Fase 8), salvar Ctrl+S, marca na margem: alterado pelo agente × sua edição.
+3. Aviso quando uma sessão está ativa no worktree; "Pausar agente"; ao salvar, enfileirar aviso para o agente.
+4. Terminal embutido (`xterm` + `flutter_pty`, shell do usuário no worktree).
+
+**Verificação**
+- [ ] Editar e salvar altera o arquivo no worktree
+- [ ] Terminal roda `flutter run -d linux` no worktree
+- [ ] Zoom independente do editor de specs
+
+---
+
+## Fase 11 — MCP
+
+**Implementar**
+1. Listar servidores: `claude mcp list` + leitura de `~/.claude.json` (usuário/local) e `.mcp.json` (projeto); status vindo de `system/init.mcp_servers`.
+2. Detalhes: transporte, comando/URL, variáveis (mascaradas), escopo.
+3. Ferramentas por servidor com regra Permitido / Pedir aprovação / Bloqueado → traduzidas em `--allowedTools mcp__<srv>__<tool>` / `--disallowedTools`.
+4. Adicionar/remover via `claude mcp add/remove` (com `--scope`).
+5. Testar conexão, log recente.
+
+**Verificação**
+- [ ] Adicionar servidor pelo app aparece em `claude mcp list`
+- [ ] Ferramenta "Bloqueado" não aparece em `system/init.tools` da próxima sessão
+- [ ] Servidor com falha aparece em vermelho no rodapé e na lista
+
+**Anti-padrões:** nunca escrever `~/.claude.json` diretamente; nunca exibir token sem ação explícita.
+
+---
+
+## Fase 12 — Verificação final e empacotamento
+
+1. Rodar todas as checklists anteriores.
+2. `grep` de anti-padrões: `flutter_markdown:`, `bypassPermissions`, `dangerously-skip-permissions`, `riverpod_generator`, `Process.run('claude'` em sessões.
+3. `flutter test` + `flutter analyze` limpos.
+4. `flutter build linux --release`; `.desktop` + ícones instalados em `~/.local/share/applications` e `~/.local/share/icons`.
+5. Atualizar `debito-tecnico.md` com o que ficou de fora.
+
+---
+
+## Ordem e dependências
+
+```
+F1 → F2 → F3 → F4 ─┬─ F5 (Sessões) ─┬─ F8 (Specs/Tarefas) ─ F9 (Review)
+                   ├─ F6 (Prompt)   └─ F10 (Código)
+                   ├─ F7 (Agentes)
+                   └─ F11 (MCP)
+                                      → F12
+```
+MVP utilizável ao fim da **Fase 5**. Fases 6, 7, 10 e 11 podem ser feitas em qualquer ordem depois da 4.

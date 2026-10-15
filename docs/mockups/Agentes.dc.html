@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Agentes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button,input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer">
+<span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span>
+</button>
+<button type="button" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="flex: 1; text-align: left">Buscar ou executar comando…</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span>
+</button>
+<button type="button" style="height: 30px; padding: 0 12px; background: #F2A541; border: none; border-radius: 6px; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Novo agente</button>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Sessões" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg>
+</a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path><path d="M12 8l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"></path></svg>
+</a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
+</a>
+<a href="Tarefas.dc.html" aria-label="Tarefas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg>
+</a>
+<a href="Agentes.dc.html" aria-label="Agentes" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"></rect><path d="M12 4v4M9 13v1M15 13v1M9 17h6"></path></svg>
+</a>
+<a href="Review.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg>
+</a>
+<a href="Codigo.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg>
+</a>
+<a href="MCP.dc.html" aria-label="Servidores MCP" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"></path></svg>
+</a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+</button>
+</nav>
+
+<aside aria-label="Lista de agentes" style="overflow-y: auto;flex: 1 1 260px; display: flex; flex-direction: column; background: #14171D; border-right: 1px solid #252B35; min-width: 0">
+<div style="padding: 14px 14px 6px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Agentes</h2>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 8px 14px 6px; font-size: 11px; color: #A0A8B6">
+<span style="font-weight: 600">Globais</span><span style="flex: 1"></span><span style="font-family: 'JetBrains Mono', monospace">~/.claude/agents</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 8px">
+<sc-for list="{{agents}}" as="a" hint-placeholder-count="5">
+<button type="button" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid {{a.border}}; background: {{a.bg}}; color: #E7E9EE; text-align: left; cursor: pointer; font-size: 13px">
+<span style="width: 28px; height: 28px; border-radius: 7px; background: {{a.tint}}; color: #0E1014; display: flex; align-items: center; justify-content: center; font-weight: 600; flex: none">{{a.initial}}</span>
+<span style="display: flex; flex-direction: column; min-width: 0; flex: 1">
+<span style="font-weight: 500">{{a.name}}</span>
+<span style="font-size: 11px; color: #A0A8B6">{{a.meta}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px 6px; margin-top: 4px; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="font-weight: 600">Projeto · promptorium</span><span style="flex: 1"></span><span style="font-family: 'JetBrains Mono', monospace">.claude/agents</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px">
+<sc-for list="{{projectAgents}}" as="a" hint-placeholder-count="2">
+<button type="button" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #E7E9EE; text-align: left; cursor: pointer; font-size: 13px">
+<span style="width: 28px; height: 28px; border-radius: 7px; background: {{a.tint}}; color: #0E1014; display: flex; align-items: center; justify-content: center; font-weight: 600; flex: none">{{a.initial}}</span>
+<span style="display: flex; flex-direction: column; min-width: 0; flex: 1">
+<span style="font-weight: 500">{{a.name}}</span>
+<span style="font-size: 11px; color: {{a.metaColor}}">{{a.meta}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #252B35">
+<span style="width: 36px; height: 36px; border-radius: 9px; background: #F2A541; color: #0E1014; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px">I</span>
+<div style="flex: 1 1 260px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 8px">
+<h1 style="margin: 0; font-size: 16px; font-weight: 600">implementer</h1>
+<span style="padding: 1px 8px; border-radius: 4px; background: #1A1E26; border: 1px solid #252B35; font-size: 11px; color: #A0A8B6">{{scopeLabel}}</span>
+</div>
+<div style="margin-top: 2px; font-size: 12px; color: #A0A8B6">14 sessões · 11 concluídas · custo médio $0.41</div>
+</div>
+<button type="button" style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Testar em sessão</button>
+<button type="button" style="height: 32px; padding: 0 14px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Salvar</button>
+</div>
+
+<div style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 16px; padding: 20px; overflow: auto">
+
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Identidade</h2>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ag-nome" style="font-size: 12px; color: #A0A8B6">Nome</label>
+<input id="ag-nome" value="implementer" style="height: 34px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #0E1014; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="ag-desc" style="font-size: 12px; color: #A0A8B6">Quando usar este agente</label>
+<input id="ag-desc" value="Implementa tarefas a partir de uma spec aprovada, com testes." style="height: 34px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #0E1014; color: #E7E9EE; font-size: 13px">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A0A8B6">Modelo</span>
+<div role="group" aria-label="Modelo" style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{models}}" as="m" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="flex: 1 1 90px; height: 34px; border-radius: 6px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.color}}; font-size: 12px; cursor: pointer">{{m.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A0A8B6">Escopo</span>
+<div role="group" aria-label="Escopo do agente" style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" aria-pressed="{{isGlobal}}" onClick="{{setGlobal}}" style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid {{globalBorder}}; background: {{globalBg}}; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="font-weight: 500; font-size: 13px">Global</span>
+<span style="font-size: 11px; color: #A0A8B6">Todos os workspaces e o claude fora do app</span>
+</button>
+<button type="button" aria-pressed="{{isProject}}" onClick="{{setProject}}" style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid {{projectBorder}}; background: {{projectBg}}; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="font-weight: 500; font-size: 13px">Só este projeto</span>
+<span style="font-size: 11px; color: #A0A8B6">Vai para o git e sobrescreve o global</span>
+</button>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<label for="ag-prompt" style="font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Prompt de sistema</label>
+<textarea id="ag-prompt" rows="7" style="padding: 10px; border-radius: 6px; border: 1px solid #252B35; background: #0E1014; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; resize: vertical">Você é um engenheiro Flutter sênior.
+Leia a spec vinculada antes de começar.
+Implemente apenas o escopo da tarefa, escreva testes
+e rode flutter analyze e flutter test antes de concluir.</textarea>
+</section>
+</div>
+
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<div style="display: flex; align-items: center">
+<h2 style="margin: 0; flex: 1; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Ferramentas</h2>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">{{toolCount}}</span>
+</div>
+<div role="group" aria-label="Ferramentas permitidas" style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{tools}}" as="t" hint-placeholder-count="8">
+<button type="button" aria-pressed="{{t.on}}" onClick="{{t.toggle}}" style="height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.color}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer">{{t.name}}</button>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Execução</h2>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A0A8B6">Modo de permissão</span>
+<div role="group" aria-label="Modo de permissão" style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{perms}}" as="p" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{p.on}}" onClick="{{p.pick}}" style="flex: 1 1 110px; display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 6px; border: 1px solid {{p.border}}; background: {{p.bg}}; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{p.color}}">{{p.id}}</span>
+<span style="font-size: 11px; color: #A0A8B6">{{p.hint}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+<label for="ag-budget" style="font-size: 12px; color: #A0A8B6; flex: 1 1 160px">Orçamento máximo por sessão</label>
+<input id="ag-budget" value="$2.00" style="width: 100px; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #0E1014; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; color: #A0A8B6">Servidores MCP</span>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<span style="display: flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 14px; background: #1A1E26; border: 1px solid #252B35; font-family: 'JetBrains Mono', monospace; font-size: 12px">youtrack</span>
+<span style="display: flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 14px; background: #1A1E26; border: 1px solid #252B35; font-family: 'JetBrains Mono', monospace; font-size: 12px">context7</span>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 14px; border: 1px dashed #3A4250; background: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Adicionar</button>
+</div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<div style="display: flex; align-items: center; gap: 8px">
+<h2 style="margin: 0; flex: 1; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Arquivo gerado</h2>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #F2A541">{{agentPath}}</span>
+</div>
+<pre style="margin: 0; padding: 10px 12px; border-radius: 6px; background: #0E1014; border: 1px solid #252B35; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.65; white-space: pre-wrap; color: #E7E9EE"><span style="color: #A0A8B6">---</span>
+<span style="color: #C79BF2">name:</span> implementer
+<span style="color: #C79BF2">description:</span> Implementa tarefas a partir de uma spec…
+<span style="color: #C79BF2">tools:</span> {{toolList}}
+<span style="color: #C79BF2">model:</span> {{modelId}}
+<span style="color: #A0A8B6">---</span></pre>
+<p style="margin: 0; font-size: 11px; color: #A0A8B6">Permissão, orçamento e MCPs ficam no Promptorium e viram flags do CLI ao abrir a sessão.</p>
+</section>
+</div>
+</div>
+</main>
+</div>
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/6</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">2 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/4</span><span style="color: #F27A6E">· 1 falhou</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Tokens hoje</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">512k</span><span style="font-family: 'JetBrains Mono', monospace">↑380k ↓132k · cache 1.2M</span></span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Uso 5h</span><span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span><span>· reinicia em 2h13</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Semana</span><span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span></span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { scope: 'global', model: 'sonnet', perm: 'acceptEdits', tools: ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep'] };
+  }
+  renderVals() {
+    const s = this.state || {};
+    const scope = s.scope || 'global';
+    const model = s.model || 'sonnet';
+    const perm = s.perm || 'acceptEdits';
+    const onTools = s.tools || [];
+    const ON = { bg: '#2A2418', border: '#F2A541', color: '#F2A541' };
+    const OFF = { bg: '#0E1014', border: '#252B35', color: '#A0A8B6' };
+    const look = (on) => (on ? ON : OFF);
+    const agents = [
+      { name: 'planner', meta: 'Opus 5.5 · quebra specs', tint: '#C79BF2' },
+      { name: 'implementer', meta: 'Sonnet 5.5 · 14 sessões', tint: '#F2A541', active: true },
+      { name: 'reviewer', meta: 'Opus 5.5 · revisa diffs', tint: '#8EA4C8' },
+      { name: 'tester', meta: 'Sonnet 5.5 · escreve testes', tint: '#4FD1B5' },
+      { name: 'spec-writer', meta: 'Opus 5.5 · redige specs', tint: '#F27A6E' }
+    ].map((a) => ({ ...a, initial: a.name[0].toUpperCase(), bg: a.active ? '#1F2430' : 'transparent', border: a.active ? '#2E3542' : 'transparent' }));
+    const projectAgents = [
+      { name: 'reviewer', meta: 'sobrescreve o global', metaColor: '#F2A541', tint: '#8EA4C8' },
+      { name: 'flutter-tester', meta: 'Haiku 5.5 · testes de widget', metaColor: '#A0A8B6', tint: '#4FD1B5' }
+    ].map((a) => ({ ...a, initial: a.name[0].toUpperCase() }));
+    const models = [
+      { id: 'opus', label: 'Opus 5.5' }, { id: 'sonnet', label: 'Sonnet 5.5' },
+      { id: 'haiku', label: 'Haiku 5.5' }, { id: 'inherit', label: 'Herdar' }
+    ].map((m) => ({ ...m, on: m.id === model, ...look(m.id === model), pick: () => this.setState({ model: m.id }) }));
+    const perms = [
+      { id: 'default', hint: 'pergunta tudo' },
+      { id: 'acceptEdits', hint: 'edita sem perguntar' },
+      { id: 'plan', hint: 'só planeja' }
+    ].map((p) => ({ ...p, on: p.id === perm, ...look(p.id === perm), pick: () => this.setState({ perm: p.id }) }));
+    const all = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'WebFetch', 'WebSearch'];
+    const tools = all.map((name) => {
+      const on = onTools.includes(name);
+      return { name, on, ...look(on), toggle: () => this.setState({ tools: on ? onTools.filter((t) => t !== name) : onTools.concat(name) }) };
+    });
+    const isGlobal = scope === 'global';
+    return {
+      agents, projectAgents, models, perms, tools,
+      toolCount: onTools.length + ' de ' + all.length,
+      toolList: all.filter((t) => onTools.includes(t)).join(', ') || '(nenhuma)',
+      modelId: model,
+      isGlobal, isProject: !isGlobal,
+      scopeLabel: isGlobal ? 'Global' : 'Projeto',
+      agentPath: isGlobal ? '~/.claude/agents/implementer.md' : '.claude/agents/implementer.md',
+      globalBg: look(isGlobal).bg, globalBorder: look(isGlobal).border,
+      projectBg: look(!isGlobal).bg, projectBorder: look(!isGlobal).border,
+      setGlobal: () => this.setState({ scope: 'global' }),
+      setProject: () => this.setState({ scope: 'project' })
+    };
+  }
+}
+</script>
+</body>
+</html>
