@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/providers.dart';
 
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
@@ -139,15 +142,17 @@ class _BarButton extends StatelessWidget {
   }
 }
 
-class _WorkspaceButton extends StatelessWidget {
+class _WorkspaceButton extends ConsumerWidget {
   const _WorkspaceButton({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    // TODO(Fase 3): workspaces from the database (name + current branch).
+  Widget build(BuildContext context, WidgetRef ref) {
+    // TODO(Fase 4): show the current branch next to the name (GitService).
+    final active = ref.watch(activeWorkspaceProvider);
     return _BarButton(
+      key: const ValueKey('title-workspace'),
       onTap: onTap,
       background: AppColors.surfaceRaised,
       semanticLabel: 'Selecionar workspace',
@@ -159,12 +164,17 @@ class _WorkspaceButton extends StatelessWidget {
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(width: 8),
-          const Text(
-            '—',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.text,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              active?.name ?? 'Selecionar…',
+              key: const ValueKey('title-workspace-name'),
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.text,
+              ),
             ),
           ),
           const SizedBox(width: 8),

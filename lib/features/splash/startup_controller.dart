@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
 import '../../core/process/process_runner.dart';
+import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
 
 /// Values produced by startup steps and consumed by later steps / the app.
@@ -34,7 +35,7 @@ class StartupException implements Exception {
 /// One initialization step. Throw [StartupException] to stop the sequence.
 ///
 /// Later phases replace the stubs in [startupStepsProvider]:
-/// Fase 3 — banco + workspaces; Fase 5 — sessões; Fase 11 — MCP.
+/// Fase 5 — sessões; Fase 11 — MCP.
 abstract class StartupStep {
   const StartupStep();
 
@@ -74,6 +75,53 @@ class ClaudeCliStep extends StartupStep {
   }
 }
 
+/// (b) Opens `promptorium.sqlite` (runs migrations) and loads `app_settings`.
+class OpenDatabaseStep extends StartupStep {
+  const OpenDatabaseStep();
+
+  @override
+  String get label => 'Abrindo banco local…';
+
+  @override
+  Future<void> run(StartupContext ctx) async {
+    try {
+      await ctx.ref.read(appDatabaseProvider).ensureOpen();
+      await ctx.ref.read(appSettingsProvider.notifier).load();
+    } catch (e) {
+      throw StartupException(
+        'Não foi possível abrir o banco local',
+        details: '$e',
+        hint:
+            'Confira as permissões de ~/.local/share/promptorium/'
+            '${AppDatabase.fileName}.sqlite.',
+      );
+    }
+  }
+}
+
+/// (c) Loads the registered workspaces and validates the active one.
+class LoadWorkspacesStep extends StartupStep {
+  const LoadWorkspacesStep();
+
+  @override
+  String get label => 'Carregando workspaces e worktrees…';
+
+  @override
+  Future<void> run(StartupContext ctx) async {
+    final list = await ctx.ref.read(workspacesRepoProvider).getAll();
+    final settings = ctx.ref.read(appSettingsProvider.notifier);
+    final active = settings.getInt(AppSettingKeys.activeWorkspace);
+    if (active != null && list.any((w) => w.id == active)) return;
+    // Stale or missing selection: fall back to the first workspace (if any).
+    if (list.isEmpty) {
+      await settings.remove(AppSettingKeys.activeWorkspace);
+    } else {
+      await settings.set(AppSettingKeys.activeWorkspace, '${list.first.id}');
+    }
+    // TODO(Fase 4): list worktrees with GitService.
+  }
+}
+
 /// Placeholder for steps implemented in later phases.
 class StubStep extends StartupStep {
   const StubStep(this.label);
@@ -89,8 +137,8 @@ class StubStep extends StartupStep {
 final startupStepsProvider = Provider<List<StartupStep>>(
   (ref) => const [
     ClaudeCliStep(),
-    StubStep('Abrindo banco local…'), // TODO(Fase 3): drift
-    StubStep('Carregando workspaces e worktrees…'), // TODO(Fase 3)
+    OpenDatabaseStep(),
+    LoadWorkspacesStep(),
     StubStep('Conectando servidores MCP…'), // TODO(Fase 11): claude mcp list
     StubStep('Restaurando sessões…'), // TODO(Fase 5)
   ],

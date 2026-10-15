@@ -74,6 +74,11 @@ Transitivas relevantes: `sqlite3` 3.7.1 (via drift); `sqlite3_flutter_libs` 0.6.
 
 ```bash
 flutter pub get
-dart run build_runner build
 flutter run -d linux
 ```
+
+O código gerado pelo drift (`lib/data/db/*.g.dart`) é versionado. Depois de alterar tabelas
+em `lib/data/db/app_database.dart`, regenere com `dart run build_runner build`.
+
+Dados locais: `~/.local/share/promptorium/promptorium.sqlite` (workspaces, specs, tarefas,
+sessões, preferências). Nenhum segredo (tokens de MCP) é gravado no banco.

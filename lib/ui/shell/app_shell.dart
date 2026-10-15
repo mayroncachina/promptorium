@@ -18,6 +18,7 @@ import 'shell_intents.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
 import 'title_bar.dart';
+import 'workspace_picker.dart';
 
 /// IDE shell (docs/mockups/Main.dc.html): title bar, sidebar, content, footer.
 ///
@@ -118,7 +119,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   section: section,
                   onOpenPalette: _openPalette,
                   onAction: () => _notImplemented(section.actionLabel ?? ''),
-                  onWorkspace: () => _notImplemented('Seletor de workspace'),
+                  onWorkspace: () => showWorkspacePicker(context),
                 ),
                 Expanded(
                   child: Row(

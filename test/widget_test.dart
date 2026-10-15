@@ -7,6 +7,8 @@ import 'package:promptorium/app.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/theme/tokens.dart';
 
+import 'helpers/test_db.dart';
+
 void main() {
   testWidgets('app without splash shows the shell on dark background', (
     tester,
@@ -16,7 +18,10 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-      const ProviderScope(child: PromptoriumApp(showSplash: false)),
+      ProviderScope(
+        overrides: [databaseOverride(memoryDatabase())],
+        child: const PromptoriumApp(showSplash: false),
+      ),
     );
 
     expect(find.byType(AppShell), findsOneWidget);
@@ -25,6 +30,9 @@ void main() {
     final theme = Theme.of(tester.element(find.byType(AppShell)));
     expect(theme.scaffoldBackgroundColor, AppColors.background);
     expect(theme.brightness, Brightness.dark);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero); // drift stream-cancel timer
   });
 
   test('stream-json fixture is present and non-empty', () {

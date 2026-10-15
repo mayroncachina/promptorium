@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart';
+
 /// Zoom level (percent) of one editor, keyed by editor name ('specs', 'code').
 ///
 /// Fase 8/10 rebuild the `re_editor` `CodeEditorStyle(fontSize: base * zoom / 100)`.
-/// Persistence (per editor) arrives with the database in Fase 3.
+/// Persisted per editor in `app_settings` (`editor.zoom.<key>`).
 class EditorZoom extends Notifier<int> {
   EditorZoom(this.editorKey);
 
@@ -15,13 +17,25 @@ class EditorZoom extends Notifier<int> {
   static const defaultValue = 100;
 
   @override
-  int build() => defaultValue;
+  int build() {
+    final saved = ref
+        .read(appSettingsProvider.notifier)
+        .getInt(AppSettingKeys.editorZoom(editorKey));
+    return (saved ?? defaultValue).clamp(min, max);
+  }
 
-  void zoomIn() => state = (state + step).clamp(min, max);
+  void zoomIn() => _set(state + step);
 
-  void zoomOut() => state = (state - step).clamp(min, max);
+  void zoomOut() => _set(state - step);
 
-  void reset() => state = defaultValue;
+  void reset() => _set(defaultValue);
+
+  void _set(int value) {
+    state = value.clamp(min, max);
+    ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.editorZoom(editorKey), '$state');
+  }
 }
 
 final editorZoomProvider = NotifierProvider.family<EditorZoom, int, String>(

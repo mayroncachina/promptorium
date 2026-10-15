@@ -199,11 +199,32 @@ Repositórios + providers Riverpod (`AsyncNotifier`).
 **Referências:** drift docs (getting started / Flutter setup), `driftDatabase(...)` em 0.4.
 
 **Verificação**
-- [ ] `dart run build_runner build` sem erros
-- [ ] Testes de repositório com banco em memória (CRUD de cada tabela)
-- [ ] Banco criado em `~/.local/share/promptorium/` (via `path_provider`)
+- [x] `dart run build_runner build` sem erros
+- [x] Testes de repositório com banco em memória (CRUD de cada tabela)
+- [x] Banco criado em `~/.local/share/promptorium/` (via `path_provider`) — conferido executando o bundle debug: `promptorium.sqlite` com as 10 tabelas, `user_version = 1`
 
 **Anti-padrões:** não guardar segredos (tokens de MCP) no banco.
+
+**Notas da execução (2026-10-14):**
+- Nenhum pacote novo. Código gerado (`lib/data/db/app_database.g.dart`) é **versionado** — o build funciona sem rodar o build_runner; regenerar após mudar tabelas. Obs.: o build_runner 2.16 ignora (com aviso) `--delete-conflicting-outputs`.
+- Esquema final (`lib/data/db/app_database.dart`, `schemaVersion = 1`, `PRAGMA foreign_keys = ON` no `beforeOpen`):
+  - `workspaces(id, path UNIQUE, name, created_at)`
+  - `specs(id, workspace_id→workspaces CASCADE, code, title, status textEnum<SpecStatus> = draft, path)`, UNIQUE(workspace_id, code)
+  - `tasks(id, spec_id?→specs SET NULL, workspace_id→workspaces CASCADE, code, title, status textEnum<TaskStatus> = backlog, agent_name?, depends_on JSON '[]' (List<String>), created_at)`, UNIQUE(workspace_id, code)
+  - `sessions(id TEXT PK uuid, workspace_id→CASCADE, task_id?→tasks SET NULL, agent_name?, worktree_path, branch, status textEnum<SessionStatus> = running, model, cost_usd 0, tokens_in 0, tokens_out 0, started_at, ended_at?)`
+  - `session_events(id, session_id→sessions CASCADE, seq, type, json, created_at)`, UNIQUE(session_id, seq)
+  - `conversations(id, workspace_id→CASCADE, title, provider = 'claude', model, session_id?→sessions SET NULL, created_at)`
+  - `saved_prompts(id, command UNIQUE, description = '', body, uses 0)`
+  - `agent_settings(agent_name, scope textEnum<AgentScope>, permission_mode?, budget_usd?, max_turns?, mcp_servers JSON '[]')`, PK(agent_name, scope)
+  - `mcp_tool_rules(server, tool, rule textEnum<McpRule>)`, PK(server, tool)
+  - `app_settings(key PK, value)` — chaves em `AppSettingKeys`: `workspace.active`, `ui.lastSection`, `editor.zoom.<editor>`
+- Enums (`lib/data/db/enums.dart`) gravados pelo `name` — renomear valor = migração. `permission_mode` ficou texto livre (o valor `default` do CLI é palavra reservada em Dart).
+- Local do banco: pai de `getApplicationSupportDirectory()` (no Linux `$XDG_DATA_HOME/dev.promptorium.promptorium`) + `promptorium/` → `~/.local/share/promptorium/promptorium.sqlite`.
+- Repositórios (`lib/data/repos/`, um por agregado; eventos de sessão ficam no `SessionsRepo`) e providers em `lib/data/providers.dart`: `Provider` para banco/repos, `StreamProvider`(`.family`) para as listas. `appSettingsProvider` (`Notifier<Map>`) é uma cópia em memória de `app_settings` carregada no splash, para leitura síncrona no `build` dos notifiers; gravações vão ao banco em segundo plano. `SessionsRepo.markLiveAsInterrupted()` já existe para a Fase 5 (ainda não chamado).
+- Splash: "Abrindo banco local…" = `OpenDatabaseStep` (abre/migra + carrega `app_settings`); "Carregando workspaces…" = `LoadWorkspacesStep` (seleção inválida cai no primeiro workspace ou é limpa). Worktrees ficam para a Fase 4.
+- Seletor de workspace (barra de título → diálogo `lib/ui/shell/workspace_picker.dart`): lista, seleciona, remove (só o registro) e "Adicionar pasta…" com campo de caminho (aceita `~`), validado por `git -C <p> rev-parse --show-toplevel` (`lib/core/git/git_root.dart`); registra a raiz do repositório. Sem file picker (nenhum pacote disponível). Branch atual no botão: Fase 4.
+- Zoom por editor e última tela persistem em `app_settings` (DT-13/DT-14 resolvidos).
+- Testes de widget: `NativeDatabase.memory()` funciona sob FakeAsync, mas o drift cancela streams com um `Timer` zero — desmontar a árvore e `pump(Duration.zero)` no fim; IO real (Directory/Process) não roda sob FakeAsync, por isso `gitRootResolverProvider` é injetável.
 
 ---
 

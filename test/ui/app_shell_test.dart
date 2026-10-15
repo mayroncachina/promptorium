@@ -2,23 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/shell/side_bar.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
-Future<void> pumpShell(
+import '../helpers/test_db.dart';
+
+/// Pumps the shell on a fresh in-memory database (returned for assertions).
+Future<AppDatabase> pumpShell(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
+  AppDatabase? db,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
+  final database = db ?? memoryDatabase();
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [databaseOverride(database)],
       child: MaterialApp(theme: AppTheme.dark(), home: const AppShell()),
     ),
   );
+  // Unmount (closing the database) before the test ends.
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    // Drift cancels stream queries with a zero-duration timer.
+    await tester.pump(Duration.zero);
+  });
+  return database;
 }
 
 SideBarItem item(WidgetTester tester, AppSection s) =>

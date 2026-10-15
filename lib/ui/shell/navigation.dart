@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/providers.dart';
 import '../widgets/app_icon.dart';
 
 /// Top-level screens of the IDE, in sidebar order (see docs/mockups/Main.dc.html).
@@ -57,12 +58,22 @@ enum AppSection {
   };
 }
 
-/// Currently visible section.
+/// Currently visible section; the last one is restored from `app_settings`.
 class NavigationController extends Notifier<AppSection> {
   @override
-  AppSection build() => AppSection.sessions;
+  AppSection build() {
+    final saved = ref
+        .read(appSettingsProvider.notifier)
+        .get(AppSettingKeys.lastSection);
+    return AppSection.values.asNameMap()[saved] ?? AppSection.sessions;
+  }
 
-  void go(AppSection section) => state = section;
+  void go(AppSection section) {
+    state = section;
+    ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.lastSection, section.name);
+  }
 }
 
 final navigationProvider = NotifierProvider<NavigationController, AppSection>(

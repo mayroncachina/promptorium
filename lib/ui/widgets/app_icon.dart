@@ -79,6 +79,16 @@ abstract final class AppIcons {
     'M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5',
   ]);
 
+  static final check = AppIconData([
+    'M5 12.5l4.5 4.5L19 7.5',
+  ], strokeWidth: 2.2);
+
+  static final close = AppIconData(['M6 6l12 12M18 6L6 18'], strokeWidth: 2);
+
+  static final folder = AppIconData([
+    'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  ]);
+
   static final settings = AppIconData([
     svgCircle(12, 12, 3),
     'M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',
