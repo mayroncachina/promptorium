@@ -13,6 +13,7 @@ import 'repos/mcp_tool_rules_repo.dart';
 import 'repos/project_plans_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
+import 'repos/spec_steps_repo.dart';
 import 'repos/specs_repo.dart';
 import 'repos/tasks_repo.dart';
 import 'repos/workspaces_repo.dart';
@@ -35,6 +36,9 @@ final workspacesRepoProvider = Provider(
 );
 final specsRepoProvider = Provider(
   (ref) => SpecsRepo(ref.watch(appDatabaseProvider)),
+);
+final specStepsRepoProvider = Provider(
+  (ref) => SpecStepsRepo(ref.watch(appDatabaseProvider)),
 );
 final tasksRepoProvider = Provider(
   (ref) => TasksRepo(ref.watch(appDatabaseProvider)),

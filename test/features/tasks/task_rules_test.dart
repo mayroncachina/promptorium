@@ -107,6 +107,10 @@ void main() {
       title: 'Sessões',
       status: SpecStatus.approved,
       path: 'specs/SPEC-002-sessoes.md',
+      stage: SpecStage.backlog,
+      requirements: [],
+      dependsOn: [],
+      autoAdvance: true,
     );
     final p = taskSessionPrompt(t, spec: spec);
     expect(p, startsWith('Implemente a tarefa TASK-007: Persistir eventos'));

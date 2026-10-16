@@ -4,7 +4,6 @@ import '../../../data/db/app_database.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../tasks/task_actions.dart';
-import '../spec_file.dart';
 
 /// Status color of a task in the spec panel (mockup Specs).
 Color _taskColor(TaskStatus s) => switch (s) {

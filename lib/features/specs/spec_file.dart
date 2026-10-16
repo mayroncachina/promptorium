@@ -1,6 +1,8 @@
 import 'package:yaml/yaml.dart';
 
-import '../../data/db/enums.dart';
+import '../../data/db/app_database.dart';
+
+export '../../data/db/app_database.dart' show SpecRequirement;
 
 /// Spec files: `specs/SPEC-NNN-<slug>.md` in the workspace, with a YAML
 /// frontmatter holding `id` and `status` (plano, Fase 8).
@@ -43,9 +45,6 @@ String specStatusLabel(SpecStatus s) => switch (s) {
   SpecStatus.approved => 'Aprovada',
   SpecStatus.done => 'Concluída',
 };
-
-/// `R1 · Cada sessão roda em um worktree` line of the spec.
-typedef SpecRequirement = ({String id, String text});
 
 final _frontmatterStart = RegExp(r'^﻿?---[ \t]*\r?\n');
 final _fence = RegExp(r'^---[ \t]*$', multiLine: true);
@@ -102,6 +101,28 @@ class SpecDocument {
 
   SpecStatus? get status => specStatusFromValue(rawStatus);
 
+  /// Frontmatter `fase` (`fundacao`, `mvp`…).
+  String? get phase {
+    final v = frontmatter['fase'];
+    return v == null || '$v'.trim().isEmpty ? null : '$v'.trim();
+  }
+
+  /// Whether the frontmatter has `depende-de` (even empty).
+  bool get hasDependsOn => frontmatter.containsKey(dependsOnKey);
+
+  /// Frontmatter `depende-de`: `[SPEC-001, SPEC-002]` or `SPEC-001, SPEC-002`.
+  List<String> get dependsOn {
+    final v = frontmatter[dependsOnKey];
+    final items = v is List
+        ? v.map((e) => '$e')
+        : '${v ?? ''}'.split(RegExp(r'[\s,;]+'));
+    return [
+      for (final i in items)
+        if (RegExp(r'^SPEC-\d+$').hasMatch(i.trim().toUpperCase()))
+          i.trim().toUpperCase(),
+    ];
+  }
+
   /// First `# ` heading of the body.
   String? get title {
     for (final line in body.split('\n')) {
@@ -127,12 +148,14 @@ class SpecDocument {
     return out;
   }
 
-  /// Text with `id` / `status` set in the frontmatter (created when absent).
-  /// Other lines (unknown keys, comments) are kept byte for byte.
-  String withMeta({String? id, SpecStatus? status}) {
+  /// Text with `id` / `status` / `depende-de` set in the frontmatter
+  /// (created when absent). Other lines (unknown keys, comments) are kept
+  /// byte for byte.
+  String withMeta({String? id, SpecStatus? status, List<String>? dependsOn}) {
     final updates = <String, String>{
       'id': ?id,
       if (status != null) 'status': specStatusValue(status),
+      if (dependsOn != null) dependsOnKey: '[${dependsOn.join(', ')}]',
     };
     if (updates.isEmpty) return text;
     if (!hasFrontmatter) {
@@ -164,6 +187,9 @@ class SpecDocument {
     return '$head${lines.join('\n')}\n${text.substring(close.start)}';
   }
 }
+
+/// Frontmatter key of the spec dependencies.
+const dependsOnKey = 'depende-de';
 
 /// Markdown of a new spec ("Nova spec").
 String newSpecMarkdown({required String code, required String title}) =>

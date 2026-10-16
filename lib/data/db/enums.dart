@@ -8,8 +8,22 @@ library;
 /// `done` is kept for rows written before Fase 8 (no frontmatter value).
 enum SpecStatus { draft, review, approved, done, idea }
 
-/// Kanban column of a task (Fase 8).
+/// Kanban column of a task (Fase 8). Tasks are no longer shown (schema v8:
+/// the spec is the card); kept for the rows written before.
 enum TaskStatus { backlog, running, review, done }
+
+/// Column of a spec in the Quadro (schema v8).
+enum SpecStage { backlog, running, review, done }
+
+/// State of one step (requirement) of a spec (schema v8).
+enum StepStatus {
+  pending,
+  running,
+  done,
+
+  /// The session ended without `ETAPA CONCLUÍDA`: waits for the user.
+  needsInput,
+}
 
 /// State of a Claude Code session (Fase 5).
 enum SessionStatus {

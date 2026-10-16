@@ -81,6 +81,7 @@ class SpecService {
     required SpecDocument doc,
   }) async {
     final title = doc.title ?? code;
+    final reqs = doc.requirements;
     final existing = await _repo.getByCode(ws.id, code);
     if (existing == null) {
       return _repo.insert(
@@ -89,22 +90,42 @@ class SpecService {
         title: title,
         path: rel,
         status: doc.status ?? SpecStatus.draft,
+        requirements: reqs,
+        dependsOn: doc.dependsOn,
+        phase: doc.phase,
       );
     }
     final status = doc.status ?? existing.status;
+    // `depende-de` absent from the file keeps the stored list (written by
+    // the schema v8 migration or the Projeto screen until the next save).
+    final deps = doc.hasDependsOn ? doc.dependsOn : existing.dependsOn;
     if (existing.title != title ||
         existing.path != rel ||
-        existing.status != status) {
+        existing.status != status ||
+        existing.phase != doc.phase ||
+        !_sameReqs(existing.requirements, reqs) ||
+        existing.dependsOn.join(',') != deps.join(',')) {
       await _repo.update(
         existing.id,
         SpecsCompanion(
           title: Value(title),
           path: Value(rel),
           status: Value(status),
+          phase: Value(doc.phase),
+          requirements: Value(reqs),
+          dependsOn: Value(deps),
         ),
       );
     }
     return (await _repo.getById(existing.id))!;
+  }
+
+  static bool _sameReqs(List<SpecRequirement> a, List<SpecRequirement> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Relative paths a spec may have: one `.md` file directly inside
@@ -128,8 +149,13 @@ class SpecService {
     return f.readAsString();
   }
 
-  /// Writes [text] (temporary file + rename) and refreshes the row.
+  /// Writes [text] (temporary file + rename) and refreshes the row. Stored
+  /// dependencies missing from the file are written to its frontmatter.
   Future<Spec> save(Workspace ws, Spec spec, String text) async {
+    final current = SpecDocument.parse(text);
+    if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
+      text = current.withMeta(dependsOn: spec.dependsOn);
+    }
     final f = fileOf(ws, spec);
     await f.parent.create(recursive: true);
     final tmp = File('${f.path}.promptorium-tmp');
@@ -173,6 +199,9 @@ class SpecService {
       title: doc.title ?? t,
       path: rel,
       status: doc.status ?? SpecStatus.draft,
+      requirements: doc.requirements,
+      dependsOn: doc.dependsOn,
+      phase: doc.phase,
     );
   }
 

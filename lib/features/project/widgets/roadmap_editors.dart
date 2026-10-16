@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
-import '../../specs/spec_file.dart' show SpecRequirement;
 import '../project_plan.dart';
 import '../project_planner.dart';
 

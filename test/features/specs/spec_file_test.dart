@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
@@ -80,6 +81,24 @@ void main() {
         '---\nid: SPEC-010\nstatus: rascunho\n---\n\n# Só corpo\n\ntexto\n',
       );
       expect(SpecDocument.parse(out).title, 'Só corpo');
+    });
+
+    test('depende-de: list or text; withMeta writes it', () {
+      expect(
+        SpecDocument.parse('---\ndepende-de: SPEC-001, SPEC-002\n---\n')
+            .dependsOn,
+        ['SPEC-001', 'SPEC-002'],
+      );
+      final d = SpecDocument.parse(sample);
+      expect(d.hasDependsOn, isFalse);
+      final t = d.withMeta(dependsOn: ['SPEC-001', 'SPEC-004']);
+      expect(t, contains('autor: você\ndepende-de: [SPEC-001, SPEC-004]\n---'));
+      expect(SpecDocument.parse(t).dependsOn, ['SPEC-001', 'SPEC-004']);
+      expect(
+        SpecDocument.parse(t.replaceFirst('[SPEC-001, SPEC-004]', '[]'))
+            .hasDependsOn,
+        isTrue,
+      );
     });
 
     test('invalid or unterminated frontmatter is treated as body', () {
@@ -177,6 +196,47 @@ void main() {
       expect(rows, hasLength(3));
     });
 
+    test('sync mirrors requirements, fase and depende-de; a file without '
+        'depende-de keeps the stored list until the next save', () async {
+      Directory('${tmp.path}/specs').createSync();
+      final f = File('${tmp.path}/specs/SPEC-002-sessoes.md')
+        ..writeAsStringSync(sample);
+      await service.sync(ws);
+      final repo = SpecsRepo(db);
+      var s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.requirements.map((r) => r.id), ['R1', 'R2', 'R3']);
+      expect(s2.requirements.first.text, 'Cada sessão roda em um worktree');
+      expect(s2.phase, isNull);
+      expect(s2.dependsOn, isEmpty);
+
+      // Dependencies known only to the database (schema v8 migration).
+      await repo.update(
+        s2.id,
+        const SpecsCompanion(dependsOn: Value(['SPEC-001'])),
+      );
+      await service.sync(ws);
+      s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.dependsOn, ['SPEC-001']);
+
+      // The next save writes them to the frontmatter.
+      await service.save(ws, s2, sample);
+      final saved = SpecDocument.parse(f.readAsStringSync());
+      expect(saved.dependsOn, ['SPEC-001']);
+      expect(f.readAsStringSync(), contains('depende-de: [SPEC-001]\n'));
+
+      // The file is the source once it has the key.
+      f.writeAsStringSync(
+        sample.replaceFirst(
+          'autor: você',
+          'autor: você\nfase: mvp\ndepende-de: [SPEC-003, spec-004, x]',
+        ),
+      );
+      await service.sync(ws);
+      s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.dependsOn, ['SPEC-003', 'SPEC-004']);
+      expect(s2.phase, 'mvp');
+    });
+
     test('save writes the file and refreshes the row', () async {
       final s = await service.create(ws, title: 'Editor');
       final edited = (await service.read(
@@ -202,6 +262,10 @@ void main() {
         title: 't',
         status: SpecStatus.draft,
         path: 'specs/SPEC-002-sessoes.md',
+        stage: SpecStage.backlog,
+        requirements: [],
+        dependsOn: [],
+        autoAdvance: true,
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
