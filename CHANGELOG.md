@@ -41,6 +41,10 @@ Todas as mudanças relevantes do Promptorium.
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)
+- **distribuicao:** Pacote .deb e .tar.gz, CI e release no GitHub Actions (586dacb)
+- **projeto:** Configuração do projeto em .promptorium/config.yml (a4cf665)
+- **prompt:** Anexar e arrastar arquivos para a conversa (168e6a8)
+- **aprovacoes:** Pedidos de permissão em qualquer tela (e1b5def)
 
 ### Correções
 
@@ -50,8 +54,12 @@ Todas as mudanças relevantes do Promptorium.
 
 - Specs no quadro, fase 8 — execução real de ponta a ponta (d6c7ef1)
 
+### Build e CI
+
+- Build e .deb só ao mergear na main; PR só analisa e testa (63883d1)
+
 ### Manutenção
 
-- Git-cliff — configuração e CHANGELOG (a5c134b)
+- Git-cliff — configuração e CHANGELOG (4947774)
 
 
