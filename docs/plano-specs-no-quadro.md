@@ -1,6 +1,6 @@
 # Plano — a spec é o cartão do quadro
 
-> Status: implementado nas fases 1–7 (branch `feat/specs-no-quadro`); falta a fase 8 (execução real de ponta a ponta).
+> Status: implementado nas fases 1–7 (branch `feat/specs-no-quadro`); fase 8 verificada com o CLI real (2 etapas com haiku, US$ 0,008: 2 sessões no mesmo worktree, commits `SPEC-001 R1/R2`, Review e merge).
 
 ## Por quê
 
