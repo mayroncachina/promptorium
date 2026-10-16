@@ -169,6 +169,40 @@ e atualiza `update-desktop-database` / `gtk-update-icon-cache`, se existirem. O 
 scripts/uninstall.sh              # remove só o que o install criou; mantém os dados
 ```
 
+## Distribuição
+
+Pacotes Linux x64 (Ubuntu/Debian 22.04 ou mais novo) nas **Releases** do GitHub:
+
+| Arquivo | Uso |
+|---|---|
+| `promptorium_<versão>_amd64.deb` | `sudo apt install ./promptorium_<versão>_amd64.deb` — instala em `/opt/promptorium`, comando `promptorium`, atalho no menu e ícones; o apt instala `git` e as bibliotecas (GTK, libnotify); `gh` é recomendado |
+| `promptorium-<versão>-linux-x64.tar.gz` | portátil: extrair e rodar `./promptorium` (sem atalho) |
+
+O **Claude Code CLI** não vem em pacote .deb. O `.deb` avisa no fim da instalação quando o
+`claude` não existe, e o app mostra a mesma instrução ao abrir. Instale, com o seu usuário:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Os dados (`~/.local/share/promptorium/promptorium.sqlite`) ficam fora do pacote: remover ou
+atualizar o `.deb` não os apaga.
+
+### Publicar uma versão
+
+1. No GitHub: **Releases → Draft a new release**, crie a tag `vX.Y.Z` (ex.: `v0.1.0`) apontando
+   para a `main` e publique. Sem texto, as notas saem do `git cliff`.
+2. O workflow `.github/workflows/release.yml` roda `flutter analyze` e `flutter test`, compila
+   (`--build-name` = a versão da tag), empacota com `scripts/package.sh` e anexa o `.deb` e o
+   `.tar.gz` à release. Se analyze ou testes falharem, nada é anexado.
+
+A cada push na `main` e em todo PR, o workflow `ci.yml` faz o mesmo build e deixa o `.deb` como
+artefato da execução (aba **Actions** → a execução → **Artifacts**, 14 dias), com a versão
+`<versão do pubspec>~ci.<commit>`.
+
+Para gerar os pacotes localmente: `flutter build linux --release && scripts/package.sh 0.1.0`
+(saída em `dist/`).
+
 ## Estrutura
 
 ```

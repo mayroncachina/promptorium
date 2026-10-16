@@ -1,0 +1,42 @@
+name: Compilar e empacotar
+description: Analisa, testa, compila o Linux release e gera o .deb e o .tar.gz em dist/.
+
+inputs:
+  version:
+    description: Versão dos pacotes (1.2.3, 0.1.0~ci.abc1234…)
+    required: true
+  flutter-version:
+    description: Tag do Flutter
+    default: "3.47.7"
+
+runs:
+  using: composite
+  steps:
+    - name: Dependências de build
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev \
+          libsqlite3-dev libnotify-dev libayatana-appindicator3-dev
+
+    - name: Flutter
+      shell: bash
+      run: |
+        git clone --depth 1 --branch "${{ inputs.flutter-version }}" https://github.com/flutter/flutter.git "$HOME/flutter"
+        echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+
+    - name: Analisar e testar
+      shell: bash
+      run: |
+        flutter --version
+        flutter pub get
+        flutter analyze
+        flutter test
+
+    - name: Compilar
+      shell: bash
+      run: flutter build linux --release --build-name="${{ inputs.version }}"
+
+    - name: Empacotar
+      shell: bash
+      run: scripts/package.sh "${{ inputs.version }}"

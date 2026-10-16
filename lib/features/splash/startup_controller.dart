@@ -70,8 +70,8 @@ class ClaudeCliStep extends StartupStep {
         e.message,
         details: e.details,
         hint:
-            'Instale o Claude Code e confira se `claude` está no PATH '
-            'ou em ~/.local/bin.',
+            'Instale o Claude Code (curl -fsSL https://claude.ai/install.sh | '
+            'bash) e confira se `claude` está no PATH ou em ~/.local/bin.',
       );
     }
   }

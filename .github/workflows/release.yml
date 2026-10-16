@@ -1,0 +1,51 @@
+name: Release
+
+# Criar uma release no GitHub (Releases → Draft a new release, com tag nova
+# vX.Y.Z) compila, testa, empacota (.deb + .tar.gz) e anexa os arquivos a ela.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    # 22.04: o binário depende da glibc do runner; compilar no mais antigo
+    # suportado deixa o .deb instalável em 22.04 ou mais novo.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Versão a partir da tag
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.+~-][0-9A-Za-z.+~-]*)?$ ]]; then
+            echo "Tag '$tag' inválida: use vX.Y.Z (ex.: v0.1.0)." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/build-deb
+        with:
+          version: ${{ steps.version.outputs.version }}
+
+      - name: Notas da release (se estiver sem texto)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(gh release view "$GITHUB_REF_NAME" --json body -q .body)"
+          if [ -z "$(echo "$body" | tr -d '[:space:]')" ]; then
+            sudo npm install -g git-cliff >/dev/null
+            git cliff --latest --strip header -o notes.md
+            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+          fi
+
+      - name: Anexar à release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
