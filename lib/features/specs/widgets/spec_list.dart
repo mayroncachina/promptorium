@@ -13,6 +13,7 @@ Color specStatusColor(SpecStatus s) => switch (s) {
   SpecStatus.draft => AppColors.textSecondary,
   SpecStatus.idea => AppColors.textMuted,
   SpecStatus.done => AppColors.blue,
+  SpecStatus.archived => AppColors.textMuted,
 };
 
 /// "4 etapas · 3 concluídas" / "sem requisitos".
@@ -34,7 +35,15 @@ class SpecList extends StatelessWidget {
     required this.selectedId,
     required this.stepRows,
     required this.onSelect,
+    this.archived = 0,
+    this.showArchived = false,
+    this.onToggleArchived,
   });
+
+  /// Archived specs of the workspace and whether they are listed.
+  final int archived;
+  final bool showArchived;
+  final VoidCallback? onToggleArchived;
 
   final List<Spec> specs;
   final int? selectedId;
@@ -51,9 +60,31 @@ class SpecList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(14, 14, 14, 8),
-            child: Text('SPECS', style: sectionTitleStyle),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+            child: Row(
+              children: [
+                const Expanded(child: Text('SPECS', style: sectionTitleStyle)),
+                if (archived > 0 || showArchived)
+                  TextButton(
+                    key: const ValueKey('specs-archived-toggle'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: onToggleArchived,
+                    child: Text(
+                      showArchived
+                          ? 'Ocultar arquivadas'
+                          : 'Arquivadas ($archived)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           Expanded(
             child: specs.isEmpty

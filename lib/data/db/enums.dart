@@ -6,7 +6,10 @@ library;
 /// Lifecycle of a spec file (`specs/SPEC-NNN-*.md`, frontmatter `status`:
 /// `ideia` / `rascunho` / `em-revisao` / `aprovada`; see `spec_file.dart`).
 /// `done` is kept for rows written before Fase 8 (no frontmatter value).
-enum SpecStatus { draft, review, approved, done, idea }
+///
+/// `archived`: a finished spec the user put away; hidden from the Specs list
+/// and the Quadro unless "Arquivadas" is on.
+enum SpecStatus { draft, review, approved, done, idea, archived }
 
 /// Kanban column of a task (Fase 8). Tasks are no longer shown (schema v8:
 /// the spec is the card); kept for the rows written before.

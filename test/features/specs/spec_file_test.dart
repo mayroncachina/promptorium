@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/sessions_repo.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/specs_screen.dart'
@@ -142,6 +143,49 @@ void main() {
       await db.close();
       tmp.deleteSync(recursive: true);
     });
+
+    test(
+      'archive hides a finished spec; delete only a never-run one (trash)',
+      () async {
+        final trashed = <String>[];
+        service = SpecService(
+          SpecsRepo(db),
+          sessions: SessionsRepo(db),
+          trash: (path) async {
+            trashed.add(path);
+            File(path).deleteSync();
+          },
+        );
+        final repo = SpecsRepo(db);
+        final a = await service.create(ws, title: 'Feita');
+        final b = await service.create(ws, title: 'Nunca rodou');
+        // Not finished: cannot be archived.
+        await expectLater(
+          service.archive(ws, a),
+          throwsA(isA<SpecException>()),
+        );
+        await repo.setStage(a.id, SpecStage.done);
+        final done = (await repo.getById(a.id))!;
+        final archived = await service.archive(ws, done);
+        expect(archived.status, SpecStatus.archived);
+        expect(
+          File('${tmp.path}/${a.path}').readAsStringSync(),
+          contains('status: arquivada'),
+        );
+        expect(
+          (await service.archive(ws, archived, restore: true)).status,
+          SpecStatus.done,
+        );
+        // A started spec is not deleted; a never-run one goes to the trash.
+        await expectLater(
+          service.delete(ws, done),
+          throwsA(isA<SpecException>()),
+        );
+        await service.delete(ws, b);
+        expect(trashed.single, endsWith(b.path.split('/').last));
+        expect(await repo.getById(b.id), isNull);
+      },
+    );
 
     test('sync registers files, create numbers after them, approve writes '
         'the frontmatter', () async {
@@ -283,5 +327,88 @@ void main() {
     ]) {
       expect(SpecService.isSafeSpecPath(bad), isFalse, reason: bad);
     }
+  });
+
+  test('cloneSpecText: removes done requirements, renumbers, depends on the original', () {
+    const text = '''
+---
+id: SPEC-003
+status: aprovada
+---
+
+# Extração
+
+## Requisitos
+
+- R1 · um
+- R2 · dois
+- R3 · três
+
+## Critérios
+
+- [ ] ok
+''';
+    final out = cloneSpecText(
+      text,
+      newCode: 'SPEC-007',
+      originalCode: 'SPEC-003',
+      doneIds: {'R1', 'R2'},
+    );
+    final doc = SpecDocument.parse(out);
+    expect(doc.id, 'SPEC-007');
+    expect(doc.status, SpecStatus.draft);
+    expect(doc.dependsOn, ['SPEC-003']);
+    expect(doc.title, 'Extração (alteração)');
+    expect(doc.requirements, [(id: 'R1', text: 'três')]);
+    expect(out, contains('- [ ] ok'));
+
+    final empty = cloneSpecText(
+      text,
+      newCode: 'SPEC-008',
+      originalCode: 'SPEC-003',
+      doneIds: {'R1', 'R2', 'R3'},
+    );
+    expect(SpecDocument.parse(empty).requirements, [(id: 'R1', text: '')]);
+  });
+
+  test('subagentes: frontmatter round trip keeps the other lines', () {
+    const text = '''
+---
+id: SPEC-003
+status: aprovada
+depende-de: [SPEC-001]
+---
+
+# Algo
+
+- R1 · um
+''';
+    final doc = SpecDocument.parse(text);
+    expect(doc.subagents, isEmpty);
+    const list = [
+      SpecSubagent(agent: 'spec-reviewer', when: SubagentWhen.specEnd),
+      SpecSubagent(
+        agent: 'test-writer',
+        when: SubagentWhen.atStep,
+        step: 'R1',
+        instruction: 'foco em "bordas": a, b',
+      ),
+    ];
+    final out = doc.withSubagents(list);
+    final back = SpecDocument.parse(out);
+    expect(back.subagents, list);
+    expect(back.id, 'SPEC-003');
+    expect(back.dependsOn, ['SPEC-001']);
+    expect(back.body, doc.body);
+    // Replacing and removing.
+    final one = back.withSubagents([list.first]);
+    expect(SpecDocument.parse(one).subagents, [list.first]);
+    final none = SpecDocument.parse(one).withSubagents(const []);
+    expect(none, text);
+    // Without frontmatter.
+    expect(
+      SpecDocument.parse('# T\n').withSubagents([list.first]),
+      startsWith('---\nsubagentes:'),
+    );
   });
 }

@@ -13,7 +13,12 @@ import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_service.dart';
+import 'widgets/spec_actions.dart';
 import 'widgets/spec_list.dart';
+import 'widgets/subagents_editor.dart';
+import '../board/widgets/subagent_status.dart' show specSubagentsProvider;
+import '../board/board_rules.dart'
+    show canArchiveSpec, canDeleteSpec, specStageLabel, stepsOf;
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
 
@@ -146,6 +151,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         _missing = false;
       });
       ref.read(specDirtyProvider.notifier).set(_dirty);
+      ref.invalidate(specSubagentsProvider);
       return saved;
     } catch (e) {
       _snack('Falha ao salvar: $e');
@@ -202,6 +208,27 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
+  Future<void> _clone(Workspace ws, Spec spec) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final rows = await ref.read(specStepsRepoProvider).bySpec(spec.id);
+      final done = {
+        for (final s in stepsOf(spec, rows))
+          if (s.isDone) s.id,
+      };
+      final created = await ref
+          .read(specServiceProvider)
+          .cloneForChange(ws, spec, doneIds: done);
+      ref.read(selectedSpecProvider.notifier).select(created.id);
+      _snack('${created.code} criada a partir de ${spec.code}.');
+    } catch (e) {
+      _snack('Falha ao clonar: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _refine(Workspace ws, Spec spec) async {
     if (_busy) return;
     if (_dirty && await _save(ws, spec) == null) return;
@@ -251,7 +278,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _loadedSpecId = null;
       Future.microtask(() => _sync(ws));
     }
-    final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    final showArchived = ref.watch(showArchivedProvider);
+    final archivedCount = allSpecs
+        .where((s) => s.status == SpecStatus.archived)
+        .length;
+    final specs = [
+      for (final s in allSpecs)
+        if (showArchived || s.status != SpecStatus.archived) s,
+    ];
     final stepRows =
         ref.watch(specStepsProvider(ws.id)).value ?? const <SpecStep>[];
     final selectedId = ref.watch(selectedSpecProvider);
@@ -264,6 +299,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final text = _controller?.text ?? '';
     final doc = SpecDocument.parse(text);
     final ready = spec != null && _controller != null && !_loading;
+    // Started specs are a record of what was delivered: changes go to a
+    // clone ("Clonar para alterar").
+    final locked = spec != null && spec.stage != SpecStage.backlog;
 
     return LayoutBuilder(
       builder: (context, c) {
@@ -279,6 +317,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                 selectedId: spec?.id,
                 stepRows: stepRows,
                 onSelect: _select,
+                archived: archivedCount,
+                showArchived: showArchived,
+                onToggleArchived: () =>
+                    ref.read(showArchivedProvider.notifier).toggle(),
               ),
             ),
             Expanded(
@@ -289,10 +331,37 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   dirty: _dirty,
                   mode: _mode,
                   onMode: (m) => setState(() => _mode = m),
-                  onSave: ready ? () => _save(ws, spec) : null,
-                  onRefine: ready && !_busy ? () => _refine(ws, spec) : null,
+                  locked: locked,
+                  archiveLabel: spec?.status == SpecStatus.archived
+                      ? 'Desarquivar'
+                      : 'Arquivar',
+                  onArchive:
+                      spec != null &&
+                          !_busy &&
+                          (canArchiveSpec(spec) ||
+                              spec.status == SpecStatus.archived)
+                      ? () => archiveSpecAction(
+                          context,
+                          ref,
+                          spec,
+                          restore: spec.status == SpecStatus.archived,
+                        )
+                      : null,
+                  onDelete: spec != null && !_busy && canDeleteSpec(spec)
+                      ? () => deleteSpecAction(context, ref, spec)
+                      : null,
+                  onClone: ready && locked && !_busy
+                      ? () => _clone(ws, spec)
+                      : null,
+                  onSave: ready && !locked ? () => _save(ws, spec) : null,
+                  onRefine: ready && !locked && !_busy
+                      ? () => _refine(ws, spec)
+                      : null,
                   onApprove:
-                      ready && !_busy && doc.status != SpecStatus.approved
+                      ready &&
+                          !locked &&
+                          !_busy &&
+                          doc.status != SpecStatus.approved
                       ? () => _approve(ws, spec)
                       : null,
                   approved: doc.status == SpecStatus.approved,
@@ -325,6 +394,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           text: text,
                           missing: _missing,
                           onSave: () => _save(ws, spec),
+                          readOnly: locked,
+                          lockedBanner: locked
+                              ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
+                                    'não é editável. Use "Clonar para alterar" '
+                                    'ou mova o cartão de volta ao Backlog.'
+                              : null,
                         ),
                       ),
               ),
@@ -341,7 +416,32 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           left: BorderSide(color: AppColors.border),
                         ),
                       ),
-                      child: SpecStepsPanel(specId: spec.id),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: SpecStepsPanel(specId: spec.id)),
+                          if (ready) ...[
+                            const Divider(height: 24, color: AppColors.border),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 280),
+                              child: SingleChildScrollView(
+                                child: SubagentsEditor(
+                                  spec: spec,
+                                  workspacePath: ws.path,
+                                  subagents: doc.subagents,
+                                  requirements: doc.requirements,
+                                  locked: locked,
+                                  onChange: (list) {
+                                    _controller!.text = SpecDocument.parse(
+                                      _controller!.text,
+                                    ).withSubagents(list);
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
             ),
           ],
@@ -381,6 +481,11 @@ class _Header extends StatelessWidget {
     this.onRefine,
     this.onApprove,
     this.approved = false,
+    this.locked = false,
+    this.onClone,
+    this.onArchive,
+    this.onDelete,
+    this.archiveLabel = 'Arquivar',
   });
 
   final String? path;
@@ -392,6 +497,11 @@ class _Header extends StatelessWidget {
   final VoidCallback? onRefine;
   final VoidCallback? onApprove;
   final bool approved;
+  final bool locked;
+  final VoidCallback? onClone;
+  final VoidCallback? onArchive;
+  final VoidCallback? onDelete;
+  final String archiveLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -434,34 +544,71 @@ class _Header extends StatelessWidget {
         ),
       ],
     );
-    final hasActions = onSave != null || onRefine != null || onApprove != null;
+    final hasActions =
+        onSave != null ||
+        onRefine != null ||
+        onApprove != null ||
+        locked ||
+        onDelete != null;
     final actions = <Widget>[
-      Flexible(
-        child: SmallButton(
-          key: const ValueKey('spec-save'),
-          label: 'Salvar',
-          onTap: dirty ? onSave : null,
+      if (locked)
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-clone'),
+            label: 'Clonar para alterar',
+            color: AppColors.amber,
+            onTap: onClone,
+          ),
         ),
-      ),
-      const SizedBox(width: 8),
-      Flexible(
-        child: SmallButton(
-          key: const ValueKey('spec-refine'),
-          label: 'Refinar com IA',
-          onTap: onRefine,
+      if (locked && onArchive != null) ...[
+        const SizedBox(width: 8),
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-archive'),
+            label: archiveLabel,
+            onTap: onArchive,
+          ),
         ),
-      ),
-      const SizedBox(width: 8),
-      Flexible(
-        child: SmallButton(
-          key: const ValueKey('spec-approve'),
-          label: approved ? 'Aprovada' : 'Aprovar spec',
-          color: AppColors.teal,
-          border: SessionColors.runningToolBorder,
-          background: SessionColors.runningToolBg,
-          onTap: onApprove,
+      ],
+      if (!locked) ...[
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-save'),
+            label: 'Salvar',
+            onTap: dirty ? onSave : null,
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-refine'),
+            label: 'Refinar com IA',
+            onTap: onRefine,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-approve'),
+            label: approved ? 'Aprovada' : 'Aprovar spec',
+            color: AppColors.teal,
+            border: SessionColors.runningToolBorder,
+            background: SessionColors.runningToolBg,
+            onTap: onApprove,
+          ),
+        ),
+      ],
+      if (onDelete != null) ...[
+        const SizedBox(width: 8),
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-delete'),
+            label: 'Excluir',
+            color: AppColors.red,
+            onTap: onDelete,
+          ),
+        ),
+      ],
     ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -578,8 +725,12 @@ class _EditorBody extends StatelessWidget {
     required this.text,
     required this.missing,
     required this.onSave,
+    this.readOnly = false,
+    this.lockedBanner,
   });
 
+  final bool readOnly;
+  final String? lockedBanner;
   final SpecViewMode mode;
   final CodeLineEditingController controller;
   final String text;
@@ -595,10 +746,11 @@ class _EditorBody extends StatelessWidget {
       baseFontSize: 12,
       wordWrap: true,
       onSave: onSave,
+      readOnly: readOnly,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
     final preview = SpecPreview(text: text);
-    return switch (mode) {
+    final body = switch (mode) {
       SpecViewMode.edit => editor,
       SpecViewMode.preview => preview,
       SpecViewMode.split => Row(
@@ -610,6 +762,22 @@ class _EditorBody extends StatelessWidget {
         ],
       ),
     };
+    if (lockedBanner == null) return body;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          key: const ValueKey('spec-locked'),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          color: AppColors.amberTint,
+          child: Text(
+            lockedBanner!,
+            style: const TextStyle(fontSize: 12, color: AppColors.amber),
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
   }
 }
 

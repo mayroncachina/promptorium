@@ -5,7 +5,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../data/repos/sessions_repo.dart';
 import '../../data/repos/specs_repo.dart';
+import '../project/project_service.dart' show TrashFolder, trashFolderProvider;
 import '../sessions/session_manager.dart' show slugify;
 import 'spec_file.dart';
 
@@ -37,9 +39,15 @@ Future<String> nextSpecCode(SpecsRepo repo, Workspace workspace) async {
 
 /// Spec files of a workspace (`specs/SPEC-*.md`) ↔ `specs` table.
 class SpecService {
-  SpecService(this._repo);
+  SpecService(this._repo, {SessionsRepo? sessions, TrashFolder? trash})
+    // ignore: prefer_initializing_formals
+    : _sessions = sessions,
+      // ignore: prefer_initializing_formals
+      _trash = trash;
 
   final SpecsRepo _repo;
+  final SessionsRepo? _sessions;
+  final TrashFolder? _trash;
 
   /// Reads `specs/SPEC-*.md`, inserts the files missing from the table and
   /// updates title / status / path of the others (the file is the source).
@@ -205,6 +213,66 @@ class SpecService {
     );
   }
 
+  /// "Clonar para alterar": a new draft spec with the text of [spec] minus
+  /// the requirements in [doneIds], depending on [spec].
+  Future<Spec> cloneForChange(
+    Workspace ws,
+    Spec spec, {
+    required Set<String> doneIds,
+  }) async {
+    final text = await read(ws, spec);
+    if (text == null) throw SpecException('O arquivo ${spec.path} não existe.');
+    final title = '${SpecDocument.parse(text).title ?? spec.title} (alteração)';
+    return create(
+      ws,
+      title: title,
+      render: (code) => cloneSpecText(
+        text,
+        newCode: code,
+        originalCode: spec.code,
+        doneIds: doneIds,
+      ),
+    );
+  }
+
+  /// "Arquivar": a finished spec leaves the lists (`status: arquivada`).
+  /// [restore] puts it back as concluded.
+  Future<Spec> archive(Workspace ws, Spec spec, {bool restore = false}) async {
+    if (!restore && spec.stage != SpecStage.done) {
+      throw SpecException('${spec.code} ainda não foi concluída.');
+    }
+    final text = await read(ws, spec);
+    if (text == null) throw SpecException('O arquivo ${spec.path} não existe.');
+    final status = restore ? SpecStatus.done : SpecStatus.archived;
+    return save(ws, spec, SpecDocument.parse(text).withMeta(status: status));
+  }
+
+  /// Codes of the specs that list [spec] in `depende-de`.
+  Future<List<String>> dependentsOf(Workspace ws, Spec spec) async => [
+    for (final o in await _repo.watchByWorkspace(ws.id).first)
+      if (o.id != spec.id && o.dependsOn.contains(spec.code)) o.code,
+  ];
+
+  /// "Excluir": only a spec never executed. The file goes to the trash
+  /// (recoverable) and the row is removed.
+  Future<void> delete(Workspace ws, Spec spec) async {
+    final sessions = await _sessions?.bySpec(spec.id) ?? const [];
+    if (spec.stage != SpecStage.backlog ||
+        spec.worktreePath != null ||
+        sessions.isNotEmpty) {
+      throw SpecException(
+        '${spec.code} já foi executada: arquive em vez de excluir.',
+      );
+    }
+    final f = fileOf(ws, spec);
+    if (await f.exists()) {
+      final trash = _trash;
+      if (trash == null) throw const SpecException('Lixeira indisponível.');
+      await trash(f.path);
+    }
+    await _repo.delete(spec.id);
+  }
+
   /// "Aprovar spec": `status: aprovada` in the frontmatter of [text] (the
   /// editor content, unsaved changes included), saved to disk.
   Future<({Spec spec, String text})> approve(
@@ -220,7 +288,23 @@ class SpecService {
 }
 
 final specServiceProvider = Provider(
-  (ref) => SpecService(ref.watch(specsRepoProvider)),
+  (ref) => SpecService(
+    ref.watch(specsRepoProvider),
+    sessions: ref.watch(sessionsRepoProvider),
+    trash: ref.watch(trashFolderProvider),
+  ),
+);
+
+/// "Arquivadas": show the archived specs in the Specs list and the Quadro.
+class ShowArchived extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+}
+
+final showArchivedProvider = NotifierProvider<ShowArchived, bool>(
+  ShowArchived.new,
 );
 
 /// Spec selected in the Specs screen (null = first of the list).
