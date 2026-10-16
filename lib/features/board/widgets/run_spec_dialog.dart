@@ -30,6 +30,9 @@ Future<void> runSpec(
   bool ask = false,
 }) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  // The card (and its `ref`) may be gone when the user taps the snackbar
+  // action: it moves to another column as soon as the session starts.
+  final container = ProviderScope.containerOf(context, listen: false);
   RunSpecOptions? o;
   if (ask || data.sessions.isEmpty) {
     o = await showDialog<RunSpecOptions>(
@@ -59,9 +62,15 @@ Future<void> runSpec(
       ..showSnackBar(
         SnackBar(
           content: Text('Sessão aberta para ${data.spec.code}.'),
+          // A snackbar with an action does not go away by itself otherwise.
+          persist: false,
+          duration: const Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Ver sessão',
-            onPressed: () => openSession(ref, id),
+            onPressed: () {
+              messenger.hideCurrentSnackBar();
+              openSessionIn(container, id);
+            },
           ),
         ),
       );
