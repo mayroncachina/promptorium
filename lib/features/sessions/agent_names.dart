@@ -14,6 +14,7 @@ class AgentRef {
     this.maxTurns,
     this.model,
     this.effort,
+    this.tools = const [],
   });
 
   final String name;
@@ -32,6 +33,20 @@ class AgentRef {
 
   /// `effort` of the frontmatter; the dialog preselects it (`--effort`).
   final String? effort;
+
+  /// `tools` of the frontmatter (empty = every tool).
+  final List<String> tools;
+
+  /// Whether the agent can call subagents (`Task` / `Agent` tool).
+  bool get canUseSubagents =>
+      tools.isEmpty ||
+      tools.any(
+        (t) =>
+            t == 'Task' ||
+            t == 'Agent' ||
+            t.startsWith('Task(') ||
+            t.startsWith('Agent('),
+      );
 }
 
 /// `name:` (and `description:`) from the YAML frontmatter of an agent file,
@@ -62,6 +77,7 @@ List<AgentRef> effectiveAgents(List<AgentEntry> entries) {
       maxTurns: e.file.maxTurns,
       model: e.file.model,
       effort: e.file.effort,
+      tools: e.file.tools,
     );
   }
   return byName.values.toList()..sort((a, b) => a.name.compareTo(b.name));

@@ -8,6 +8,7 @@ import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
+import 'subagent_status.dart';
 import '../board_screen.dart';
 import 'run_spec_dialog.dart';
 
@@ -184,6 +185,16 @@ class SpecStepsPanel extends ConsumerWidget {
                   itemBuilder: (_, i) =>
                       _StepRow(spec: spec, step: steps[i], inDialog: inDialog),
                 ),
+        ),
+        Builder(
+          builder: (context) {
+            final subs = watchSubagentStatuses(ref, spec, steps, sessions);
+            if (subs.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SubagentReport(statuses: subs),
+            );
+          },
         ),
         const SizedBox(height: 12),
         Material(
