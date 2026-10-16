@@ -120,15 +120,20 @@ class SpecStepsPanel extends ConsumerWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            const Spacer(),
-            Text(
-              '$done/$total etapas'
-              '${data.cost > 0 ? ' · ${formatCost(data.cost)}' : ''}',
-              key: const ValueKey('steps-progress'),
-              style: const TextStyle(
-                fontFamily: AppFonts.mono,
-                fontSize: 11,
-                color: AppColors.textSecondary,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$done/$total etapas'
+                '${data.cost > 0 ? ' · ${formatCost(data.cost)}' : ''}',
+                key: const ValueKey('steps-progress'),
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -181,24 +186,26 @@ class SpecStepsPanel extends ConsumerWidget {
                 ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: CheckboxListTile(
-                key: const ValueKey('steps-auto-advance'),
-                value: spec.autoAdvance,
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                onChanged: (v) => ref
-                    .read(specsRepoProvider)
-                    .setAutoAdvance(spec.id, v ?? true),
-                title: const Text(
-                  'Avanço automático: etapa concluída abre a próxima',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
+        Material(
+          color: Colors.transparent,
+          child: CheckboxListTile(
+            key: const ValueKey('steps-auto-advance'),
+            value: spec.autoAdvance,
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            onChanged: (v) =>
+                ref.read(specsRepoProvider).setAutoAdvance(spec.id, v ?? true),
+            title: const Text(
+              'Avanço automático: etapa concluída abre a próxima',
+              style: TextStyle(fontSize: 12),
             ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
             if (inDialog) ...[
               SmallButton(
                 key: const ValueKey('steps-open-spec'),

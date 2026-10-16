@@ -9,7 +9,7 @@ import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../agents/agent_file.dart';
 import '../sessions/timeline.dart' show AppEventTypes;
-import '../specs/task_planner.dart'
+import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import 'skill_repository.dart';
 

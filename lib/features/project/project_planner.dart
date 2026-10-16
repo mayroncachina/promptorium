@@ -9,7 +9,7 @@ import '../../core/claude/claude_event.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
-import '../specs/task_planner.dart'
+import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import 'project_plan.dart';
 

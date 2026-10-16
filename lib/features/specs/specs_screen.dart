@@ -12,11 +12,10 @@ import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
 import '../sessions/widgets/session_style.dart';
-import '../tasks/new_task_dialog.dart';
 import 'spec_service.dart';
-import 'task_planner.dart';
 import 'widgets/spec_list.dart';
-import 'widgets/spec_tasks_panel.dart';
+import '../board/board_screen.dart' show specStepsProvider;
+import '../board/widgets/spec_steps_panel.dart';
 
 /// Editor modes of the mockup (Editar / Dividido / Visualizar).
 enum SpecViewMode {
@@ -69,7 +68,6 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   String _saved = '';
   bool _missing = false;
   bool _loading = false;
-  bool _generating = false;
   bool _busy = false;
 
   @override
@@ -225,29 +223,6 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  Future<void> _generate(Workspace ws, Spec spec) async {
-    if (_generating) return;
-    // The planner reads the file on disk.
-    if (_dirty && await _save(ws, spec) == null) return;
-    setState(() => _generating = true);
-    try {
-      final r = await ref
-          .read(taskPlannerProvider)
-          .generate(workspace: ws, spec: spec);
-      _snack(
-        '${r.tasks.length} tarefas criadas '
-        '(${r.tasks.first.code}–${r.tasks.last.code}) · '
-        'US\$ ${r.costUsd.toStringAsFixed(4)}',
-      );
-    } on PlannerException catch (e) {
-      _snack(e.message);
-    } catch (e) {
-      _snack('Falha ao gerar tarefas: $e');
-    } finally {
-      if (mounted) setState(() => _generating = false);
-    }
-  }
-
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
@@ -277,9 +252,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       Future.microtask(() => _sync(ws));
     }
     final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
-    final tasks = ref.watch(tasksProvider(ws.id)).value ?? const <Task>[];
-    final sessions =
-        ref.watch(sessionsProvider(ws.id)).value ?? const <Session>[];
+    final stepRows =
+        ref.watch(specStepsProvider(ws.id)).value ?? const <SpecStep>[];
     final selectedId = ref.watch(selectedSpecProvider);
     final spec =
         specs.where((s) => s.id == selectedId).firstOrNull ?? specs.firstOrNull;
@@ -287,11 +261,6 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _loadedSpecId = spec.id;
       Future.microtask(() => _load(ws, spec));
     }
-    final tasksBySpec = <int, List<Task>>{};
-    for (final t in tasks) {
-      if (t.specId != null) (tasksBySpec[t.specId!] ??= []).add(t);
-    }
-    final latest = traceSessions(sessions);
     final text = _controller?.text ?? '';
     final doc = SpecDocument.parse(text);
     final ready = spec != null && _controller != null && !_loading;
@@ -308,7 +277,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               child: SpecList(
                 specs: specs,
                 selectedId: spec?.id,
-                tasksBySpec: tasksBySpec,
+                stepRows: stepRows,
                 onSelect: _select,
               ),
             ),
@@ -364,14 +333,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               width: sideW,
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
-                  : SpecTasksPanel(
-                      tasks: tasksBySpec[spec.id] ?? const [],
-                      requirements: doc.requirements,
-                      latestSession: latest,
-                      generating: _generating,
-                      onGenerate: ready ? () => _generate(ws, spec) : null,
-                      onNewTask: () =>
-                          showNewTaskDialog(context, specId: spec.id),
+                  : Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: AppColors.panel,
+                        border: Border(
+                          left: BorderSide(color: AppColors.border),
+                        ),
+                      ),
+                      child: SpecStepsPanel(specId: spec.id),
                     ),
             ),
           ],

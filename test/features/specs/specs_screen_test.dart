@@ -97,9 +97,9 @@ void main() {
     expect(find.byType(CodeEditor), findsOneWidget);
     expect(find.byKey(const ValueKey('spec-preview')), findsOneWidget);
     expect(find.text('100%'), findsOneWidget);
-    // Traceability lists the requirements of the file.
-    expect(find.byKey(const ValueKey('trace-R1')), findsOneWidget);
-    expect(find.byKey(const ValueKey('trace-R3')), findsOneWidget);
+    // The steps panel lists the requirements of the file.
+    expect(find.byKey(const ValueKey('step-R1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-R3')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('spec-mode-preview')));
     await tester.pump();
