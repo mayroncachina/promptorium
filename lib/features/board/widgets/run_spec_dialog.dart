@@ -5,6 +5,7 @@ import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../project/project_config.dart';
 import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/composer.dart'
@@ -96,7 +97,10 @@ class RunSpecDialog extends ConsumerStatefulWidget {
 }
 
 class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
-  late String? _agent = widget.spec.agentName;
+  late String? _agent =
+      widget.spec.agentName ??
+      ProjectConfig.loadSync(ref.read(activeWorkspaceProvider)?.path ?? '')
+          .agent;
   late String _model = ref.read(runPrefsProvider).model(RunKind.session);
   late String _effort = ref.read(runPrefsProvider).effort(RunKind.session);
   late ClaudePermissionMode _mode = () {

@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../data/repos/specs_repo.dart';
 import '../project/project_service.dart' show TrashFolder, trashFolderProvider;
+import '../project/project_config.dart';
 import '../sessions/session_manager.dart' show slugify;
 import 'spec_file.dart';
 
@@ -26,7 +27,9 @@ class SpecException implements Exception {
 /// `specs` table or in `<workspace>/specs/SPEC-*`.
 Future<String> nextSpecCode(SpecsRepo repo, Workspace workspace) async {
   var max = await repo.maxNumber(workspace.id);
-  final dir = Directory('${workspace.path}/specs');
+  final dir = Directory(
+    '${workspace.path}/${ProjectConfig.loadSync(workspace.path).specsDir}',
+  );
   if (await dir.exists()) {
     await for (final f in dir.list()) {
       final name = f.uri.pathSegments.where((s) => s.isNotEmpty).last;
@@ -53,7 +56,8 @@ class SpecService {
   /// updates title / status / path of the others (the file is the source).
   /// Rows whose file disappeared are kept (shown as "arquivo ausente").
   Future<void> sync(Workspace ws) async {
-    final dir = Directory('${ws.path}/specs');
+    final specsDir = ProjectConfig.loadSync(ws.path).specsDir;
+    final dir = Directory('${ws.path}/$specsDir');
     if (!await dir.exists()) return;
     final files = <File>[];
     await for (final f in dir.list()) {
@@ -72,7 +76,7 @@ class SpecService {
       final doc = SpecDocument.parse(text);
       final code = _codeOf(doc, name);
       if (code == null || !seen.add(code)) continue;
-      await _upsert(ws, code: code, rel: 'specs/$name', doc: doc);
+      await _upsert(ws, code: code, rel: '$specsDir/$name', doc: doc);
     }
   }
 
@@ -136,12 +140,22 @@ class SpecService {
     return true;
   }
 
-  /// Relative paths a spec may have: one `.md` file directly inside
-  /// `<workspace>/specs` (no separators, no `..`) — guards against a row
-  /// pointing outside the folder (path traversal).
-  static final _specPath = RegExp(r'^specs/[^/\\]+\.md$');
+  /// Relative paths a spec may have: a `.md` file in a plain folder of the
+  /// workspace (no `..`, no absolute path, not inside `.git` /
+  /// `.promptorium`) — guards against a row pointing outside the workspace
+  /// (path traversal). The folder is configurable and may change over time,
+  /// so older specs keep their path.
+  static final _specPath = RegExp(
+    r'^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/[A-Za-z0-9._ -]+\.md$',
+  );
 
-  static bool isSafeSpecPath(String rel) => _specPath.hasMatch(rel);
+  static bool isSafeSpecPath(String rel) {
+    if (!_specPath.hasMatch(rel)) return false;
+    final parts = rel.split('/');
+    return !parts.any((p) => p == '.' || p == '..') &&
+        parts.first != '.git' &&
+        parts.first != '.promptorium';
+  }
 
   File fileOf(Workspace ws, Spec spec) {
     if (!isSafeSpecPath(spec.path)) {
@@ -185,7 +199,8 @@ class SpecService {
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
     final code = await nextSpecCode(_repo, ws);
     final slug = slugify(t, maxLength: 40);
-    final rel = 'specs/$code${slug.isEmpty ? '' : '-$slug'}.md';
+    final rel =
+        '${ProjectConfig.loadSync(ws.path).specsDir}/$code${slug.isEmpty ? '' : '-$slug'}.md';
     final file = File('${ws.path}/$rel');
     await file.parent.create(recursive: true);
     // Exclusive create: a second click racing on the same number fails here

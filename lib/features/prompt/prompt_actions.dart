@@ -8,6 +8,7 @@ import '../../data/repos/saved_prompts_repo.dart';
 import '../../data/repos/specs_repo.dart';
 import '../sessions/session_manager.dart' show slugify;
 import '../sessions/timeline.dart';
+import '../project/project_config.dart';
 import '../specs/spec_service.dart' show nextSpecCode;
 
 // --- transcript ----------------------------------------------------------------
@@ -192,10 +193,11 @@ Future<Spec> createSpecFromConversation(
   required List<TranscriptEntry> transcript,
   DateTime? now,
 }) async {
-  final dir = Directory('${workspace.path}/specs');
+  final specsDir = ProjectConfig.loadSync(workspace.path).specsDir;
+  final dir = Directory('${workspace.path}/$specsDir');
   final code = await nextSpecCode(repo, workspace);
   final slug = slugify(title, maxLength: 40);
-  final rel = 'specs/$code${slug.isEmpty ? '' : '-$slug'}.md';
+  final rel = '$specsDir/$code${slug.isEmpty ? '' : '-$slug'}.md';
   final file = File('${workspace.path}/$rel');
   await dir.create(recursive: true);
   // Exclusive create: a second click racing on the same number fails here

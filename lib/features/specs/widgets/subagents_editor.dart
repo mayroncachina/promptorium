@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/db/app_database.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/agent_names.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -13,19 +12,26 @@ import '../spec_file.dart';
 class SubagentsEditor extends ConsumerStatefulWidget {
   const SubagentsEditor({
     super.key,
-    required this.spec,
+    this.mainAgent,
     required this.workspacePath,
     required this.subagents,
-    required this.requirements,
-    required this.locked,
+    this.requirements = const [],
+    this.locked = false,
+    this.allowStep = true,
+    this.initiallyOpen = false,
     required this.onChange,
   });
 
-  final Spec spec;
+  /// Agent of the sessions (warns when it cannot call subagents).
+  final String? mainAgent;
   final String workspacePath;
   final List<SpecSubagent> subagents;
   final List<SpecRequirement> requirements;
   final bool locked;
+
+  /// Offers "ao terminar uma etapa" (only a spec has steps).
+  final bool allowStep;
+  final bool initiallyOpen;
   final ValueChanged<List<SpecSubagent>> onChange;
 
   @override
@@ -39,7 +45,7 @@ class _SubagentsEditorState extends ConsumerState<SubagentsEditor> {
   final _instruction = TextEditingController();
 
   /// Collapsed by default: the steps list keeps the room.
-  bool _open = false;
+  late bool _open = widget.initiallyOpen;
 
   @override
   void dispose() {
@@ -73,7 +79,7 @@ class _SubagentsEditorState extends ConsumerState<SubagentsEditor> {
         ref.watch(agentListProvider(widget.workspacePath)).value ??
         const <AgentRef>[];
     final byName = {for (final a in agents) a.name: a};
-    final main = byName[widget.spec.agentName];
+    final main = byName[widget.mainAgent];
     final noTask = main != null && !main.canUseSubagents;
     return Column(
       key: const ValueKey('subagents-editor'),
@@ -179,10 +185,14 @@ class _SubagentsEditorState extends ConsumerState<SubagentsEditor> {
               value: _when,
               items: [
                 for (final w in SubagentWhen.values)
-                  DropdownMenuItem(
-                    value: w,
-                    child: Text(w.label, style: const TextStyle(fontSize: 12)),
-                  ),
+                  if (widget.allowStep || w != SubagentWhen.atStep)
+                    DropdownMenuItem(
+                      value: w,
+                      child: Text(
+                        w.label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
               ],
               onChanged: (v) => setState(() => _when = v ?? _when),
             ),
