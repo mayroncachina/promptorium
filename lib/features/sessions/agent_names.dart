@@ -12,6 +12,8 @@ class AgentRef {
     this.description,
     this.permissionMode,
     this.maxTurns,
+    this.model,
+    this.effort,
   });
 
   final String name;
@@ -24,6 +26,12 @@ class AgentRef {
   /// main thread (sondado na Fase 7), so the dialog preselects it.
   final String? permissionMode;
   final int? maxTurns;
+
+  /// `model` of the frontmatter (`--agent` runs the main thread with it).
+  final String? model;
+
+  /// `effort` of the frontmatter; the dialog preselects it (`--effort`).
+  final String? effort;
 }
 
 /// `name:` (and `description:`) from the YAML frontmatter of an agent file,
@@ -52,6 +60,8 @@ List<AgentRef> effectiveAgents(List<AgentEntry> entries) {
       description: e.file.description,
       permissionMode: e.file.permissionMode,
       maxTurns: e.file.maxTurns,
+      model: e.file.model,
+      effort: e.file.effort,
     );
   }
   return byName.values.toList()..sort((a, b) => a.name.compareTo(b.name));

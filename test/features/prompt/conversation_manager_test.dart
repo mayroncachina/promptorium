@@ -131,6 +131,9 @@ void main() {
       final run = provider.last;
       expect(run.options.workingDirectory, '/work/repo');
       expect(run.options.mode, PromptMode.ask);
+      expect(run.options.model, 'haiku');
+      expect(run.options.effort, 'medium');
+      expect(run.options.autocompact, '200k');
       expect(run.options.sessionId, '00000000-0000-4000-8000-000000000001');
       expect(run.options.resumeId, isNull);
       expect(run.sent, ['Como funciona o parser?\nDetalhes…']);
@@ -200,6 +203,27 @@ void main() {
         expect(second.sent, ['agora edite']);
       },
     );
+
+    test('without a model: defaults of Configurações → Consumo', () async {
+      final m = c.read(conversationManagerProvider.notifier);
+      final id = await m.create(workspace: ws, text: 'oi');
+      expect(provider.last.options.model, 'sonnet');
+      expect(
+        (await c.read(conversationsRepoProvider).getById(id))!.model,
+        'sonnet',
+      );
+      expect(c.read(promptDraftProvider).model, 'sonnet');
+
+      final settings = c.read(appSettingsProvider.notifier);
+      await settings.set(AppSettingKeys.runModel('conversation'), 'opus');
+      await settings.set(AppSettingKeys.runEffort('conversation'), 'default');
+      await settings.set(AppSettingKeys.autocompact, 'auto');
+      await m.create(workspace: ws, text: 'de novo');
+      expect(provider.last.options.model, 'opus');
+      expect(provider.last.options.effort, isNull); // CLI default
+      expect(provider.last.options.autocompact, 'auto');
+      expect(c.read(promptDraftProvider).model, 'opus');
+    });
 
     test('deny and stop', () async {
       final m = c.read(conversationManagerProvider.notifier);

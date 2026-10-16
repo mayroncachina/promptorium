@@ -20,54 +20,45 @@ void main() {
     ];
   });
 
-  test(
-    'sums result usage per day, persists it and keeps the last rate limit',
-    () async {
-      final db = memoryDatabase();
-      var now = DateTime(2026, 10, 15, 23, 50);
-      final c = ProviderContainer(
-        overrides: [
-          databaseOverride(db),
-          usageClockProvider.overrideWithValue(() => now),
-        ],
-      );
-      addTearDown(c.dispose);
-      await c.read(appSettingsProvider.notifier).load();
-      final tracker = c.read(usageTrackerProvider);
+  test('keeps the last rate limit and restores it after a restart', () async {
+    final db = memoryDatabase();
+    final c = ProviderContainer(overrides: [databaseOverride(db)]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    expect(c.read(rateLimitProvider), isNull);
 
-      for (final e in fixture) {
-        await tracker.handle(e);
-      }
-      for (final e in fixture.whereType<Result>()) {
-        await tracker.handle(e);
-      }
+    // Results no longer feed anything: only rate_limit_event counts.
+    for (final e in fixture) {
+      await c.read(usageTrackerProvider).handle(e);
+    }
+    final r = c.read(rateLimitProvider)!;
+    expect(r.fiveHourUtilization, 0.12);
+    expect(r.sevenDayUtilization, 0.56);
+    expect(
+      c.read(appSettingsProvider).keys,
+      isNot(contains(startsWith('usage.2'))),
+    );
 
-      final today = c.read(dailyUsageProvider);
-      expect(today.day, '2026-10-15');
-      expect(today.results, 2);
-      expect(today.usage.inputTokens, 4);
-      expect(today.usage.outputTokens, 84);
-      expect(today.usage.cacheReadInputTokens, 22182);
-      expect(today.costUsd, closeTo(0.00604742, 1e-9));
-      expect(c.read(rateLimitProvider)!.fiveHourUtilization, 0.12);
-
-      final stored = await c
-          .read(appSettingsRepoProvider)
-          .get('usage.2026-10-15');
-      expect(DailyUsage.decode('2026-10-15', stored).usage.outputTokens, 84);
-
-      // Next day starts from zero; the previous day stays stored.
-      now = DateTime(2026, 10, 16, 0, 5);
-      await tracker.handle(fixture.whereType<Result>().single);
-      final next = c.read(dailyUsageProvider);
-      expect(next.day, '2026-10-16');
-      expect(next.results, 1);
-      expect(c.read(appSettingsProvider)['usage.2026-10-15'], isNotNull);
-    },
-  );
+    // A new container (app restart) reads the stored event.
+    final again = ProviderContainer(overrides: [databaseOverride(db)]);
+    addTearDown(again.dispose);
+    await again.read(appSettingsProvider.notifier).load();
+    final restored = again.read(rateLimitProvider)!;
+    expect(restored.fiveHourUtilization, 0.12);
+    expect(restored.fiveHourResetsAt, r.fiveHourResetsAt);
+  });
 
   test('decode is tolerant', () {
-    expect(DailyUsage.decode('d', 'lixo').results, 0);
-    expect(DailyUsage.decode('d', null).costUsd, 0);
+    expect(decodeRateLimit(null), isNull);
+    expect(decodeRateLimit('lixo'), isNull);
+    expect(decodeRateLimit('{"type":"result"}'), isNull);
+  });
+
+  test('a window expires at its reset time', () {
+    final t = DateTime(2026, 10, 16, 18);
+    expect(planWindowExpired(null, t), isFalse);
+    expect(planWindowExpired(t.add(const Duration(minutes: 1)), t), isFalse);
+    expect(planWindowExpired(t, t), isTrue);
+    expect(planWindowExpired(t.subtract(const Duration(hours: 1)), t), isTrue);
   });
 }

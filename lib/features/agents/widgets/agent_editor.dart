@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -60,6 +61,9 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
       (widget.workspace == null ? AgentScope.global : AgentScope.project);
   late String? _model = _base.model;
   late String? _permission = _base.permissionMode;
+
+  /// `effort` of the frontmatter (null = absent: the session's effort).
+  late String? _effort = _base.effort;
   late final List<String> _tools = [
     for (final t in _base.tools)
       if (agentToolPills.contains(t)) t,
@@ -129,6 +133,7 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
     }
     f = f.withValue('model', _model);
     f = f.withValue('permissionMode', _permission);
+    f = f.withValue('effort', _effort);
     final turns = _parsedTurns;
     if (turns.ok) f = f.withValue('maxTurns', turns.value);
     if (_mcpTouched) f = f.withMcpServerNames(_mcp);
@@ -513,6 +518,9 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
           ],
         ),
         const SizedBox(height: 12),
+        const FieldLabel('Esforço (effort)'),
+        _effortRow(),
+        const SizedBox(height: 12),
         const FieldLabel('Escopo'),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,6 +550,40 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
 
   (String, String)? _customModel(String? custom) =>
       custom == null ? null : (custom, custom);
+
+  /// "Padrão" removes `effort` (the session's effort applies); a value the
+  /// app does not know stays selectable as written in the file.
+  Widget _effortRow() {
+    final effort = _effort ?? defaultEffort;
+    return Row(
+      children: [
+        for (final id in {...effortChoices, effort})
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ToggleBox(
+                key: ValueKey('agent-effort-$id'),
+                on: effort == id,
+                height: 34,
+                onTap: () =>
+                    setState(() => _effort = id == defaultEffort ? null : id),
+                child: Text(
+                  id == defaultEffort ? 'Padrão' : id,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: effort == id
+                        ? AppColors.amber
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _scopeBox(AgentScope scope, String title, String hint) => ToggleBox(
     key: ValueKey('agent-scope-${scope.name}'),
@@ -834,7 +876,7 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
           'O orçamento fica no Promptorium e vira --max-budget-usd ao abrir a '
           'sessão; maxTurns também é passado como --max-turns. O CLI não '
           'aplica permissionMode com --agent: a Nova sessão pré-seleciona o '
-          'modo do agente.',
+          'modo e o esforço (--effort) do agente.',
           style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
       ],

@@ -10,6 +10,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
@@ -43,6 +44,7 @@ class NewSessionRequest {
     required this.prompt,
     this.agent,
     this.model = 'inherit',
+    this.effort,
     this.permissionMode = ClaudePermissionMode.defaultMode,
     this.useWorktree = true,
     this.taskId,
@@ -58,6 +60,10 @@ class NewSessionRequest {
   /// Subagent name passed as `--agent` (null = none).
   final String? agent;
   final String model;
+
+  /// `--effort` (one of `effortChoices`); null = the session default of
+  /// Configurações ([RunPrefs]).
+  final String? effort;
   final ClaudePermissionMode permissionMode;
 
   /// false = run in the workspace root (no `git worktree add`).
@@ -148,7 +154,7 @@ class _Proc {
   final ClaudeProcess process;
   String title;
 
-  /// Last cumulative `total_cost_usd` seen (for the per-turn delta).
+  /// Highest cumulative `total_cost_usd` seen (the session cost).
   double lastCost;
   final List<PermissionRequest> pending = [];
   final DateTime started = DateTime.now();
@@ -239,12 +245,15 @@ class SessionManager extends Notifier<SessionManagerState> {
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
     }
+    final effort =
+        r.effort ?? ref.read(runPrefsProvider).effort(RunKind.session);
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
       worktreePath: path,
       branch: branch,
       model: r.model,
+      effort: effort,
       agentName: r.agent,
       title: title,
       permissionMode: r.permissionMode.cliValue,
@@ -261,6 +270,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: r.resumeFrom,
         forkSession: r.resumeFrom != null,
         model: _model(r.model),
+        effort: effortArg(effort),
         agent: r.agent,
         permissionMode: r.permissionMode,
         maxBudgetUsd: r.maxBudgetUsd ?? limits.budgetUsd,
@@ -368,6 +378,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ClaudeOptions(
         resumeId: id,
         model: _model(s.model),
+        effort: _effort(s.effort),
         agent: s.agentName,
         permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
@@ -419,6 +430,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       worktreePath: path,
       branch: branch,
       model: parent.model,
+      effort: parent.effort,
       agentName: parent.agentName,
       title: name,
       permissionMode: parent.permissionMode,
@@ -438,6 +450,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
+        effort: _effort(parent.effort),
         agent: parent.agentName,
         permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
@@ -582,7 +595,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final ClaudeProcess process;
     try {
       process = await ClaudeProcess.start(
-        options,
+        options.copyWith(autocompact: ref.read(runPrefsProvider).autocompact),
         workingDirectory: cwd,
         executable: ref.read(claudeExecutableProvider),
         starter: ref.read(claudeProcessStarterProvider),
@@ -663,7 +676,6 @@ class SessionManager extends Notifier<SessionManagerState> {
       case ToolResult():
         p.subagents.remove(e.toolUseId);
       case Result():
-        final delta = math.max(0.0, e.totalCostUsd - p.lastCost);
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -675,7 +687,6 @@ class SessionManager extends Notifier<SessionManagerState> {
               u.cacheReadInputTokens,
           tokensOut: u.outputTokens,
         );
-        await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
         p.subagents.clear();
         p.busy = false;
         final status = e.isSuccess
@@ -846,6 +857,10 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   static String? _model(String m) => m.isEmpty || m == 'inherit' ? null : m;
+
+  /// Stored effort of a session (null for rows before schema v7 = default).
+  String? _effort(String? stored) =>
+      effortArg(stored ?? ref.read(runPrefsProvider).effort(RunKind.session));
 
   static String _short(String id) => id.length > 8 ? id.substring(0, 8) : id;
 

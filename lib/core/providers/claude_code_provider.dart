@@ -75,6 +75,8 @@ class ClaudeCodeProvider implements AgentProvider {
       resumeId: o.resumeId,
       forkSession: o.forkSession,
       model: model,
+      effort: o.effort,
+      autocompact: o.autocompact,
       maxBudgetUsd: o.maxBudgetUsd,
       permissionMode: switch (o.mode) {
         PromptMode.ask => ClaudePermissionMode.defaultMode,

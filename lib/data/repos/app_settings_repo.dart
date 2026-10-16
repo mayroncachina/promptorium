@@ -11,8 +11,18 @@ abstract final class AppSettingKeys {
   /// Zoom percent of one editor ('specs', 'code').
   static String editorZoom(String editor) => 'editor.zoom.$editor';
 
-  /// Token usage of one day (`yyyy-mm-dd`, JSON; see `UsageTracker`).
-  static String usage(String day) => 'usage.$day';
+  /// Last `rate_limit_event` (raw JSON): the footer shows the plan usage
+  /// right after a restart (see `RateLimitController`).
+  static const lastRateLimit = 'usage.rateLimit';
+
+  /// Default model of a `RunKind` (`session`, `conversation`, `planner`).
+  static String runModel(String kind) => 'claude.model.$kind';
+
+  /// Default `--effort` of a `RunKind` (`default` = CLI default).
+  static String runEffort(String kind) => 'claude.effort.$kind';
+
+  /// `--autocompact` of every run (`auto` or `100k`–`1M`).
+  static const autocompact = 'claude.autocompact';
 
   /// Worktree selected in the Code screen for a workspace (path).
   static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';

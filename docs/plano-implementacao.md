@@ -527,6 +527,18 @@ Desenho no canvas "Promptorium — Skills" (https://claude.ai/artifact/1G7CNTnbD
 - Nova skill com o Claude: `runReadOnlyClaude` + `--json-schema {name, description, allowedTools, body}`; "a partir de uma sessão" manda a transcrição (mensagens do usuário e do agente principal, últimos 12 mil caracteres). Não sondado no CLI real (schema plano, mesmo mecanismo do planner).
 - Uso: sessões cujo `session_events` tem `tool_use` `Skill` com `"skill":"<nome>"`.
 
+## Pós-F12 — Consumo (modelo, esforço, compactação) e rodapé do plano
+
+Motivo: num dia de uso (2026-10-15), 94% dos 21,3 mi de tokens do rodapé eram leitura de cache, e uma sessão de 97 turnos em Opus custou US$ 10,59: o contexto chegou a 321 mil tokens e cada chamada relia tudo (com janela de 1M o auto-compact nunca disparou).
+
+- `ClaudeOptions.effort` → `--effort` (low…max; valor inválido o CLI só avisa e ignora) e `ClaudeOptions.autocompact` → `--autocompact` (`auto` ou 100k–1M, ex. `200k`; abaixo de 100k o CLI recusa antes de começar). Sondado no CLI 2.1.301 com modelo inexistente (sem custo).
+- **Configurações → Consumo** (`RunPrefs`, chaves `claude.model.<tipo>`, `claude.effort.<tipo>`, `claude.autocompact` em `app_settings`): modelo e esforço padrão por tipo — Sessões (Sonnet, medium), Conversas do Prompt (Sonnet, medium), Planner (padrão do CLI, medium) — e compactação em 200k para tudo. "Restaurar padrões" apaga as chaves.
+- Sessões: Nova sessão começa com os padrões e tem seletor de Esforço; um agente com `model` no frontmatter muda o modelo para `inherit` (o do agente vale) e o `effort` do agente é pré-selecionado. `sessions.effort` (schema v7) guarda o esforço: retomar, fork e o terminal embutido reaplicam. Linhas antigas (sem esforço) usam o padrão atual.
+- Conversas: `ConversationManager.create(model: null)` usa o modelo padrão de conversas (Refinar spec também); o rascunho do Prompt acompanha a preferência. Esforço e compactação entram em cada início do processo.
+- Planner (Projeto, Gerar tarefas, Nova skill): `runReadOnlyClaude` completa modelo/esforço/compactação que não vieram nas opções.
+- Agentes: o editor ganhou "Esforço (effort)" (grava `effort:` no frontmatter; "Padrão" remove). O CLI 2.1.301 lê `effort` (e `autoCompactWindow`) no frontmatter de agentes.
+- Rodapé: saiu a soma de tokens do dia (`DailyUsage`, `dailyUsageProvider`; a v7 apaga as linhas `usage.<yyyy-mm-dd>`). Fica o uso do plano do último `rate_limit_event` — 5h e semana com % usado, % restante e "reinicia em" — agora **persistido** (`usage.rateLimit`), então aparece logo ao abrir o app. Janela já reiniciada mostra "—"; `status: rejected` mostra "limite atingido · volta em …" em vermelho na janela que estourou. O rodapé redesenha a cada minuto.
+
 ---
 
 ## Ordem e dependências

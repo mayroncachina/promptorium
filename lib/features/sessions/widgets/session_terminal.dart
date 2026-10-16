@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../../core/claude/claude_cli.dart';
+import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../session_manager.dart';
@@ -90,12 +91,17 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
     if (existing != null && existing.running) return;
     final t = SessionTerminal(s.id);
     final model = s.model == 'inherit' || s.model.isEmpty ? null : s.model;
+    final prefs = ref.read(runPrefsProvider);
+    final effort = effortArg(s.effort ?? prefs.effort(RunKind.session));
     t.start(
       executable: ref.read(claudeExecutableProvider),
       args: [
         '--resume',
         s.id,
         if (model != null) ...['--model', model],
+        if (effort != null) ...['--effort', effort],
+        '--autocompact',
+        prefs.autocompact,
         if (s.agentName != null) ...['--agent', s.agentName!],
         if (s.permissionMode != null) ...[
           '--permission-mode',

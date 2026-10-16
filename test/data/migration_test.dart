@@ -87,7 +87,7 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 6);
+    expect(v.data.values.single, 7);
   });
 
   test('v2 → v4 adds conversation columns, conversation_events, '
@@ -186,7 +186,7 @@ void main() {
       expect(old.requirement, isNull);
       expect(await tasks.nextCode(1), 'TASK-008');
       final v = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(v.data.values.single, 6);
+      expect(v.data.values.single, 7);
     },
   );
 
@@ -238,6 +238,67 @@ void main() {
     );
     expect((await repo.getById('new'))!.baseBranch, 'main');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 6);
+    expect(v.data.values.single, 7);
   });
+
+  test(
+    'v6 → v7 adds sessions.effort and drops the daily token totals',
+    () async {
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      final db = AppDatabase(
+        NativeDatabase.memory(
+          setup: (raw) {
+            raw.execute(
+              'CREATE TABLE workspaces (id INTEGER NOT NULL PRIMARY KEY '
+              'AUTOINCREMENT, path TEXT NOT NULL UNIQUE, name TEXT NOT NULL, '
+              'created_at INTEGER NOT NULL DEFAULT 0)',
+            );
+            raw.execute(
+              v2Sessions.replaceFirst(
+                'ended_at INTEGER NULL)',
+                'ended_at INTEGER NULL, base_branch TEXT NULL, '
+                    'merge_commit TEXT NULL, pr_url TEXT NULL)',
+              ),
+            );
+            raw.execute(
+              'CREATE TABLE app_settings (key TEXT NOT NULL PRIMARY KEY, '
+              'value TEXT NOT NULL)',
+            );
+            raw.execute(
+              "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+            );
+            raw.execute(
+              'INSERT INTO sessions (id, workspace_id, worktree_path, branch, '
+              "model) VALUES ('old', 1, '/wt', 'pr/x', 'opus')",
+            );
+            raw.execute(
+              'INSERT INTO app_settings (key, value) VALUES '
+              "('usage.2026-10-15', '{}'), ('workspace.active', '1'), "
+              "('usage.rateLimit', '{}')",
+            );
+            raw.userVersion = 6;
+          },
+        ),
+      );
+      addTearDown(db.close);
+      await db.ensureOpen();
+      final repo = SessionsRepo(db);
+      expect((await repo.getById('old'))!.effort, isNull);
+      await repo.insert(
+        id: 'new',
+        workspaceId: 1,
+        worktreePath: '/wt2',
+        branch: 'pr/y',
+        model: 'sonnet',
+        effort: 'medium',
+      );
+      expect((await repo.getById('new'))!.effort, 'medium');
+      final keys = [
+        for (final r
+            in await db.customSelect('SELECT key FROM app_settings').get())
+          r.read<String>('key'),
+      ];
+      expect(keys, unorderedEquals(['workspace.active', 'usage.rateLimit']));
+    },
+  );
 }

@@ -122,6 +122,10 @@ class Sessions extends Table {
     Constant(SessionStatus.running.name),
   )();
   TextColumn get model => text()();
+
+  /// `--effort` used to (re)start the process (schema v7). Null = rows
+  /// written before: resumes use the default of Configurações.
+  TextColumn get effort => text().nullable()();
   RealColumn get costUsd => real().withDefault(const Constant(0))();
   IntColumn get tokensIn => integer().withDefault(const Constant(0))();
   IntColumn get tokensOut => integer().withDefault(const Constant(0))();
@@ -317,7 +321,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -353,6 +357,20 @@ class AppDatabase extends _$AppDatabase {
       // v6: planning of a new project (Projeto screen).
       if (from < 6) {
         await m.createTable(projectPlans);
+      }
+      // v7: effort of a session; the footer no longer sums tokens per day
+      // (the `usage.<yyyy-mm-dd>` rows of app_settings are dropped).
+      if (from < 7) {
+        await m.addColumn(sessions, sessions.effort);
+        final hasSettings = await customSelect(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'app_settings'",
+        ).get();
+        if (hasSettings.isNotEmpty) {
+          await customStatement(
+            "DELETE FROM app_settings WHERE key GLOB 'usage.[0-9]*'",
+          );
+        }
       }
     },
     beforeOpen: (details) async {

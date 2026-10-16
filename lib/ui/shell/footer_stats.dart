@@ -23,13 +23,13 @@ class FooterStats {
     this.mcpConnected,
     this.mcpTotal,
     this.mcpFailed,
-    this.tokensToday,
-    this.tokensIn,
-    this.tokensOut,
-    this.tokensCache,
     this.usage5h,
     this.usage5hResetsAt,
     this.usageWeek,
+    this.usageWeekResetsAt,
+    this.limitRejected = false,
+    this.limitResetsAt,
+    this.limitType,
   });
 
   final CliStatus cliStatus;
@@ -41,17 +41,23 @@ class FooterStats {
   final int? mcpConnected;
   final int? mcpTotal;
   final int? mcpFailed;
-  final int? tokensToday;
-  final int? tokensIn;
-  final int? tokensOut;
-  final int? tokensCache;
 
-  /// 0–1 (`rate_limit_info.unifiedWindows.five_hour.utilization`).
+  /// 0–1+ (`rate_limit_info.unifiedWindows.five_hour.utilization`; above 1
+  /// when the limit was passed). Null = unknown. Stored values outlive the
+  /// window: the footer ignores them after the reset ([planWindowExpired]).
   final double? usage5h;
   final DateTime? usage5hResetsAt;
 
-  /// 0–1 (`…seven_day.utilization`).
+  /// 0–1+ (`…seven_day.utilization`).
   final double? usageWeek;
+  final DateTime? usageWeekResetsAt;
+
+  /// The last `rate_limit_event` said `rejected`: new turns fail until
+  /// [limitResetsAt]. [limitType] = the window that hit it (`five_hour`,
+  /// `seven_day`…).
+  final bool limitRejected;
+  final DateTime? limitResetsAt;
+  final String? limitType;
 
   FooterStats copyWith({CliStatus? cliStatus, String? claudeVersion}) =>
       FooterStats(
@@ -64,13 +70,13 @@ class FooterStats {
         mcpConnected: mcpConnected,
         mcpTotal: mcpTotal,
         mcpFailed: mcpFailed,
-        tokensToday: tokensToday,
-        tokensIn: tokensIn,
-        tokensOut: tokensOut,
-        tokensCache: tokensCache,
         usage5h: usage5h,
         usage5hResetsAt: usage5hResetsAt,
         usageWeek: usageWeek,
+        usageWeekResetsAt: usageWeekResetsAt,
+        limitRejected: limitRejected,
+        limitResetsAt: limitResetsAt,
+        limitType: limitType,
       );
 }
 
@@ -88,8 +94,8 @@ final cliStatusProvider =
     );
 
 /// Footer data (plano, Fase 5 item 11): CLI status, sessions of the active
-/// workspace, approvals and subagents of every live session, today's tokens
-/// (`UsageTracker`), plan usage (last `rate_limit_event`) and MCP servers of
+/// workspace, approvals and subagents of every live session, plan usage
+/// (last `rate_limit_event`, persisted) and MCP servers of
 /// the newest `claude mcp list` / `system/init` ([mcpStatusBoardProvider],
 /// Fase 11).
 class FooterStatsController extends Notifier<FooterStats> {
@@ -101,7 +107,6 @@ class FooterStatsController extends Notifier<FooterStats> {
     final sessions = ws == null
         ? null
         : ref.watch(sessionsProvider(ws.id)).value;
-    final today = ref.watch(dailyUsageProvider);
     final rate = ref.watch(rateLimitProvider);
     final mcp = ref.watch(mcpStatusBoardProvider);
 
@@ -116,7 +121,6 @@ class FooterStatsController extends Notifier<FooterStats> {
           )
           .length;
     }
-    final hasUsage = today.results > 0;
     return FooterStats(
       cliStatus: cli,
       claudeVersion: version,
@@ -127,16 +131,13 @@ class FooterStatsController extends Notifier<FooterStats> {
       mcpConnected: mcp.isEmpty ? null : mcp.connected,
       mcpTotal: mcp.isEmpty ? null : mcp.total,
       mcpFailed: mcp.isEmpty ? null : mcp.failed,
-      tokensToday: hasUsage ? today.totalTokens : null,
-      tokensIn: hasUsage ? today.usage.inputTokens : null,
-      tokensOut: hasUsage ? today.usage.outputTokens : null,
-      tokensCache: hasUsage
-          ? today.usage.cacheReadInputTokens +
-                today.usage.cacheCreationInputTokens
-          : null,
       usage5h: rate?.fiveHourUtilization,
       usage5hResetsAt: rate?.fiveHourResetsAt,
       usageWeek: rate?.sevenDayUtilization,
+      usageWeekResetsAt: rate?.sevenDayResetsAt,
+      limitRejected: rate?.status == 'rejected',
+      limitResetsAt: rate?.resetsAt,
+      limitType: rate?.rateLimitType,
     );
   }
 

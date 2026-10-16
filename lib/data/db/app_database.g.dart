@@ -1494,6 +1494,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _effortMeta = const VerificationMeta('effort');
+  @override
+  late final GeneratedColumn<String> effort = GeneratedColumn<String>(
+    'effort',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _costUsdMeta = const VerificationMeta(
     'costUsd',
   );
@@ -1596,6 +1605,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     branch,
     status,
     model,
+    effort,
     costUsd,
     tokensIn,
     tokensOut,
@@ -1686,6 +1696,12 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
       );
     } else if (isInserting) {
       context.missing(_modelMeta);
+    }
+    if (data.containsKey('effort')) {
+      context.handle(
+        _effortMeta,
+        effort.isAcceptableOrUnknown(data['effort']!, _effortMeta),
+      );
     }
     if (data.containsKey('cost_usd')) {
       context.handle(
@@ -1789,6 +1805,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.string,
         data['${effectivePrefix}model'],
       )!,
+      effort: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effort'],
+      ),
       costUsd: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}cost_usd'],
@@ -1849,6 +1869,10 @@ class Session extends DataClass implements Insertable<Session> {
   final String branch;
   final SessionStatus status;
   final String model;
+
+  /// `--effort` used to (re)start the process (schema v7). Null = rows
+  /// written before: resumes use the default of Configurações.
+  final String? effort;
   final double costUsd;
   final int tokensIn;
   final int tokensOut;
@@ -1875,6 +1899,7 @@ class Session extends DataClass implements Insertable<Session> {
     required this.branch,
     required this.status,
     required this.model,
+    this.effort,
     required this.costUsd,
     required this.tokensIn,
     required this.tokensOut,
@@ -1909,6 +1934,9 @@ class Session extends DataClass implements Insertable<Session> {
       );
     }
     map['model'] = Variable<String>(model);
+    if (!nullToAbsent || effort != null) {
+      map['effort'] = Variable<String>(effort);
+    }
     map['cost_usd'] = Variable<double>(costUsd);
     map['tokens_in'] = Variable<int>(tokensIn);
     map['tokens_out'] = Variable<int>(tokensOut);
@@ -1948,6 +1976,9 @@ class Session extends DataClass implements Insertable<Session> {
       branch: Value(branch),
       status: Value(status),
       model: Value(model),
+      effort: effort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(effort),
       costUsd: Value(costUsd),
       tokensIn: Value(tokensIn),
       tokensOut: Value(tokensOut),
@@ -1985,6 +2016,7 @@ class Session extends DataClass implements Insertable<Session> {
         serializer.fromJson<String>(json['status']),
       ),
       model: serializer.fromJson<String>(json['model']),
+      effort: serializer.fromJson<String?>(json['effort']),
       costUsd: serializer.fromJson<double>(json['costUsd']),
       tokensIn: serializer.fromJson<int>(json['tokensIn']),
       tokensOut: serializer.fromJson<int>(json['tokensOut']),
@@ -2011,6 +2043,7 @@ class Session extends DataClass implements Insertable<Session> {
         $SessionsTable.$converterstatus.toJson(status),
       ),
       'model': serializer.toJson<String>(model),
+      'effort': serializer.toJson<String?>(effort),
       'costUsd': serializer.toJson<double>(costUsd),
       'tokensIn': serializer.toJson<int>(tokensIn),
       'tokensOut': serializer.toJson<int>(tokensOut),
@@ -2033,6 +2066,7 @@ class Session extends DataClass implements Insertable<Session> {
     String? branch,
     SessionStatus? status,
     String? model,
+    Value<String?> effort = const Value.absent(),
     double? costUsd,
     int? tokensIn,
     int? tokensOut,
@@ -2054,6 +2088,7 @@ class Session extends DataClass implements Insertable<Session> {
     branch: branch ?? this.branch,
     status: status ?? this.status,
     model: model ?? this.model,
+    effort: effort.present ? effort.value : this.effort,
     costUsd: costUsd ?? this.costUsd,
     tokensIn: tokensIn ?? this.tokensIn,
     tokensOut: tokensOut ?? this.tokensOut,
@@ -2081,6 +2116,7 @@ class Session extends DataClass implements Insertable<Session> {
       branch: data.branch.present ? data.branch.value : this.branch,
       status: data.status.present ? data.status.value : this.status,
       model: data.model.present ? data.model.value : this.model,
+      effort: data.effort.present ? data.effort.value : this.effort,
       costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
       tokensIn: data.tokensIn.present ? data.tokensIn.value : this.tokensIn,
       tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
@@ -2109,6 +2145,7 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('branch: $branch, ')
           ..write('status: $status, ')
           ..write('model: $model, ')
+          ..write('effort: $effort, ')
           ..write('costUsd: $costUsd, ')
           ..write('tokensIn: $tokensIn, ')
           ..write('tokensOut: $tokensOut, ')
@@ -2133,6 +2170,7 @@ class Session extends DataClass implements Insertable<Session> {
     branch,
     status,
     model,
+    effort,
     costUsd,
     tokensIn,
     tokensOut,
@@ -2156,6 +2194,7 @@ class Session extends DataClass implements Insertable<Session> {
           other.branch == this.branch &&
           other.status == this.status &&
           other.model == this.model &&
+          other.effort == this.effort &&
           other.costUsd == this.costUsd &&
           other.tokensIn == this.tokensIn &&
           other.tokensOut == this.tokensOut &&
@@ -2177,6 +2216,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String> branch;
   final Value<SessionStatus> status;
   final Value<String> model;
+  final Value<String?> effort;
   final Value<double> costUsd;
   final Value<int> tokensIn;
   final Value<int> tokensOut;
@@ -2197,6 +2237,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.branch = const Value.absent(),
     this.status = const Value.absent(),
     this.model = const Value.absent(),
+    this.effort = const Value.absent(),
     this.costUsd = const Value.absent(),
     this.tokensIn = const Value.absent(),
     this.tokensOut = const Value.absent(),
@@ -2218,6 +2259,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     required String branch,
     this.status = const Value.absent(),
     required String model,
+    this.effort = const Value.absent(),
     this.costUsd = const Value.absent(),
     this.tokensIn = const Value.absent(),
     this.tokensOut = const Value.absent(),
@@ -2243,6 +2285,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? branch,
     Expression<String>? status,
     Expression<String>? model,
+    Expression<String>? effort,
     Expression<double>? costUsd,
     Expression<int>? tokensIn,
     Expression<int>? tokensOut,
@@ -2264,6 +2307,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (branch != null) 'branch': branch,
       if (status != null) 'status': status,
       if (model != null) 'model': model,
+      if (effort != null) 'effort': effort,
       if (costUsd != null) 'cost_usd': costUsd,
       if (tokensIn != null) 'tokens_in': tokensIn,
       if (tokensOut != null) 'tokens_out': tokensOut,
@@ -2287,6 +2331,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String>? branch,
     Value<SessionStatus>? status,
     Value<String>? model,
+    Value<String?>? effort,
     Value<double>? costUsd,
     Value<int>? tokensIn,
     Value<int>? tokensOut,
@@ -2308,6 +2353,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       branch: branch ?? this.branch,
       status: status ?? this.status,
       model: model ?? this.model,
+      effort: effort ?? this.effort,
       costUsd: costUsd ?? this.costUsd,
       tokensIn: tokensIn ?? this.tokensIn,
       tokensOut: tokensOut ?? this.tokensOut,
@@ -2355,6 +2401,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (model.present) {
       map['model'] = Variable<String>(model.value);
     }
+    if (effort.present) {
+      map['effort'] = Variable<String>(effort.value);
+    }
     if (costUsd.present) {
       map['cost_usd'] = Variable<double>(costUsd.value);
     }
@@ -2398,6 +2447,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('branch: $branch, ')
           ..write('status: $status, ')
           ..write('model: $model, ')
+          ..write('effort: $effort, ')
           ..write('costUsd: $costUsd, ')
           ..write('tokensIn: $tokensIn, ')
           ..write('tokensOut: $tokensOut, ')
@@ -7602,6 +7652,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   required String branch,
   Value<SessionStatus> status,
   required String model,
+  Value<String?> effort,
   Value<double> costUsd,
   Value<int> tokensIn,
   Value<int> tokensOut,
@@ -7623,6 +7674,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String> branch,
   Value<SessionStatus> status,
   Value<String> model,
+  Value<String?> effort,
   Value<double> costUsd,
   Value<int> tokensIn,
   Value<int> tokensOut,
@@ -7756,6 +7808,11 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<String> get model => $composableBuilder(
     column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effort => $composableBuilder(
+    column: $table.effort,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7945,6 +8002,11 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get effort => $composableBuilder(
+    column: $table.effort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get costUsd => $composableBuilder(
     column: $table.costUsd,
     builder: (column) => ColumnOrderings(column),
@@ -8068,6 +8130,9 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<String> get model =>
       $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get effort =>
+      $composableBuilder(column: $table.effort, builder: (column) => column);
 
   GeneratedColumn<double> get costUsd =>
       $composableBuilder(column: $table.costUsd, builder: (column) => column);
@@ -8237,6 +8302,7 @@ class $$SessionsTableTableManager
                 Value<String> branch = const Value.absent(),
                 Value<SessionStatus> status = const Value.absent(),
                 Value<String> model = const Value.absent(),
+                Value<String?> effort = const Value.absent(),
                 Value<double> costUsd = const Value.absent(),
                 Value<int> tokensIn = const Value.absent(),
                 Value<int> tokensOut = const Value.absent(),
@@ -8257,6 +8323,7 @@ class $$SessionsTableTableManager
                 branch: branch,
                 status: status,
                 model: model,
+                effort: effort,
                 costUsd: costUsd,
                 tokensIn: tokensIn,
                 tokensOut: tokensOut,
@@ -8279,6 +8346,7 @@ class $$SessionsTableTableManager
                 required String branch,
                 Value<SessionStatus> status = const Value.absent(),
                 required String model,
+                Value<String?> effort = const Value.absent(),
                 Value<double> costUsd = const Value.absent(),
                 Value<int> tokensIn = const Value.absent(),
                 Value<int> tokensOut = const Value.absent(),
@@ -8299,6 +8367,7 @@ class $$SessionsTableTableManager
                 branch: branch,
                 status: status,
                 model: model,
+                effort: effort,
                 costUsd: costUsd,
                 tokensIn: tokensIn,
                 tokensOut: tokensOut,

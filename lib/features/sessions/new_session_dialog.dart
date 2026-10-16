@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
+import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import 'agent_names.dart';
@@ -74,7 +75,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   );
   late final _prompt = TextEditingController(text: widget.initialPrompt ?? '');
   late String? _agent = widget.initialAgent;
-  String _model = 'inherit';
+
+  /// Defaults of Configurações → Consumo (an agent may change them).
+  late String _model = ref.read(runPrefsProvider).model(RunKind.session);
+  late String _effort = ref.read(runPrefsProvider).effort(RunKind.session);
 
   /// Last mode chosen here (remembered), else `default`.
   late ClaudePermissionMode _mode = () {
@@ -90,10 +94,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   bool _modeFromAgent = false;
 
   /// `--agent` does not apply the frontmatter `permissionMode` to the main
-  /// thread (sondado na Fase 7): choosing an agent preselects its mode.
+  /// thread (sondado na Fase 7): choosing an agent preselects its mode. An
+  /// agent with `model` gets `inherit` (its own model wins over `--model`)
+  /// and its `effort` is preselected; otherwise the defaults come back.
   void _pickAgent(String? name, List<AgentRef> agents) {
     _agent = name;
     final ref = agents.where((a) => a.name == name).firstOrNull;
+    final prefs = this.ref.read(runPrefsProvider);
+    _model = ref?.model != null ? 'inherit' : prefs.model(RunKind.session);
+    _effort = ClaudeOptions.effortLevels.contains(ref?.effort)
+        ? ref!.effort!
+        : prefs.effort(RunKind.session);
     final mode = ClaudePermissionMode.fromCli(ref?.permissionMode);
     // Never preselected: skipping permissions is only the user's choice.
     if (mode != null &&
@@ -141,6 +152,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 prompt: _prompt.text,
                 agent: _agent,
                 model: _model,
+                effort: _effort,
                 permissionMode: _mode,
                 useWorktree: _worktree,
                 taskId: widget.taskId,
@@ -316,19 +328,63 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             label('Modelo'),
-                            dropdown<String>(
-                              key: const ValueKey('new-session-model'),
-                              value: _model,
-                              items: [
-                                for (final m in sessionModels)
-                                  (m, m == 'inherit' ? 'inherit (padrão)' : m),
-                              ],
-                              onChanged: (v) => setState(() => _model = v),
+                            // Rebuilt when an agent changes the value.
+                            KeyedSubtree(
+                              key: ValueKey('new-session-model-$_model'),
+                              child: dropdown<String>(
+                                key: const ValueKey('new-session-model'),
+                                value: _model,
+                                items: [
+                                  for (final m in {...sessionModels, _model})
+                                    (
+                                      m,
+                                      m == 'inherit'
+                                          ? (_agent == null
+                                                ? 'inherit (padrão do CLI)'
+                                                : 'inherit (do agente)')
+                                          : m,
+                                    ),
+                                ],
+                                onChanged: (v) => setState(() => _model = v),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 140,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            label('Esforço'),
+                            KeyedSubtree(
+                              key: ValueKey('new-session-effort-$_effort'),
+                              child: dropdown<String>(
+                                key: const ValueKey('new-session-effort'),
+                                value: _effort,
+                                items: [
+                                  for (final e in {...effortChoices, _effort})
+                                    (e, effortLabel(e)),
+                                ],
+                                onChanged: (v) => setState(() => _effort = v),
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Padrões em Configurações → Consumo. Sessões longas '
+                      'custam mais: cada resposta relê a conversa inteira.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ),
                   label('Modo de permissão'),
                   // Rebuilt when an agent preselects the mode (initialValue).

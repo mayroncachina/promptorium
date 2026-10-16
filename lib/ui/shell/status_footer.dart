@@ -1,12 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/usage_tracker.dart' show planWindowExpired;
 import '../theme/tokens.dart';
 import 'footer_stats.dart';
 
-/// Fixed footer (28px) fed by [footerStatsProvider].
-class StatusFooter extends ConsumerWidget {
+/// Fixed footer (28px) fed by [footerStatsProvider]. Redraws every minute so
+/// the "reinicia em" countdowns stay right and a window that reset stops
+/// showing its old usage.
+class StatusFooter extends ConsumerStatefulWidget {
   const StatusFooter({super.key});
+
+  @override
+  ConsumerState<StatusFooter> createState() => _StatusFooterState();
+}
+
+class _StatusFooterState extends ConsumerState<StatusFooter> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
 
   static const _mono = TextStyle(
     fontFamily: AppFonts.mono,
@@ -20,8 +46,9 @@ class StatusFooter extends ConsumerWidget {
   );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final s = ref.watch(footerStatsProvider);
+    final now = DateTime.now();
 
     final (cliColor, cliText) = switch (s.cliStatus) {
       CliStatus.connected => (AppColors.teal, 'Claude Code CLI conectado'),
@@ -64,41 +91,33 @@ class StatusFooter extends ConsumerWidget {
       ]),
     ];
 
+    final limitOn = s.limitRejected && !planWindowExpired(s.limitResetsAt, now);
     final right = <Widget>[
-      Tooltip(
-        message: 'Tokens hoje: entrada / saída / cache',
-        child: _group([
-          const Text('Tokens hoje'),
-          Text(formatTokens(s.tokensToday), style: _mono),
-          if (s.tokensIn != null && s.tokensOut != null)
-            Text(
-              '↑${formatTokens(s.tokensIn)} ↓${formatTokens(s.tokensOut)}'
-              '${s.tokensCache == null ? '' : ' · cache ${formatTokens(s.tokensCache)}'}',
-              style: _monoDim,
-            ),
-        ]),
+      _window(
+        key: const ValueKey('footer-usage-5h'),
+        title: 'Uso 5h',
+        name: 'limite de 5 horas',
+        value: s.usage5h,
+        resetsAt: s.usage5hResetsAt,
+        color: AppColors.teal,
+        now: now,
+        // Weekly limit → the weekly window; anything else → the 5h one.
+        limitResetsAt: limitOn && s.limitType != 'seven_day'
+            ? s.limitResetsAt ?? s.usage5hResetsAt
+            : null,
       ),
-      _separator(),
-      _group([
-        const Text('Uso 5h'),
-        _UsageBar(
-          value: s.usage5h,
-          color: AppColors.teal,
-          label: 'limite de 5 horas',
-        ),
-        Text(_pct(s.usage5h), style: _mono),
-        if (s.usage5hResetsAt != null)
-          Text('· reinicia em ${_until(s.usage5hResetsAt!)}'),
-      ]),
-      _group([
-        const Text('Semana'),
-        _UsageBar(
-          value: s.usageWeek,
-          color: AppColors.blue,
-          label: 'limite semanal',
-        ),
-        Text(_pct(s.usageWeek), style: _mono),
-      ]),
+      _window(
+        key: const ValueKey('footer-usage-week'),
+        title: 'Semana',
+        name: 'limite semanal',
+        value: s.usageWeek,
+        resetsAt: s.usageWeekResetsAt,
+        color: AppColors.blue,
+        now: now,
+        limitResetsAt: limitOn && s.limitType == 'seven_day'
+            ? s.limitResetsAt ?? s.usageWeekResetsAt
+            : null,
+      ),
     ];
 
     return Container(
@@ -138,13 +157,84 @@ class StatusFooter extends ConsumerWidget {
     );
   }
 
+  /// One plan window: bar, % used, % left and the reset countdown, from the
+  /// last `rate_limit_event`. A stored window that already reset shows "—".
+  /// [limitResetsAt] set = this window hit the limit (`rejected`): red notice
+  /// with the time left instead of "resta / reinicia".
+  Widget _window({
+    required Key key,
+    required String title,
+    required String name,
+    required double? value,
+    required DateTime? resetsAt,
+    required Color color,
+    required DateTime now,
+    DateTime? limitResetsAt,
+  }) {
+    final expired = planWindowExpired(resetsAt, now);
+    final v = expired ? null : value;
+    final barColor = v == null
+        ? color
+        : v >= 1
+        ? AppColors.red
+        : v >= 0.8
+        ? AppColors.amber
+        : color;
+    final limited = v != null && limitResetsAt != null;
+    final tip = limited
+        ? 'O $name do plano foi atingido: novas respostas falham até '
+              '${_when(limitResetsAt, now)} (em ${_until(limitResetsAt, now)}).'
+        : v == null
+        ? (expired
+              ? 'O $name reiniciou; o uso atualiza na próxima resposta do '
+                    'Claude.'
+              : 'Uso do $name: aparece na primeira resposta do Claude.')
+        : 'Uso do $name: ${_pct(v)} usado, ${_pct(_left(v))} disponível'
+              '${resetsAt == null ? '' : '. Reinicia ${_when(resetsAt, now)} (em ${_until(resetsAt, now)})'}.';
+    return Tooltip(
+      key: key,
+      message: tip,
+      child: _group([
+        Text(title),
+        _UsageBar(value: v, color: barColor, label: name),
+        Text(_pct(v), style: _mono),
+        if (limited)
+          Text(
+            '· limite atingido · volta em ${_until(limitResetsAt, now)}',
+            key: const ValueKey('footer-limit'),
+            style: const TextStyle(color: AppColors.red),
+          )
+        else ...[
+          if (v != null) Text('· resta ${_pct(_left(v))}', style: _monoDim),
+          if (v != null && resetsAt != null)
+            Text('· reinicia em ${_until(resetsAt, now)}'),
+        ],
+      ]),
+    );
+  }
+
+  static double _left(double used) => (1 - used).clamp(0.0, 1.0);
+
   static String _pct(double? v) => v == null ? '—' : '${(v * 100).round()}%';
 
-  static String _until(DateTime t) {
-    final d = t.difference(DateTime.now());
+  static String _until(DateTime t, DateTime now) {
+    final d = t.difference(now);
     if (d.isNegative) return '0m';
-    final h = d.inHours, m = d.inMinutes % 60;
-    return h > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${m}m';
+    final days = d.inDays, h = d.inHours % 24, m = d.inMinutes % 60;
+    if (days > 0) return '${days}d${h.toString().padLeft(2, '0')}h';
+    return d.inHours > 0 ? '${h}h${m.toString().padLeft(2, '0')}' : '${m}m';
+  }
+
+  /// `às 18:30` today, `sex 14:00` on another day.
+  static String _when(DateTime t, DateTime now) {
+    final l = t.toLocal(), n = now.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final hm = '${two(l.hour)}:${two(l.minute)}';
+    if (l.year == n.year && l.month == n.month && l.day == n.day) {
+      return 'às $hm';
+    }
+    const days = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+    return '${days[l.weekday - 1]} ${two(l.day)}/${two(l.month)} às $hm';
   }
 
   static Widget _group(List<Widget> children) => Row(

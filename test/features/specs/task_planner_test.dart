@@ -133,6 +133,10 @@ void main() {
     expect(cli.cwds.single, '/r');
     expect(args, containsAllInOrder(['--permission-mode', 'default']));
     expect(args, containsAllInOrder(['--max-budget-usd', '0.5']));
+    // Planner defaults of Configurações: CLI model, medium effort, 200k.
+    expect(args, isNot(contains('--model')));
+    expect(args, containsAllInOrder(['--effort', 'medium']));
+    expect(args, containsAllInOrder(['--autocompact', '200k']));
     expect(args, isNot(contains('--include-partial-messages')));
     final schema = args[args.indexOf('--json-schema') + 1];
     expect(jsonDecode(schema), plannerTaskSchema);

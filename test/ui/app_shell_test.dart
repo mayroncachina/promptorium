@@ -190,6 +190,30 @@ void main() {
     expect(item(tester, AppSection.sessions).active, isTrue);
   });
 
+  testWidgets('Nova sessão starts with the model and effort of '
+      'Configurações → Consumo', (tester) async {
+    await pumpShell(tester);
+    String value(String key) => tester
+        .widget<DropdownButtonFormField<String>>(find.byKey(ValueKey(key)))
+        .initialValue!;
+    await tester.tap(find.byKey(const ValueKey('title-action')));
+    await tester.pumpAndSettle();
+    expect(value('new-session-model'), 'sonnet');
+    expect(value('new-session-effort'), 'medium');
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('nav-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-model-session-opus')));
+    await tester.tap(find.byKey(const ValueKey('settings-effort-session-low')));
+    await tester.pumpAndSettle();
+    await ctrl(tester, LogicalKeyboardKey.keyN);
+    await tester.pumpAndSettle();
+    expect(value('new-session-model'), 'opus');
+    expect(value('new-session-effort'), 'low');
+  });
+
   testWidgets('Nova sessão: "sem perguntar" is opt-in, warns, and is '
       'remembered for the next session', (tester) async {
     final db = await pumpShell(tester);

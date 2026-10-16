@@ -152,11 +152,17 @@ void main() {
     );
     // Unknown field kept in the preview; model / permission changes too.
     await tester.tap(find.byKey(const ValueKey('agent-model-opus')));
+    await tester.tap(find.byKey(const ValueKey('agent-effort-high')));
     await tester.tap(find.byKey(const ValueKey('agent-perm-plan')));
     await pumpFor(tester, 3);
     final p = previewText(tester);
     expect(p, contains('model: opus\n'));
+    expect(p, contains('effort: high\n'));
     expect(p, contains('permissionMode: plan\n'));
+    // "Padrão" removes the key again.
+    await tester.tap(find.byKey(const ValueKey('agent-effort-default')));
+    await pumpFor(tester, 3);
+    expect(previewText(tester), isNot(contains('effort:')));
     expect(p, contains('hooks:\n  x: 1\n'));
     // MCP chip from the config names.
     await tester.ensureVisible(
@@ -222,6 +228,17 @@ void main() {
       find.byKey(const ValueKey('new-session-mode')),
     );
     expect(mode.initialValue, ClaudePermissionMode.acceptEdits);
+    // The agent has `model: sonnet`: inherit (its model); no effort in the
+    // file → the session default of Configurações.
+    final model = tester.widget<DropdownButtonFormField<String>>(
+      find.byKey(const ValueKey('new-session-model')),
+    );
+    expect(model.initialValue, 'inherit');
+    expect(find.text('inherit (do agente)'), findsOneWidget);
+    final effort = tester.widget<DropdownButtonFormField<String>>(
+      find.byKey(const ValueKey('new-session-effort')),
+    );
+    expect(effort.initialValue, 'medium');
     expect(tester.takeException(), isNull);
   });
 }

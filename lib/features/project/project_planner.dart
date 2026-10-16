@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
-import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
@@ -397,7 +396,6 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       options: options,
       prompt: prompt,
     );
-    await ref.read(usageTrackerProvider).handle(r, costDelta: r.totalCostUsd);
     await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
     return r;
   }

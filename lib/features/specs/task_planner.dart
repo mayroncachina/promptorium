@@ -8,6 +8,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
@@ -265,9 +266,6 @@ class TaskPlanner {
         existingTasks: ofSpec,
       ),
     );
-    await _ref
-        .read(usageTrackerProvider)
-        .handle(result, costDelta: result.totalCostUsd);
     final planned = parsePlannerResult(result);
     final tasks = await savePlannedTasks(
       tasksRepo,
@@ -288,6 +286,9 @@ class TaskPlanner {
 /// `result`: permission requests are denied (read-only runs), rate limits go
 /// to the usage tracker and the process is stopped afterwards. Throws
 /// [PlannerException] when the CLI cannot start, exits early or times out.
+///
+/// Model, effort and auto-compact not set in [options] come from the planner
+/// defaults of Configurações ([RunPrefs]).
 Future<Result> runReadOnlyClaude(
   Ref ref, {
   required String cwd,
@@ -295,10 +296,15 @@ Future<Result> runReadOnlyClaude(
   required String prompt,
   Duration timeout = TaskPlanner.timeout,
 }) async {
+  final prefs = ref.read(runPrefsProvider);
   final ClaudeProcess process;
   try {
     process = await ClaudeProcess.start(
-      options,
+      options.copyWith(
+        model: options.model ?? prefs.modelArg(RunKind.planner),
+        effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
+        autocompact: options.autocompact ?? prefs.autocompact,
+      ),
       workingDirectory: cwd,
       executable: ref.read(claudeExecutableProvider),
       starter: ref.read(claudeProcessStarterProvider),

@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
-import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../agents/agent_file.dart';
@@ -202,7 +201,6 @@ class SkillWriter {
         name: name,
       ),
     );
-    await _ref.read(usageTrackerProvider).handle(r, costDelta: r.totalCostUsd);
     var file = parseSkillDraft(r, name: name);
     final repo = _ref.read(skillRepositoryProvider(workspace?.path));
     final base = file.name!;
