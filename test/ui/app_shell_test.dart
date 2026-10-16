@@ -61,10 +61,10 @@ void main() {
       'Prompt',
       'Specs',
       'Quadro',
-      'Agentes',
-      'Skills',
       'Review',
       'Código',
+      'Agentes',
+      'Skills',
       'Servidores MCP',
     ]);
     expect(find.byType(SideBarItem), findsNWidgets(11));

@@ -37,10 +37,10 @@ enum AppSection {
     prompt,
     specs,
     tasks,
-    agents,
-    skills,
     review,
     code,
+    agents,
+    skills,
     mcp,
   ];
 
