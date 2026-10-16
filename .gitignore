@@ -50,3 +50,6 @@ app.*.map.json
 # Local-only files
 resume.txt
 docs/demo/*.mp4
+
+# Pacotes gerados por scripts/package.sh
+/dist/
