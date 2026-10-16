@@ -43,17 +43,24 @@ const stack = StackPlan(
 const roadmap = Roadmap(
   specs: [
     RoadmapSpec(
+      code: 'S1',
       title: 'Esqueleto',
       phase: RoadmapPhase.foundation,
-      tasks: [RoadmapTask(code: 'T1', title: 'Criar o projeto')],
+      requirements: [(id: 'R1', text: 'Criar o projeto')],
     ),
     RoadmapSpec(
+      code: 'S2',
       title: 'Receitas',
       phase: RoadmapPhase.mvp,
-      tasks: [
-        RoadmapTask(code: 'T2', title: 'CRUD', dependsOn: ['T1']),
-        RoadmapTask(code: 'T3', title: 'Fotos', dependsOn: ['T1']),
-      ],
+      requirements: [(id: 'R1', text: 'CRUD'), (id: 'R2', text: 'Fotos')],
+      dependsOn: ['S1'],
+    ),
+    RoadmapSpec(
+      code: 'S3',
+      title: 'Busca',
+      phase: RoadmapPhase.mvp,
+      requirements: [(id: 'R1', text: 'Por ingrediente')],
+      dependsOn: ['S1', 'S2'],
     ),
   ],
   later: ['App nativo'],
@@ -217,11 +224,13 @@ void main() {
       ),
       step: ProjectStep.roadmap,
     );
-    expect(find.textContaining('2 specs · 3 tarefas'), findsWidgets);
-    expect(find.byKey(const ValueKey('project-roadmap-task-T3')), findsOne);
+    expect(find.textContaining('3 specs · 4 etapas'), findsWidgets);
+    expect(find.byKey(const ValueKey('roadmap-spec-2')), findsOne);
+    expect(find.text('R2 · Fotos'), findsOneWidget); // the steps of a card
     expect(find.text('App nativo'), findsOneWidget);
-    expect(find.text('T1 sozinha · Criar o projeto'), findsOneWidget);
-    expect(find.text('T2, T3 lado a lado'), findsOneWidget);
+    expect(find.text('S1 sozinha · Esqueleto'), findsOneWidget);
+    expect(find.text('S2 sozinha · Receitas'), findsOneWidget);
+    expect(find.text('S3 sozinha · Busca'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('project-roadmap-next')));
     await tester.pumpAndSettle();
@@ -244,12 +253,12 @@ void main() {
     );
     expect(find.text('Projeto criado'), findsOneWidget);
     expect(find.byKey(const ValueKey('project-create')), findsNothing);
-    expect(find.byKey(const ValueKey('project-go-tasks')), findsOneWidget);
+    expect(find.text('Ver quadro'), findsOneWidget);
     await unmount(tester, c);
   });
 
-  testWidgets('Roadmap edits: task title, dependencies and spec; new task; '
-      'delete a spec; regenerating asks after edits', (tester) async {
+  testWidgets('Roadmap edits: a spec and its dependencies; new spec; delete '
+      'a spec; regenerating asks after edits', (tester) async {
     final (c, db) = await pumpProject(
       tester,
       data: const ProjectPlanData(
@@ -260,55 +269,61 @@ void main() {
       step: ProjectStep.roadmap,
     );
     Future<Roadmap> saved() async => (await stored(db)).roadmap;
-
-    // Edit T3: new title, depends on T2 too.
-    await tester.tap(find.byKey(const ValueKey('project-roadmap-task-T3')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('roadmap-task-editor')), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('roadmap-task-title')),
-      'Upload de fotos',
+    Finder inCard(int i, String key) => find.descendant(
+      of: find.byKey(ValueKey('roadmap-spec-$i')),
+      matching: find.byKey(ValueKey(key)),
     );
-    await tester.tap(find.byKey(const ValueKey('roadmap-task-dep-T2')));
+
+    // Edit S3: new title, drops S2 as a dependency.
+    await tester.tap(inCard(2, 'roadmap-spec-edit'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('roadmap-spec-editor')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('roadmap-spec-title')),
+      'Busca e filtros',
+    );
+    await tester.tap(find.byKey(const ValueKey('roadmap-spec-dep-S2')));
     await tester.tap(find.byKey(const ValueKey('roadmap-editor-save')));
     await tester.pumpAndSettle();
     var r = await saved();
     expect(r.edited, isTrue);
-    final t3 = r.tasks.firstWhere((t) => t.code == 'T3');
-    expect(t3.title, 'Upload de fotos');
-    expect(t3.dependsOn, ['T1', 'T2']);
-    expect(find.text('Upload de fotos'), findsOneWidget);
+    expect(r.specs[2].title, 'Busca e filtros');
+    expect(r.specs[2].dependsOn, ['S1']);
+    expect(find.text('Busca e filtros'), findsOneWidget);
     expect(find.textContaining('editado por você'), findsWidgets);
 
-    // New task in the MVP spec ("+ Tarefa" of the second card).
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('roadmap-spec-1')),
-        matching: find.byKey(const ValueKey('roadmap-add-task')),
-      ),
-    );
+    // New spec of the MVP ("+ Spec do MVP"): needs a title; waits for the
+    // foundation; the editor warns when it has too many steps.
+    await tester.tap(find.byKey(const ValueKey('roadmap-add-MVP')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('roadmap-editor-save')));
     await tester.pumpAndSettle();
-    expect(find.text('Informe o título da tarefa.'), findsOneWidget);
+    expect(find.text('Informe o título da spec.'), findsOneWidget);
     await tester.enterText(
-      find.byKey(const ValueKey('roadmap-task-title')),
-      'Busca por ingrediente',
+      find.byKey(const ValueKey('roadmap-spec-title')),
+      'Lista de compras',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('roadmap-spec-requirements')),
+      [for (var i = 1; i <= 7; i++) 'R$i · Passo $i'].join('\n'),
+    );
+    await tester.pump();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('roadmap-spec-steps-hint')))
+          .data,
+      contains('7 etapas: grande demais para um PR'),
     );
     await tester.tap(find.byKey(const ValueKey('roadmap-editor-save')));
     await tester.pumpAndSettle();
     r = await saved();
-    final added = r.specs[1].tasks.last;
-    expect(added.code, 'T4');
-    expect(added.dependsOn, ['T1']); // MVP: waits for the foundation
+    expect(r.specs.last.code, 'S4');
+    expect(r.specs.last.requirements, hasLength(7));
+    expect(r.specs.last.dependsOn, ['S1']); // MVP: waits for the foundation
+    expect(find.textContaining('S4 tem mais de 6 requisitos'), findsOneWidget);
 
-    // Spec: rename + requirements, then delete the MVP spec (and its tasks).
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('roadmap-spec-0')),
-        matching: find.byKey(const ValueKey('roadmap-spec-edit')),
-      ),
-    );
+    // Rename the foundation spec + requirements.
+    await tester.tap(inCard(0, 'roadmap-spec-edit'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('roadmap-spec-title')),
@@ -324,19 +339,14 @@ void main() {
     expect(r.specs[0].title, 'Esqueleto do app');
     expect(r.specs[0].requirements.map((q) => q.id), ['R1', 'R2']);
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('roadmap-spec-1')),
-        matching: find.byKey(const ValueKey('roadmap-spec-edit')),
-      ),
-    );
+    // Delete S2: gone, and removed from the others' dependencies.
+    await tester.tap(inCard(1, 'roadmap-spec-edit'));
     await tester.pumpAndSettle();
-    expect(find.text('Excluir spec e 3 tarefas'), findsOneWidget);
+    expect(find.text('Excluir spec'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('roadmap-editor-delete')));
     await tester.pumpAndSettle();
     r = await saved();
-    expect(r.specs.map((s) => s.title), ['Esqueleto do app']);
-    expect(r.tasks.map((t) => t.code), ['T1']);
+    expect(r.specs.map((s) => s.code), ['S1', 'S3', 'S4']);
 
     // Regenerate after edits: asks first (cancel keeps everything).
     await tester.tap(find.byKey(const ValueKey('project-roadmap-again')));
@@ -344,7 +354,7 @@ void main() {
     expect(find.text('Regerar o roadmap?'), findsOneWidget);
     await tester.tap(find.text('Cancelar'));
     await tester.pumpAndSettle();
-    expect((await saved()).tasks, hasLength(1));
+    expect((await saved()).specs, hasLength(3));
     await unmount(tester, c);
   });
 
@@ -359,9 +369,10 @@ void main() {
         roadmap: Roadmap(
           specs: [
             RoadmapSpec(
+              code: 'S1',
               title: 'Esqueleto',
               phase: RoadmapPhase.foundation,
-              tasks: [RoadmapTask(code: 'T1', title: 'Criar o projeto')],
+              requirements: [(id: 'R1', text: 'Criar o projeto')],
             ),
           ],
           later: ['App nativo', 'Modo offline'],

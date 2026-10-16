@@ -8,9 +8,9 @@ import '../project_plan.dart';
 import '../project_planner.dart';
 
 /// Hand edits of the Roadmap step: a spec (title, phase, objective,
-/// requirements, acceptance), a task (title, description, spec, requirement,
-/// dependencies) and the "Depois" ideas. Every save goes through
-/// [ProjectPlanner.editRoadmap] (normalized, marked as edited).
+/// requirements = its steps, acceptance, dependencies) and the "Depois"
+/// ideas. Every save goes through [ProjectPlanner.editRoadmap] (normalized,
+/// marked as edited).
 
 /// `R1 · texto` per line (an id is made up when missing).
 List<SpecRequirement> parseRequirementLines(String text) {
@@ -43,33 +43,20 @@ List<String> _lines(String text) => [
       l.trim().replaceFirst(RegExp(r'^[-*]\s+'), ''),
 ];
 
-/// Removes [code] from the roadmap (and from the dependencies).
-Roadmap withoutTask(Roadmap r, String code) => r.copyWith(
-  specs: [
-    for (final s in r.specs)
-      s.withTasks([
-        for (final t in s.tasks)
-          if (t.code != code)
-            t.withDeps([
-              for (final d in t.dependsOn)
-                if (d != code) d,
-            ]),
-      ]),
-  ],
-);
-
-/// Puts [task] in spec [specIndex]: replaces it in place when it already is
-/// there, otherwise moves it to the end of that spec.
-Roadmap withTask(Roadmap r, int specIndex, RoadmapTask task) {
-  final inPlace = r.specs[specIndex].tasks.any((t) => t.code == task.code);
+/// Removes the spec at [index] (and its code from the dependencies of the
+/// others).
+Roadmap withoutSpec(Roadmap r, int index) {
+  final code = r.specs[index].code;
   return r.copyWith(
     specs: [
-      for (final (i, s) in r.specs.indexed)
-        s.withTasks([
-          for (final t in s.tasks)
-            if (t.code != task.code) t else if (inPlace) task,
-          if (i == specIndex && !inPlace) task,
-        ]),
+      for (final (j, s) in r.specs.indexed)
+        if (j != index)
+          s.copyWith(
+            dependsOn: [
+              for (final d in s.dependsOn)
+                if (d != code) d,
+            ],
+          ),
     ],
   );
 }
@@ -233,6 +220,8 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
     text: (_spec?.acceptance ?? const []).join('\n'),
   );
   late RoadmapPhase _phase = _spec?.phase ?? widget.phase;
+  late final Set<String> _deps = {...?_spec?.dependsOn};
+  late final String _code = _spec?.code ?? widget.roadmap.nextSpecCode();
   String? _error;
 
   @override
@@ -254,12 +243,17 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
     final i = widget.index;
     await _planner.editRoadmap(widget.workspace, (r) {
       final edited = RoadmapSpec(
+        code: _code,
         title: title,
         phase: _phase,
         objective: _objective.text.trim(),
         requirements: parseRequirementLines(_reqs.text),
         acceptance: _lines(_acceptance.text),
-        tasks: i == null ? const [] : r.specs[i].tasks,
+        // Keep the roadmap order of the other specs.
+        dependsOn: [
+          for (final o in r.specs)
+            if (_deps.contains(o.code) && o.code != _code) o.code,
+        ],
       );
       return r.copyWith(
         specs: [
@@ -273,29 +267,23 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
 
   Future<void> _delete() async {
     final i = widget.index!;
-    await _planner.editRoadmap(
-      widget.workspace,
-      (r) => r.copyWith(
-        specs: [
-          for (final (j, s) in r.specs.indexed)
-            if (j != i) s,
-        ],
-      ),
-    );
+    await _planner.editRoadmap(widget.workspace, (r) => withoutSpec(r, i));
     if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final tasks = _spec?.tasks.length ?? 0;
+    final others = [
+      for (final o in widget.roadmap.specs)
+        if (o.code != _code) o,
+    ];
+    final steps = parseRequirementLines(_reqs.text).length;
     return _EditorFrame(
       dialogKey: const ValueKey('roadmap-spec-editor'),
-      title: _spec == null ? 'Nova spec' : 'Editar spec',
+      title: _spec == null ? 'Nova spec' : 'Editar spec $_code',
       onSave: _save,
       onDelete: _spec == null ? null : _delete,
-      deleteLabel: tasks == 0
-          ? 'Excluir spec'
-          : 'Excluir spec e $tasks ${tasks == 1 ? 'tarefa' : 'tarefas'}',
+      deleteLabel: 'Excluir spec',
       children: [
         const Text('Título', style: _label),
         const SizedBox(height: 6),
@@ -321,8 +309,8 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Fundação roda primeiro, uma tarefa por vez; o MVP só começa '
-          'depois do merge dela.',
+          'Fundação roda primeiro, uma spec por vez; o MVP só começa depois do '
+          'merge dela.',
           style: _hint,
         ),
         const SizedBox(height: 12),
@@ -337,7 +325,7 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
           decoration: _field(),
         ),
         const SizedBox(height: 12),
-        const Text('Requisitos (um por linha)', style: _label),
+        const Text('Requisitos = etapas (um por linha)', style: _label),
         const SizedBox(height: 6),
         TextField(
           key: const ValueKey('roadmap-spec-requirements'),
@@ -349,12 +337,20 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
             fontSize: 12,
             color: AppColors.text,
           ),
+          onChanged: (_) => setState(() {}),
           decoration: _field(hint: 'R1 · Cadastrar receitas com fotos'),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'O id (R1, R2…) liga as tarefas ao requisito; sem id, um é criado.',
-          style: _hint,
+        Text(
+          steps > Roadmap.maxRequirements
+              ? '$steps etapas: grande demais para um PR. Divida em duas '
+                    'specs (máximo ${Roadmap.maxRequirements}).'
+              : 'Cada requisito vira uma etapa, executada numa sessão '
+                    'própria, em ordem. Sem id (R1, R2…), um é criado.',
+          key: const ValueKey('roadmap-spec-steps-hint'),
+          style: steps > Roadmap.maxRequirements
+              ? _hint.copyWith(color: AppColors.red)
+              : _hint,
         ),
         const SizedBox(height: 12),
         const Text('Critérios de aceite (um por linha)', style: _label),
@@ -367,248 +363,38 @@ class _SpecEditorState extends ConsumerState<_SpecEditor> {
           style: const TextStyle(fontSize: 13, color: AppColors.text),
           decoration: _field(),
         ),
-        if (_error != null) ...[
-          const SizedBox(height: 10),
-          Text(
-            _error!,
-            style: const TextStyle(fontSize: 12, color: AppColors.red),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-// --- task ------------------------------------------------------------------------
-
-/// Edits task [code], or creates one in spec [specIndex] (code null).
-Future<void> showTaskEditor(
-  BuildContext context, {
-  required Workspace workspace,
-  required Roadmap roadmap,
-  required int specIndex,
-  String? code,
-}) => showDialog<void>(
-  context: context,
-  barrierColor: AppColors.scrim,
-  builder: (_) => _TaskEditor(
-    workspace: workspace,
-    roadmap: roadmap,
-    specIndex: specIndex,
-    code: code,
-  ),
-);
-
-class _TaskEditor extends ConsumerStatefulWidget {
-  const _TaskEditor({
-    required this.workspace,
-    required this.roadmap,
-    required this.specIndex,
-    required this.code,
-  });
-
-  final Workspace workspace;
-  final Roadmap roadmap;
-  final int specIndex;
-  final String? code;
-
-  @override
-  ConsumerState<_TaskEditor> createState() => _TaskEditorState();
-}
-
-class _TaskEditorState extends ConsumerState<_TaskEditor> {
-  RoadmapTask? get _task => widget.code == null
-      ? null
-      : widget.roadmap.tasks.where((t) => t.code == widget.code).firstOrNull;
-
-  late final _title = TextEditingController(text: _task?.title ?? '');
-  late final _description = TextEditingController(
-    text: _task?.description ?? '',
-  );
-  late int _spec = widget.specIndex;
-  late String _requirement = _task?.requirement ?? '';
-  late final Set<String> _deps = {...?_task?.dependsOn};
-  late final String _code = widget.code ?? widget.roadmap.nextTaskCode();
-  String? _error;
-
-  @override
-  void dispose() {
-    _title.dispose();
-    _description.dispose();
-    super.dispose();
-  }
-
-  ProjectPlanner get _planner => ref.read(projectPlannerProvider.notifier);
-
-  Future<void> _save() async {
-    final title = _title.text.trim();
-    if (title.isEmpty) {
-      setState(() => _error = 'Informe o título da tarefa.');
-      return;
-    }
-    final reqs = widget.roadmap.specs[_spec].requirements;
-    final task = RoadmapTask(
-      code: _code,
-      title: title,
-      description: _description.text.trim(),
-      requirement: reqs.any((r) => r.id == _requirement) ? _requirement : '',
-      dependsOn: [
-        // Keep the roadmap order of the other tasks.
-        for (final t in widget.roadmap.tasks)
-          if (_deps.contains(t.code) && t.code != _code) t.code,
-      ],
-    );
-    await _planner.editRoadmap(
-      widget.workspace,
-      (r) => withTask(r, _spec, task),
-    );
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  Future<void> _delete() async {
-    await _planner.editRoadmap(widget.workspace, (r) => withoutTask(r, _code));
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final r = widget.roadmap;
-    final spec = r.specs[_spec];
-    final others = [
-      for (final t in r.tasks)
-        if (t.code != _code) t,
-    ];
-    return _EditorFrame(
-      dialogKey: const ValueKey('roadmap-task-editor'),
-      title: _task == null ? 'Nova tarefa' : 'Editar tarefa $_code',
-      onSave: _save,
-      onDelete: _task == null ? null : _delete,
-      deleteLabel: 'Excluir tarefa',
-      children: [
-        const Text('Título', style: _label),
-        const SizedBox(height: 6),
-        TextField(
-          key: const ValueKey('roadmap-task-title'),
-          controller: _title,
-          autofocus: _task == null,
-          style: const TextStyle(fontSize: 13, color: AppColors.text),
-          decoration: _field(hint: 'No imperativo: Criar o projeto…'),
-        ),
-        const SizedBox(height: 12),
-        const Text('Descrição (o que fazer e como verificar)', style: _label),
-        const SizedBox(height: 6),
-        TextField(
-          key: const ValueKey('roadmap-task-description'),
-          controller: _description,
-          minLines: 3,
-          maxLines: 8,
-          style: const TextStyle(fontSize: 13, color: AppColors.text),
-          decoration: _field(),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Spec', style: _label),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<int>(
-                    key: const ValueKey('roadmap-task-spec'),
-                    initialValue: _spec,
-                    isExpanded: true,
-                    decoration: _field(),
-                    items: [
-                      for (final (i, s) in r.specs.indexed)
-                        DropdownMenuItem(
-                          value: i,
-                          child: Text(
-                            '${s.phase.label} · ${s.title}',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                    ],
-                    onChanged: (v) => setState(() {
-                      if (v != null) _spec = v;
-                    }),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Requisito', style: _label),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('roadmap-task-requirement-$_spec'),
-                    initialValue:
-                        spec.requirements.any((q) => q.id == _requirement)
-                        ? _requirement
-                        : '',
-                    isExpanded: true,
-                    decoration: _field(),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('—', style: TextStyle(fontSize: 12)),
-                      ),
-                      for (final q in spec.requirements)
-                        DropdownMenuItem(
-                          value: q.id,
-                          child: Text(
-                            '${q.id} · ${q.text}',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                    ],
-                    onChanged: (v) => setState(() => _requirement = v ?? ''),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 12),
         const Text('Depende de', style: _label),
         const SizedBox(height: 6),
         if (others.isEmpty)
-          const Text('Não há outras tarefas.', style: _hint)
+          const Text('Não há outras specs.', style: _hint)
         else
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
-              for (final t in others)
+              for (final o in others)
                 FilterChip(
-                  key: ValueKey('roadmap-task-dep-${t.code}'),
+                  key: ValueKey('roadmap-spec-dep-${o.code}'),
                   label: Text(
-                    '${t.code} · ${t.title.length > 32 ? '${t.title.substring(0, 32)}…' : t.title}',
+                    '${o.code} · ${o.title.length > 32 ? '${o.title.substring(0, 32)}…' : o.title}',
                     style: const TextStyle(fontSize: 12),
                   ),
-                  selected: _deps.contains(t.code),
+                  selected: _deps.contains(o.code),
                   onSelected: (on) => setState(() {
                     if (on) {
-                      _deps.add(t.code);
+                      _deps.add(o.code);
                     } else {
-                      _deps.remove(t.code);
+                      _deps.remove(o.code);
                     }
                   }),
                 ),
             ],
           ),
-        if (spec.phase == RoadmapPhase.mvp) ...[
+        if (_phase == RoadmapPhase.mvp) ...[
           const SizedBox(height: 6),
           const Text(
-            'Tarefa do MVP sem dependências espera toda a Fundação.',
+            'Spec do MVP sem dependências espera toda a Fundação.',
             style: _hint,
           ),
         ],
@@ -684,7 +470,7 @@ class _IdeasEditorState extends ConsumerState<_IdeasEditor> {
       ),
       const SizedBox(height: 4),
       const Text(
-        'Ficam no plano sem virar tarefas. Para trazer uma para o roadmap, '
+        'Ficam no plano sem virar specs. Para trazer uma para o roadmap, '
         'clique nela.',
         style: _hint,
       ),
@@ -803,12 +589,12 @@ class _IdeaDialogState extends ConsumerState<_IdeaDialog> {
                                 _phase,
                               );
                             },
-                      child: const Text('Gerar spec e tarefas com o planner'),
+                      child: const Text('Gerar a spec com o planner'),
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'O planner escreve requisitos, critérios e tarefas e '
-                      'liga as dependências às tarefas que já existem.',
+                      'O planner escreve requisitos (as etapas), critérios e '
+                      'liga as dependências às specs que já existem.',
                       style: _hint,
                     ),
                     const SizedBox(height: 10),
@@ -825,7 +611,7 @@ class _IdeaDialogState extends ConsumerState<_IdeaDialog> {
                               if (mounted) _close();
                             },
                       child: const Text(
-                        'Criar spec vazia (eu escrevo as tarefas)',
+                        'Criar spec vazia (eu escrevo os requisitos)',
                       ),
                     ),
                   ],

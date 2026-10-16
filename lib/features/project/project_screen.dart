@@ -157,7 +157,7 @@ class _Stepper extends ConsumerWidget {
       case ProjectStep.roadmap:
         final r = data.roadmap;
         return r.isReady
-            ? '${r.specs.length} specs · ${r.tasks.length} tarefas'
+            ? '${r.specs.length} specs · ${r.stepCount} etapas'
             : s.hint;
       case ProjectStep.create:
         return s.hint;

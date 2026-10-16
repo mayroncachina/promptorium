@@ -6,10 +6,11 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
-import '../../sessions/new_session_dialog.dart';
+import '../../board/board_rules.dart';
+import '../../board/board_screen.dart' show SpecCardData;
+import '../../board/widgets/run_spec_dialog.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
-import '../../tasks/task_actions.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
 import '../project_service.dart';
@@ -75,15 +76,18 @@ class _CreateStepState extends ConsumerState<CreateStep> {
       _busy = false;
       _commitError = out.commitError;
     });
-    final task = out.firstTask;
-    if (_runFirst && task != null) {
-      final spec = out.specs.where((s) => s.id == task.specId).firstOrNull;
-      await showNewSessionDialog(
+    final spec = out.firstSpec;
+    if (_runFirst && spec != null) {
+      // Asks agent / model / mode, then opens the session of the first step.
+      await runSpec(
         context,
-        agent: task.agentName,
-        title: taskSessionTitle(task),
-        prompt: taskSessionPrompt(task, spec: spec),
-        taskId: task.id,
+        ref,
+        SpecCardData(
+          spec: spec,
+          steps: stepsOf(spec, const []),
+          sessions: const [],
+          blockers: const [],
+        ),
       );
     }
   }
@@ -96,7 +100,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
     final branch = ref
         .watch(currentBranchProvider(widget.workspace.path))
         .value;
-    final first = roadmap.firstTask;
+    final first = roadmap.firstSpec;
     final hasClaudeMd = widget.data.stack.claudeMd.trim().isNotEmpty;
     final files = [
       if (hasClaudeMd && _writeClaudeMd) 'CLAUDE.md',
@@ -113,8 +117,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
               StepHeader(
                 title: done ? 'Projeto criado' : 'Revisar e criar',
                 subtitle: done
-                    ? 'Arquivos, specs e tarefas criados. Daqui em diante, o '
-                          'trabalho segue em Tarefas, Sessões e Review.'
+                    ? 'Arquivos e specs criados. Daqui em diante, o trabalho '
+                          'segue no Quadro, em Sessões e em Review.'
                     : 'Tudo o que será gravado. Até aqui, o planejamento não '
                           'escreveu nada no repositório.',
               ),
@@ -192,13 +196,14 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                     ),
                     _Section(
                       icon: AppIcons.tasks,
-                      title: 'Tarefas · ${roadmap.tasks.length}',
+                      title: 'Quadro · ${roadmap.specs.length} specs',
                       child: Text(
-                        'No Backlog, ligadas às specs, com '
+                        'Cada spec é um cartão no Backlog, com '
+                        '${roadmap.stepCount} etapas e '
                         '${roadmap.dependencyCount} dependências. Fundação: '
-                        '${roadmap.ofPhase(RoadmapPhase.foundation).expand((s) => s.tasks).length}'
+                        '${roadmap.ofPhase(RoadmapPhase.foundation).length}'
                         ' · MVP: '
-                        '${roadmap.ofPhase(RoadmapPhase.mvp).expand((s) => s.tasks).length}.',
+                        '${roadmap.ofPhase(RoadmapPhase.mvp).length}.',
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -269,7 +274,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                       const SizedBox(width: 8),
                       AmberButton(
                         key: const ValueKey('project-go-tasks'),
-                        label: 'Ver tarefas',
+                        label: 'Ver quadro',
                         height: 36,
                         onTap: () => ref
                             .read(navigationProvider.notifier)
@@ -278,8 +283,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                     ] else ...[
                       Flexible(
                         child: Text(
-                          '${files.length} arquivos · ${roadmap.tasks.length} '
-                          'tarefas${_runFirst && first != null ? ' · 1 sessão' : ''}',
+                          '${files.length} arquivos · ${roadmap.specs.length} '
+                          'specs${_runFirst && first != null ? ' · 1 sessão' : ''}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -310,7 +315,6 @@ class _CreateStepState extends ConsumerState<CreateStep> {
             writeClaudeMd: hasClaudeMd && _writeClaudeMd,
             commit: _commit,
             specs: roadmap.specs.length,
-            tasks: roadmap.tasks.length,
             first: _runFirst ? first : null,
           ),
         ),
@@ -421,7 +425,6 @@ class _Steps extends StatelessWidget {
     required this.writeClaudeMd,
     required this.commit,
     required this.specs,
-    required this.tasks,
     required this.first,
   });
 
@@ -429,8 +432,7 @@ class _Steps extends StatelessWidget {
   final bool writeClaudeMd;
   final bool commit;
   final int specs;
-  final int tasks;
-  final RoadmapTask? first;
+  final RoadmapSpec? first;
 
   @override
   Widget build(BuildContext context) {
@@ -438,16 +440,16 @@ class _Steps extends StatelessWidget {
       if (writeClaudeMd) ('Gravar o CLAUDE.md', 'na raiz do repositório', true),
       ('Gravar $specs specs', 'em specs/, já aprovadas', true),
       if (commit) ('Commit “$planCommitMessage”', 'na branch atual', true),
-      (
-        'Criar $tasks tarefas no Backlog',
-        'com dependências e requisitos',
-        true,
-      ),
+      ('Colocar as specs no Quadro', 'no Backlog, com as dependências', true),
       if (first != null)
-        ('Abrir a sessão de ${first!.code}', first!.title, true),
+        (
+          'Abrir a sessão da primeira etapa de ${first!.code}',
+          first!.title,
+          true,
+        ),
       (
         'Você revisa e faz merge',
-        'na tela Review; isso libera as próximas tarefas',
+        'na tela Review, uma spec por vez; isso libera as próximas',
         false,
       ),
     ];

@@ -7,15 +7,15 @@ import '../specs/spec_file.dart';
 
 /// Planning of a new project (Projeto screen): the conversation with the
 /// planner, the vision it extracts, the stack + CLAUDE.md and the roadmap of
-/// specs and tasks. Stored as JSON in `project_plans.data`.
+/// specs (cards of the Quadro). Stored as JSON in `project_plans.data`.
 
 /// Steps of the Projeto screen. The folder / repository step happens before
 /// the plan exists (workspace picker → "Novo projeto…").
 enum ProjectStep {
   vision('Visão', 'O que é e para quem'),
   stack('Stack e convenções', 'Tecnologias e CLAUDE.md'),
-  roadmap('Roadmap', 'Specs e tarefas'),
-  create('Revisar e criar', 'Arquivos, tarefas e 1ª sessão');
+  roadmap('Roadmap', 'Specs e dependências'),
+  create('Revisar e criar', 'Arquivos, quadro e 1ª sessão');
 
   const ProjectStep(this.label, this.hint);
 
@@ -256,7 +256,7 @@ class StackPlan {
   };
 }
 
-/// Phase of a roadmap spec: the foundation runs first, one task at a time;
+/// Phase of a roadmap spec: the foundation runs first, one spec at a time;
 /// the MVP is released after its merge.
 enum RoadmapPhase {
   foundation('Fundação'),
@@ -272,94 +272,53 @@ enum RoadmapPhase {
       : mvp;
 }
 
-@immutable
-class RoadmapTask {
-  const RoadmapTask({
-    required this.code,
-    required this.title,
-    this.description = '',
-    this.requirement = '',
-    this.dependsOn = const [],
-  });
-
-  /// Planner code, unique in the roadmap (`T1`); becomes `TASK-NNN`.
-  final String code;
-  final String title;
-  final String description;
-  final String requirement;
-  final List<String> dependsOn;
-
-  RoadmapTask withDeps(List<String> deps) => RoadmapTask(
-    code: code,
-    title: title,
-    description: description,
-    requirement: requirement,
-    dependsOn: deps,
-  );
-
-  factory RoadmapTask.fromJson(Map j) => RoadmapTask(
-    code: _str(j['code']),
-    title: _str(j['title']),
-    description: _str(j['description']),
-    requirement: _str(j['requirement']),
-    dependsOn: _strings(j['dependsOn']),
-  );
-
-  Map<String, Object?> toJson() => {
-    'code': code,
-    'title': title,
-    'description': description,
-    'requirement': requirement,
-    'dependsOn': dependsOn,
-  };
-}
-
+/// A spec of the roadmap: one card of the Quadro, one branch, one PR. Its
+/// requirements are the steps the agent runs, one session each.
 @immutable
 class RoadmapSpec {
   const RoadmapSpec({
+    this.code = '',
     required this.title,
     required this.phase,
     this.objective = '',
     this.requirements = const [],
     this.acceptance = const [],
-    this.tasks = const [],
+    this.dependsOn = const [],
   });
 
+  /// Planner code, unique in the roadmap (`S1`); becomes `SPEC-NNN`.
+  final String code;
   final String title;
   final RoadmapPhase phase;
   final String objective;
   final List<SpecRequirement> requirements;
   final List<String> acceptance;
-  final List<RoadmapTask> tasks;
+
+  /// Codes of the specs that must be done first.
+  final List<String> dependsOn;
 
   RoadmapSpec copyWith({
+    String? code,
     String? title,
     RoadmapPhase? phase,
     String? objective,
     List<SpecRequirement>? requirements,
     List<String>? acceptance,
+    List<String>? dependsOn,
   }) => RoadmapSpec(
+    code: code ?? this.code,
     title: title ?? this.title,
     phase: phase ?? this.phase,
     objective: objective ?? this.objective,
     requirements: requirements ?? this.requirements,
     acceptance: acceptance ?? this.acceptance,
-    tasks: tasks,
-  );
-
-  RoadmapSpec withTasks(List<RoadmapTask> tasks) => RoadmapSpec(
-    title: title,
-    phase: phase,
-    objective: objective,
-    requirements: requirements,
-    acceptance: acceptance,
-    tasks: tasks,
+    dependsOn: dependsOn ?? this.dependsOn,
   );
 
   factory RoadmapSpec.fromJson(Map j) {
     final reqs = j['requirements'];
-    final tasks = j['tasks'];
     return RoadmapSpec(
+      code: _str(j['code']),
       title: _str(j['title']),
       phase: RoadmapPhase.fromName(j['phase']),
       objective: _str(j['objective']),
@@ -370,16 +329,12 @@ class RoadmapSpec {
               (id: _str(r['id']), text: _str(r['text'])),
       ],
       acceptance: _strings(j['acceptance']),
-      tasks: [
-        if (tasks is List)
-          for (final t in tasks)
-            if (t is Map && _str(t['title']).isNotEmpty)
-              RoadmapTask.fromJson(t),
-      ],
+      dependsOn: _strings(j['dependsOn']),
     );
   }
 
   Map<String, Object?> toJson() => {
+    'code': code,
     'title': title,
     'phase': phase.name,
     'objective': objective,
@@ -387,7 +342,7 @@ class RoadmapSpec {
       for (final r in requirements) {'id': r.id, 'text': r.text},
     ],
     'acceptance': acceptance,
-    'tasks': [for (final t in tasks) t.toJson()],
+    'dependsOn': dependsOn,
   };
 }
 
@@ -399,10 +354,14 @@ class Roadmap {
     this.edited = false,
   });
 
+  /// More requirements than this and the spec is too big for one PR: the
+  /// planner is told to split it and the screen suggests doing so.
+  static const maxRequirements = 6;
+
   /// Foundation specs first, then the MVP (see [normalized]).
   final List<RoadmapSpec> specs;
 
-  /// Out-of-scope ideas (not turned into tasks).
+  /// Out-of-scope ideas (not turned into specs).
   final List<String> later;
 
   /// Changed by the user after the planner generated it (regenerating
@@ -419,32 +378,40 @@ class Roadmap {
     edited: edited ?? this.edited,
   );
 
-  /// A task code not used yet (`T<n>`).
-  String nextTaskCode() {
-    final used = {for (final t in tasks) t.code};
+  /// A spec code not used yet (`S<n>`).
+  String nextSpecCode() {
+    final used = {for (final s in specs) s.code};
     var n = used.length + 1;
-    while (used.contains('T$n')) {
+    while (used.contains('S$n')) {
       n++;
     }
-    return 'T$n';
+    return 'S$n';
   }
 
-  bool get isReady => specs.any((s) => s.tasks.isNotEmpty);
-
-  Iterable<RoadmapTask> get tasks => specs.expand((s) => s.tasks);
+  /// At least one spec with requirements (the steps).
+  bool get isReady => specs.any((s) => s.requirements.isNotEmpty);
 
   List<RoadmapSpec> ofPhase(RoadmapPhase p) => [
     for (final s in specs)
       if (s.phase == p) s,
   ];
 
-  /// Number of task dependencies.
-  int get dependencyCount => tasks.fold(0, (n, t) => n + t.dependsOn.length);
+  /// Number of spec dependencies.
+  int get dependencyCount => specs.fold(0, (n, s) => n + s.dependsOn.length);
+
+  /// Total of requirements (steps) of every spec.
+  int get stepCount => specs.fold(0, (n, s) => n + s.requirements.length);
+
+  /// Specs too big for one PR ([maxRequirements]).
+  List<RoadmapSpec> get oversized => [
+    for (final s in specs)
+      if (s.requirements.length > maxRequirements) s,
+  ];
 
   /// Rules the app enforces on the planner output: foundation specs first;
-  /// unique task codes (missing / repeated ones become `T<n>`); dependencies
-  /// only on known, earlier-or-other tasks (no self references); MVP tasks
-  /// without dependencies wait for every foundation task (sessions start
+  /// unique spec codes (missing / repeated ones become `S<n>`); dependencies
+  /// only on known specs (no self references, no repeats); MVP specs
+  /// without dependencies wait for every foundation spec (sessions start
   /// from the base branch, so the foundation must be merged first).
   Roadmap normalized() {
     final ordered = [
@@ -456,79 +423,57 @@ class Roadmap {
     String fresh() {
       String c;
       do {
-        c = 'T${++n}';
+        c = 'S${++n}';
       } while (used.contains(c));
       return c;
     }
 
     // Codes: keep the planner's when unique.
-    final renamed = <List<RoadmapTask>>[];
+    final coded = <RoadmapSpec>[];
     for (final s in ordered) {
-      final list = <RoadmapTask>[];
-      for (final t in s.tasks) {
-        final code = t.code.isEmpty || used.contains(t.code) ? fresh() : t.code;
-        used.add(code);
-        list.add(
-          RoadmapTask(
-            code: code,
-            title: t.title,
-            description: t.description,
-            requirement: t.requirement,
-            dependsOn: t.dependsOn,
-          ),
-        );
-      }
-      renamed.add(list);
+      final code = s.code.isEmpty || used.contains(s.code) ? fresh() : s.code;
+      used.add(code);
+      coded.add(s.copyWith(code: code));
     }
     final foundation = [
-      for (var i = 0; i < ordered.length; i++)
-        if (ordered[i].phase == RoadmapPhase.foundation)
-          for (final t in renamed[i]) t.code,
+      for (final s in coded)
+        if (s.phase == RoadmapPhase.foundation) s.code,
     ];
     final out = <RoadmapSpec>[];
-    for (var i = 0; i < ordered.length; i++) {
-      final s = ordered[i];
-      final tasks = [
-        for (final t in renamed[i])
-          () {
-            final deps = <String>[];
-            for (final d in t.dependsOn) {
-              if (used.contains(d) && d != t.code && !deps.contains(d)) {
-                deps.add(d);
-              }
-            }
-            if (s.phase == RoadmapPhase.mvp && deps.isEmpty) {
-              deps.addAll(foundation);
-            }
-            return t.withDeps(deps);
-          }(),
-      ];
-      out.add(s.withTasks(tasks));
+    for (final s in coded) {
+      final deps = <String>[];
+      for (final d in s.dependsOn) {
+        if (used.contains(d) && d != s.code && !deps.contains(d)) deps.add(d);
+      }
+      if (s.phase == RoadmapPhase.mvp && deps.isEmpty) {
+        deps.addAll(foundation);
+      }
+      out.add(s.copyWith(dependsOn: deps));
     }
     return Roadmap(specs: out, later: later, edited: edited);
   }
 
-  /// Tasks grouped by when they can start: wave 0 has no dependencies, wave
-  /// n depends on tasks of earlier waves. Cycles end up in the last wave.
-  List<List<RoadmapTask>> waves() {
-    final all = tasks.toList();
+  /// Specs grouped by when they can start: wave 0 has no dependencies, wave
+  /// n depends on specs of earlier waves. Cycles end up in the last wave.
+  List<List<RoadmapSpec>> waves() {
+    final all = specs.toList();
     final level = <String, int>{};
     var pending = all;
     while (pending.isNotEmpty) {
-      final next = <RoadmapTask>[];
-      for (final t in pending) {
-        final deps = t.dependsOn.where((d) => all.any((x) => x.code == d));
+      final next = <RoadmapSpec>[];
+      for (final s in pending) {
+        final deps = s.dependsOn.where((d) => all.any((x) => x.code == d));
         if (deps.every(level.containsKey)) {
-          level[t.code] =
+          level[s.code] =
               deps.fold(-1, (m, d) => m > level[d]! ? m : level[d]!) + 1;
         } else {
-          next.add(t);
+          next.add(s);
         }
       }
       if (next.length == pending.length) {
         final last = level.values.fold(-1, (m, v) => m > v ? m : v) + 1;
-        for (final t in next) {
-          level[t.code] = last;
+        for (final s in next) {
+          level[s.code] = last;
         }
         break;
       }
@@ -538,32 +483,70 @@ class Roadmap {
     return [
       for (var i = 0; i < count; i++)
         [
-          for (final t in all)
-            if (level[t.code] == i) t,
+          for (final s in all)
+            if (level[s.code] == i) s,
         ],
     ];
   }
 
-  /// The task to run first: a foundation task without dependencies.
-  RoadmapTask? get firstTask {
+  /// The spec to run first: a foundation spec without dependencies.
+  RoadmapSpec? get firstSpec {
     for (final s in ofPhase(RoadmapPhase.foundation)) {
-      for (final t in s.tasks) {
-        if (t.dependsOn.isEmpty) return t;
-      }
+      if (s.dependsOn.isEmpty && s.requirements.isNotEmpty) return s;
     }
-    return tasks.where((t) => t.dependsOn.isEmpty).firstOrNull;
+    return specs
+        .where((s) => s.dependsOn.isEmpty && s.requirements.isNotEmpty)
+        .firstOrNull;
   }
 
   factory Roadmap.fromJson(Object? j) {
     if (j is! Map) return const Roadmap();
-    final specs = j['specs'];
+    final raw = j['specs'];
+    final list = [
+      if (raw is List)
+        for (final s in raw)
+          if (s is Map && _str(s['title']).isNotEmpty) s,
+    ];
+    // Drafts saved when the roadmap had tasks: codes by position, and the
+    // dependencies between tasks of different specs become dependencies
+    // between those specs.
+    final legacy =
+        list.any((s) => s['tasks'] is List) &&
+        list.every((s) => !s.containsKey('dependsOn'));
+    final codeOf = <String, String>{};
+    if (legacy) {
+      for (var i = 0; i < list.length; i++) {
+        final tasks = list[i]['tasks'];
+        if (tasks is List) {
+          for (final t in tasks) {
+            if (t is Map && _str(t['code']).isNotEmpty) {
+              codeOf[_str(t['code'])] = 'S${i + 1}';
+            }
+          }
+        }
+      }
+    }
+    final specs = <RoadmapSpec>[];
+    for (var i = 0; i < list.length; i++) {
+      var s = RoadmapSpec.fromJson(list[i]);
+      if (legacy) {
+        final deps = <String>{};
+        final tasks = list[i]['tasks'];
+        if (tasks is List) {
+          for (final t in tasks) {
+            if (t is! Map) continue;
+            for (final d in _strings(t['dependsOn'])) {
+              final other = codeOf[d];
+              if (other != null && other != 'S${i + 1}') deps.add(other);
+            }
+          }
+        }
+        s = s.copyWith(code: 'S${i + 1}', dependsOn: deps.toList());
+      }
+      specs.add(s);
+    }
     return Roadmap(
-      specs: [
-        if (specs is List)
-          for (final s in specs)
-            if (s is Map && _str(s['title']).isNotEmpty)
-              RoadmapSpec.fromJson(s),
-      ],
+      specs: specs,
       later: _strings(j['later']),
       edited: j['edited'] == true,
     );
@@ -641,14 +624,22 @@ class ProjectPlanData {
 }
 
 /// File of a roadmap spec (same shape as "Nova spec", already approved).
-String roadmapSpecMarkdown(RoadmapSpec s, {required String code}) {
+String roadmapSpecMarkdown(
+  RoadmapSpec s, {
+  required String code,
+  List<String> dependsOn = const [],
+}) {
   final b = StringBuffer()
     ..writeln('---')
     ..writeln('id: $code')
     ..writeln('status: ${specStatusValue(SpecStatus.approved)}')
     ..writeln(
       'fase: ${s.phase == RoadmapPhase.foundation ? 'fundacao' : 'mvp'}',
-    )
+    );
+  if (dependsOn.isNotEmpty) {
+    b.writeln('$dependsOnKey: [${dependsOn.join(', ')}]');
+  }
+  b
     ..writeln('---')
     ..writeln()
     ..writeln('# ${s.title}')
