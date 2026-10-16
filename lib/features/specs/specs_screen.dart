@@ -426,7 +426,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                               constraints: const BoxConstraints(maxHeight: 280),
                               child: SingleChildScrollView(
                                 child: SubagentsEditor(
-                                  spec: spec,
+                                  mainAgent: spec.agentName,
                                   workspacePath: ws.path,
                                   subagents: doc.subagents,
                                   requirements: doc.requirements,

@@ -315,15 +315,18 @@ void main() {
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
   });
 
-  test('spec paths are confined to <workspace>/specs (no traversal)', () {
+  test('spec paths stay inside the workspace (no traversal)', () {
     expect(SpecService.isSafeSpecPath('specs/SPEC-001-x.md'), isTrue);
+    expect(SpecService.isSafeSpecPath('docs/specs/SPEC-001-x.md'), isTrue);
     for (final bad in [
       '../etc/passwd.md',
       'specs/../../x.md',
-      'specs/sub/SPEC-001.md',
       '/abs/specs/x.md',
       'specs/x.txt',
       'specs\\..\\x.md',
+      '.git/hooks/x.md',
+      '.promptorium/x.md',
+      'x.md',
     ]) {
       expect(SpecService.isSafeSpecPath(bad), isFalse, reason: bad);
     }

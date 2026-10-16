@@ -10,6 +10,7 @@ import 'project_plan.dart';
 import 'project_planner.dart';
 import 'project_service.dart';
 import 'widgets/create_step.dart';
+import 'widgets/project_config_view.dart';
 import 'widgets/project_widgets.dart';
 import 'widgets/roadmap_step.dart';
 import 'widgets/stack_step.dart';
@@ -44,6 +45,17 @@ class ProjectScreen extends ConsumerWidget {
     return ColoredBox(
       color: AppColors.background,
       child: switch (plan) {
+        AsyncData(value: null)
+            when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
+          ProjectConfigView(
+            key: ValueKey('project-config-${ws.id}'),
+            workspace: ws,
+            intro:
+                'Este repositório já tem código: não é preciso planejar do '
+                'zero. Ajuste como o Promptorium trabalha nele; as specs '
+                'você cria na tela Specs.',
+            onPlan: () => ref.read(projectPlannerProvider.notifier).start(ws),
+          ),
         AsyncData(value: null) => StepEmpty(
           title: 'Planejar ${ws.name}',
           text:
@@ -271,6 +283,27 @@ class _Stepper extends ConsumerWidget {
                           ? () => planner.goTo(workspace, s)
                           : null,
                     ),
+                  const SizedBox(height: 4),
+                  TextButton.icon(
+                    key: const ValueKey('project-config-open'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 680,
+                          height: 620,
+                          child: ProjectConfigView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: const Text(
+                      'Configuração do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                   const Spacer(),
                   if (plan.costUsd > 0)
                     Padding(

@@ -7,6 +7,7 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../attachments.dart' show imageMediaType;
 import '../conversation_manager.dart' show modelLabel;
 import '../prompt_actions.dart';
 
@@ -56,6 +57,10 @@ class PromptComposer extends ConsumerStatefulWidget {
     required this.attachments,
     required this.onAttach,
     required this.onRemoveAttachment,
+    this.files = const [],
+    this.onPickFiles,
+    this.onRemoveFile,
+    this.dropping = false,
     required this.provider,
     required this.model,
     required this.mode,
@@ -75,6 +80,15 @@ class PromptComposer extends ConsumerStatefulWidget {
   final List<String> attachments;
   final ValueChanged<String> onAttach;
   final ValueChanged<String> onRemoveAttachment;
+
+  /// Absolute paths picked or dropped (images, PDFs, anything): they go with
+  /// the next message.
+  final List<String> files;
+  final VoidCallback? onPickFiles;
+  final ValueChanged<String>? onRemoveFile;
+
+  /// A file is being dragged over the window.
+  final bool dropping;
   final AgentProvider provider;
   final String model;
   final PromptMode mode;
@@ -240,12 +254,30 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                 decoration: BoxDecoration(
                   color: AppColors.panel,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: SessionColors.selectedBorder),
+                  border: Border.all(
+                    color: widget.dropping
+                        ? AppColors.amber
+                        : SessionColors.selectedBorder,
+                    width: widget.dropping ? 2 : 1,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (widget.attachments.isNotEmpty) ...[
+                    if (widget.dropping)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'Solte os arquivos aqui para anexar',
+                          key: ValueKey('prompt-drop-hint'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.amber,
+                          ),
+                        ),
+                      ),
+                    if (widget.attachments.isNotEmpty ||
+                        widget.files.isNotEmpty) ...[
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
@@ -254,6 +286,13 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                             FileChip(
                               path: a,
                               onRemove: () => widget.onRemoveAttachment(a),
+                            ),
+                          for (final f in widget.files)
+                            AttachedFileChip(
+                              path: f,
+                              onRemove: widget.onRemoveFile == null
+                                  ? null
+                                  : () => widget.onRemoveFile!(f),
                             ),
                         ],
                       ),
@@ -293,6 +332,17 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                             runSpacing: 6,
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
+                              if (widget.onPickFiles != null)
+                                IconButton(
+                                  key: const ValueKey('prompt-attach'),
+                                  tooltip:
+                                      'Anexar arquivos (ou arraste para cá)',
+                                  visualDensity: VisualDensity.compact,
+                                  iconSize: 18,
+                                  color: AppColors.textSecondary,
+                                  onPressed: widget.onPickFiles,
+                                  icon: const Icon(Icons.attach_file),
+                                ),
                               _ProviderButton(
                                 active: widget.provider,
                                 onSelected: widget.onProvider,
@@ -342,6 +392,64 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip of a picked / dropped file (name + remove), with an image mark.
+class AttachedFileChip extends StatelessWidget {
+  const AttachedFileChip({super.key, required this.path, this.onRemove});
+
+  final String path;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = path.split(RegExp(r'[/\\]')).last;
+    final image = imageMediaType(path) != null;
+    return Tooltip(
+      message: path,
+      child: Container(
+        key: ValueKey('attached-chip-$path'),
+        height: 26,
+        padding: EdgeInsets.only(left: 8, right: onRemove == null ? 8 : 4),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.amber),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              image ? Icons.image_outlined : Icons.attach_file,
+              size: 13,
+              color: AppColors.amber,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.text),
+              ),
+            ),
+            if (onRemove != null)
+              InkWell(
+                onTap: onRemove,
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: AppIcon(
+                    AppIcons.close,
+                    size: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

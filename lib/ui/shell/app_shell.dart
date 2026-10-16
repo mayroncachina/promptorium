@@ -21,6 +21,7 @@ import '../../features/board/board_screen.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
 import 'editor_zoom.dart';
+import 'global_approvals.dart';
 import 'navigation.dart';
 import 'shell_intents.dart';
 import 'side_bar.dart';
@@ -179,9 +180,18 @@ class _AppShellState extends ConsumerState<AppShell> {
                     children: [
                       SideBar(active: section, onSelect: _go),
                       Expanded(
-                        child: KeyedSubtree(
-                          key: ValueKey('screen-${section.name}'),
-                          child: _screenFor(section),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: KeyedSubtree(
+                                key: ValueKey('screen-${section.name}'),
+                                child: _screenFor(section),
+                              ),
+                            ),
+                            // Approvals of sessions / conversations that are
+                            // not on screen, answerable from anywhere.
+                            const Positioned.fill(child: GlobalApprovals()),
+                          ],
                         ),
                       ),
                     ],

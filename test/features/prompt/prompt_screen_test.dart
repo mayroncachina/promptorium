@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/data/providers.dart';
@@ -22,6 +23,7 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
   bool withConversation = true,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -76,6 +78,7 @@ Future<(AppDatabase, FakeCli, ProviderContainer)> pumpPrompt(
           'lib/main.dart',
         ],
       ),
+      ...overrides,
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
@@ -248,6 +251,41 @@ void main() {
     expect(convs.single.mode, 'ask');
     expect(find.text('O que faz o main.dart?'), findsWidgets);
     expect(find.byKey(const ValueKey('prompt-stop')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the clip button picks files: chips, remove, and the drop '
+      'target is there', (tester) async {
+    await pumpPrompt(
+      tester,
+      withConversation: false,
+      overrides: [
+        filePickerProvider.overrideWithValue(
+          ({initialDirectory}) async => ['/tmp/foto.png', '/tmp/relatorio.pdf'],
+        ),
+      ],
+    );
+    expect(find.byKey(const ValueKey('prompt-drop')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('prompt-attach')));
+    await pumpFor(tester, 3);
+    expect(
+      find.byKey(const ValueKey('attached-chip-/tmp/foto.png')),
+      findsOneWidget,
+    );
+    expect(find.text('relatorio.pdf'), findsOneWidget);
+    // Removing one chip keeps the other.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('attached-chip-/tmp/foto.png')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    await pumpFor(tester, 3);
+    expect(
+      find.byKey(const ValueKey('attached-chip-/tmp/foto.png')),
+      findsNothing,
+    );
+    expect(find.text('relatorio.pdf'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

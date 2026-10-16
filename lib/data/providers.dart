@@ -190,6 +190,20 @@ final directoryPickerProvider =
           ),
     );
 
+/// Opens the native file chooser (several files); empty when cancelled.
+/// Overridden in widget tests, where platform channels do not answer.
+final filePickerProvider =
+    Provider<Future<List<String>> Function({String? initialDirectory})>(
+      (ref) =>
+          ({initialDirectory}) async => [
+            for (final f in await openFiles(
+              initialDirectory: initialDirectory,
+              confirmButtonText: 'Anexar',
+            ))
+              f.path,
+          ],
+    );
+
 /// Select / add / remove workspaces (title bar selector).
 class WorkspaceActions {
   WorkspaceActions(this._ref);

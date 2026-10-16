@@ -1,0 +1,313 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/providers.dart';
+import '../../../ui/theme/tokens.dart';
+import '../../sessions/agent_names.dart';
+import '../../sessions/widgets/session_style.dart';
+import '../../specs/spec_file.dart' show SpecSubagent;
+import '../../specs/widgets/subagents_editor.dart';
+import '../project_config.dart';
+
+/// Whether the workspace already has code: any entry besides git / app /
+/// editor folders and the specs folder.
+final hasExistingCodeProvider = FutureProvider.family<bool, String>((
+  ref,
+  path,
+) async {
+  const ignored = {'.git', '.promptorium', '.claude', '.idea', '.vscode'};
+  try {
+    final specs = ProjectConfig.loadSync(path).specsDir.split('/').first;
+    await for (final e in Directory(path).list()) {
+      final name = e.uri.pathSegments.where((s) => s.isNotEmpty).last;
+      if (!ignored.contains(name) && name != specs) return true;
+    }
+  } catch (_) {
+    // unreadable folder: treated as new
+  }
+  return false;
+});
+
+/// "Configuração do projeto": where the specs live, how tests run, the base
+/// branch, the default agent and the subagents of every spec. Saved to
+/// `.promptorium/config.yml` in the repository.
+class ProjectConfigView extends ConsumerStatefulWidget {
+  const ProjectConfigView({
+    super.key,
+    required this.workspace,
+    this.onPlan,
+    this.intro,
+  });
+
+  final Workspace workspace;
+
+  /// "Planejar um novo roadmap" (null = no button).
+  final VoidCallback? onPlan;
+  final String? intro;
+
+  @override
+  ConsumerState<ProjectConfigView> createState() => _ProjectConfigViewState();
+}
+
+class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
+  late ProjectConfig _saved = ProjectConfig.loadSync(widget.workspace.path);
+  late final _specs = TextEditingController(text: _saved.specsDir);
+  late final _tests = TextEditingController(text: _saved.testCommand ?? '');
+  late final _branch = TextEditingController(text: _saved.baseBranch ?? '');
+  late String? _agent = _saved.agent;
+  late List<SpecSubagent> _subagents = _saved.subagents;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _specs.dispose();
+    _tests.dispose();
+    _branch.dispose();
+    super.dispose();
+  }
+
+  ProjectConfig get _current => ProjectConfig(
+    specsDir: _specs.text.trim().isEmpty
+        ? ProjectConfig.defaultSpecsDir
+        : _specs.text.trim(),
+    testCommand: _tests.text.trim().isEmpty ? null : _tests.text.trim(),
+    baseBranch: _branch.text.trim().isEmpty ? null : _branch.text.trim(),
+    agent: _agent,
+    subagents: _subagents,
+  );
+
+  bool get _dirty => _current != _saved;
+
+  Future<void> _save() async {
+    final c = _current;
+    final err = ProjectConfig.validateSpecsDir(c.specsDir);
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
+    if (c.baseBranch != null && c.baseBranch!.startsWith('-')) {
+      setState(() => _error = 'Branch base inválida.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      await ProjectConfig.save(widget.workspace.path, c);
+      _saved = c;
+      ref.invalidate(projectConfigProvider);
+      ref.invalidate(hasExistingCodeProvider);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Configuração salva em .promptorium/config.yml '
+            '(faça commit para o time receber).',
+          ),
+        ),
+      );
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Falha ao salvar: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _label(String text, [String? hint]) => Padding(
+    padding: const EdgeInsets.only(top: 16, bottom: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          text,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        if (hint != null) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hint,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget _field(
+    Key key,
+    TextEditingController c,
+    String hint, {
+    Widget? suffix,
+  }) => TextField(
+    key: key,
+    controller: c,
+    style: const TextStyle(fontSize: 13, fontFamily: AppFonts.mono),
+    decoration: InputDecoration(
+      isDense: true,
+      hintText: hint,
+      suffixIcon: suffix,
+    ),
+    onChanged: (_) => setState(() {}),
+  );
+
+  /// Native folder chooser, starting at the current specs folder (or the
+  /// repository); the answer must be a subfolder of the repository.
+  Future<void> _pickSpecsDir() async {
+    final root = widget.workspace.path;
+    final current = _specs.text.trim();
+    final start = current.isNotEmpty && Directory('$root/$current').existsSync()
+        ? '$root/$current'
+        : root;
+    final picked = await ref.read(directoryPickerProvider)(
+      initialDirectory: start,
+    );
+    if (picked == null || !mounted) return;
+    final rel = ProjectConfig.relativeDir(root, picked);
+    setState(() {
+      if (rel == null) {
+        _error = 'Escolha uma subpasta de $root.';
+        return;
+      }
+      _error = null;
+      _specs.text = rel;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = widget.workspace.path;
+    final agents =
+        ref.watch(agentListProvider(path)).value ?? const <AgentRef>[];
+    final specsChanged =
+        _specs.text.trim() != _saved.specsDir && _specs.text.trim().isNotEmpty;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              'Configuração de ${widget.workspace.name}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.intro ??
+                  'Fica em ${ProjectConfig.filePath}, dentro do repositório: '
+                      'faça commit para o time usar o mesmo.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            _label(
+              'Pasta das specs',
+              'relativa ao repositório (padrão: specs)',
+            ),
+            _field(
+              const ValueKey('config-specs'),
+              _specs,
+              'specs',
+              suffix: IconButton(
+                key: const ValueKey('config-specs-pick'),
+                tooltip: 'Escolher pasta…',
+                icon: const Icon(Icons.folder_open, size: 18),
+                onPressed: _pickSpecsDir,
+              ),
+            ),
+            if (specsChanged)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text(
+                  'As specs que já existem continuam onde estão e na lista; '
+                  'só as novas vão para a pasta nova. Mova os arquivos se '
+                  'quiser juntar tudo.',
+                  key: ValueKey('config-specs-warning'),
+                  style: TextStyle(fontSize: 11, color: AppColors.amber),
+                ),
+              ),
+            _label(
+              'Comando de testes',
+              'as sessões rodam isto antes de cada commit',
+            ),
+            _field(const ValueKey('config-tests'), _tests, 'ex.: pytest -q'),
+            _label(
+              'Branch base',
+              'origem dos worktrees e destino do merge (vazio = a atual)',
+            ),
+            _field(const ValueKey('config-branch'), _branch, 'ex.: main'),
+            _label('Agente padrão', 'usado nas specs sem agente próprio'),
+            DropdownButton<String?>(
+              key: const ValueKey('config-agent'),
+              isExpanded: true,
+              isDense: true,
+              value: agents.any((a) => a.name == _agent) ? _agent : null,
+              hint: const Text('(nenhum)', style: TextStyle(fontSize: 13)),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('(nenhum)', style: TextStyle(fontSize: 13)),
+                ),
+                for (final a in agents)
+                  DropdownMenuItem<String?>(
+                    value: a.name,
+                    child: Text(a.name, style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _agent = v),
+            ),
+            _label('Subagentes de toda spec', 'somados aos da própria spec'),
+            SubagentsEditor(
+              mainAgent: _agent,
+              workspacePath: path,
+              subagents: _subagents,
+              allowStep: false,
+              initiallyOpen: true,
+              onChange: (l) => setState(() => _subagents = l),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _error!,
+                  key: const ValueKey('config-error'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.red),
+                ),
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                AmberButton(
+                  key: const ValueKey('config-save'),
+                  label: 'Salvar',
+                  height: 34,
+                  onTap: _dirty && !_busy ? _save : null,
+                ),
+                const SizedBox(width: 8),
+                if (widget.onPlan != null)
+                  SmallButton(
+                    key: const ValueKey('config-plan'),
+                    label: 'Planejar um novo roadmap…',
+                    height: 34,
+                    onTap: widget.onPlan,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

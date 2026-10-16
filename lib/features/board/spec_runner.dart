@@ -11,6 +11,7 @@ import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
+import '../project/project_config.dart';
 import '../specs/spec_service.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
@@ -61,6 +62,7 @@ String specStepPrompt({
   required List<StepView> steps,
   required List<String> todo,
   List<SpecSubagent> subagents = const [],
+  String? testCommand,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
   final now = [
@@ -128,7 +130,11 @@ String specStepPrompt({
     ..writeln('</spec>')
     ..writeln()
     ..writeln('Ao terminar:')
-    ..writeln('1. rode os testes do projeto;')
+    ..writeln(
+      testCommand == null
+          ? '1. rode os testes do projeto;'
+          : '1. rode os testes do projeto com `$testCommand`;',
+    )
     ..writeln(
       '2. faça commit com a mensagem "${spec.code} $ids: <resumo do que '
       'mudou>";',
@@ -177,6 +183,17 @@ List<String> subagentPlan(
       },
   ].whereType<String>().toList();
 }
+
+/// The spec's own subagents plus the project's defaults that it does not
+/// already list (same agent and moment).
+List<SpecSubagent> mergeSubagents(
+  List<SpecSubagent> own,
+  List<SpecSubagent> defaults,
+) => [
+  ...own,
+  for (final d in defaults)
+    if (!own.any((o) => o.agent == d.agent && o.when == d.when)) d,
+];
 
 /// `SPEC-003 · R2 · Extrair PKs…` / `SPEC-003 · R1–R3 · Extração do schema`.
 String specSessionTitle(Spec spec, List<StepView> steps, List<String> todo) {
@@ -258,6 +275,7 @@ class SpecRunner {
         );
       }
     }
+    final config = ProjectConfig.loadSync(ws.path);
     final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
     final live = sessions.where(
       (s) =>
@@ -293,7 +311,11 @@ class SpecRunner {
       await specs.setAgent(specId, agent);
       spec = (await specs.getById(specId))!;
     }
-    final wt = await _worktree(ws, spec, baseBranch: baseBranch);
+    final wt = await _worktree(
+      ws,
+      spec,
+      baseBranch: baseBranch ?? config.baseBranch,
+    );
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
     final id = await _manager.create(
@@ -305,9 +327,13 @@ class SpecRunner {
           specText: text,
           steps: steps,
           todo: todo,
-          subagents: SpecDocument.parse(text).subagents,
+          subagents: mergeSubagents(
+            SpecDocument.parse(text).subagents,
+            config.subagents,
+          ),
+          testCommand: config.testCommand,
         ),
-        agent: spec.agentName,
+        agent: spec.agentName ?? config.agent,
         model: model ?? last?.model ?? prefs.model(RunKind.session),
         effort: effort ?? last?.effort,
         permissionMode:

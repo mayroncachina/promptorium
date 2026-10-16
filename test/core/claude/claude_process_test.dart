@@ -129,6 +129,26 @@ void main() {
     expect(p.isRunning, isFalse);
   });
 
+  test('send with images: image blocks first, then the text', () async {
+    final p = await startFake();
+    await p.send(
+      'o que é isto?',
+      images: const [
+        ImagePart(mediaType: 'image/png', base64: 'AAAA', name: 'a.png'),
+      ],
+    );
+    final line = jsonDecode(
+      const LineSplitter().convert(utf8.decode(fake.stdinBytes)).single,
+    );
+    expect(line['message']['content'], [
+      {
+        'type': 'image',
+        'source': {'type': 'base64', 'media_type': 'image/png', 'data': 'AAAA'},
+      },
+      {'type': 'text', 'text': 'o que é isto?'},
+    ]);
+  });
+
   test('send / allow / deny write the Fase 0.3 format to stdin', () async {
     final p = await startFake();
     final events = <ClaudeEvent>[];
