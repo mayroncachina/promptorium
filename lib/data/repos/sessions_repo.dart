@@ -122,6 +122,13 @@ class SessionsRepo {
       );
 
   /// Review merge (Fase 9): status `merged` + hash of the merge commit.
+  /// Merge target of every session of a spec (its base branch was merged
+  /// and the target moved on).
+  Future<int> setSpecBaseBranch(int specId, String? base) =>
+      (_db.update(_t)..where((s) => s.specId.equals(specId))).write(
+        SessionsCompanion(baseBranch: Value(base)),
+      );
+
   Future<int> setMerged(String id, String commit, {DateTime? at}) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(

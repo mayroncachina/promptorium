@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
 import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/sessions/timeline.dart';
+import 'package:promptorium/features/specs/spec_file.dart';
 
 Spec spec(
   int id,
@@ -73,6 +75,8 @@ void main() {
     final byCode = specsByCode([a, b, c]);
     expect(specBlockers(c, byCode), ['SPEC-002']);
     expect(isSpecBlocked(a, byCode), isFalse);
+    // Autopilot: a dependency in Review already releases the next spec.
+    expect(specBlockers(c, byCode, reviewUnblocks: true), isEmpty);
   });
 
   test('only approved / finished / started specs are on the board', () {
@@ -85,5 +89,50 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  test('subagentStatuses: running / done / failed / not called / pending', () {
+    final sp = spec(1, 'SPEC-001', stage: SpecStage.review);
+    const subs = [
+      SpecSubagent(agent: 'rev', when: SubagentWhen.specEnd),
+      SpecSubagent(agent: 'tw', when: SubagentWhen.afterEach),
+      SpecSubagent(agent: 'x', when: SubagentWhen.atStep, step: 'R2'),
+    ];
+    const steps = [
+      StepView(id: 'R1', text: 'a', status: StepStatus.done),
+      StepView(id: 'R2', text: 'b'),
+    ];
+    ToolItem call(String agent, {String? result, bool error = false}) =>
+        ToolItem(id: agent, name: 'Agent', input: {'subagent_type': agent})
+          ..result = result
+          ..isError = error;
+    var st = subagentStatuses(
+      subs,
+      spec: sp,
+      steps: steps,
+      timelines: [
+        [call('rev', result: 'APROVADO')],
+        [call('tw')],
+      ],
+    );
+    expect(st.map((s) => s.state), [
+      SubagentState.done,
+      SubagentState.running,
+      SubagentState.pending, // R2 not done yet
+    ]);
+    expect(st.first.summary, 'APROVADO');
+    st = subagentStatuses(
+      subs,
+      spec: sp,
+      steps: steps,
+      timelines: [
+        [call('rev', result: 'erro', error: true)],
+      ],
+    );
+    expect(st.map((s) => s.state), [
+      SubagentState.failed,
+      SubagentState.notCalled, // a step is done and tw was never called
+      SubagentState.pending,
+    ]);
   });
 }

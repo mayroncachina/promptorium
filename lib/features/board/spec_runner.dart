@@ -12,6 +12,7 @@ import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
 import '../specs/spec_service.dart';
+import 'autopilot.dart';
 import 'board_rules.dart';
 
 class SpecRunException implements Exception {
@@ -59,6 +60,7 @@ String specStepPrompt({
   required String specText,
   required List<StepView> steps,
   required List<String> todo,
+  List<SpecSubagent> subagents = const [],
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
   final now = [
@@ -101,6 +103,23 @@ String specStepPrompt({
       '${later.join(', ')}.',
     );
   }
+  final plan = subagentPlan(subagents, steps: steps, todo: todo);
+  if (plan.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Subagentes desta spec (chame-os pela ferramenta Agent/Task, '
+        'com subagent_type igual ao nome):',
+      );
+    for (final line in plan) {
+      b.writeln('- $line');
+    }
+    b.writeln(
+      'Se um revisor reprovar, corrija e chame-o de novo (no máximo 2 '
+      'tentativas); se ainda reprovar, termine mesmo assim e descreva o '
+      'parecer na resposta final.',
+    );
+  }
   b
     ..writeln()
     ..writeln('Spec (${spec.path}):')
@@ -121,6 +140,42 @@ String specStepPrompt({
       'sem escrever essa linha.',
     );
   return b.toString().trimRight();
+}
+
+/// Instructions (one line each) of the [subagents] that apply to the session
+/// doing [todo]: start of the spec, before / after each step, after a given
+/// step and at the end of the spec (this session finishes the last step).
+List<String> subagentPlan(
+  List<SpecSubagent> subagents, {
+  required List<StepView> steps,
+  required List<String> todo,
+}) {
+  if (subagents.isEmpty || steps.isEmpty || todo.isEmpty) return const [];
+  final untouched = steps.every(
+    (s) => s.status == StepStatus.pending || todo.contains(s.id),
+  );
+  final startsSpec = todo.contains(steps.first.id) && untouched;
+  final finishesSpec = todo.contains(steps.last.id);
+  final ids = todo.join(', ');
+  String extra(SpecSubagent a) =>
+      a.instruction == null ? '' : ' Instrução: ${a.instruction}';
+  return [
+    for (final a in subagents)
+      switch (a.when) {
+        SubagentWhen.specStart when startsSpec =>
+          '${a.agent}: antes de começar a implementar.${extra(a)}',
+        SubagentWhen.beforeEach =>
+          '${a.agent}: antes de implementar $ids.${extra(a)}',
+        SubagentWhen.afterEach =>
+          '${a.agent}: depois de implementar $ids, antes do commit.${extra(a)}',
+        SubagentWhen.atStep when a.step != null && todo.contains(a.step) =>
+          '${a.agent}: ao terminar ${a.step}, antes do commit.${extra(a)}',
+        SubagentWhen.specEnd when finishesSpec =>
+          '${a.agent}: ao terminar tudo (é a última etapa), antes do '
+              'commit.${extra(a)}',
+        _ => null,
+      },
+  ].whereType<String>().toList();
 }
 
 /// `SPEC-003 · R2 · Extrair PKs…` / `SPEC-003 · R1–R3 · Extração do schema`.
@@ -152,6 +207,7 @@ class SpecRunner {
     String? effort,
     String? agent,
     bool ignoreBlockers = false,
+    bool reviewUnblocks = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -168,9 +224,33 @@ class SpecRunner {
       throw SpecRunException('O arquivo ${spec.path} não existe.');
     }
 
-    if (!ignoreBlockers) {
+    String? baseBranch;
+    // Already started (has its worktree): its dependencies no longer block.
+    if (!ignoreBlockers && spec.worktreePath == null) {
       final all = await specs.watchByWorkspace(ws.id).first;
-      final blockers = specBlockers(spec, specsByCode(all));
+      final byCode = specsByCode(all);
+      final blockers = specBlockers(
+        spec,
+        byCode,
+        reviewUnblocks: reviewUnblocks,
+      );
+      if (reviewUnblocks && blockers.isEmpty && spec.worktreePath == null) {
+        // Dependencies still in Review are not merged: the new branch starts
+        // from theirs so their code is there.
+        final pending = [
+          for (final c in spec.dependsOn)
+            if (byCode[c] case final d?
+                when d.stage == SpecStage.review && d.branch != null)
+              d.branch!,
+        ];
+        if (pending.length > 1) {
+          throw SpecRunException(
+            '${spec.code} depende de várias specs em Review; faça o merge '
+            'de ao menos uma antes.',
+          );
+        }
+        baseBranch = pending.firstOrNull;
+      }
       if (blockers.isNotEmpty) {
         throw SpecRunException(
           '${spec.code} depende de ${blockers.join(', ')}, que ainda não '
@@ -213,7 +293,7 @@ class SpecRunner {
       await specs.setAgent(specId, agent);
       spec = (await specs.getById(specId))!;
     }
-    final wt = await _worktree(ws, spec);
+    final wt = await _worktree(ws, spec, baseBranch: baseBranch);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
     final id = await _manager.create(
@@ -225,6 +305,7 @@ class SpecRunner {
           specText: text,
           steps: steps,
           todo: todo,
+          subagents: SpecDocument.parse(text).subagents,
         ),
         agent: spec.agentName,
         model: model ?? last?.model ?? prefs.model(RunKind.session),
@@ -248,8 +329,9 @@ class SpecRunner {
   /// `pr/spec-003-<slug>-<tail>` from the root's current branch.
   Future<({String path, String branch, String? base})> _worktree(
     Workspace ws,
-    Spec spec,
-  ) async {
+    Spec spec, {
+    String? baseBranch,
+  }) async {
     final git = _ref.read(gitServiceFactoryProvider)(ws.path);
     if (spec.worktreePath != null && spec.branch != null) {
       final known = await git.listWorktrees();
@@ -263,13 +345,14 @@ class SpecRunner {
       }
     }
     try {
-      final base = await git.currentBranch();
+      final base = baseBranch ?? await git.currentBranch();
       final id = _ref.read(sessionIdGeneratorProvider)();
       final created = await git.addWorktree(
         sessionSlug(
           '${spec.code.toLowerCase()} ${slugify(spec.title, maxLength: 24)}',
           id,
         ),
+        baseBranch: baseBranch,
       );
       await _ref
           .read(specsRepoProvider)
@@ -340,6 +423,11 @@ class SpecRunner {
       final steps = stepsOf(spec, await repo.bySpec(specId));
       if (steps.isNotEmpty && steps.every((x) => x.isDone)) {
         await _ref.read(specsRepoProvider).setStage(specId, SpecStage.review);
+        unawaited(
+          Future<void>.microtask(
+            () => _ref.read(autopilotProvider.notifier).tick(spec.workspaceId),
+          ),
+        );
         return;
       }
       final mineDone = mine.every(
@@ -383,6 +471,8 @@ class SpecRunner {
         mode: ClaudePermissionMode.fromCli(done.permissionMode),
         model: done.model,
         effort: done.effort,
+        // Already started (maybe with a dependency still in Review).
+        ignoreBlockers: true,
       );
     } catch (e) {
       debugPrint('spec ${done.specId}: próxima etapa não iniciada — $e');

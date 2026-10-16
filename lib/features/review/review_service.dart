@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -128,10 +129,22 @@ class ReviewService {
       s.worktreePath != ws.path && Directory(s.worktreePath).existsSync();
 
   /// Merge target: `sessions.base_branch`, or the branch checked out in the
-  /// workspace root (rows created before schema v5).
+  /// workspace root (rows created before schema v5, or a base branch that no
+  /// longer exists).
   Future<String> baseBranchOf(Session s, Workspace ws) async {
     final b = s.baseBranch;
-    if (b != null && b.isNotEmpty) return _safeRef(b, 'Branch base');
+    if (b != null && b.isNotEmpty) {
+      _safeRef(b, 'Branch base');
+      // The base may be the branch of a spec already merged (and deleted):
+      // its work is in the branch checked out in the root.
+      try {
+        await _git(ws.path)
+            .git(['rev-parse', '--verify', '--quiet', 'refs/heads/$b']);
+        return b;
+      } on GitException {
+        // falls through to the root's branch
+      }
+    }
     return _safeRef(
       await _git(ws.path).currentBranch() ?? 'main',
       'Branch base',
@@ -520,6 +533,25 @@ class ReviewService {
       worktreesBase: main.worktreesBase,
     );
     if (guard != null) throw ReviewException(guard);
+    // A spec created on top of another one (dependency still in Review) has
+    // that spec's branch as its base: the dependency goes first.
+    final stackedOn =
+        (await _ref.read(specsRepoProvider).watchByWorkspace(ws.id).first)
+            .where(
+              (o) =>
+                  o.id != spec?.id &&
+                  o.branch == base &&
+                  o.stage != SpecStage.done,
+            )
+            .firstOrNull;
+    if (stackedOn != null) {
+      throw ReviewException(
+        '${spec?.code ?? 'Esta spec'} foi criada em cima de ${stackedOn.code} '
+        '(branch "$base"), que ainda não foi mergeada. Faça o merge de '
+        '${stackedOn.code} primeiro: depois deste, o merge desta vai para a '
+        'branch principal.',
+      );
+    }
     try {
       final current = await main.currentBranch();
       if (current != base) {
@@ -639,7 +671,7 @@ class ReviewService {
     await _ref.read(sessionsRepoProvider).setMerged(s.id, commit);
     if (task != null) await _ref.read(taskActionsProvider).markDone(task.id);
     if (spec != null) {
-      warnings.addAll(await _closeSpec(ws, spec, commit));
+      warnings.addAll(await _closeSpec(ws, spec, commit, base));
     }
     return MergeResult(commit: commit, warnings: warnings);
   }
@@ -651,6 +683,7 @@ class ReviewService {
     Workspace ws,
     Spec spec,
     String commit,
+    String base,
   ) async {
     final warnings = <String>[];
     final sessions = _ref.read(sessionsRepoProvider);
@@ -663,6 +696,14 @@ class ReviewService {
         .read(specStepsRepoProvider)
         .setAll(spec.id, spec.requirements.map((r) => r.id), StepStatus.done);
     final repo = _ref.read(specsRepoProvider);
+    // Specs stacked on this one now merge where this one went.
+    if (spec.branch != null) {
+      for (final o in await repo.watchByWorkspace(ws.id).first) {
+        if (o.id == spec.id || o.baseBranch != spec.branch) continue;
+        await repo.update(o.id, SpecsCompanion(baseBranch: Value(base)));
+        await sessions.setSpecBaseBranch(o.id, base);
+      }
+    }
     await repo.setStage(spec.id, SpecStage.done);
     await repo.setWorktree(spec.id);
     try {

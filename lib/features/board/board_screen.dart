@@ -8,10 +8,12 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
+import 'autopilot.dart';
 import 'board_rules.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
+import 'widgets/subagent_status.dart';
 
 /// Step rows of every spec of a workspace.
 final specStepsProvider = StreamProvider.family<List<SpecStep>, int>(
@@ -92,16 +94,22 @@ class BoardScreen extends ConsumerWidget {
               for (final x in sessions.reversed)
                 if (x.specId == s.id) x,
             ]..sort((a, b) => a.startedAt.compareTo(b.startedAt)),
-            blockers: specBlockers(s, byCode),
+            // A spec already started keeps going (its dependency may be in
+            // Review, released by the autopilot).
+            blockers: s.worktreePath == null
+                ? specBlockers(s, byCode)
+                : const [],
           ),
     ];
-    final drafts = specs.where((s) => !isOnBoard(s)).length;
+    final drafts = specs
+        .where((s) => s.status != SpecStatus.archived && !isOnBoard(s))
+        .length;
     return ColoredBox(
       color: AppColors.background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Header(total: cards.length, drafts: drafts),
+          _Header(workspaceId: ws.id, total: cards.length, drafts: drafts),
           if (legacy.isNotEmpty)
             _LegacyBanner(
               count: legacy.length,
@@ -142,52 +150,77 @@ class _Empty extends StatelessWidget {
   );
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.total, required this.drafts});
+class _Header extends ConsumerWidget {
+  const _Header({
+    required this.workspaceId,
+    required this.total,
+    required this.drafts,
+  });
 
+  final int workspaceId;
   final int total;
   final int drafts;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: AppColors.border)),
-    ),
-    child: Row(
-      children: [
-        const Text(
-          'Quadro',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          '$total',
-          key: const ValueKey('board-total'),
-          style: const TextStyle(
-            fontFamily: AppFonts.mono,
-            fontSize: 12,
-            color: AppColors.textSecondary,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(
+      autopilotProvider.select((s) => s.contains(workspaceId)),
+    );
+    final pilot = ref.read(autopilotProvider.notifier);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Quadro',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-        ),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Text(
-            'Cada cartão é uma spec (uma branch, um PR); os requisitos são as '
-            'etapas, executadas uma por sessão.',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-        ),
-        if (drafts > 0)
+          const SizedBox(width: 10),
           Text(
-            '$drafts em rascunho fora do quadro',
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            '$total',
+            key: const ValueKey('board-total'),
+            style: const TextStyle(
+              fontFamily: AppFonts.mono,
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
-      ],
-    ),
-  );
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Cada cartão é uma spec (uma branch, um PR); os requisitos são as '
+              'etapas, executadas uma por sessão.',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+          if (drafts > 0)
+            Text(
+              '$drafts em rascunho fora do quadro',
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+          const SizedBox(width: 12),
+          Tooltip(
+            message: on
+                ? 'Parar: desliga o automático e interrompe as sessões das specs'
+                : 'Executar: inicia as specs sem bloqueio em paralelo e as '
+                      'bloqueadas assim que a dependência chegar em Review',
+            child: FilledButton.icon(
+              key: const ValueKey('board-autopilot'),
+              onPressed: () =>
+                  on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+              icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
+              label: Text(on ? 'Parar' : 'Executar tudo'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LegacyBanner extends StatelessWidget {
@@ -484,6 +517,21 @@ class SpecCard extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             _Progress(done: done, total: total, specCode: spec.code),
+            Builder(
+              builder: (context) {
+                final subs = watchSubagentStatuses(
+                  ref,
+                  spec,
+                  data.steps,
+                  data.sessions,
+                );
+                if (subs.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SubagentChips(statuses: subs),
+                );
+              },
+            ),
             if (current != null && spec.stage != SpecStage.done) ...[
               const SizedBox(height: 6),
               Text(
@@ -562,6 +610,13 @@ class SpecCard extends ConsumerWidget {
 void openSession(WidgetRef ref, String sessionId) {
   ref.read(selectedSessionProvider.notifier).select(sessionId);
   ref.read(navigationProvider.notifier).go(AppSection.sessions);
+}
+
+/// Same as [openSession] for callers whose widget may be gone (snackbar
+/// actions).
+void openSessionIn(ProviderContainer container, String sessionId) {
+  container.read(selectedSessionProvider.notifier).select(sessionId);
+  container.read(navigationProvider.notifier).go(AppSection.sessions);
 }
 
 class _Chip extends StatelessWidget {

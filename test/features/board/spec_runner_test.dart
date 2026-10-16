@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -58,6 +60,45 @@ void main() {
         parseStepMarker('ETAPA CONCLUÍDA: R1\n…depois…\nETAPA CONCLUÍDA: R2'),
         {'R2'},
       );
+    });
+
+    test('subagentPlan: each moment lands in the right session', () {
+      const steps = [
+        StepView(id: 'R1', text: 'a'),
+        StepView(id: 'R2', text: 'b'),
+        StepView(id: 'R3', text: 'c'),
+      ];
+      const subs = [
+        SpecSubagent(agent: 'ini', when: SubagentWhen.specStart),
+        SpecSubagent(agent: 'antes', when: SubagentWhen.beforeEach),
+        SpecSubagent(agent: 'depois', when: SubagentWhen.afterEach),
+        SpecSubagent(agent: 'em2', when: SubagentWhen.atStep, step: 'R2'),
+        SpecSubagent(
+          agent: 'rev',
+          when: SubagentWhen.specEnd,
+          instruction: 'foco em testes',
+        ),
+      ];
+      List<String> agents(List<String> todo, [List<StepView> st = steps]) => [
+        for (final l in subagentPlan(subs, steps: st, todo: todo))
+          l.split(':').first,
+      ];
+      expect(agents(['R1']), ['ini', 'antes', 'depois']);
+      expect(agents(['R2']), ['antes', 'depois', 'em2']);
+      expect(agents(['R3']), ['antes', 'depois', 'rev']);
+      // Small spec in one session: everything applies at once.
+      expect(agents(['R1', 'R2', 'R3']), [
+        'ini',
+        'antes',
+        'depois',
+        'em2',
+        'rev',
+      ]);
+      expect(
+        subagentPlan(subs, steps: steps, todo: ['R3']).last,
+        contains('Instrução: foco em testes'),
+      );
+      expect(subagentPlan(const [], steps: steps, todo: ['R1']), isEmpty);
     });
 
     test('prompt: spec embedded, done / now / later, commit and marker', () {
@@ -231,6 +272,56 @@ void main() {
         everyElement(row.worktreePath),
       );
     });
+
+    test(
+      'a spec started while its dependency is in Review keeps advancing',
+      () async {
+        final repoSpecs = c.read(specsRepoProvider);
+        final dep = await repoSpecs.insert(
+          workspaceId: ws.id,
+          code: 'SPEC-000',
+          title: 'Base',
+          path: 'specs/SPEC-000.md',
+          status: SpecStatus.approved,
+          requirements: const [],
+          dependsOn: const [],
+        );
+        await repoSpecs.setStage(dep.id, SpecStage.review);
+        await repoSpecs.update(
+          spec.id,
+          const SpecsCompanion(dependsOn: Value(['SPEC-000'])),
+        );
+        final runner = c.read(specRunnerProvider);
+        await expectLater(
+          runner.runNext(spec.id),
+          throwsA(isA<SpecRunException>()),
+        );
+        await runner.runNext(spec.id, reviewUnblocks: true);
+        await settle();
+        cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+        await settle();
+        await settle();
+        expect(cli.processes, hasLength(2));
+      },
+    );
+
+    test(
+      'autopilot starts the spec and turns itself off after the last one',
+      () async {
+        final pilot = c.read(autopilotProvider.notifier);
+        await pilot.start(ws.id);
+        await settle();
+        expect(c.read(autopilotProvider), {ws.id});
+        for (final r in ['R1', 'R2', 'R3', 'R4']) {
+          cli.last.emit(resultLine('ETAPA CONCLUÍDA: $r'));
+          await settle();
+          await settle();
+        }
+        expect(await stage(), SpecStage.review);
+        await settle();
+        expect(c.read(autopilotProvider), isEmpty);
+      },
+    );
 
     test('small spec runs whole in one session; stop → pending; failure → '
         'waits; blocked spec is refused', () async {

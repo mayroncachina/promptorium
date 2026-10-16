@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import '../../data/db/app_database.dart';
+import '../sessions/timeline.dart';
+import '../specs/spec_file.dart';
 
 /// Pure rules of the Quadro: the spec is the card, its requirements are the
 /// steps (plano "specs no quadro").
@@ -52,9 +54,16 @@ Map<String, Spec> specsByCode(Iterable<Spec> specs) => {
 
 /// Codes in `spec.dependsOn` whose spec is not in "Feito" yet. Codes that
 /// do not exist in the workspace are ignored (they could never be done).
-List<String> specBlockers(Spec spec, Map<String, Spec> byCode) => [
+List<String> specBlockers(
+  Spec spec,
+  Map<String, Spec> byCode, {
+  bool reviewUnblocks = false,
+}) => [
   for (final code in spec.dependsOn)
-    if (byCode[code] case final dep? when dep.stage != SpecStage.done) code,
+    if (byCode[code] case final dep?
+        when dep.stage != SpecStage.done &&
+            !(reviewUnblocks && dep.stage == SpecStage.review))
+      code,
 ];
 
 bool isSpecBlocked(Spec spec, Map<String, Spec> byCode) =>
@@ -77,10 +86,20 @@ List<String> nextSteps(List<StepView> steps, {required int singleSessionMax}) {
 
 /// The card only shows approved (or finished) specs: drafts and ideas stay
 /// in the Specs screen.
-bool isOnBoard(Spec spec) =>
-    spec.status == SpecStatus.approved ||
-    spec.status == SpecStatus.done ||
-    spec.stage != SpecStage.backlog;
+bool isOnBoard(Spec spec, {bool showArchived = false}) =>
+    spec.status == SpecStatus.archived
+    ? showArchived
+    : spec.status == SpecStatus.approved ||
+          spec.status == SpecStatus.done ||
+          spec.stage != SpecStage.backlog;
+
+/// A spec never executed (no worktree, still in Backlog) may be deleted.
+bool canDeleteSpec(Spec spec) =>
+    spec.stage == SpecStage.backlog && spec.worktreePath == null;
+
+/// A finished spec (merged, in "Feito") may be archived.
+bool canArchiveSpec(Spec spec) =>
+    spec.stage == SpecStage.done && spec.status != SpecStatus.archived;
 
 /// Labels of the columns.
 String specStageLabel(SpecStage s) => switch (s) {
@@ -96,3 +115,95 @@ String stepStatusLabel(StepStatus s) => switch (s) {
   StepStatus.done => 'concluída',
   StepStatus.needsInput => 'aguardando você',
 };
+
+/// State of a subagent configured on a spec.
+enum SubagentState {
+  /// Its moment did not come yet.
+  pending,
+  running,
+  done,
+
+  /// Every call ended in error.
+  failed,
+
+  /// Its moment passed and the agent never called it.
+  notCalled,
+}
+
+String subagentStateLabel(SubagentState s) => switch (s) {
+  SubagentState.pending => 'pendente',
+  SubagentState.running => 'rodando',
+  SubagentState.done => 'feito',
+  SubagentState.failed => 'falhou',
+  SubagentState.notCalled => 'não foi chamado',
+};
+
+@immutable
+class SubagentStatus {
+  const SubagentStatus(
+    this.subagent,
+    this.state, {
+    this.summary,
+    this.calls = 0,
+  });
+
+  final SpecSubagent subagent;
+  final SubagentState state;
+
+  /// Answer of the last finished call (what the subagent concluded).
+  final String? summary;
+  final int calls;
+}
+
+/// Calls (`Task` / `Agent` tool) of [agent] in [items], nested ones included.
+Iterable<ToolItem> _callsOf(String agent, Iterable<TimelineItem> items) sync* {
+  for (final i in items) {
+    if (i is! ToolItem) continue;
+    if (i.isSubagent && '${i.input['subagent_type'] ?? ''}' == agent) yield i;
+    yield* _callsOf(agent, i.children);
+  }
+}
+
+/// Status of each of [subs] from the timelines of the spec's sessions and
+/// the state of its steps: a call seen = running / done / failed; no call
+/// and the moment already passed = "não foi chamado".
+List<SubagentStatus> subagentStatuses(
+  List<SpecSubagent> subs, {
+  required Spec spec,
+  required List<StepView> steps,
+  required Iterable<List<TimelineItem>> timelines,
+}) {
+  bool stepDone(String? id) => steps.any((s) => s.id == id && s.isDone);
+  bool passed(SpecSubagent a) => switch (a.when) {
+    SubagentWhen.specEnd =>
+      spec.stage == SpecStage.review || spec.stage == SpecStage.done,
+    SubagentWhen.atStep => stepDone(a.step),
+    _ => steps.any((s) => s.isDone),
+  };
+  return [
+    for (final a in subs)
+      () {
+        final calls = [for (final t in timelines) ..._callsOf(a.agent, t)];
+        if (calls.isEmpty) {
+          return SubagentStatus(
+            a,
+            passed(a) ? SubagentState.notCalled : SubagentState.pending,
+          );
+        }
+        final finished = calls.where((c) => c.done).toList();
+        final ok = finished.where((c) => !c.isError).toList();
+        final state = calls.any((c) => !c.done)
+            ? SubagentState.running
+            : ok.isNotEmpty
+            ? SubagentState.done
+            : SubagentState.failed;
+        final text = (ok.isNotEmpty ? ok.last : finished.lastOrNull)?.result;
+        return SubagentStatus(
+          a,
+          state,
+          calls: calls.length,
+          summary: text == null || text.trim().isEmpty ? null : text.trim(),
+        );
+      }(),
+  ];
+}
