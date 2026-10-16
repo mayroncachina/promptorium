@@ -60,7 +60,7 @@ void main() {
       'Sessões',
       'Prompt',
       'Specs',
-      'Tarefas',
+      'Quadro',
       'Agentes',
       'Skills',
       'Review',
@@ -143,11 +143,11 @@ void main() {
     await pumpShell(tester);
 
     await ctrl(tester, LogicalKeyboardKey.keyK);
-    expect(find.text('Ir para Tarefas'), findsOneWidget);
+    expect(find.text('Ir para Quadro'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'agen');
     await tester.pumpAndSettle();
-    expect(find.text('Ir para Tarefas'), findsNothing);
+    expect(find.text('Ir para Quadro'), findsNothing);
     await tester.tap(find.text('Ir para Agentes'));
     await tester.pumpAndSettle();
 

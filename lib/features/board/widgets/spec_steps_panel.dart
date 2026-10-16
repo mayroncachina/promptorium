@@ -1,0 +1,325 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/providers.dart';
+import '../../../ui/shell/navigation.dart';
+import '../../../ui/theme/tokens.dart';
+import '../../sessions/session_manager.dart';
+import '../../sessions/widgets/session_style.dart';
+import '../../specs/spec_service.dart' show selectedSpecProvider;
+import '../board_rules.dart';
+import '../board_screen.dart';
+import 'run_spec_dialog.dart';
+
+final _specProvider = StreamProvider.family<Spec?, int>(
+  (ref, id) => ref.watch(specsRepoProvider).watchById(id),
+);
+
+final _stepRowsProvider = StreamProvider.family<List<SpecStep>, int>(
+  (ref, id) => ref.watch(specStepsRepoProvider).watchBySpec(id),
+);
+
+Color stepStatusColor(StepStatus s) => switch (s) {
+  StepStatus.pending => AppColors.textMuted,
+  StepStatus.running => AppColors.teal,
+  StepStatus.done => AppColors.blue,
+  StepStatus.needsInput => AppColors.amber,
+};
+
+/// Card details: the steps with their state and session.
+Future<void> showSpecDetailDialog(BuildContext context, int specId) =>
+    showDialog<void>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (context) => Align(
+        alignment: const Alignment(0, -0.3),
+        child: Material(
+          key: const ValueKey('spec-detail-dialog'),
+          color: AppColors.panel,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: AppColors.border),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: SizedBox(
+            width: 620,
+            height: 560,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: SpecStepsPanel(specId: specId, inDialog: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+/// Steps of a spec (Quadro details and the Specs screen): state, session of
+/// each step, auto-advance and the run action.
+class SpecStepsPanel extends ConsumerWidget {
+  const SpecStepsPanel({
+    super.key,
+    required this.specId,
+    this.inDialog = false,
+  });
+
+  final int specId;
+  final bool inDialog;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spec = ref.watch(_specProvider(specId)).value;
+    if (spec == null) return const SizedBox.shrink();
+    final rows = ref.watch(_stepRowsProvider(specId)).value ?? const [];
+    final steps = stepsOf(spec, rows);
+    final all = ref.watch(specsProvider(spec.workspaceId)).value ?? const [];
+    final sessions = [
+      for (final s
+          in ref.watch(sessionsProvider(spec.workspaceId)).value ??
+              const <Session>[])
+        if (s.specId == spec.id) s,
+    ]..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+    final data = SpecCardData(
+      spec: spec,
+      steps: steps,
+      sessions: sessions,
+      blockers: specBlockers(spec, specsByCode(all)),
+    );
+    final (done, total) = progressOf(steps);
+    final last = data.lastSession;
+    final busy =
+        last != null &&
+        ref.watch(sessionManagerProvider.select((m) => m.isAlive(last.id))) &&
+        (last.status == SessionStatus.running ||
+            last.status == SessionStatus.waitingApproval);
+    final canRun =
+        !busy &&
+        data.blockers.isEmpty &&
+        total > 0 &&
+        done < total &&
+        spec.stage != SpecStage.done;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(
+              spec.code,
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Dot(specStageColor(spec.stage)),
+            const SizedBox(width: 6),
+            Text(
+              specStageLabel(spec.stage),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '$done/$total etapas'
+              '${data.cost > 0 ? ' · ${formatCost(data.cost)}' : ''}',
+              key: const ValueKey('steps-progress'),
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        if (inDialog) ...[
+          const SizedBox(height: 4),
+          Text(
+            spec.title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ],
+        if (data.blockers.isNotEmpty && spec.stage != SpecStage.done) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Depende de ${data.blockers.join(', ')} (ainda fora de Feito).',
+            style: const TextStyle(fontSize: 12, color: AppColors.red),
+          ),
+        ],
+        if (spec.branch != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Branch ${spec.branch}',
+            style: const TextStyle(
+              fontFamily: AppFonts.mono,
+              fontSize: 11,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ],
+        const SizedBox(height: 10),
+        Expanded(
+          child: steps.isEmpty
+              ? const Center(
+                  child: Text(
+                    'A spec não tem requisitos. Escreva linhas "- R1 · …" na '
+                    'seção Requisitos.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  itemCount: steps.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, color: AppColors.border),
+                  itemBuilder: (_, i) =>
+                      _StepRow(spec: spec, step: steps[i], inDialog: inDialog),
+                ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: CheckboxListTile(
+                key: const ValueKey('steps-auto-advance'),
+                value: spec.autoAdvance,
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                onChanged: (v) => ref
+                    .read(specsRepoProvider)
+                    .setAutoAdvance(spec.id, v ?? true),
+                title: const Text(
+                  'Avanço automático: etapa concluída abre a próxima',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+            if (inDialog) ...[
+              SmallButton(
+                key: const ValueKey('steps-open-spec'),
+                label: 'Abrir spec',
+                onTap: () {
+                  ref.read(selectedSpecProvider.notifier).select(spec.id);
+                  ref.read(navigationProvider.notifier).go(AppSection.specs);
+                  Navigator.of(context).pop();
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+            if (canRun)
+              AmberButton(
+                key: const ValueKey('steps-run'),
+                label: sessions.isEmpty ? 'Executar' : 'Continuar',
+                onTap: () async {
+                  if (inDialog) Navigator.of(context).pop();
+                  await runSpec(context, ref, data);
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StepRow extends ConsumerWidget {
+  const _StepRow({
+    required this.spec,
+    required this.step,
+    required this.inDialog,
+  });
+
+  final Spec spec;
+  final StepView step;
+  final bool inDialog;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    key: ValueKey('step-${step.id}'),
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Dot(stepStatusColor(step.status)),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 32,
+          child: Text(
+            step.id,
+            style: const TextStyle(
+              fontFamily: AppFonts.mono,
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            step.text,
+            style: TextStyle(
+              fontSize: 13,
+              color: step.isDone ? AppColors.textSecondary : AppColors.text,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          stepStatusLabel(step.status),
+          key: ValueKey('step-status-${step.id}'),
+          style: TextStyle(fontSize: 11, color: stepStatusColor(step.status)),
+        ),
+        if (step.sessionId != null)
+          IconButton(
+            key: ValueKey('step-session-${step.id}'),
+            tooltip: 'Ver sessão',
+            iconSize: 14,
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.open_in_new, color: AppColors.textSecondary),
+            onPressed: () {
+              if (inDialog) Navigator.of(context).pop();
+              openSession(ref, step.sessionId!);
+            },
+          ),
+        SizedBox(
+          width: 24,
+          child: PopupMenuButton<StepStatus>(
+            key: ValueKey('step-menu-${step.id}'),
+            padding: EdgeInsets.zero,
+            iconSize: 14,
+            tooltip: 'Marcar',
+            color: AppColors.panel,
+            icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
+            onSelected: (s) =>
+                ref.read(specStepsRepoProvider).set(spec.id, step.id, s),
+            itemBuilder: (_) => [
+              if (!step.isDone)
+                const PopupMenuItem(
+                  value: StepStatus.done,
+                  child: Text(
+                    'Marcar como concluída',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              if (step.status != StepStatus.pending)
+                const PopupMenuItem(
+                  value: StepStatus.pending,
+                  child: Text(
+                    'Voltar para pendente',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}

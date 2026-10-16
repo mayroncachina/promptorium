@@ -15,6 +15,9 @@ class SpecsRepo {
             ..orderBy([(s) => OrderingTerm.asc(s.code)]))
           .watch();
 
+  Stream<Spec?> watchById(int id) =>
+      (_db.select(_t)..where((s) => s.id.equals(id))).watchSingleOrNull();
+
   Future<Spec?> getById(int id) =>
       (_db.select(_t)..where((s) => s.id.equals(id))).getSingleOrNull();
 

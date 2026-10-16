@@ -9,7 +9,10 @@ enum AppSection {
   sessions('Sessões', 'Nova sessão'),
   prompt('Prompt', 'Nova conversa'),
   specs('Specs', 'Nova spec'),
-  tasks('Tarefas', 'Nova tarefa'),
+
+  /// Quadro: one card per spec (the enum name is kept: it is stored as the
+  /// last visible screen).
+  tasks('Quadro', 'Nova spec'),
   agents('Agentes', 'Novo agente'),
   skills('Skills', 'Nova skill'),
   review('Review', null),
