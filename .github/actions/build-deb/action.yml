@@ -5,6 +5,9 @@ inputs:
   version:
     description: Versão dos pacotes (1.2.3, 0.1.0~ci.abc1234…)
     required: true
+  build:
+    description: "false = só analisa e testa (sem compilar nem empacotar)"
+    default: "true"
   flutter-version:
     description: Tag do Flutter
     default: "3.47.7"
@@ -34,9 +37,11 @@ runs:
         flutter test
 
     - name: Compilar
+      if: inputs.build == 'true'
       shell: bash
       run: flutter build linux --release --build-name="${{ inputs.version }}"
 
     - name: Empacotar
+      if: inputs.build == 'true'
       shell: bash
       run: scripts/package.sh "${{ inputs.version }}"

@@ -196,8 +196,8 @@ atualizar o `.deb` não os apaga.
    (`--build-name` = a versão da tag), empacota com `scripts/package.sh` e anexa o `.deb` e o
    `.tar.gz` à release. Se analyze ou testes falharem, nada é anexado.
 
-A cada push na `main` e em todo PR, o workflow `ci.yml` faz o mesmo build e deixa o `.deb` como
-artefato da execução (aba **Actions** → a execução → **Artifacts**, 14 dias), com a versão
+Em todo PR o workflow `ci.yml` só roda `flutter analyze` e `flutter test`. Ao mergear na `main`
+ele também compila e deixa o `.deb` como artefato da execução (aba **Actions** → a execução → **Artifacts**, 14 dias), com a versão
 `<versão do pubspec>~ci.<commit>`.
 
 Para gerar os pacotes localmente: `flutter build linux --release && scripts/package.sh 0.1.0`
