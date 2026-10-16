@@ -72,6 +72,12 @@ class RunPrefs {
   String effort(RunKind k) =>
       _settings[AppSettingKeys.runEffort(k.name)] ?? defaultEfforts[k]!;
 
+  /// A spec with at most this many steps runs in a single session (Quadro).
+  int get singleSessionMaxSteps =>
+      int.tryParse(_settings[AppSettingKeys.singleSessionSteps] ?? '') ??
+      defaultSingleSessionSteps;
+  static const defaultSingleSessionSteps = 3;
+
   /// One of [autocompactChoices].
   String get autocompact =>
       _settings[AppSettingKeys.autocompact] ?? defaultAutocompact;

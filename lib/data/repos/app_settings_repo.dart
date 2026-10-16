@@ -21,6 +21,9 @@ abstract final class AppSettingKeys {
   /// Default `--effort` of a `RunKind` (`default` = CLI default).
   static String runEffort(String kind) => 'claude.effort.$kind';
 
+  /// Quadro: a spec with at most this many steps runs in one session.
+  static const singleSessionSteps = 'board.singleSessionSteps';
+
   /// `--autocompact` of every run (`auto` or `100k`–`1M`).
   static const autocompact = 'claude.autocompact';
 

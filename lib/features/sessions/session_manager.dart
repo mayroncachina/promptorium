@@ -17,6 +17,7 @@ import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
@@ -51,6 +52,11 @@ class NewSessionRequest {
     this.maxBudgetUsd,
     this.resumeFrom,
     this.origin,
+    this.specId,
+    this.steps,
+    this.worktreePath,
+    this.branch,
+    this.baseBranch,
   });
 
   final Workspace workspace;
@@ -80,6 +86,17 @@ class NewSessionRequest {
 
   /// Note shown at the top of the timeline (e.g. where the context came from).
   final String? origin;
+
+  /// Spec (card) and steps (`R2` / `R1,R2`) the session works on
+  /// (`SpecRunner`).
+  final int? specId;
+  final String? steps;
+
+  /// Existing worktree to run in (the spec's), with its [branch] and the
+  /// [baseBranch] it came from. Null = [useWorktree] decides.
+  final String? worktreePath;
+  final String? branch;
+  final String? baseBranch;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -232,7 +249,11 @@ class SessionManager extends Notifier<SessionManagerState> {
     String path = ws.path, branch;
     String? base;
     try {
-      if (r.useWorktree) {
+      if (r.worktreePath != null) {
+        path = r.worktreePath!;
+        branch = r.branch ?? await git.currentBranch() ?? 'HEAD';
+        base = r.baseBranch;
+      } else if (r.useWorktree) {
         // The worktree starts at the root's HEAD: that branch is the merge
         // target of the Review (Fase 9).
         base = await git.currentBranch();
@@ -258,6 +279,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       title: title,
       permissionMode: r.permissionMode.cliValue,
       taskId: r.taskId,
+      specId: r.specId,
+      steps: r.steps,
       baseBranch: base,
     );
     if (r.origin != null) await _note(id, r.origin!);
@@ -311,6 +334,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
       await _repo.setStatus(id, SessionStatus.running);
       await _syncTask(id, SessionStatus.running);
+      await _specs.onActive(id);
     });
     proc.busy = true;
     await proc.process.send(msg);
@@ -505,6 +529,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       final s = await _repo.getById(id);
       if (s != null && !s.status.isTerminal) {
         await _repo.setStatus(id, SessionStatus.stopped);
+        await _specs.onEnded(id, SessionStatus.stopped);
       }
       return;
     }
@@ -658,6 +683,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         p.pendingAt[e.requestId] = DateTime.now();
         await _repo.setStatus(id, SessionStatus.waitingApproval);
         await _syncTask(id, SessionStatus.waitingApproval);
+        await _specs.onActive(id);
         _notify(
           'Aprovação pendente',
           '${p.title}: ${e.displayName ?? e.toolName} '
@@ -694,6 +720,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             : SessionStatus.failed;
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
+        await _specs.onResult(id, e);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
@@ -743,6 +770,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (p.stopping) {
       await _note(id, 'Sessão parada pelo usuário');
       await _repo.setStatus(id, SessionStatus.stopped);
+      await _specs.onEnded(id, SessionStatus.stopped);
     } else if (!s.status.isTerminal) {
       await _note(
         id,
@@ -750,6 +778,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         error: true,
       );
       await _repo.setStatus(id, SessionStatus.failed);
+      await _specs.onEnded(id, SessionStatus.failed);
       _notify('Sessão falhou', '${p.title}: processo encerrou ($code)', id);
     }
   }
@@ -824,6 +853,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       debugPrint('sessão $id: tarefa não atualizada — $e');
     }
   }
+
+  SpecRunner get _specs => ref.read(specRunnerProvider);
 
   SessionTimelineNotifier _timeline(String id) =>
       ref.read(sessionTimelineProvider(id).notifier);
