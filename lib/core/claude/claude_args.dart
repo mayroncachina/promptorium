@@ -51,6 +51,8 @@ class ClaudeOptions {
     this.maxTurns,
     this.jsonSchema,
     this.includePartialMessages = true,
+    this.effort,
+    this.autocompact,
   });
 
   /// New session id (`--session-id`, must be a UUID). Exclusive with
@@ -95,6 +97,18 @@ class ClaudeOptions {
   /// `--include-partial-messages` (live `stream_event` deltas).
   final bool includePartialMessages;
 
+  /// `--effort <level>` ([effortLevels]); null or empty = CLI default.
+  /// An unknown value only makes the CLI warn and use its default (2.1.301).
+  final String? effort;
+
+  /// `--autocompact <auto|tokens>`: context size that triggers the automatic
+  /// compaction (`auto`, or 100k–1M as `200k` / `200000`; 2.1.301 rejects
+  /// smaller values before starting). Null or empty = CLI default.
+  final String? autocompact;
+
+  /// Values accepted by `--effort` (CLI 2.1.301).
+  static const effortLevels = ['low', 'medium', 'high', 'xhigh', 'max'];
+
   static const baseArgs = [
     '-p',
     '--input-format',
@@ -123,6 +137,8 @@ class ClaudeOptions {
     int? maxTurns,
     String? jsonSchema,
     bool? includePartialMessages,
+    String? effort,
+    String? autocompact,
   }) => ClaudeOptions(
     sessionId: sessionId ?? this.sessionId,
     resumeId: resumeId ?? this.resumeId,
@@ -141,6 +157,8 @@ class ClaudeOptions {
     jsonSchema: jsonSchema ?? this.jsonSchema,
     includePartialMessages:
         includePartialMessages ?? this.includePartialMessages,
+    effort: effort ?? this.effort,
+    autocompact: autocompact ?? this.autocompact,
   );
 
   /// Command-line arguments (without the executable).
@@ -170,6 +188,11 @@ class ClaudeOptions {
       if (forkSession) '--fork-session',
       if (model != null && model!.isNotEmpty) ...['--model', model!],
       if (agent != null && agent!.isNotEmpty) ...['--agent', agent!],
+      if (effort != null && effort!.isNotEmpty) ...['--effort', effort!],
+      if (autocompact != null && autocompact!.isNotEmpty) ...[
+        '--autocompact',
+        autocompact!,
+      ],
       if (permissionMode == ClaudePermissionMode.skipPermissions)
         '--dangerously-skip-permissions'
       else if (permissionMode != null) ...[

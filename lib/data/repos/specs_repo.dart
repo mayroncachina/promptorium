@@ -15,6 +15,9 @@ class SpecsRepo {
             ..orderBy([(s) => OrderingTerm.asc(s.code)]))
           .watch();
 
+  Stream<Spec?> watchById(int id) =>
+      (_db.select(_t)..where((s) => s.id.equals(id))).watchSingleOrNull();
+
   Future<Spec?> getById(int id) =>
       (_db.select(_t)..where((s) => s.id.equals(id))).getSingleOrNull();
 
@@ -44,6 +47,9 @@ class SpecsRepo {
     required String title,
     required String path,
     SpecStatus status = SpecStatus.draft,
+    List<SpecRequirement> requirements = const [],
+    List<String>? dependsOn,
+    String? phase,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -53,6 +59,9 @@ class SpecsRepo {
           title: title,
           path: path,
           status: Value(status),
+          requirements: Value(requirements),
+          dependsOn: Value.absentIfNull(dependsOn),
+          phase: Value(phase),
         ),
       );
 
@@ -62,6 +71,34 @@ class SpecsRepo {
 
   Future<int> setStatus(int id, SpecStatus status) =>
       update(id, SpecsCompanion(status: Value(status)));
+
+  /// Column of the Quadro.
+  Future<int> setStage(int id, SpecStage stage) =>
+      update(id, SpecsCompanion(stage: Value(stage)));
+
+  Future<int> setAgent(int id, String? agent) => update(
+    id,
+    SpecsCompanion(agentName: Value((agent?.isEmpty ?? true) ? null : agent)),
+  );
+
+  Future<int> setAutoAdvance(int id, bool on) =>
+      update(id, SpecsCompanion(autoAdvance: Value(on)));
+
+  /// Worktree / branch shared by the step sessions (null = none: the
+  /// worktree was removed by the merge).
+  Future<int> setWorktree(
+    int id, {
+    String? path,
+    String? branch,
+    String? baseBranch,
+  }) => update(
+    id,
+    SpecsCompanion(
+      worktreePath: Value(path),
+      branch: Value(branch),
+      baseBranch: Value(baseBranch),
+    ),
+  );
 
   Future<int> delete(int id) =>
       (_db.delete(_t)..where((s) => s.id.equals(id))).go();

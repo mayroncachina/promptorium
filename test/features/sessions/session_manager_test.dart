@@ -184,6 +184,59 @@ void main() {
     expect(cli.args.last, contains('--dangerously-skip-permissions'));
   });
 
+  test('idle session: process closed after the configured time, then '
+      'resumes with --resume', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Ociosa', prompt: 'Oi'),
+    );
+    // Turn running: never closed.
+    var later = DateTime.now().add(const Duration(hours: 2));
+    expect(await m.closeIdle(now: later), isEmpty);
+
+    for (final l in fixtureLines()) {
+      cli.last.emit(l);
+    }
+    await settle();
+    expect(m.isAlive(id), isTrue);
+    // Just finished: still within 15 min.
+    expect(
+      await m.closeIdle(now: DateTime.now().add(const Duration(minutes: 5))),
+      isEmpty,
+    );
+    // Setting 0 = never.
+    await c.read(appSettingsProvider.notifier).set('claude.idleMinutes', '0');
+    expect(await m.closeIdle(now: later), isEmpty);
+    await c.read(appSettingsProvider.notifier).remove('claude.idleMinutes');
+
+    later = DateTime.now().add(const Duration(minutes: 16));
+    expect(await m.closeIdle(now: later), [id]);
+    await settle();
+    expect(m.isAlive(id), isFalse);
+    expect(
+      (await c.read(sessionsRepoProvider).getById(id))!.status,
+      SessionStatus.completed,
+    );
+
+    await m.resume(id);
+    expect(m.isAlive(id), isTrue);
+    expect(cli.args.last, containsAllInOrder(['--resume', id]));
+  });
+
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();
     final cli = FakeCli();
@@ -228,6 +281,10 @@ void main() {
     expect(args, containsAllInOrder(['--model', 'haiku']));
     expect(args, containsAllInOrder(['--agent', 'implementer']));
     expect(args, containsAllInOrder(['--permission-mode', 'acceptEdits']));
+    // Defaults of Configurações → Consumo.
+    expect(args, containsAllInOrder(['--effort', 'medium']));
+    expect(args, containsAllInOrder(['--autocompact', '200k']));
+    expect(row.effort, 'medium');
     expect(args, isNot(contains('--resume')));
     final fake = cli.last;
     expect(fake.writtenJson.single, {
@@ -285,11 +342,10 @@ void main() {
     expect(done.tokensOut, 42);
     expect(m.isAlive(id), isTrue, reason: 'process stays open → idle');
     expect(notifier.shown.map((n) => n.$1), contains('Sessão concluída'));
-    expect(c.read(dailyUsageProvider).costUsd, closeTo(0.00302371, 1e-9));
     expect(c.read(rateLimitProvider)?.fiveHourUtilization, 0.12);
     final footer = c.read(footerStatsProvider);
     expect(footer.usage5h, 0.12);
-    expect(footer.tokensToday, greaterThan(0));
+    expect(footer.usageWeekResetsAt, isNotNull);
     expect(footer.sessionsActive, 0); // idle
     expect(footer.sessionsTotal, 1);
 
@@ -315,14 +371,13 @@ void main() {
     );
     expect(items.last, isA<NoticeItem>());
 
-    // A second turn adds only the cost delta to today's usage.
+    // A second turn: the session cost is the cumulative total_cost_usd.
     await m.send(id, 'mais uma');
     final second = jsonDecode(lines.last) as Map<String, dynamic>;
     second['total_cost_usd'] = 0.005;
     fake.emit(jsonEncode(second));
     await settle();
     expect((await repoSessions.getById(id))!.costUsd, 0.005);
-    expect(c.read(dailyUsageProvider).costUsd, closeTo(0.005, 1e-9));
   });
 
   test(
@@ -348,7 +403,12 @@ void main() {
       final m = c.read(sessionManagerProvider.notifier);
 
       final a = await m.create(
-        NewSessionRequest(workspace: ws, title: 'A', prompt: 'pa'),
+        NewSessionRequest(
+          workspace: ws,
+          title: 'A',
+          prompt: 'pa',
+          effort: 'high',
+        ),
       );
       final b = await m.create(
         NewSessionRequest(
@@ -362,6 +422,7 @@ void main() {
       expect(cli.cwds[1], repo);
       expect((await sessions.getById(b))!.branch, 'main');
       expect(cli.args[0], isNot(contains('--model'))); // inherit
+      expect(cli.args[0], containsAllInOrder(['--effort', 'high']));
 
       final pa = cli.processes[0], pb = cli.processes[1];
       pa.emit(permissionLine('ra'));
@@ -425,6 +486,7 @@ void main() {
         cli.args.last,
         containsAllInOrder(['--resume', a, '--fork-session']),
       );
+      expect(cli.args.last, containsAllInOrder(['--effort', 'high']));
       expect(fork.worktreePath, isNot(rowA.worktreePath));
       expect(cli.cwds.last, fork.worktreePath);
       expect(fork.branch, startsWith('pr/fork-de-a-'));

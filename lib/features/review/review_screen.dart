@@ -238,7 +238,10 @@ class _QueueTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = item.session;
     final meta = [
-      if (item.task != null) item.task!.code,
+      if (item.spec != null)
+        item.spec!.code
+      else if (item.task != null)
+        item.task!.code,
       s.agentName?.isNotEmpty ?? false ? s.agentName! : 'sem agente',
     ].join(' · ');
     final radius = BorderRadius.circular(8);
@@ -371,7 +374,14 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   void _toast(String msg, {SnackBarAction? action}) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), action: action));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          persist: false,
+          duration: const Duration(seconds: 8),
+          action: action,
+        ),
+      );
   }
 
   Future<void> _run(String label, Future<void> Function() job) async {
@@ -410,6 +420,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     final comments = ref.read(reviewDraftProvider(_id)).comments;
     final note = await showAdjustDialog(context, comments);
     if (note == null || !mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final id = _id;
     await _run('Pedir ajustes ao agente', () async {
       await _service.requestChanges(_id, comments, note: note);
       ref.read(reviewDraftProvider(_id).notifier).clearComments();
@@ -419,8 +432,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         action: SnackBarAction(
           label: 'Ver sessão',
           onPressed: () {
-            ref.read(selectedSessionProvider.notifier).select(_id);
-            ref.read(navigationProvider.notifier).go(AppSection.sessions);
+            messenger?.hideCurrentSnackBar();
+            container.read(selectedSessionProvider.notifier).select(id);
+            container.read(navigationProvider.notifier).go(AppSection.sessions);
           },
         ),
       );
@@ -493,7 +507,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.item.task != null
+                      widget.item.spec != null
+                          ? widget.item.spec!.title
+                          : widget.item.task != null
                           ? widget.item.task!.title
                           : sessionTitle(s),
                       key: const ValueKey('review-title'),

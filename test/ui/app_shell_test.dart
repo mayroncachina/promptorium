@@ -60,11 +60,11 @@ void main() {
       'Sessões',
       'Prompt',
       'Specs',
-      'Tarefas',
-      'Agentes',
-      'Skills',
+      'Quadro',
       'Review',
       'Código',
+      'Agentes',
+      'Skills',
       'Servidores MCP',
     ]);
     expect(find.byType(SideBarItem), findsNWidgets(11));
@@ -143,11 +143,11 @@ void main() {
     await pumpShell(tester);
 
     await ctrl(tester, LogicalKeyboardKey.keyK);
-    expect(find.text('Ir para Tarefas'), findsOneWidget);
+    expect(find.text('Ir para Quadro'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'agen');
     await tester.pumpAndSettle();
-    expect(find.text('Ir para Tarefas'), findsNothing);
+    expect(find.text('Ir para Quadro'), findsNothing);
     await tester.tap(find.text('Ir para Agentes'));
     await tester.pumpAndSettle();
 
@@ -188,6 +188,30 @@ void main() {
     await ctrl(tester, LogicalKeyboardKey.keyN);
     expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
     expect(item(tester, AppSection.sessions).active, isTrue);
+  });
+
+  testWidgets('Nova sessão starts with the model and effort of '
+      'Configurações → Consumo', (tester) async {
+    await pumpShell(tester);
+    String value(String key) => tester
+        .widget<DropdownButtonFormField<String>>(find.byKey(ValueKey(key)))
+        .initialValue!;
+    await tester.tap(find.byKey(const ValueKey('title-action')));
+    await tester.pumpAndSettle();
+    expect(value('new-session-model'), 'sonnet');
+    expect(value('new-session-effort'), 'medium');
+    await tester.tap(find.text('Cancelar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('nav-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-model-session-opus')));
+    await tester.tap(find.byKey(const ValueKey('settings-effort-session-low')));
+    await tester.pumpAndSettle();
+    await ctrl(tester, LogicalKeyboardKey.keyN);
+    await tester.pumpAndSettle();
+    expect(value('new-session-model'), 'opus');
+    expect(value('new-session-effort'), 'low');
   });
 
   testWidgets('Nova sessão: "sem perguntar" is opt-in, warns, and is '

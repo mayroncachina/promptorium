@@ -21,6 +21,21 @@ class TasksRepo {
             ..orderBy([(t) => OrderingTerm.asc(t.code)]))
           .watch();
 
+  /// Tasks the schema v8 could not turn into steps (no spec or no
+  /// requirement) and not done yet: the Quadro offers to make them specs.
+  Stream<List<Task>> watchLegacy(int workspaceId) =>
+      (_db.select(_t)
+            ..where(
+              (t) =>
+                  t.workspaceId.equals(workspaceId) &
+                  t.status.equals(TaskStatus.done.name).not() &
+                  (t.specId.isNull() |
+                      t.requirement.isNull() |
+                      t.requirement.equals('')),
+            )
+            ..orderBy([(t) => OrderingTerm.asc(t.code)]))
+          .watch();
+
   Future<Task?> getById(int id) =>
       (_db.select(_t)..where((t) => t.id.equals(id))).getSingleOrNull();
 

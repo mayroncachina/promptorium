@@ -1,11 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/db/app_database.dart';
 import 'package:promptorium/features/review/review_logic.dart';
-import 'package:promptorium/features/specs/spec_file.dart';
-import 'package:promptorium/features/specs/widgets/spec_tasks_panel.dart';
-import 'package:promptorium/ui/theme/app_theme.dart';
 
 const sampleDiff = '''
 diff --git a/lib/ui/status_bar.dart b/lib/ui/status_bar.dart
@@ -119,45 +115,5 @@ void main() {
       '\n'
       'Faça os ajustes no worktree, rode os testes e resuma o que mudou.',
     );
-  });
-
-  test('traceSessions prefers the merged session, then the most recent', () {
-    final old = session(
-      id: 'a',
-      taskId: 1,
-      mergeCommit: 'abc1234def',
-      startedAt: DateTime(2026, 1),
-    );
-    final newer = session(id: 'b', taskId: 1, startedAt: DateTime(2026, 2));
-    final other1 = session(id: 'c', taskId: 2, startedAt: DateTime(2026, 1));
-    final other2 = session(id: 'd', taskId: 2, startedAt: DateTime(2026, 3));
-    final m = traceSessions([newer, old, other1, other2]);
-    expect(m[1]!.id, 'a');
-    expect(m[2]!.id, 'd');
-  });
-
-  testWidgets('traceability shows the merge commit hash', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark(),
-        home: Scaffold(
-          body: SpecTasksPanel(
-            tasks: [task(status: TaskStatus.done)],
-            requirements: SpecDocument.parse(
-              '# Spec\n\n- R1 · Barra de status\n',
-            ).requirements,
-            latestSession: {
-              1: session(taskId: 1, mergeCommit: 'abc1234def567'),
-            },
-            generating: false,
-            onGenerate: null,
-            onNewTask: null,
-          ),
-        ),
-      ),
-    );
-    expect(find.byKey(const ValueKey('trace-commit-TASK-011')), findsOneWidget);
-    expect(find.text('merge abc1234'), findsOneWidget);
-    expect(find.text('commit —'), findsNothing);
   });
 }

@@ -234,41 +234,29 @@ void main() {
     var f = planner().planRoadmap(ws);
     await settle();
     expect(option(cli.args.last, '--max-budget-usd'), '1');
+    final sent = cli.last.writtenJson.single['message']['content'] as String;
+    expect(sent, isNot(contains('tarefa')));
+    Map<String, Object?> spec(
+      String code,
+      String title,
+      String phase, {
+      List<String> deps = const [],
+    }) => {
+      'code': code,
+      'title': title,
+      'phase': phase,
+      'objective': '',
+      'requirements': [
+        {'id': 'R1', 'text': 'Fazer'},
+      ],
+      'acceptance': <String>[],
+      'dependsOn': deps,
+    };
     cli.last.emit(
       resultLine({
         'specs': [
-          {
-            'title': 'Receitas',
-            'phase': 'mvp',
-            'objective': '',
-            'requirements': <Object>[],
-            'acceptance': <String>[],
-            'tasks': [
-              {
-                'code': 'T2',
-                'title': 'CRUD',
-                'description': '',
-                'requirement': 'R1',
-                'dependsOn': <String>[],
-              },
-            ],
-          },
-          {
-            'title': 'Esqueleto',
-            'phase': 'foundation',
-            'objective': '',
-            'requirements': <Object>[],
-            'acceptance': <String>[],
-            'tasks': [
-              {
-                'code': 'T1',
-                'title': 'Criar projeto',
-                'description': '',
-                'requirement': '',
-                'dependsOn': <String>[],
-              },
-            ],
-          },
+          spec('S2', 'Receitas', 'mvp'),
+          spec('S1', 'Esqueleto', 'foundation'),
         ],
         'later': ['Offline'],
       }),
@@ -276,7 +264,8 @@ void main() {
     await f;
     final data = (await load()).$2;
     expect(data.roadmap.specs.first.title, 'Esqueleto');
-    expect(data.roadmap.specs.last.tasks.single.dependsOn, ['T1']);
+    // The MVP spec without dependencies waits for the foundation.
+    expect(data.roadmap.specs.last.dependsOn, ['S1']);
 
     f = planner().planRoadmap(ws);
     await settle();
@@ -284,15 +273,22 @@ void main() {
     await f;
     expect(
       c.read(projectPlannerProvider)[ws.id]?.error,
-      'O planner não gerou nenhuma tarefa.',
+      'O planner não gerou nenhuma spec.',
     );
     // The previous roadmap is kept.
-    expect((await load()).$2.roadmap.tasks, hasLength(2));
+    expect((await load()).$2.roadmap.specs, hasLength(2));
     planner().clearError(ws.id);
     expect(c.read(projectPlannerProvider)[ws.id], isNull);
   });
 
-  test('Ideia → spec: planner run with one spec, codes after the existing '
+  test('the roadmap schema and prompt have specs only, small ones', () {
+    expect(jsonEncode(roadmapSchema), isNot(contains('tasks')));
+    expect(jsonEncode(roadmapSchema), contains('dependsOn'));
+    expect(roadmapSystemPrompt, contains('No máximo 6 requisitos'));
+    expect(roadmapSystemPrompt, contains('uma sessão própria'));
+  });
+
+  test('Ideia → spec: planner run with one spec, code after the existing '
       'ones, idea removed; empty spec and removal by hand', () async {
     await planner().start(ws);
     await c
@@ -306,9 +302,10 @@ void main() {
                 roadmap: Roadmap(
                   specs: [
                     RoadmapSpec(
+                      code: 'S1',
                       title: 'Esqueleto',
                       phase: RoadmapPhase.foundation,
-                      tasks: [RoadmapTask(code: 'T1', title: 'Criar')],
+                      requirements: [(id: 'R1', text: 'Criar')],
                     ),
                   ],
                   later: ['Modo offline', 'App nativo', 'Importar receitas'],
@@ -329,11 +326,12 @@ void main() {
     final sent = cli.last.writtenJson.single['message']['content'] as String;
     expect(sent, contains('Ideia: Modo offline'));
     expect(sent, contains('Phase: mvp'));
-    expect(sent, contains('- T1: Criar'));
-    expect(sent, contains('a partir de T2'));
+    expect(sent, contains('- S1 · Fundação · Esqueleto'));
+    expect(sent, contains('Code novo: S2.'));
     cli.last.emit(
       resultLine({
         'spec': {
+          'code': 'S2',
           'title': 'Modo offline',
           'phase': 'foundation', // the user's choice wins
           'objective': 'Usar sem internet.',
@@ -341,15 +339,7 @@ void main() {
             {'id': 'R1', 'text': 'Receitas offline'},
           ],
           'acceptance': ['Abre sem rede'],
-          'tasks': [
-            {
-              'code': 'T2',
-              'title': 'Cache local',
-              'description': '',
-              'requirement': 'R1',
-              'dependsOn': ['T1'],
-            },
-          ],
+          'dependsOn': ['S1'],
         },
       }),
     );
@@ -357,7 +347,8 @@ void main() {
     var data = (await load()).$2;
     expect(data.roadmap.specs.last.title, 'Modo offline');
     expect(data.roadmap.specs.last.phase, RoadmapPhase.mvp);
-    expect(data.roadmap.specs.last.tasks.single.code, 'T2');
+    expect(data.roadmap.specs.last.code, 'S2');
+    expect(data.roadmap.specs.last.dependsOn, ['S1']);
     expect(data.roadmap.later, ['App nativo', 'Importar receitas']);
     expect(data.roadmap.edited, isTrue);
 
@@ -365,28 +356,30 @@ void main() {
     await planner().removeIdea(ws, 'Importar receitas');
     data = (await load()).$2;
     expect(data.roadmap.specs.last.title, 'App nativo');
-    expect(data.roadmap.specs.last.tasks, isEmpty);
+    expect(data.roadmap.specs.last.code, 'S3');
+    expect(data.roadmap.specs.last.requirements, isEmpty);
     expect(data.roadmap.later, isEmpty);
 
-    // A planner answer without tasks is an error; nothing changes.
+    // A planner answer without requirements is an error; nothing changes.
     final g = planner().planIdea(ws, 'Outra', RoadmapPhase.mvp);
     await settle();
     cli.last.emit(
       resultLine({
         'spec': {
+          'code': 'S4',
           'title': 'Outra',
           'phase': 'mvp',
           'objective': '',
           'requirements': <Object>[],
           'acceptance': <String>[],
-          'tasks': <Object>[],
+          'dependsOn': <String>[],
         },
       }),
     );
     await g;
     expect(
       c.read(projectPlannerProvider)[ws.id]?.error,
-      'O planner não gerou a spec com tarefas.',
+      'O planner não gerou a spec com requisitos.',
     );
     expect((await load()).$2.roadmap.specs, hasLength(3));
   });

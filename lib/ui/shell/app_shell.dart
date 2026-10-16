@@ -17,8 +17,7 @@ import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
-import '../../features/tasks/new_task_dialog.dart';
-import '../../features/tasks/tasks_screen.dart';
+import '../../features/board/board_screen.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
 import 'editor_zoom.dart';
@@ -93,7 +92,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     } else if (section == AppSection.specs) {
       showNewSpecDialog(context);
     } else if (section == AppSection.tasks) {
-      showNewTaskDialog(context);
+      showNewSpecDialog(context);
     } else if (section == AppSection.mcp) {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
@@ -121,7 +120,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),
     AppSection.specs => const SpecsScreen(),
-    AppSection.tasks => const TasksScreen(),
+    AppSection.tasks => const BoardScreen(),
     AppSection.agents => const AgentsScreen(),
     AppSection.skills => const SkillsScreen(),
     AppSection.review => const ReviewScreen(),

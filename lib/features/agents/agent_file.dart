@@ -154,6 +154,9 @@ class AgentFile {
   String? get description => _string('description');
   String? get model => _string('model');
   String? get permissionMode => _string('permissionMode');
+
+  /// `effort` (`low` … `max`; read by the CLI for subagents, 2.1.301).
+  String? get effort => _string('effort');
   String? get color => _string('color');
 
   int? get maxTurns {

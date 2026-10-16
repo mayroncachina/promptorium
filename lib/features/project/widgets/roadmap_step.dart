@@ -38,8 +38,9 @@ Future<bool> _confirmRegenerate(BuildContext context) async =>
     ) ??
     false;
 
-/// Step 4 · Roadmap: specs and tasks in phases (Fundação first, then MVP;
-/// out-of-scope ideas under "Depois") and the execution order.
+/// Step 4 · Roadmap: specs in phases (Fundação first, then MVP; out-of-scope
+/// ideas under "Depois") and the execution order. Each spec is a card of the
+/// Quadro; its requirements are the steps.
 class RoadmapStep extends ConsumerWidget {
   const RoadmapStep({super.key, required this.workspace, required this.data});
 
@@ -54,7 +55,7 @@ class RoadmapStep extends ConsumerWidget {
     final busy = activity?.busy;
     final planner = ref.read(projectPlannerProvider.notifier);
     final roadmap = data.roadmap;
-    final taskCount = roadmap.tasks.length;
+    final stepCount = roadmap.stepCount;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -65,10 +66,10 @@ class RoadmapStep extends ConsumerWidget {
               StepHeader(
                 title: 'Roadmap',
                 subtitle: roadmap.isReady
-                    ? '${roadmap.specs.length} specs · $taskCount tarefas'
+                    ? '${roadmap.specs.length} specs · $stepCount etapas'
                           '${roadmap.edited ? ' · editado por você' : ''}'
-                          ' · clique numa spec ou tarefa para editar'
-                    : 'Specs e tarefas geradas a partir da visão e da stack.',
+                          ' · clique numa spec para editar'
+                    : 'Specs geradas a partir da visão e da stack.',
                 actions: [
                   PlannerButton(
                     key: const ValueKey('project-roadmap-again'),
@@ -102,11 +103,19 @@ class RoadmapStep extends ConsumerWidget {
                           onTap: () => planner.clearError(workspace.id),
                         ),
                       )
+                    : roadmap.oversized.isNotEmpty
+                    ? NoticeBox(
+                        text:
+                            '${roadmap.oversized.map((s) => s.code).join(', ')} '
+                            'tem mais de ${Roadmap.maxRequirements} '
+                            'requisitos: grande demais para um PR. Divida em '
+                            'duas specs.',
+                      )
                     : const NoticeBox(
                         text:
                             'As sessões nascem do último commit da branch '
                             'principal. Por isso a Fundação roda primeiro, e '
-                            'as tarefas do MVP só são liberadas depois do '
+                            'as specs do MVP só são liberadas depois do '
                             'merge dela.',
                       ),
               ),
@@ -117,7 +126,8 @@ class RoadmapStep extends ConsumerWidget {
                         title: 'Sem roadmap ainda',
                         text:
                             'O planner divide o projeto em specs da Fundação '
-                            'e do MVP, com tarefas e dependências.',
+                            'e do MVP, com requisitos (as etapas) e '
+                            'dependências.',
                       ),
               ),
             ],
@@ -309,19 +319,6 @@ class _PhaseColumn extends StatelessWidget {
               roadmap: roadmap,
               index: i,
             ),
-            onEditTask: (code) => showTaskEditor(
-              context,
-              workspace: workspace,
-              roadmap: roadmap,
-              specIndex: i,
-              code: code,
-            ),
-            onAddTask: () => showTaskEditor(
-              context,
-              workspace: workspace,
-              roadmap: roadmap,
-              specIndex: i,
-            ),
           ),
         for (final (i, idea) in ideas.indexed)
           Padding(
@@ -369,18 +366,10 @@ class _PhaseColumn extends StatelessWidget {
 }
 
 class _SpecCard extends StatelessWidget {
-  const _SpecCard({
-    super.key,
-    required this.spec,
-    required this.onEdit,
-    required this.onEditTask,
-    required this.onAddTask,
-  });
+  const _SpecCard({super.key, required this.spec, required this.onEdit});
 
   final RoadmapSpec spec;
   final VoidCallback onEdit;
-  final ValueChanged<String> onEditTask;
-  final VoidCallback onAddTask;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -406,6 +395,31 @@ class _SpecCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Row(
+                      children: [
+                        Text(
+                          spec.code,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${spec.requirements.length} etapas',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                spec.requirements.length >
+                                    Roadmap.maxRequirements
+                                ? AppColors.red
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       spec.title,
                       style: const TextStyle(
@@ -424,89 +438,32 @@ class _SpecCard extends StatelessWidget {
                         ),
                       ),
                     ],
-                    if (spec.requirements.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        spec.requirements.map((r) => r.id).join(' · '),
-                        style: const TextStyle(
-                          fontFamily: AppFonts.mono,
-                          fontSize: 11,
-                          color: AppColors.textMuted,
+                    for (final r in spec.requirements)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          '${r.id} · ${r.text}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.text,
+                          ),
                         ),
                       ),
-                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      spec.dependsOn.isEmpty
+                          ? 'sem dependências'
+                          : 'depende de ${spec.dependsOn.join(', ')}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            for (final t in spec.tasks)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Material(
-                  color: AppColors.background,
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(color: AppColors.border),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: InkWell(
-                    key: ValueKey('project-roadmap-task-${t.code}'),
-                    onTap: () => onEditTask(t.code),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                t.code,
-                                style: const TextStyle(
-                                  fontFamily: AppFonts.mono,
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (t.requirement.isNotEmpty)
-                                Text(
-                                  t.requirement,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            t.title,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            t.dependsOn.isEmpty
-                                ? 'sem dependências'
-                                : 'depende de ${t.dependsOn.join(', ')}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            AddButton(
-              key: const ValueKey('roadmap-add-task'),
-              label: 'Tarefa',
-              onTap: onAddTask,
             ),
           ],
         ),
@@ -589,7 +546,7 @@ class _Summary extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 30, bottom: 8),
             child: Text(
-              '+ ${waves.length - shown} etapas, liberadas conforme as '
+              '+ ${waves.length - shown} ondas, liberadas conforme as '
               'dependências',
               style: const TextStyle(
                 fontSize: 12,
@@ -605,7 +562,7 @@ class _Summary extends StatelessWidget {
           '${roadmap.ofPhase(RoadmapPhase.foundation).length}',
         ),
         stat('Specs do MVP', '${roadmap.ofPhase(RoadmapPhase.mvp).length}'),
-        stat('Tarefas', '${roadmap.tasks.length}'),
+        stat('Etapas', '${roadmap.stepCount}'),
         stat('Dependências', '${roadmap.dependencyCount}'),
         stat('Ideias para depois', '${roadmap.later.length}'),
       ],

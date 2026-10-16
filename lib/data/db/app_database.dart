@@ -6,6 +6,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'enums.dart';
+import 'migrations.dart';
 
 export 'enums.dart';
 
@@ -32,6 +33,37 @@ class StringListConverter extends TypeConverter<List<String>, String> {
   String toSql(List<String> value) => jsonEncode(value);
 }
 
+/// `R1 · Cada sessão roda em um worktree` line of a spec (its step).
+typedef SpecRequirement = ({String id, String text});
+
+/// JSON array of `{"id": "R1", "text": "…"}` (`specs.requirements`).
+class RequirementListConverter
+    extends TypeConverter<List<SpecRequirement>, String> {
+  const RequirementListConverter();
+
+  @override
+  List<SpecRequirement> fromSql(String fromDb) {
+    if (fromDb.trim().isEmpty) return const [];
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(fromDb);
+    } on FormatException {
+      return const [];
+    }
+    if (decoded is! List) return const [];
+    return [
+      for (final e in decoded)
+        if (e is Map && e['id'] is String)
+          (id: e['id'] as String, text: '${e['text'] ?? ''}'),
+    ];
+  }
+
+  @override
+  String toSql(List<SpecRequirement> value) => jsonEncode([
+    for (final r in value) {'id': r.id, 'text': r.text},
+  ]);
+}
+
 /// A git repository opened in the IDE.
 class Workspaces extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -56,10 +88,60 @@ class Specs extends Table {
   /// Path relative to the workspace root.
   TextColumn get path => text()();
 
+  // --- the spec as a card of the Quadro (schema v8) --------------------------
+
+  /// Column of the Quadro.
+  TextColumn get stage =>
+      textEnum<SpecStage>().withDefault(Constant(SpecStage.backlog.name))();
+
+  /// Mirror of the file's requirements: the steps of the card (`R1`…).
+  TextColumn get requirements => text()
+      .map(const RequirementListConverter())
+      .withDefault(const Constant('[]'))();
+
+  /// Codes of the specs that must be done first (frontmatter `depende-de`).
+  TextColumn get dependsOn => text()
+      .map(const StringListConverter())
+      .withDefault(const Constant('[]'))();
+
+  /// Frontmatter `fase` (`fundacao`, `mvp`…).
+  TextColumn get phase => text().nullable()();
+
+  /// Agent of the step sessions (`--agent`).
+  TextColumn get agentName => text().nullable()();
+
+  /// Worktree / branch shared by every step session (`pr/spec-003-<slug>`),
+  /// and the branch it came from (merge target). Null = not started.
+  TextColumn get worktreePath => text().nullable()();
+  TextColumn get branch => text().nullable()();
+  TextColumn get baseBranch => text().nullable()();
+
+  /// A finished step opens the session of the next one.
+  BoolColumn get autoAdvance => boolean().withDefault(const Constant(true))();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {workspaceId, code},
   ];
+}
+
+/// State of one step (requirement) of a spec (schema v8). The list of steps
+/// comes from the file ([Specs.requirements]); this table keeps only state.
+class SpecSteps extends Table {
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// Requirement id (`R1`).
+  TextColumn get step => text()();
+  TextColumn get status =>
+      textEnum<StepStatus>().withDefault(Constant(StepStatus.pending.name))();
+
+  /// Last session that worked on the step.
+  TextColumn get sessionId => text().nullable()();
+  DateTimeColumn get doneAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {specId, step};
 }
 
 class Tasks extends Table {
@@ -122,6 +204,19 @@ class Sessions extends Table {
     Constant(SessionStatus.running.name),
   )();
   TextColumn get model => text()();
+
+  /// Spec (card) the session works on and the steps it was given (`R2` or
+  /// `R2,R3`; schema v8).
+  IntColumn get specId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get steps => text().nullable()();
+
+  /// `--effort` used to (re)start the process (schema v7). Null = rows
+  /// written before: resumes use the default of Configurações.
+  TextColumn get effort => text().nullable()();
   RealColumn get costUsd => real().withDefault(const Constant(0))();
   IntColumn get tokensIn => integer().withDefault(const Constant(0))();
   IntColumn get tokensOut => integer().withDefault(const Constant(0))();
@@ -290,6 +385,7 @@ class AppSettings extends Table {
   tables: [
     Workspaces,
     Specs,
+    SpecSteps,
     Tasks,
     Sessions,
     SessionEvents,
@@ -317,7 +413,12 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
+
+  Future<bool> _hasTable(String name) async => (await customSelect(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+    variables: [Variable.withString(name)],
+  ).get()).isNotEmpty;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -353,6 +454,44 @@ class AppDatabase extends _$AppDatabase {
       // v6: planning of a new project (Projeto screen).
       if (from < 6) {
         await m.createTable(projectPlans);
+      }
+      // v7: effort of a session; the footer no longer sums tokens per day
+      // (the `usage.<yyyy-mm-dd>` rows of app_settings are dropped).
+      if (from < 7) {
+        await m.addColumn(sessions, sessions.effort);
+        if (await _hasTable('app_settings')) {
+          await customStatement(
+            "DELETE FROM app_settings WHERE key GLOB 'usage.[0-9]*'",
+          );
+        }
+      }
+      // v8: the spec is the card of the Quadro; its requirements are the
+      // steps. Tasks of a spec become step states and spec dependencies.
+      if (from < 8 && await _hasTable('specs')) {
+        for (final c in [
+          specs.stage,
+          specs.requirements,
+          specs.dependsOn,
+          specs.phase,
+          specs.agentName,
+          specs.worktreePath,
+          specs.branch,
+          specs.baseBranch,
+          specs.autoAdvance,
+        ]) {
+          await m.addColumn(specs, c);
+        }
+        await m.addColumn(sessions, sessions.specId);
+        await m.addColumn(sessions, sessions.steps);
+        await m.createTable(specSteps);
+        if (await _hasTable('tasks')) await migrateTasksToSteps(this);
+      } else if (from < 8 && await _hasTable('sessions')) {
+        // Partial schemas (migration tests without `specs`): no foreign key
+        // to a table that is not there.
+        await customStatement(
+          'ALTER TABLE sessions ADD COLUMN spec_id INTEGER NULL',
+        );
+        await m.addColumn(sessions, sessions.steps);
       }
     },
     beforeOpen: (details) async {

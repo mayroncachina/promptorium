@@ -87,7 +87,7 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 6);
+    expect(v.data.values.single, 8);
   });
 
   test('v2 → v4 adds conversation columns, conversation_events, '
@@ -186,7 +186,7 @@ void main() {
       expect(old.requirement, isNull);
       expect(await tasks.nextCode(1), 'TASK-008');
       final v = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(v.data.values.single, 6);
+      expect(v.data.values.single, 8);
     },
   );
 
@@ -238,6 +238,157 @@ void main() {
     );
     expect((await repo.getById('new'))!.baseBranch, 'main');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 6);
+    expect(v.data.values.single, 8);
+  });
+
+  test(
+    'v6 → v7 adds sessions.effort and drops the daily token totals',
+    () async {
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      final db = AppDatabase(
+        NativeDatabase.memory(
+          setup: (raw) {
+            raw.execute(
+              'CREATE TABLE workspaces (id INTEGER NOT NULL PRIMARY KEY '
+              'AUTOINCREMENT, path TEXT NOT NULL UNIQUE, name TEXT NOT NULL, '
+              'created_at INTEGER NOT NULL DEFAULT 0)',
+            );
+            raw.execute(
+              v2Sessions.replaceFirst(
+                'ended_at INTEGER NULL)',
+                'ended_at INTEGER NULL, base_branch TEXT NULL, '
+                    'merge_commit TEXT NULL, pr_url TEXT NULL)',
+              ),
+            );
+            raw.execute(
+              'CREATE TABLE app_settings (key TEXT NOT NULL PRIMARY KEY, '
+              'value TEXT NOT NULL)',
+            );
+            raw.execute(
+              "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+            );
+            raw.execute(
+              'INSERT INTO sessions (id, workspace_id, worktree_path, branch, '
+              "model) VALUES ('old', 1, '/wt', 'pr/x', 'opus')",
+            );
+            raw.execute(
+              'INSERT INTO app_settings (key, value) VALUES '
+              "('usage.2026-10-15', '{}'), ('workspace.active', '1'), "
+              "('usage.rateLimit', '{}')",
+            );
+            raw.userVersion = 6;
+          },
+        ),
+      );
+      addTearDown(db.close);
+      await db.ensureOpen();
+      final repo = SessionsRepo(db);
+      expect((await repo.getById('old'))!.effort, isNull);
+      await repo.insert(
+        id: 'new',
+        workspaceId: 1,
+        worktreePath: '/wt2',
+        branch: 'pr/y',
+        model: 'sonnet',
+        effort: 'medium',
+      );
+      expect((await repo.getById('new'))!.effort, 'medium');
+      final keys = [
+        for (final r
+            in await db.customSelect('SELECT key FROM app_settings').get())
+          r.read<String>('key'),
+      ];
+      expect(keys, unorderedEquals(['workspace.active', 'usage.rateLimit']));
+    },
+  );
+
+  test('v7 → v8: tasks of a spec become step states, stage and spec '
+      'dependencies; loose tasks stay', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final db = AppDatabase(
+      NativeDatabase.memory(
+        setup: (raw) {
+          raw.execute(
+            'CREATE TABLE workspaces (id INTEGER NOT NULL PRIMARY KEY '
+            'AUTOINCREMENT, path TEXT NOT NULL UNIQUE, name TEXT NOT NULL, '
+            'created_at INTEGER NOT NULL DEFAULT 0)',
+          );
+          raw.execute(
+            'CREATE TABLE specs (id INTEGER NOT NULL PRIMARY KEY '
+            'AUTOINCREMENT, workspace_id INTEGER NOT NULL, code TEXT NOT NULL, '
+            "title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', "
+            'path TEXT NOT NULL, UNIQUE (workspace_id, code))',
+          );
+          raw.execute(
+            'CREATE TABLE tasks (id INTEGER NOT NULL PRIMARY KEY '
+            'AUTOINCREMENT, spec_id INTEGER NULL, workspace_id INTEGER NOT NULL, '
+            'code TEXT NOT NULL, title TEXT NOT NULL, '
+            "status TEXT NOT NULL DEFAULT 'backlog', agent_name TEXT NULL, "
+            "body TEXT NULL, requirement TEXT NULL, depends_on TEXT NOT NULL "
+            "DEFAULT '[]', created_at INTEGER NOT NULL DEFAULT 0)",
+          );
+          raw.execute(
+            v2Sessions.replaceFirst(
+              'ended_at INTEGER NULL)',
+              'ended_at INTEGER NULL, base_branch TEXT NULL, '
+                  'merge_commit TEXT NULL, pr_url TEXT NULL, effort TEXT NULL)',
+            ),
+          );
+          raw.execute("INSERT INTO workspaces (path, name) VALUES ('/r', 'r')");
+          raw.execute(
+            'INSERT INTO specs (workspace_id, code, title, status, path) VALUES '
+            "(1, 'SPEC-001', 'Base', 'approved', 'specs/SPEC-001.md'), "
+            "(1, 'SPEC-002', 'Telas', 'approved', 'specs/SPEC-002.md'), "
+            "(1, 'SPEC-003', 'Feita', 'approved', 'specs/SPEC-003.md')",
+          );
+          raw.execute(
+            'INSERT INTO tasks (spec_id, workspace_id, code, title, status, '
+            'requirement, depends_on) VALUES '
+            "(1, 1, 'TASK-001', 'a', 'done', 'R1', '[]'), "
+            "(1, 1, 'TASK-002', 'b', 'backlog', 'R2', '[\"TASK-001\"]'), "
+            "(1, 1, 'TASK-003', 'b2', 'done', 'R2', '[]'), "
+            "(2, 1, 'TASK-004', 'c', 'running', 'R1', "
+            "'[\"TASK-002\",\"TASK-005\"]'), "
+            "(3, 1, 'TASK-005', 'd', 'done', 'R1', '[]'), "
+            "(NULL, 1, 'TASK-006', 'solta', 'backlog', NULL, '[]'), "
+            "(2, 1, 'TASK-007', 'sem req', 'backlog', NULL, '[]')",
+          );
+          raw.execute(
+            'INSERT INTO sessions (id, workspace_id, task_id, worktree_path, '
+            "branch, model) VALUES ('s4', 1, 4, '/wt', 'pr/x', 'sonnet')",
+          );
+          raw.userVersion = 7;
+        },
+      ),
+    );
+    addTearDown(db.close);
+    await db.ensureOpen();
+
+    final specs = {for (final s in await db.select(db.specs).get()) s.code: s};
+    expect(specs['SPEC-001']!.stage, SpecStage.backlog);
+    expect(specs['SPEC-002']!.stage, SpecStage.running);
+    expect(specs['SPEC-003']!.stage, SpecStage.done);
+    expect(specs['SPEC-001']!.dependsOn, isEmpty);
+    expect(specs['SPEC-002']!.dependsOn, ['SPEC-001', 'SPEC-003']);
+    expect(specs['SPEC-001']!.requirements, isEmpty); // filled by the sync
+    expect(specs['SPEC-001']!.autoAdvance, isTrue);
+
+    final steps = {
+      for (final s in await db.select(db.specSteps).get())
+        '${specs.values.firstWhere((x) => x.id == s.specId).code}/${s.step}':
+            s.status,
+    };
+    expect(steps, {
+      'SPEC-001/R1': StepStatus.done,
+      'SPEC-001/R2': StepStatus.pending, // one of its two tasks is open
+      'SPEC-002/R1': StepStatus.pending,
+      'SPEC-003/R1': StepStatus.done,
+    });
+    expect(
+      (await SessionsRepo(db).getById('s4'))!.specId,
+      specs['SPEC-002']!.id,
+    );
+    final legacy = await TasksRepo(db).watchLegacy(1).first;
+    expect(legacy.map((t) => t.code), ['TASK-006', 'TASK-007']);
   });
 }

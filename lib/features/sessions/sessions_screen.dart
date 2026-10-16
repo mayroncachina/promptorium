@@ -299,7 +299,10 @@ class _Header extends ConsumerWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    if (s.taskId != null) InfoTag('TASK #${s.taskId}'),
+                    if (s.specId != null)
+                      InfoTag('SPEC${s.steps == null ? '' : ' ${s.steps}'}')
+                    else if (s.taskId != null)
+                      InfoTag('TASK #${s.taskId}'),
                     InfoTag(agentModel),
                     InfoTag('worktree: ${s.branch}', mono: true),
                   ],

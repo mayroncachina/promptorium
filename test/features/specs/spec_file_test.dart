@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/sessions_repo.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/specs_screen.dart'
@@ -82,6 +84,24 @@ void main() {
       expect(SpecDocument.parse(out).title, 'Só corpo');
     });
 
+    test('depende-de: list or text; withMeta writes it', () {
+      expect(
+        SpecDocument.parse('---\ndepende-de: SPEC-001, SPEC-002\n---\n')
+            .dependsOn,
+        ['SPEC-001', 'SPEC-002'],
+      );
+      final d = SpecDocument.parse(sample);
+      expect(d.hasDependsOn, isFalse);
+      final t = d.withMeta(dependsOn: ['SPEC-001', 'SPEC-004']);
+      expect(t, contains('autor: você\ndepende-de: [SPEC-001, SPEC-004]\n---'));
+      expect(SpecDocument.parse(t).dependsOn, ['SPEC-001', 'SPEC-004']);
+      expect(
+        SpecDocument.parse(t.replaceFirst('[SPEC-001, SPEC-004]', '[]'))
+            .hasDependsOn,
+        isTrue,
+      );
+    });
+
     test('invalid or unterminated frontmatter is treated as body', () {
       final d = SpecDocument.parse('---\nid: [\n# T\n');
       expect(d.hasFrontmatter, isFalse);
@@ -123,6 +143,49 @@ void main() {
       await db.close();
       tmp.deleteSync(recursive: true);
     });
+
+    test(
+      'archive hides a finished spec; delete only a never-run one (trash)',
+      () async {
+        final trashed = <String>[];
+        service = SpecService(
+          SpecsRepo(db),
+          sessions: SessionsRepo(db),
+          trash: (path) async {
+            trashed.add(path);
+            File(path).deleteSync();
+          },
+        );
+        final repo = SpecsRepo(db);
+        final a = await service.create(ws, title: 'Feita');
+        final b = await service.create(ws, title: 'Nunca rodou');
+        // Not finished: cannot be archived.
+        await expectLater(
+          service.archive(ws, a),
+          throwsA(isA<SpecException>()),
+        );
+        await repo.setStage(a.id, SpecStage.done);
+        final done = (await repo.getById(a.id))!;
+        final archived = await service.archive(ws, done);
+        expect(archived.status, SpecStatus.archived);
+        expect(
+          File('${tmp.path}/${a.path}').readAsStringSync(),
+          contains('status: arquivada'),
+        );
+        expect(
+          (await service.archive(ws, archived, restore: true)).status,
+          SpecStatus.done,
+        );
+        // A started spec is not deleted; a never-run one goes to the trash.
+        await expectLater(
+          service.delete(ws, done),
+          throwsA(isA<SpecException>()),
+        );
+        await service.delete(ws, b);
+        expect(trashed.single, endsWith(b.path.split('/').last));
+        expect(await repo.getById(b.id), isNull);
+      },
+    );
 
     test('sync registers files, create numbers after them, approve writes '
         'the frontmatter', () async {
@@ -177,6 +240,47 @@ void main() {
       expect(rows, hasLength(3));
     });
 
+    test('sync mirrors requirements, fase and depende-de; a file without '
+        'depende-de keeps the stored list until the next save', () async {
+      Directory('${tmp.path}/specs').createSync();
+      final f = File('${tmp.path}/specs/SPEC-002-sessoes.md')
+        ..writeAsStringSync(sample);
+      await service.sync(ws);
+      final repo = SpecsRepo(db);
+      var s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.requirements.map((r) => r.id), ['R1', 'R2', 'R3']);
+      expect(s2.requirements.first.text, 'Cada sessão roda em um worktree');
+      expect(s2.phase, isNull);
+      expect(s2.dependsOn, isEmpty);
+
+      // Dependencies known only to the database (schema v8 migration).
+      await repo.update(
+        s2.id,
+        const SpecsCompanion(dependsOn: Value(['SPEC-001'])),
+      );
+      await service.sync(ws);
+      s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.dependsOn, ['SPEC-001']);
+
+      // The next save writes them to the frontmatter.
+      await service.save(ws, s2, sample);
+      final saved = SpecDocument.parse(f.readAsStringSync());
+      expect(saved.dependsOn, ['SPEC-001']);
+      expect(f.readAsStringSync(), contains('depende-de: [SPEC-001]\n'));
+
+      // The file is the source once it has the key.
+      f.writeAsStringSync(
+        sample.replaceFirst(
+          'autor: você',
+          'autor: você\nfase: mvp\ndepende-de: [SPEC-003, spec-004, x]',
+        ),
+      );
+      await service.sync(ws);
+      s2 = (await repo.getByCode(ws.id, 'SPEC-002'))!;
+      expect(s2.dependsOn, ['SPEC-003', 'SPEC-004']);
+      expect(s2.phase, 'mvp');
+    });
+
     test('save writes the file and refreshes the row', () async {
       final s = await service.create(ws, title: 'Editor');
       final edited = (await service.read(
@@ -202,6 +306,10 @@ void main() {
         title: 't',
         status: SpecStatus.draft,
         path: 'specs/SPEC-002-sessoes.md',
+        stage: SpecStage.backlog,
+        requirements: [],
+        dependsOn: [],
+        autoAdvance: true,
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
@@ -219,5 +327,88 @@ void main() {
     ]) {
       expect(SpecService.isSafeSpecPath(bad), isFalse, reason: bad);
     }
+  });
+
+  test('cloneSpecText: removes done requirements, renumbers, depends on the original', () {
+    const text = '''
+---
+id: SPEC-003
+status: aprovada
+---
+
+# Extração
+
+## Requisitos
+
+- R1 · um
+- R2 · dois
+- R3 · três
+
+## Critérios
+
+- [ ] ok
+''';
+    final out = cloneSpecText(
+      text,
+      newCode: 'SPEC-007',
+      originalCode: 'SPEC-003',
+      doneIds: {'R1', 'R2'},
+    );
+    final doc = SpecDocument.parse(out);
+    expect(doc.id, 'SPEC-007');
+    expect(doc.status, SpecStatus.draft);
+    expect(doc.dependsOn, ['SPEC-003']);
+    expect(doc.title, 'Extração (alteração)');
+    expect(doc.requirements, [(id: 'R1', text: 'três')]);
+    expect(out, contains('- [ ] ok'));
+
+    final empty = cloneSpecText(
+      text,
+      newCode: 'SPEC-008',
+      originalCode: 'SPEC-003',
+      doneIds: {'R1', 'R2', 'R3'},
+    );
+    expect(SpecDocument.parse(empty).requirements, [(id: 'R1', text: '')]);
+  });
+
+  test('subagentes: frontmatter round trip keeps the other lines', () {
+    const text = '''
+---
+id: SPEC-003
+status: aprovada
+depende-de: [SPEC-001]
+---
+
+# Algo
+
+- R1 · um
+''';
+    final doc = SpecDocument.parse(text);
+    expect(doc.subagents, isEmpty);
+    const list = [
+      SpecSubagent(agent: 'spec-reviewer', when: SubagentWhen.specEnd),
+      SpecSubagent(
+        agent: 'test-writer',
+        when: SubagentWhen.atStep,
+        step: 'R1',
+        instruction: 'foco em "bordas": a, b',
+      ),
+    ];
+    final out = doc.withSubagents(list);
+    final back = SpecDocument.parse(out);
+    expect(back.subagents, list);
+    expect(back.id, 'SPEC-003');
+    expect(back.dependsOn, ['SPEC-001']);
+    expect(back.body, doc.body);
+    // Replacing and removing.
+    final one = back.withSubagents([list.first]);
+    expect(SpecDocument.parse(one).subagents, [list.first]);
+    final none = SpecDocument.parse(one).withSubagents(const []);
+    expect(none, text);
+    // Without frontmatter.
+    expect(
+      SpecDocument.parse('# T\n').withSubagents([list.first]),
+      startsWith('---\nsubagentes:'),
+    );
   });
 }

@@ -275,11 +275,20 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
   }
 }
 
-/// Spec / task of a session ("SPEC-001 Shell", or the task code).
-final _sessionSpecProvider = FutureProvider.family<String?, int>((
+/// Spec of a session with its steps ("SPEC-001 Shell · R2"); sessions made
+/// before the spec became the card show their task instead.
+final _sessionSpecProvider = FutureProvider.family<String?, Session>((
   ref,
-  taskId,
+  session,
 ) async {
+  if (session.specId != null) {
+    final spec = await ref.read(specsRepoProvider).getById(session.specId!);
+    if (spec == null) return null;
+    final steps = (session.steps ?? '').replaceAll(',', ', ');
+    return '${spec.code} ${spec.title}${steps.isEmpty ? '' : ' · $steps'}';
+  }
+  final taskId = session.taskId;
+  if (taskId == null) return null;
   final task = await ref.read(tasksRepoProvider).getById(taskId);
   if (task == null) return null;
   final spec = task.specId == null
@@ -336,9 +345,9 @@ class _DetailsState extends ConsumerState<_Details> {
   @override
   Widget build(BuildContext context) {
     final s = widget.session;
-    final spec = s.taskId == null
+    final spec = s.specId == null && s.taskId == null
         ? null
-        : ref.watch(_sessionSpecProvider(s.taskId!)).value;
+        : ref.watch(_sessionSpecProvider(s)).value;
     final dur = (s.endedAt ?? DateTime.now()).difference(s.startedAt);
     final shortId = s.id.length > 12
         ? '${s.id.substring(0, 4)}…${s.id.substring(s.id.length - 4)}'

@@ -370,6 +370,108 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     requiredDuringInsert: true,
   );
   @override
+  late final GeneratedColumnWithTypeConverter<SpecStage, String> stage =
+      GeneratedColumn<String>(
+        'stage',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(SpecStage.backlog.name),
+      ).withConverter<SpecStage>($SpecsTable.$converterstage);
+  @override
+  late final GeneratedColumnWithTypeConverter<
+    List<({String id, String text})>,
+    String
+  >
+  requirements =
+      GeneratedColumn<String>(
+        'requirements',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      ).withConverter<List<({String id, String text})>>(
+        $SpecsTable.$converterrequirements,
+      );
+  @override
+  late final GeneratedColumnWithTypeConverter<List<String>, String> dependsOn =
+      GeneratedColumn<String>(
+        'depends_on',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      ).withConverter<List<String>>($SpecsTable.$converterdependsOn);
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+    'phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _agentNameMeta = const VerificationMeta(
+    'agentName',
+  );
+  @override
+  late final GeneratedColumn<String> agentName = GeneratedColumn<String>(
+    'agent_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _worktreePathMeta = const VerificationMeta(
+    'worktreePath',
+  );
+  @override
+  late final GeneratedColumn<String> worktreePath = GeneratedColumn<String>(
+    'worktree_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _branchMeta = const VerificationMeta('branch');
+  @override
+  late final GeneratedColumn<String> branch = GeneratedColumn<String>(
+    'branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _baseBranchMeta = const VerificationMeta(
+    'baseBranch',
+  );
+  @override
+  late final GeneratedColumn<String> baseBranch = GeneratedColumn<String>(
+    'base_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _autoAdvanceMeta = const VerificationMeta(
+    'autoAdvance',
+  );
+  @override
+  late final GeneratedColumn<bool> autoAdvance = GeneratedColumn<bool>(
+    'auto_advance',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_advance" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     workspaceId,
@@ -377,6 +479,15 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     title,
     status,
     path,
+    stage,
+    requirements,
+    dependsOn,
+    phase,
+    agentName,
+    worktreePath,
+    branch,
+    baseBranch,
+    autoAdvance,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -428,6 +539,48 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     } else if (isInserting) {
       context.missing(_pathMeta);
     }
+    if (data.containsKey('phase')) {
+      context.handle(
+        _phaseMeta,
+        phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta),
+      );
+    }
+    if (data.containsKey('agent_name')) {
+      context.handle(
+        _agentNameMeta,
+        agentName.isAcceptableOrUnknown(data['agent_name']!, _agentNameMeta),
+      );
+    }
+    if (data.containsKey('worktree_path')) {
+      context.handle(
+        _worktreePathMeta,
+        worktreePath.isAcceptableOrUnknown(
+          data['worktree_path']!,
+          _worktreePathMeta,
+        ),
+      );
+    }
+    if (data.containsKey('branch')) {
+      context.handle(
+        _branchMeta,
+        branch.isAcceptableOrUnknown(data['branch']!, _branchMeta),
+      );
+    }
+    if (data.containsKey('base_branch')) {
+      context.handle(
+        _baseBranchMeta,
+        baseBranch.isAcceptableOrUnknown(data['base_branch']!, _baseBranchMeta),
+      );
+    }
+    if (data.containsKey('auto_advance')) {
+      context.handle(
+        _autoAdvanceMeta,
+        autoAdvance.isAcceptableOrUnknown(
+          data['auto_advance']!,
+          _autoAdvanceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -467,6 +620,48 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.string,
         data['${effectivePrefix}path'],
       )!,
+      stage: $SpecsTable.$converterstage.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}stage'],
+        )!,
+      ),
+      requirements: $SpecsTable.$converterrequirements.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}requirements'],
+        )!,
+      ),
+      dependsOn: $SpecsTable.$converterdependsOn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}depends_on'],
+        )!,
+      ),
+      phase: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phase'],
+      ),
+      agentName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}agent_name'],
+      ),
+      worktreePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_path'],
+      ),
+      branch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch'],
+      ),
+      baseBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_branch'],
+      ),
+      autoAdvance: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_advance'],
+      )!,
     );
   }
 
@@ -477,6 +672,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
 
   static JsonTypeConverter2<SpecStatus, String, String> $converterstatus =
       const EnumNameConverter<SpecStatus>(SpecStatus.values);
+  static JsonTypeConverter2<SpecStage, String, String> $converterstage =
+      const EnumNameConverter<SpecStage>(SpecStage.values);
+  static TypeConverter<List<({String id, String text})>, String>
+  $converterrequirements = const RequirementListConverter();
+  static TypeConverter<List<String>, String> $converterdependsOn =
+      const StringListConverter();
 }
 
 class Spec extends DataClass implements Insertable<Spec> {
@@ -490,6 +691,30 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// Path relative to the workspace root.
   final String path;
+
+  /// Column of the Quadro.
+  final SpecStage stage;
+
+  /// Mirror of the file's requirements: the steps of the card (`R1`…).
+  final List<({String id, String text})> requirements;
+
+  /// Codes of the specs that must be done first (frontmatter `depende-de`).
+  final List<String> dependsOn;
+
+  /// Frontmatter `fase` (`fundacao`, `mvp`…).
+  final String? phase;
+
+  /// Agent of the step sessions (`--agent`).
+  final String? agentName;
+
+  /// Worktree / branch shared by every step session (`pr/spec-003-<slug>`),
+  /// and the branch it came from (merge target). Null = not started.
+  final String? worktreePath;
+  final String? branch;
+  final String? baseBranch;
+
+  /// A finished step opens the session of the next one.
+  final bool autoAdvance;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -497,6 +722,15 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.title,
     required this.status,
     required this.path,
+    required this.stage,
+    required this.requirements,
+    required this.dependsOn,
+    this.phase,
+    this.agentName,
+    this.worktreePath,
+    this.branch,
+    this.baseBranch,
+    required this.autoAdvance,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -511,6 +745,35 @@ class Spec extends DataClass implements Insertable<Spec> {
       );
     }
     map['path'] = Variable<String>(path);
+    {
+      map['stage'] = Variable<String>($SpecsTable.$converterstage.toSql(stage));
+    }
+    {
+      map['requirements'] = Variable<String>(
+        $SpecsTable.$converterrequirements.toSql(requirements),
+      );
+    }
+    {
+      map['depends_on'] = Variable<String>(
+        $SpecsTable.$converterdependsOn.toSql(dependsOn),
+      );
+    }
+    if (!nullToAbsent || phase != null) {
+      map['phase'] = Variable<String>(phase);
+    }
+    if (!nullToAbsent || agentName != null) {
+      map['agent_name'] = Variable<String>(agentName);
+    }
+    if (!nullToAbsent || worktreePath != null) {
+      map['worktree_path'] = Variable<String>(worktreePath);
+    }
+    if (!nullToAbsent || branch != null) {
+      map['branch'] = Variable<String>(branch);
+    }
+    if (!nullToAbsent || baseBranch != null) {
+      map['base_branch'] = Variable<String>(baseBranch);
+    }
+    map['auto_advance'] = Variable<bool>(autoAdvance);
     return map;
   }
 
@@ -522,6 +785,25 @@ class Spec extends DataClass implements Insertable<Spec> {
       title: Value(title),
       status: Value(status),
       path: Value(path),
+      stage: Value(stage),
+      requirements: Value(requirements),
+      dependsOn: Value(dependsOn),
+      phase: phase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(phase),
+      agentName: agentName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(agentName),
+      worktreePath: worktreePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(worktreePath),
+      branch: branch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(branch),
+      baseBranch: baseBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(baseBranch),
+      autoAdvance: Value(autoAdvance),
     );
   }
 
@@ -539,6 +821,19 @@ class Spec extends DataClass implements Insertable<Spec> {
         serializer.fromJson<String>(json['status']),
       ),
       path: serializer.fromJson<String>(json['path']),
+      stage: $SpecsTable.$converterstage.fromJson(
+        serializer.fromJson<String>(json['stage']),
+      ),
+      requirements: serializer.fromJson<List<({String id, String text})>>(
+        json['requirements'],
+      ),
+      dependsOn: serializer.fromJson<List<String>>(json['dependsOn']),
+      phase: serializer.fromJson<String?>(json['phase']),
+      agentName: serializer.fromJson<String?>(json['agentName']),
+      worktreePath: serializer.fromJson<String?>(json['worktreePath']),
+      branch: serializer.fromJson<String?>(json['branch']),
+      baseBranch: serializer.fromJson<String?>(json['baseBranch']),
+      autoAdvance: serializer.fromJson<bool>(json['autoAdvance']),
     );
   }
   @override
@@ -553,6 +848,19 @@ class Spec extends DataClass implements Insertable<Spec> {
         $SpecsTable.$converterstatus.toJson(status),
       ),
       'path': serializer.toJson<String>(path),
+      'stage': serializer.toJson<String>(
+        $SpecsTable.$converterstage.toJson(stage),
+      ),
+      'requirements': serializer.toJson<List<({String id, String text})>>(
+        requirements,
+      ),
+      'dependsOn': serializer.toJson<List<String>>(dependsOn),
+      'phase': serializer.toJson<String?>(phase),
+      'agentName': serializer.toJson<String?>(agentName),
+      'worktreePath': serializer.toJson<String?>(worktreePath),
+      'branch': serializer.toJson<String?>(branch),
+      'baseBranch': serializer.toJson<String?>(baseBranch),
+      'autoAdvance': serializer.toJson<bool>(autoAdvance),
     };
   }
 
@@ -563,6 +871,15 @@ class Spec extends DataClass implements Insertable<Spec> {
     String? title,
     SpecStatus? status,
     String? path,
+    SpecStage? stage,
+    List<({String id, String text})>? requirements,
+    List<String>? dependsOn,
+    Value<String?> phase = const Value.absent(),
+    Value<String?> agentName = const Value.absent(),
+    Value<String?> worktreePath = const Value.absent(),
+    Value<String?> branch = const Value.absent(),
+    Value<String?> baseBranch = const Value.absent(),
+    bool? autoAdvance,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -570,6 +887,15 @@ class Spec extends DataClass implements Insertable<Spec> {
     title: title ?? this.title,
     status: status ?? this.status,
     path: path ?? this.path,
+    stage: stage ?? this.stage,
+    requirements: requirements ?? this.requirements,
+    dependsOn: dependsOn ?? this.dependsOn,
+    phase: phase.present ? phase.value : this.phase,
+    agentName: agentName.present ? agentName.value : this.agentName,
+    worktreePath: worktreePath.present ? worktreePath.value : this.worktreePath,
+    branch: branch.present ? branch.value : this.branch,
+    baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
+    autoAdvance: autoAdvance ?? this.autoAdvance,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -581,6 +907,23 @@ class Spec extends DataClass implements Insertable<Spec> {
       title: data.title.present ? data.title.value : this.title,
       status: data.status.present ? data.status.value : this.status,
       path: data.path.present ? data.path.value : this.path,
+      stage: data.stage.present ? data.stage.value : this.stage,
+      requirements: data.requirements.present
+          ? data.requirements.value
+          : this.requirements,
+      dependsOn: data.dependsOn.present ? data.dependsOn.value : this.dependsOn,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      agentName: data.agentName.present ? data.agentName.value : this.agentName,
+      worktreePath: data.worktreePath.present
+          ? data.worktreePath.value
+          : this.worktreePath,
+      branch: data.branch.present ? data.branch.value : this.branch,
+      baseBranch: data.baseBranch.present
+          ? data.baseBranch.value
+          : this.baseBranch,
+      autoAdvance: data.autoAdvance.present
+          ? data.autoAdvance.value
+          : this.autoAdvance,
     );
   }
 
@@ -592,13 +935,38 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('code: $code, ')
           ..write('title: $title, ')
           ..write('status: $status, ')
-          ..write('path: $path')
+          ..write('path: $path, ')
+          ..write('stage: $stage, ')
+          ..write('requirements: $requirements, ')
+          ..write('dependsOn: $dependsOn, ')
+          ..write('phase: $phase, ')
+          ..write('agentName: $agentName, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('branch: $branch, ')
+          ..write('baseBranch: $baseBranch, ')
+          ..write('autoAdvance: $autoAdvance')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, workspaceId, code, title, status, path);
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    code,
+    title,
+    status,
+    path,
+    stage,
+    requirements,
+    dependsOn,
+    phase,
+    agentName,
+    worktreePath,
+    branch,
+    baseBranch,
+    autoAdvance,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -608,7 +976,16 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.code == this.code &&
           other.title == this.title &&
           other.status == this.status &&
-          other.path == this.path);
+          other.path == this.path &&
+          other.stage == this.stage &&
+          other.requirements == this.requirements &&
+          other.dependsOn == this.dependsOn &&
+          other.phase == this.phase &&
+          other.agentName == this.agentName &&
+          other.worktreePath == this.worktreePath &&
+          other.branch == this.branch &&
+          other.baseBranch == this.baseBranch &&
+          other.autoAdvance == this.autoAdvance);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -618,6 +995,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String> title;
   final Value<SpecStatus> status;
   final Value<String> path;
+  final Value<SpecStage> stage;
+  final Value<List<({String id, String text})>> requirements;
+  final Value<List<String>> dependsOn;
+  final Value<String?> phase;
+  final Value<String?> agentName;
+  final Value<String?> worktreePath;
+  final Value<String?> branch;
+  final Value<String?> baseBranch;
+  final Value<bool> autoAdvance;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -625,6 +1011,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.title = const Value.absent(),
     this.status = const Value.absent(),
     this.path = const Value.absent(),
+    this.stage = const Value.absent(),
+    this.requirements = const Value.absent(),
+    this.dependsOn = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.agentName = const Value.absent(),
+    this.worktreePath = const Value.absent(),
+    this.branch = const Value.absent(),
+    this.baseBranch = const Value.absent(),
+    this.autoAdvance = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -633,6 +1028,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     required String title,
     this.status = const Value.absent(),
     required String path,
+    this.stage = const Value.absent(),
+    this.requirements = const Value.absent(),
+    this.dependsOn = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.agentName = const Value.absent(),
+    this.worktreePath = const Value.absent(),
+    this.branch = const Value.absent(),
+    this.baseBranch = const Value.absent(),
+    this.autoAdvance = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -644,6 +1048,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? title,
     Expression<String>? status,
     Expression<String>? path,
+    Expression<String>? stage,
+    Expression<String>? requirements,
+    Expression<String>? dependsOn,
+    Expression<String>? phase,
+    Expression<String>? agentName,
+    Expression<String>? worktreePath,
+    Expression<String>? branch,
+    Expression<String>? baseBranch,
+    Expression<bool>? autoAdvance,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -652,6 +1065,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (title != null) 'title': title,
       if (status != null) 'status': status,
       if (path != null) 'path': path,
+      if (stage != null) 'stage': stage,
+      if (requirements != null) 'requirements': requirements,
+      if (dependsOn != null) 'depends_on': dependsOn,
+      if (phase != null) 'phase': phase,
+      if (agentName != null) 'agent_name': agentName,
+      if (worktreePath != null) 'worktree_path': worktreePath,
+      if (branch != null) 'branch': branch,
+      if (baseBranch != null) 'base_branch': baseBranch,
+      if (autoAdvance != null) 'auto_advance': autoAdvance,
     });
   }
 
@@ -662,6 +1084,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String>? title,
     Value<SpecStatus>? status,
     Value<String>? path,
+    Value<SpecStage>? stage,
+    Value<List<({String id, String text})>>? requirements,
+    Value<List<String>>? dependsOn,
+    Value<String?>? phase,
+    Value<String?>? agentName,
+    Value<String?>? worktreePath,
+    Value<String?>? branch,
+    Value<String?>? baseBranch,
+    Value<bool>? autoAdvance,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -670,6 +1101,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       title: title ?? this.title,
       status: status ?? this.status,
       path: path ?? this.path,
+      stage: stage ?? this.stage,
+      requirements: requirements ?? this.requirements,
+      dependsOn: dependsOn ?? this.dependsOn,
+      phase: phase ?? this.phase,
+      agentName: agentName ?? this.agentName,
+      worktreePath: worktreePath ?? this.worktreePath,
+      branch: branch ?? this.branch,
+      baseBranch: baseBranch ?? this.baseBranch,
+      autoAdvance: autoAdvance ?? this.autoAdvance,
     );
   }
 
@@ -696,6 +1136,39 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (path.present) {
       map['path'] = Variable<String>(path.value);
     }
+    if (stage.present) {
+      map['stage'] = Variable<String>(
+        $SpecsTable.$converterstage.toSql(stage.value),
+      );
+    }
+    if (requirements.present) {
+      map['requirements'] = Variable<String>(
+        $SpecsTable.$converterrequirements.toSql(requirements.value),
+      );
+    }
+    if (dependsOn.present) {
+      map['depends_on'] = Variable<String>(
+        $SpecsTable.$converterdependsOn.toSql(dependsOn.value),
+      );
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (agentName.present) {
+      map['agent_name'] = Variable<String>(agentName.value);
+    }
+    if (worktreePath.present) {
+      map['worktree_path'] = Variable<String>(worktreePath.value);
+    }
+    if (branch.present) {
+      map['branch'] = Variable<String>(branch.value);
+    }
+    if (baseBranch.present) {
+      map['base_branch'] = Variable<String>(baseBranch.value);
+    }
+    if (autoAdvance.present) {
+      map['auto_advance'] = Variable<bool>(autoAdvance.value);
+    }
     return map;
   }
 
@@ -707,7 +1180,391 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('code: $code, ')
           ..write('title: $title, ')
           ..write('status: $status, ')
-          ..write('path: $path')
+          ..write('path: $path, ')
+          ..write('stage: $stage, ')
+          ..write('requirements: $requirements, ')
+          ..write('dependsOn: $dependsOn, ')
+          ..write('phase: $phase, ')
+          ..write('agentName: $agentName, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('branch: $branch, ')
+          ..write('baseBranch: $baseBranch, ')
+          ..write('autoAdvance: $autoAdvance')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SpecStepsTable extends SpecSteps
+    with TableInfo<$SpecStepsTable, SpecStep> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecStepsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<String> step = GeneratedColumn<String>(
+    'step',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<StepStatus, String> status =
+      GeneratedColumn<String>(
+        'status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(StepStatus.pending.name),
+      ).withConverter<StepStatus>($SpecStepsTable.$converterstatus);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _doneAtMeta = const VerificationMeta('doneAt');
+  @override
+  late final GeneratedColumn<DateTime> doneAt = GeneratedColumn<DateTime>(
+    'done_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    specId,
+    step,
+    status,
+    sessionId,
+    doneAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_steps';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecStep> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stepMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('done_at')) {
+      context.handle(
+        _doneAtMeta,
+        doneAt.isAcceptableOrUnknown(data['done_at']!, _doneAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {specId, step};
+  @override
+  SpecStep map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecStep(
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step'],
+      )!,
+      status: $SpecStepsTable.$converterstatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}status'],
+        )!,
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      doneAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}done_at'],
+      ),
+    );
+  }
+
+  @override
+  $SpecStepsTable createAlias(String alias) {
+    return $SpecStepsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<StepStatus, String, String> $converterstatus =
+      const EnumNameConverter<StepStatus>(StepStatus.values);
+}
+
+class SpecStep extends DataClass implements Insertable<SpecStep> {
+  final int specId;
+
+  /// Requirement id (`R1`).
+  final String step;
+  final StepStatus status;
+
+  /// Last session that worked on the step.
+  final String? sessionId;
+  final DateTime? doneAt;
+  const SpecStep({
+    required this.specId,
+    required this.step,
+    required this.status,
+    this.sessionId,
+    this.doneAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['spec_id'] = Variable<int>(specId);
+    map['step'] = Variable<String>(step);
+    {
+      map['status'] = Variable<String>(
+        $SpecStepsTable.$converterstatus.toSql(status),
+      );
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || doneAt != null) {
+      map['done_at'] = Variable<DateTime>(doneAt);
+    }
+    return map;
+  }
+
+  SpecStepsCompanion toCompanion(bool nullToAbsent) {
+    return SpecStepsCompanion(
+      specId: Value(specId),
+      step: Value(step),
+      status: Value(status),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      doneAt: doneAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(doneAt),
+    );
+  }
+
+  factory SpecStep.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecStep(
+      specId: serializer.fromJson<int>(json['specId']),
+      step: serializer.fromJson<String>(json['step']),
+      status: $SpecStepsTable.$converterstatus.fromJson(
+        serializer.fromJson<String>(json['status']),
+      ),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      doneAt: serializer.fromJson<DateTime?>(json['doneAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'specId': serializer.toJson<int>(specId),
+      'step': serializer.toJson<String>(step),
+      'status': serializer.toJson<String>(
+        $SpecStepsTable.$converterstatus.toJson(status),
+      ),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'doneAt': serializer.toJson<DateTime?>(doneAt),
+    };
+  }
+
+  SpecStep copyWith({
+    int? specId,
+    String? step,
+    StepStatus? status,
+    Value<String?> sessionId = const Value.absent(),
+    Value<DateTime?> doneAt = const Value.absent(),
+  }) => SpecStep(
+    specId: specId ?? this.specId,
+    step: step ?? this.step,
+    status: status ?? this.status,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    doneAt: doneAt.present ? doneAt.value : this.doneAt,
+  );
+  SpecStep copyWithCompanion(SpecStepsCompanion data) {
+    return SpecStep(
+      specId: data.specId.present ? data.specId.value : this.specId,
+      step: data.step.present ? data.step.value : this.step,
+      status: data.status.present ? data.status.value : this.status,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      doneAt: data.doneAt.present ? data.doneAt.value : this.doneAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecStep(')
+          ..write('specId: $specId, ')
+          ..write('step: $step, ')
+          ..write('status: $status, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('doneAt: $doneAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(specId, step, status, sessionId, doneAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecStep &&
+          other.specId == this.specId &&
+          other.step == this.step &&
+          other.status == this.status &&
+          other.sessionId == this.sessionId &&
+          other.doneAt == this.doneAt);
+}
+
+class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
+  final Value<int> specId;
+  final Value<String> step;
+  final Value<StepStatus> status;
+  final Value<String?> sessionId;
+  final Value<DateTime?> doneAt;
+  final Value<int> rowid;
+  const SpecStepsCompanion({
+    this.specId = const Value.absent(),
+    this.step = const Value.absent(),
+    this.status = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.doneAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SpecStepsCompanion.insert({
+    required int specId,
+    required String step,
+    this.status = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.doneAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : specId = Value(specId),
+       step = Value(step);
+  static Insertable<SpecStep> custom({
+    Expression<int>? specId,
+    Expression<String>? step,
+    Expression<String>? status,
+    Expression<String>? sessionId,
+    Expression<DateTime>? doneAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (specId != null) 'spec_id': specId,
+      if (step != null) 'step': step,
+      if (status != null) 'status': status,
+      if (sessionId != null) 'session_id': sessionId,
+      if (doneAt != null) 'done_at': doneAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SpecStepsCompanion copyWith({
+    Value<int>? specId,
+    Value<String>? step,
+    Value<StepStatus>? status,
+    Value<String?>? sessionId,
+    Value<DateTime?>? doneAt,
+    Value<int>? rowid,
+  }) {
+    return SpecStepsCompanion(
+      specId: specId ?? this.specId,
+      step: step ?? this.step,
+      status: status ?? this.status,
+      sessionId: sessionId ?? this.sessionId,
+      doneAt: doneAt ?? this.doneAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (step.present) {
+      map['step'] = Variable<String>(step.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(
+        $SpecStepsTable.$converterstatus.toSql(status.value),
+      );
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (doneAt.present) {
+      map['done_at'] = Variable<DateTime>(doneAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecStepsCompanion(')
+          ..write('specId: $specId, ')
+          ..write('step: $step, ')
+          ..write('status: $status, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('doneAt: $doneAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -1494,6 +2351,36 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _effortMeta = const VerificationMeta('effort');
+  @override
+  late final GeneratedColumn<String> effort = GeneratedColumn<String>(
+    'effort',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _costUsdMeta = const VerificationMeta(
     'costUsd',
   );
@@ -1596,6 +2483,9 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     branch,
     status,
     model,
+    specId,
+    steps,
+    effort,
     costUsd,
     tokensIn,
     tokensOut,
@@ -1686,6 +2576,24 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
       );
     } else if (isInserting) {
       context.missing(_modelMeta);
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    }
+    if (data.containsKey('effort')) {
+      context.handle(
+        _effortMeta,
+        effort.isAcceptableOrUnknown(data['effort']!, _effortMeta),
+      );
     }
     if (data.containsKey('cost_usd')) {
       context.handle(
@@ -1789,6 +2697,18 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.string,
         data['${effectivePrefix}model'],
       )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      ),
+      effort: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effort'],
+      ),
       costUsd: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}cost_usd'],
@@ -1849,6 +2769,15 @@ class Session extends DataClass implements Insertable<Session> {
   final String branch;
   final SessionStatus status;
   final String model;
+
+  /// Spec (card) the session works on and the steps it was given (`R2` or
+  /// `R2,R3`; schema v8).
+  final int? specId;
+  final String? steps;
+
+  /// `--effort` used to (re)start the process (schema v7). Null = rows
+  /// written before: resumes use the default of Configurações.
+  final String? effort;
   final double costUsd;
   final int tokensIn;
   final int tokensOut;
@@ -1875,6 +2804,9 @@ class Session extends DataClass implements Insertable<Session> {
     required this.branch,
     required this.status,
     required this.model,
+    this.specId,
+    this.steps,
+    this.effort,
     required this.costUsd,
     required this.tokensIn,
     required this.tokensOut,
@@ -1909,6 +2841,15 @@ class Session extends DataClass implements Insertable<Session> {
       );
     }
     map['model'] = Variable<String>(model);
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    if (!nullToAbsent || steps != null) {
+      map['steps'] = Variable<String>(steps);
+    }
+    if (!nullToAbsent || effort != null) {
+      map['effort'] = Variable<String>(effort);
+    }
     map['cost_usd'] = Variable<double>(costUsd);
     map['tokens_in'] = Variable<int>(tokensIn);
     map['tokens_out'] = Variable<int>(tokensOut);
@@ -1948,6 +2889,15 @@ class Session extends DataClass implements Insertable<Session> {
       branch: Value(branch),
       status: Value(status),
       model: Value(model),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      steps: steps == null && nullToAbsent
+          ? const Value.absent()
+          : Value(steps),
+      effort: effort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(effort),
       costUsd: Value(costUsd),
       tokensIn: Value(tokensIn),
       tokensOut: Value(tokensOut),
@@ -1985,6 +2935,9 @@ class Session extends DataClass implements Insertable<Session> {
         serializer.fromJson<String>(json['status']),
       ),
       model: serializer.fromJson<String>(json['model']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      steps: serializer.fromJson<String?>(json['steps']),
+      effort: serializer.fromJson<String?>(json['effort']),
       costUsd: serializer.fromJson<double>(json['costUsd']),
       tokensIn: serializer.fromJson<int>(json['tokensIn']),
       tokensOut: serializer.fromJson<int>(json['tokensOut']),
@@ -2011,6 +2964,9 @@ class Session extends DataClass implements Insertable<Session> {
         $SessionsTable.$converterstatus.toJson(status),
       ),
       'model': serializer.toJson<String>(model),
+      'specId': serializer.toJson<int?>(specId),
+      'steps': serializer.toJson<String?>(steps),
+      'effort': serializer.toJson<String?>(effort),
       'costUsd': serializer.toJson<double>(costUsd),
       'tokensIn': serializer.toJson<int>(tokensIn),
       'tokensOut': serializer.toJson<int>(tokensOut),
@@ -2033,6 +2989,9 @@ class Session extends DataClass implements Insertable<Session> {
     String? branch,
     SessionStatus? status,
     String? model,
+    Value<int?> specId = const Value.absent(),
+    Value<String?> steps = const Value.absent(),
+    Value<String?> effort = const Value.absent(),
     double? costUsd,
     int? tokensIn,
     int? tokensOut,
@@ -2054,6 +3013,9 @@ class Session extends DataClass implements Insertable<Session> {
     branch: branch ?? this.branch,
     status: status ?? this.status,
     model: model ?? this.model,
+    specId: specId.present ? specId.value : this.specId,
+    steps: steps.present ? steps.value : this.steps,
+    effort: effort.present ? effort.value : this.effort,
     costUsd: costUsd ?? this.costUsd,
     tokensIn: tokensIn ?? this.tokensIn,
     tokensOut: tokensOut ?? this.tokensOut,
@@ -2081,6 +3043,9 @@ class Session extends DataClass implements Insertable<Session> {
       branch: data.branch.present ? data.branch.value : this.branch,
       status: data.status.present ? data.status.value : this.status,
       model: data.model.present ? data.model.value : this.model,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      effort: data.effort.present ? data.effort.value : this.effort,
       costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
       tokensIn: data.tokensIn.present ? data.tokensIn.value : this.tokensIn,
       tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
@@ -2109,6 +3074,9 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('branch: $branch, ')
           ..write('status: $status, ')
           ..write('model: $model, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('effort: $effort, ')
           ..write('costUsd: $costUsd, ')
           ..write('tokensIn: $tokensIn, ')
           ..write('tokensOut: $tokensOut, ')
@@ -2122,7 +3090,7 @@ class Session extends DataClass implements Insertable<Session> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     workspaceId,
     taskId,
@@ -2133,6 +3101,9 @@ class Session extends DataClass implements Insertable<Session> {
     branch,
     status,
     model,
+    specId,
+    steps,
+    effort,
     costUsd,
     tokensIn,
     tokensOut,
@@ -2141,7 +3112,7 @@ class Session extends DataClass implements Insertable<Session> {
     baseBranch,
     mergeCommit,
     prUrl,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2156,6 +3127,9 @@ class Session extends DataClass implements Insertable<Session> {
           other.branch == this.branch &&
           other.status == this.status &&
           other.model == this.model &&
+          other.specId == this.specId &&
+          other.steps == this.steps &&
+          other.effort == this.effort &&
           other.costUsd == this.costUsd &&
           other.tokensIn == this.tokensIn &&
           other.tokensOut == this.tokensOut &&
@@ -2177,6 +3151,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String> branch;
   final Value<SessionStatus> status;
   final Value<String> model;
+  final Value<int?> specId;
+  final Value<String?> steps;
+  final Value<String?> effort;
   final Value<double> costUsd;
   final Value<int> tokensIn;
   final Value<int> tokensOut;
@@ -2197,6 +3174,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.branch = const Value.absent(),
     this.status = const Value.absent(),
     this.model = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.effort = const Value.absent(),
     this.costUsd = const Value.absent(),
     this.tokensIn = const Value.absent(),
     this.tokensOut = const Value.absent(),
@@ -2218,6 +3198,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     required String branch,
     this.status = const Value.absent(),
     required String model,
+    this.specId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.effort = const Value.absent(),
     this.costUsd = const Value.absent(),
     this.tokensIn = const Value.absent(),
     this.tokensOut = const Value.absent(),
@@ -2243,6 +3226,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? branch,
     Expression<String>? status,
     Expression<String>? model,
+    Expression<int>? specId,
+    Expression<String>? steps,
+    Expression<String>? effort,
     Expression<double>? costUsd,
     Expression<int>? tokensIn,
     Expression<int>? tokensOut,
@@ -2264,6 +3250,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (branch != null) 'branch': branch,
       if (status != null) 'status': status,
       if (model != null) 'model': model,
+      if (specId != null) 'spec_id': specId,
+      if (steps != null) 'steps': steps,
+      if (effort != null) 'effort': effort,
       if (costUsd != null) 'cost_usd': costUsd,
       if (tokensIn != null) 'tokens_in': tokensIn,
       if (tokensOut != null) 'tokens_out': tokensOut,
@@ -2287,6 +3276,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String>? branch,
     Value<SessionStatus>? status,
     Value<String>? model,
+    Value<int?>? specId,
+    Value<String?>? steps,
+    Value<String?>? effort,
     Value<double>? costUsd,
     Value<int>? tokensIn,
     Value<int>? tokensOut,
@@ -2308,6 +3300,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       branch: branch ?? this.branch,
       status: status ?? this.status,
       model: model ?? this.model,
+      specId: specId ?? this.specId,
+      steps: steps ?? this.steps,
+      effort: effort ?? this.effort,
       costUsd: costUsd ?? this.costUsd,
       tokensIn: tokensIn ?? this.tokensIn,
       tokensOut: tokensOut ?? this.tokensOut,
@@ -2355,6 +3350,15 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (model.present) {
       map['model'] = Variable<String>(model.value);
     }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (effort.present) {
+      map['effort'] = Variable<String>(effort.value);
+    }
     if (costUsd.present) {
       map['cost_usd'] = Variable<double>(costUsd.value);
     }
@@ -2398,6 +3402,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('branch: $branch, ')
           ..write('status: $status, ')
           ..write('model: $model, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('effort: $effort, ')
           ..write('costUsd: $costUsd, ')
           ..write('tokensIn: $tokensIn, ')
           ..write('tokensOut: $tokensOut, ')
@@ -5819,6 +6826,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $WorkspacesTable workspaces = $WorkspacesTable(this);
   late final $SpecsTable specs = $SpecsTable(this);
+  late final $SpecStepsTable specSteps = $SpecStepsTable(this);
   late final $TasksTable tasks = $TasksTable(this);
   late final $SessionsTable sessions = $SessionsTable(this);
   late final $SessionEventsTable sessionEvents = $SessionEventsTable(this);
@@ -5837,6 +6845,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     workspaces,
     specs,
+    specSteps,
     tasks,
     sessions,
     sessionEvents,
@@ -5862,6 +6871,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         'specs',
         limitUpdateKind: UpdateKind.delete,
       ),
+      result: [TableUpdate('spec_steps', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
       result: [TableUpdate('tasks', kind: UpdateKind.update)],
     ),
     WritePropagation(
@@ -5881,6 +6897,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'tasks',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('sessions', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('sessions', kind: UpdateKind.update)],
@@ -6590,6 +7613,15 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   required String title,
   Value<SpecStatus> status,
   required String path,
+  Value<SpecStage> stage,
+  Value<List<({String id, String text})>> requirements,
+  Value<List<String>> dependsOn,
+  Value<String?> phase,
+  Value<String?> agentName,
+  Value<String?> worktreePath,
+  Value<String?> branch,
+  Value<String?> baseBranch,
+  Value<bool> autoAdvance,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -6598,6 +7630,15 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String> title,
   Value<SpecStatus> status,
   Value<String> path,
+  Value<SpecStage> stage,
+  Value<List<({String id, String text})>> requirements,
+  Value<List<String>> dependsOn,
+  Value<String?> phase,
+  Value<String?> agentName,
+  Value<String?> worktreePath,
+  Value<String?> branch,
+  Value<String?> baseBranch,
+  Value<bool> autoAdvance,
 });
 
 final class $$SpecsTableReferences
@@ -6621,6 +7662,24 @@ final class $$SpecsTableReferences
     );
   }
 
+  static MultiTypedResultKey<$SpecStepsTable, List<SpecStep>>
+  _specStepsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specSteps,
+    aliasName: 'specs__id__spec_steps__spec_id',
+  );
+
+  $$SpecStepsTableProcessedTableManager get specStepsRefs {
+    final manager = $$SpecStepsTableTableManager(
+      $_db,
+      $_db.specSteps,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specStepsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$TasksTable, List<Task>> _tasksRefsTable(
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
@@ -6635,6 +7694,25 @@ final class $$SpecsTableReferences
     ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_tasksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SessionsTable, List<Session>> _sessionsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.sessions,
+    aliasName: 'specs__id__sessions__spec_id',
+  );
+
+  $$SessionsTableProcessedTableManager get sessionsRefs {
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_sessionsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -6675,6 +7753,58 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnWithTypeConverterFilters<SpecStage, SpecStage, String> get stage =>
+      $composableBuilder(
+        column: $table.stage,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<
+    List<({String id, String text})>,
+    List<({String id, String text})>,
+    String
+  >
+  get requirements => $composableBuilder(
+    column: $table.requirements,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<List<String>, List<String>, String>
+  get dependsOn => $composableBuilder(
+    column: $table.dependsOn,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get agentName => $composableBuilder(
+    column: $table.agentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branch => $composableBuilder(
+    column: $table.branch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoAdvance => $composableBuilder(
+    column: $table.autoAdvance,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$WorkspacesTableFilterComposer get workspaceId {
     final $$WorkspacesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -6698,6 +7828,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     return composer;
   }
 
+  Expression<bool> specStepsRefs(
+    Expression<bool> Function($$SpecStepsTableFilterComposer f) f,
+  ) {
+    final $$SpecStepsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSteps,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecStepsTableFilterComposer(
+            $db: $db,
+            $table: $db.specSteps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<bool> tasksRefs(
     Expression<bool> Function($$TasksTableFilterComposer f) f,
   ) {
@@ -6714,6 +7869,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$TasksTableFilterComposer(
             $db: $db,
             $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> sessionsRefs(
+    Expression<bool> Function($$SessionsTableFilterComposer f) f,
+  ) {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6755,6 +7935,51 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<String> get path => $composableBuilder(
     column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stage => $composableBuilder(
+    column: $table.stage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requirements => $composableBuilder(
+    column: $table.requirements,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dependsOn => $composableBuilder(
+    column: $table.dependsOn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get agentName => $composableBuilder(
+    column: $table.agentName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branch => $composableBuilder(
+    column: $table.branch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoAdvance => $composableBuilder(
+    column: $table.autoAdvance,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6806,6 +8031,42 @@ class $$SpecsTableAnnotationComposer
   GeneratedColumn<String> get path =>
       $composableBuilder(column: $table.path, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<SpecStage, String> get stage =>
+      $composableBuilder(column: $table.stage, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<List<({String id, String text})>, String>
+  get requirements => $composableBuilder(
+    column: $table.requirements,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<List<String>, String> get dependsOn =>
+      $composableBuilder(column: $table.dependsOn, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<String> get agentName =>
+      $composableBuilder(column: $table.agentName, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get branch =>
+      $composableBuilder(column: $table.branch, builder: (column) => column);
+
+  GeneratedColumn<String> get baseBranch => $composableBuilder(
+    column: $table.baseBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get autoAdvance => $composableBuilder(
+    column: $table.autoAdvance,
+    builder: (column) => column,
+  );
+
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -6827,6 +8088,31 @@ class $$SpecsTableAnnotationComposer
           ),
     );
     return composer;
+  }
+
+  Expression<T> specStepsRefs<T extends Object>(
+    Expression<T> Function($$SpecStepsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecStepsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSteps,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecStepsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specSteps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 
   Expression<T> tasksRefs<T extends Object>(
@@ -6853,6 +8139,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> sessionsRefs<T extends Object>(
+    Expression<T> Function($$SessionsTableAnnotationComposer a) f,
+  ) {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -6868,7 +8179,12 @@ class $$SpecsTableTableManager
           $$SpecsTableUpdateCompanionBuilder,
           (Spec, $$SpecsTableReferences),
           Spec,
-          PrefetchHooks Function({bool workspaceId, bool tasksRefs})
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool specStepsRefs,
+            bool tasksRefs,
+            bool sessionsRefs,
+          })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
     : super(
@@ -6889,6 +8205,16 @@ class $$SpecsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<SpecStatus> status = const Value.absent(),
                 Value<String> path = const Value.absent(),
+                Value<SpecStage> stage = const Value.absent(),
+                Value<List<({String id, String text})>> requirements =
+                    const Value.absent(),
+                Value<List<String>> dependsOn = const Value.absent(),
+                Value<String?> phase = const Value.absent(),
+                Value<String?> agentName = const Value.absent(),
+                Value<String?> worktreePath = const Value.absent(),
+                Value<String?> branch = const Value.absent(),
+                Value<String?> baseBranch = const Value.absent(),
+                Value<bool> autoAdvance = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -6896,6 +8222,15 @@ class $$SpecsTableTableManager
                 title: title,
                 status: status,
                 path: path,
+                stage: stage,
+                requirements: requirements,
+                dependsOn: dependsOn,
+                phase: phase,
+                agentName: agentName,
+                worktreePath: worktreePath,
+                branch: branch,
+                baseBranch: baseBranch,
+                autoAdvance: autoAdvance,
               ),
           createCompanionCallback:
               ({
@@ -6905,6 +8240,16 @@ class $$SpecsTableTableManager
                 required String title,
                 Value<SpecStatus> status = const Value.absent(),
                 required String path,
+                Value<SpecStage> stage = const Value.absent(),
+                Value<List<({String id, String text})>> requirements =
+                    const Value.absent(),
+                Value<List<String>> dependsOn = const Value.absent(),
+                Value<String?> phase = const Value.absent(),
+                Value<String?> agentName = const Value.absent(),
+                Value<String?> worktreePath = const Value.absent(),
+                Value<String?> branch = const Value.absent(),
+                Value<String?> baseBranch = const Value.absent(),
+                Value<bool> autoAdvance = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -6912,6 +8257,15 @@ class $$SpecsTableTableManager
                 title: title,
                 status: status,
                 path: path,
+                stage: stage,
+                requirements: requirements,
+                dependsOn: dependsOn,
+                phase: phase,
+                agentName: agentName,
+                worktreePath: worktreePath,
+                branch: branch,
+                baseBranch: baseBranch,
+                autoAdvance: autoAdvance,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -6921,58 +8275,103 @@ class $$SpecsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({workspaceId = false, tasksRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (tasksRefs) db.tasks],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (workspaceId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.workspaceId,
-                        referencedTable: $$SpecsTableReferences
-                            ._workspaceIdTable(db),
-                        referencedColumn: $$SpecsTableReferences
-                            ._workspaceIdTable(db)
-                            .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                specStepsRefs = false,
+                tasksRefs = false,
+                sessionsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (specStepsRefs) db.specSteps,
+                    if (tasksRefs) db.tasks,
+                    if (sessionsRefs) db.sessions,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$SpecsTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$SpecsTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (specStepsRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, SpecStep>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specStepsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specStepsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (tasksRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, Task>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._tasksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(db, table, p0).tasksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (sessionsRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, Session>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._sessionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (tasksRefs)
-                    await $_getPrefetchedData<Spec, $SpecsTable, Task>(
-                      currentTable: table,
-                      referencedTable: $$SpecsTableReferences._tasksRefsTable(
-                        db,
-                      ),
-                      managerFromTypedResult: (p0) =>
-                          $$SpecsTableReferences(db, table, p0).tasksRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.specId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -6989,7 +8388,326 @@ typedef $$SpecsTableProcessedTableManager =
       $$SpecsTableUpdateCompanionBuilder,
       (Spec, $$SpecsTableReferences),
       Spec,
-      PrefetchHooks Function({bool workspaceId, bool tasksRefs})
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool specStepsRefs,
+        bool tasksRefs,
+        bool sessionsRefs,
+      })
+    >;
+typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
+  required int specId,
+  required String step,
+  Value<StepStatus> status,
+  Value<String?> sessionId,
+  Value<DateTime?> doneAt,
+  Value<int> rowid,
+});
+typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
+  Value<int> specId,
+  Value<String> step,
+  Value<StepStatus> status,
+  Value<String?> sessionId,
+  Value<DateTime?> doneAt,
+  Value<int> rowid,
+});
+
+final class $$SpecStepsTableReferences
+    extends BaseReferences<_$AppDatabase, $SpecStepsTable, SpecStep> {
+  $$SpecStepsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_steps__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecStepsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecStepsTable> {
+  $$SpecStepsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<StepStatus, StepStatus, String> get status =>
+      $composableBuilder(
+        column: $table.status,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get doneAt => $composableBuilder(
+    column: $table.doneAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecStepsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecStepsTable> {
+  $$SpecStepsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get doneAt => $composableBuilder(
+    column: $table.doneAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecStepsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecStepsTable> {
+  $$SpecStepsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<StepStatus, String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get doneAt =>
+      $composableBuilder(column: $table.doneAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecStepsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecStepsTable,
+          SpecStep,
+          $$SpecStepsTableFilterComposer,
+          $$SpecStepsTableOrderingComposer,
+          $$SpecStepsTableAnnotationComposer,
+          $$SpecStepsTableCreateCompanionBuilder,
+          $$SpecStepsTableUpdateCompanionBuilder,
+          (SpecStep, $$SpecStepsTableReferences),
+          SpecStep,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecStepsTableTableManager(_$AppDatabase db, $SpecStepsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecStepsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecStepsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecStepsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> specId = const Value.absent(),
+                Value<String> step = const Value.absent(),
+                Value<StepStatus> status = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<DateTime?> doneAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecStepsCompanion(
+                specId: specId,
+                step: step,
+                status: status,
+                sessionId: sessionId,
+                doneAt: doneAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int specId,
+                required String step,
+                Value<StepStatus> status = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<DateTime?> doneAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecStepsCompanion.insert(
+                specId: specId,
+                step: step,
+                status: status,
+                sessionId: sessionId,
+                doneAt: doneAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecStepsTable, SpecStep>(table),
+                  $$SpecStepsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecStepsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecStepsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecStepsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecStepsTable,
+      SpecStep,
+      $$SpecStepsTableFilterComposer,
+      $$SpecStepsTableOrderingComposer,
+      $$SpecStepsTableAnnotationComposer,
+      $$SpecStepsTableCreateCompanionBuilder,
+      $$SpecStepsTableUpdateCompanionBuilder,
+      (SpecStep, $$SpecStepsTableReferences),
+      SpecStep,
+      PrefetchHooks Function({bool specId})
     >;
 typedef $$TasksTableCreateCompanionBuilder = TasksCompanion Function({
   Value<int> id,
@@ -7602,6 +9320,9 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   required String branch,
   Value<SessionStatus> status,
   required String model,
+  Value<int?> specId,
+  Value<String?> steps,
+  Value<String?> effort,
   Value<double> costUsd,
   Value<int> tokensIn,
   Value<int> tokensOut,
@@ -7623,6 +9344,9 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String> branch,
   Value<SessionStatus> status,
   Value<String> model,
+  Value<int?> specId,
+  Value<String?> steps,
+  Value<String?> effort,
   Value<double> costUsd,
   Value<int> tokensIn,
   Value<int> tokensOut,
@@ -7666,6 +9390,23 @@ final class $$SessionsTableReferences
       $_db.tasks,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_taskIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('sessions__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get specId {
+    final $_column = $_itemColumn<int>('spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -7759,6 +9500,16 @@ class $$SessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effort => $composableBuilder(
+    column: $table.effort,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get costUsd => $composableBuilder(
     column: $table.costUsd,
     builder: (column) => ColumnFilters(column),
@@ -7836,6 +9587,29 @@ class $$SessionsTableFilterComposer
           }) => $$TasksTableFilterComposer(
             $db: $db,
             $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7945,6 +9719,16 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get effort => $composableBuilder(
+    column: $table.effort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get costUsd => $composableBuilder(
     column: $table.costUsd,
     builder: (column) => ColumnOrderings(column),
@@ -8030,6 +9814,29 @@ class $$SessionsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$SessionsTableAnnotationComposer
@@ -8068,6 +9875,12 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<String> get model =>
       $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get effort =>
+      $composableBuilder(column: $table.effort, builder: (column) => column);
 
   GeneratedColumn<double> get costUsd =>
       $composableBuilder(column: $table.costUsd, builder: (column) => column);
@@ -8134,6 +9947,29 @@ class $$SessionsTableAnnotationComposer
           }) => $$TasksTableAnnotationComposer(
             $db: $db,
             $table: $db.tasks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -8210,6 +10046,7 @@ class $$SessionsTableTableManager
           PrefetchHooks Function({
             bool workspaceId,
             bool taskId,
+            bool specId,
             bool sessionEventsRefs,
             bool conversationsRefs,
           })
@@ -8237,6 +10074,9 @@ class $$SessionsTableTableManager
                 Value<String> branch = const Value.absent(),
                 Value<SessionStatus> status = const Value.absent(),
                 Value<String> model = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                Value<String?> effort = const Value.absent(),
                 Value<double> costUsd = const Value.absent(),
                 Value<int> tokensIn = const Value.absent(),
                 Value<int> tokensOut = const Value.absent(),
@@ -8257,6 +10097,9 @@ class $$SessionsTableTableManager
                 branch: branch,
                 status: status,
                 model: model,
+                specId: specId,
+                steps: steps,
+                effort: effort,
                 costUsd: costUsd,
                 tokensIn: tokensIn,
                 tokensOut: tokensOut,
@@ -8279,6 +10122,9 @@ class $$SessionsTableTableManager
                 required String branch,
                 Value<SessionStatus> status = const Value.absent(),
                 required String model,
+                Value<int?> specId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                Value<String?> effort = const Value.absent(),
                 Value<double> costUsd = const Value.absent(),
                 Value<int> tokensIn = const Value.absent(),
                 Value<int> tokensOut = const Value.absent(),
@@ -8299,6 +10145,9 @@ class $$SessionsTableTableManager
                 branch: branch,
                 status: status,
                 model: model,
+                specId: specId,
+                steps: steps,
+                effort: effort,
                 costUsd: costUsd,
                 tokensIn: tokensIn,
                 tokensOut: tokensOut,
@@ -8321,6 +10170,7 @@ class $$SessionsTableTableManager
               ({
                 workspaceId = false,
                 taskId = false,
+                specId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
               }) {
@@ -8365,6 +10215,17 @@ class $$SessionsTableTableManager
                                 ._taskIdTable(db),
                             referencedColumn: $$SessionsTableReferences
                                 ._taskIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (specId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.specId,
+                            referencedTable: $$SessionsTableReferences
+                                ._specIdTable(db),
+                            referencedColumn: $$SessionsTableReferences
+                                ._specIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -8438,6 +10299,7 @@ typedef $$SessionsTableProcessedTableManager =
       PrefetchHooks Function({
         bool workspaceId,
         bool taskId,
+        bool specId,
         bool sessionEventsRefs,
         bool conversationsRefs,
       })
@@ -10937,6 +12799,8 @@ class $AppDatabaseManager {
       $$WorkspacesTableTableManager(_db, _db.workspaces);
   $$SpecsTableTableManager get specs =>
       $$SpecsTableTableManager(_db, _db.specs);
+  $$SpecStepsTableTableManager get specSteps =>
+      $$SpecStepsTableTableManager(_db, _db.specSteps);
   $$TasksTableTableManager get tasks =>
       $$TasksTableTableManager(_db, _db.tasks);
   $$SessionsTableTableManager get sessions =>

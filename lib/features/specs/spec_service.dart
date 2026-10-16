@@ -5,7 +5,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../data/repos/sessions_repo.dart';
 import '../../data/repos/specs_repo.dart';
+import '../project/project_service.dart' show TrashFolder, trashFolderProvider;
 import '../sessions/session_manager.dart' show slugify;
 import 'spec_file.dart';
 
@@ -37,9 +39,15 @@ Future<String> nextSpecCode(SpecsRepo repo, Workspace workspace) async {
 
 /// Spec files of a workspace (`specs/SPEC-*.md`) ↔ `specs` table.
 class SpecService {
-  SpecService(this._repo);
+  SpecService(this._repo, {SessionsRepo? sessions, TrashFolder? trash})
+    // ignore: prefer_initializing_formals
+    : _sessions = sessions,
+      // ignore: prefer_initializing_formals
+      _trash = trash;
 
   final SpecsRepo _repo;
+  final SessionsRepo? _sessions;
+  final TrashFolder? _trash;
 
   /// Reads `specs/SPEC-*.md`, inserts the files missing from the table and
   /// updates title / status / path of the others (the file is the source).
@@ -81,6 +89,7 @@ class SpecService {
     required SpecDocument doc,
   }) async {
     final title = doc.title ?? code;
+    final reqs = doc.requirements;
     final existing = await _repo.getByCode(ws.id, code);
     if (existing == null) {
       return _repo.insert(
@@ -89,22 +98,42 @@ class SpecService {
         title: title,
         path: rel,
         status: doc.status ?? SpecStatus.draft,
+        requirements: reqs,
+        dependsOn: doc.dependsOn,
+        phase: doc.phase,
       );
     }
     final status = doc.status ?? existing.status;
+    // `depende-de` absent from the file keeps the stored list (written by
+    // the schema v8 migration or the Projeto screen until the next save).
+    final deps = doc.hasDependsOn ? doc.dependsOn : existing.dependsOn;
     if (existing.title != title ||
         existing.path != rel ||
-        existing.status != status) {
+        existing.status != status ||
+        existing.phase != doc.phase ||
+        !_sameReqs(existing.requirements, reqs) ||
+        existing.dependsOn.join(',') != deps.join(',')) {
       await _repo.update(
         existing.id,
         SpecsCompanion(
           title: Value(title),
           path: Value(rel),
           status: Value(status),
+          phase: Value(doc.phase),
+          requirements: Value(reqs),
+          dependsOn: Value(deps),
         ),
       );
     }
     return (await _repo.getById(existing.id))!;
+  }
+
+  static bool _sameReqs(List<SpecRequirement> a, List<SpecRequirement> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// Relative paths a spec may have: one `.md` file directly inside
@@ -128,8 +157,13 @@ class SpecService {
     return f.readAsString();
   }
 
-  /// Writes [text] (temporary file + rename) and refreshes the row.
+  /// Writes [text] (temporary file + rename) and refreshes the row. Stored
+  /// dependencies missing from the file are written to its frontmatter.
   Future<Spec> save(Workspace ws, Spec spec, String text) async {
+    final current = SpecDocument.parse(text);
+    if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
+      text = current.withMeta(dependsOn: spec.dependsOn);
+    }
     final f = fileOf(ws, spec);
     await f.parent.create(recursive: true);
     final tmp = File('${f.path}.promptorium-tmp');
@@ -173,7 +207,70 @@ class SpecService {
       title: doc.title ?? t,
       path: rel,
       status: doc.status ?? SpecStatus.draft,
+      requirements: doc.requirements,
+      dependsOn: doc.dependsOn,
+      phase: doc.phase,
     );
+  }
+
+  /// "Clonar para alterar": a new draft spec with the text of [spec] minus
+  /// the requirements in [doneIds], depending on [spec].
+  Future<Spec> cloneForChange(
+    Workspace ws,
+    Spec spec, {
+    required Set<String> doneIds,
+  }) async {
+    final text = await read(ws, spec);
+    if (text == null) throw SpecException('O arquivo ${spec.path} não existe.');
+    final title = '${SpecDocument.parse(text).title ?? spec.title} (alteração)';
+    return create(
+      ws,
+      title: title,
+      render: (code) => cloneSpecText(
+        text,
+        newCode: code,
+        originalCode: spec.code,
+        doneIds: doneIds,
+      ),
+    );
+  }
+
+  /// "Arquivar": a finished spec leaves the lists (`status: arquivada`).
+  /// [restore] puts it back as concluded.
+  Future<Spec> archive(Workspace ws, Spec spec, {bool restore = false}) async {
+    if (!restore && spec.stage != SpecStage.done) {
+      throw SpecException('${spec.code} ainda não foi concluída.');
+    }
+    final text = await read(ws, spec);
+    if (text == null) throw SpecException('O arquivo ${spec.path} não existe.');
+    final status = restore ? SpecStatus.done : SpecStatus.archived;
+    return save(ws, spec, SpecDocument.parse(text).withMeta(status: status));
+  }
+
+  /// Codes of the specs that list [spec] in `depende-de`.
+  Future<List<String>> dependentsOf(Workspace ws, Spec spec) async => [
+    for (final o in await _repo.watchByWorkspace(ws.id).first)
+      if (o.id != spec.id && o.dependsOn.contains(spec.code)) o.code,
+  ];
+
+  /// "Excluir": only a spec never executed. The file goes to the trash
+  /// (recoverable) and the row is removed.
+  Future<void> delete(Workspace ws, Spec spec) async {
+    final sessions = await _sessions?.bySpec(spec.id) ?? const [];
+    if (spec.stage != SpecStage.backlog ||
+        spec.worktreePath != null ||
+        sessions.isNotEmpty) {
+      throw SpecException(
+        '${spec.code} já foi executada: arquive em vez de excluir.',
+      );
+    }
+    final f = fileOf(ws, spec);
+    if (await f.exists()) {
+      final trash = _trash;
+      if (trash == null) throw const SpecException('Lixeira indisponível.');
+      await trash(f.path);
+    }
+    await _repo.delete(spec.id);
   }
 
   /// "Aprovar spec": `status: aprovada` in the frontmatter of [text] (the
@@ -191,7 +288,23 @@ class SpecService {
 }
 
 final specServiceProvider = Provider(
-  (ref) => SpecService(ref.watch(specsRepoProvider)),
+  (ref) => SpecService(
+    ref.watch(specsRepoProvider),
+    sessions: ref.watch(sessionsRepoProvider),
+    trash: ref.watch(trashFolderProvider),
+  ),
+);
+
+/// "Arquivadas": show the archived specs in the Specs list and the Quadro.
+class ShowArchived extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+}
+
+final showArchivedProvider = NotifierProvider<ShowArchived, bool>(
+  ShowArchived.new,
 );
 
 /// Spec selected in the Specs screen (null = first of the list).

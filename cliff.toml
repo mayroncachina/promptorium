@@ -1,0 +1,58 @@
+# git-cliff — changelog dos commits convencionais (tipo(escopo): descrição).
+# Gerar: git cliff -o CHANGELOG.md   |   só o que falta lançar: git cliff --unreleased
+
+[changelog]
+header = """
+# Changelog
+
+Todas as mudanças relevantes do Promptorium.\n
+"""
+body = """
+{%- macro remote_url() -%}
+  {%- if remote.github -%}https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}{%- endif -%}
+{%- endmacro -%}
+
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [não lançado]
+{% endif -%}
+
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{% if commit.breaking %}[**incompatível**] {% endif %}{{ commit.message | upper_first }} ({{ commit.id | truncate(length=7, end="") }})
+{%- endfor %}
+{% endfor %}\n
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+# Commits fora do padrão (ex.: merges) não entram.
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = false
+filter_commits = false
+topo_order = false
+sort_commits = "oldest"
+tag_pattern = "v[0-9].*"
+
+# O corpo do commit não vai para o changelog; só a primeira linha.
+commit_preprocessors = [
+  { pattern = '\s+$', replace = "" },
+]
+
+# A ordem dos prefixos numéricos define a ordem das seções.
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Funcionalidades" },
+  { message = "^fix", group = "<!-- 1 -->Correções" },
+  { message = "^perf", group = "<!-- 2 -->Desempenho" },
+  { message = "^refactor", group = "<!-- 3 -->Refatoração" },
+  { message = "^docs?", group = "<!-- 4 -->Documentação" },
+  { message = "^test", group = "<!-- 5 -->Testes" },
+  { message = "^(build|ci)", group = "<!-- 6 -->Build e CI" },
+  { message = "^(chore|style)", group = "<!-- 7 -->Manutenção" },
+  { message = "^revert", group = "<!-- 8 -->Reversões" },
+]

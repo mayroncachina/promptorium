@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/db/app_database.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../board/board_rules.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
 
@@ -12,17 +13,18 @@ Color specStatusColor(SpecStatus s) => switch (s) {
   SpecStatus.draft => AppColors.textSecondary,
   SpecStatus.idea => AppColors.textMuted,
   SpecStatus.done => AppColors.blue,
+  SpecStatus.archived => AppColors.textMuted,
 };
 
-/// "4 tarefas · 3 feitas" / "sem tarefas".
-String specTasksMeta(List<Task> tasks) {
-  if (tasks.isEmpty) return 'sem tarefas';
-  final done = tasks.where((t) => t.status == TaskStatus.done).length;
-  final running = tasks.where((t) => t.status == TaskStatus.running).length;
-  final n = tasks.length;
-  final head = '$n ${n == 1 ? 'tarefa' : 'tarefas'}';
+/// "4 etapas · 3 concluídas" / "sem requisitos".
+String specStepsMeta(Spec spec, List<SpecStep> rows) {
+  final steps = stepsOf(spec, rows);
+  if (steps.isEmpty) return 'sem requisitos';
+  final (done, total) = progressOf(steps);
+  final running = steps.where((s) => s.status == StepStatus.running).length;
+  final head = '$total ${total == 1 ? 'etapa' : 'etapas'}';
   if (running > 0) return '$head · $running em execução';
-  return '$head · $done ${done == 1 ? 'feita' : 'feitas'}';
+  return '$head · $done ${done == 1 ? 'concluída' : 'concluídas'}';
 }
 
 /// Left column of the Specs screen.
@@ -31,13 +33,21 @@ class SpecList extends StatelessWidget {
     super.key,
     required this.specs,
     required this.selectedId,
-    required this.tasksBySpec,
+    required this.stepRows,
     required this.onSelect,
+    this.archived = 0,
+    this.showArchived = false,
+    this.onToggleArchived,
   });
+
+  /// Archived specs of the workspace and whether they are listed.
+  final int archived;
+  final bool showArchived;
+  final VoidCallback? onToggleArchived;
 
   final List<Spec> specs;
   final int? selectedId;
-  final Map<int, List<Task>> tasksBySpec;
+  final List<SpecStep> stepRows;
   final ValueChanged<Spec> onSelect;
 
   @override
@@ -50,9 +60,31 @@ class SpecList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(14, 14, 14, 8),
-            child: Text('SPECS', style: sectionTitleStyle),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+            child: Row(
+              children: [
+                const Expanded(child: Text('SPECS', style: sectionTitleStyle)),
+                if (archived > 0 || showArchived)
+                  TextButton(
+                    key: const ValueKey('specs-archived-toggle'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                    ),
+                    onPressed: onToggleArchived,
+                    child: Text(
+                      showArchived
+                          ? 'Ocultar arquivadas'
+                          : 'Arquivadas ($archived)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           Expanded(
             child: specs.isEmpty
@@ -135,7 +167,7 @@ class SpecList extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  specTasksMeta(tasksBySpec[s.id] ?? const []),
+                                  specStepsMeta(s, stepRows),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: AppColors.textSecondary,

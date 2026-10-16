@@ -6,54 +6,38 @@ import 'package:promptorium/features/project/widgets/roadmap_editors.dart';
 const roadmap = Roadmap(
   specs: [
     RoadmapSpec(
+      code: 'S1',
       title: 'Esqueleto',
       phase: RoadmapPhase.foundation,
-      tasks: [RoadmapTask(code: 'T1', title: 'Criar')],
+      requirements: [(id: 'R1', text: 'Criar')],
     ),
     RoadmapSpec(
+      code: 'S2',
       title: 'Receitas',
       phase: RoadmapPhase.mvp,
-      tasks: [
-        RoadmapTask(code: 'T2', title: 'CRUD', dependsOn: ['T1']),
-        RoadmapTask(code: 'T3', title: 'Fotos', dependsOn: ['T2']),
-      ],
+      requirements: [(id: 'R1', text: 'CRUD')],
+      dependsOn: ['S1'],
+    ),
+    RoadmapSpec(
+      code: 'S3',
+      title: 'Fotos',
+      phase: RoadmapPhase.mvp,
+      requirements: [(id: 'R1', text: 'Upload')],
+      dependsOn: ['S1', 'S2'],
     ),
   ],
 );
 
-List<String> codes(Roadmap r, int spec) => [
-  for (final t in r.specs[spec].tasks) t.code,
-];
-
 void main() {
-  test('withTask replaces in place or moves to the end of another spec', () {
-    var r = withTask(
-      roadmap,
-      1,
-      const RoadmapTask(code: 'T2', title: 'CRUD de receitas'),
-    );
-    expect(codes(r, 1), ['T2', 'T3']);
-    expect(r.specs[1].tasks.first.title, 'CRUD de receitas');
-
-    r = withTask(roadmap, 0, const RoadmapTask(code: 'T2', title: 'CRUD'));
-    expect(codes(r, 0), ['T1', 'T2']);
-    expect(codes(r, 1), ['T3']);
-
-    r = withTask(
-      roadmap,
-      1,
-      RoadmapTask(code: roadmap.nextTaskCode(), title: 'Nova'),
-    );
-    expect(codes(r, 1), ['T2', 'T3', 'T4']);
-  });
-
-  test('withoutTask drops it and the references to it', () {
-    final r = withoutTask(roadmap, 'T2');
-    expect(codes(r, 1), ['T3']);
-    expect(r.specs[1].tasks.single.dependsOn, isEmpty);
-    // normalized: the MVP task left without dependencies waits for the
-    // foundation again.
-    expect(r.normalized().specs[1].tasks.single.dependsOn, ['T1']);
+  test('withoutSpec drops it and the references to it', () {
+    final r = withoutSpec(roadmap, 1);
+    expect(r.specs.map((s) => s.code), ['S1', 'S3']);
+    expect(r.specs[1].dependsOn, ['S1']);
+    // A spec of the MVP left without dependencies waits for the foundation.
+    final only = withoutSpec(withoutSpec(roadmap, 0), 0);
+    expect(only.specs.single.dependsOn, isEmpty);
+    expect(only.normalized().specs.single.dependsOn, isEmpty); // no foundation
+    expect(withoutSpec(roadmap, 0).normalized().specs.first.dependsOn, isEmpty);
   });
 
   test('requirement lines: ids kept, made up when missing or repeated', () {
@@ -87,21 +71,16 @@ void main() {
     );
   });
 
-  test('idea spec: colliding codes renamed with their references, idea '
-      'leaves "Depois", MVP waits for the foundation', () {
+  test('idea spec: a taken code is replaced, the idea leaves "Depois", an '
+      'MVP spec without dependencies waits for the foundation', () {
     final r = addIdeaSpec(
       roadmap.copyWith(later: ['Modo offline', 'App nativo']),
       const RoadmapSpec(
+        code: 'S2', // taken
         title: 'Modo offline',
         phase: RoadmapPhase.mvp,
-        tasks: [
-          RoadmapTask(code: 'T2', title: 'Cache local'),
-          RoadmapTask(
-            code: 'T5',
-            title: 'Sincronizar',
-            dependsOn: ['T2', 'T3'],
-          ),
-        ],
+        requirements: [(id: 'R1', text: 'Cache local')],
+        dependsOn: ['S2', 'S9'],
       ),
       'Modo offline',
     );
@@ -109,10 +88,20 @@ void main() {
     expect(r.edited, isTrue);
     final spec = r.specs.last;
     expect(spec.title, 'Modo offline');
-    // T2 was taken: renamed to the first free code (T4); T5 kept; its
-    // reference to the renamed task follows, T3 (existing) stays.
-    expect(spec.tasks.map((t) => t.code), ['T4', 'T5']);
-    expect(spec.tasks[0].dependsOn, ['T1']);
-    expect(spec.tasks[1].dependsOn, ['T4', 'T3']);
+    expect(spec.code, 'S4');
+    // Existing S2 stays a valid dependency; unknown S9 is dropped.
+    expect(spec.dependsOn, ['S2']);
+
+    final free = addIdeaSpec(
+      roadmap,
+      const RoadmapSpec(
+        title: 'Notificações',
+        phase: RoadmapPhase.mvp,
+        requirements: [(id: 'R1', text: 'Avisar')],
+      ),
+      'x',
+    ).specs.last;
+    expect(free.code, 'S4');
+    expect(free.dependsOn, ['S1']); // the foundation
   });
 }

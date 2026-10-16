@@ -46,6 +46,8 @@ class AgentStartOptions {
     this.resumeId,
     this.forkSession = false,
     this.model,
+    this.effort,
+    this.autocompact,
     this.maxBudgetUsd,
     this.mcpAllowedTools = const [],
     this.mcpDisallowedTools = const [],
@@ -63,6 +65,12 @@ class AgentStartOptions {
 
   /// Model alias / id; null or `inherit` = provider default.
   final String? model;
+
+  /// `--effort` (null = provider default).
+  final String? effort;
+
+  /// `--autocompact` (null = provider default).
+  final String? autocompact;
   final double? maxBudgetUsd;
 
   /// MCP tools marked "Permitido" (`mcp__srv__tool`, Fase 11). Ignored by

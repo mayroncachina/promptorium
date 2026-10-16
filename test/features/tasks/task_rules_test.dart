@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/tasks/task_actions.dart';
 
@@ -35,19 +36,6 @@ String resultLine({bool success = true, double cost = 0.01}) => jsonEncode({
 });
 
 void main() {
-  test('a task is blocked while any dependency is not done', () {
-    final a = task('TASK-001', status: TaskStatus.done);
-    final b = task('TASK-002', status: TaskStatus.review);
-    final c = task('TASK-003', deps: ['TASK-001', 'TASK-002']);
-    final d = task('TASK-004', deps: ['TASK-001', 'NAO-EXISTE']);
-    final byCode = tasksByCode([a, b, c, d]);
-    expect(blockersOf(c, byCode), ['TASK-002']);
-    expect(isBlocked(c, byCode), isTrue);
-    expect(isBlocked(d, byCode), isFalse); // unknown codes are ignored
-    final done = tasksByCode([a, task('TASK-002', status: TaskStatus.done), c]);
-    expect(isBlocked(c, done), isFalse);
-  });
-
   test('taskStatusForSession', () {
     expect(
       taskStatusForSession(TaskStatus.backlog, SessionStatus.running),
@@ -88,34 +76,6 @@ void main() {
     );
   });
 
-  test('session prompt carries the description and the @spec mention', () {
-    final t = Task(
-      id: 1,
-      workspaceId: 1,
-      code: 'TASK-007',
-      title: 'Persistir eventos',
-      status: TaskStatus.backlog,
-      body: 'Gravar cada linha em session_events.',
-      requirement: 'R2',
-      dependsOn: const ['TASK-006'],
-      createdAt: DateTime(2026),
-    );
-    const spec = Spec(
-      id: 1,
-      workspaceId: 1,
-      code: 'SPEC-002',
-      title: 'Sessões',
-      status: SpecStatus.approved,
-      path: 'specs/SPEC-002-sessoes.md',
-    );
-    final p = taskSessionPrompt(t, spec: spec);
-    expect(p, startsWith('Implemente a tarefa TASK-007: Persistir eventos'));
-    expect(p, contains('Gravar cada linha em session_events.'));
-    expect(p, contains('@specs/SPEC-002-sessoes.md'));
-    expect(p, contains('requisito R2'));
-    expect(taskSessionTitle(t), 'TASK-007 · Persistir eventos');
-  });
-
   group('task status follows its session', () {
     late Directory tmp;
     late String repo;
@@ -139,10 +99,8 @@ void main() {
       final ws = await c
           .read(workspacesRepoProvider)
           .add(path: repo, name: 'repo');
-      final t = await c
-          .read(taskActionsProvider)
-          .create(workspaceId: ws.id, title: 'Shell da IDE');
-      expect(t.code, 'TASK-001');
+      final t = await TasksRepo(db)
+          .insert(workspaceId: ws.id, code: 'TASK-001', title: 'Shell da IDE');
       final tasks = c.read(tasksRepoProvider);
 
       final id = await c
@@ -150,8 +108,8 @@ void main() {
           .create(
             NewSessionRequest(
               workspace: ws,
-              title: taskSessionTitle(t),
-              prompt: taskSessionPrompt(t),
+              title: 'TASK-001 · Shell da IDE',
+              prompt: 'Implemente a tarefa TASK-001',
               useWorktree: false,
               taskId: t.id,
             ),

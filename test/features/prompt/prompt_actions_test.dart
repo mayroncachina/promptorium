@@ -74,32 +74,6 @@ void main() {
       await tmp.delete(recursive: true);
     });
 
-    test(
-      'createTaskFromAnswer: backlog task, summarized title, body',
-      () async {
-        const answer =
-            '## Use `Process.start` e um LineSplitter para ler o stdout sem '
-            'travar a interface do app\n\nDepois mapeie para uma sealed class.';
-        final t = await createTaskFromAnswer(
-          c.read(tasksRepoProvider),
-          workspaceId: ws.id,
-          answer: answer,
-        );
-        expect(t.code, 'TASK-001');
-        expect(t.status, TaskStatus.backlog);
-        expect(t.body, answer);
-        expect(t.title, startsWith('Use Process.start e um LineSplitter'));
-        expect(t.title.length, lessThanOrEqualTo(71));
-        final again = await createTaskFromAnswer(
-          c.read(tasksRepoProvider),
-          workspaceId: ws.id,
-          answer: 'Outra',
-        );
-        expect(again.code, 'TASK-002');
-        expect(again.title, 'Outra');
-      },
-    );
-
     test('createSpecFromConversation writes specs/SPEC-NNN-slug.md and '
         'registers it', () async {
       // An existing file numbers the next spec.

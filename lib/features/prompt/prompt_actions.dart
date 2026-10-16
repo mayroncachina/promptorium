@@ -6,11 +6,9 @@ import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../../data/repos/saved_prompts_repo.dart';
 import '../../data/repos/specs_repo.dart';
-import '../../data/repos/tasks_repo.dart';
 import '../sessions/session_manager.dart' show slugify;
 import '../sessions/timeline.dart';
 import '../specs/spec_service.dart' show nextSpecCode;
-import 'conversation_manager.dart' show conversationTitle;
 
 // --- transcript ----------------------------------------------------------------
 
@@ -126,29 +124,7 @@ final workspaceFilesProvider = FutureProvider.family<List<String>, String>((
   return files..sort();
 });
 
-// --- tasks / specs -----------------------------------------------------------------
-
-/// Title for a task created from an answer (first meaningful line).
-String taskTitleFrom(String answer) => conversationTitle(answer, max: 70);
-
-/// "Criar tarefa a partir daqui": `tasks` row (backlog) with the answer as
-/// body.
-Future<Task> createTaskFromAnswer(
-  TasksRepo repo, {
-  required int workspaceId,
-  required String answer,
-  String? title,
-}) async {
-  final code = await repo.nextCode(workspaceId);
-  return repo.insert(
-    workspaceId: workspaceId,
-    code: code,
-    title: (title?.trim().isNotEmpty ?? false)
-        ? title!.trim()
-        : taskTitleFrom(answer),
-    body: answer,
-  );
-}
+// --- specs -----------------------------------------------------------------
 
 String _clip(String s, int max) {
   final t = s.trim();

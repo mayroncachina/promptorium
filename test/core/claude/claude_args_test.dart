@@ -106,6 +106,30 @@ void main() {
     ]);
   });
 
+  test('effort and auto-compact', () {
+    const o = ClaudeOptions(
+      model: 'sonnet',
+      effort: 'medium',
+      autocompact: '200k',
+      includePartialMessages: false,
+    );
+    expect(o.toArgs(), [
+      ...base,
+      '--model',
+      'sonnet',
+      '--effort',
+      'medium',
+      '--autocompact',
+      '200k',
+    ]);
+    // Empty = CLI default (no flag).
+    expect(
+      const ClaudeOptions(effort: '', autocompact: '').toArgs(),
+      isNot(anyOf(contains('--effort'), contains('--autocompact'))),
+    );
+    expect(o.copyWith(effort: 'low').toArgs(), contains('low'));
+  });
+
   test('rejects contradictory options and never bypasses permissions', () {
     expect(
       () => const ClaudeOptions(sessionId: 'a', resumeId: 'b').toArgs(),

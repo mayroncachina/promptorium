@@ -6,6 +6,7 @@ import '../../../ui/theme/tokens.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
+import 'session_activity.dart';
 import 'session_style.dart';
 
 /// Center column of the Sessions screen: user bubbles, Claude's text (live
@@ -30,8 +31,14 @@ class TimelineView extends ConsumerWidget {
       ))
         ?a.request.toolUseId,
     };
+    final since = ref.watch(
+      sessionManagerProvider.select((s) => s.live[sessionId]?.busySince),
+    );
     return TimelineListView(
       key: ValueKey('timeline-$sessionId'),
+      footer: since == null
+          ? null
+          : SessionActivity(items: snap.items, since: since),
       items: snap.items,
       loading: snap.loading,
       root: root,

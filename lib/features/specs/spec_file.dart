@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:yaml/yaml.dart';
 
-import '../../data/db/enums.dart';
+import '../../data/db/app_database.dart';
+
+export '../../data/db/app_database.dart' show SpecRequirement;
 
 /// Spec files: `specs/SPEC-NNN-<slug>.md` in the workspace, with a YAML
 /// frontmatter holding `id` and `status` (plano, Fase 8).
@@ -12,6 +16,7 @@ String specStatusValue(SpecStatus s) => switch (s) {
   SpecStatus.review => 'em-revisao',
   SpecStatus.approved => 'aprovada',
   SpecStatus.done => 'concluida',
+  SpecStatus.archived => 'arquivada',
 };
 
 /// Status of a frontmatter value (accents / case / English names tolerated).
@@ -31,6 +36,7 @@ SpecStatus? specStatusFromValue(String? value) {
     'em-revisao' || 'revisao' || 'review' => SpecStatus.review,
     'aprovada' || 'aprovado' || 'approved' => SpecStatus.approved,
     'concluida' || 'feita' || 'done' => SpecStatus.done,
+    'arquivada' || 'arquivado' || 'archived' => SpecStatus.archived,
     _ => null,
   };
 }
@@ -42,10 +48,8 @@ String specStatusLabel(SpecStatus s) => switch (s) {
   SpecStatus.review => 'Em revisão',
   SpecStatus.approved => 'Aprovada',
   SpecStatus.done => 'Concluída',
+  SpecStatus.archived => 'Arquivada',
 };
-
-/// `R1 · Cada sessão roda em um worktree` line of the spec.
-typedef SpecRequirement = ({String id, String text});
 
 final _frontmatterStart = RegExp(r'^﻿?---[ \t]*\r?\n');
 final _fence = RegExp(r'^---[ \t]*$', multiLine: true);
@@ -102,6 +106,95 @@ class SpecDocument {
 
   SpecStatus? get status => specStatusFromValue(rawStatus);
 
+  /// Frontmatter `fase` (`fundacao`, `mvp`…).
+  String? get phase {
+    final v = frontmatter['fase'];
+    return v == null || '$v'.trim().isEmpty ? null : '$v'.trim();
+  }
+
+  /// Whether the frontmatter has `depende-de` (even empty).
+  bool get hasDependsOn => frontmatter.containsKey(dependsOnKey);
+
+  /// Frontmatter `depende-de`: `[SPEC-001, SPEC-002]` or `SPEC-001, SPEC-002`.
+  List<String> get dependsOn {
+    final v = frontmatter[dependsOnKey];
+    final items = v is List
+        ? v.map((e) => '$e')
+        : '${v ?? ''}'.split(RegExp(r'[\s,;]+'));
+    return [
+      for (final i in items)
+        if (RegExp(r'^SPEC-\d+$').hasMatch(i.trim().toUpperCase()))
+          i.trim().toUpperCase(),
+    ];
+  }
+
+  /// Frontmatter `subagentes` (invalid items are ignored).
+  List<SpecSubagent> get subagents {
+    final v = frontmatter[subagentsKey];
+    if (v is! List) return const [];
+    final out = <SpecSubagent>[];
+    for (final e in v) {
+      if (e is! Map) continue;
+      final agent = '${e['agente'] ?? ''}'.trim();
+      final when = SubagentWhen.fromValue('${e['quando'] ?? ''}');
+      if (agent.isEmpty || when == null) continue;
+      final step = '${e['etapa'] ?? ''}'.trim().toUpperCase();
+      final text = '${e['instrucao'] ?? ''}'.trim();
+      out.add(
+        SpecSubagent(
+          agent: agent,
+          when: when,
+          step: step.isEmpty ? null : step,
+          instruction: text.isEmpty ? null : text,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Text with the `subagentes` block of the frontmatter replaced by
+  /// [list] (removed when empty). Other lines are kept byte for byte.
+  String withSubagents(List<SpecSubagent> list) {
+    final block = <String>[
+      if (list.isNotEmpty) '$subagentsKey:',
+      for (final a in list) ...[
+        '  - agente: ${a.agent}',
+        '    quando: ${a.when.value}',
+        if (a.step != null) '    etapa: ${a.step}',
+        if (a.instruction != null)
+          '    instrucao: ${jsonEncode(a.instruction)}',
+      ],
+    ];
+    if (!hasFrontmatter) {
+      if (block.isEmpty) return text;
+      return '---\n${block.join('\n')}\n---\n${text.startsWith('\n') ? '' : '\n'}$text';
+    }
+    final start = _frontmatterStart.firstMatch(text)!;
+    final close = _fence.allMatches(text, start.end).first;
+    final head = text.substring(0, start.end);
+    final lines = text.substring(start.end, close.start).split('\n');
+    final trailing = lines.isNotEmpty && lines.last.isEmpty;
+    if (trailing) lines.removeLast();
+    final keyRe = RegExp(r'^[A-Za-z_][\w-]*\s*:');
+    final out = <String>[];
+    var replaced = false;
+    for (var i = 0; i < lines.length; i++) {
+      final l = lines[i];
+      if (RegExp('^$subagentsKey\\s*:').hasMatch(l)) {
+        // Skip the old block: everything up to the next top-level key.
+        while (i + 1 < lines.length && !keyRe.hasMatch(lines[i + 1])) {
+          i++;
+        }
+        out.addAll(block);
+        replaced = true;
+      } else {
+        out.add(l);
+      }
+    }
+    if (!replaced) out.addAll(block);
+    return '$head${out.join('\n')}\n${text.substring(close.start)}';
+  }
+
   /// First `# ` heading of the body.
   String? get title {
     for (final line in body.split('\n')) {
@@ -127,12 +220,14 @@ class SpecDocument {
     return out;
   }
 
-  /// Text with `id` / `status` set in the frontmatter (created when absent).
-  /// Other lines (unknown keys, comments) are kept byte for byte.
-  String withMeta({String? id, SpecStatus? status}) {
+  /// Text with `id` / `status` / `depende-de` set in the frontmatter
+  /// (created when absent). Other lines (unknown keys, comments) are kept
+  /// byte for byte.
+  String withMeta({String? id, SpecStatus? status, List<String>? dependsOn}) {
     final updates = <String, String>{
       'id': ?id,
       if (status != null) 'status': specStatusValue(status),
+      if (dependsOn != null) dependsOnKey: '[${dependsOn.join(', ')}]',
     };
     if (updates.isEmpty) return text;
     if (!hasFrontmatter) {
@@ -165,6 +260,67 @@ class SpecDocument {
   }
 }
 
+/// When a subagent of a spec is called (frontmatter `subagentes`).
+enum SubagentWhen {
+  specStart('inicio-da-spec', 'Início da spec'),
+  beforeEach('antes-de-cada-etapa', 'Antes de cada etapa'),
+  afterEach('depois-de-cada-etapa', 'Depois de cada etapa'),
+  atStep('em-etapa', 'Ao terminar uma etapa'),
+  specEnd('fim-da-spec', 'Fim da spec (antes do Review)');
+
+  const SubagentWhen(this.value, this.label);
+
+  final String value;
+  final String label;
+
+  static SubagentWhen? fromValue(String? v) {
+    for (final w in values) {
+      if (w.value == v?.trim()) return w;
+    }
+    return null;
+  }
+}
+
+/// A subagent the step sessions of a spec must call, and when.
+class SpecSubagent {
+  const SpecSubagent({
+    required this.agent,
+    required this.when,
+    this.step,
+    this.instruction,
+  });
+
+  final String agent;
+  final SubagentWhen when;
+
+  /// `R3` for [SubagentWhen.atStep].
+  final String? step;
+  final String? instruction;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SpecSubagent &&
+      other.agent == agent &&
+      other.when == when &&
+      other.step == step &&
+      other.instruction == instruction;
+
+  @override
+  int get hashCode => Object.hash(agent, when, step, instruction);
+
+  /// `spec-reviewer · fim da spec`.
+  String get summary => switch (when) {
+    SubagentWhen.atStep => '$agent · ao terminar ${step ?? '?'}',
+    _ => '$agent · ${when.label.toLowerCase()}',
+  };
+}
+
+/// Frontmatter key of the spec dependencies.
+const dependsOnKey = 'depende-de';
+
+/// Frontmatter key of the subagents of the spec.
+const subagentsKey = 'subagentes';
+
 /// Markdown of a new spec ("Nova spec").
 String newSpecMarkdown({required String code, required String title}) =>
     '''
@@ -187,6 +343,59 @@ Descreva o problema e o resultado esperado.
 
 - [ ]
 ''';
+
+final _requirementLine = RegExp(
+  r'^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\**(R\d+)\**\b',
+);
+
+/// Text of the spec that changes [originalCode] ("Clonar para alterar"):
+/// new `id`, status draft, `depende-de` the original, the title marked as an
+/// alteration, requirements in [doneIds] removed and the rest renumbered
+/// from R1. Without requirements left, an empty `- R1 ·` is offered.
+String cloneSpecText(
+  String text, {
+  required String newCode,
+  required String originalCode,
+  required Set<String> doneIds,
+}) {
+  final meta = SpecDocument.parse(
+    text,
+  ).withMeta(id: newCode, status: SpecStatus.draft, dependsOn: [originalCode]);
+  final doc = SpecDocument.parse(meta);
+  final lines = doc.body.split('\n');
+  final out = <String>[];
+  var titled = false;
+  var n = 0;
+  for (final line in lines) {
+    if (!titled) {
+      final m = RegExp(r'^#\s+(.+?)\s*#*\s*$').firstMatch(line.trimRight());
+      if (m != null) {
+        titled = true;
+        out.add('# ${m.group(1)!.trim()} (alteração)');
+        continue;
+      }
+    }
+    final r = _requirementLine.firstMatch(line);
+    if (r != null) {
+      if (doneIds.contains(r.group(1))) continue;
+      n++;
+      out.add(line.replaceFirst(RegExp(r'\bR\d+\b'), 'R$n'));
+      continue;
+    }
+    out.add(line);
+  }
+  if (n == 0) {
+    final i = out.indexWhere(
+      (l) => RegExp(r'^#{2,}\s*Requisitos\b', caseSensitive: false).hasMatch(l),
+    );
+    if (i >= 0) {
+      out.insertAll(i + 1, ['', '- R1 ·']);
+    } else {
+      out.addAll(['', '## Requisitos', '', '- R1 ·', '']);
+    }
+  }
+  return meta.substring(0, doc.bodyStart) + out.join('\n');
+}
 
 /// `SPEC-007` from `specs/SPEC-007-algo.md` (null when the name differs).
 String? specCodeFromFileName(String fileName) {

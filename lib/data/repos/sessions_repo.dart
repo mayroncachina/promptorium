@@ -17,6 +17,13 @@ class SessionsRepo {
             ..orderBy([(s) => OrderingTerm.desc(s.startedAt)]))
           .watch();
 
+  /// Sessions of a spec (its steps), oldest first.
+  Future<List<Session>> bySpec(int specId) =>
+      (_db.select(_t)
+            ..where((s) => s.specId.equals(specId))
+            ..orderBy([(s) => OrderingTerm.asc(s.startedAt)]))
+          .get();
+
   Stream<Session?> watchById(String id) =>
       (_db.select(_t)..where((s) => s.id.equals(id))).watchSingleOrNull();
 
@@ -29,7 +36,10 @@ class SessionsRepo {
     required String worktreePath,
     required String branch,
     required String model,
+    String? effort,
     int? taskId,
+    int? specId,
+    String? steps,
     String? agentName,
     String? title,
     String? permissionMode,
@@ -45,7 +55,10 @@ class SessionsRepo {
           worktreePath: worktreePath,
           branch: branch,
           model: model,
+          effort: Value(effort),
           taskId: Value(taskId),
+          specId: Value(specId),
+          steps: Value(steps),
           agentName: Value(agentName),
           title: Value(title),
           permissionMode: Value(permissionMode),
@@ -109,6 +122,13 @@ class SessionsRepo {
       );
 
   /// Review merge (Fase 9): status `merged` + hash of the merge commit.
+  /// Merge target of every session of a spec (its base branch was merged
+  /// and the target moved on).
+  Future<int> setSpecBaseBranch(int specId, String? base) =>
+      (_db.update(_t)..where((s) => s.specId.equals(specId))).write(
+        SessionsCompanion(baseBranch: Value(base)),
+      );
+
   Future<int> setMerged(String id, String commit, {DateTime? at}) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(
@@ -129,20 +149,26 @@ class SessionsRepo {
   )..orderBy([(s) => OrderingTerm.desc(s.startedAt)])).watch();
 
   /// On app start: sessions left `running`/`waitingApproval` become
-  /// `interrupted` (Fase 5, item 8). Returns how many changed.
-  Future<int> markLiveAsInterrupted() =>
-      (_db.update(_t)..where(
-            (s) => s.status.isIn([
-              SessionStatus.running.name,
-              SessionStatus.waitingApproval.name,
-            ]),
-          ))
-          .write(
-            SessionsCompanion(
-              status: const Value(SessionStatus.interrupted),
-              endedAt: Value(DateTime.now()),
-            ),
-          );
+  /// `interrupted` (Fase 5, item 8). Steps of specs left "running" wait for
+  /// the user (no session is alive at startup). Returns how many sessions
+  /// changed.
+  Future<int> markLiveAsInterrupted() => _db.transaction(() async {
+    await (_db.update(_db.specSteps)
+          ..where((s) => s.status.equals(StepStatus.running.name)))
+        .write(const SpecStepsCompanion(status: Value(StepStatus.needsInput)));
+    return (_db.update(_t)..where(
+          (s) => s.status.isIn([
+            SessionStatus.running.name,
+            SessionStatus.waitingApproval.name,
+          ]),
+        ))
+        .write(
+          SessionsCompanion(
+            status: const Value(SessionStatus.interrupted),
+            endedAt: Value(DateTime.now()),
+          ),
+        );
+  });
 
   /// Also deletes its events (cascade).
   Future<int> delete(String id) =>

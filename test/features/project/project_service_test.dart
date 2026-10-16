@@ -24,20 +24,24 @@ const plan = ProjectPlanData(
   roadmap: Roadmap(
     specs: [
       RoadmapSpec(
+        code: 'S3',
         title: 'Receitas',
         phase: RoadmapPhase.mvp,
-        requirements: [(id: 'R1', text: 'CRUD')],
-        tasks: [
-          RoadmapTask(code: 'T3', title: 'CRUD de receitas', requirement: 'R1'),
-        ],
+        requirements: [(id: 'R1', text: 'CRUD'), (id: 'R2', text: 'Fotos')],
+        dependsOn: ['S2'],
       ),
       RoadmapSpec(
+        code: 'S1',
         title: 'Esqueleto do projeto',
         phase: RoadmapPhase.foundation,
-        tasks: [
-          RoadmapTask(code: 'T1', title: 'Criar o projeto'),
-          RoadmapTask(code: 'T2', title: 'CI', dependsOn: ['T1']),
-        ],
+        requirements: [(id: 'R1', text: 'Criar o projeto')],
+      ),
+      RoadmapSpec(
+        code: 'S2',
+        title: 'CI',
+        phase: RoadmapPhase.foundation,
+        requirements: [(id: 'R1', text: 'Pipeline')],
+        dependsOn: ['S1'],
       ),
     ],
   ),
@@ -132,7 +136,7 @@ void main() {
     await bad(tmp.path, 'arquivo', 'Já existe um arquivo');
   });
 
-  test('materialize: CLAUDE.md, approved specs, tasks with translated '
+  test('materialize: CLAUDE.md, approved specs with translated '
       'dependencies and one commit with exactly those files', () async {
     final ws = await service().createProject(
       parent: tmp.path,
@@ -148,27 +152,40 @@ void main() {
     expect(out.files, [
       'CLAUDE.md',
       'specs/SPEC-001-esqueleto-do-projeto.md',
-      'specs/SPEC-002-receitas.md',
+      'specs/SPEC-002-ci.md',
+      'specs/SPEC-003-receitas.md',
     ]);
     expect(
       File('${ws.path}/CLAUDE.md').readAsStringSync(),
       '# Receitas\n\nUse SQLite.\n',
     );
-    final doc = SpecDocument.parse(
-      File('${ws.path}/specs/SPEC-002-receitas.md').readAsStringSync(),
+    SpecDocument read(String name) => SpecDocument.parse(
+      File('${ws.path}/specs/$name.md').readAsStringSync(),
     );
-    expect(doc.id, 'SPEC-002');
-    expect(doc.requirements.single.id, 'R1');
+    final base = read('SPEC-001-esqueleto-do-projeto');
+    expect(base.id, 'SPEC-001');
+    expect(base.status, SpecStatus.approved);
+    expect(base.dependsOn, isEmpty);
+    expect(read('SPEC-002-ci').dependsOn, ['SPEC-001']);
+    final recipes = read('SPEC-003-receitas');
+    expect(recipes.requirements.map((r) => r.id), ['R1', 'R2']);
+    // The MVP spec depended on S2; the foundation rule keeps it there.
+    expect(recipes.dependsOn, ['SPEC-002']);
 
-    // Foundation first: T1 → TASK-001, T2 → TASK-002, T3 → TASK-003; the
-    // MVP task waits for the whole foundation.
-    final byCode = {for (final t in out.tasks) t.code: t};
-    expect(byCode.keys, ['TASK-001', 'TASK-002', 'TASK-003']);
-    expect(byCode['TASK-002']!.dependsOn, ['TASK-001']);
-    expect(byCode['TASK-003']!.dependsOn, ['TASK-001', 'TASK-002']);
-    expect(byCode['TASK-003']!.requirement, 'R1');
-    expect(byCode['TASK-003']!.specId, out.specs[1].id);
-    expect(out.firstTask?.code, 'TASK-001');
+    // Specs are cards of the Quadro: in the database with their steps and
+    // dependencies, no tasks.
+    final rows = await c.read(specsRepoProvider).watchByWorkspace(ws.id).first;
+    expect(
+      rows.map(
+        (r) => '${r.code} ${r.dependsOn.join(',')} ${r.requirements.length}',
+      ),
+      ['SPEC-001  1', 'SPEC-002 SPEC-001 1', 'SPEC-003 SPEC-002 2'],
+    );
+    expect(
+      await c.read(tasksRepoProvider).watchByWorkspace(ws.id).first,
+      isEmpty,
+    );
+    expect(out.firstSpec?.code, 'SPEC-001');
 
     expect(
       await gitIn(ws.path, ['log', '-1', '--format=%s']),
@@ -205,7 +222,7 @@ void main() {
       writeClaudeMd: false,
       commit: false,
     );
-    expect(out.files, hasLength(2));
+    expect(out.files, hasLength(3));
     expect(File('${ws.path}/CLAUDE.md').existsSync(), isFalse);
     expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
   });
@@ -233,7 +250,7 @@ void main() {
           model: 'haiku',
         );
     final summary = await service().deleteSummary(ws);
-    expect(summary, (sessions: 1, tasks: 3, specs: 2, worktrees: 1));
+    expect(summary, (sessions: 1, tasks: 0, specs: 3, worktrees: 1));
 
     await service().deleteProject(ws);
     expect(trashed, [ws.path]);

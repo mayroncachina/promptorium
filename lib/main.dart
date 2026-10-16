@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'core/claude/usage_poller.dart';
 import 'features/code/worktree_terminal.dart';
 import 'features/prompt/conversation_manager.dart';
 import 'features/sessions/session_manager.dart';
@@ -42,6 +45,15 @@ Future<void> main() async {
   final container = ProviderContainer();
   await windowManager.setPreventClose(true);
   windowManager.addListener(_CloseHandler(container));
+  // Plan usage in the footer: `claude -p /usage` costs no tokens.
+  final usage = container.read(usagePollerProvider);
+  unawaited(usage.refresh());
+  Timer.periodic(const Duration(minutes: 5), (_) => usage.refresh());
+  // Idle sessions (no activity for the configured time) free their process.
+  Timer.periodic(
+    const Duration(minutes: 1),
+    (_) => container.read(sessionManagerProvider.notifier).closeIdle(),
+  );
 
   runApp(
     UncontrolledProviderScope(

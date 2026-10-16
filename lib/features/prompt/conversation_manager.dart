@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_event.dart';
+import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../data/providers.dart';
@@ -125,11 +126,12 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   // --- public API ------------------------------------------------------------
 
   /// Creates a conversation in [workspace] and sends [text]. Returns its id.
+  /// [model] null = the conversation default of Configurações ([RunPrefs]).
   Future<int> create({
     required Workspace workspace,
     required String text,
     PromptMode mode = PromptMode.ask,
-    String model = 'inherit',
+    String? model,
     String providerId = ClaudeCodeProvider.providerId,
   }) async {
     final msg = text.trim();
@@ -137,7 +139,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final c = await _repo.insert(
       workspaceId: workspace.id,
       title: conversationTitle(msg),
-      model: model,
+      model: model ?? ref.read(runPrefsProvider).model(RunKind.conversation),
       provider: providerId,
       mode: mode.name,
     );
@@ -250,6 +252,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final sid = resume ?? ref.read(sessionIdGeneratorProvider)();
     final mode = PromptMode.fromName(conv.mode);
     final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
+    final prefs = ref.read(runPrefsProvider);
     final AgentRun run;
     try {
       run = await provider.start(
@@ -259,6 +262,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           sessionId: resume == null ? sid : null,
           resumeId: resume,
           model: conv.model,
+          effort: effortArg(prefs.effort(RunKind.conversation)),
+          autocompact: prefs.autocompact,
           mcpAllowedTools: mcp.allowed,
           mcpDisallowedTools: mcp.disallowed,
         ),
@@ -339,7 +344,6 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case ControlCancel():
         _take(id, e.requestId);
       case Result():
-        final delta = math.max(0.0, e.totalCostUsd - r.lastCost);
         r.lastCost = math.max(r.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -352,7 +356,6 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           tokensOut: u.outputTokens,
         );
         await _repo.countMessage(id);
-        await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
         r.busy = false;
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);
@@ -493,7 +496,11 @@ class PromptDraft {
 
 class PromptDraftController extends Notifier<PromptDraft> {
   @override
-  PromptDraft build() => const PromptDraft();
+  PromptDraft build() => PromptDraft(
+    model: ref.watch(
+      runPrefsProvider.select((p) => p.model(RunKind.conversation)),
+    ),
+  );
 
   void set(PromptDraft d) => state = d;
 }

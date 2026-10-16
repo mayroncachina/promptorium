@@ -10,12 +10,14 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
+import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
@@ -43,12 +45,18 @@ class NewSessionRequest {
     required this.prompt,
     this.agent,
     this.model = 'inherit',
+    this.effort,
     this.permissionMode = ClaudePermissionMode.defaultMode,
     this.useWorktree = true,
     this.taskId,
     this.maxBudgetUsd,
     this.resumeFrom,
     this.origin,
+    this.specId,
+    this.steps,
+    this.worktreePath,
+    this.branch,
+    this.baseBranch,
   });
 
   final Workspace workspace;
@@ -58,6 +66,10 @@ class NewSessionRequest {
   /// Subagent name passed as `--agent` (null = none).
   final String? agent;
   final String model;
+
+  /// `--effort` (one of `effortChoices`); null = the session default of
+  /// Configurações ([RunPrefs]).
+  final String? effort;
   final ClaudePermissionMode permissionMode;
 
   /// false = run in the workspace root (no `git worktree add`).
@@ -74,6 +86,17 @@ class NewSessionRequest {
 
   /// Note shown at the top of the timeline (e.g. where the context came from).
   final String? origin;
+
+  /// Spec (card) and steps (`R2` / `R1,R2`) the session works on
+  /// (`SpecRunner`).
+  final int? specId;
+  final String? steps;
+
+  /// Existing worktree to run in (the spec's), with its [branch] and the
+  /// [baseBranch] it came from. Null = [useWorktree] decides.
+  final String? worktreePath;
+  final String? branch;
+  final String? baseBranch;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -101,6 +124,7 @@ class LiveSession {
     this.alive = true,
     this.approvals = const [],
     this.subagentsRunning = 0,
+    this.busySince,
   });
 
   final bool alive;
@@ -108,6 +132,11 @@ class LiveSession {
 
   /// Task / Agent tool calls without a result yet.
   final int subagentsRunning;
+
+  /// When the running turn started (null = idle: waiting for the user).
+  final DateTime? busySince;
+
+  bool get busy => busySince != null;
 }
 
 @immutable
@@ -148,7 +177,7 @@ class _Proc {
   final ClaudeProcess process;
   String title;
 
-  /// Last cumulative `total_cost_usd` seen (for the per-turn delta).
+  /// Highest cumulative `total_cost_usd` seen (the session cost).
   double lastCost;
   final List<PermissionRequest> pending = [];
   final DateTime started = DateTime.now();
@@ -156,8 +185,14 @@ class _Proc {
   final Set<String> subagents = {};
   bool stopping = false;
 
+  /// Last CLI event or message sent (idle sessions are closed).
+  DateTime lastActivity = DateTime.now();
+
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
+
+  /// When [busy] became true.
+  DateTime? busySince;
 
   /// Set by [SessionManager.release]: the exit records nothing.
   bool released = false;
@@ -226,7 +261,11 @@ class SessionManager extends Notifier<SessionManagerState> {
     String path = ws.path, branch;
     String? base;
     try {
-      if (r.useWorktree) {
+      if (r.worktreePath != null) {
+        path = r.worktreePath!;
+        branch = r.branch ?? await git.currentBranch() ?? 'HEAD';
+        base = r.baseBranch;
+      } else if (r.useWorktree) {
         // The worktree starts at the root's HEAD: that branch is the merge
         // target of the Review (Fase 9).
         base = await git.currentBranch();
@@ -239,16 +278,21 @@ class SessionManager extends Notifier<SessionManagerState> {
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
     }
+    final effort =
+        r.effort ?? ref.read(runPrefsProvider).effort(RunKind.session);
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
       worktreePath: path,
       branch: branch,
       model: r.model,
+      effort: effort,
       agentName: r.agent,
       title: title,
       permissionMode: r.permissionMode.cliValue,
       taskId: r.taskId,
+      specId: r.specId,
+      steps: r.steps,
       baseBranch: base,
     );
     if (r.origin != null) await _note(id, r.origin!);
@@ -261,6 +305,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: r.resumeFrom,
         forkSession: r.resumeFrom != null,
         model: _model(r.model),
+        effort: effortArg(effort),
         agent: r.agent,
         permissionMode: r.permissionMode,
         maxBudgetUsd: r.maxBudgetUsd ?? limits.budgetUsd,
@@ -301,8 +346,12 @@ class SessionManager extends Notifier<SessionManagerState> {
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
       await _repo.setStatus(id, SessionStatus.running);
       await _syncTask(id, SessionStatus.running);
+      await _specs.onActive(id);
     });
     proc.busy = true;
+    proc.busySince = DateTime.now();
+    proc.lastActivity = DateTime.now();
+    _publish();
     await proc.process.send(msg);
   }
 
@@ -368,6 +417,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ClaudeOptions(
         resumeId: id,
         model: _model(s.model),
+        effort: _effort(s.effort),
         agent: s.agentName,
         permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
@@ -419,6 +469,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       worktreePath: path,
       branch: branch,
       model: parent.model,
+      effort: parent.effort,
       agentName: parent.agentName,
       title: name,
       permissionMode: parent.permissionMode,
@@ -438,6 +489,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
+        effort: _effort(parent.effort),
         agent: parent.agentName,
         permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
         maxBudgetUsd: limits.budgetUsd,
@@ -492,6 +544,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       final s = await _repo.getById(id);
       if (s != null && !s.status.isTerminal) {
         await _repo.setStatus(id, SessionStatus.stopped);
+        await _specs.onEnded(id, SessionStatus.stopped);
       }
       return;
     }
@@ -529,6 +582,41 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
+
+  /// Closes the process of every session idle for the configured time (no
+  /// turn running, no approval or sub-agent pending). The session stays as
+  /// it was and "Retomar" / sending a message resumes it (`--resume`).
+  /// Returns the ids closed. Called every minute by `main.dart` (no timer
+  /// here: widget tests do not allow pending timers).
+  Future<List<String>> closeIdle({DateTime? now}) async {
+    final minutes = ref.read(runPrefsProvider).idleMinutes;
+    if (minutes <= 0 || _shuttingDown) return const [];
+    final limit = Duration(minutes: minutes);
+    final at = now ?? DateTime.now();
+    final closed = <String>[];
+    for (final e in _procs.entries.toList()) {
+      final p = e.value;
+      if (p.busy ||
+          p.stopping ||
+          p.pending.isNotEmpty ||
+          p.subagents.isNotEmpty ||
+          at.difference(p.lastActivity) < limit) {
+        continue;
+      }
+      closed.add(e.key);
+      try {
+        await _note(
+          e.key,
+          'Suspensa após $minutes min sem atividade (Retomar continua de '
+          'onde parou)',
+        );
+        await release(e.key);
+      } catch (err) {
+        debugPrint('sessão ${e.key}: não suspensa — $err');
+      }
+    }
+    return closed;
+  }
 
   /// Limits of the agent (DT-23): budget from `agent_settings` of the
   /// effective definition (project wins) → `--max-budget-usd`; `maxTurns` of
@@ -582,7 +670,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final ClaudeProcess process;
     try {
       process = await ClaudeProcess.start(
-        options,
+        options.copyWith(autocompact: ref.read(runPrefsProvider).autocompact),
         workingDirectory: cwd,
         executable: ref.read(claudeExecutableProvider),
         starter: ref.read(claudeProcessStarterProvider),
@@ -618,6 +706,7 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   Future<void> _handle(String id, _Proc p, ClaudeEvent e) async {
     if (!ref.mounted) return;
+    p.lastActivity = DateTime.now();
     // 1. Persist (one row per stdout line; stream deltas are not stored).
     int? seq;
     if (e is! StreamDelta && e is! StreamOther) {
@@ -645,6 +734,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         p.pendingAt[e.requestId] = DateTime.now();
         await _repo.setStatus(id, SessionStatus.waitingApproval);
         await _syncTask(id, SessionStatus.waitingApproval);
+        await _specs.onActive(id);
         _notify(
           'Aprovação pendente',
           '${p.title}: ${e.displayName ?? e.toolName} '
@@ -663,7 +753,6 @@ class SessionManager extends Notifier<SessionManagerState> {
       case ToolResult():
         p.subagents.remove(e.toolUseId);
       case Result():
-        final delta = math.max(0.0, e.totalCostUsd - p.lastCost);
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -675,14 +764,16 @@ class SessionManager extends Notifier<SessionManagerState> {
               u.cacheReadInputTokens,
           tokensOut: u.outputTokens,
         );
-        await ref.read(usageTrackerProvider).handle(e, costDelta: delta);
         p.subagents.clear();
         p.busy = false;
+        p.busySince = null;
+        _publish();
         final status = e.isSuccess
             ? SessionStatus.completed
             : SessionStatus.failed;
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
+        await _specs.onResult(id, e);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
@@ -732,6 +823,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (p.stopping) {
       await _note(id, 'Sessão parada pelo usuário');
       await _repo.setStatus(id, SessionStatus.stopped);
+      await _specs.onEnded(id, SessionStatus.stopped);
     } else if (!s.status.isTerminal) {
       await _note(
         id,
@@ -739,6 +831,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         error: true,
       );
       await _repo.setStatus(id, SessionStatus.failed);
+      await _specs.onEnded(id, SessionStatus.failed);
       _notify('Sessão falhou', '${p.title}: processo encerrou ($code)', id);
     }
   }
@@ -772,6 +865,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           key: LiveSession(
             alive: value.process.isRunning,
             subagentsRunning: value.subagents.length,
+            busySince: value.busy ? value.busySince : null,
             approvals: [
               for (final r in value.pending)
                 PendingApproval(
@@ -814,6 +908,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
   }
 
+  SpecRunner get _specs => ref.read(specRunnerProvider);
+
   SessionTimelineNotifier _timeline(String id) =>
       ref.read(sessionTimelineProvider(id).notifier);
 
@@ -846,6 +942,10 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   static String? _model(String m) => m.isEmpty || m == 'inherit' ? null : m;
+
+  /// Stored effort of a session (null for rows before schema v7 = default).
+  String? _effort(String? stored) =>
+      effortArg(stored ?? ref.read(runPrefsProvider).effort(RunKind.session));
 
   static String _short(String id) => id.length > 8 ? id.substring(0, 8) : id;
 
