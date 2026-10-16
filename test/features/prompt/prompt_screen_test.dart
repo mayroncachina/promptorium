@@ -128,7 +128,6 @@ void main() {
     expect(find.textContaining('Claude Code · Sonnet'), findsOneWidget);
     // Actions under the last answer.
     expect(find.byKey(const ValueKey('answer-copy')), findsOneWidget);
-    expect(find.byKey(const ValueKey('answer-create-task')), findsOneWidget);
     expect(find.byKey(const ValueKey('answer-save-prompt')), findsOneWidget);
     // Context panel.
     expect(find.text('repo/'), findsOneWidget);
@@ -249,21 +248,6 @@ void main() {
     expect(convs.single.mode, 'ask');
     expect(find.text('O que faz o main.dart?'), findsWidgets);
     expect(find.byKey(const ValueKey('prompt-stop')), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('"Criar tarefa a partir daqui" stores a backlog task', (
-    tester,
-  ) async {
-    final (db, _, _) = await pumpPrompt(tester);
-    await tester.tap(find.byKey(const ValueKey('answer-create-task')));
-    await pumpFor(tester);
-    final tasks = await db.select(db.tasks).get();
-    expect(tasks.single.code, 'TASK-001');
-    expect(tasks.single.status, TaskStatus.backlog);
-    expect(tasks.single.body, answer);
-    expect(tasks.single.title, startsWith('Use Process.start'));
-    expect(find.textContaining('Tarefa TASK-001 criada'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

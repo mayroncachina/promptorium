@@ -1,6 +1,6 @@
 # Plano — a spec é o cartão do quadro
 
-> Status: **proposta para revisão** (2026-10-16). Branch de trabalho: a partir de `feat/consumo`.
+> Status: implementado nas fases 1–7 (branch `feat/specs-no-quadro`); falta a fase 8 (execução real de ponta a ponta).
 
 ## Por quê
 

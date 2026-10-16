@@ -539,6 +539,15 @@ Motivo: num dia de uso (2026-10-15), 94% dos 21,3 mi de tokens do rodapé eram l
 - Agentes: o editor ganhou "Esforço (effort)" (grava `effort:` no frontmatter; "Padrão" remove). O CLI 2.1.301 lê `effort` (e `autoCompactWindow`) no frontmatter de agentes.
 - Rodapé: saiu a soma de tokens do dia (`DailyUsage`, `dailyUsageProvider`; a v7 apaga as linhas `usage.<yyyy-mm-dd>`). Fica o uso do plano do último `rate_limit_event` — 5h e semana com % usado, % restante e "reinicia em" — agora **persistido** (`usage.rateLimit`), então aparece logo ao abrir o app. Janela já reiniciada mostra "—"; `status: rejected` mostra "limite atingido · volta em …" em vermelho na janela que estourou. O rodapé redesenha a cada minuto.
 
+## Pós-F12 — A spec é o cartão do quadro (schema v8)
+
+Plano e decisões em [`plano-specs-no-quadro.md`](plano-specs-no-quadro.md). Em resumo: a tabela de tarefas deixou de ser usada pela interface; a spec é a unidade de trabalho (uma branch, um PR, um merge) e os requisitos R1…Rn são as etapas, uma sessão cada.
+
+- Dados: `specs.stage` (coluna do Quadro), `requirements` (espelho do arquivo), `depends_on` (frontmatter `depende-de`), `phase`, `agent_name`, `worktree_path`/`branch`/`base_branch`, `auto_advance`; `spec_steps` (estado de cada etapa: pendente / rodando / concluída / aguardando você); `sessions.spec_id` + `steps`. A migração v8 transforma as tarefas de cada spec em estado de etapas, estágio do cartão e dependências entre specs; tarefas sem spec ou sem requisito ficam como legado (aviso no Quadro). Nada é escrito nos repositórios; o `depende-de` vai para o arquivo na próxima vez que o app salvar a spec.
+- `SpecRunner`: worktree por spec, uma sessão por etapa, prompt com a spec embutida, marcador `ETAPA CONCLUÍDA: R2`, avanço automático (a sessão anterior é fechada), trava de uma sessão por spec, recusa de spec com dependência aberta. Hooks do `SessionManager`: ativa → etapa rodando; `result` → etapas do marcador concluídas, as outras aguardam; parar → pendente; falha ou app fechado → aguardando.
+- Quadro, painel Etapas (Specs), Review por spec (um item; merge fecha spec, sessões, etapas e arquivo) e roadmap do Projeto só com specs (`S1…`, `dependsOn`, máximo 6 requisitos).
+- Removidos: Gerar tarefas (`TaskPlanner`; o executor somente leitura foi para `core/claude/readonly_run.dart`), tela Tarefas, Nova tarefa, "Criar tarefa a partir daqui". Fica só o sincronismo de tarefas de sessões antigas (`taskStatusForSession`, `TaskActions`).
+
 ---
 
 ## Ordem e dependências

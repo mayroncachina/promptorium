@@ -422,33 +422,6 @@ class _Conversation extends ConsumerWidget {
                       },
                     ),
                     SmallButton(
-                      key: const ValueKey('answer-create-task'),
-                      label: 'Criar tarefa a partir daqui',
-                      height: 28,
-                      color: AppColors.amber,
-                      border: SessionColors.approvalBorder,
-                      background: SessionColors.approvalBg,
-                      onTap: () async {
-                        try {
-                          final t = await createTaskFromAnswer(
-                            ref.read(tasksRepoProvider),
-                            workspaceId: c.workspaceId,
-                            answer: answer,
-                          );
-                          if (context.mounted) {
-                            _snack(
-                              context,
-                              'Tarefa ${t.code} criada no backlog: ${t.title}',
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            _snack(context, 'Falha ao criar a tarefa: $e');
-                          }
-                        }
-                      },
-                    ),
-                    SmallButton(
                       key: const ValueKey('answer-save-prompt'),
                       label: 'Salvar como prompt',
                       height: 28,

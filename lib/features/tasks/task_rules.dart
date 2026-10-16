@@ -1,21 +1,7 @@
 import '../../data/db/app_database.dart';
 
-/// Pure rules of the Tarefas kanban (plano, Fase 8).
-
-/// Codes in [Task.dependsOn] whose task is not `done` yet. Codes that do not
-/// exist in the workspace are ignored (they could never be satisfied).
-List<String> blockersOf(Task task, Map<String, Task> byCode) => [
-  for (final code in task.dependsOn)
-    if (byCode[code] case final dep? when dep.status != TaskStatus.done) code,
-];
-
-/// A task is blocked while any of its dependencies is not in "Feito".
-bool isBlocked(Task task, Map<String, Task> byCode) =>
-    blockersOf(task, byCode).isNotEmpty;
-
-Map<String, Task> tasksByCode(Iterable<Task> tasks) => {
-  for (final t in tasks) t.code: t,
-};
+/// Status a legacy task takes from its session (tasks are no longer shown;
+/// see `TaskActions`).
 
 /// Kanban status a task should take after its session changed to [session].
 /// Null = keep the current one.

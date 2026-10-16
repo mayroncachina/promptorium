@@ -12,15 +12,12 @@ import 'widgets/composer.dart'
 import 'widgets/session_style.dart';
 
 /// "Nova sessão" (title bar button / Ctrl+N; "Testar em sessão" of the
-/// Agentes screen passes [agent]; "Executar com agente" of the Tarefas screen
-/// passes [title], [prompt], [agent] and [taskId], which links
-/// `sessions.task_id`). Returns the new session id.
+/// Agentes screen passes [agent]). Returns the new session id.
 Future<String?> showNewSessionDialog(
   BuildContext context, {
   String? agent,
   String? title,
   String? prompt,
-  int? taskId,
 }) => showDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
@@ -28,7 +25,6 @@ Future<String?> showNewSessionDialog(
     initialAgent: agent,
     initialTitle: title,
     initialPrompt: prompt,
-    taskId: taskId,
   ),
 );
 
@@ -47,7 +43,6 @@ class NewSessionDialog extends ConsumerStatefulWidget {
     this.initialAgent,
     this.initialTitle,
     this.initialPrompt,
-    this.taskId,
   });
 
   /// When set, the dialog creates a fork of this session.
@@ -59,9 +54,6 @@ class NewSessionDialog extends ConsumerStatefulWidget {
   /// Prefilled fields ("Executar com agente").
   final String? initialTitle;
   final String? initialPrompt;
-
-  /// Task the new session implements (`sessions.task_id`).
-  final int? taskId;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
@@ -155,16 +147,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 effort: _effort,
                 permissionMode: _mode,
                 useWorktree: _worktree,
-                taskId: widget.taskId,
               ),
             );
       if (fork == null) {
         await ref
             .read(appSettingsProvider.notifier)
             .set(lastPermissionModeKey, _mode.cliValue);
-      }
-      if (widget.taskId != null && _agent != null) {
-        await ref.read(tasksRepoProvider).assignAgent(widget.taskId!, _agent);
       }
       ref.read(selectedSessionProvider.notifier).select(id);
       if (mounted) Navigator.of(context).pop(id);
