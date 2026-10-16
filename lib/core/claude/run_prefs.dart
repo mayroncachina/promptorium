@@ -82,6 +82,18 @@ class RunPrefs {
   String get autocompact =>
       _settings[AppSettingKeys.autocompact] ?? defaultAutocompact;
 
+  /// Minutes without activity before an idle session's process is closed
+  /// (0 = never).
+  int get idleMinutes {
+    final v = int.tryParse(_settings[AppSettingKeys.idleMinutes] ?? '');
+    return v == null || v < 0 ? defaultIdleMinutes : v;
+  }
+
+  static const defaultIdleMinutes = 15;
+
+  /// Choices of the idle selector (minutes; 0 = never).
+  static const idleChoices = [5, 15, 30, 60, 0];
+
   /// `--model` value for [k] (null = CLI default).
   String? modelArg(RunKind k) {
     final m = model(k);

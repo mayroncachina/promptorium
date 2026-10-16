@@ -184,6 +184,59 @@ void main() {
     expect(cli.args.last, contains('--dangerously-skip-permissions'));
   });
 
+  test('idle session: process closed after the configured time, then '
+      'resumes with --resume', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Ociosa', prompt: 'Oi'),
+    );
+    // Turn running: never closed.
+    var later = DateTime.now().add(const Duration(hours: 2));
+    expect(await m.closeIdle(now: later), isEmpty);
+
+    for (final l in fixtureLines()) {
+      cli.last.emit(l);
+    }
+    await settle();
+    expect(m.isAlive(id), isTrue);
+    // Just finished: still within 15 min.
+    expect(
+      await m.closeIdle(now: DateTime.now().add(const Duration(minutes: 5))),
+      isEmpty,
+    );
+    // Setting 0 = never.
+    await c.read(appSettingsProvider.notifier).set('claude.idleMinutes', '0');
+    expect(await m.closeIdle(now: later), isEmpty);
+    await c.read(appSettingsProvider.notifier).remove('claude.idleMinutes');
+
+    later = DateTime.now().add(const Duration(minutes: 16));
+    expect(await m.closeIdle(now: later), [id]);
+    await settle();
+    expect(m.isAlive(id), isFalse);
+    expect(
+      (await c.read(sessionsRepoProvider).getById(id))!.status,
+      SessionStatus.completed,
+    );
+
+    await m.resume(id);
+    expect(m.isAlive(id), isTrue);
+    expect(cli.args.last, containsAllInOrder(['--resume', id]));
+  });
+
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();
     final cli = FakeCli();

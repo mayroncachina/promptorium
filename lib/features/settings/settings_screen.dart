@@ -60,6 +60,7 @@ class SettingsScreen extends ConsumerWidget {
                           );
                         }
                         await settings.remove(AppSettingKeys.autocompact);
+                        await settings.remove(AppSettingKeys.idleMinutes);
                       },
                     ),
                   ],
@@ -117,6 +118,33 @@ class SettingsScreen extends ConsumerWidget {
                       'tarefas já especificadas. Esforço menor = menos '
                       'raciocínio (tokens de saída) por resposta. Um agente com '
                       'model ou effort no arquivo usa os dele.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                AgentCard(
+                  title: 'Sessões · suspender por inatividade',
+                  children: [
+                    _choices(
+                      keyPrefix: 'settings-idle',
+                      values: [
+                        for (final m in RunPrefs.idleChoices)
+                          ('$m', m == 0 ? 'Nunca' : '$m min'),
+                      ],
+                      selected: '${prefs.idleMinutes}',
+                      onTap: (v) => settings.set(AppSettingKeys.idleMinutes, v),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'O processo do Claude de uma sessão parada, sem '
+                      'resposta em andamento nem pergunta pendente, é fechado '
+                      'depois deste tempo para liberar memória. A sessão '
+                      'continua na lista e "Retomar" (ou enviar uma mensagem) '
+                      'a reabre com todo o contexto.',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.textSecondary,

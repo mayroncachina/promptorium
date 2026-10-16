@@ -124,6 +124,7 @@ class LiveSession {
     this.alive = true,
     this.approvals = const [],
     this.subagentsRunning = 0,
+    this.busySince,
   });
 
   final bool alive;
@@ -131,6 +132,11 @@ class LiveSession {
 
   /// Task / Agent tool calls without a result yet.
   final int subagentsRunning;
+
+  /// When the running turn started (null = idle: waiting for the user).
+  final DateTime? busySince;
+
+  bool get busy => busySince != null;
 }
 
 @immutable
@@ -179,8 +185,14 @@ class _Proc {
   final Set<String> subagents = {};
   bool stopping = false;
 
+  /// Last CLI event or message sent (idle sessions are closed).
+  DateTime lastActivity = DateTime.now();
+
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
+
+  /// When [busy] became true.
+  DateTime? busySince;
 
   /// Set by [SessionManager.release]: the exit records nothing.
   bool released = false;
@@ -337,6 +349,9 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _specs.onActive(id);
     });
     proc.busy = true;
+    proc.busySince = DateTime.now();
+    proc.lastActivity = DateTime.now();
+    _publish();
     await proc.process.send(msg);
   }
 
@@ -568,6 +583,41 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
 
+  /// Closes the process of every session idle for the configured time (no
+  /// turn running, no approval or sub-agent pending). The session stays as
+  /// it was and "Retomar" / sending a message resumes it (`--resume`).
+  /// Returns the ids closed. Called every minute by `main.dart` (no timer
+  /// here: widget tests do not allow pending timers).
+  Future<List<String>> closeIdle({DateTime? now}) async {
+    final minutes = ref.read(runPrefsProvider).idleMinutes;
+    if (minutes <= 0 || _shuttingDown) return const [];
+    final limit = Duration(minutes: minutes);
+    final at = now ?? DateTime.now();
+    final closed = <String>[];
+    for (final e in _procs.entries.toList()) {
+      final p = e.value;
+      if (p.busy ||
+          p.stopping ||
+          p.pending.isNotEmpty ||
+          p.subagents.isNotEmpty ||
+          at.difference(p.lastActivity) < limit) {
+        continue;
+      }
+      closed.add(e.key);
+      try {
+        await _note(
+          e.key,
+          'Suspensa após $minutes min sem atividade (Retomar continua de '
+          'onde parou)',
+        );
+        await release(e.key);
+      } catch (err) {
+        debugPrint('sessão ${e.key}: não suspensa — $err');
+      }
+    }
+    return closed;
+  }
+
   /// Limits of the agent (DT-23): budget from `agent_settings` of the
   /// effective definition (project wins) → `--max-budget-usd`; `maxTurns` of
   /// the frontmatter → `--max-turns` (passed explicitly: not verified that
@@ -656,6 +706,7 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   Future<void> _handle(String id, _Proc p, ClaudeEvent e) async {
     if (!ref.mounted) return;
+    p.lastActivity = DateTime.now();
     // 1. Persist (one row per stdout line; stream deltas are not stored).
     int? seq;
     if (e is! StreamDelta && e is! StreamOther) {
@@ -715,6 +766,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
         p.subagents.clear();
         p.busy = false;
+        p.busySince = null;
+        _publish();
         final status = e.isSuccess
             ? SessionStatus.completed
             : SessionStatus.failed;
@@ -812,6 +865,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           key: LiveSession(
             alive: value.process.isRunning,
             subagentsRunning: value.subagents.length,
+            busySince: value.busy ? value.busySince : null,
             approvals: [
               for (final r in value.pending)
                 PendingApproval(

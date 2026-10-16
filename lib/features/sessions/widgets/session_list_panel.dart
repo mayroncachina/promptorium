@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../session_manager.dart';
+import 'session_activity.dart';
 import 'session_style.dart';
 
 enum SessionFilter { all, waiting, done }
@@ -162,6 +163,9 @@ class _SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final look = SessionLook.of(session.status, alive: alive);
+    final busy = ref.watch(
+      sessionManagerProvider.select((s) => s.live[session.id]?.busy ?? false),
+    );
     final radius = BorderRadius.circular(8);
     final end = session.endedAt ?? DateTime.now();
     return Material(
@@ -184,7 +188,7 @@ class _SessionTile extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Dot(look.color),
+                  busy ? BusyDot(look.color) : Dot(look.color),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

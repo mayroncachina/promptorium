@@ -24,6 +24,10 @@ abstract final class AppSettingKeys {
   /// Quadro: a spec with at most this many steps runs in one session.
   static const singleSessionSteps = 'board.singleSessionSteps';
 
+  /// Minutes without activity before an idle session's process is closed
+  /// (`0` = never). The session stays and "Retomar" starts it again.
+  static const idleMinutes = 'claude.idleMinutes';
+
   /// `--autocompact` of every run (`auto` or `100k`–`1M`).
   static const autocompact = 'claude.autocompact';
 
