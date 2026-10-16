@@ -133,6 +133,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     PromptMode mode = PromptMode.ask,
     String? model,
     String providerId = ClaudeCodeProvider.providerId,
+    List<ImagePart> images = const [],
   }) async {
     final msg = text.trim();
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
@@ -143,12 +144,16 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       provider: providerId,
       mode: mode.name,
     );
-    await send(c.id, msg);
+    await send(c.id, msg, images: images);
     return c.id;
   }
 
   /// Sends a message; (re)starts the process when needed.
-  Future<void> send(int id, String text) async {
+  Future<void> send(
+    int id,
+    String text, {
+    List<ImagePart> images = const [],
+  }) async {
     final msg = text.trim();
     if (msg.isEmpty) return;
     final conv = await _repo.getById(id);
@@ -178,7 +183,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     });
     run.busy = true;
     _publish();
-    await run.run.send(msg);
+    await run.run.send(msg, images: images);
   }
 
   Future<void> setMode(int id, PromptMode mode) => _repo.setMode(id, mode.name);

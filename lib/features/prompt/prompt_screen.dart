@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/agent_registry.dart';
@@ -11,6 +12,7 @@ import '../sessions/timeline.dart';
 import '../sessions/widgets/session_style.dart';
 import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import '../sessions/widgets/timeline_view.dart';
+import 'attachments.dart';
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
 import 'widgets/conversation_list.dart';
@@ -34,6 +36,10 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
 
   /// `@files` attached to the message being written.
   final List<String> _attached = [];
+
+  /// Files picked or dropped (absolute paths) for the message.
+  final List<String> _files = [];
+  bool _dropping = false;
   bool _sending = false;
 
   @override
@@ -49,6 +55,21 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
       ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  void _addFiles(Iterable<String> paths) {
+    setState(() {
+      for (final p in paths) {
+        if (!_files.contains(p)) _files.add(p);
+      }
+    });
+  }
+
+  Future<void> _pickFiles(Workspace? ws) async {
+    final picked = await ref.read(filePickerProvider)(
+      initialDirectory: ws?.path,
+    );
+    if (picked.isNotEmpty && mounted) _addFiles(picked);
+  }
+
   Future<void> _send(Workspace? ws, Conversation? conv) async {
     final msg = _text.text.trim();
     if (msg.isEmpty || _sending) return;
@@ -61,24 +82,30 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     _text.clear();
     final attached = List.of(_attached);
     _attached.clear();
+    final files = List.of(_files);
+    _files.clear();
     try {
+      final prepared = await prepareAttachments(ws.path, files);
+      final text = prepared.applyTo(msg);
       if (conv == null) {
         final d = ref.read(promptDraftProvider);
         final id = await manager.create(
           workspace: ws,
-          text: msg,
+          text: text,
           mode: d.mode,
           model: d.model,
           providerId: d.providerId,
+          images: prepared.images,
         );
         ref.read(selectedConversationProvider.notifier).select(id);
       } else {
-        await manager.send(conv.id, msg);
+        await manager.send(conv.id, text, images: prepared.images);
       }
     } catch (e) {
       if (_text.text.isEmpty) {
         _text.text = msg;
         _attached.addAll(attached);
+        _files.addAll(files);
       }
       _snack('$e');
     } finally {
@@ -156,45 +183,58 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                               busy: busy,
                             ),
                     ),
-                    PromptComposer(
-                      controller: _text,
-                      focusNode: _focus,
-                      workspaceRoot: ws?.path,
-                      attachments: _attached,
-                      onAttach: (p) => setState(() {
-                        if (!_attached.contains(p)) _attached.add(p);
-                      }),
-                      onRemoveAttachment: (p) => setState(() {
-                        _attached.remove(p);
-                        _text.text = _text.text
-                            .replaceAll('@$p ', '')
-                            .replaceAll('@$p', '');
-                      }),
-                      provider: provider,
-                      model: model,
-                      mode: mode,
-                      onProvider: (p) {
-                        if (!p.enabled) return;
-                        if (conv == null) {
-                          draftCtl.set(
-                            draft.copyWith(
-                              providerId: p.id,
-                              model: p.models.first,
-                            ),
-                          );
-                        }
+                    DropTarget(
+                      key: const ValueKey('prompt-drop'),
+                      onDragEntered: (_) => setState(() => _dropping = true),
+                      onDragExited: (_) => setState(() => _dropping = false),
+                      onDragDone: (d) {
+                        setState(() => _dropping = false);
+                        _addFiles(d.files.map((f) => f.path));
                       },
-                      onModel: (m) => conv == null
-                          ? draftCtl.set(draft.copyWith(model: m))
-                          : manager.setModel(conv.id, m),
-                      onMode: (m) => conv == null
-                          ? draftCtl.set(draft.copyWith(mode: m))
-                          : manager.setMode(conv.id, m),
-                      busy: busy,
-                      onSend: () => _send(ws, conv),
-                      onStop: () {
-                        if (conv != null) manager.stop(conv.id);
-                      },
+                      child: PromptComposer(
+                        controller: _text,
+                        focusNode: _focus,
+                        workspaceRoot: ws?.path,
+                        files: _files,
+                        dropping: _dropping,
+                        onPickFiles: () => _pickFiles(ws),
+                        onRemoveFile: (f) => setState(() => _files.remove(f)),
+                        attachments: _attached,
+                        onAttach: (p) => setState(() {
+                          if (!_attached.contains(p)) _attached.add(p);
+                        }),
+                        onRemoveAttachment: (p) => setState(() {
+                          _attached.remove(p);
+                          _text.text = _text.text
+                              .replaceAll('@$p ', '')
+                              .replaceAll('@$p', '');
+                        }),
+                        provider: provider,
+                        model: model,
+                        mode: mode,
+                        onProvider: (p) {
+                          if (!p.enabled) return;
+                          if (conv == null) {
+                            draftCtl.set(
+                              draft.copyWith(
+                                providerId: p.id,
+                                model: p.models.first,
+                              ),
+                            );
+                          }
+                        },
+                        onModel: (m) => conv == null
+                            ? draftCtl.set(draft.copyWith(model: m))
+                            : manager.setModel(conv.id, m),
+                        onMode: (m) => conv == null
+                            ? draftCtl.set(draft.copyWith(mode: m))
+                            : manager.setMode(conv.id, m),
+                        busy: busy,
+                        onSend: () => _send(ws, conv),
+                        onStop: () {
+                          if (conv != null) manager.stop(conv.id);
+                        },
+                      ),
                     ),
                   ],
                 ),

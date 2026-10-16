@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 
 import '../../ui/widgets/app_icon.dart';
 import '../claude/claude_event.dart';
+import '../claude/claude_process.dart' show ImagePart;
+
+export '../claude/claude_process.dart' show ImagePart;
 
 /// Access mode of a Prompt conversation (plano, Fase 6).
 enum PromptMode {
@@ -100,7 +103,7 @@ abstract interface class AgentRun {
   /// Command line used (for logs and tests).
   List<String> get args;
 
-  Future<void> send(String text);
+  Future<void> send(String text, {List<ImagePart> images});
 
   /// Approves a permission request; [updatedPermissions] = "Sempre permitir".
   Future<void> approve(String requestId, {List<Object?>? updatedPermissions});

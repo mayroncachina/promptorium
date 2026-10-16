@@ -19,6 +19,7 @@ class FakeRun implements AgentRun {
   final _logs = StreamController<String>.broadcast();
   final _exit = Completer<int>();
   final sent = <String>[];
+  final sentImages = <List<ImagePart>>[];
   final approved = <(String, List<Object?>?)>[];
   final denied = <String>[];
   bool stopped = false;
@@ -52,7 +53,10 @@ class FakeRun implements AgentRun {
   List<String> get args => const [];
 
   @override
-  Future<void> send(String text) async => sent.add(text);
+  Future<void> send(String text, {List<ImagePart> images = const []}) async {
+    sent.add(text);
+    sentImages.add(images);
+  }
 
   @override
   Future<void> approve(

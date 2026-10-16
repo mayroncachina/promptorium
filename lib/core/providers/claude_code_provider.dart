@@ -127,7 +127,8 @@ class _ClaudeRun implements AgentRun {
   List<String> get args => _p.args;
 
   @override
-  Future<void> send(String text) => _p.send(text);
+  Future<void> send(String text, {List<ImagePart> images = const []}) =>
+      _p.send(text, images: images);
 
   @override
   Future<void> approve(String requestId, {List<Object?>? updatedPermissions}) =>

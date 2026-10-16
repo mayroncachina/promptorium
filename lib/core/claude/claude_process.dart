@@ -27,6 +27,19 @@ Future<Process> _defaultStarter(
   environment: environment,
 );
 
+/// An image sent with a message (`image` content block, base64).
+@immutable
+class ImagePart {
+  const ImagePart({required this.mediaType, required this.base64, this.name});
+
+  /// `image/png`, `image/jpeg`, `image/gif` or `image/webp`.
+  final String mediaType;
+  final String base64;
+
+  /// File name (display only).
+  final String? name;
+}
+
 /// A long-lived `claude -p` stream-json session (plano, Fases 0.2 / 0.3).
 ///
 /// stdout is parsed line by line into [events]; stderr goes to [logs]. The
@@ -109,12 +122,30 @@ class ClaudeProcess {
   /// Permission requests still waiting for [allow] / [deny].
   Iterable<String> get pendingRequestIds => _pending.keys;
 
-  /// Sends a user message.
-  Future<void> send(String text) => _write({
-    'type': 'user',
-    'message': {'role': 'user', 'content': text},
-    'parent_tool_use_id': null,
-  });
+  /// Sends a user message; with [images] the content is a list of blocks
+  /// (images first, then the text).
+  Future<void> send(String text, {List<ImagePart> images = const []}) =>
+      _write({
+        'type': 'user',
+        'message': {
+          'role': 'user',
+          'content': images.isEmpty
+              ? text
+              : [
+                  for (final i in images)
+                    {
+                      'type': 'image',
+                      'source': {
+                        'type': 'base64',
+                        'media_type': i.mediaType,
+                        'data': i.base64,
+                      },
+                    },
+                  {'type': 'text', 'text': text},
+                ],
+        },
+        'parent_tool_use_id': null,
+      });
 
   /// Approves a `can_use_tool` request. [updatedInput] defaults to the
   /// original tool input; pass one of the request's `permissionSuggestions`
