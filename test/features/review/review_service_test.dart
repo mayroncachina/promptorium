@@ -5,12 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
+import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/review/review_service.dart';
+import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
+import '../board/spec_runner_test.dart' as steps_test show resultLine;
 import '../tasks/task_rules_test.dart' show resultLine;
 
 /// `which` / `gh` simulated; everything else runs for real.
@@ -50,6 +53,8 @@ class Env {
 }
 
 void main() {
+  group('spec', specReviewTests);
+
   late Directory tmp;
   late String repo;
 
@@ -525,6 +530,130 @@ void main() {
         root: '/h/.promptorium/worktrees/repo/a',
       ),
       isNotNull,
+    );
+  });
+}
+
+/// Spec flow: two step sessions share one worktree; the Review shows one
+/// item once the card is in Review, and the merge closes spec, steps and
+/// file.
+void specReviewTests() {
+  late Directory tmp;
+  late String repo;
+
+  setUp(() async {
+    tmp = Directory.systemTemp.createTempSync('promptorium-review-spec-');
+    repo = await createRepo(tmp);
+    Directory('$repo/specs').createSync();
+    File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+      '---\nid: SPEC-001\nstatus: aprovada\n---\n\n# Extração\n\n'
+      '## Requisitos\n\n- R1 · Tabelas\n- R2 · Índices\n',
+    );
+    await gitIn(repo, ['add', '.']);
+    await gitIn(repo, ['commit', '-q', '-m', 'spec']);
+  });
+
+  tearDown(() => tmp.deleteSync(recursive: true));
+
+  test('one Review item per spec; merge → Feito, steps done, file '
+      'concluída, every session merged', () async {
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      commandRunnerProvider.overrideWithValue(FakeCommands().call),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    await c.read(specServiceProvider).sync(ws);
+    final spec = (await c
+        .read(specsRepoProvider)
+        .getByCode(ws.id, 'SPEC-001'))!;
+    // One step per session (the spec only has two).
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.singleSessionSteps, '1');
+    final runner = c.read(specRunnerProvider);
+
+    await runner.runNext(spec.id);
+    await settle();
+    final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+        .worktreePath!;
+    File('$wt/r1.txt').writeAsStringSync('1\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
+    await settle();
+    await settle();
+    // R2 runs next (auto-advance) in the same worktree.
+    File('$wt/r2.txt').writeAsStringSync('2\n');
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
+    await settle();
+    await settle();
+
+    expect(
+      (await c.read(specsRepoProvider).getById(spec.id))!.stage,
+      SpecStage.review,
+    );
+    final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+    expect(sessions, hasLength(2));
+    expect(sessions.map((s) => s.worktreePath).toSet(), {wt});
+
+    final specs = await c.read(specsRepoProvider).watchByWorkspace(ws.id).first;
+    final all = await c
+        .read(sessionsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final q = await c
+        .read(reviewServiceProvider)
+        .queue(ws, all, const [], specs);
+    expect(q, hasLength(1));
+    expect(q.single.spec!.code, 'SPEC-001');
+    // (sessions started in the same second tie: any of them stands for it)
+    expect(q.single.session.specId, spec.id);
+
+    final branch = (await c.read(specsRepoProvider).getById(spec.id))!.branch!;
+    final r = await c.read(reviewServiceProvider).merge(q.single.session.id);
+    expect(r.warnings, isEmpty);
+    expect(File('$repo/r1.txt').existsSync(), isTrue);
+    expect(File('$repo/r2.txt').existsSync(), isTrue);
+    expect(
+      (await gitIn(repo, [
+        'log',
+        '--format=%s',
+        '--first-parent',
+        '-2',
+      ])).trim().split('\n'),
+      ['SPEC-001: spec concluída', 'Merge $branch: SPEC-001: Extração'],
+    );
+    expect((await gitIn(repo, ['status', '--porcelain'])).trim(), isEmpty);
+
+    final done = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(done.stage, SpecStage.done);
+    expect(done.worktreePath, isNull);
+    final rows = await c.read(specStepsRepoProvider).bySpec(spec.id);
+    expect(rows.map((x) => x.status).toSet(), {StepStatus.done});
+    final merged = await c.read(sessionsRepoProvider).bySpec(spec.id);
+    expect(merged.map((s) => s.status).toSet(), {SessionStatus.merged});
+    expect(
+      File('$repo/specs/SPEC-001-extracao.md').readAsStringSync(),
+      contains('status: concluida'),
+    );
+    expect(
+      await c
+          .read(reviewServiceProvider)
+          .queue(
+            ws,
+            await c.read(sessionsRepoProvider).watchByWorkspace(ws.id).first,
+            const [],
+            await c.read(specsRepoProvider).watchByWorkspace(ws.id).first,
+          ),
+      isEmpty,
     );
   });
 }

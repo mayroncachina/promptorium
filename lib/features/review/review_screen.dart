@@ -238,7 +238,10 @@ class _QueueTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = item.session;
     final meta = [
-      if (item.task != null) item.task!.code,
+      if (item.spec != null)
+        item.spec!.code
+      else if (item.task != null)
+        item.task!.code,
       s.agentName?.isNotEmpty ?? false ? s.agentName! : 'sem agente',
     ].join(' · ');
     final radius = BorderRadius.circular(8);
@@ -493,7 +496,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.item.task != null
+                      widget.item.spec != null
+                          ? widget.item.spec!.title
+                          : widget.item.task != null
                           ? widget.item.task!.title
                           : sessionTitle(s),
                       key: const ValueKey('review-title'),

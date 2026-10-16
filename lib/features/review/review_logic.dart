@@ -8,10 +8,15 @@ import '../../data/db/app_database.dart';
 /// One entry of "Aguardando review".
 @immutable
 class ReviewItem {
-  const ReviewItem({required this.session, this.task});
+  const ReviewItem({required this.session, this.task, this.spec});
 
+  /// Session shown (of a spec: its latest one — every step session shares
+  /// the spec's worktree and branch).
   final Session session;
   final Task? task;
+
+  /// Spec (card of the Quadro) the session works on.
+  final Spec? spec;
 }
 
 /// Whether [session] goes to "Aguardando review":
@@ -19,14 +24,23 @@ class ReviewItem {
 /// - its task is in Review, **or** the session finished (`completed`) and the
 ///   worktree has changes ([hasChanges]: commits ahead of the base or
 ///   uncommitted files).
+///
+/// A session of a spec ([spec]) goes only when the card is in Review (every
+/// step done, or moved there by hand); the card being "Feito" never does.
 bool isAwaitingReview({
   required Session session,
   required Task? task,
+  Spec? spec,
   required bool hasWorktree,
   required bool hasChanges,
 }) {
   if (!hasWorktree || session.status == SessionStatus.merged) return false;
   if (session.mergeCommit != null) return false;
+  if (spec != null) {
+    if (spec.stage != SpecStage.review) return false;
+    return session.status != SessionStatus.running &&
+        session.status != SessionStatus.waitingApproval;
+  }
   if (task?.status == TaskStatus.done) return false;
   if (session.status == SessionStatus.running ||
       session.status == SessionStatus.waitingApproval) {
@@ -164,8 +178,10 @@ String adjustmentMessage(List<ReviewComment> comments, {String note = ''}) {
 }
 
 /// Commit message of pending changes before PR / merge.
-String pendingCommitMessage(Session s, Task? task) {
-  final what = task != null
+String pendingCommitMessage(Session s, Task? task, [Spec? spec]) {
+  final what = spec != null
+      ? '${spec.code}: ${spec.title}'
+      : task != null
       ? '${task.code}: ${task.title}'
       : (s.title?.isNotEmpty ?? false)
       ? s.title!
@@ -174,7 +190,9 @@ String pendingCommitMessage(Session s, Task? task) {
 }
 
 /// Title of the PR / merge commit.
-String reviewTitle(Session s, Task? task) => task != null
+String reviewTitle(Session s, Task? task, [Spec? spec]) => spec != null
+    ? '${spec.code}: ${spec.title}'
+    : task != null
     ? '${task.code}: ${task.title}'
     : (s.title?.isNotEmpty ?? false)
     ? s.title!

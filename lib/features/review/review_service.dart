@@ -7,6 +7,7 @@ import '../../core/git/diff_parser.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
+import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'review_logic.dart';
 
@@ -108,9 +109,8 @@ class ReviewService {
 
   CommandRunner get _run => _ref.read(commandRunnerProvider);
 
-  Future<({Session session, Workspace workspace, Task? task})> _context(
-    String sessionId,
-  ) async {
+  Future<({Session session, Workspace workspace, Task? task, Spec? spec})>
+  _context(String sessionId) async {
     final s = await _ref.read(sessionsRepoProvider).getById(sessionId);
     if (s == null) throw ReviewException('Sessão $sessionId não encontrada.');
     final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
@@ -118,7 +118,10 @@ class ReviewService {
     final task = s.taskId == null
         ? null
         : await _ref.read(tasksRepoProvider).getById(s.taskId!);
-    return (session: s, workspace: ws, task: task);
+    final spec = s.specId == null
+        ? null
+        : await _ref.read(specsRepoProvider).getById(s.specId!);
+    return (session: s, workspace: ws, task: task, spec: spec);
   }
 
   static bool hasWorktree(Session s, Workspace ws) =>
@@ -158,35 +161,53 @@ class ReviewService {
   }
 
   /// "Aguardando review" of a workspace (see [isAwaitingReview]).
+  ///
+  /// One item per spec: its latest session (all step sessions share the
+  /// spec's worktree and branch).
   Future<List<ReviewItem>> queue(
     Workspace ws,
     List<Session> sessions,
-    List<Task> tasks,
-  ) async {
+    List<Task> tasks, [
+    List<Spec> specs = const [],
+  ]) async {
     final byId = {for (final t in tasks) t.id: t};
+    final specById = {for (final s in specs) s.id: s};
+    final latestOfSpec = <int, Session>{};
+    for (final s in sessions) {
+      final id = s.specId;
+      if (id == null) continue;
+      final cur = latestOfSpec[id];
+      if (cur == null || s.startedAt.isAfter(cur.startedAt)) {
+        latestOfSpec[id] = s;
+      }
+    }
     final items = <ReviewItem>[];
     for (final s in sessions) {
+      final spec = s.specId == null ? null : specById[s.specId];
+      if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];
       final wt = hasWorktree(s, ws);
       // Cheap checks first: git only for candidates.
       if (!isAwaitingReview(
         session: s,
         task: task,
+        spec: spec,
         hasWorktree: wt,
         hasChanges: true,
       )) {
         continue;
       }
-      final changes = task?.status == TaskStatus.review
+      final changes = spec != null || task?.status == TaskStatus.review
           ? true
           : await hasChanges(s, ws);
       if (isAwaitingReview(
         session: s,
         task: task,
+        spec: spec,
         hasWorktree: wt,
         hasChanges: changes,
       )) {
-        items.add(ReviewItem(session: s, task: task));
+        items.add(ReviewItem(session: s, task: task, spec: spec));
       }
     }
     return items;
@@ -380,7 +401,7 @@ class ReviewService {
       throw ReviewException(avail.reason ?? 'Indisponível.');
     }
     final c = await _context(sessionId);
-    final s = c.session, task = c.task;
+    final s = c.session, task = c.task, spec = c.spec;
     final git = _git(s.worktreePath);
     final String base;
     try {
@@ -389,7 +410,7 @@ class ReviewService {
       throw ReviewException('$e');
     }
     try {
-      await _commitPending(git, pendingCommitMessage(s, task));
+      await _commitPending(git, pendingCommitMessage(s, task, spec));
       await git.git([
         'push',
         '-u',
@@ -399,9 +420,14 @@ class ReviewService {
     } on GitException catch (e) {
       throw ReviewException('Falha ao enviar a branch: $e');
     }
-    final spec = task?.specId == null
-        ? null
-        : await _ref.read(specsRepoProvider).getById(task!.specId!);
+    final taskSpec =
+        spec ??
+        (task?.specId == null
+            ? null
+            : await _ref.read(specsRepoProvider).getById(task!.specId!));
+    final steps = spec == null
+        ? const <SpecStep>[]
+        : await _ref.read(specStepsRepoProvider).bySpec(spec.id);
     final args = [
       'pr',
       'create',
@@ -409,17 +435,25 @@ class ReviewService {
       s.branch,
       '--base',
       base,
-      if (task == null)
+      if (task == null && spec == null)
         '--fill'
       else ...[
         '--title',
-        reviewTitle(s, task),
+        reviewTitle(s, task, spec),
         '--body',
         [
-          if (task.body?.trim().isNotEmpty ?? false) task.body!.trim(),
-          if (spec != null)
-            'Spec: ${spec.code} (`${spec.path}`)'
-                '${task.requirement == null ? '' : ' · requisito ${task.requirement}'}',
+          if (spec != null) ...[
+            'Spec: ${spec.code} (`${spec.path}`)',
+            'Etapas: ${spec.requirements.map((r) {
+              final done = steps.any((x) => x.step == r.id && x.status == StepStatus.done);
+              return '- [${done ? 'x' : ' '}] ${r.id} · ${r.text}';
+            }).join('\n')}',
+          ] else ...[
+            if (task!.body?.trim().isNotEmpty ?? false) task.body!.trim(),
+            if (taskSpec != null)
+              'Spec: ${taskSpec.code} (`${taskSpec.path}`)'
+                  '${task.requirement == null ? '' : ' · requisito ${task.requirement}'}',
+          ],
           'Criado pelo Promptorium (sessão ${_short(s.id)}).',
         ].join('\n\n'),
       ],
@@ -461,7 +495,7 @@ class ReviewService {
     bool deleteBranch = true,
   }) async {
     final c = await _context(sessionId);
-    final s = c.session, ws = c.workspace, task = c.task;
+    final s = c.session, ws = c.workspace, task = c.task, spec = c.spec;
     if (s.status == SessionStatus.merged) {
       throw const ReviewException('O merge desta sessão já foi feito.');
     }
@@ -524,7 +558,7 @@ class ReviewService {
     String? headBefore;
     try {
       headBefore = (await wt.git(['rev-parse', 'HEAD'])).trim();
-      if (!await _commitPending(wt, pendingCommitMessage(s, task))) {
+      if (!await _commitPending(wt, pendingCommitMessage(s, task, spec))) {
         headBefore = null;
       }
     } on GitException catch (e) {
@@ -532,7 +566,7 @@ class ReviewService {
       throw ReviewException('Falha ao commitar as alterações do worktree: $e');
     }
 
-    final title = reviewTitle(s, task);
+    final title = reviewTitle(s, task, spec);
     try {
       await main.git([
         'merge',
@@ -604,7 +638,62 @@ class ReviewService {
     }
     await _ref.read(sessionsRepoProvider).setMerged(s.id, commit);
     if (task != null) await _ref.read(taskActionsProvider).markDone(task.id);
+    if (spec != null) {
+      warnings.addAll(await _closeSpec(ws, spec, commit));
+    }
     return MergeResult(commit: commit, warnings: warnings);
+  }
+
+  /// After the merge of a spec: every session of its worktree is `merged`,
+  /// the steps are done, the card is "Feito", the worktree is forgotten and
+  /// the file says `status: concluida`. Returns warnings (file not written).
+  Future<List<String>> _closeSpec(
+    Workspace ws,
+    Spec spec,
+    String commit,
+  ) async {
+    final warnings = <String>[];
+    final sessions = _ref.read(sessionsRepoProvider);
+    for (final x in await sessions.bySpec(spec.id)) {
+      if (x.status != SessionStatus.merged) {
+        await sessions.setMerged(x.id, commit);
+      }
+    }
+    await _ref
+        .read(specStepsRepoProvider)
+        .setAll(spec.id, spec.requirements.map((r) => r.id), StepStatus.done);
+    final repo = _ref.read(specsRepoProvider);
+    await repo.setStage(spec.id, SpecStage.done);
+    await repo.setWorktree(spec.id);
+    try {
+      final service = _ref.read(specServiceProvider);
+      final text = await service.read(ws, spec);
+      if (text != null) {
+        final main = _git(ws.path);
+        // Only when the file had no pending change of the user's.
+        final clean = !(await main.status()).any((e) => e.path == spec.path);
+        await service.save(
+          ws,
+          spec,
+          SpecDocument.parse(text).withMeta(status: SpecStatus.done),
+        );
+        if (clean) {
+          // Its own commit: a dirty tracked file would block the next merge.
+          await main.git(['add', '--', spec.path]);
+          await main.git([
+            'commit',
+            '-q',
+            '-m',
+            '${spec.code}: spec concluída',
+            '--',
+            spec.path,
+          ]);
+        }
+      }
+    } catch (e) {
+      warnings.add('status da spec não gravado no arquivo: $e');
+    }
+    return warnings;
   }
 
   /// Refuses a merge whose session data could make git touch something
@@ -680,9 +769,10 @@ final reviewQueueProvider = FutureProvider.family<List<ReviewItem>, int>((
 ) async {
   final sessions = await ref.watch(sessionsProvider(workspaceId).future);
   final tasks = await ref.watch(tasksProvider(workspaceId).future);
+  final specs = await ref.watch(specsProvider(workspaceId).future);
   final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
   if (ws == null) return const [];
-  return ref.read(reviewServiceProvider).queue(ws, sessions, tasks);
+  return ref.read(reviewServiceProvider).queue(ws, sessions, tasks, specs);
 });
 
 /// Diff of one session (invalidate after reject / merge / refresh).
