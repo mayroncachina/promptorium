@@ -303,15 +303,21 @@ Future<void> rememberPaletteLabel(
 }
 
 /// [commands] with a "Recentes" copy of the ones run before (same label), in
-/// the order they were run.
+/// the order they were run. Only a label that names one command counts, and
+/// never a pending item: "Aprovar" / "Negar" / "Retomar" repeat per request
+/// and a recent one would answer whichever request comes first.
 List<PaletteCommand> withRecents(
   List<PaletteCommand> commands,
   List<String> recents,
 ) {
   final byLabel = <String, PaletteCommand>{};
+  final repeated = <String>{};
   for (final c in commands) {
+    if (c.group == 'Pendentes') continue;
+    if (byLabel.containsKey(c.label)) repeated.add(c.label);
     byLabel.putIfAbsent(c.label, () => c);
   }
+  repeated.forEach(byLabel.remove);
   return [
     for (final l in recents)
       if (byLabel[l] case final c?)

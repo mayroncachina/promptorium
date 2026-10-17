@@ -60,11 +60,11 @@ void main() {
     expect(filterCommands(all, 'git push').single.label, 'Aprovar');
 
     final withR = withRecents(all, ['Ir para Quadro', 'Sumiu', 'Aprovar']);
-    expect(withR.take(2).map((x) => '${x.group}:${x.label}'), [
-      'Recentes:Ir para Quadro',
-      'Recentes:Aprovar',
-    ]);
-    expect(withR.length, all.length + 2);
+    // A pending item ("Aprovar") is never a recent: it would answer
+    // whichever request comes first.
+    expect(withR.first.label, 'Ir para Quadro');
+    expect(withR.where((x) => x.group == 'Recentes'), hasLength(1));
+    expect(withR.length, all.length + 1);
   });
 
   testWidgets('Ctrl+K lists specs, actions and runs "Ir para"', (tester) async {
