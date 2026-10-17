@@ -34,6 +34,9 @@ abstract final class AppSettingKeys {
   /// Worktree selected in the Code screen for a workspace (path).
   static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';
 
+  /// ACP agents of the Prompt screen: `nome = comando` per line (F18).
+  static const acpAgents = 'acp.agents';
+
   /// Shortcut layout the user was told about (`AppSection.shortcutsVersion`).
   static const shortcutsVersion = 'ui.shortcutsVersion';
 

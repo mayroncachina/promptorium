@@ -23,6 +23,7 @@ import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
+import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
@@ -74,7 +75,26 @@ class _AppShellState extends ConsumerState<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _shortcutsNotice();
       _warmMcpList();
+      _checkUpdate();
     });
+  }
+
+  /// A newer release on GitHub becomes a notification (F18; once a day).
+  void _checkUpdate() {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+    unawaited(
+      () async {
+        final u = await ref.read(updateCheckerProvider.notifier).check();
+        if (u == null || !mounted) return;
+        await ref
+            .read(notificationsRepoProvider)
+            .add(
+              title: 'Versão ${u.version} disponível',
+              body: u.url,
+              section: AppSection.settings.name,
+            );
+      }().catchError((Object e) => debugPrint('atualização: $e')),
+    );
   }
 
   /// `claude mcp list` health-checks every server (slow): it runs once in

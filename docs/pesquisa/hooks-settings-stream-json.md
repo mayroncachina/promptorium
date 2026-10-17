@@ -64,3 +64,16 @@ respondem `Invalid configuration: : Invalid input`. Só o JSON como argumento fu
 valores de env e header continuam no argv do processo `claude mcp` durante os segundos em que ele roda,
 como no `mcp add -e/-H` atual. A F12 fica com o `mcp add` e passa a mascarar, nas mensagens mostradas,
 todo argumento que não seja flag conhecida.
+
+## 6. Cliente ACP (F18)
+
+O Promptorium fala o Agent Client Protocol (JSON-RPC 2.0, uma mensagem por linha no stdio) com
+`initialize` → `session/new` (ou `session/load` quando o agente anuncia `loadSession`) →
+`session/prompt`. As notificações `session/update` (`agent_message_chunk`, `agent_thought_chunk`,
+`tool_call`, `tool_call_update`) e os pedidos `session/request_permission` viram os eventos stream-json
+que a timeline do Prompt já mostra. `fs/*` não é anunciado: o agente usa as próprias ferramentas.
+
+**Não validado com um agente real.** O `gemini` instalado nesta máquina (Node 18) cai ao iniciar com
+`SyntaxError: Invalid regular expression flags`, porque precisa de Node 20 ou mais novo. Os testes usam
+um processo falso que segue o protocolo. Vale rodar um handshake real (`initialize` e `session/new`)
+antes de confiar no provedor.
