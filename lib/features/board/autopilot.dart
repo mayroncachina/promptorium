@@ -10,6 +10,56 @@ import '../sessions/session_manager.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart';
 
+/// "Agendar Autopilot" of a workspace (F17): every day at [hour]:[minute]
+/// (with the app open) it turns on, spending at most [budgetUsd] that day.
+@immutable
+class AutopilotSchedule {
+  const AutopilotSchedule({
+    required this.hour,
+    required this.minute,
+    this.budgetUsd,
+  });
+
+  final int hour;
+  final int minute;
+  final double? budgetUsd;
+
+  /// `app_settings` key of a workspace's schedule.
+  static String key(int workspaceId) => 'autopilot.schedule.$workspaceId';
+
+  /// `02:30|5.0` (budget optional).
+  String encode() =>
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}'
+      '${budgetUsd == null ? '' : '|$budgetUsd'}';
+
+  static AutopilotSchedule? decode(String? text) {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})(?:\|([\d.]+))?$')
+        .firstMatch(text?.trim() ?? '');
+    if (m == null) return null;
+    final h = int.parse(m.group(1)!), min = int.parse(m.group(2)!);
+    if (h > 23 || min > 59) return null;
+    return AutopilotSchedule(
+      hour: h,
+      minute: min,
+      budgetUsd: m.group(3) == null ? null : double.tryParse(m.group(3)!),
+    );
+  }
+
+  String get label =>
+      '${encode().split('|').first}'
+      '${budgetUsd == null ? '' : ' · até US\$ ${budgetUsd!.toStringAsFixed(2)}'}';
+
+  /// Whether it is due at [now] (the minute of the schedule, not yet run
+  /// on that day).
+  bool dueAt(DateTime now, {DateTime? lastRun}) =>
+      now.hour == hour &&
+      now.minute == minute &&
+      (lastRun == null ||
+          lastRun.year != now.year ||
+          lastRun.month != now.month ||
+          lastRun.day != now.day);
+}
+
 /// Quadro on autopilot (play / stop): while on for a workspace, every
 /// approved spec in Backlog starts by itself as soon as its dependencies
 /// are in Review or Feito (those still in Review are not merged, so the new
@@ -22,6 +72,43 @@ class Autopilot extends Notifier<Set<int>> {
   Set<int> build() => const {};
 
   bool isOn(int workspaceId) => state.contains(workspaceId);
+
+  /// Budget of the day of a scheduled start (beats `orcamento-dia`).
+  final Map<int, double> _budgetToday = {};
+  final Map<int, DateTime> _lastScheduled = {};
+
+  AutopilotSchedule? scheduleOf(int workspaceId) => AutopilotSchedule.decode(
+    ref
+        .read(appSettingsProvider.notifier)
+        .get(AutopilotSchedule.key(workspaceId)),
+  );
+
+  Future<void> setSchedule(int workspaceId, AutopilotSchedule? s) async {
+    final settings = ref.read(appSettingsProvider.notifier);
+    if (s == null) {
+      await settings.remove(AutopilotSchedule.key(workspaceId));
+    } else {
+      await settings.set(AutopilotSchedule.key(workspaceId), s.encode());
+    }
+  }
+
+  /// Called every minute (`main.dart`): starts the workspaces whose
+  /// schedule is due.
+  Future<void> scheduleTick({DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    final workspaces = await ref.read(workspacesRepoProvider).getAll();
+    for (final ws in workspaces) {
+      final s = scheduleOf(ws.id);
+      if (s == null || !s.dueAt(at, lastRun: _lastScheduled[ws.id])) continue;
+      _lastScheduled[ws.id] = at;
+      if (s.budgetUsd != null) {
+        _budgetToday[ws.id] = s.budgetUsd!;
+      } else {
+        _budgetToday.remove(ws.id);
+      }
+      if (!isOn(ws.id)) await start(ws.id);
+    }
+  }
 
   Future<void> start(int workspaceId) async {
     state = {...state, workspaceId};
@@ -85,7 +172,9 @@ class Autopilot extends Notifier<Set<int>> {
     if (!isOn(workspaceId)) return false;
     final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
     if (ws == null) return false;
-    final budget = ProjectConfig.loadSync(ws.path).autopilot.dailyBudgetUsd;
+    final budget =
+        _budgetToday[workspaceId] ??
+        ProjectConfig.loadSync(ws.path).autopilot.dailyBudgetUsd;
     if (budget == null) return false;
     final spent = await spentToday(workspaceId);
     if (spent < budget) return false;

@@ -162,6 +162,38 @@ void main() {
       );
     });
 
+    test('schedule: due once per day at its minute; its budget beats the '
+        'config (F17)', () async {
+      const s = AutopilotSchedule(hour: 2, minute: 30, budgetUsd: 0.05);
+      expect(AutopilotSchedule.decode(s.encode())!.budgetUsd, 0.05);
+      expect(AutopilotSchedule.decode('25:00'), isNull);
+      expect(AutopilotSchedule.decode('7:05')!.label, '07:05');
+      expect(s.dueAt(DateTime(2026, 10, 17, 2, 30)), isTrue);
+      expect(
+        s.dueAt(
+          DateTime(2026, 10, 17, 2, 30, 40),
+          lastRun: DateTime(2026, 10, 17, 2, 30),
+        ),
+        isFalse,
+      );
+      expect(s.dueAt(DateTime(2026, 10, 17, 2, 31)), isFalse);
+
+      final pilot = c.read(autopilotProvider.notifier);
+      await pilot.setSchedule(ws.id, s);
+      await pilot.scheduleTick(now: DateTime(2026, 10, 17, 2, 29));
+      expect(c.read(autopilotProvider), isEmpty);
+      await pilot.scheduleTick(now: DateTime(2026, 10, 17, 2, 30));
+      await settle();
+      expect(c.read(autopilotProvider), {ws.id});
+      expect(cli.processes, hasLength(3));
+      // The scheduled budget (US$ 0.05) stops it.
+      cli.processes.first.emit(resultLine('ETAPA CONCLUÍDA: R1', cost: 0.06));
+      for (var i = 0; i < 20; i++) {
+        await settle();
+      }
+      expect(c.read(autopilotProvider), isEmpty);
+    });
+
     test('a crashed session leaves its step waiting for the user', () async {
       final spec = (await c
           .read(specsRepoProvider)

@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/claude/usage_poller.dart';
+import 'features/board/autopilot.dart';
 import 'features/code/worktree_terminal.dart';
 import 'features/prompt/conversation_manager.dart';
 import 'features/review/pr_babysitter.dart';
@@ -51,10 +52,11 @@ Future<void> main() async {
   unawaited(usage.refresh());
   Timer.periodic(const Duration(minutes: 5), (_) => usage.refresh());
   // Idle sessions (no activity for the configured time) free their process.
-  Timer.periodic(
-    const Duration(minutes: 1),
-    (_) => container.read(sessionManagerProvider.notifier).closeIdle(),
-  );
+  Timer.periodic(const Duration(minutes: 1), (_) {
+    container.read(sessionManagerProvider.notifier).closeIdle();
+    // Scheduled autopilots (F17).
+    container.read(autopilotProvider.notifier).scheduleTick();
+  });
   // PRs under "Acompanhar PR" (F16).
   Timer.periodic(
     const Duration(minutes: 2),

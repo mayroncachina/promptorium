@@ -20,6 +20,7 @@ import 'widgets/duel_dialog.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
+import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/wave_graph.dart';
@@ -267,6 +268,22 @@ class _Header extends ConsumerWidget {
               ),
             ),
           const SizedBox(width: 8),
+          Builder(
+            builder: (context) {
+              ref.watch(appSettingsProvider);
+              final schedule = pilot.scheduleOf(workspaceId);
+              return TextButton.icon(
+                key: const ValueKey('board-schedule'),
+                onPressed: () => showScheduleDialog(context, ref, workspaceId),
+                icon: const Icon(Icons.schedule, size: 16),
+                label: Text(
+                  schedule == null ? 'Agendar' : schedule.label,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           Tooltip(
             message: on
                 ? 'Parar: desliga o automático e interrompe as sessões das specs'
