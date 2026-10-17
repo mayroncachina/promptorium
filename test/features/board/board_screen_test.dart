@@ -111,6 +111,14 @@ String text(WidgetTester t, String key) =>
     t.widget<Text>(find.byKey(ValueKey(key))).data!;
 
 void main() {
+  test('moveInColumn saves the move against the shown neighbour, keeping '
+      'the cards hidden by a filter in place', () {
+    // Column 1..5; shown (filtered / attention first): 4, 2, 5.
+    expect(moveInColumn([1, 2, 3, 4, 5], 2, 4, -1), [1, 3, 2, 4, 5]);
+    expect(moveInColumn([1, 2, 3, 4, 5], 2, 5, 1), [1, 3, 4, 5, 2]);
+    expect(moveInColumn([1, 2, 3], 1, 9, 1), [1, 2, 3]);
+  });
+
   testWidgets('one card per approved spec, in its column, with progress, '
       'blockers and the right action', (tester) async {
     await pumpBoard(tester);

@@ -115,8 +115,12 @@ class BoardFilter {
 }
 
 class BoardFilterController extends Notifier<BoardFilter> {
+  /// Cleared when the workspace changes (its phases / agents are others).
   @override
-  BoardFilter build() => const BoardFilter();
+  BoardFilter build() {
+    ref.watch(activeWorkspaceProvider.select((w) => w?.id));
+    return const BoardFilter();
+  }
 
   void set(BoardFilter f) => state = f;
 }
@@ -158,13 +162,25 @@ final boardGraphViewProvider = NotifierProvider<BoardGraphView, bool>(
 /// Cards of one column in their saved order (`specs.board_order`; the rest
 /// by code).
 List<SpecCardData> orderedCards(Iterable<SpecCardData> cards) =>
-    cards.toList()..sort((a, b) {
-      final oa = a.spec.boardOrder, ob = b.spec.boardOrder;
-      if (oa != null && ob != null && oa != ob) return oa.compareTo(ob);
-      if (oa != null && ob == null) return -1;
-      if (oa == null && ob != null) return 1;
-      return a.spec.code.compareTo(b.spec.code);
-    });
+    cards.toList()..sort((a, b) => compareBoardOrder(a.spec, b.spec));
+
+/// Order of the cards of a column: `board_order`, then the code.
+int compareBoardOrder(Spec a, Spec b) {
+  final oa = a.boardOrder, ob = b.boardOrder;
+  if (oa != null && ob != null && oa != ob) return oa.compareTo(ob);
+  if (oa != null && ob == null) return -1;
+  if (oa == null && ob != null) return 1;
+  return a.code.compareTo(b.code);
+}
+
+/// "↑ / ↓" on [id]: the whole column ([order], filters ignored) with [id]
+/// moved next to [neighbor], the card shown above / below it.
+List<int> moveInColumn(List<int> order, int id, int neighbor, int delta) {
+  final ids = [...order]..remove(id);
+  final at = ids.indexOf(neighbor);
+  if (at < 0) return order;
+  return ids..insert(delta > 0 ? at + 1 : at, id);
+}
 
 /// Quadro: one card per approved spec; its requirements are the steps
 /// (docs/plano-specs-no-quadro.md).
@@ -516,7 +532,8 @@ class _Header extends ConsumerWidget {
             () => filters.set(filter.copyWith(attention: !filter.attention)),
             'attention',
           ),
-          if (phases.isNotEmpty)
+          // A value set stays visible so it can be cleared.
+          if (phases.isNotEmpty || filter.phase != null)
             menuChip(
               'Fase',
               filter.phase,
@@ -524,7 +541,7 @@ class _Header extends ConsumerWidget {
               (v) => filters.set(filter.copyWith(phase: () => v)),
               'phase',
             ),
-          if (agents.isNotEmpty)
+          if (agents.isNotEmpty || filter.agent != null)
             menuChip(
               'Agente',
               filter.agent,
@@ -694,6 +711,12 @@ class _Board extends StatelessWidget {
                     ),
                     waves: s == SpecStage.backlog ? dependencyWaves(all) : null,
                     limit: s == SpecStage.running ? parallel : null,
+                    order: [
+                      for (final spec
+                          in all.where((x) => x.stage == s).toList()
+                            ..sort(compareBoardOrder))
+                        spec.id,
+                    ],
                   ),
                 ),
               ],
@@ -761,6 +784,7 @@ class _Column extends ConsumerWidget {
     required this.stage,
     required this.width,
     required this.cards,
+    required this.order,
     this.waves,
     this.limit,
   });
@@ -768,6 +792,10 @@ class _Column extends ConsumerWidget {
   final SpecStage stage;
   final double width;
   final List<SpecCardData> cards;
+
+  /// Ids of every spec of the column in board order (hidden by the filters
+  /// too): what "↑ / ↓" saves.
+  final List<int> order;
 
   /// Dependency waves (Backlog only: "Prontas · onda N" / "Bloqueadas").
   final Map<int, int>? waves;
@@ -861,22 +889,33 @@ class _Column extends ConsumerWidget {
                         );
                       }
                       final d = row as SpecCardData;
-                      final i = cards.indexOf(d);
+                      // Neighbours as shown (attention first, Prontas /
+                      // Bloqueadas), saved into the full column order.
+                      final shown = [
+                        for (final x in columnRows(stage, cards, waves))
+                          if (x is SpecCardData) x,
+                      ];
+                      final i = shown.indexOf(d);
                       Future<void> move(int delta) async {
-                        final ids = [for (final c in cards) c.spec.id];
                         final j = i + delta;
-                        if (j < 0 || j >= ids.length) return;
-                        ids
-                          ..removeAt(i)
-                          ..insert(j, d.spec.id);
-                        await ref.read(specsRepoProvider).setBoardOrder(ids);
+                        if (j < 0 || j >= shown.length) return;
+                        await ref
+                            .read(specsRepoProvider)
+                            .setBoardOrder(
+                              moveInColumn(
+                                order,
+                                d.spec.id,
+                                shown[j].spec.id,
+                                delta,
+                              ),
+                            );
                       }
 
                       final card = SpecCard(
                         data: d,
-                        onMove: cards.length > 1 ? move : null,
+                        onMove: shown.length > 1 ? move : null,
                         isFirst: i == 0,
-                        isLast: i == cards.length - 1,
+                        isLast: i == shown.length - 1,
                       );
                       return Draggable<int>(
                         key: ValueKey('board-card-${d.spec.code}'),
