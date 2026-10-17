@@ -56,6 +56,7 @@ Todas as mudanças relevantes do Promptorium.
 - **review:** Babysit de PR, merge pelo gh (squash/rebase) e resolver conflito (F16) (7746f72)
 - **quadro:** Agendamento do Autopilot (F17) (a5056ef)
 - **plataforma:** Cliente ACP (agentes no Prompt), Flatpak e aviso de versão nova (F18) (23a8f3e)
+- **início:** Tela Início "Para você" (aprovações, etapas sem resposta, review, PR com problema, sessões interrompidas) com painel Agora; contadores na barra lateral; Ctrl+1…9 na nova ordem (UX v2, U1)
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)

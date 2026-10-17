@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
+import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/mcp_state.dart' show mcpListProvider;
 import '../../features/mcp/widgets/add_server_dialog.dart';
@@ -213,6 +214,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       : _screen(s);
 
   static Widget _screen(AppSection s) => switch (s) {
+    AppSection.home => const HomeScreen(),
     AppSection.project => const ProjectScreen(),
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),

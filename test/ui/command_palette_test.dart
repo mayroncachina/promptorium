@@ -27,7 +27,7 @@ void main() {
     expect(filterCommands(all, 'xyz'), isEmpty);
     filterCommands(all, 'quadro').single.run();
     expect(ran, 'Ir para Quadro');
-    expect(AppSection.agents.shortcutLabel, 'Ctrl 8');
+    expect(AppSection.agents.shortcutLabel, 'Ctrl 9');
     expect(AppSection.skills.shortcutLabel, isNull);
   });
 

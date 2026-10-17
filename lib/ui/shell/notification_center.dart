@@ -6,7 +6,8 @@ import '../../features/sessions/session_manager.dart';
 import '../theme/tokens.dart';
 import 'navigation.dart';
 
-final _recentNotificationsProvider =
+/// Recent notifications (newest first), refreshed on every change.
+final recentNotificationsProvider =
     FutureProvider.autoDispose<List<AppNotification>>((ref) {
       final repo = ref.watch(notificationsRepoProvider);
       final sub = repo.changes.listen((_) => ref.invalidateSelf());
@@ -22,7 +23,7 @@ class NotificationBell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final list =
-        ref.watch(_recentNotificationsProvider).value ??
+        ref.watch(recentNotificationsProvider).value ??
         const <AppNotification>[];
     final unread = list.where((n) => !n.read).length;
     return Tooltip(
@@ -84,7 +85,7 @@ class _NotificationsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final list =
-        ref.watch(_recentNotificationsProvider).value ??
+        ref.watch(recentNotificationsProvider).value ??
         const <AppNotification>[];
     String when(DateTime d) =>
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')} '

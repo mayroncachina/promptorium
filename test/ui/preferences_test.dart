@@ -75,10 +75,10 @@ void main() {
     addTearDown(db.close);
 
     var c = await pumpLoadedShell(tester, db);
-    await ctrl(tester, LogicalKeyboardKey.digit6); // Código
+    await ctrl(tester, LogicalKeyboardKey.digit7); // Código
     await ctrl(tester, LogicalKeyboardKey.equal);
     await ctrl(tester, LogicalKeyboardKey.equal);
-    await ctrl(tester, LogicalKeyboardKey.digit2); // Specs
+    await ctrl(tester, LogicalKeyboardKey.digit3); // Specs
     await ctrl(tester, LogicalKeyboardKey.minus);
     expect(find.text('90%'), findsOneWidget);
     await unmount(tester, c);
@@ -92,7 +92,7 @@ void main() {
     c = await pumpLoadedShell(tester, db);
     expect(active(tester, AppSection.specs), isTrue);
     expect(find.text('90%'), findsOneWidget);
-    await ctrl(tester, LogicalKeyboardKey.digit6);
+    await ctrl(tester, LogicalKeyboardKey.digit7);
     expect(find.text('120%'), findsOneWidget);
     await unmount(tester, c);
   });

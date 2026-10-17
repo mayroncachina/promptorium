@@ -35,3 +35,4 @@
 
 | Fase | Commit | Diferenças em relação ao mockup |
 |---|---|---|
+| U1 | (ver git log) | "Aprovar todas as edições seguras" e "Histórico de avisos" do topo ficaram de fora (o segundo já é o sino da barra de título). Aprovações aparecem com o `ApprovalCard` das Sessões (Negar / Aprovar / Sempre permitir), não como linha simples. Início é a tela inicial só na primeira abertura; depois vale a última tela |
