@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
+import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_screen.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -399,6 +402,58 @@ void main() {
     r = (await stored(db)).roadmap;
     expect(r.later, isEmpty);
     expect(find.text('Modo offline'), findsNothing);
+    await unmount(tester, c);
+  });
+
+  testWidgets('repository with code: Saúde tab, "Analisar repositório" '
+      'fills the empty config (UX v2, U6)', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-health-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    File('${tmp.path}/pubspec.yaml').writeAsStringSync(
+      'name: x\ndependencies:\n  flutter:\n    sdk: flutter\n',
+    );
+    final (c, _) = await pumpProject(tester, path: tmp.path);
+    // Real file IO (code detection, config, memory) does not run under
+    // FakeAsync: let it run, then pump, until the tab shows.
+    Future<void> settleIo(bool Function() until) async {
+      for (var i = 0; i < 100; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+        if (i >= 2 && until()) return;
+      }
+    }
+
+    await settleIo(
+      () => find.byKey(const ValueKey('project-health')).evaluate().isNotEmpty,
+    );
+    expect(find.byKey(const ValueKey('project-tab-health')), findsOneWidget);
+    expect(find.byKey(const ValueKey('project-health')), findsOneWidget);
+    await settleIo(
+      () => find.text('Nenhuma spec executada ainda.').evaluate().isNotEmpty,
+    );
+    expect(find.text('Nenhuma spec executada ainda.'), findsOneWidget);
+    await settleIo(
+      () => find.byKey(const ValueKey('health-config')).evaluate().isNotEmpty,
+    );
+    expect(
+      find.text('sem gate: "Analisar repositório" sugere'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('health-analyze')));
+    await settleIo(
+      () => find.byKey(const ValueKey('analyze-dialog')).evaluate().isNotEmpty,
+    );
+    expect(find.byKey(const ValueKey('analyze-dialog')), findsOneWidget);
+    expect(find.text('Stack: Flutter'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('analyze-apply')));
+    await settleIo(() => find.text('gate ligado').evaluate().isNotEmpty);
+    expect(ProjectConfig.loadSync(tmp.path).testCommand, 'flutter test');
+    expect(find.text('gate ligado'), findsOneWidget);
+    expect(find.textContaining('Stack detectada: Flutter'), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await unmount(tester, c);
   });
 

@@ -11,6 +11,7 @@ import 'project_planner.dart';
 import 'project_service.dart';
 import 'widgets/create_step.dart';
 import 'widgets/project_config_view.dart';
+import 'widgets/project_health_view.dart';
 import 'widgets/project_memory_view.dart';
 import 'widgets/spec_metrics_view.dart';
 import 'widgets/project_widgets.dart';
@@ -50,7 +51,7 @@ class ProjectScreen extends ConsumerWidget {
         AsyncData(value: null)
             when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
           DefaultTabController(
-            length: 3,
+            length: 4,
             child: Column(
               children: [
                 const TabBar(
@@ -58,6 +59,7 @@ class ProjectScreen extends ConsumerWidget {
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
                   tabs: [
+                    Tab(key: ValueKey('project-tab-health'), text: 'Saúde'),
                     Tab(text: 'Configuração'),
                     Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
                     Tab(key: ValueKey('project-tab-metrics'), text: 'Métricas'),
@@ -66,6 +68,7 @@ class ProjectScreen extends ConsumerWidget {
                 Expanded(
                   child: TabBarView(
                     children: [
+                      ProjectHealthView(workspace: ws),
                       ProjectConfigView(
                         key: ValueKey('project-config-${ws.id}'),
                         workspace: ws,

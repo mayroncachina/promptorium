@@ -61,6 +61,7 @@ Todas as mudanças relevantes do Promptorium.
 - **sessões:** Lado a lado (dois painéis, abas por sessão, ⫿ na lista, Ctrl+\\), linha ao vivo da ferramenta na lista, thinking recolhido na timeline (DT-20), resumo do subagente (ferramentas · tempo) e "Abrir preview :porta" (UX v2, U3)
 - **prompt:** "Plano pronto" no modo Planejar: o pedido de ExitPlanMode vira um card com Implementar como sessão / Transformar em spec / Continuar planejando, sem a conversa virar Editar (DT-26); plano guardado em `.promptorium/planos/`; `@` arquivo e `/` prompt salvo no composer de Sessões (DT-22) (UX v2, U4)
 - **specs:** Clicar numa etapa abre o painel de rastreabilidade (critérios com quem marcou, gate, design usado, commits da etapa, sessão, "Ver diff da etapa" já filtrado no Review, "Refazer a partir daqui") (UX v2, U5)
+- **projeto:** Aba Saúde (métricas das últimas specs, gate por spec, memória com origem e data, como o Promptorium trabalha aqui) e "Analisar repositório" (detecta Flutter/Dart, Node, Python, Rust, Go, Makefile; preenche só os campos vazios do config e anota a memória) (UX v2, U6)
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)
