@@ -12,6 +12,7 @@ import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
 import '../sessions/widgets/session_style.dart';
+import 'spec_design.dart';
 import 'spec_service.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_list.dart';
@@ -38,8 +39,10 @@ enum SpecViewMode {
 String refineSpecPrompt(Spec spec) =>
     'Refine a spec @${spec.path} (${spec.code}). Melhore o objetivo, '
     'deixe os requisitos verificáveis (um por linha, no formato '
-    '"- R1 · texto"), complete os critérios de aceite e liste as perguntas '
-    'em aberto. Edite somente esse arquivo e mantenha o frontmatter '
+    '"- R1 · texto", de preferência no estilo EARS: "Quando <gatilho>, o '
+    'sistema deve <resposta>"), complete os critérios de aceite (marque o '
+    'requisito de cada um, ex.: [R2], e um "verificar: <comando>" quando '
+    'houver) e liste as perguntas em aberto. Edite somente esse arquivo e mantenha o frontmatter '
     '(id, status). Antes de editar, resuma o que pretende mudar.';
 
 /// Whether the open spec has unsaved changes (asked before switching).
@@ -190,9 +193,51 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   // --- actions -------------------------------------------------------------------
 
+  /// Approving needs a `## Design` or "sem design (spec trivial)" (F7).
   Future<void> _approve(Workspace ws, Spec spec) async {
     final c = _controller;
     if (c == null || _busy) return;
+    final doc = SpecDocument.parse(c.text);
+    if (doc.design == null && !doc.designWaived) {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          key: const ValueKey('spec-no-design-dialog'),
+          backgroundColor: AppColors.panel,
+          title: const Text(
+            'A spec não tem Design',
+            style: TextStyle(fontSize: 16),
+          ),
+          content: const SizedBox(
+            width: 440,
+            child: Text(
+              'As sessões recebem o trecho do Design ligado a cada etapa. '
+              'Gere o design agora ou aprove sem ele, se a spec for trivial.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              key: const ValueKey('spec-approve-no-design'),
+              onPressed: () => Navigator.of(ctx).pop('trivial'),
+              child: const Text('Aprovar sem design (spec trivial)'),
+            ),
+            TextButton(
+              key: const ValueKey('spec-approve-design'),
+              onPressed: () => Navigator.of(ctx).pop('design'),
+              child: const Text('Gerar design'),
+            ),
+          ],
+        ),
+      );
+      if (choice == null || !mounted) return;
+      if (choice == 'design') return _design(ws, spec);
+      c.text = doc.withMeta(designWaived: true);
+    }
     setState(() => _busy = true);
     try {
       final r = await ref.read(specServiceProvider).approve(ws, spec, c.text);
@@ -224,6 +269,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _snack('${created.code} criada a partir de ${spec.code}.');
     } catch (e) {
       _snack('Falha ao clonar: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// "Gerar design": the read-only planner writes `## Design` and
+  /// `## Etapas` into the editor (saved by the user).
+  Future<void> _design(Workspace ws, Spec spec) async {
+    final c = _controller;
+    if (c == null || _busy) return;
+    setState(() => _busy = true);
+    _snack('Gerando o design de ${spec.code}…');
+    try {
+      final text = await ref.read(specDesignerProvider).generate(ws, c.text);
+      if (!mounted) return;
+      c.text = text;
+      _snack('Design gerado. Revise e salve.');
+    } catch (e) {
+      _snack('Falha ao gerar o design: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -357,6 +421,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   onRefine: ready && !locked && !_busy
                       ? () => _refine(ws, spec)
                       : null,
+                  onDesign: ready && !locked && !_busy
+                      ? () => _design(ws, spec)
+                      : null,
                   onApprove:
                       ready &&
                           !locked &&
@@ -479,6 +546,7 @@ class _Header extends StatelessWidget {
     this.onMode,
     this.onSave,
     this.onRefine,
+    this.onDesign,
     this.onApprove,
     this.approved = false,
     this.locked = false,
@@ -495,6 +563,7 @@ class _Header extends StatelessWidget {
   final ValueChanged<SpecViewMode>? onMode;
   final VoidCallback? onSave;
   final VoidCallback? onRefine;
+  final VoidCallback? onDesign;
   final VoidCallback? onApprove;
   final bool approved;
   final bool locked;
@@ -584,6 +653,14 @@ class _Header extends StatelessWidget {
             key: const ValueKey('spec-refine'),
             label: 'Refinar com IA',
             onTap: onRefine,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: SmallButton(
+            key: const ValueKey('spec-design'),
+            label: 'Gerar design',
+            onTap: onDesign,
           ),
         ),
         const SizedBox(width: 8),

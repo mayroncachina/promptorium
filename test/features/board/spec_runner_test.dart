@@ -591,5 +591,44 @@ void main() {
         'PROMPTORIUM_PORT': '4001',
       });
     });
+
+    test('gate runs the verificar: of the step criteria and checks them '
+        '(F7)', () async {
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        specText.replaceFirst(
+          '- R4 · Ligar na CLI\n',
+          '- R4 · Ligar na CLI\n'
+              '\n## Critérios de aceite\n\n'
+              '- [ ] r1.txt existe [R1] · verificar: test -f r1.txt\n',
+        ),
+      );
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('testes: "true"\nverificacao:\n  tentativas: 0\n');
+      await c.read(specServiceProvider).sync(ws);
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      // Commit without r1.txt: the criterion's check fails.
+      File('$wt/outro.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: quase']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.needsInput);
+      final failed = GateReport.decode((await stepRow('R1')).gateReport)!;
+      expect(failed.failures.single.name, 'verificar');
+      expect(failed.failures.single.command, 'test -f r1.txt');
+
+      File('$wt/r1.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: r1']);
+      await runner.recheck(spec.id);
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      final marks = await c.read(reviewCommentsRepoProvider).criteria(spec.id);
+      expect(marks.single.criterion, 'r1.txt existe [R1]');
+      expect(marks.single.checkedBy, 'gate');
+    });
   });
 }

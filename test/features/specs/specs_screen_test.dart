@@ -118,16 +118,20 @@ void main() {
     await pump(tester, const Size(1440, 900));
     expect(find.text('Aprovar spec'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('spec-approve')));
+    await tester.pump();
+    // No ## Design: asks first (F7); a trivial spec goes without it.
+    expect(find.byKey(const ValueKey('spec-no-design-dialog')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('spec-approve-no-design')));
     await settleIo(
       tester,
       until: () =>
           readSpec(tmp).contains('status: aprovada') &&
           find.text('Aprovada').evaluate().isNotEmpty,
     );
-    expect(
-      File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync(),
-      contains('status: aprovada'),
-    );
+    final saved = File('${tmp.path}/specs/SPEC-002-sessoes.md')
+        .readAsStringSync();
+    expect(saved, contains('status: aprovada'));
+    expect(saved, contains('design: dispensado'));
     expect(find.text('Aprovada'), findsWidgets);
     expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
   });

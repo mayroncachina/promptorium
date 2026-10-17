@@ -33,6 +33,101 @@ class SpecRunException implements Exception {
 /// Line the agent writes when it finishes the steps it was given.
 const stepMarker = 'ETAPA CONCLUÍDA';
 
+/// The part of the spec a session needs (F7): objective, its requirements,
+/// the blocks of `## Design` that mention its steps (or the files of its
+/// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
+/// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
+/// the whole spec goes.
+String? focusedSpecText(
+  String specText, {
+  required List<StepView> steps,
+  required List<String> todo,
+}) {
+  final doc = SpecDocument.parse(specText);
+  final objective = doc.objective, design = doc.design;
+  if (objective == null || design == null || todo.isEmpty) return null;
+  final plans = doc.stepPlans;
+  final files = {for (final t in todo) ...?plans[t]?.files};
+  bool mentions(String block) =>
+      todo.any((t) => RegExp('\\b$t\\b').hasMatch(block)) ||
+      files.any((f) => block.contains(f) || block.contains(f.split('/').last));
+  final subsections = design.split(RegExp(r'\n(?=###\s)'));
+  final blocks = subsections.length > 1
+      ? subsections
+      : design.split(RegExp(r'\n\s*\n'));
+  final linked = [
+    for (final b in blocks)
+      if (mentions(b)) b.trim(),
+  ];
+  if (linked.isEmpty) return null;
+  final ids = todo.join(', ');
+  final criteria = [
+    for (final c in parseCriteria(specText))
+      if (c.requirements.any(todo.contains)) c,
+  ];
+  final b = StringBuffer();
+  if (doc.title case final t?) {
+    b
+      ..writeln('# $t')
+      ..writeln();
+  }
+  b
+    ..writeln('## Objetivo')
+    ..writeln()
+    ..writeln(objective)
+    ..writeln()
+    ..writeln('## Requisitos desta sessão')
+    ..writeln();
+  for (final s in steps) {
+    if (todo.contains(s.id)) b.writeln('- ${s.id} · ${s.text}');
+  }
+  b
+    ..writeln()
+    ..writeln('## Design (trecho ligado a $ids)')
+    ..writeln()
+    ..writeln(linked.join('\n\n'));
+  final myPlans = [
+    for (final t in todo)
+      if (plans[t] case final p?) (t, p),
+  ];
+  if (myPlans.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('## Etapas')
+      ..writeln();
+    for (final (t, p) in myPlans) {
+      b.writeln(
+        '- $t → ${p.files.join(', ')}'
+        '${p.verify == null ? '' : ' · verificar: `${p.verify}`'}',
+      );
+    }
+  }
+  if (criteria.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('## Critérios de aceite de $ids')
+      ..writeln();
+    for (final c in criteria) {
+      b.writeln(
+        '- [ ] ${c.text}'
+        '${c.verify == null ? '' : ' · verificar: `${c.verify}`'}',
+      );
+    }
+  }
+  return b.toString().trimRight();
+}
+
+/// Commands the gate adds for [steps] (F7): the `verificar:` of their lines
+/// in `## Etapas` and of the acceptance criteria tied to them.
+List<String> stepVerifyCommands(String specText, List<String> steps) {
+  final doc = SpecDocument.parse(specText);
+  return {
+    for (final s in steps) ?doc.stepPlans[s]?.verify,
+    for (final c in parseCriteria(specText))
+      if (c.verify != null && c.requirements.any(steps.contains)) c.verify!,
+  }.toList();
+}
+
 /// Steps listed in the **last** `ETAPA CONCLUÍDA: R1, R2` line of [text]
 /// (accents and case tolerated; "R1 e R2" too). Empty = no marker.
 Set<String> parseStepMarker(String? text) {
@@ -140,11 +235,17 @@ String specStepPrompt({
       ..writeln('</tentativa-anterior>')
       ..writeln('Faça diferente do que não funcionou.');
   }
+  final focused = focusedSpecText(specText, steps: steps, todo: todo);
   b
     ..writeln()
-    ..writeln('Spec (${spec.path}):')
+    ..writeln(
+      focused == null
+          ? 'Spec (${spec.path}):'
+          : 'Trecho da spec ligado a $ids (a spec inteira está em '
+                '${spec.path}, se precisar):',
+    )
     ..writeln('<spec>')
-    ..writeln(specText.trimRight())
+    ..writeln((focused ?? specText).trimRight())
     ..writeln('</spec>')
     ..writeln()
     ..writeln('Ao terminar:')
@@ -826,6 +927,12 @@ class SpecRunner {
       final first = rows[steps.first];
       final attempts = first?.gateAttempts ?? 0;
       await _manager.note(s.id, 'Verificando ${steps.join(', ')}…');
+      final ws = await _ref
+          .read(workspacesRepoProvider)
+          .getById(spec.workspaceId);
+      final text = ws == null
+          ? null
+          : await _ref.read(specServiceProvider).read(ws, spec);
       final report =
           await StepGate(
             git: _ref.read(gitServiceFactoryProvider)(s.worktreePath),
@@ -836,7 +943,27 @@ class SpecRunner {
             startSha: first?.startSha,
             config: config,
             attempt: attempts,
+            extraCommands: text == null
+                ? const []
+                : stepVerifyCommands(text, steps),
+            environment: ws == null
+                ? null
+                : worktreeEnvironment(
+                    root: ws.path,
+                    worktree: s.worktreePath,
+                    specCode: spec.code,
+                  ),
           );
+      if (report.ok && text != null) {
+        // Criteria with a `verificar:` that just passed are checked.
+        for (final c in parseCriteria(text)) {
+          if (c.verify != null && c.requirements.any(steps.contains)) {
+            await _ref
+                .read(reviewCommentsRepoProvider)
+                .setCriterion(spec.id, c.text, checked: true, by: 'gate');
+          }
+        }
+      }
       await repo.setGate(specId, steps, report: report.encode());
       await _manager.note(s.id, gateNote(report), error: !report.ok);
       if (report.ok) {
