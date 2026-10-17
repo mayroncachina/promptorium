@@ -117,8 +117,12 @@ void main() {
   ) async {
     await pump(tester, const Size(1440, 900));
     expect(find.text('Aprovar spec'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('spec-approve')));
-    await tester.pump();
+    // (the button only acts once the file is loaded)
+    final dialog = find.byKey(const ValueKey('spec-no-design-dialog'));
+    for (var i = 0; i < 5 && dialog.evaluate().isEmpty; i++) {
+      await tester.tap(find.byKey(const ValueKey('spec-approve')));
+      await settleIo(tester, until: () => dialog.evaluate().isNotEmpty);
+    }
     // No ## Design: asks first (F7); a trivial spec goes without it.
     expect(find.byKey(const ValueKey('spec-no-design-dialog')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('spec-approve-no-design')));
