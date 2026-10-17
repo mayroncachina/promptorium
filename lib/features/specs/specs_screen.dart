@@ -365,12 +365,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final doc = SpecDocument.parse(text);
     // Traceability of the step clicked in the steps panel (U5).
     final selectedStep = ref.watch(selectedStepProvider);
-    final tracedStep = spec == null || selectedStep == null
+    final tracedStep = spec == null || selectedStep?.specId != spec.id
         ? null
         : stepsOf(
             spec,
             stepRows,
-          ).where((st) => st.id == selectedStep).firstOrNull;
+          ).where((st) => st.id == selectedStep!.step).firstOrNull;
     final ready = spec != null && _controller != null && !_loading;
     // Started specs are a record of what was delivered: changes go to a
     // clone ("Clonar para alterar").

@@ -59,17 +59,20 @@ Future<void> showSpecDetailDialog(BuildContext context, int specId) =>
 /// Steps of a spec (Quadro details and the Specs screen): state, session of
 /// each step, auto-advance and the run action.
 /// Step selected in the Specs screen (its traceability panel opens; UX v2,
-/// U5). Null = none.
-class SelectedStep extends Notifier<String?> {
+/// U5), with its spec: "R2" of one spec is not "R2" of another. Null = none.
+class SelectedStep extends Notifier<({int specId, String step})?> {
   @override
-  String? build() => null;
+  ({int specId, String step})? build() => null;
 
-  void select(String? id) => state = id;
+  void select(int specId, String step) => state = (specId: specId, step: step);
+
+  void clear() => state = null;
 }
 
-final selectedStepProvider = NotifierProvider<SelectedStep, String?>(
-  SelectedStep.new,
-);
+final selectedStepProvider =
+    NotifierProvider<SelectedStep, ({int specId, String step})?>(
+      SelectedStep.new,
+    );
 
 /// "Voltar ao início da etapa" / "Refazer etapa": lists what will be
 /// discarded and asks first.
@@ -433,14 +436,17 @@ class _StepRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = !inDialog && ref.watch(selectedStepProvider) == step.id;
+    final selected =
+        !inDialog &&
+        ref.watch(selectedStepProvider) == (specId: spec.id, step: step.id);
     return InkWell(
       key: ValueKey('step-${step.id}'),
       onTap: inDialog
           ? null
-          : () => ref
-                .read(selectedStepProvider.notifier)
-                .select(selected ? null : step.id),
+          : () {
+              final n = ref.read(selectedStepProvider.notifier);
+              selected ? n.clear() : n.select(spec.id, step.id);
+            },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(

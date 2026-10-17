@@ -135,8 +135,7 @@ class StepTracePanel extends ConsumerWidget {
               iconSize: 14,
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.close, color: AppColors.textSecondary),
-              onPressed: () =>
-                  ref.read(selectedStepProvider.notifier).select(null),
+              onPressed: () => ref.read(selectedStepProvider.notifier).clear(),
             ),
           ],
         ),
