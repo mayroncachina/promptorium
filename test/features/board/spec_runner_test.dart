@@ -720,6 +720,19 @@ void main() {
       );
     });
 
+    test('best-of-N: A and B get their own PROMPTORIUM_PORT, apart from the '
+        "spec's", () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('worktree:\n  porta-base: 4000\n');
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id, duel: true);
+      await settle();
+      expect(cli.envs.map((e) => e!['PROMPTORIUM_PORT']), ['4002', '4003']);
+      final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+      await runner.discardDuel(duel.id);
+    });
+
     test('best-of-N: R1 runs in two temporary worktrees; choosing B brings '
         'its commit, removes both and the spec goes on (F15)', () async {
       final runner = c.read(specRunnerProvider);

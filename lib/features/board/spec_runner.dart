@@ -574,6 +574,7 @@ class SpecRunner {
       required String branch,
       String suffix = '',
       int? duelId,
+      Map<String, String>? environment,
     }) => NewSessionRequest(
       workspace: ws,
       title: '${specSessionTitle(spec!, steps, todo)}$suffix',
@@ -603,9 +604,7 @@ class SpecRunner {
       worktreePath: path,
       branch: branch,
       baseBranch: wt.base,
-      environment: duelId == null
-          ? env
-          : {...env, 'PROMPTORIUM_WORKTREE': path},
+      environment: environment ?? env,
       duelId: duelId,
     );
     if (!duel) {
@@ -636,6 +635,7 @@ class SpecRunner {
       required String branch,
       String suffix,
       int? duelId,
+      Map<String, String>? environment,
     })
     request,
   }) async {
@@ -645,9 +645,19 @@ class SpecRunner {
     if (base == null) {
       throw const SpecRunException('O worktree da spec não tem commits.');
     }
+    // Each attempt gets its own PROMPTORIUM_PORT, outside the indices of the
+    // live spec worktrees (A and B run at the same time).
+    final used = [
+      for (final o
+          in await _ref.read(specsRepoProvider).watchByWorkspace(ws.id).first)
+        if (o.worktreePath != null) o.worktreeIndex,
+    ];
+    final indexA = nextWorktreeIndex(used);
+    final indexB = nextWorktreeIndex([...used, indexA]);
     final created = <CreatedWorktree>[];
+    final envs = <Map<String, String>>[];
     try {
-      for (final v in ['a', 'b']) {
+      for (final (v, index) in [('a', indexA), ('b', indexB)]) {
         final wt = await root.addWorktree(
           sessionSlug(
             '${spec.code.toLowerCase()} $v',
@@ -656,6 +666,15 @@ class SpecRunner {
           baseBranch: specWorktree.branch,
         );
         created.add(wt);
+        final env = worktreeEnvironment(
+          root: ws.path,
+          worktree: wt.path,
+          specCode: spec.code,
+          port: config.worktree.basePort == null
+              ? null
+              : config.worktree.basePort! + index,
+        );
+        envs.add(env);
         final r =
             await WorktreeSetup(
               root: root,
@@ -665,6 +684,7 @@ class SpecRunner {
               copy: config.worktree.copy,
               prepare: config.worktree.prepare,
               timeout: config.gate.timeout,
+              environment: env,
             );
         if (!r.ok) {
           throw SpecRunException(
@@ -698,6 +718,7 @@ class SpecRunner {
         branch: created[0].branch,
         suffix: ' · A',
         duelId: duel.id,
+        environment: envs[0],
       ),
     );
     final b = await _manager.create(
@@ -706,6 +727,7 @@ class SpecRunner {
         branch: created[1].branch,
         suffix: ' · B',
         duelId: duel.id,
+        environment: envs[1],
       ),
     );
     await duels.update(
@@ -828,6 +850,12 @@ class SpecRunner {
         await specGit.git(['merge', '--no-edit', branch]);
       }
     } on GitException catch (e) {
+      // A conflicted merge must not leave the spec worktree half-merged.
+      try {
+        await specGit.git(['merge', '--abort']);
+      } on GitException {
+        // No merge in progress.
+      }
       throw SpecRunException('Falha ao trazer a tentativa $variant: $e');
     }
     final root = factory(ws.path);
