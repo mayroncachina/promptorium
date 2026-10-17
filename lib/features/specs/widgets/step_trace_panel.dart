@@ -365,14 +365,18 @@ class _CriterionRow extends ConsumerWidget {
             child: Checkbox(
               key: ValueKey('step-trace-criterion-${criterion.text}'),
               value: checked,
-              onChanged: (v) => ref
-                  .read(reviewCommentsRepoProvider)
-                  .setCriterion(
-                    spec.id,
-                    criterion.text,
-                    checked: v ?? false,
-                    by: 'humano',
-                  ),
+              // `- [x]` in the file wins (it counts as checked whatever the
+              // mark says): unchecked by editing the spec, not here.
+              onChanged: criterion.checkedInFile
+                  ? null
+                  : (v) => ref
+                        .read(reviewCommentsRepoProvider)
+                        .setCriterion(
+                          spec.id,
+                          criterion.text,
+                          checked: v ?? false,
+                          by: 'humano',
+                        ),
             ),
           ),
           Expanded(

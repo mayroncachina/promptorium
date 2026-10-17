@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
 
@@ -100,89 +101,99 @@ class _ShortcutSheetState extends State<ShortcutSheet> {
   @override
   Widget build(BuildContext context) {
     final groups = filterShortcuts(_query.text);
-    return Dialog(
-      key: const ValueKey('shortcut-sheet'),
-      backgroundColor: AppColors.panel,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: SessionColors.selectedBorder),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 980, maxHeight: 640),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
-              child: Row(
-                children: [
-                  const Text(
-                    'Atalhos de teclado',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Ctrl+/ abre e fecha',
+    // The dialog route is outside AppShell's shortcuts: Ctrl+/ closes here.
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.slash, control: true): () =>
+            Navigator.of(context).maybePop(),
+      },
+      child: Dialog(
+        key: const ValueKey('shortcut-sheet'),
+        backgroundColor: AppColors.panel,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: SessionColors.selectedBorder),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 980, maxHeight: 640),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 12),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Atalhos de teclado',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 200,
-                    height: 30,
-                    child: TextField(
-                      key: const ValueKey('shortcut-sheet-filter'),
-                      controller: _query,
-                      autofocus: true,
-                      style: const TextStyle(fontSize: 12),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: 'Filtrar…',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Fechar',
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: groups.isEmpty
-                    ? const Text(
-                        'Nenhum atalho com esse texto.',
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Ctrl+/ abre e fecha',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textMuted,
+                          color: AppColors.textSecondary,
                         ),
-                      )
-                    : Wrap(
-                        spacing: 28,
-                        runSpacing: 20,
-                        children: [
-                          for (final g in groups)
-                            SizedBox(width: 290, child: _group(g)),
-                        ],
                       ),
+                    ),
+                    SizedBox(
+                      width: 200,
+                      height: 30,
+                      child: TextField(
+                        key: const ValueKey('shortcut-sheet-filter'),
+                        controller: _query,
+                        autofocus: true,
+                        style: const TextStyle(fontSize: 12),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          hintText: 'Filtrar…',
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: 'Fechar',
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const Divider(height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: groups.isEmpty
+                      ? const Text(
+                          'Nenhum atalho com esse texto.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 28,
+                          runSpacing: 20,
+                          children: [
+                            for (final g in groups)
+                              SizedBox(width: 290, child: _group(g)),
+                          ],
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -165,6 +165,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Paleta de comandos'), findsNothing);
     expect(find.text('Zoom + / − / 100%'), findsOneWidget);
+    // Ctrl+/ closes it too ("abre e fecha").
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsNothing);
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Fechar'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('shortcut-sheet')), findsNothing);
