@@ -239,27 +239,31 @@ class _SessionTile extends ConsumerWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    key: ValueKey('session-split-${session.id}'),
-                    borderRadius: BorderRadius.circular(4),
-                    onTap: () => ref
-                        .read(splitSessionProvider.notifier)
-                        .set(pane == 'B' ? null : session.id),
-                    child: Tooltip(
-                      message: pane == 'B'
-                          ? 'Fechar o painel B'
-                          : 'Abrir ao lado (painel B)',
-                      child: const Padding(
-                        padding: EdgeInsets.all(2),
-                        child: Icon(
-                          Icons.vertical_split_outlined,
-                          size: 14,
-                          color: AppColors.textMuted,
+                  // The selected session is pane A: opening it in B too
+                  // would show nothing new.
+                  if (!selected) ...[
+                    const SizedBox(width: 4),
+                    InkWell(
+                      key: ValueKey('session-split-${session.id}'),
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () => ref
+                          .read(splitSessionProvider.notifier)
+                          .set(pane == 'B' ? null : session.id),
+                      child: Tooltip(
+                        message: pane == 'B'
+                            ? 'Fechar o painel B'
+                            : 'Abrir ao lado (painel B)',
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.vertical_split_outlined,
+                            size: 14,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 4),

@@ -247,7 +247,12 @@ class _PanesBar extends ConsumerWidget {
 /// pane, or closes the pane if it is open.
 void toggleSplit(WidgetRef ref, List<Session> sessions, String selectedId) {
   final split = ref.read(splitSessionProvider.notifier);
-  if (ref.read(splitSessionProvider) != null) return split.set(null);
+  final open = ref.read(splitSessionProvider);
+  // Open as the screen shows it: a stale id (the session selected in pane A,
+  // or one of another workspace) counts as closed.
+  if (open != null && open != selectedId && sessions.any((s) => s.id == open)) {
+    return split.set(null);
+  }
   final i = sessions.indexWhere((s) => s.id == selectedId);
   final next = [...sessions.skip(i + 1), ...sessions.take(i)].firstOrNull;
   if (next != null) split.set(next.id);
