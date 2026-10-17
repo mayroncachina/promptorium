@@ -18,6 +18,7 @@ import '../project/project_config.dart';
 import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
 import '../specs/spec_service.dart';
+import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
 import 'step_gate.dart';
@@ -456,6 +457,14 @@ class SpecRunner {
     if (text == null) {
       throw SpecRunException('O arquivo ${spec.path} não existe.');
     }
+    final watcher = _ref.read(workspaceWatcherProvider.notifier);
+    if (watcher.changedOnDisk(specId)) {
+      throw SpecRunException(
+        '${spec.code} foi alterada no disco durante a execução: confirme a '
+        'alteração no cartão antes de continuar.',
+      );
+    }
+    watcher.markStart(specId, text);
 
     String? baseBranch;
     // Already started (has its worktree): its dependencies no longer block.

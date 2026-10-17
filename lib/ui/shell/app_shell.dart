@@ -17,6 +17,7 @@ import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
+import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
 import '../../data/providers.dart';
 import '../theme/tokens.dart';
@@ -185,6 +186,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final section = ref.watch(navigationProvider);
+    // Watches the workspace's specs / agents / skills / config (F11).
+    ref.watch(workspaceWatcherProvider);
     return Shortcuts(
       shortcuts: shellShortcuts,
       child: Actions(

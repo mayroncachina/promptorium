@@ -7,6 +7,7 @@ import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
 import '../sessions/widgets/session_style.dart';
 import 'automations_view.dart';
+import 'backups_view.dart';
 
 /// Models offered as defaults (`inherit` = the CLI's default model).
 const _models = [
@@ -128,6 +129,8 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 const AutomationsCard(),
+                const SizedBox(height: 16),
+                const BackupsCard(),
                 const SizedBox(height: 16),
                 AgentCard(
                   title: 'Sessões · suspender por inatividade',

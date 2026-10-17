@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
 import '../../core/git/git_service.dart';
+import '../../core/process/orphans.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
@@ -186,7 +187,14 @@ class RestoreSessionsStep extends StartupStep {
 
   @override
   Future<void> run(StartupContext ctx) async {
-    final n = await ctx.ref.read(sessionsRepoProvider).markLiveAsInterrupted();
+    // `claude` processes left alive by a crash of the app (F11).
+    final repo = ctx.ref.read(sessionsRepoProvider);
+    final ended = killOrphans(await repo.pids());
+    if (ended.isNotEmpty) {
+      debugPrint('${ended.length} processo(s) claude órfão(s) encerrado(s)');
+    }
+    await repo.clearPids();
+    final n = await repo.markLiveAsInterrupted();
     if (n > 0) debugPrint('$n sessão(ões) marcada(s) como interrompida(s)');
     // Notices not delivered before closing; the autopilot that was on
     // resumes (not awaited: it may start sessions).

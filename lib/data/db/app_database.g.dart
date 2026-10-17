@@ -3072,6 +3072,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pidMeta = const VerificationMeta('pid');
+  @override
+  late final GeneratedColumn<int> pid = GeneratedColumn<int>(
+    'pid',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3095,6 +3104,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     baseBranch,
     mergeCommit,
     prUrl,
+    pid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3247,6 +3257,12 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         prUrl.isAcceptableOrUnknown(data['pr_url']!, _prUrlMeta),
       );
     }
+    if (data.containsKey('pid')) {
+      context.handle(
+        _pidMeta,
+        pid.isAcceptableOrUnknown(data['pid']!, _pidMeta),
+      );
+    }
     return context;
   }
 
@@ -3342,6 +3358,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.string,
         data['${effectivePrefix}pr_url'],
       ),
+      pid: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pid'],
+      ),
     );
   }
 
@@ -3394,6 +3414,10 @@ class Session extends DataClass implements Insertable<Session> {
 
   /// URL of the pull request opened by the Review (schema v5).
   final String? prUrl;
+
+  /// PID of the `claude` process while it runs (schema v12): the next
+  /// launch ends the ones left behind by a crash of the app.
+  final int? pid;
   const Session({
     required this.id,
     required this.workspaceId,
@@ -3416,6 +3440,7 @@ class Session extends DataClass implements Insertable<Session> {
     this.baseBranch,
     this.mergeCommit,
     this.prUrl,
+    this.pid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3467,6 +3492,9 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || prUrl != null) {
       map['pr_url'] = Variable<String>(prUrl);
     }
+    if (!nullToAbsent || pid != null) {
+      map['pid'] = Variable<int>(pid);
+    }
     return map;
   }
 
@@ -3515,6 +3543,7 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: prUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(prUrl),
+      pid: pid == null && nullToAbsent ? const Value.absent() : Value(pid),
     );
   }
 
@@ -3547,6 +3576,7 @@ class Session extends DataClass implements Insertable<Session> {
       baseBranch: serializer.fromJson<String?>(json['baseBranch']),
       mergeCommit: serializer.fromJson<String?>(json['mergeCommit']),
       prUrl: serializer.fromJson<String?>(json['prUrl']),
+      pid: serializer.fromJson<int?>(json['pid']),
     );
   }
   @override
@@ -3576,6 +3606,7 @@ class Session extends DataClass implements Insertable<Session> {
       'baseBranch': serializer.toJson<String?>(baseBranch),
       'mergeCommit': serializer.toJson<String?>(mergeCommit),
       'prUrl': serializer.toJson<String?>(prUrl),
+      'pid': serializer.toJson<int?>(pid),
     };
   }
 
@@ -3601,6 +3632,7 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> baseBranch = const Value.absent(),
     Value<String?> mergeCommit = const Value.absent(),
     Value<String?> prUrl = const Value.absent(),
+    Value<int?> pid = const Value.absent(),
   }) => Session(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -3625,6 +3657,7 @@ class Session extends DataClass implements Insertable<Session> {
     baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
     mergeCommit: mergeCommit.present ? mergeCommit.value : this.mergeCommit,
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
+    pid: pid.present ? pid.value : this.pid,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -3659,6 +3692,7 @@ class Session extends DataClass implements Insertable<Session> {
           ? data.mergeCommit.value
           : this.mergeCommit,
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
+      pid: data.pid.present ? data.pid.value : this.pid,
     );
   }
 
@@ -3685,7 +3719,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('endedAt: $endedAt, ')
           ..write('baseBranch: $baseBranch, ')
           ..write('mergeCommit: $mergeCommit, ')
-          ..write('prUrl: $prUrl')
+          ..write('prUrl: $prUrl, ')
+          ..write('pid: $pid')
           ..write(')'))
         .toString();
   }
@@ -3713,6 +3748,7 @@ class Session extends DataClass implements Insertable<Session> {
     baseBranch,
     mergeCommit,
     prUrl,
+    pid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3738,7 +3774,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.endedAt == this.endedAt &&
           other.baseBranch == this.baseBranch &&
           other.mergeCommit == this.mergeCommit &&
-          other.prUrl == this.prUrl);
+          other.prUrl == this.prUrl &&
+          other.pid == this.pid);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -3763,6 +3800,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> baseBranch;
   final Value<String?> mergeCommit;
   final Value<String?> prUrl;
+  final Value<int?> pid;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -3786,6 +3824,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.baseBranch = const Value.absent(),
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
+    this.pid = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -3810,6 +3849,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.baseBranch = const Value.absent(),
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
+    this.pid = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -3838,6 +3878,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? baseBranch,
     Expression<String>? mergeCommit,
     Expression<String>? prUrl,
+    Expression<int>? pid,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3862,6 +3903,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (baseBranch != null) 'base_branch': baseBranch,
       if (mergeCommit != null) 'merge_commit': mergeCommit,
       if (prUrl != null) 'pr_url': prUrl,
+      if (pid != null) 'pid': pid,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3888,6 +3930,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? baseBranch,
     Value<String?>? mergeCommit,
     Value<String?>? prUrl,
+    Value<int?>? pid,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -3912,6 +3955,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       baseBranch: baseBranch ?? this.baseBranch,
       mergeCommit: mergeCommit ?? this.mergeCommit,
       prUrl: prUrl ?? this.prUrl,
+      pid: pid ?? this.pid,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3984,6 +4028,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (prUrl.present) {
       map['pr_url'] = Variable<String>(prUrl.value);
     }
+    if (pid.present) {
+      map['pid'] = Variable<int>(pid.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4014,6 +4061,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('baseBranch: $baseBranch, ')
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
+          ..write('pid: $pid, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9718,6 +9766,452 @@ class SpecSuggestionsCompanion extends UpdateCompanion<SpecSuggestion> {
   }
 }
 
+class $NotificationsTable extends Notifications
+    with TableInfo<$NotificationsTable, AppNotification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sectionMeta = const VerificationMeta(
+    'section',
+  );
+  @override
+  late final GeneratedColumn<String> section = GeneratedColumn<String>(
+    'section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readMeta = const VerificationMeta('read');
+  @override
+  late final GeneratedColumn<bool> read = GeneratedColumn<bool>(
+    'read',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("read" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    body,
+    section,
+    sessionId,
+    read,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppNotification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('section')) {
+      context.handle(
+        _sectionMeta,
+        section.isAcceptableOrUnknown(data['section']!, _sectionMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('read')) {
+      context.handle(
+        _readMeta,
+        read.isAcceptableOrUnknown(data['read']!, _readMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppNotification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppNotification(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      section: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}section'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      read: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}read'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NotificationsTable createAlias(String alias) {
+    return $NotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class AppNotification extends DataClass implements Insertable<AppNotification> {
+  final int id;
+  final String title;
+  final String body;
+
+  /// `AppSection.name` the click goes to.
+  final String? section;
+
+  /// Session selected by the click.
+  final String? sessionId;
+  final bool read;
+  final DateTime createdAt;
+  const AppNotification({
+    required this.id,
+    required this.title,
+    required this.body,
+    this.section,
+    this.sessionId,
+    required this.read,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || section != null) {
+      map['section'] = Variable<String>(section);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    map['read'] = Variable<bool>(read);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  NotificationsCompanion toCompanion(bool nullToAbsent) {
+    return NotificationsCompanion(
+      id: Value(id),
+      title: Value(title),
+      body: Value(body),
+      section: section == null && nullToAbsent
+          ? const Value.absent()
+          : Value(section),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      read: Value(read),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AppNotification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppNotification(
+      id: serializer.fromJson<int>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      section: serializer.fromJson<String?>(json['section']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      read: serializer.fromJson<bool>(json['read']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'section': serializer.toJson<String?>(section),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'read': serializer.toJson<bool>(read),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AppNotification copyWith({
+    int? id,
+    String? title,
+    String? body,
+    Value<String?> section = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    bool? read,
+    DateTime? createdAt,
+  }) => AppNotification(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    section: section.present ? section.value : this.section,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    read: read ?? this.read,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AppNotification copyWithCompanion(NotificationsCompanion data) {
+    return AppNotification(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      section: data.section.present ? data.section.value : this.section,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      read: data.read.present ? data.read.value : this.read,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppNotification(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('section: $section, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('read: $read, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, title, body, section, sessionId, read, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppNotification &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.section == this.section &&
+          other.sessionId == this.sessionId &&
+          other.read == this.read &&
+          other.createdAt == this.createdAt);
+}
+
+class NotificationsCompanion extends UpdateCompanion<AppNotification> {
+  final Value<int> id;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<String?> section;
+  final Value<String?> sessionId;
+  final Value<bool> read;
+  final Value<DateTime> createdAt;
+  const NotificationsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.section = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.read = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  NotificationsCompanion.insert({
+    this.id = const Value.absent(),
+    required String title,
+    required String body,
+    this.section = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.read = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : title = Value(title),
+       body = Value(body);
+  static Insertable<AppNotification> custom({
+    Expression<int>? id,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? section,
+    Expression<String>? sessionId,
+    Expression<bool>? read,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (section != null) 'section': section,
+      if (sessionId != null) 'session_id': sessionId,
+      if (read != null) 'read': read,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  NotificationsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? title,
+    Value<String>? body,
+    Value<String?>? section,
+    Value<String?>? sessionId,
+    Value<bool>? read,
+    Value<DateTime>? createdAt,
+  }) {
+    return NotificationsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      section: section ?? this.section,
+      sessionId: sessionId ?? this.sessionId,
+      read: read ?? this.read,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (section.present) {
+      map['section'] = Variable<String>(section.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (read.present) {
+      map['read'] = Variable<bool>(read.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('section: $section, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('read: $read, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9745,6 +10239,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SpecSuggestionsTable specSuggestions = $SpecSuggestionsTable(
     this,
   );
+  late final $NotificationsTable notifications = $NotificationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9769,6 +10264,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reviewComments,
     specCriteria,
     specSuggestions,
+    notifications,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -12882,6 +13378,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> baseBranch,
   Value<String?> mergeCommit,
   Value<String?> prUrl,
+  Value<int?> pid,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -12906,6 +13403,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> baseBranch,
   Value<String?> mergeCommit,
   Value<String?> prUrl,
+  Value<int?> pid,
   Value<int> rowid,
 });
 
@@ -13116,6 +13614,11 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<String> get prUrl => $composableBuilder(
     column: $table.prUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pid => $composableBuilder(
+    column: $table.pid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13363,6 +13866,11 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get pid => $composableBuilder(
+    column: $table.pid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -13503,6 +14011,9 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<String> get prUrl =>
       $composableBuilder(column: $table.prUrl, builder: (column) => column);
+
+  GeneratedColumn<int> get pid =>
+      $composableBuilder(column: $table.pid, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -13705,6 +14216,7 @@ class $$SessionsTableTableManager
                 Value<String?> baseBranch = const Value.absent(),
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
+                Value<int?> pid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -13728,6 +14240,7 @@ class $$SessionsTableTableManager
                 baseBranch: baseBranch,
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
+                pid: pid,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13753,6 +14266,7 @@ class $$SessionsTableTableManager
                 Value<String?> baseBranch = const Value.absent(),
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
+                Value<int?> pid = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -13776,6 +14290,7 @@ class $$SessionsTableTableManager
                 baseBranch: baseBranch,
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
+                pid: pid,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -18282,6 +18797,247 @@ typedef $$SpecSuggestionsTableProcessedTableManager =
       SpecSuggestion,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$NotificationsTableCreateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      required String title,
+      required String body,
+      Value<String?> section,
+      Value<String?> sessionId,
+      Value<bool> read,
+      Value<DateTime> createdAt,
+    });
+typedef $$NotificationsTableUpdateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      Value<String> title,
+      Value<String> body,
+      Value<String?> section,
+      Value<String?> sessionId,
+      Value<bool> read,
+      Value<DateTime> createdAt,
+    });
+
+class $$NotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get section =>
+      $composableBuilder(column: $table.section, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<bool> get read =>
+      $composableBuilder(column: $table.read, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$NotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NotificationsTable,
+          AppNotification,
+          $$NotificationsTableFilterComposer,
+          $$NotificationsTableOrderingComposer,
+          $$NotificationsTableAnnotationComposer,
+          $$NotificationsTableCreateCompanionBuilder,
+          $$NotificationsTableUpdateCompanionBuilder,
+          (
+            AppNotification,
+            BaseReferences<_$AppDatabase, $NotificationsTable, AppNotification>,
+          ),
+          AppNotification,
+          PrefetchHooks Function()
+        > {
+  $$NotificationsTableTableManager(_$AppDatabase db, $NotificationsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotificationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> section = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => NotificationsCompanion(
+                id: id,
+                title: title,
+                body: body,
+                section: section,
+                sessionId: sessionId,
+                read: read,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String title,
+                required String body,
+                Value<String?> section = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => NotificationsCompanion.insert(
+                id: id,
+                title: title,
+                body: body,
+                section: section,
+                sessionId: sessionId,
+                read: read,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotificationsTable, AppNotification>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NotificationsTable,
+                    AppNotification
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NotificationsTable,
+      AppNotification,
+      $$NotificationsTableFilterComposer,
+      $$NotificationsTableOrderingComposer,
+      $$NotificationsTableAnnotationComposer,
+      $$NotificationsTableCreateCompanionBuilder,
+      $$NotificationsTableUpdateCompanionBuilder,
+      (
+        AppNotification,
+        BaseReferences<_$AppDatabase, $NotificationsTable, AppNotification>,
+      ),
+      AppNotification,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -18324,4 +19080,6 @@ class $AppDatabaseManager {
       $$SpecCriteriaTableTableManager(_db, _db.specCriteria);
   $$SpecSuggestionsTableTableManager get specSuggestions =>
       $$SpecSuggestionsTableTableManager(_db, _db.specSuggestions);
+  $$NotificationsTableTableManager get notifications =>
+      $$NotificationsTableTableManager(_db, _db.notifications);
 }

@@ -4,13 +4,18 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/common.dart' show CommonDatabase;
 
 import 'enums.dart';
 import 'migrations.dart';
+import 'schema_versions.dart';
 
 export 'enums.dart';
 
 part 'app_database.g.dart';
+
+/// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
+const appSchemaVersion = 12;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -276,6 +281,23 @@ class SpecSuggestions extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Notification shown by the app (schema v12): the history of the
+/// notification center, with where its click goes.
+@DataClassName('AppNotification')
+class Notifications extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get title => text()();
+  TextColumn get body => text()();
+
+  /// `AppSection.name` the click goes to.
+  TextColumn get section => text().nullable()();
+
+  /// Session selected by the click.
+  TextColumn get sessionId => text().nullable()();
+  BoolColumn get read => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Notices waiting to be sent to a session (manual edits, schema v9).
 class PendingNotices extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -373,6 +395,10 @@ class Sessions extends Table {
 
   /// URL of the pull request opened by the Review (schema v5).
   TextColumn get prUrl => text().nullable()();
+
+  /// PID of the `claude` process while it runs (schema v12): the next
+  /// launch ends the ones left behind by a crash of the app.
+  IntColumn get pid => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -543,24 +569,36 @@ class AppSettings extends Table {
     ReviewComments,
     SpecCriteria,
     SpecSuggestions,
+    Notifications,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
-  /// The on-disk database (`<data dir>/promptorium.sqlite`).
+  /// The on-disk database (`<data dir>/promptorium.sqlite`): a pending
+  /// "Restaurar backup" is applied first, and a copy is kept before a
+  /// migration ([backupBeforeMigration]).
   factory AppDatabase.open() => AppDatabase(
     driftDatabase(
       name: fileName,
-      native: const DriftNativeOptions(databaseDirectory: databaseDirectory),
+      native: const DriftNativeOptions(
+        databaseDirectory: _directoryWithRestore,
+        setup: backupBeforeMigration,
+      ),
     ),
   );
+
+  static Future<Directory> _directoryWithRestore() async {
+    final dir = await databaseDirectory();
+    applyPendingRestore(dir);
+    return dir;
+  }
 
   /// File name without the `.sqlite` extension (driftDatabase adds it).
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => appSchemaVersion;
 
   Future<bool> _hasTable(String name) async => (await customSelect(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -573,127 +611,156 @@ class AppDatabase extends _$AppDatabase {
         variables: [Variable.withString(table), Variable.withString(column)],
       ).get()).isNotEmpty;
 
+  /// v1 → v8 (hand-written).
+  Future<void> _upgradeToV8(Migrator m, int from) async {
+    // v2 (Fase 5): session title and permission mode.
+    if (from < 2) {
+      await m.addColumn(sessions, sessions.title);
+      await m.addColumn(sessions, sessions.permissionMode);
+    }
+    // v3 (Fase 6): Prompt conversations, task body.
+    if (from < 3) {
+      await m.addColumn(tasks, tasks.body);
+      await m.addColumn(conversations, conversations.claudeSessionId);
+      await m.addColumn(conversations, conversations.mode);
+      await m.addColumn(conversations, conversations.tokensIn);
+      await m.addColumn(conversations, conversations.tokensOut);
+      await m.addColumn(conversations, conversations.costUsd);
+      await m.addColumn(conversations, conversations.messageCount);
+      await m.addColumn(conversations, conversations.updatedAt);
+      await m.createTable(conversationEvents);
+    }
+    // v4 (Fase 8): requirement of a task (planner output).
+    if (from < 4) {
+      await m.addColumn(tasks, tasks.requirement);
+    }
+    // v5 (Fase 9): base branch, merge commit and PR of a session (Review).
+    if (from < 5) {
+      await m.addColumn(sessions, sessions.baseBranch);
+      await m.addColumn(sessions, sessions.mergeCommit);
+      await m.addColumn(sessions, sessions.prUrl);
+    }
+    // v6: planning of a new project (Projeto screen).
+    if (from < 6) {
+      await m.createTable(projectPlans);
+    }
+    // v7: effort of a session; the footer no longer sums tokens per day
+    // (the `usage.<yyyy-mm-dd>` rows of app_settings are dropped).
+    if (from < 7) {
+      await m.addColumn(sessions, sessions.effort);
+      if (await _hasTable('app_settings')) {
+        await customStatement(
+          "DELETE FROM app_settings WHERE key GLOB 'usage.[0-9]*'",
+        );
+      }
+    }
+    // v8: the spec is the card of the Quadro; its requirements are the
+    // steps. Tasks of a spec become step states and spec dependencies.
+    if (from < 8 && await _hasTable('specs')) {
+      for (final c in [
+        specs.stage,
+        specs.requirements,
+        specs.dependsOn,
+        specs.phase,
+        specs.agentName,
+        specs.worktreePath,
+        specs.branch,
+        specs.baseBranch,
+        specs.autoAdvance,
+      ]) {
+        await m.addColumn(specs, c);
+      }
+      await m.addColumn(sessions, sessions.specId);
+      await m.addColumn(sessions, sessions.steps);
+      await m.createTable(specSteps);
+      if (await _hasTable('tasks')) await migrateTasksToSteps(this);
+    } else if (from < 8 && await _hasTable('sessions')) {
+      // Partial schemas (migration tests without `specs`): no foreign key
+      // to a table that is not there.
+      await customStatement(
+        'ALTER TABLE sessions ADD COLUMN spec_id INTEGER NULL',
+      );
+      await m.addColumn(sessions, sessions.steps);
+    }
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      // v2 (Fase 5): session title and permission mode.
-      if (from < 2) {
-        await m.addColumn(sessions, sessions.title);
-        await m.addColumn(sessions, sessions.permissionMode);
-      }
-      // v3 (Fase 6): Prompt conversations, task body.
-      if (from < 3) {
-        await m.addColumn(tasks, tasks.body);
-        await m.addColumn(conversations, conversations.claudeSessionId);
-        await m.addColumn(conversations, conversations.mode);
-        await m.addColumn(conversations, conversations.tokensIn);
-        await m.addColumn(conversations, conversations.tokensOut);
-        await m.addColumn(conversations, conversations.costUsd);
-        await m.addColumn(conversations, conversations.messageCount);
-        await m.addColumn(conversations, conversations.updatedAt);
-        await m.createTable(conversationEvents);
-      }
-      // v4 (Fase 8): requirement of a task (planner output).
-      if (from < 4) {
-        await m.addColumn(tasks, tasks.requirement);
-      }
-      // v5 (Fase 9): base branch, merge commit and PR of a session (Review).
-      if (from < 5) {
-        await m.addColumn(sessions, sessions.baseBranch);
-        await m.addColumn(sessions, sessions.mergeCommit);
-        await m.addColumn(sessions, sessions.prUrl);
-      }
-      // v6: planning of a new project (Projeto screen).
-      if (from < 6) {
-        await m.createTable(projectPlans);
-      }
-      // v7: effort of a session; the footer no longer sums tokens per day
-      // (the `usage.<yyyy-mm-dd>` rows of app_settings are dropped).
-      if (from < 7) {
-        await m.addColumn(sessions, sessions.effort);
-        if (await _hasTable('app_settings')) {
-          await customStatement(
-            "DELETE FROM app_settings WHERE key GLOB 'usage.[0-9]*'",
-          );
-        }
-      }
-      // v8: the spec is the card of the Quadro; its requirements are the
-      // steps. Tasks of a spec become step states and spec dependencies.
-      if (from < 8 && await _hasTable('specs')) {
-        for (final c in [
-          specs.stage,
-          specs.requirements,
-          specs.dependsOn,
-          specs.phase,
-          specs.agentName,
-          specs.worktreePath,
-          specs.branch,
-          specs.baseBranch,
-          specs.autoAdvance,
-        ]) {
-          await m.addColumn(specs, c);
-        }
-        await m.addColumn(sessions, sessions.specId);
-        await m.addColumn(sessions, sessions.steps);
-        await m.createTable(specSteps);
-        if (await _hasTable('tasks')) await migrateTasksToSteps(this);
-      } else if (from < 8 && await _hasTable('sessions')) {
-        // Partial schemas (migration tests without `specs`): no foreign key
-        // to a table that is not there.
-        await customStatement(
-          'ALTER TABLE sessions ADD COLUMN spec_id INTEGER NULL',
-        );
-        await m.addColumn(sessions, sessions.steps);
-      }
-      // v9: step gate and checkpoint; durable autopilot, review drafts and
-      // notices.
-      if (from < 9) {
-        if (await _hasTable('spec_steps')) {
-          // Created whole (with these columns) by a v7 → v8 upgrade.
-          for (final c in [
-            specSteps.startSha,
-            specSteps.startStash,
-            specSteps.gateReport,
-            specSteps.gateAttempts,
-          ]) {
-            if (!await _hasColumn('spec_steps', c.name)) {
-              await m.addColumn(specSteps, c);
+      // v1 … v8: written by hand (the old tests start from partial schemas).
+      if (from < 8) await _upgradeToV8(m, from);
+      // v8 onwards: the steps generated from drift_schemas/
+      // (`dart run drift_dev schema steps`); checked by
+      // test/data/generated_migration_test.dart. The guards stay: a v7 → v8
+      // upgrade creates spec_steps whole and partial schemas lack tables.
+      await m.runMigrationSteps(
+        from: from < 8 ? 8 : from,
+        to: to,
+        steps: migrationSteps(
+          // v9: step gate and checkpoint; durable autopilot, review drafts
+          // and notices.
+          from8To9: (m, v) async {
+            if (await _hasTable('spec_steps')) {
+              for (final c in [
+                v.specSteps.startSha,
+                v.specSteps.startStash,
+                v.specSteps.gateReport,
+                v.specSteps.gateAttempts,
+              ]) {
+                if (!await _hasColumn('spec_steps', c.name)) {
+                  await m.addColumn(v.specSteps, c);
+                }
+              }
             }
-          }
-        }
-        if (await _hasTable('workspaces')) {
-          await m.createTable(autopilotStates);
-        }
-        await m.createTable(reviewDrafts);
-        if (await _hasTable('sessions')) await m.createTable(pendingNotices);
-      }
-      // v10: worktree index / preparation, automatic reviewer, review
-      // comments by round, merge override.
-      if (from < 10 && await _hasTable('specs')) {
-        for (final c in [
-          specs.worktreeIndex,
-          specs.preparedAt,
-          specs.reviewPhase,
-          specs.reviewRounds,
-          specs.mergeOverride,
-        ]) {
-          if (!await _hasColumn('specs', c.name)) await m.addColumn(specs, c);
-        }
-        await m.createTable(reviewComments);
-        await m.createTable(specCriteria);
-        if (await _hasTable('spec_steps') &&
-            !await _hasColumn('spec_steps', 'body')) {
-          await m.addColumn(specSteps, specSteps.body);
-        }
-      }
-      // v11: order of the cards and suggestions of the sessions (Quadro).
-      if (from < 11 && await _hasTable('specs')) {
-        if (!await _hasColumn('specs', 'board_order')) {
-          await m.addColumn(specs, specs.boardOrder);
-        }
-        await m.createTable(specSuggestions);
-      }
+            if (await _hasTable('workspaces')) {
+              await m.createTable(v.autopilotStates);
+            }
+            await m.createTable(v.reviewDrafts);
+            if (await _hasTable('sessions')) {
+              await m.createTable(v.pendingNotices);
+            }
+          },
+          // v10: worktree index / preparation, automatic reviewer, review
+          // comments by round, criteria, merge override, extra steps.
+          from9To10: (m, v) async {
+            if (!await _hasTable('specs')) return;
+            for (final c in [
+              v.specs.worktreeIndex,
+              v.specs.preparedAt,
+              v.specs.reviewPhase,
+              v.specs.reviewRounds,
+              v.specs.mergeOverride,
+            ]) {
+              if (!await _hasColumn('specs', c.name)) {
+                await m.addColumn(v.specs, c);
+              }
+            }
+            await m.createTable(v.reviewComments);
+            await m.createTable(v.specCriteria);
+            if (await _hasTable('spec_steps') &&
+                !await _hasColumn('spec_steps', 'body')) {
+              await m.addColumn(v.specSteps, v.specSteps.body);
+            }
+          },
+          // v11: order of the cards and suggestions of the sessions.
+          from10To11: (m, v) async {
+            if (!await _hasTable('specs')) return;
+            if (!await _hasColumn('specs', 'board_order')) {
+              await m.addColumn(v.specs, v.specs.boardOrder);
+            }
+            await m.createTable(v.specSuggestions);
+          },
+          // v12: pid of the running `claude`, notification history.
+          from11To12: (m, v) async {
+            if (await _hasTable('sessions') &&
+                !await _hasColumn('sessions', 'pid')) {
+              await m.addColumn(v.sessions, v.sessions.pid);
+            }
+            await m.createTable(v.notifications);
+          },
+        ),
+      );
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -713,4 +780,68 @@ Future<Directory> databaseDirectory() async {
   );
   await dir.create(recursive: true);
   return dir;
+}
+
+// --- backups (F11) -------------------------------------------------------------
+
+/// Before a migration (`user_version` below [appSchemaVersion]) the file is
+/// copied to `promptorium.sqlite.bak-v<N>` (`VACUUM INTO`). Runs on the raw
+/// connection, outside any transaction (`DriftNativeOptions.setup`).
+void backupBeforeMigration(CommonDatabase db) {
+  try {
+    final version = db.userVersion;
+    if (version == 0 || version >= appSchemaVersion) return;
+    final main = db
+        .select('PRAGMA database_list')
+        .where((r) => r['name'] == 'main')
+        .firstOrNull;
+    final file = '${main?['file'] ?? ''}';
+    if (file.isEmpty) return; // in memory
+    final bak = backupPath(file, version);
+    if (File(bak).existsSync()) return;
+    db.execute("VACUUM INTO '${bak.replaceAll("'", "''")}'");
+  } catch (_) {
+    // A failed backup must not stop the app from opening.
+  }
+}
+
+String backupPath(String dbFile, int version) => '$dbFile.bak-v$version';
+
+/// Backups next to the database, newest version first.
+List<File> listBackups(Directory dir) {
+  final re = RegExp(r'\.sqlite\.bak-v(\d+)$');
+  final out = [
+    for (final e in dir.listSync())
+      if (e is File && re.hasMatch(e.path)) e,
+  ];
+  int v(File f) => int.parse(re.firstMatch(f.path)!.group(1)!);
+  return out..sort((a, b) => v(b).compareTo(v(a)));
+}
+
+/// File asking the next launch to restore a backup (its path inside).
+File restoreRequest(Directory dir) =>
+    File('${dir.path}/${AppDatabase.fileName}.sqlite.restore');
+
+/// "Restaurar backup" (Configurações): applied on the next launch, before
+/// the database opens. The current file is kept as `.antes-da-restauracao`.
+Future<void> requestRestore(Directory dir, File backup) =>
+    restoreRequest(dir).writeAsString(backup.path);
+
+void applyPendingRestore(Directory dir) {
+  final req = restoreRequest(dir);
+  if (!req.existsSync()) return;
+  try {
+    final backup = File(req.readAsStringSync().trim());
+    final db = File('${dir.path}/${AppDatabase.fileName}.sqlite');
+    if (backup.existsSync()) {
+      if (db.existsSync()) db.copySync('${db.path}.antes-da-restauracao');
+      for (final side in ['-wal', '-shm']) {
+        final f = File('${db.path}$side');
+        if (f.existsSync()) f.deleteSync();
+      }
+      backup.copySync(db.path);
+    }
+  } finally {
+    req.deleteSync();
+  }
 }

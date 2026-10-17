@@ -778,6 +778,11 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final p = _Proc(process, title, baseCost);
     _procs[id] = p;
+    try {
+      await _repo.setPid(id, process.pid);
+    } catch (e) {
+      debugPrint('sessão $id: pid não gravado — $e');
+    }
     if (environment != null) {
       ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
     }
@@ -1012,6 +1017,13 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
     _procs.remove(id);
+    if (ref.mounted) {
+      try {
+        await _repo.setPid(id, null);
+      } catch (_) {
+        // the database is closing
+      }
+    }
     if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
     if (ref.mounted) unawaited(ref.read(managedHooksProvider)?.cleanup(id));
     if (!ref.mounted || _shuttingDown) return;

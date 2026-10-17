@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/fs/dir_watcher.dart';
+
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
@@ -29,8 +31,11 @@ class CodeScreen extends ConsumerStatefulWidget {
 
   static const editorKey = 'code';
 
-  /// Disk check interval (mtime of the open tabs).
-  static const pollInterval = Duration(seconds: 2);
+  /// Safety net of the disk watcher (folders it could not watch).
+  static const pollInterval = Duration(seconds: 30);
+
+  /// At most this many folders are watched (inotify limits).
+  static const maxWatchedDirs = 2000;
 
   @override
   ConsumerState<CodeScreen> createState() => _CodeScreenState();
@@ -38,7 +43,12 @@ class CodeScreen extends ConsumerStatefulWidget {
 
 class _CodeScreenState extends ConsumerState<CodeScreen> {
   Timer? _poll;
-  int _tick = 0;
+
+  /// Folders of the open worktree (F11: changes arrive as events; the poll
+  /// is only a safety net).
+  DirWatcher? _watcher;
+  String? _watchedRoot;
+  int _watchedDirs = -1;
   final Set<String> _loaded = {};
   bool _panelOpen = true;
   int _panelTab = 0; // 0 terminal, 1 problemas
@@ -54,6 +64,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   @override
   void dispose() {
     _poll?.cancel();
+    unawaited(_watcher?.close());
     super.dispose();
   }
 
@@ -61,7 +72,31 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     final m = _model;
     if (m == null || !mounted) return;
     unawaited(m.checkDisk());
-    if (++_tick % 5 == 0) unawaited(m.refresh(quiet: true));
+    unawaited(m.refresh(quiet: true));
+  }
+
+  /// Watches the folders of [m] (re-done when the tree changes).
+  void _watch(CodeWorktreeModel m) {
+    final dirs = m.index.dirs;
+    if (_watchedRoot == m.root && _watchedDirs == dirs.length) return;
+    _watchedRoot = m.root;
+    _watchedDirs = dirs.length;
+    final paths = [
+      m.root,
+      for (final d in dirs.take(CodeScreen.maxWatchedDirs)) '${m.root}/$d',
+    ];
+    if (_watcher == null) {
+      _watcher = DirWatcher(paths, onChange: (_) => _onDisk());
+    } else {
+      _watcher!.update(paths);
+    }
+  }
+
+  void _onDisk() {
+    final m = _model;
+    if (m == null || !mounted) return;
+    unawaited(m.checkDisk());
+    unawaited(m.refresh(quiet: true));
   }
 
   void _snack(String msg) {
@@ -230,6 +265,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     );
     final model = ref.watch(codeWorktreeModelProvider(selected.path));
     _model = model;
+    _watch(model);
     model.setBaseBranch(selected.isRoot ? null : selected.session?.baseBranch);
     if (_loaded.add(selected.path)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

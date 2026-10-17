@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
+import '../specs/workspace_watcher.dart';
 import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
 import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
@@ -516,11 +517,19 @@ class SpecCard extends ConsumerWidget {
     final waitingUser = current?.status == StepStatus.needsInput;
     final prep = ref.watch(worktreePrepProvider.select((m) => m[spec.id]));
 
+    final changedOnDisk = ref.watch(
+      workspaceWatcherProvider.select((s) => s.contains(spec.id)),
+    );
+
     var meta = '';
     var metaColor = AppColors.textSecondary;
     var border = AppColors.border;
     if (spec.stage == SpecStage.done) {
       meta = 'concluída';
+    } else if (changedOnDisk && !busy) {
+      meta = 'spec alterada no disco';
+      metaColor = AppColors.amber;
+      border = SessionColors.approvalBorder;
     } else if (prep?.running ?? false) {
       meta = 'Preparando worktree…';
       metaColor = AppColors.lilac;
@@ -694,7 +703,22 @@ class SpecCard extends ConsumerWidget {
                 ),
               ],
             ),
-            if (prep?.error != null) ...[
+            if (changedOnDisk) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'O arquivo da spec mudou enquanto ela rodava. Confirme para '
+                'as próximas etapas usarem o texto novo.',
+                style: TextStyle(fontSize: 11, color: AppColors.amber),
+              ),
+              const SizedBox(height: 6),
+              _ActionButton(
+                key: ValueKey('board-confirm-change-${spec.code}'),
+                label: 'Confirmar alteração',
+                onTap: () => ref
+                    .read(workspaceWatcherProvider.notifier)
+                    .confirm(spec.id),
+              ),
+            ] else if (prep?.error != null) ...[
               const SizedBox(height: 6),
               Text(
                 tailLines(prep!.error!, 3),

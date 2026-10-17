@@ -13,6 +13,7 @@ import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/project/project_memory.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
+import 'package:promptorium/features/specs/workspace_watcher.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
@@ -661,5 +662,45 @@ void main() {
       ]);
       expect(m.entries[1].origin, 'SPEC-001 R1');
     }, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('spec file changed while it runs: flagged, no next step until '
+        'confirmed (F11)', () async {
+      c.listen(workspacesProvider, (_, _) {});
+      await c
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.activeWorkspace, '${ws.id}');
+      await until(() async => c.read(activeWorkspaceProvider) != null);
+      c.listen(workspaceWatcherProvider, (_, _) {});
+      await c.read(specsRepoProvider).setAutoAdvance(spec.id, false);
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        specText.replaceFirst('Extrair índices', 'Extrair índices e views'),
+      );
+      await until(
+        () async => c.read(workspaceWatcherProvider).contains(spec.id),
+      );
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains('alterada no disco'),
+          ),
+        ),
+      );
+      c.read(workspaceWatcherProvider.notifier).confirm(spec.id);
+      await runner.runNext(spec.id);
+      await settle();
+      expect(
+        cli.last.writtenJson.single['message']['content'],
+        contains('Extrair índices e views'),
+      );
+    });
   });
 }
