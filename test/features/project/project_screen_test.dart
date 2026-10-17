@@ -421,7 +421,8 @@ void main() {
     // Real file IO (code detection, config, memory) does not run under
     // FakeAsync: let it run, then pump, until the tab shows.
     Future<void> settleIo(bool Function() until) async {
-      for (var i = 0; i < 100; i++) {
+      // Bounded but generous: the full suite runs files in parallel.
+      for (var i = 0; i < 400; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );

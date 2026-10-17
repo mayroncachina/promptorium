@@ -1,6 +1,6 @@
 # Plano — UX v2 (mockups aprovados)
 
-> Status: em execução (2026-10-17, branch `teste`). Fonte: [`docs/mockups/v2/`](mockups/v2/README.md)
+> Status: implementado (2026-10-17, branch `teste`, U1–U9). Fonte: [`docs/mockups/v2/`](mockups/v2/README.md)
 > (canvas: https://claude.ai/artifact/2nALCRdzQV6oyfneUQZXxN) e [`docs/analise-ides/`](analise-ides/00-README.md).
 > Uma **fase** = um commit; cada fase termina com `flutter analyze` limpo, testes passando e entrada no CHANGELOG.
 > Nada aqui muda o schema do banco (v14) salvo onde indicado.
@@ -43,3 +43,4 @@
 | U6 | (ver git log) | "Analisar repositório" é leitura de arquivos (pubspec, package.json…), sem chamar o planner: propõe comandos de teste/lint/formatar/preparar e grava na memória; CLAUDE.md e primeiras specs continuam pelo botão "Planejar um novo roadmap…" da Configuração. Aba Saúde só para repositório com código (projeto novo segue no stepper) |
 | U7 | (ver git log) | O stepper de planejamento continua (Visão · Stack · Roadmap · Revisar e criar): "Gerar proposta completa" roda os três passos e pousa em Revisar e criar, em vez da tela de três colunas do mockup. "Abrir pasta existente" exige git (pasta sem git segue pelo seletor de workspace). O diálogo antigo fica no código sem uso direto (`new_project_dialog.dart` só empresta `tildePath` / `defaultProjectParent`) |
 | U8 | (ver git log) | Sem a visão "Linha do tempo" (Colunas e Grafo continuam). A ação principal do cartão continua a mesma de antes (não há botão "Aprovar edição" no cartão: a aprovação é feita no Início, na paleta ou na sessão) |
+| U9 | (ver git log) | O grupo Workspace tem uma seção só ("Configuração do projeto", o formulário inteiro com o seu Salvar), não cinco: dividir o formulário em seções exigiria refazer o estado dele. A aba Configuração da tela Projeto continua existindo (mesmo widget). Sem seções Atalhos / Notificações / Autopilot e agenda (a agenda segue no Quadro) e sem "versão recomendada do CLI" no rodapé |
