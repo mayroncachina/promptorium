@@ -7,7 +7,7 @@ import '../../ui/shell/notification_center.dart'
     show recentNotificationsProvider;
 import '../../ui/theme/tokens.dart';
 import '../board/autopilot.dart';
-import '../board/board_screen.dart' show openSession;
+import '../board/board_screen.dart' show openSession, openSessionIn;
 import '../board/widgets/card_extras.dart' show LiveToolLine;
 import '../project/project_config.dart';
 import '../prompt/conversation_manager.dart';
@@ -245,7 +245,24 @@ class _InboxRow extends ConsumerWidget {
     );
     final key = ValueKey('home-action-${item.kind.name}-${id ?? item.ref}');
     return switch (item.kind) {
-      InboxKind.approval => (const SizedBox.shrink(), null),
+      // Only a "plano pronto" of a conversation gets here (no approval).
+      InboxKind.approval => (
+        SmallButton(
+          key: key,
+          label: 'Ver plano',
+          height: 28,
+          background: SessionColors.selectedBg,
+          border: SessionColors.selectedBorder,
+          onTap: () {
+            final conv = item.conversationId;
+            if (conv != null) {
+              ref.read(selectedConversationProvider.notifier).select(conv);
+            }
+            ref.read(navigationProvider.notifier).go(AppSection.prompt);
+          },
+        ),
+        null,
+      ),
       InboxKind.needsAnswer => (
         AmberButton(
           key: key,
@@ -283,11 +300,14 @@ class _InboxRow extends ConsumerWidget {
           onTap: () async {
             if (id == null) return;
             final messenger = ScaffoldMessenger.maybeOf(context);
+            // The row leaves the inbox once the session is alive again, so
+            // [ref] may be gone after the await.
+            final container = ProviderScope.containerOf(context);
             try {
-              await ref
+              await container
                   .read(sessionManagerProvider.notifier)
                   .send(id, 'Continue de onde parou.');
-              openSession(ref, id);
+              openSessionIn(container, id);
             } catch (e) {
               messenger?.showSnackBar(SnackBar(content: Text('$e')));
             }

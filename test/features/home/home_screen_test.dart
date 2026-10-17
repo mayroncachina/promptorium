@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/home/home_inbox.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
@@ -24,6 +25,39 @@ Future<void> pumpFor(WidgetTester tester, [int times = 10]) async {
 }
 
 void main() {
+  test('a plan ready of a conversation has no Aprovar (only the Prompt screen '
+      'answers it)', () {
+    PendingApproval approval(String id, String tool) => PendingApproval(
+      sessionId: 'conv',
+      sessionTitle: 'Conversa',
+      request:
+          ClaudeEvent.parseLine(
+                '{"type":"control_request","request_id":"$id","request":'
+                '{"subtype":"can_use_tool","tool_name":"$tool",'
+                '"input":{"plan":"1. Editar"}}}',
+              ).single
+              as PermissionRequest,
+      receivedAt: DateTime(2026, 10, 17),
+    );
+    final groups = buildInbox(
+      sessionApprovals: const [],
+      conversationApprovals: {
+        7: [approval('r1', 'ExitPlanMode'), approval('r2', 'Bash')],
+      },
+      specs: const [],
+      stepRows: const [],
+      sessions: const [],
+      reviewQueue: const [],
+      prWatches: const {},
+      isAlive: (_) => false,
+    );
+    final items = groups.single.items;
+    final plan = items.firstWhere((i) => i.title.contains('plano pronto'));
+    expect(plan.approval, isNull);
+    expect(plan.conversationId, 7);
+    expect(items.where((i) => i.approval != null), hasLength(1));
+  });
+
   test('buildInbox groups by kind, urgency order, newest first', () {
     final now = DateTime(2026, 10, 17, 10);
     Session session(String id, SessionStatus st, {DateTime? ended}) => Session(

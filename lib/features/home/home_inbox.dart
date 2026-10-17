@@ -132,15 +132,28 @@ List<InboxGroup> buildInbox({
       ),
     for (final e in conversationApprovals.entries)
       for (final a in e.value)
-        InboxItem(
-          kind: InboxKind.approval,
-          ref: 'Prompt',
-          title: '${a.sessionTitle} quer ${approvalVerb(a.request.toolName)}',
-          detail: toolLine(a),
-          at: a.receivedAt,
-          conversationId: e.key,
-          approval: a,
-        ),
+        // "Plano pronto" is answered on the Prompt screen (U4): approving
+        // ExitPlanMode would let the conversation edit files, so no
+        // [InboxItem.approval] (no Aprovar here, in the palette or Ctrl+Shift+A).
+        if (a.request.toolName == 'ExitPlanMode')
+          InboxItem(
+            kind: InboxKind.approval,
+            ref: 'Prompt',
+            title: '${a.sessionTitle} tem um plano pronto',
+            detail: 'Ajustar ou implementar na tela Prompt',
+            at: a.receivedAt,
+            conversationId: e.key,
+          )
+        else
+          InboxItem(
+            kind: InboxKind.approval,
+            ref: 'Prompt',
+            title: '${a.sessionTitle} quer ${approvalVerb(a.request.toolName)}',
+            detail: toolLine(a),
+            at: a.receivedAt,
+            conversationId: e.key,
+            approval: a,
+          ),
   ];
 
   final needsAnswer = <InboxItem>[];
@@ -263,15 +276,26 @@ final inboxProvider = Provider.autoDispose<List<InboxGroup>>((ref) {
   if (ws == null) return const [];
   final manager = ref.watch(sessionManagerProvider);
   final conversations = ref.watch(conversationManagerProvider);
+  final sessions = ref.watch(sessionsProvider(ws.id)).value ?? const [];
+  // Live processes of every workspace: only this workspace's approvals.
+  final sessionIds = {for (final s in sessions) s.id};
+  final conversationIds = {
+    for (final c in ref.watch(conversationsProvider(ws.id)).value ?? const [])
+      c.id,
+  };
   return buildInbox(
-    sessionApprovals: manager.approvals,
+    sessionApprovals: [
+      for (final a in manager.approvals)
+        if (sessionIds.contains(a.sessionId)) a,
+    ],
     conversationApprovals: {
       for (final e in conversations.live.entries)
-        if (e.value.approvals.isNotEmpty) e.key: e.value.approvals,
+        if (e.value.approvals.isNotEmpty && conversationIds.contains(e.key))
+          e.key: e.value.approvals,
     },
     specs: ref.watch(specsProvider(ws.id)).value ?? const [],
     stepRows: ref.watch(specStepsProvider(ws.id)).value ?? const [],
-    sessions: ref.watch(sessionsProvider(ws.id)).value ?? const [],
+    sessions: sessions,
     reviewQueue: ref.watch(reviewQueueProvider(ws.id)).value ?? const [],
     prWatches: ref.watch(prBabysitterProvider),
     isAlive: manager.isAlive,
