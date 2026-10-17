@@ -114,6 +114,7 @@ void main() {
         requirements: const [],
         dependsOn: const [],
         autoAdvance: true,
+        reviewRounds: 0,
       );
       const steps = [
         StepView(id: 'R1', text: 'Extrair tabelas', status: StepStatus.done),
@@ -541,6 +542,54 @@ void main() {
       expect(prompt, contains('<tentativa-anterior>'));
       expect(prompt, contains('Feito.'));
       expect(prompt, contains('Implemente a etapa R1'));
+    });
+
+    test('new worktree: copiar / preparar, index and PROMPTORIUM_* in the '
+        'session; a failed preparar is retried by the next run', () async {
+      File('$repo/.gitignore').writeAsStringSync('.env\n');
+      await gitIn(repo, ['add', '.gitignore']);
+      await gitIn(repo, ['commit', '-q', '-m', 'ignore']);
+      File('$repo/.env').writeAsStringSync('X=1\n');
+      Directory('$repo/.promptorium').createSync();
+      final cfg = File('$repo/.promptorium/config.yml')
+        ..writeAsStringSync(
+          'worktree:\n  copiar: [.env]\n  preparar: exit 3\n'
+          '  porta-base: 4000\n',
+        );
+      final runner = c.read(specRunnerProvider);
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains('Falha ao preparar o worktree'),
+          ),
+        ),
+      );
+      expect(c.read(worktreePrepProvider)[spec.id]?.error, isNotNull);
+      expect(cli.processes, isEmpty);
+      var row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(row.preparedAt, isNull);
+      expect(row.worktreeIndex, 1);
+
+      cfg.writeAsStringSync(
+        'worktree:\n  copiar: [.env]\n  preparar: touch pronto\n'
+        '  porta-base: 4000\n',
+      );
+      await runner.runNext(spec.id);
+      await settle();
+      row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(row.preparedAt, isNotNull);
+      expect(c.read(worktreePrepProvider)[spec.id], isNull);
+      expect(File('${row.worktreePath}/.env').existsSync(), isTrue);
+      expect(File('${row.worktreePath}/pronto').existsSync(), isTrue);
+      expect(cli.envs.single, {
+        'PROMPTORIUM_ROOT': repo,
+        'PROMPTORIUM_WORKTREE': row.worktreePath,
+        'PROMPTORIUM_SPEC': 'SPEC-001',
+        'PROMPTORIUM_PORT': '4001',
+      });
     });
   });
 }

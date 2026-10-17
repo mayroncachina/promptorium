@@ -14,6 +14,8 @@ import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
+import '../../core/git/worktree_setup.dart';
+import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
@@ -60,6 +62,7 @@ class NewSessionRequest {
     this.worktreePath,
     this.branch,
     this.baseBranch,
+    this.environment,
   });
 
   final Workspace workspace;
@@ -100,6 +103,9 @@ class NewSessionRequest {
   final String? worktreePath;
   final String? branch;
   final String? baseBranch;
+
+  /// Extra variables of the process (`PROMPTORIUM_*`); null = computed.
+  final Map<String, String>? environment;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -280,6 +286,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
+        await _setupWorktree(ws.path, wt);
       } else {
         branch = await git.currentBranch() ?? 'HEAD';
       }
@@ -306,6 +313,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
+    final env =
+        r.environment ?? worktreeEnvironment(root: ws.path, worktree: path);
     await _start(
       id,
       ClaudeOptions(
@@ -324,6 +333,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       cwd: path,
       title: title,
       root: ws.path,
+      environment: env,
     );
     await send(id, prompt);
     return id;
@@ -495,6 +505,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       title: _titleOf(s),
       baseCost: s.costUsd,
       root: ws?.path,
+      environment: ws == null ? null : await _environmentOf(s, ws),
     );
     await _repo.setStatus(id, SessionStatus.completed);
   }
@@ -520,12 +531,21 @@ class SessionManager extends Notifier<SessionManagerState> {
         : 'Fork de ${_titleOf(parent)}';
     String path = ws.path, branch = parent.branch;
     if (parent.worktreePath != ws.path) {
+      final factory = ref.read(gitServiceFactoryProvider);
       try {
-        final wt = await ref
-            .read(gitServiceFactoryProvider)(ws.path)
+        // The parent's uncommitted changes go along (DT-18).
+        String? stash;
+        try {
+          stash = await factory(parent.worktreePath).stashCreate();
+        } on GitException catch (e) {
+          debugPrint('fork de $id: alterações não copiadas — $e');
+        }
+        final wt = await factory(ws.path)
             .addWorktree(sessionSlug(name, newId), baseBranch: parent.branch);
         path = wt.path;
         branch = wt.branch;
+        if (stash != null) await factory(path).stashApply(stash);
+        await _setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
@@ -568,6 +588,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       title: name,
       baseCost: parent.costUsd,
       root: ws.path,
+      environment: worktreeEnvironment(root: ws.path, worktree: path),
     );
     await send(newId, prompt);
     return newId;
@@ -732,6 +753,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     required String title,
     double baseCost = 0,
     String? root,
+    Map<String, String>? environment,
   }) async {
     if (_shuttingDown) {
       throw const SessionException('O aplicativo está sendo encerrado.');
@@ -747,6 +769,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         workingDirectory: cwd,
         executable: ref.read(claudeExecutableProvider),
         starter: ref.read(claudeProcessStarterProvider),
+        environment: environment,
       );
     } catch (e) {
       await _note(id, 'Falha ao iniciar o Claude Code: $e', error: true);
@@ -755,6 +778,9 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     final p = _Proc(process, title, baseCost);
     _procs[id] = p;
+    if (environment != null) {
+      ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
+    }
     p.logSub = process.logs.listen(
       (l) => debugPrint('claude[$id] $l'),
       onError: (_) {},
@@ -764,6 +790,57 @@ class SessionManager extends Notifier<SessionManagerState> {
       onDone: () => _enqueue(id, p, () => _onExit(id, p)),
     );
     _publish();
+  }
+
+  /// A new session / fork worktree: `copiar:` and `preparar:` of the
+  /// project's config. Failure removes the worktree (nothing was done in
+  /// it yet) and is reported to the caller.
+  Future<void> _setupWorktree(String root, CreatedWorktree wt) async {
+    final config = ProjectConfig.loadSync(root);
+    final wc = config.worktree;
+    if (wc.copy.isEmpty && wc.prepare == null) return;
+    final git = ref.read(gitServiceFactoryProvider)(root);
+    final r =
+        await WorktreeSetup(
+          root: git,
+          shell: ref.read(shellRunnerProvider),
+        ).run(
+          wt.path,
+          copy: wc.copy,
+          prepare: wc.prepare,
+          timeout: config.gate.timeout,
+          environment: worktreeEnvironment(root: root, worktree: wt.path),
+        );
+    if (r.ok) return;
+    try {
+      await git.removeWorktree(wt.path, force: true);
+      await git.deleteBranch(wt.branch, force: true);
+    } on GitException catch (e) {
+      debugPrint('worktree ${wt.path} não removido — $e');
+    }
+    throw GitException(
+      'preparar: (${wc.prepare}) falhou',
+      stdout: r.prepare!.output,
+    );
+  }
+
+  /// `PROMPTORIUM_*` of a stored session (spec code and port when it works
+  /// on a spec).
+  Future<Map<String, String>> _environmentOf(Session s, Workspace ws) async {
+    final spec = s.specId == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(s.specId!);
+    final base = spec == null
+        ? null
+        : ProjectConfig.loadSync(ws.path).worktree.basePort;
+    return worktreeEnvironment(
+      root: ws.path,
+      worktree: s.worktreePath,
+      specCode: spec?.code,
+      port: base == null || spec?.worktreeIndex == null
+          ? null
+          : base + spec!.worktreeIndex!,
+    );
   }
 
   /// The app's hooks of the session (`--settings`); null = none (off in
@@ -1113,6 +1190,21 @@ String sessionSlug(String title, String id) {
   final tail = suffix.substring(0, math.min(6, suffix.length)).toLowerCase();
   return slug.isEmpty ? 'sessao-$tail' : '$slug-$tail';
 }
+
+/// `PROMPTORIUM_*` of each worktree that had a session in this app session,
+/// by path (the embedded terminals use them).
+class WorktreeEnvs extends Notifier<Map<String, Map<String, String>>> {
+  @override
+  Map<String, Map<String, String>> build() => const {};
+
+  void set(String path, Map<String, String> env) =>
+      state = {...state, path: env};
+}
+
+final worktreeEnvProvider =
+    NotifierProvider<WorktreeEnvs, Map<String, Map<String, String>>>(
+      WorktreeEnvs.new,
+    );
 
 final sessionManagerProvider =
     NotifierProvider<SessionManager, SessionManagerState>(SessionManager.new);

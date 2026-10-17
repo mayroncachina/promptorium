@@ -471,6 +471,62 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _worktreeIndexMeta = const VerificationMeta(
+    'worktreeIndex',
+  );
+  @override
+  late final GeneratedColumn<int> worktreeIndex = GeneratedColumn<int>(
+    'worktree_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _preparedAtMeta = const VerificationMeta(
+    'preparedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> preparedAt = GeneratedColumn<DateTime>(
+    'prepared_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewPhaseMeta = const VerificationMeta(
+    'reviewPhase',
+  );
+  @override
+  late final GeneratedColumn<String> reviewPhase = GeneratedColumn<String>(
+    'review_phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewRoundsMeta = const VerificationMeta(
+    'reviewRounds',
+  );
+  @override
+  late final GeneratedColumn<int> reviewRounds = GeneratedColumn<int>(
+    'review_rounds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _mergeOverrideMeta = const VerificationMeta(
+    'mergeOverride',
+  );
+  @override
+  late final GeneratedColumn<String> mergeOverride = GeneratedColumn<String>(
+    'merge_override',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -488,6 +544,11 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     branch,
     baseBranch,
     autoAdvance,
+    worktreeIndex,
+    preparedAt,
+    reviewPhase,
+    reviewRounds,
+    mergeOverride,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -581,6 +642,48 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('worktree_index')) {
+      context.handle(
+        _worktreeIndexMeta,
+        worktreeIndex.isAcceptableOrUnknown(
+          data['worktree_index']!,
+          _worktreeIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prepared_at')) {
+      context.handle(
+        _preparedAtMeta,
+        preparedAt.isAcceptableOrUnknown(data['prepared_at']!, _preparedAtMeta),
+      );
+    }
+    if (data.containsKey('review_phase')) {
+      context.handle(
+        _reviewPhaseMeta,
+        reviewPhase.isAcceptableOrUnknown(
+          data['review_phase']!,
+          _reviewPhaseMeta,
+        ),
+      );
+    }
+    if (data.containsKey('review_rounds')) {
+      context.handle(
+        _reviewRoundsMeta,
+        reviewRounds.isAcceptableOrUnknown(
+          data['review_rounds']!,
+          _reviewRoundsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('merge_override')) {
+      context.handle(
+        _mergeOverrideMeta,
+        mergeOverride.isAcceptableOrUnknown(
+          data['merge_override']!,
+          _mergeOverrideMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -662,6 +765,26 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.bool,
         data['${effectivePrefix}auto_advance'],
       )!,
+      worktreeIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worktree_index'],
+      ),
+      preparedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}prepared_at'],
+      ),
+      reviewPhase: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}review_phase'],
+      ),
+      reviewRounds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}review_rounds'],
+      )!,
+      mergeOverride: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}merge_override'],
+      ),
     );
   }
 
@@ -715,6 +838,25 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// A finished step opens the session of the next one.
   final bool autoAdvance;
+
+  /// Smallest free index among the workspace's live spec worktrees:
+  /// `PROMPTORIUM_PORT` = `porta-base` + index.
+  final int? worktreeIndex;
+
+  /// When the worktree got the `copiar:` files and ran `preparar:` (null =
+  /// not prepared yet: the next run prepares it first).
+  final DateTime? preparedAt;
+
+  /// `auto` while the automatic reviewer works on the spec, `human` after
+  /// it approved or ran out of rounds (null = no reviewer).
+  final String? reviewPhase;
+
+  /// Correction rounds asked by the automatic reviewer.
+  final int reviewRounds;
+
+  /// Reason given for "Mergear mesmo assim" with acceptance criteria
+  /// unchecked.
+  final String? mergeOverride;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -731,6 +873,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.branch,
     this.baseBranch,
     required this.autoAdvance,
+    this.worktreeIndex,
+    this.preparedAt,
+    this.reviewPhase,
+    required this.reviewRounds,
+    this.mergeOverride,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -774,6 +921,19 @@ class Spec extends DataClass implements Insertable<Spec> {
       map['base_branch'] = Variable<String>(baseBranch);
     }
     map['auto_advance'] = Variable<bool>(autoAdvance);
+    if (!nullToAbsent || worktreeIndex != null) {
+      map['worktree_index'] = Variable<int>(worktreeIndex);
+    }
+    if (!nullToAbsent || preparedAt != null) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt);
+    }
+    if (!nullToAbsent || reviewPhase != null) {
+      map['review_phase'] = Variable<String>(reviewPhase);
+    }
+    map['review_rounds'] = Variable<int>(reviewRounds);
+    if (!nullToAbsent || mergeOverride != null) {
+      map['merge_override'] = Variable<String>(mergeOverride);
+    }
     return map;
   }
 
@@ -804,6 +964,19 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? const Value.absent()
           : Value(baseBranch),
       autoAdvance: Value(autoAdvance),
+      worktreeIndex: worktreeIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(worktreeIndex),
+      preparedAt: preparedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preparedAt),
+      reviewPhase: reviewPhase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewPhase),
+      reviewRounds: Value(reviewRounds),
+      mergeOverride: mergeOverride == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mergeOverride),
     );
   }
 
@@ -834,6 +1007,11 @@ class Spec extends DataClass implements Insertable<Spec> {
       branch: serializer.fromJson<String?>(json['branch']),
       baseBranch: serializer.fromJson<String?>(json['baseBranch']),
       autoAdvance: serializer.fromJson<bool>(json['autoAdvance']),
+      worktreeIndex: serializer.fromJson<int?>(json['worktreeIndex']),
+      preparedAt: serializer.fromJson<DateTime?>(json['preparedAt']),
+      reviewPhase: serializer.fromJson<String?>(json['reviewPhase']),
+      reviewRounds: serializer.fromJson<int>(json['reviewRounds']),
+      mergeOverride: serializer.fromJson<String?>(json['mergeOverride']),
     );
   }
   @override
@@ -861,6 +1039,11 @@ class Spec extends DataClass implements Insertable<Spec> {
       'branch': serializer.toJson<String?>(branch),
       'baseBranch': serializer.toJson<String?>(baseBranch),
       'autoAdvance': serializer.toJson<bool>(autoAdvance),
+      'worktreeIndex': serializer.toJson<int?>(worktreeIndex),
+      'preparedAt': serializer.toJson<DateTime?>(preparedAt),
+      'reviewPhase': serializer.toJson<String?>(reviewPhase),
+      'reviewRounds': serializer.toJson<int>(reviewRounds),
+      'mergeOverride': serializer.toJson<String?>(mergeOverride),
     };
   }
 
@@ -880,6 +1063,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> branch = const Value.absent(),
     Value<String?> baseBranch = const Value.absent(),
     bool? autoAdvance,
+    Value<int?> worktreeIndex = const Value.absent(),
+    Value<DateTime?> preparedAt = const Value.absent(),
+    Value<String?> reviewPhase = const Value.absent(),
+    int? reviewRounds,
+    Value<String?> mergeOverride = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -896,6 +1084,15 @@ class Spec extends DataClass implements Insertable<Spec> {
     branch: branch.present ? branch.value : this.branch,
     baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
     autoAdvance: autoAdvance ?? this.autoAdvance,
+    worktreeIndex: worktreeIndex.present
+        ? worktreeIndex.value
+        : this.worktreeIndex,
+    preparedAt: preparedAt.present ? preparedAt.value : this.preparedAt,
+    reviewPhase: reviewPhase.present ? reviewPhase.value : this.reviewPhase,
+    reviewRounds: reviewRounds ?? this.reviewRounds,
+    mergeOverride: mergeOverride.present
+        ? mergeOverride.value
+        : this.mergeOverride,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -924,6 +1121,21 @@ class Spec extends DataClass implements Insertable<Spec> {
       autoAdvance: data.autoAdvance.present
           ? data.autoAdvance.value
           : this.autoAdvance,
+      worktreeIndex: data.worktreeIndex.present
+          ? data.worktreeIndex.value
+          : this.worktreeIndex,
+      preparedAt: data.preparedAt.present
+          ? data.preparedAt.value
+          : this.preparedAt,
+      reviewPhase: data.reviewPhase.present
+          ? data.reviewPhase.value
+          : this.reviewPhase,
+      reviewRounds: data.reviewRounds.present
+          ? data.reviewRounds.value
+          : this.reviewRounds,
+      mergeOverride: data.mergeOverride.present
+          ? data.mergeOverride.value
+          : this.mergeOverride,
     );
   }
 
@@ -944,7 +1156,12 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('baseBranch: $baseBranch, ')
-          ..write('autoAdvance: $autoAdvance')
+          ..write('autoAdvance: $autoAdvance, ')
+          ..write('worktreeIndex: $worktreeIndex, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('reviewPhase: $reviewPhase, ')
+          ..write('reviewRounds: $reviewRounds, ')
+          ..write('mergeOverride: $mergeOverride')
           ..write(')'))
         .toString();
   }
@@ -966,6 +1183,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     branch,
     baseBranch,
     autoAdvance,
+    worktreeIndex,
+    preparedAt,
+    reviewPhase,
+    reviewRounds,
+    mergeOverride,
   );
   @override
   bool operator ==(Object other) =>
@@ -985,7 +1207,12 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.worktreePath == this.worktreePath &&
           other.branch == this.branch &&
           other.baseBranch == this.baseBranch &&
-          other.autoAdvance == this.autoAdvance);
+          other.autoAdvance == this.autoAdvance &&
+          other.worktreeIndex == this.worktreeIndex &&
+          other.preparedAt == this.preparedAt &&
+          other.reviewPhase == this.reviewPhase &&
+          other.reviewRounds == this.reviewRounds &&
+          other.mergeOverride == this.mergeOverride);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1004,6 +1231,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> branch;
   final Value<String?> baseBranch;
   final Value<bool> autoAdvance;
+  final Value<int?> worktreeIndex;
+  final Value<DateTime?> preparedAt;
+  final Value<String?> reviewPhase;
+  final Value<int> reviewRounds;
+  final Value<String?> mergeOverride;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1020,6 +1252,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.branch = const Value.absent(),
     this.baseBranch = const Value.absent(),
     this.autoAdvance = const Value.absent(),
+    this.worktreeIndex = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.reviewPhase = const Value.absent(),
+    this.reviewRounds = const Value.absent(),
+    this.mergeOverride = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1037,6 +1274,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.branch = const Value.absent(),
     this.baseBranch = const Value.absent(),
     this.autoAdvance = const Value.absent(),
+    this.worktreeIndex = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.reviewPhase = const Value.absent(),
+    this.reviewRounds = const Value.absent(),
+    this.mergeOverride = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1057,6 +1299,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? branch,
     Expression<String>? baseBranch,
     Expression<bool>? autoAdvance,
+    Expression<int>? worktreeIndex,
+    Expression<DateTime>? preparedAt,
+    Expression<String>? reviewPhase,
+    Expression<int>? reviewRounds,
+    Expression<String>? mergeOverride,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1074,6 +1321,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (branch != null) 'branch': branch,
       if (baseBranch != null) 'base_branch': baseBranch,
       if (autoAdvance != null) 'auto_advance': autoAdvance,
+      if (worktreeIndex != null) 'worktree_index': worktreeIndex,
+      if (preparedAt != null) 'prepared_at': preparedAt,
+      if (reviewPhase != null) 'review_phase': reviewPhase,
+      if (reviewRounds != null) 'review_rounds': reviewRounds,
+      if (mergeOverride != null) 'merge_override': mergeOverride,
     });
   }
 
@@ -1093,6 +1345,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? branch,
     Value<String?>? baseBranch,
     Value<bool>? autoAdvance,
+    Value<int?>? worktreeIndex,
+    Value<DateTime?>? preparedAt,
+    Value<String?>? reviewPhase,
+    Value<int>? reviewRounds,
+    Value<String?>? mergeOverride,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -1110,6 +1367,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       branch: branch ?? this.branch,
       baseBranch: baseBranch ?? this.baseBranch,
       autoAdvance: autoAdvance ?? this.autoAdvance,
+      worktreeIndex: worktreeIndex ?? this.worktreeIndex,
+      preparedAt: preparedAt ?? this.preparedAt,
+      reviewPhase: reviewPhase ?? this.reviewPhase,
+      reviewRounds: reviewRounds ?? this.reviewRounds,
+      mergeOverride: mergeOverride ?? this.mergeOverride,
     );
   }
 
@@ -1169,6 +1431,21 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (autoAdvance.present) {
       map['auto_advance'] = Variable<bool>(autoAdvance.value);
     }
+    if (worktreeIndex.present) {
+      map['worktree_index'] = Variable<int>(worktreeIndex.value);
+    }
+    if (preparedAt.present) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt.value);
+    }
+    if (reviewPhase.present) {
+      map['review_phase'] = Variable<String>(reviewPhase.value);
+    }
+    if (reviewRounds.present) {
+      map['review_rounds'] = Variable<int>(reviewRounds.value);
+    }
+    if (mergeOverride.present) {
+      map['merge_override'] = Variable<String>(mergeOverride.value);
+    }
     return map;
   }
 
@@ -1189,7 +1466,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('baseBranch: $baseBranch, ')
-          ..write('autoAdvance: $autoAdvance')
+          ..write('autoAdvance: $autoAdvance, ')
+          ..write('worktreeIndex: $worktreeIndex, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('reviewPhase: $reviewPhase, ')
+          ..write('reviewRounds: $reviewRounds, ')
+          ..write('mergeOverride: $mergeOverride')
           ..write(')'))
         .toString();
   }
@@ -7812,6 +8094,710 @@ class PendingNoticesCompanion extends UpdateCompanion<PendingNotice> {
   }
 }
 
+class $ReviewCommentsTable extends ReviewComments
+    with TableInfo<$ReviewCommentsTable, ReviewCommentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewCommentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _roundMeta = const VerificationMeta('round');
+  @override
+  late final GeneratedColumn<int> round = GeneratedColumn<int>(
+    'round',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authorMeta = const VerificationMeta('author');
+  @override
+  late final GeneratedColumn<String> author = GeneratedColumn<String>(
+    'author',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lineMeta = const VerificationMeta('line');
+  @override
+  late final GeneratedColumn<int> line = GeneratedColumn<int>(
+    'line',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _severityMeta = const VerificationMeta(
+    'severity',
+  );
+  @override
+  late final GeneratedColumn<String> severity = GeneratedColumn<String>(
+    'severity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _requirementMeta = const VerificationMeta(
+    'requirement',
+  );
+  @override
+  late final GeneratedColumn<String> requirement = GeneratedColumn<String>(
+    'requirement',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _verdictMeta = const VerificationMeta(
+    'verdict',
+  );
+  @override
+  late final GeneratedColumn<String> verdict = GeneratedColumn<String>(
+    'verdict',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _commitShaMeta = const VerificationMeta(
+    'commitSha',
+  );
+  @override
+  late final GeneratedColumn<String> commitSha = GeneratedColumn<String>(
+    'commit_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    round,
+    author,
+    path,
+    line,
+    body,
+    severity,
+    requirement,
+    verdict,
+    commitSha,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_comments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewCommentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('round')) {
+      context.handle(
+        _roundMeta,
+        round.isAcceptableOrUnknown(data['round']!, _roundMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roundMeta);
+    }
+    if (data.containsKey('author')) {
+      context.handle(
+        _authorMeta,
+        author.isAcceptableOrUnknown(data['author']!, _authorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_authorMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    }
+    if (data.containsKey('line')) {
+      context.handle(
+        _lineMeta,
+        line.isAcceptableOrUnknown(data['line']!, _lineMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('severity')) {
+      context.handle(
+        _severityMeta,
+        severity.isAcceptableOrUnknown(data['severity']!, _severityMeta),
+      );
+    }
+    if (data.containsKey('requirement')) {
+      context.handle(
+        _requirementMeta,
+        requirement.isAcceptableOrUnknown(
+          data['requirement']!,
+          _requirementMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verdict')) {
+      context.handle(
+        _verdictMeta,
+        verdict.isAcceptableOrUnknown(data['verdict']!, _verdictMeta),
+      );
+    }
+    if (data.containsKey('commit_sha')) {
+      context.handle(
+        _commitShaMeta,
+        commitSha.isAcceptableOrUnknown(data['commit_sha']!, _commitShaMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReviewCommentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewCommentRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      round: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}round'],
+      )!,
+      author: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      ),
+      line: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}line'],
+      ),
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      severity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}severity'],
+      ),
+      requirement: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}requirement'],
+      ),
+      verdict: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}verdict'],
+      ),
+      commitSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}commit_sha'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReviewCommentsTable createAlias(String alias) {
+    return $ReviewCommentsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewCommentRow extends DataClass
+    implements Insertable<ReviewCommentRow> {
+  final int id;
+  final int specId;
+
+  /// 1, 2… (the round that asked for it).
+  final int round;
+
+  /// `revisor` (automatic) or `humano`.
+  final String author;
+
+  /// Relative path; null = about the spec as a whole.
+  final String? path;
+  final int? line;
+  final String body;
+
+  /// `alta` / `media` / `baixa`.
+  final String? severity;
+
+  /// Requirement it is about (`R2`).
+  final String? requirement;
+
+  /// Verdict of the round (`aprovar` / `corrigir`) on its first comment, and
+  /// the commit reviewed.
+  final String? verdict;
+  final String? commitSha;
+  final DateTime createdAt;
+  const ReviewCommentRow({
+    required this.id,
+    required this.specId,
+    required this.round,
+    required this.author,
+    this.path,
+    this.line,
+    required this.body,
+    this.severity,
+    this.requirement,
+    this.verdict,
+    this.commitSha,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    map['round'] = Variable<int>(round);
+    map['author'] = Variable<String>(author);
+    if (!nullToAbsent || path != null) {
+      map['path'] = Variable<String>(path);
+    }
+    if (!nullToAbsent || line != null) {
+      map['line'] = Variable<int>(line);
+    }
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || severity != null) {
+      map['severity'] = Variable<String>(severity);
+    }
+    if (!nullToAbsent || requirement != null) {
+      map['requirement'] = Variable<String>(requirement);
+    }
+    if (!nullToAbsent || verdict != null) {
+      map['verdict'] = Variable<String>(verdict);
+    }
+    if (!nullToAbsent || commitSha != null) {
+      map['commit_sha'] = Variable<String>(commitSha);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ReviewCommentsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewCommentsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      round: Value(round),
+      author: Value(author),
+      path: path == null && nullToAbsent ? const Value.absent() : Value(path),
+      line: line == null && nullToAbsent ? const Value.absent() : Value(line),
+      body: Value(body),
+      severity: severity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(severity),
+      requirement: requirement == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requirement),
+      verdict: verdict == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verdict),
+      commitSha: commitSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(commitSha),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ReviewCommentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewCommentRow(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      round: serializer.fromJson<int>(json['round']),
+      author: serializer.fromJson<String>(json['author']),
+      path: serializer.fromJson<String?>(json['path']),
+      line: serializer.fromJson<int?>(json['line']),
+      body: serializer.fromJson<String>(json['body']),
+      severity: serializer.fromJson<String?>(json['severity']),
+      requirement: serializer.fromJson<String?>(json['requirement']),
+      verdict: serializer.fromJson<String?>(json['verdict']),
+      commitSha: serializer.fromJson<String?>(json['commitSha']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'round': serializer.toJson<int>(round),
+      'author': serializer.toJson<String>(author),
+      'path': serializer.toJson<String?>(path),
+      'line': serializer.toJson<int?>(line),
+      'body': serializer.toJson<String>(body),
+      'severity': serializer.toJson<String?>(severity),
+      'requirement': serializer.toJson<String?>(requirement),
+      'verdict': serializer.toJson<String?>(verdict),
+      'commitSha': serializer.toJson<String?>(commitSha),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ReviewCommentRow copyWith({
+    int? id,
+    int? specId,
+    int? round,
+    String? author,
+    Value<String?> path = const Value.absent(),
+    Value<int?> line = const Value.absent(),
+    String? body,
+    Value<String?> severity = const Value.absent(),
+    Value<String?> requirement = const Value.absent(),
+    Value<String?> verdict = const Value.absent(),
+    Value<String?> commitSha = const Value.absent(),
+    DateTime? createdAt,
+  }) => ReviewCommentRow(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    round: round ?? this.round,
+    author: author ?? this.author,
+    path: path.present ? path.value : this.path,
+    line: line.present ? line.value : this.line,
+    body: body ?? this.body,
+    severity: severity.present ? severity.value : this.severity,
+    requirement: requirement.present ? requirement.value : this.requirement,
+    verdict: verdict.present ? verdict.value : this.verdict,
+    commitSha: commitSha.present ? commitSha.value : this.commitSha,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
+    return ReviewCommentRow(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      round: data.round.present ? data.round.value : this.round,
+      author: data.author.present ? data.author.value : this.author,
+      path: data.path.present ? data.path.value : this.path,
+      line: data.line.present ? data.line.value : this.line,
+      body: data.body.present ? data.body.value : this.body,
+      severity: data.severity.present ? data.severity.value : this.severity,
+      requirement: data.requirement.present
+          ? data.requirement.value
+          : this.requirement,
+      verdict: data.verdict.present ? data.verdict.value : this.verdict,
+      commitSha: data.commitSha.present ? data.commitSha.value : this.commitSha,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCommentRow(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('round: $round, ')
+          ..write('author: $author, ')
+          ..write('path: $path, ')
+          ..write('line: $line, ')
+          ..write('body: $body, ')
+          ..write('severity: $severity, ')
+          ..write('requirement: $requirement, ')
+          ..write('verdict: $verdict, ')
+          ..write('commitSha: $commitSha, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    specId,
+    round,
+    author,
+    path,
+    line,
+    body,
+    severity,
+    requirement,
+    verdict,
+    commitSha,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewCommentRow &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.round == this.round &&
+          other.author == this.author &&
+          other.path == this.path &&
+          other.line == this.line &&
+          other.body == this.body &&
+          other.severity == this.severity &&
+          other.requirement == this.requirement &&
+          other.verdict == this.verdict &&
+          other.commitSha == this.commitSha &&
+          other.createdAt == this.createdAt);
+}
+
+class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<int> round;
+  final Value<String> author;
+  final Value<String?> path;
+  final Value<int?> line;
+  final Value<String> body;
+  final Value<String?> severity;
+  final Value<String?> requirement;
+  final Value<String?> verdict;
+  final Value<String?> commitSha;
+  final Value<DateTime> createdAt;
+  const ReviewCommentsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.round = const Value.absent(),
+    this.author = const Value.absent(),
+    this.path = const Value.absent(),
+    this.line = const Value.absent(),
+    this.body = const Value.absent(),
+    this.severity = const Value.absent(),
+    this.requirement = const Value.absent(),
+    this.verdict = const Value.absent(),
+    this.commitSha = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ReviewCommentsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    required int round,
+    required String author,
+    this.path = const Value.absent(),
+    this.line = const Value.absent(),
+    required String body,
+    this.severity = const Value.absent(),
+    this.requirement = const Value.absent(),
+    this.verdict = const Value.absent(),
+    this.commitSha = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       round = Value(round),
+       author = Value(author),
+       body = Value(body);
+  static Insertable<ReviewCommentRow> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<int>? round,
+    Expression<String>? author,
+    Expression<String>? path,
+    Expression<int>? line,
+    Expression<String>? body,
+    Expression<String>? severity,
+    Expression<String>? requirement,
+    Expression<String>? verdict,
+    Expression<String>? commitSha,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (round != null) 'round': round,
+      if (author != null) 'author': author,
+      if (path != null) 'path': path,
+      if (line != null) 'line': line,
+      if (body != null) 'body': body,
+      if (severity != null) 'severity': severity,
+      if (requirement != null) 'requirement': requirement,
+      if (verdict != null) 'verdict': verdict,
+      if (commitSha != null) 'commit_sha': commitSha,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ReviewCommentsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<int>? round,
+    Value<String>? author,
+    Value<String?>? path,
+    Value<int?>? line,
+    Value<String>? body,
+    Value<String?>? severity,
+    Value<String?>? requirement,
+    Value<String?>? verdict,
+    Value<String?>? commitSha,
+    Value<DateTime>? createdAt,
+  }) {
+    return ReviewCommentsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      round: round ?? this.round,
+      author: author ?? this.author,
+      path: path ?? this.path,
+      line: line ?? this.line,
+      body: body ?? this.body,
+      severity: severity ?? this.severity,
+      requirement: requirement ?? this.requirement,
+      verdict: verdict ?? this.verdict,
+      commitSha: commitSha ?? this.commitSha,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (round.present) {
+      map['round'] = Variable<int>(round.value);
+    }
+    if (author.present) {
+      map['author'] = Variable<String>(author.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (line.present) {
+      map['line'] = Variable<int>(line.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (severity.present) {
+      map['severity'] = Variable<String>(severity.value);
+    }
+    if (requirement.present) {
+      map['requirement'] = Variable<String>(requirement.value);
+    }
+    if (verdict.present) {
+      map['verdict'] = Variable<String>(verdict.value);
+    }
+    if (commitSha.present) {
+      map['commit_sha'] = Variable<String>(commitSha.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCommentsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('round: $round, ')
+          ..write('author: $author, ')
+          ..write('path: $path, ')
+          ..write('line: $line, ')
+          ..write('body: $body, ')
+          ..write('severity: $severity, ')
+          ..write('requirement: $requirement, ')
+          ..write('verdict: $verdict, ')
+          ..write('commitSha: $commitSha, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -7834,6 +8820,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $ReviewDraftsTable reviewDrafts = $ReviewDraftsTable(this);
   late final $PendingNoticesTable pendingNotices = $PendingNoticesTable(this);
+  late final $ReviewCommentsTable reviewComments = $ReviewCommentsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7855,6 +8842,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     autopilotStates,
     reviewDrafts,
     pendingNotices,
+    reviewComments,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -7955,6 +8943,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('pending_notices', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -8730,6 +9725,11 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> branch,
   Value<String?> baseBranch,
   Value<bool> autoAdvance,
+  Value<int?> worktreeIndex,
+  Value<DateTime?> preparedAt,
+  Value<String?> reviewPhase,
+  Value<int> reviewRounds,
+  Value<String?> mergeOverride,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -8747,6 +9747,11 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> branch,
   Value<String?> baseBranch,
   Value<bool> autoAdvance,
+  Value<int?> worktreeIndex,
+  Value<DateTime?> preparedAt,
+  Value<String?> reviewPhase,
+  Value<int> reviewRounds,
+  Value<String?> mergeOverride,
 });
 
 final class $$SpecsTableReferences
@@ -8821,6 +9826,24 @@ final class $$SpecsTableReferences
     ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_sessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ReviewCommentsTable, List<ReviewCommentRow>>
+  _reviewCommentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.reviewComments,
+    aliasName: 'specs__id__review_comments__spec_id',
+  );
+
+  $$ReviewCommentsTableProcessedTableManager get reviewCommentsRefs {
+    final manager = $$ReviewCommentsTableTableManager(
+      $_db,
+      $_db.reviewComments,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_reviewCommentsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -8910,6 +9933,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9010,6 +10058,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     );
     return f(composer);
   }
+
+  Expression<bool> reviewCommentsRefs(
+    Expression<bool> Function($$ReviewCommentsTableFilterComposer f) f,
+  ) {
+    final $$ReviewCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableOrderingComposer
@@ -9088,6 +10161,31 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -9172,6 +10270,31 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
     builder: (column) => column,
   );
 
@@ -9272,6 +10395,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> reviewCommentsRefs<T extends Object>(
+    Expression<T> Function($$ReviewCommentsTableAnnotationComposer a) f,
+  ) {
+    final $$ReviewCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -9292,6 +10440,7 @@ class $$SpecsTableTableManager
             bool specStepsRefs,
             bool tasksRefs,
             bool sessionsRefs,
+            bool reviewCommentsRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -9323,6 +10472,11 @@ class $$SpecsTableTableManager
                 Value<String?> branch = const Value.absent(),
                 Value<String?> baseBranch = const Value.absent(),
                 Value<bool> autoAdvance = const Value.absent(),
+                Value<int?> worktreeIndex = const Value.absent(),
+                Value<DateTime?> preparedAt = const Value.absent(),
+                Value<String?> reviewPhase = const Value.absent(),
+                Value<int> reviewRounds = const Value.absent(),
+                Value<String?> mergeOverride = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -9339,6 +10493,11 @@ class $$SpecsTableTableManager
                 branch: branch,
                 baseBranch: baseBranch,
                 autoAdvance: autoAdvance,
+                worktreeIndex: worktreeIndex,
+                preparedAt: preparedAt,
+                reviewPhase: reviewPhase,
+                reviewRounds: reviewRounds,
+                mergeOverride: mergeOverride,
               ),
           createCompanionCallback:
               ({
@@ -9358,6 +10517,11 @@ class $$SpecsTableTableManager
                 Value<String?> branch = const Value.absent(),
                 Value<String?> baseBranch = const Value.absent(),
                 Value<bool> autoAdvance = const Value.absent(),
+                Value<int?> worktreeIndex = const Value.absent(),
+                Value<DateTime?> preparedAt = const Value.absent(),
+                Value<String?> reviewPhase = const Value.absent(),
+                Value<int> reviewRounds = const Value.absent(),
+                Value<String?> mergeOverride = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -9374,6 +10538,11 @@ class $$SpecsTableTableManager
                 branch: branch,
                 baseBranch: baseBranch,
                 autoAdvance: autoAdvance,
+                worktreeIndex: worktreeIndex,
+                preparedAt: preparedAt,
+                reviewPhase: reviewPhase,
+                reviewRounds: reviewRounds,
+                mergeOverride: mergeOverride,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -9389,6 +10558,7 @@ class $$SpecsTableTableManager
                 specStepsRefs = false,
                 tasksRefs = false,
                 sessionsRefs = false,
+                reviewCommentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -9396,6 +10566,7 @@ class $$SpecsTableTableManager
                     if (specStepsRefs) db.specSteps,
                     if (tasksRefs) db.tasks,
                     if (sessionsRefs) db.sessions,
+                    if (reviewCommentsRefs) db.reviewComments,
                   ],
                   addJoins:
                       <
@@ -9476,6 +10647,27 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (reviewCommentsRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          ReviewCommentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._reviewCommentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).reviewCommentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -9501,6 +10693,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool specStepsRefs,
         bool tasksRefs,
         bool sessionsRefs,
+        bool reviewCommentsRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -14800,6 +15993,457 @@ typedef $$PendingNoticesTableProcessedTableManager =
       PendingNotice,
       PrefetchHooks Function({bool sessionId})
     >;
+typedef $$ReviewCommentsTableCreateCompanionBuilder =
+    ReviewCommentsCompanion Function({
+      Value<int> id,
+      required int specId,
+      required int round,
+      required String author,
+      Value<String?> path,
+      Value<int?> line,
+      required String body,
+      Value<String?> severity,
+      Value<String?> requirement,
+      Value<String?> verdict,
+      Value<String?> commitSha,
+      Value<DateTime> createdAt,
+    });
+typedef $$ReviewCommentsTableUpdateCompanionBuilder =
+    ReviewCommentsCompanion Function({
+      Value<int> id,
+      Value<int> specId,
+      Value<int> round,
+      Value<String> author,
+      Value<String?> path,
+      Value<int?> line,
+      Value<String> body,
+      Value<String?> severity,
+      Value<String?> requirement,
+      Value<String?> verdict,
+      Value<String?> commitSha,
+      Value<DateTime> createdAt,
+    });
+
+final class $$ReviewCommentsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ReviewCommentsTable, ReviewCommentRow> {
+  $$ReviewCommentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('review_comments__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ReviewCommentsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get author => $composableBuilder(
+    column: $table.author,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get line => $composableBuilder(
+    column: $table.line,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get verdict => $composableBuilder(
+    column: $table.verdict,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get commitSha => $composableBuilder(
+    column: $table.commitSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get author => $composableBuilder(
+    column: $table.author,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get line => $composableBuilder(
+    column: $table.line,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get verdict => $composableBuilder(
+    column: $table.verdict,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get commitSha => $composableBuilder(
+    column: $table.commitSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get round =>
+      $composableBuilder(column: $table.round, builder: (column) => column);
+
+  GeneratedColumn<String> get author =>
+      $composableBuilder(column: $table.author, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<int> get line =>
+      $composableBuilder(column: $table.line, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get severity =>
+      $composableBuilder(column: $table.severity, builder: (column) => column);
+
+  GeneratedColumn<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get verdict =>
+      $composableBuilder(column: $table.verdict, builder: (column) => column);
+
+  GeneratedColumn<String> get commitSha =>
+      $composableBuilder(column: $table.commitSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewCommentsTable,
+          ReviewCommentRow,
+          $$ReviewCommentsTableFilterComposer,
+          $$ReviewCommentsTableOrderingComposer,
+          $$ReviewCommentsTableAnnotationComposer,
+          $$ReviewCommentsTableCreateCompanionBuilder,
+          $$ReviewCommentsTableUpdateCompanionBuilder,
+          (ReviewCommentRow, $$ReviewCommentsTableReferences),
+          ReviewCommentRow,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$ReviewCommentsTableTableManager(
+    _$AppDatabase db,
+    $ReviewCommentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewCommentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewCommentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewCommentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<int> round = const Value.absent(),
+                Value<String> author = const Value.absent(),
+                Value<String?> path = const Value.absent(),
+                Value<int?> line = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> severity = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
+                Value<String?> verdict = const Value.absent(),
+                Value<String?> commitSha = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ReviewCommentsCompanion(
+                id: id,
+                specId: specId,
+                round: round,
+                author: author,
+                path: path,
+                line: line,
+                body: body,
+                severity: severity,
+                requirement: requirement,
+                verdict: verdict,
+                commitSha: commitSha,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                required int round,
+                required String author,
+                Value<String?> path = const Value.absent(),
+                Value<int?> line = const Value.absent(),
+                required String body,
+                Value<String?> severity = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
+                Value<String?> verdict = const Value.absent(),
+                Value<String?> commitSha = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ReviewCommentsCompanion.insert(
+                id: id,
+                specId: specId,
+                round: round,
+                author: author,
+                path: path,
+                line: line,
+                body: body,
+                severity: severity,
+                requirement: requirement,
+                verdict: verdict,
+                commitSha: commitSha,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReviewCommentsTable, ReviewCommentRow>(table),
+                  $$ReviewCommentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$ReviewCommentsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$ReviewCommentsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ReviewCommentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewCommentsTable,
+      ReviewCommentRow,
+      $$ReviewCommentsTableFilterComposer,
+      $$ReviewCommentsTableOrderingComposer,
+      $$ReviewCommentsTableAnnotationComposer,
+      $$ReviewCommentsTableCreateCompanionBuilder,
+      $$ReviewCommentsTableUpdateCompanionBuilder,
+      (ReviewCommentRow, $$ReviewCommentsTableReferences),
+      ReviewCommentRow,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -14836,4 +16480,6 @@ class $AppDatabaseManager {
       $$ReviewDraftsTableTableManager(_db, _db.reviewDrafts);
   $$PendingNoticesTableTableManager get pendingNotices =>
       $$PendingNoticesTableTableManager(_db, _db.pendingNotices);
+  $$ReviewCommentsTableTableManager get reviewComments =>
+      $$ReviewCommentsTableTableManager(_db, _db.reviewComments);
 }

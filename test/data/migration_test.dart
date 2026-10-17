@@ -35,6 +35,37 @@ const v2Sessions =
     'tokens_out INTEGER NOT NULL DEFAULT 0, '
     'started_at INTEGER NOT NULL DEFAULT 0, ended_at INTEGER NULL)';
 
+/// Drops what came after [version] from a database created with the
+/// current schema and stamps [version] (the next open migrates it again).
+Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 10) {
+    for (final c in [
+      'worktree_index',
+      'prepared_at',
+      'review_phase',
+      'review_rounds',
+      'merge_override',
+    ]) {
+      await db.customStatement('ALTER TABLE specs DROP COLUMN $c');
+    }
+    await db.customStatement('DROP TABLE review_comments');
+  }
+  if (version < 9) {
+    for (final c in [
+      'start_sha',
+      'start_stash',
+      'gate_report',
+      'gate_attempts',
+    ]) {
+      await db.customStatement('ALTER TABLE spec_steps DROP COLUMN $c');
+    }
+    for (final t in ['autopilot_states', 'review_drafts', 'pending_notices']) {
+      await db.customStatement('DROP TABLE $t');
+    }
+  }
+  await db.customStatement('PRAGMA user_version = $version');
+}
+
 void main() {
   test('v1 → v2 adds sessions.title and sessions.permission_mode', () async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -413,25 +444,14 @@ void main() {
     await db.customStatement(
       "INSERT INTO spec_steps (spec_id, step, status) VALUES (1, 'R1', 'done')",
     );
-    for (final c in [
-      'start_sha',
-      'start_stash',
-      'gate_report',
-      'gate_attempts',
-    ]) {
-      await db.customStatement('ALTER TABLE spec_steps DROP COLUMN $c');
-    }
-    for (final t in ['autopilot_states', 'review_drafts', 'pending_notices']) {
-      await db.customStatement('DROP TABLE $t');
-    }
-    await db.customStatement('PRAGMA user_version = 8');
+    await downgrade(db, 8);
     await db.close();
 
     db = AppDatabase(NativeDatabase(file));
     addTearDown(db.close);
     await db.ensureOpen();
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.read<int>('user_version'), 9);
+    expect(v.read<int>('user_version'), db.schemaVersion);
     final row = await db.select(db.specSteps).getSingle();
     expect(row.status, StepStatus.done);
     expect(row.gateAttempts, 0);
@@ -443,5 +463,43 @@ void main() {
         .into(db.reviewDrafts)
         .insert(ReviewDraftsCompanion.insert(sessionId: 's', data: '{}'));
     expect(await db.select(db.autopilotStates).get(), hasLength(1));
+  });
+
+  test('v9 → v10 adds the worktree / review columns of specs and '
+      'review_comments; rows survive', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig10-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await db.customStatement(
+      'INSERT INTO specs (workspace_id, code, title, path, stage) VALUES '
+      "(1, 'SPEC-001', 'A', 'specs/a.md', 'review')",
+    );
+    await downgrade(db, 9);
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final spec = await db.select(db.specs).getSingle();
+    expect(spec.stage, SpecStage.review);
+    expect(spec.reviewRounds, 0);
+    expect(spec.worktreeIndex, isNull);
+    await db
+        .into(db.reviewComments)
+        .insert(
+          ReviewCommentsCompanion.insert(
+            specId: spec.id,
+            round: 1,
+            author: 'revisor',
+            body: 'faltou teste',
+          ),
+        );
+    expect(await db.select(db.reviewComments).get(), hasLength(1));
   });
 }

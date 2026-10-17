@@ -66,6 +66,15 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _blocked = TextEditingController(
     text: _saved.blockedCommands.join('\n'),
   );
+  late final _copy = TextEditingController(
+    text: _saved.worktree.copy.join(', '),
+  );
+  late final _prepare = TextEditingController(
+    text: _saved.worktree.prepare ?? '',
+  );
+  late final _port = TextEditingController(
+    text: _saved.worktree.basePort?.toString() ?? '',
+  );
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
   late String? _agent = _saved.agent;
@@ -78,7 +87,17 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     _specs.dispose();
     _tests.dispose();
     _branch.dispose();
-    for (final c in [_lint, _build, _format, _attempts, _timeout, _blocked]) {
+    for (final c in [
+      _lint,
+      _build,
+      _format,
+      _attempts,
+      _timeout,
+      _blocked,
+      _copy,
+      _prepare,
+      _port,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -117,6 +136,14 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       for (final l in _blocked.text.split('\n'))
         if (l.trim().isNotEmpty) l.trim(),
     ],
+    worktree: WorktreeConfig(
+      copy: [
+        for (final f in _copy.text.split(RegExp(r'[,\n]')))
+          if (f.trim().isNotEmpty) f.trim(),
+      ],
+      prepare: _text(_prepare),
+      basePort: int.tryParse(_port.text.trim()),
+    ),
   );
 
   bool get _dirty => _current != _saved;
@@ -425,6 +452,27 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           hintText: 'git push --force*',
         ),
         onChanged: (_) => setState(() {}),
+      ),
+      _label(
+        'Worktree pronto para rodar',
+        'ao criar o worktree de uma spec ou sessão',
+      ),
+      _field(
+        const ValueKey('config-copy'),
+        _copy,
+        'copiar (ignorados pelo git): ex.: .env, .env.local',
+      ),
+      const SizedBox(height: 6),
+      _field(
+        const ValueKey('config-prepare'),
+        _prepare,
+        'preparar: ex.: npm ci',
+      ),
+      const SizedBox(height: 6),
+      _field(
+        const ValueKey('config-port'),
+        _port,
+        'porta base: ex.: 4000 (PROMPTORIUM_PORT = base + índice)',
       ),
       _label(
         'Branch base',

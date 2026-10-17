@@ -10,6 +10,8 @@ import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'spec_runner.dart' show worktreePrepProvider;
+import 'step_gate.dart' show tailLines;
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
@@ -429,12 +431,20 @@ class SpecCard extends ConsumerWidget {
     final current = data.current;
     final blocked = data.blockers.isNotEmpty && spec.stage != SpecStage.done;
     final waitingUser = current?.status == StepStatus.needsInput;
+    final prep = ref.watch(worktreePrepProvider.select((m) => m[spec.id]));
 
     var meta = '';
     var metaColor = AppColors.textSecondary;
     var border = AppColors.border;
     if (spec.stage == SpecStage.done) {
       meta = 'concluída';
+    } else if (prep?.running ?? false) {
+      meta = 'Preparando worktree…';
+      metaColor = AppColors.lilac;
+    } else if (prep?.error != null) {
+      meta = 'falha ao preparar o worktree';
+      metaColor = AppColors.red;
+      border = SessionColors.stopBorder;
     } else if (busy) {
       final dur = DateTime.now().difference(last!.startedAt);
       meta = liveStatus == SessionStatus.waitingApproval
@@ -585,7 +595,26 @@ class SpecCard extends ConsumerWidget {
                 ),
               ],
             ),
-            if (waitingUser && !busy && current!.sessionId != null) ...[
+            if (prep?.error != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                tailLines(prep!.error!, 3),
+                key: ValueKey('board-prep-error-${spec.code}'),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 10,
+                  color: AppColors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _ActionButton(
+                key: ValueKey('board-prep-retry-${spec.code}'),
+                label: 'Tentar de novo',
+                onTap: () => runSpec(context, ref, data),
+              ),
+            ] else if (waitingUser && !busy && current!.sessionId != null) ...[
               const SizedBox(height: 8),
               _ActionButton(
                 key: ValueKey('board-answer-${spec.code}'),

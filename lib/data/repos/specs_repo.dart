@@ -85,20 +85,28 @@ class SpecsRepo {
       update(id, SpecsCompanion(autoAdvance: Value(on)));
 
   /// Worktree / branch shared by the step sessions (null = none: the
-  /// worktree was removed by the merge).
+  /// worktree was removed by the merge) and its [index] (port). Clearing it
+  /// also forgets the preparation.
   Future<int> setWorktree(
     int id, {
     String? path,
     String? branch,
     String? baseBranch,
+    int? index,
   }) => update(
     id,
     SpecsCompanion(
       worktreePath: Value(path),
       branch: Value(branch),
       baseBranch: Value(baseBranch),
+      worktreeIndex: Value(index),
+      preparedAt: path == null ? const Value(null) : const Value.absent(),
     ),
   );
+
+  /// The worktree got its files and ran `preparar:` (null = not yet).
+  Future<int> setPrepared(int id, DateTime? at) =>
+      update(id, SpecsCompanion(preparedAt: Value(at)));
 
   Future<int> delete(int id) =>
       (_db.delete(_t)..where((s) => s.id.equals(id))).go();

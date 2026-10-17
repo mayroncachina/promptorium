@@ -30,6 +30,7 @@ class FakeCli {
   final processes = <FakeProcess>[];
   final args = <List<String>>[];
   final cwds = <String?>[];
+  final envs = <Map<String, String>?>[];
 
   FakeProcess get last => processes.last;
 
@@ -43,6 +44,7 @@ class FakeCli {
     processes.add(p);
     args.add(arguments);
     cwds.add(workingDirectory);
+    envs.add(environment);
     return p;
   }
 }

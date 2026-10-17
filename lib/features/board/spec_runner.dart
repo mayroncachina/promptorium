@@ -9,6 +9,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/git/git_service.dart';
+import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
@@ -220,6 +221,30 @@ String specSessionTitle(Spec spec, List<StepView> steps, List<String> todo) {
   return '${spec.code} · ${todo.first}–${todo.last} · ${spec.title}';
 }
 
+/// Preparation of a spec's new worktree (card: "Preparando worktree…" or
+/// the error with "Tentar de novo").
+@immutable
+class WorktreePrep {
+  const WorktreePrep({this.running = false, this.error, this.command});
+
+  final bool running;
+
+  /// Output of the failed `preparar:`.
+  final String? error;
+  final String? command;
+}
+
+class WorktreePreps extends Notifier<Map<int, WorktreePrep>> {
+  @override
+  Map<int, WorktreePrep> build() => const {};
+
+  void set(int specId, WorktreePrep? p) =>
+      state = p == null ? ({...state}..remove(specId)) : {...state, specId: p};
+}
+
+final worktreePrepProvider =
+    NotifierProvider<WorktreePreps, Map<int, WorktreePrep>>(WorktreePreps.new);
+
 /// Ref of the checkpoint of [step] (`refs/promptorium/SPEC-003/R2-inicio`).
 String checkpointRef(String specCode, String step) =>
     'refs/promptorium/$specCode/$step-inicio';
@@ -367,6 +392,16 @@ class SpecRunner {
       spec,
       baseBranch: baseBranch ?? config.baseBranch,
     );
+    spec = (await specs.getById(specId))!;
+    final env = worktreeEnvironment(
+      root: ws.path,
+      worktree: wt.path,
+      specCode: spec.code,
+      port: config.worktree.basePort == null || spec.worktreeIndex == null
+          ? null
+          : config.worktree.basePort! + spec.worktreeIndex!,
+    );
+    if (spec.preparedAt == null) await _prepare(spec, ws, wt.path, config, env);
     await _markStart(spec, wt.path, todo);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
@@ -399,9 +434,50 @@ class SpecRunner {
         worktreePath: wt.path,
         branch: wt.branch,
         baseBranch: wt.base,
+        environment: env,
       ),
     );
     return id;
+  }
+
+  /// First run in a new worktree: `copiar:` and `preparar:` of the config
+  /// (the card shows "Preparando worktree…"). Failure keeps the worktree
+  /// unprepared: "Tentar de novo" runs it again.
+  Future<void> _prepare(
+    Spec spec,
+    Workspace ws,
+    String worktree,
+    ProjectConfig config,
+    Map<String, String> env,
+  ) async {
+    final wc = config.worktree;
+    final prep = _ref.read(worktreePrepProvider.notifier);
+    if (wc.copy.isNotEmpty || wc.prepare != null) {
+      prep.set(spec.id, const WorktreePrep(running: true));
+      final r =
+          await WorktreeSetup(
+            root: _ref.read(gitServiceFactoryProvider)(ws.path),
+            shell: _ref.read(shellRunnerProvider),
+          ).run(
+            worktree,
+            copy: wc.copy,
+            prepare: wc.prepare,
+            timeout: config.gate.timeout,
+            environment: env,
+          );
+      if (!r.ok) {
+        prep.set(
+          spec.id,
+          WorktreePrep(error: r.prepare!.output, command: wc.prepare),
+        );
+        throw SpecRunException(
+          'Falha ao preparar o worktree (${wc.prepare}): '
+          '${tailLines(r.prepare!.output, 5)}',
+        );
+      }
+    }
+    prep.set(spec.id, null);
+    await _ref.read(specsRepoProvider).setPrepared(spec.id, DateTime.now());
   }
 
   /// The spec's worktree: the stored one when it still exists, else a new
@@ -433,6 +509,10 @@ class SpecRunner {
         ),
         baseBranch: baseBranch,
       );
+      final others = await _ref
+          .read(specsRepoProvider)
+          .watchByWorkspace(ws.id)
+          .first;
       await _ref
           .read(specsRepoProvider)
           .setWorktree(
@@ -440,15 +520,18 @@ class SpecRunner {
             path: created.path,
             branch: created.branch,
             baseBranch: base,
+            index: nextWorktreeIndex([
+              for (final o in others)
+                if (o.id != spec.id && o.worktreePath != null) o.worktreeIndex,
+            ]),
           );
+      await _ref.read(specsRepoProvider).setPrepared(spec.id, null);
       return (path: created.path, branch: created.branch, base: base);
     } on GitException catch (e) {
       throw SpecRunException('Falha ao criar o worktree da spec: $e');
     }
   }
 
-  /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
-  /// commit after it).
   /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
   /// commit after it), kept also as `refs/promptorium/<spec>/<step>-inicio`,
   /// and the uncommitted changes (`git stash create`) — the checkpoint of

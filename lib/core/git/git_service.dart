@@ -307,6 +307,19 @@ class GitService {
   /// `git merge --abort` (after a conflicting [merge]).
   Future<void> mergeAbort() => git(['merge', '--abort']);
 
+  /// Whether [path] (relative) is ignored by git (`git check-ignore -q`).
+  Future<bool> isIgnored(String path) async {
+    final r = await _run('git', [
+      '-C',
+      repoRoot,
+      'check-ignore',
+      '-q',
+      '--',
+      _arg(path, 'caminho'),
+    ]);
+    return r.exitCode == 0;
+  }
+
   /// Full hash of HEAD (null in a repository without commits).
   Future<String?> headSha() async {
     try {

@@ -119,6 +119,27 @@ class Specs extends Table {
   /// A finished step opens the session of the next one.
   BoolColumn get autoAdvance => boolean().withDefault(const Constant(true))();
 
+  // --- worktree and review (schema v10) --------------------------------------
+
+  /// Smallest free index among the workspace's live spec worktrees:
+  /// `PROMPTORIUM_PORT` = `porta-base` + index.
+  IntColumn get worktreeIndex => integer().nullable()();
+
+  /// When the worktree got the `copiar:` files and ran `preparar:` (null =
+  /// not prepared yet: the next run prepares it first).
+  DateTimeColumn get preparedAt => dateTime().nullable()();
+
+  /// `auto` while the automatic reviewer works on the spec, `human` after
+  /// it approved or ran out of rounds (null = no reviewer).
+  TextColumn get reviewPhase => text().nullable()();
+
+  /// Correction rounds asked by the automatic reviewer.
+  IntColumn get reviewRounds => integer().withDefault(const Constant(0))();
+
+  /// Reason given for "Mergear mesmo assim" with acceptance criteria
+  /// unchecked.
+  TextColumn get mergeOverride => text().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {workspaceId, code},
@@ -181,6 +202,38 @@ class ReviewDrafts extends Table {
 
   @override
   Set<Column> get primaryKey => {sessionId};
+}
+
+/// Comment of a review round on a spec (schema v10): the automatic
+/// reviewer's or the user's.
+@DataClassName('ReviewCommentRow')
+class ReviewComments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// 1, 2… (the round that asked for it).
+  IntColumn get round => integer()();
+
+  /// `revisor` (automatic) or `humano`.
+  TextColumn get author => text()();
+
+  /// Relative path; null = about the spec as a whole.
+  TextColumn get path => text().nullable()();
+  IntColumn get line => integer().nullable()();
+  TextColumn get body => text()();
+
+  /// `alta` / `media` / `baixa`.
+  TextColumn get severity => text().nullable()();
+
+  /// Requirement it is about (`R2`).
+  TextColumn get requirement => text().nullable()();
+
+  /// Verdict of the round (`aprovar` / `corrigir`) on its first comment, and
+  /// the commit reviewed.
+  TextColumn get verdict => text().nullable()();
+  TextColumn get commitSha => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Notices waiting to be sent to a session (manual edits, schema v9).
@@ -447,6 +500,7 @@ class AppSettings extends Table {
     AutopilotStates,
     ReviewDrafts,
     PendingNotices,
+    ReviewComments,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -464,7 +518,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   Future<bool> _hasTable(String name) async => (await customSelect(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -571,6 +625,20 @@ class AppDatabase extends _$AppDatabase {
         }
         await m.createTable(reviewDrafts);
         if (await _hasTable('sessions')) await m.createTable(pendingNotices);
+      }
+      // v10: worktree index / preparation, automatic reviewer, review
+      // comments by round, merge override.
+      if (from < 10 && await _hasTable('specs')) {
+        for (final c in [
+          specs.worktreeIndex,
+          specs.preparedAt,
+          specs.reviewPhase,
+          specs.reviewRounds,
+          specs.mergeOverride,
+        ]) {
+          if (!await _hasColumn('specs', c.name)) await m.addColumn(specs, c);
+        }
+        await m.createTable(reviewComments);
       }
     },
     beforeOpen: (details) async {

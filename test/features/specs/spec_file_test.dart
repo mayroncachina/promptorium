@@ -310,6 +310,7 @@ void main() {
         requirements: [],
         dependsOn: [],
         autoAdvance: true,
+        reviewRounds: 0,
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));

@@ -160,6 +160,37 @@ void main() {
     expect(Directory(hooks.dirOf(id)).existsSync(), isFalse);
   });
 
+  test('fork carries the parent worktree uncommitted changes (DT-18) and '
+      'gets the worktree variables', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Pai', prompt: 'oi'),
+    );
+    final parent = (await c.read(sessionsRepoProvider).getById(id))!;
+    expect(cli.envs.single, {
+      'PROMPTORIUM_ROOT': repo,
+      'PROMPTORIUM_WORKTREE': parent.worktreePath,
+    });
+    File('${parent.worktreePath}/a.txt').writeAsStringSync('do pai\n');
+    final child = await m.fork(id, prompt: 'continue');
+    final row = (await c.read(sessionsRepoProvider).getById(child))!;
+    expect(row.worktreePath, isNot(parent.worktreePath));
+    expect(File('${row.worktreePath}/a.txt').readAsStringSync(), 'do pai\n');
+    expect(cli.envs.last!['PROMPTORIUM_WORKTREE'], row.worktreePath);
+  });
+
   test('notification clicks: approvals → Sessões; done/failed → the screen '
       'the session was created from', () async {
     final db = memoryDatabase();

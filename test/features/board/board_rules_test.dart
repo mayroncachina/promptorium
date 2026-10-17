@@ -22,6 +22,7 @@ Spec spec(
   requirements: [for (var i = 1; i <= steps; i++) (id: 'R$i', text: 't$i')],
   dependsOn: deps,
   autoAdvance: true,
+  reviewRounds: 0,
 );
 
 SpecStep row(int spec, String step, StepStatus status) =>
