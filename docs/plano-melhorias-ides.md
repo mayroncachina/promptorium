@@ -4,7 +4,8 @@
 > [02](analise-ides/02-fluxo-specs-e-quadro.md), [03](analise-ides/03-sessoes-e-agentes.md),
 > [04](analise-ides/04-review-e-qualidade.md), [05](analise-ides/05-plataforma-e-robustez.md) e o
 > [roteiro em 06](analise-ides/06-roadmap-sugerido.md)). Itens DT-nn: [`debito-tecnico.md`](debito-tecnico.md).
-> Nada implementado ainda.
+> **Implementado em 2026-10-17 na branch `teste`** (F1–F18, um commit por fase; schema v9 → v14). Ver
+> [Execução](#execução-2026-10-17) no fim para o que mudou em relação ao plano.
 > Uma **fase** ≈ um PR do tamanho dos de `feat/specs-no-quadro` ([plano](plano-specs-no-quadro.md)). Cada fase termina com `flutter analyze`
 > limpo, testes passando e entrada no CHANGELOG.
 
@@ -332,3 +333,29 @@ e 2, um teste de integração com o CLI real (haiku, centavos) num workflow manu
 
 Sugestão para validar o próprio fluxo: criar F1→F2→F3 como specs do Promptorium com `depende-de` e
 executá-las pelo Quadro.
+
+## Execução (2026-10-17)
+
+| Fase | Commit | Diferenças em relação ao plano |
+|---|---|---|
+| F1 | `672392c` | — |
+| F2 | `cdd870f` | O gate **não** foi para o `Stop` (funciona, mas precisaria de IPC com o app e prenderia o turno; ver [pesquisa](pesquisa/hooks-settings-stream-json.md)). O hook é um script Python 3 escrito por sessão: sem `python3`, os hooks ficam desligados. `SessionEnd` registra o motivo na timeline, não o custo |
+| F3 | `cc73922` | Os avisos de edição ao agente também passaram a entrar no meio do turno (sondado) |
+| F4 | `e38aa7d` | Índice do worktree começa em 1 (a porta base fica livre para a raiz) |
+| F5 | `9a99e3d` | As instruções do revisor embutido estão no código (`builtinReviewerPrompt`), não em `assets/agents/` |
+| F6 | `0e9ec43` | Estado dos critérios em `spec_criteria` (v10); comentários das rodadas em `review_comments` |
+| F7 | `f7ef7a9` | "Sem design" vira `design: dispensado` no frontmatter (diálogo ao aprovar) |
+| F8 | `b921aa9` | O merge ignora alterações de `.promptorium/memoria.md` na raiz |
+| F9 | `89b570f` | Ordem na coluna por "Subir/Descer" no menu (sem arrastar dentro da coluna); "Aplicar" de uma sugestão abre um Refinar no Prompt |
+| F10 | `c687a64` | "Ferramentas" agrupa Agentes / Skills / MCP como abas (as seções continuam existindo por baixo) |
+| F11 | `f65a0cf` | Watch recursivo do Dart não vê subpastas no Linux: um watcher por pasta (até 2000) + checagem de segurança a cada 30 s |
+| F12 | `79b4ad9` | `claude mcp add-json` não lê de arquivo nem do stdin (sondado): segredos continuam no argv do `claude mcp` por segundos; o mascaramento ficou mais rígido |
+| F13 | `75dc5fc` | — |
+| F14 | `bd9c185` | Contadores em `specs` (v13) |
+| F15 | `a1a0438` | Duas tentativas (A/B), não N; tabela `spec_duels` (v14) |
+| F16 | `7746f72` | Só comentários e corpo das reviews (`gh pr view --json`); comentários por linha do PR não entram. `gh` não está instalado nesta máquina: só testado com runner falso |
+| F17 | `a5056ef` | Agenda em `app_settings` por workspace |
+| F18 | `23a8f3e` | Cliente ACP testado só com agente falso (o `gemini` local não roda em Node 18); Flatpak escrito e não testado (sem `flatpak-builder`) |
+
+Testes: 330 → 413 (`flutter test`), `flutter analyze` limpo, `flutter build linux --release` ok. Teste
+real com haiku da Onda 1: R2 recusada pelo gate e corrigida após um reenvio (US$ 0,01).
