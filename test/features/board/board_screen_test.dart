@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
+import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -189,5 +190,48 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('legacy-drop-TASK-9')));
     await pumpFor(tester);
     expect(await db.select(db.tasks).get(), isEmpty);
+  });
+
+  testWidgets('a step refused by the gate shows its checks on the card and '
+      'in the details, with the output and the gate actions', (tester) async {
+    final (c, db) = await pumpBoard(tester);
+    final report = GateReport(
+      at: DateTime(2026, 10, 17, 9, 30),
+      attempt: 1,
+      checks: const [
+        GateCheck(name: 'commit', ok: true),
+        GateCheck(
+          name: 'arvore',
+          ok: false,
+          output: 'Arquivos sem commit:\n?? sobrou.txt',
+        ),
+      ],
+    );
+    await c.read(specStepsRepoProvider).setGate(2, [
+      'R2',
+    ], report: report.encode());
+    await pumpFor(tester);
+    expect(text(tester, 'board-meta-SPEC-002'), 'R2 · verificação falhou');
+    expect(
+      find.byKey(const ValueKey('board-gate-SPEC-002-arvore')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('board-gate-SPEC-002-arvore')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('gate-report-dialog')), findsOneWidget);
+    expect(find.textContaining('sobrou.txt'), findsOneWidget);
+    await tester.tap(find.text('Fechar'));
+    await pumpFor(tester);
+
+    await tester.tap(find.byKey(const ValueKey('board-open-SPEC-002')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-gate-R2-commit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('steps-recheck')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('steps-commit-leftovers')),
+      findsOneWidget,
+    );
+    expect(db, isNotNull);
+    expect(tester.takeException(), isNull);
   });
 }

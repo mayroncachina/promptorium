@@ -9,6 +9,7 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
+import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
@@ -395,6 +396,98 @@ void main() {
           ),
         ),
       );
+    });
+
+    /// Waits (up to 15 s) for [cond]: the gate runs real git / bash.
+    Future<void> until(Future<bool> Function() cond) async {
+      final end = DateTime.now().add(const Duration(seconds: 15));
+      while (!await cond()) {
+        if (DateTime.now().isAfter(end)) fail('condição não atingida');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      await settle();
+    }
+
+    Future<SpecStep> stepRow(String step) async =>
+        (await c.read(specStepsRepoProvider).bySpec(spec.id))
+            .firstWhere((r) => r.step == step);
+
+    test('gate: marker without commit → resent once to the same session; '
+        'fixed → done and next step; failing again → waits for the user; '
+        'Commitar o que sobrou', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: test ! -f quebrado.txt\nverificacao:\n  tentativas: 1\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      expect((await stepRow('R1')).startSha, isNotNull);
+
+      // 1. Marker, no commit: verifying → resend with the failure.
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => cli.last.writtenJson.length == 2);
+      expect(cli.processes, hasLength(1));
+      final retry = cli.last.writtenJson.last['message']['content'] as String;
+      expect(retry, contains('A verificação do Promptorium falhou: commit'));
+      expect(retry, endsWith('ETAPA CONCLUÍDA: R1'));
+      expect((await stepRow('R1')).gateAttempts, 1);
+      expect(
+        GateReport.decode((await stepRow('R1')).gateReport)!.summary,
+        'commit',
+      );
+
+      // 2. The agent commits and repeats the marker: done, R2 starts.
+      File('$wt/r1.txt').writeAsStringSync('ok');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      cli.last.emit(resultLine('Corrigido.\nETAPA CONCLUÍDA: R1'));
+      await until(() async => cli.processes.length == 2);
+      expect((await states())['R1'], StepStatus.done);
+      expect((await states())['R2'], StepStatus.running);
+      expect((await stepRow('R2')).gateAttempts, 0);
+
+      // 3. R2 breaks the tests twice: one resend, then waits for the user.
+      File('$wt/quebrado.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => cli.last.writtenJson.length == 2);
+      expect(
+        cli.last.writtenJson.last['message']['content'],
+        contains('falhou: testes'),
+      );
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => (await states())['R2'] == StepStatus.needsInput);
+      expect(cli.last.writtenJson, hasLength(2));
+      expect(cli.processes, hasLength(2));
+
+      // 4. The user fixes it but leaves the file uncommitted.
+      await gitIn(wt, ['rm', '-q', '--cached', 'quebrado.txt']);
+      File('$wt/quebrado.txt').deleteSync();
+      await runner.recheck(spec.id);
+      expect((await states())['R2'], StepStatus.needsInput);
+      expect(
+        GateReport.decode((await stepRow('R2')).gateReport)!.onlyDirtyTree,
+        isTrue, // tests pass now; only the staged deletion is left
+      );
+      await runner.commitLeftovers(spec.id);
+      await until(() async => cli.processes.length == 3);
+      expect((await states())['R2'], StepStatus.done);
+      final log = await gitIn(wt, ['log', '--format=%s', '-1']);
+      expect(log.trim(), 'SPEC-001 R2: arquivos restantes da etapa');
+    });
+
+    test('no config: the marker alone finishes the step (as before)', () async {
+      await c.read(specRunnerProvider).runNext(spec.id);
+      await settle();
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await settle();
+      await settle();
+      expect((await states())['R1'], StepStatus.done);
+      expect((await stepRow('R1')).gateReport, isNull);
     });
   });
 }

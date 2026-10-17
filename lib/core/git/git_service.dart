@@ -307,6 +307,88 @@ class GitService {
   /// `git merge --abort` (after a conflicting [merge]).
   Future<void> mergeAbort() => git(['merge', '--abort']);
 
+  /// Full hash of HEAD (null in a repository without commits).
+  Future<String?> headSha() async {
+    try {
+      return (await git(['rev-parse', 'HEAD'])).trim();
+    } on GitException catch (e) {
+      if (e.exitCode != null) return null;
+      rethrow;
+    }
+  }
+
+  /// Subjects of the commits in `<sha>..HEAD`, newest first.
+  Future<List<String>> subjectsSince(String sha) async {
+    final out = await git([
+      'log',
+      '--format=%s',
+      '${_arg(sha, 'commit')}..HEAD',
+    ]);
+    return [
+      for (final l in out.split('\n'))
+        if (l.trim().isNotEmpty) l.trim(),
+    ];
+  }
+
+  /// `git add -A && git commit -m <message>` (nothing staged = no commit,
+  /// returns false).
+  Future<bool> commitAll(String message) async {
+    await git(['add', '-A']);
+    if ((await git(['diff', '--cached', '--name-only'])).trim().isEmpty) {
+      return false;
+    }
+    await git(['commit', '-q', '-m', message]);
+    return true;
+  }
+
+  /// `git update-ref <ref> <sha>` (refs under `refs/promptorium/`).
+  Future<void> updateRef(String ref, String sha) =>
+      git(['update-ref', _arg(ref, 'ref'), _arg(sha, 'commit')]);
+
+  /// Hash [ref] points to, or null.
+  Future<String?> resolveRef(String ref) async {
+    try {
+      return (await git([
+        'rev-parse',
+        '--verify',
+        '-q',
+        '${_arg(ref, 'ref')}^{commit}',
+      ])).trim();
+    } on GitException {
+      return null;
+    }
+  }
+
+  /// Removes every ref under [prefix] (`refs/promptorium/SPEC-003/`).
+  Future<void> deleteRefs(String prefix) async {
+    final out = await git([
+      'for-each-ref',
+      '--format=%(refname)',
+      _arg(prefix, 'prefixo'),
+    ]);
+    for (final r in out.split('\n')) {
+      if (r.trim().isNotEmpty) await git(['update-ref', '-d', r.trim()]);
+    }
+  }
+
+  /// `git stash create`: a commit with the uncommitted changes (tracked files)
+  /// without touching the tree; null when the tree is clean.
+  Future<String?> stashCreate() async {
+    final sha = (await git(['stash', 'create'])).trim();
+    return sha.isEmpty ? null : sha;
+  }
+
+  /// `git stash apply <sha>`.
+  Future<void> stashApply(String sha) =>
+      git(['stash', 'apply', _arg(sha, 'stash')]);
+
+  /// `git reset --hard <sha>` + `git clean -fd` (untracked files removed;
+  /// ignored ones kept).
+  Future<void> resetHard(String sha) async {
+    await git(['reset', '-q', '--hard', _arg(sha, 'commit')]);
+    await git(['clean', '-q', '-fd']);
+  }
+
   /// Last [n] commits of HEAD.
   Future<List<GitLogEntry>> log(int n) async {
     final out = await git([

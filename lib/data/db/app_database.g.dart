@@ -1252,6 +1252,51 @@ class $SpecStepsTable extends SpecSteps
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startShaMeta = const VerificationMeta(
+    'startSha',
+  );
+  @override
+  late final GeneratedColumn<String> startSha = GeneratedColumn<String>(
+    'start_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startStashMeta = const VerificationMeta(
+    'startStash',
+  );
+  @override
+  late final GeneratedColumn<String> startStash = GeneratedColumn<String>(
+    'start_stash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gateReportMeta = const VerificationMeta(
+    'gateReport',
+  );
+  @override
+  late final GeneratedColumn<String> gateReport = GeneratedColumn<String>(
+    'gate_report',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gateAttemptsMeta = const VerificationMeta(
+    'gateAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> gateAttempts = GeneratedColumn<int>(
+    'gate_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     specId,
@@ -1259,6 +1304,10 @@ class $SpecStepsTable extends SpecSteps
     status,
     sessionId,
     doneAt,
+    startSha,
+    startStash,
+    gateReport,
+    gateAttempts,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1300,6 +1349,33 @@ class $SpecStepsTable extends SpecSteps
         doneAt.isAcceptableOrUnknown(data['done_at']!, _doneAtMeta),
       );
     }
+    if (data.containsKey('start_sha')) {
+      context.handle(
+        _startShaMeta,
+        startSha.isAcceptableOrUnknown(data['start_sha']!, _startShaMeta),
+      );
+    }
+    if (data.containsKey('start_stash')) {
+      context.handle(
+        _startStashMeta,
+        startStash.isAcceptableOrUnknown(data['start_stash']!, _startStashMeta),
+      );
+    }
+    if (data.containsKey('gate_report')) {
+      context.handle(
+        _gateReportMeta,
+        gateReport.isAcceptableOrUnknown(data['gate_report']!, _gateReportMeta),
+      );
+    }
+    if (data.containsKey('gate_attempts')) {
+      context.handle(
+        _gateAttemptsMeta,
+        gateAttempts.isAcceptableOrUnknown(
+          data['gate_attempts']!,
+          _gateAttemptsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1331,6 +1407,22 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.dateTime,
         data['${effectivePrefix}done_at'],
       ),
+      startSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_sha'],
+      ),
+      startStash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_stash'],
+      ),
+      gateReport: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gate_report'],
+      ),
+      gateAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}gate_attempts'],
+      )!,
     );
   }
 
@@ -1353,12 +1445,30 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
   /// Last session that worked on the step.
   final String? sessionId;
   final DateTime? doneAt;
+
+  /// HEAD of the worktree when the step's session started (the gate looks
+  /// for the step's commit after it; "Voltar ao início da etapa" goes back
+  /// to it, also kept as `refs/promptorium/<spec>/<step>-inicio`).
+  final String? startSha;
+
+  /// `git stash create` of the uncommitted changes at that moment.
+  final String? startStash;
+
+  /// JSON of the last `GateReport`.
+  final String? gateReport;
+
+  /// Automatic resends after a failed gate, in the current session.
+  final int gateAttempts;
   const SpecStep({
     required this.specId,
     required this.step,
     required this.status,
     this.sessionId,
     this.doneAt,
+    this.startSha,
+    this.startStash,
+    this.gateReport,
+    required this.gateAttempts,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1376,6 +1486,16 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     if (!nullToAbsent || doneAt != null) {
       map['done_at'] = Variable<DateTime>(doneAt);
     }
+    if (!nullToAbsent || startSha != null) {
+      map['start_sha'] = Variable<String>(startSha);
+    }
+    if (!nullToAbsent || startStash != null) {
+      map['start_stash'] = Variable<String>(startStash);
+    }
+    if (!nullToAbsent || gateReport != null) {
+      map['gate_report'] = Variable<String>(gateReport);
+    }
+    map['gate_attempts'] = Variable<int>(gateAttempts);
     return map;
   }
 
@@ -1390,6 +1510,16 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       doneAt: doneAt == null && nullToAbsent
           ? const Value.absent()
           : Value(doneAt),
+      startSha: startSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startSha),
+      startStash: startStash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startStash),
+      gateReport: gateReport == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gateReport),
+      gateAttempts: Value(gateAttempts),
     );
   }
 
@@ -1406,6 +1536,10 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       ),
       sessionId: serializer.fromJson<String?>(json['sessionId']),
       doneAt: serializer.fromJson<DateTime?>(json['doneAt']),
+      startSha: serializer.fromJson<String?>(json['startSha']),
+      startStash: serializer.fromJson<String?>(json['startStash']),
+      gateReport: serializer.fromJson<String?>(json['gateReport']),
+      gateAttempts: serializer.fromJson<int>(json['gateAttempts']),
     );
   }
   @override
@@ -1419,6 +1553,10 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       ),
       'sessionId': serializer.toJson<String?>(sessionId),
       'doneAt': serializer.toJson<DateTime?>(doneAt),
+      'startSha': serializer.toJson<String?>(startSha),
+      'startStash': serializer.toJson<String?>(startStash),
+      'gateReport': serializer.toJson<String?>(gateReport),
+      'gateAttempts': serializer.toJson<int>(gateAttempts),
     };
   }
 
@@ -1428,12 +1566,20 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     StepStatus? status,
     Value<String?> sessionId = const Value.absent(),
     Value<DateTime?> doneAt = const Value.absent(),
+    Value<String?> startSha = const Value.absent(),
+    Value<String?> startStash = const Value.absent(),
+    Value<String?> gateReport = const Value.absent(),
+    int? gateAttempts,
   }) => SpecStep(
     specId: specId ?? this.specId,
     step: step ?? this.step,
     status: status ?? this.status,
     sessionId: sessionId.present ? sessionId.value : this.sessionId,
     doneAt: doneAt.present ? doneAt.value : this.doneAt,
+    startSha: startSha.present ? startSha.value : this.startSha,
+    startStash: startStash.present ? startStash.value : this.startStash,
+    gateReport: gateReport.present ? gateReport.value : this.gateReport,
+    gateAttempts: gateAttempts ?? this.gateAttempts,
   );
   SpecStep copyWithCompanion(SpecStepsCompanion data) {
     return SpecStep(
@@ -1442,6 +1588,16 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       status: data.status.present ? data.status.value : this.status,
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       doneAt: data.doneAt.present ? data.doneAt.value : this.doneAt,
+      startSha: data.startSha.present ? data.startSha.value : this.startSha,
+      startStash: data.startStash.present
+          ? data.startStash.value
+          : this.startStash,
+      gateReport: data.gateReport.present
+          ? data.gateReport.value
+          : this.gateReport,
+      gateAttempts: data.gateAttempts.present
+          ? data.gateAttempts.value
+          : this.gateAttempts,
     );
   }
 
@@ -1452,13 +1608,27 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('step: $step, ')
           ..write('status: $status, ')
           ..write('sessionId: $sessionId, ')
-          ..write('doneAt: $doneAt')
+          ..write('doneAt: $doneAt, ')
+          ..write('startSha: $startSha, ')
+          ..write('startStash: $startStash, ')
+          ..write('gateReport: $gateReport, ')
+          ..write('gateAttempts: $gateAttempts')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(specId, step, status, sessionId, doneAt);
+  int get hashCode => Object.hash(
+    specId,
+    step,
+    status,
+    sessionId,
+    doneAt,
+    startSha,
+    startStash,
+    gateReport,
+    gateAttempts,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1467,7 +1637,11 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.step == this.step &&
           other.status == this.status &&
           other.sessionId == this.sessionId &&
-          other.doneAt == this.doneAt);
+          other.doneAt == this.doneAt &&
+          other.startSha == this.startSha &&
+          other.startStash == this.startStash &&
+          other.gateReport == this.gateReport &&
+          other.gateAttempts == this.gateAttempts);
 }
 
 class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
@@ -1476,6 +1650,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<StepStatus> status;
   final Value<String?> sessionId;
   final Value<DateTime?> doneAt;
+  final Value<String?> startSha;
+  final Value<String?> startStash;
+  final Value<String?> gateReport;
+  final Value<int> gateAttempts;
   final Value<int> rowid;
   const SpecStepsCompanion({
     this.specId = const Value.absent(),
@@ -1483,6 +1661,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.status = const Value.absent(),
     this.sessionId = const Value.absent(),
     this.doneAt = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.startStash = const Value.absent(),
+    this.gateReport = const Value.absent(),
+    this.gateAttempts = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SpecStepsCompanion.insert({
@@ -1491,6 +1673,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.status = const Value.absent(),
     this.sessionId = const Value.absent(),
     this.doneAt = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.startStash = const Value.absent(),
+    this.gateReport = const Value.absent(),
+    this.gateAttempts = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : specId = Value(specId),
        step = Value(step);
@@ -1500,6 +1686,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? status,
     Expression<String>? sessionId,
     Expression<DateTime>? doneAt,
+    Expression<String>? startSha,
+    Expression<String>? startStash,
+    Expression<String>? gateReport,
+    Expression<int>? gateAttempts,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1508,6 +1698,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (status != null) 'status': status,
       if (sessionId != null) 'session_id': sessionId,
       if (doneAt != null) 'done_at': doneAt,
+      if (startSha != null) 'start_sha': startSha,
+      if (startStash != null) 'start_stash': startStash,
+      if (gateReport != null) 'gate_report': gateReport,
+      if (gateAttempts != null) 'gate_attempts': gateAttempts,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1518,6 +1712,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<StepStatus>? status,
     Value<String?>? sessionId,
     Value<DateTime?>? doneAt,
+    Value<String?>? startSha,
+    Value<String?>? startStash,
+    Value<String?>? gateReport,
+    Value<int>? gateAttempts,
     Value<int>? rowid,
   }) {
     return SpecStepsCompanion(
@@ -1526,6 +1724,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       status: status ?? this.status,
       sessionId: sessionId ?? this.sessionId,
       doneAt: doneAt ?? this.doneAt,
+      startSha: startSha ?? this.startSha,
+      startStash: startStash ?? this.startStash,
+      gateReport: gateReport ?? this.gateReport,
+      gateAttempts: gateAttempts ?? this.gateAttempts,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1550,6 +1752,18 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (doneAt.present) {
       map['done_at'] = Variable<DateTime>(doneAt.value);
     }
+    if (startSha.present) {
+      map['start_sha'] = Variable<String>(startSha.value);
+    }
+    if (startStash.present) {
+      map['start_stash'] = Variable<String>(startStash.value);
+    }
+    if (gateReport.present) {
+      map['gate_report'] = Variable<String>(gateReport.value);
+    }
+    if (gateAttempts.present) {
+      map['gate_attempts'] = Variable<int>(gateAttempts.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1564,6 +1778,10 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('status: $status, ')
           ..write('sessionId: $sessionId, ')
           ..write('doneAt: $doneAt, ')
+          ..write('startSha: $startSha, ')
+          ..write('startStash: $startStash, ')
+          ..write('gateReport: $gateReport, ')
+          ..write('gateAttempts: $gateAttempts, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6821,6 +7039,779 @@ class ProjectPlansCompanion extends UpdateCompanion<ProjectPlan> {
   }
 }
 
+class $AutopilotStatesTable extends AutopilotStates
+    with TableInfo<$AutopilotStatesTable, AutopilotState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AutopilotStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sinceMeta = const VerificationMeta('since');
+  @override
+  late final GeneratedColumn<DateTime> since = GeneratedColumn<DateTime>(
+    'since',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [workspaceId, since];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'autopilot_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AutopilotState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('since')) {
+      context.handle(
+        _sinceMeta,
+        since.isAcceptableOrUnknown(data['since']!, _sinceMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workspaceId};
+  @override
+  AutopilotState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AutopilotState(
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      since: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}since'],
+      )!,
+    );
+  }
+
+  @override
+  $AutopilotStatesTable createAlias(String alias) {
+    return $AutopilotStatesTable(attachedDatabase, alias);
+  }
+}
+
+class AutopilotState extends DataClass implements Insertable<AutopilotState> {
+  final int workspaceId;
+  final DateTime since;
+  const AutopilotState({required this.workspaceId, required this.since});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['since'] = Variable<DateTime>(since);
+    return map;
+  }
+
+  AutopilotStatesCompanion toCompanion(bool nullToAbsent) {
+    return AutopilotStatesCompanion(
+      workspaceId: Value(workspaceId),
+      since: Value(since),
+    );
+  }
+
+  factory AutopilotState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AutopilotState(
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      since: serializer.fromJson<DateTime>(json['since']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'since': serializer.toJson<DateTime>(since),
+    };
+  }
+
+  AutopilotState copyWith({int? workspaceId, DateTime? since}) =>
+      AutopilotState(
+        workspaceId: workspaceId ?? this.workspaceId,
+        since: since ?? this.since,
+      );
+  AutopilotState copyWithCompanion(AutopilotStatesCompanion data) {
+    return AutopilotState(
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      since: data.since.present ? data.since.value : this.since,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutopilotState(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('since: $since')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(workspaceId, since);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AutopilotState &&
+          other.workspaceId == this.workspaceId &&
+          other.since == this.since);
+}
+
+class AutopilotStatesCompanion extends UpdateCompanion<AutopilotState> {
+  final Value<int> workspaceId;
+  final Value<DateTime> since;
+  const AutopilotStatesCompanion({
+    this.workspaceId = const Value.absent(),
+    this.since = const Value.absent(),
+  });
+  AutopilotStatesCompanion.insert({
+    this.workspaceId = const Value.absent(),
+    this.since = const Value.absent(),
+  });
+  static Insertable<AutopilotState> custom({
+    Expression<int>? workspaceId,
+    Expression<DateTime>? since,
+  }) {
+    return RawValuesInsertable({
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (since != null) 'since': since,
+    });
+  }
+
+  AutopilotStatesCompanion copyWith({
+    Value<int>? workspaceId,
+    Value<DateTime>? since,
+  }) {
+    return AutopilotStatesCompanion(
+      workspaceId: workspaceId ?? this.workspaceId,
+      since: since ?? this.since,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (since.present) {
+      map['since'] = Variable<DateTime>(since.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutopilotStatesCompanion(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('since: $since')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReviewDraftsTable extends ReviewDrafts
+    with TableInfo<$ReviewDraftsTable, ReviewDraftRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sessionId, data, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewDraftRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  @override
+  ReviewDraftRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewDraftRow(
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReviewDraftsTable createAlias(String alias) {
+    return $ReviewDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewDraftRow extends DataClass implements Insertable<ReviewDraftRow> {
+  final String sessionId;
+  final String data;
+  final DateTime updatedAt;
+  const ReviewDraftRow({
+    required this.sessionId,
+    required this.data,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_id'] = Variable<String>(sessionId);
+    map['data'] = Variable<String>(data);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ReviewDraftsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewDraftsCompanion(
+      sessionId: Value(sessionId),
+      data: Value(data),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReviewDraftRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewDraftRow(
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      data: serializer.fromJson<String>(json['data']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionId': serializer.toJson<String>(sessionId),
+      'data': serializer.toJson<String>(data),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ReviewDraftRow copyWith({
+    String? sessionId,
+    String? data,
+    DateTime? updatedAt,
+  }) => ReviewDraftRow(
+    sessionId: sessionId ?? this.sessionId,
+    data: data ?? this.data,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ReviewDraftRow copyWithCompanion(ReviewDraftsCompanion data) {
+    return ReviewDraftRow(
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      data: data.data.present ? data.data.value : this.data,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewDraftRow(')
+          ..write('sessionId: $sessionId, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sessionId, data, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewDraftRow &&
+          other.sessionId == this.sessionId &&
+          other.data == this.data &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReviewDraftsCompanion extends UpdateCompanion<ReviewDraftRow> {
+  final Value<String> sessionId;
+  final Value<String> data;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ReviewDraftsCompanion({
+    this.sessionId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewDraftsCompanion.insert({
+    required String sessionId,
+    required String data,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       data = Value(data);
+  static Insertable<ReviewDraftRow> custom({
+    Expression<String>? sessionId,
+    Expression<String>? data,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sessionId != null) 'session_id': sessionId,
+      if (data != null) 'data': data,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewDraftsCompanion copyWith({
+    Value<String>? sessionId,
+    Value<String>? data,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ReviewDraftsCompanion(
+      sessionId: sessionId ?? this.sessionId,
+      data: data ?? this.data,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewDraftsCompanion(')
+          ..write('sessionId: $sessionId, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PendingNoticesTable extends PendingNotices
+    with TableInfo<$PendingNoticesTable, PendingNotice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingNoticesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, sessionId, body, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_notices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingNotice> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PendingNotice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingNotice(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingNoticesTable createAlias(String alias) {
+    return $PendingNoticesTable(attachedDatabase, alias);
+  }
+}
+
+class PendingNotice extends DataClass implements Insertable<PendingNotice> {
+  final int id;
+  final String sessionId;
+  final String body;
+  final DateTime createdAt;
+  const PendingNotice({
+    required this.id,
+    required this.sessionId,
+    required this.body,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['body'] = Variable<String>(body);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PendingNoticesCompanion toCompanion(bool nullToAbsent) {
+    return PendingNoticesCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      body: Value(body),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PendingNotice.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingNotice(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      body: serializer.fromJson<String>(json['body']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'body': serializer.toJson<String>(body),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  PendingNotice copyWith({
+    int? id,
+    String? sessionId,
+    String? body,
+    DateTime? createdAt,
+  }) => PendingNotice(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    body: body ?? this.body,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PendingNotice copyWithCompanion(PendingNoticesCompanion data) {
+    return PendingNotice(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      body: data.body.present ? data.body.value : this.body,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingNotice(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sessionId, body, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingNotice &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.body == this.body &&
+          other.createdAt == this.createdAt);
+}
+
+class PendingNoticesCompanion extends UpdateCompanion<PendingNotice> {
+  final Value<int> id;
+  final Value<String> sessionId;
+  final Value<String> body;
+  final Value<DateTime> createdAt;
+  const PendingNoticesCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.body = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  PendingNoticesCompanion.insert({
+    this.id = const Value.absent(),
+    required String sessionId,
+    required String body,
+    this.createdAt = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       body = Value(body);
+  static Insertable<PendingNotice> custom({
+    Expression<int>? id,
+    Expression<String>? sessionId,
+    Expression<String>? body,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (body != null) 'body': body,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  PendingNoticesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? sessionId,
+    Value<String>? body,
+    Value<DateTime>? createdAt,
+  }) {
+    return PendingNoticesCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      body: body ?? this.body,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingNoticesCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6838,6 +7829,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $McpToolRulesTable mcpToolRules = $McpToolRulesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $ProjectPlansTable projectPlans = $ProjectPlansTable(this);
+  late final $AutopilotStatesTable autopilotStates = $AutopilotStatesTable(
+    this,
+  );
+  late final $ReviewDraftsTable reviewDrafts = $ReviewDraftsTable(this);
+  late final $PendingNoticesTable pendingNotices = $PendingNoticesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6856,6 +7852,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     mcpToolRules,
     appSettings,
     projectPlans,
+    autopilotStates,
+    reviewDrafts,
+    pendingNotices,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -6942,6 +7941,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('project_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('autopilot_states', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('pending_notices', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -7051,6 +8064,26 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_projectPlansRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$AutopilotStatesTable, List<AutopilotState>>
+  _autopilotStatesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.autopilotStates,
+    aliasName: 'workspaces__id__autopilot_states__workspace_id',
+  );
+
+  $$AutopilotStatesTableProcessedTableManager get autopilotStatesRefs {
+    final manager = $$AutopilotStatesTableTableManager(
+      $_db,
+      $_db.autopilotStates,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _autopilotStatesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -7202,6 +8235,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$ProjectPlansTableFilterComposer(
             $db: $db,
             $table: $db.projectPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> autopilotStatesRefs(
+    Expression<bool> Function($$AutopilotStatesTableFilterComposer f) f,
+  ) {
+    final $$AutopilotStatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.autopilotStates,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutopilotStatesTableFilterComposer(
+            $db: $db,
+            $table: $db.autopilotStates,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7387,6 +8445,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> autopilotStatesRefs<T extends Object>(
+    Expression<T> Function($$AutopilotStatesTableAnnotationComposer a) f,
+  ) {
+    final $$AutopilotStatesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.autopilotStates,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutopilotStatesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.autopilotStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -7408,6 +8491,7 @@ class $$WorkspacesTableTableManager
             bool sessionsRefs,
             bool conversationsRefs,
             bool projectPlansRefs,
+            bool autopilotStatesRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -7460,6 +8544,7 @@ class $$WorkspacesTableTableManager
                 sessionsRefs = false,
                 conversationsRefs = false,
                 projectPlansRefs = false,
+                autopilotStatesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -7469,6 +8554,7 @@ class $$WorkspacesTableTableManager
                     if (sessionsRefs) db.sessions,
                     if (conversationsRefs) db.conversations,
                     if (projectPlansRefs) db.projectPlans,
+                    if (autopilotStatesRefs) db.autopilotStates,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -7578,6 +8664,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (autopilotStatesRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          AutopilotState
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._autopilotStatesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).autopilotStatesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7604,6 +8711,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool sessionsRefs,
         bool conversationsRefs,
         bool projectPlansRefs,
+        bool autopilotStatesRefs,
       })
     >;
 typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
@@ -8401,6 +9509,10 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<StepStatus> status,
   Value<String?> sessionId,
   Value<DateTime?> doneAt,
+  Value<String?> startSha,
+  Value<String?> startStash,
+  Value<String?> gateReport,
+  Value<int> gateAttempts,
   Value<int> rowid,
 });
 typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
@@ -8409,6 +9521,10 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<StepStatus> status,
   Value<String?> sessionId,
   Value<DateTime?> doneAt,
+  Value<String?> startSha,
+  Value<String?> startStash,
+  Value<String?> gateReport,
+  Value<int> gateAttempts,
   Value<int> rowid,
 });
 
@@ -8461,6 +9577,26 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<DateTime> get doneAt => $composableBuilder(
     column: $table.doneAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8517,6 +9653,26 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8561,6 +9717,24 @@ class $$SpecStepsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get doneAt =>
       $composableBuilder(column: $table.doneAt, builder: (column) => column);
+
+  GeneratedColumn<String> get startSha =>
+      $composableBuilder(column: $table.startSha, builder: (column) => column);
+
+  GeneratedColumn<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
+    builder: (column) => column,
+  );
 
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
@@ -8619,6 +9793,10 @@ class $$SpecStepsTableTableManager
                 Value<StepStatus> status = const Value.absent(),
                 Value<String?> sessionId = const Value.absent(),
                 Value<DateTime?> doneAt = const Value.absent(),
+                Value<String?> startSha = const Value.absent(),
+                Value<String?> startStash = const Value.absent(),
+                Value<String?> gateReport = const Value.absent(),
+                Value<int> gateAttempts = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion(
                 specId: specId,
@@ -8626,6 +9804,10 @@ class $$SpecStepsTableTableManager
                 status: status,
                 sessionId: sessionId,
                 doneAt: doneAt,
+                startSha: startSha,
+                startStash: startStash,
+                gateReport: gateReport,
+                gateAttempts: gateAttempts,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8635,6 +9817,10 @@ class $$SpecStepsTableTableManager
                 Value<StepStatus> status = const Value.absent(),
                 Value<String?> sessionId = const Value.absent(),
                 Value<DateTime?> doneAt = const Value.absent(),
+                Value<String?> startSha = const Value.absent(),
+                Value<String?> startStash = const Value.absent(),
+                Value<String?> gateReport = const Value.absent(),
+                Value<int> gateAttempts = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion.insert(
                 specId: specId,
@@ -8642,6 +9828,10 @@ class $$SpecStepsTableTableManager
                 status: status,
                 sessionId: sessionId,
                 doneAt: doneAt,
+                startSha: startSha,
+                startStash: startStash,
+                gateReport: gateReport,
+                gateAttempts: gateAttempts,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -9448,6 +10638,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$PendingNoticesTable, List<PendingNotice>>
+  _pendingNoticesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.pendingNotices,
+    aliasName: 'sessions__id__pending_notices__session_id',
+  );
+
+  $$PendingNoticesTableProcessedTableManager get pendingNoticesRefs {
+    final manager = $$PendingNoticesTableTableManager(
+      $_db,
+      $_db.pendingNotices,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_pendingNoticesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -9660,6 +10868,31 @@ class $$SessionsTableFilterComposer
           }) => $$ConversationsTableFilterComposer(
             $db: $db,
             $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> pendingNoticesRefs(
+    Expression<bool> Function($$PendingNoticesTableFilterComposer f) f,
+  ) {
+    final $$PendingNoticesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pendingNotices,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PendingNoticesTableFilterComposer(
+            $db: $db,
+            $table: $db.pendingNotices,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10028,6 +11261,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> pendingNoticesRefs<T extends Object>(
+    Expression<T> Function($$PendingNoticesTableAnnotationComposer a) f,
+  ) {
+    final $$PendingNoticesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pendingNotices,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PendingNoticesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pendingNotices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -10049,6 +11307,7 @@ class $$SessionsTableTableManager
             bool specId,
             bool sessionEventsRefs,
             bool conversationsRefs,
+            bool pendingNoticesRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -10173,12 +11432,14 @@ class $$SessionsTableTableManager
                 specId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
+                pendingNoticesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (sessionEventsRefs) db.sessionEvents,
                     if (conversationsRefs) db.conversations,
+                    if (pendingNoticesRefs) db.pendingNotices,
                   ],
                   addJoins:
                       <
@@ -10276,6 +11537,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (pendingNoticesRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          PendingNotice
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._pendingNoticesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pendingNoticesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -10302,6 +11584,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool specId,
         bool sessionEventsRefs,
         bool conversationsRefs,
+        bool pendingNoticesRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -12791,6 +14074,732 @@ typedef $$ProjectPlansTableProcessedTableManager =
       ProjectPlan,
       PrefetchHooks Function({bool workspaceId})
     >;
+typedef $$AutopilotStatesTableCreateCompanionBuilder =
+    AutopilotStatesCompanion Function({
+      Value<int> workspaceId,
+      Value<DateTime> since,
+    });
+typedef $$AutopilotStatesTableUpdateCompanionBuilder =
+    AutopilotStatesCompanion Function({
+      Value<int> workspaceId,
+      Value<DateTime> since,
+    });
+
+final class $$AutopilotStatesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $AutopilotStatesTable, AutopilotState> {
+  $$AutopilotStatesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) => db.workspaces
+      .createAlias('autopilot_states__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AutopilotStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get since => $composableBuilder(
+    column: $table.since,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get since => $composableBuilder(
+    column: $table.since,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get since =>
+      $composableBuilder(column: $table.since, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AutopilotStatesTable,
+          AutopilotState,
+          $$AutopilotStatesTableFilterComposer,
+          $$AutopilotStatesTableOrderingComposer,
+          $$AutopilotStatesTableAnnotationComposer,
+          $$AutopilotStatesTableCreateCompanionBuilder,
+          $$AutopilotStatesTableUpdateCompanionBuilder,
+          (AutopilotState, $$AutopilotStatesTableReferences),
+          AutopilotState,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$AutopilotStatesTableTableManager(
+    _$AppDatabase db,
+    $AutopilotStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AutopilotStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AutopilotStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AutopilotStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<DateTime> since = const Value.absent(),
+              }) => AutopilotStatesCompanion(
+                workspaceId: workspaceId,
+                since: since,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<DateTime> since = const Value.absent(),
+              }) => AutopilotStatesCompanion.insert(
+                workspaceId: workspaceId,
+                since: since,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AutopilotStatesTable, AutopilotState>(table),
+                  $$AutopilotStatesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$AutopilotStatesTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$AutopilotStatesTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AutopilotStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AutopilotStatesTable,
+      AutopilotState,
+      $$AutopilotStatesTableFilterComposer,
+      $$AutopilotStatesTableOrderingComposer,
+      $$AutopilotStatesTableAnnotationComposer,
+      $$AutopilotStatesTableCreateCompanionBuilder,
+      $$AutopilotStatesTableUpdateCompanionBuilder,
+      (AutopilotState, $$AutopilotStatesTableReferences),
+      AutopilotState,
+      PrefetchHooks Function({bool workspaceId})
+    >;
+typedef $$ReviewDraftsTableCreateCompanionBuilder =
+    ReviewDraftsCompanion Function({
+      required String sessionId,
+      required String data,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReviewDraftsTableUpdateCompanionBuilder =
+    ReviewDraftsCompanion Function({
+      Value<String> sessionId,
+      Value<String> data,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ReviewDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReviewDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReviewDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ReviewDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewDraftsTable,
+          ReviewDraftRow,
+          $$ReviewDraftsTableFilterComposer,
+          $$ReviewDraftsTableOrderingComposer,
+          $$ReviewDraftsTableAnnotationComposer,
+          $$ReviewDraftsTableCreateCompanionBuilder,
+          $$ReviewDraftsTableUpdateCompanionBuilder,
+          (
+            ReviewDraftRow,
+            BaseReferences<_$AppDatabase, $ReviewDraftsTable, ReviewDraftRow>,
+          ),
+          ReviewDraftRow,
+          PrefetchHooks Function()
+        > {
+  $$ReviewDraftsTableTableManager(_$AppDatabase db, $ReviewDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> sessionId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewDraftsCompanion(
+                sessionId: sessionId,
+                data: data,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sessionId,
+                required String data,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewDraftsCompanion.insert(
+                sessionId: sessionId,
+                data: data,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReviewDraftsTable, ReviewDraftRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ReviewDraftsTable,
+                    ReviewDraftRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReviewDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewDraftsTable,
+      ReviewDraftRow,
+      $$ReviewDraftsTableFilterComposer,
+      $$ReviewDraftsTableOrderingComposer,
+      $$ReviewDraftsTableAnnotationComposer,
+      $$ReviewDraftsTableCreateCompanionBuilder,
+      $$ReviewDraftsTableUpdateCompanionBuilder,
+      (
+        ReviewDraftRow,
+        BaseReferences<_$AppDatabase, $ReviewDraftsTable, ReviewDraftRow>,
+      ),
+      ReviewDraftRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PendingNoticesTableCreateCompanionBuilder =
+    PendingNoticesCompanion Function({
+      Value<int> id,
+      required String sessionId,
+      required String body,
+      Value<DateTime> createdAt,
+    });
+typedef $$PendingNoticesTableUpdateCompanionBuilder =
+    PendingNoticesCompanion Function({
+      Value<int> id,
+      Value<String> sessionId,
+      Value<String> body,
+      Value<DateTime> createdAt,
+    });
+
+final class $$PendingNoticesTableReferences
+    extends BaseReferences<_$AppDatabase, $PendingNoticesTable, PendingNotice> {
+  $$PendingNoticesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('pending_notices__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<String>('session_id')!;
+
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PendingNoticesTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingNoticesTable,
+          PendingNotice,
+          $$PendingNoticesTableFilterComposer,
+          $$PendingNoticesTableOrderingComposer,
+          $$PendingNoticesTableAnnotationComposer,
+          $$PendingNoticesTableCreateCompanionBuilder,
+          $$PendingNoticesTableUpdateCompanionBuilder,
+          (PendingNotice, $$PendingNoticesTableReferences),
+          PendingNotice,
+          PrefetchHooks Function({bool sessionId})
+        > {
+  $$PendingNoticesTableTableManager(
+    _$AppDatabase db,
+    $PendingNoticesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingNoticesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingNoticesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingNoticesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PendingNoticesCompanion(
+                id: id,
+                sessionId: sessionId,
+                body: body,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sessionId,
+                required String body,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PendingNoticesCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                body: body,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PendingNoticesTable, PendingNotice>(table),
+                  $$PendingNoticesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$PendingNoticesTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$PendingNoticesTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PendingNoticesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingNoticesTable,
+      PendingNotice,
+      $$PendingNoticesTableFilterComposer,
+      $$PendingNoticesTableOrderingComposer,
+      $$PendingNoticesTableAnnotationComposer,
+      $$PendingNoticesTableCreateCompanionBuilder,
+      $$PendingNoticesTableUpdateCompanionBuilder,
+      (PendingNotice, $$PendingNoticesTableReferences),
+      PendingNotice,
+      PrefetchHooks Function({bool sessionId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12821,4 +14830,10 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$ProjectPlansTableTableManager get projectPlans =>
       $$ProjectPlansTableTableManager(_db, _db.projectPlans);
+  $$AutopilotStatesTableTableManager get autopilotStates =>
+      $$AutopilotStatesTableTableManager(_db, _db.autopilotStates);
+  $$ReviewDraftsTableTableManager get reviewDrafts =>
+      $$ReviewDraftsTableTableManager(_db, _db.reviewDrafts);
+  $$PendingNoticesTableTableManager get pendingNotices =>
+      $$PendingNoticesTableTableManager(_db, _db.pendingNotices);
 }

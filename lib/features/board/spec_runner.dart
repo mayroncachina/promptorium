@@ -8,6 +8,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/git/git_service.dart';
+import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
@@ -15,6 +16,7 @@ import '../project/project_config.dart';
 import '../specs/spec_service.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'step_gate.dart';
 
 class SpecRunException implements Exception {
   const SpecRunException(this.message);
@@ -204,6 +206,16 @@ String specSessionTitle(Spec spec, List<StepView> steps, List<String> todo) {
   return '${spec.code} · ${todo.first}–${todo.last} · ${spec.title}';
 }
 
+/// Timeline line of a gate result: `Verificação: ✓ commit · ✗ testes (12 s)`.
+String gateNote(GateReport r) {
+  String secs(Duration d) => d.inSeconds >= 1 ? ' (${d.inSeconds} s)' : '';
+  final items = [
+    for (final c in r.checks)
+      '${c.ok ? '✓' : '✗'} ${c.label}${secs(c.duration)}',
+  ];
+  return 'Verificação ${r.ok ? 'aprovada' : 'falhou'}: ${items.join(' · ')}';
+}
+
 /// Runs a spec step by step: one session per step (or one for a small spec)
 /// in the spec's own worktree, and moves the card / steps from the sessions'
 /// events (called by `SessionManager`).
@@ -316,6 +328,7 @@ class SpecRunner {
       spec,
       baseBranch: baseBranch ?? config.baseBranch,
     );
+    await _markStart(spec, wt.path, todo);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
     final id = await _manager.create(
@@ -394,6 +407,22 @@ class SpecRunner {
     }
   }
 
+  /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
+  /// commit after it).
+  Future<void> _markStart(
+    Spec spec,
+    String worktree,
+    List<String> steps,
+  ) async {
+    String? sha;
+    try {
+      sha = await _ref.read(gitServiceFactoryProvider)(worktree).headSha();
+    } on GitException catch (e) {
+      debugPrint('${spec.code}: início da etapa não gravado — $e');
+    }
+    await _ref.read(specStepsRepoProvider).markStart(spec.id, steps, sha: sha);
+  }
+
   // --- session events (SessionManager) ---------------------------------------
 
   Future<Session?> _specSession(String id) async {
@@ -422,9 +451,10 @@ class SpecRunner {
     }
   });
 
-  /// End of a turn: steps named in `ETAPA CONCLUÍDA` are done, the others of
-  /// the session wait for the user. All steps done → Review; this session's
-  /// steps done and auto-advance on → next session.
+  /// End of a turn: steps named in `ETAPA CONCLUÍDA` are done (after the
+  /// gate, when the project has one), the others of the session wait for
+  /// the user. All steps done → Review; this session's steps done and
+  /// auto-advance on → next session.
   Future<void> onResult(String sessionId, Result r) => _guard(
     sessionId,
     () async {
@@ -435,37 +465,196 @@ class SpecRunner {
       final marked = r.isSuccess ? parseStepMarker(r.result) : const <String>{};
       final repo = _ref.read(specStepsRepoProvider);
       final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+      final config = await _config(s.workspaceId);
+      final gated = config != null && config.gateEnabled;
+      final toVerify = <String>[];
       for (final step in mine) {
         if (rows[step]?.status == StepStatus.done) continue;
+        final ok = marked.contains(step);
+        if (ok && gated) toVerify.add(step);
         await repo.set(
           specId,
           step,
-          marked.contains(step) ? StepStatus.done : StepStatus.needsInput,
+          !ok
+              ? StepStatus.needsInput
+              : gated
+              ? StepStatus.verifying
+              : StepStatus.done,
           sessionId: sessionId,
         );
       }
-      final spec = await _ref.read(specsRepoProvider).getById(specId);
-      if (spec == null) return;
-      final steps = stepsOf(spec, await repo.bySpec(specId));
-      if (steps.isNotEmpty && steps.every((x) => x.isDone)) {
-        await _ref.read(specsRepoProvider).setStage(specId, SpecStage.review);
-        unawaited(
-          Future<void>.microtask(
-            () => _ref.read(autopilotProvider.notifier).tick(spec.workspaceId),
-          ),
-        );
+      if (toVerify.isNotEmpty) {
+        // Outside the session's event queue: the gate may take minutes and
+        // its retry message goes through that queue.
+        unawaited(Future<void>.microtask(() => _verify(s, toVerify, config!)));
         return;
       }
-      final mineDone = mine.every(
-        (step) => steps.any((x) => x.id == step && x.isDone),
-      );
-      if (mineDone && spec.autoAdvance) {
-        // Outside the session's event queue: releasing its process waits
-        // for that queue.
-        unawaited(Future<void>.microtask(() => _advance(s)));
-      }
+      await _continue(s);
     },
   );
+
+  Future<ProjectConfig?> _config(int workspaceId) async {
+    final ws = await _ref.read(workspacesRepoProvider).getById(workspaceId);
+    return ws == null ? null : ProjectConfig.loadSync(ws.path);
+  }
+
+  /// After a session's steps changed: all steps done → Review (and the
+  /// autopilot looks for the next spec); this session's steps done and
+  /// auto-advance on → next session.
+  Future<void> _continue(Session s) async {
+    final specId = s.specId!;
+    final repo = _ref.read(specStepsRepoProvider);
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (spec == null) return;
+    final steps = stepsOf(spec, await repo.bySpec(specId));
+    if (steps.isNotEmpty && steps.every((x) => x.isDone)) {
+      await _ref.read(specsRepoProvider).setStage(specId, SpecStage.review);
+      unawaited(
+        Future<void>.microtask(
+          () => _ref.read(autopilotProvider.notifier).tick(spec.workspaceId),
+        ),
+      );
+      return;
+    }
+    final mineDone = parseSessionSteps(s.steps)
+        .every((step) => steps.any((x) => x.id == step && x.isDone));
+    if (mineDone && spec.autoAdvance) {
+      // Outside the session's event queue: releasing its process waits
+      // for that queue.
+      unawaited(Future<void>.microtask(() => _advance(s)));
+    }
+  }
+
+  /// Specs whose gate is running (one at a time per spec).
+  final Set<int> _verifying = {};
+
+  /// Runs the gate of [steps] (marked by the agent) in the spec's worktree:
+  /// passed → done; failed with attempts left → the failure goes back to
+  /// the same session; else the steps wait for the user.
+  Future<void> _verify(
+    Session s,
+    List<String> steps,
+    ProjectConfig config,
+  ) async {
+    final specId = s.specId!;
+    if (!_verifying.add(specId)) return;
+    try {
+      final spec = await _ref.read(specsRepoProvider).getById(specId);
+      if (spec == null) return;
+      final repo = _ref.read(specStepsRepoProvider);
+      final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+      final first = rows[steps.first];
+      final attempts = first?.gateAttempts ?? 0;
+      await _manager.note(s.id, 'Verificando ${steps.join(', ')}…');
+      final report =
+          await StepGate(
+            git: _ref.read(gitServiceFactoryProvider)(s.worktreePath),
+            shell: _ref.read(shellRunnerProvider),
+          ).run(
+            specCode: spec.code,
+            steps: steps,
+            startSha: first?.startSha,
+            config: config,
+            attempt: attempts,
+          );
+      await repo.setGate(specId, steps, report: report.encode());
+      await _manager.note(s.id, gateNote(report), error: !report.ok);
+      if (report.ok) {
+        for (final step in steps) {
+          await repo.set(specId, step, StepStatus.done, sessionId: s.id);
+        }
+        await _continue(s);
+        return;
+      }
+      if (attempts < config.gate.attempts) {
+        await repo.setGate(
+          specId,
+          steps,
+          report: report.encode(),
+          attempts: attempts + 1,
+        );
+        await _manager.send(s.id, gateRetryMessage(report, steps));
+        return;
+      }
+      for (final step in steps) {
+        await repo.set(specId, step, StepStatus.needsInput, sessionId: s.id);
+      }
+    } catch (e) {
+      debugPrint('spec $specId: verificação não concluída — $e');
+      for (final step in steps) {
+        await _ref
+            .read(specStepsRepoProvider)
+            .set(specId, step, StepStatus.needsInput);
+      }
+    } finally {
+      _verifying.remove(specId);
+    }
+  }
+
+  /// Steps of the spec's last session that wait for the user after a gate
+  /// (needs input / verifying with a report).
+  Future<(Session, List<String>)?> _gatedSteps(int specId) async {
+    final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
+    if (sessions.isEmpty) return null;
+    final s = sessions.last;
+    final rows = {
+      for (final x in await _ref.read(specStepsRepoProvider).bySpec(specId))
+        x.step: x,
+    };
+    final steps = [
+      for (final step in parseSessionSteps(s.steps))
+        if (rows[step] case final r?
+            when r.status != StepStatus.done && r.gateReport != null)
+          step,
+    ];
+    return steps.isEmpty ? null : (s, steps);
+  }
+
+  /// "Verificar de novo": runs the gate again for the steps the last one
+  /// refused (the user fixed something by hand). No automatic resend.
+  Future<void> recheck(int specId) async {
+    final found = await _gatedSteps(specId);
+    if (found == null) {
+      throw const SpecRunException('Nenhuma etapa aguardando verificação.');
+    }
+    final (s, steps) = found;
+    final config = await _config(s.workspaceId);
+    if (config == null) return;
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+    // Attempts used up: a failure now waits for the user again.
+    await repo.setGate(
+      specId,
+      steps,
+      report: rows[steps.first]?.gateReport,
+      attempts: config.gate.attempts,
+    );
+    for (final step in steps) {
+      await repo.set(specId, step, StepStatus.verifying);
+    }
+    await _verify(s, steps, config);
+  }
+
+  /// "Commitar o que sobrou": commits every uncommitted file of the spec's
+  /// worktree with the step's message, then verifies again.
+  Future<void> commitLeftovers(int specId) async {
+    final found = await _gatedSteps(specId);
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (found == null || spec == null) {
+      throw const SpecRunException('Nenhuma etapa aguardando verificação.');
+    }
+    final (s, steps) = found;
+    try {
+      await _ref
+          .read(gitServiceFactoryProvider)(s.worktreePath)
+          .commitAll(
+            '${spec.code} ${steps.join(', ')}: arquivos restantes da etapa',
+          );
+    } on GitException catch (e) {
+      throw SpecRunException('Falha ao fazer o commit: $e');
+    }
+    await recheck(specId);
+  }
 
   /// Stopped by the user: its running steps go back to pending. Failed:
   /// they wait for the user.

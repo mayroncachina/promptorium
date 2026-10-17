@@ -10,6 +10,7 @@ import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
@@ -61,6 +62,7 @@ class SpecCardData {
           .where(
             (s) =>
                 s.status == StepStatus.running ||
+                s.status == StepStatus.verifying ||
                 s.status == StepStatus.needsInput,
           )
           .firstOrNull ??
@@ -444,8 +446,13 @@ class SpecCard extends ConsumerWidget {
       } else {
         border = SessionColors.runningToolBorder;
       }
+    } else if (current?.status == StepStatus.verifying) {
+      meta = '${current!.id} verificando';
+      metaColor = AppColors.lilac;
     } else if (waitingUser) {
-      meta = '${current!.id} aguardando você';
+      meta = current!.gateFailed
+          ? '${current.id} · verificação falhou'
+          : '${current.id} aguardando você';
       metaColor = AppColors.amber;
       border = SessionColors.approvalBorder;
     } else if (blocked) {
@@ -543,6 +550,10 @@ class SpecCard extends ConsumerWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+              if (current.gate case final g?) ...[
+                const SizedBox(height: 4),
+                GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
+              ],
             ],
             const SizedBox(height: 6),
             Row(

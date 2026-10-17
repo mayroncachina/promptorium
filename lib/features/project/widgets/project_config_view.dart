@@ -56,6 +56,18 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _specs = TextEditingController(text: _saved.specsDir);
   late final _tests = TextEditingController(text: _saved.testCommand ?? '');
   late final _branch = TextEditingController(text: _saved.baseBranch ?? '');
+  late final _lint = TextEditingController(text: _saved.lintCommand ?? '');
+  late final _build = TextEditingController(text: _saved.buildCommand ?? '');
+  late final _format = TextEditingController(text: _saved.formatCommand ?? '');
+  late final _attempts = TextEditingController(text: '${_saved.gate.attempts}');
+  late final _timeout = TextEditingController(
+    text: '${_saved.gate.timeoutSeconds}',
+  );
+  late final _blocked = TextEditingController(
+    text: _saved.blockedCommands.join('\n'),
+  );
+  late bool _requireCommit = _saved.gate.requireCommit;
+  late bool _requireClean = _saved.gate.requireCleanTree;
   late String? _agent = _saved.agent;
   late List<SpecSubagent> _subagents = _saved.subagents;
   String? _error;
@@ -66,17 +78,45 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     _specs.dispose();
     _tests.dispose();
     _branch.dispose();
+    for (final c in [_lint, _build, _format, _attempts, _timeout, _blocked]) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  ProjectConfig get _current => ProjectConfig(
+  static String? _text(TextEditingController c) =>
+      c.text.trim().isEmpty ? null : c.text.trim();
+
+  /// The verification as edited; null when it equals the defaults and the
+  /// file did not have it (the file stays as it was).
+  VerificationConfig? get _verification {
+    const d = VerificationConfig();
+    final v = VerificationConfig(
+      attempts: int.tryParse(_attempts.text.trim()) ?? d.attempts,
+      timeoutSeconds: int.tryParse(_timeout.text.trim()) ?? d.timeoutSeconds,
+      requireCommit: _requireCommit,
+      requireCleanTree: _requireClean,
+    );
+    return v.isDefault && _saved.verification == null ? null : v;
+  }
+
+  // Built on the saved config: keys this view does not edit are kept.
+  ProjectConfig get _current => _saved.copyWith(
     specsDir: _specs.text.trim().isEmpty
         ? ProjectConfig.defaultSpecsDir
         : _specs.text.trim(),
-    testCommand: _tests.text.trim().isEmpty ? null : _tests.text.trim(),
-    baseBranch: _branch.text.trim().isEmpty ? null : _branch.text.trim(),
-    agent: _agent,
+    testCommand: () => _text(_tests),
+    lintCommand: () => _text(_lint),
+    buildCommand: () => _text(_build),
+    formatCommand: () => _text(_format),
+    baseBranch: () => _text(_branch),
+    agent: () => _agent,
     subagents: _subagents,
+    verification: () => _verification,
+    blockedCommands: [
+      for (final l in _blocked.text.split('\n'))
+        if (l.trim().isNotEmpty) l.trim(),
+    ],
   );
 
   bool get _dirty => _current != _saved;
@@ -90,6 +130,14 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     }
     if (c.baseBranch != null && c.baseBranch!.startsWith('-')) {
       setState(() => _error = 'Branch base inválida.');
+      return;
+    }
+    final attempts = int.tryParse(_attempts.text.trim());
+    final timeout = int.tryParse(_timeout.text.trim());
+    if (attempts == null || attempts < 0 || timeout == null || timeout < 1) {
+      setState(
+        () => _error = 'Tentativas: número ≥ 0; tempo limite: segundos (≥ 1).',
+      );
       return;
     }
     setState(() {
@@ -195,119 +243,223 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
+        // Save / error stay visible below the scrolling form.
+        child: Column(
           children: [
-            Text(
-              'Configuração de ${widget.workspace.name}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.intro ??
-                  'Fica em ${ProjectConfig.filePath}, dentro do repositório: '
-                      'faça commit para o time usar o mesmo.',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            _label(
-              'Pasta das specs',
-              'relativa ao repositório (padrão: specs)',
-            ),
-            _field(
-              const ValueKey('config-specs'),
-              _specs,
-              'specs',
-              suffix: IconButton(
-                key: const ValueKey('config-specs-pick'),
-                tooltip: 'Escolher pasta…',
-                icon: const Icon(Icons.folder_open, size: 18),
-                onPressed: _pickSpecsDir,
-              ),
-            ),
-            if (specsChanged)
-              const Padding(
-                padding: EdgeInsets.only(top: 6),
-                child: Text(
-                  'As specs que já existem continuam onde estão e na lista; '
-                  'só as novas vão para a pasta nova. Mova os arquivos se '
-                  'quiser juntar tudo.',
-                  key: ValueKey('config-specs-warning'),
-                  style: TextStyle(fontSize: 11, color: AppColors.amber),
-                ),
-              ),
-            _label(
-              'Comando de testes',
-              'as sessões rodam isto antes de cada commit',
-            ),
-            _field(const ValueKey('config-tests'), _tests, 'ex.: pytest -q'),
-            _label(
-              'Branch base',
-              'origem dos worktrees e destino do merge (vazio = a atual)',
-            ),
-            _field(const ValueKey('config-branch'), _branch, 'ex.: main'),
-            _label('Agente padrão', 'usado nas specs sem agente próprio'),
-            DropdownButton<String?>(
-              key: const ValueKey('config-agent'),
-              isExpanded: true,
-              isDense: true,
-              value: agents.any((a) => a.name == _agent) ? _agent : null,
-              hint: const Text('(nenhum)', style: TextStyle(fontSize: 13)),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('(nenhum)', style: TextStyle(fontSize: 13)),
-                ),
-                for (final a in agents)
-                  DropdownMenuItem<String?>(
-                    value: a.name,
-                    child: Text(a.name, style: const TextStyle(fontSize: 13)),
+            Expanded(child: _form(path, agents, specsChanged)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        _error!,
+                        key: const ValueKey('config-error'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.red,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      AmberButton(
+                        key: const ValueKey('config-save'),
+                        label: 'Salvar',
+                        height: 34,
+                        onTap: _dirty && !_busy ? _save : null,
+                      ),
+                      const SizedBox(width: 8),
+                      if (widget.onPlan != null)
+                        SmallButton(
+                          key: const ValueKey('config-plan'),
+                          label: 'Planejar um novo roadmap…',
+                          height: 34,
+                          onTap: widget.onPlan,
+                        ),
+                    ],
                   ),
-              ],
-              onChanged: (v) => setState(() => _agent = v),
-            ),
-            _label('Subagentes de toda spec', 'somados aos da própria spec'),
-            SubagentsEditor(
-              mainAgent: _agent,
-              workspacePath: path,
-              subagents: _subagents,
-              allowStep: false,
-              initiallyOpen: true,
-              onChange: (l) => setState(() => _subagents = l),
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  _error!,
-                  key: const ValueKey('config-error'),
-                  style: const TextStyle(fontSize: 12, color: AppColors.red),
-                ),
+                ],
               ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                AmberButton(
-                  key: const ValueKey('config-save'),
-                  label: 'Salvar',
-                  height: 34,
-                  onTap: _dirty && !_busy ? _save : null,
-                ),
-                const SizedBox(width: 8),
-                if (widget.onPlan != null)
-                  SmallButton(
-                    key: const ValueKey('config-plan'),
-                    label: 'Planejar um novo roadmap…',
-                    height: 34,
-                    onTap: widget.onPlan,
-                  ),
-              ],
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _form(
+    String path,
+    List<AgentRef> agents,
+    bool specsChanged,
+  ) => ListView(
+    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+    children: [
+      Text(
+        'Configuração de ${widget.workspace.name}',
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        widget.intro ??
+            'Fica em ${ProjectConfig.filePath}, dentro do repositório: '
+                'faça commit para o time usar o mesmo.',
+        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+      _label('Pasta das specs', 'relativa ao repositório (padrão: specs)'),
+      _field(
+        const ValueKey('config-specs'),
+        _specs,
+        'specs',
+        suffix: IconButton(
+          key: const ValueKey('config-specs-pick'),
+          tooltip: 'Escolher pasta…',
+          icon: const Icon(Icons.folder_open, size: 18),
+          onPressed: _pickSpecsDir,
+        ),
+      ),
+      if (specsChanged)
+        const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text(
+            'As specs que já existem continuam onde estão e na lista; '
+            'só as novas vão para a pasta nova. Mova os arquivos se '
+            'quiser juntar tudo.',
+            key: ValueKey('config-specs-warning'),
+            style: TextStyle(fontSize: 11, color: AppColors.amber),
+          ),
+        ),
+      _label('Comando de testes', 'as sessões rodam isto antes de cada commit'),
+      _field(const ValueKey('config-tests'), _tests, 'ex.: pytest -q'),
+      _label(
+        'Verificação das etapas',
+        'roda no worktree antes de marcar a etapa como feita',
+      ),
+      _field(const ValueKey('config-lint'), _lint, 'lint: ex.: ruff check'),
+      const SizedBox(height: 6),
+      _field(
+        const ValueKey('config-build'),
+        _build,
+        'build: ex.: make build (opcional)',
+      ),
+      const SizedBox(height: 6),
+      Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: 6,
+        children: [
+          SizedBox(
+            width: 80,
+            child: _field(
+              const ValueKey('config-attempts'),
+              _attempts,
+              'tentativas',
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'reenvios ao agente',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 80,
+            child: _field(
+              const ValueKey('config-timeout'),
+              _timeout,
+              'segundos',
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            's por comando',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+      CheckboxListTile(
+        key: const ValueKey('config-require-commit'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _requireCommit,
+        title: const Text(
+          'Exigir commit da etapa',
+          style: TextStyle(fontSize: 12),
+        ),
+        onChanged: (v) => setState(() => _requireCommit = v ?? true),
+      ),
+      CheckboxListTile(
+        key: const ValueKey('config-require-clean'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _requireClean,
+        title: const Text(
+          'Exigir árvore limpa (nada sem commit)',
+          style: TextStyle(fontSize: 12),
+        ),
+        onChanged: (v) => setState(() => _requireClean = v ?? true),
+      ),
+      _label('Formatar ao editar', '{arquivo} = arquivo editado pelo agente'),
+      _field(
+        const ValueKey('config-format'),
+        _format,
+        'ex.: dart format {arquivo}',
+      ),
+      _label(
+        'Comandos bloqueados',
+        'um por linha; * = qualquer coisa (soma à lista embutida)',
+      ),
+      TextField(
+        key: const ValueKey('config-blocked'),
+        controller: _blocked,
+        minLines: 2,
+        maxLines: 6,
+        style: const TextStyle(fontSize: 13, fontFamily: AppFonts.mono),
+        decoration: const InputDecoration(
+          isDense: true,
+          hintText: 'git push --force*',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+      _label(
+        'Branch base',
+        'origem dos worktrees e destino do merge (vazio = a atual)',
+      ),
+      _field(const ValueKey('config-branch'), _branch, 'ex.: main'),
+      _label('Agente padrão', 'usado nas specs sem agente próprio'),
+      DropdownButton<String?>(
+        key: const ValueKey('config-agent'),
+        isExpanded: true,
+        isDense: true,
+        value: agents.any((a) => a.name == _agent) ? _agent : null,
+        hint: const Text('(nenhum)', style: TextStyle(fontSize: 13)),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('(nenhum)', style: TextStyle(fontSize: 13)),
+          ),
+          for (final a in agents)
+            DropdownMenuItem<String?>(
+              value: a.name,
+              child: Text(a.name, style: const TextStyle(fontSize: 13)),
+            ),
+        ],
+        onChanged: (v) => setState(() => _agent = v),
+      ),
+      _label('Subagentes de toda spec', 'somados aos da própria spec'),
+      SubagentsEditor(
+        mainAgent: _agent,
+        workspacePath: path,
+        subagents: _subagents,
+        allowStep: false,
+        initiallyOpen: true,
+        onChange: (l) => setState(() => _subagents = l),
+      ),
+    ],
+  );
 }

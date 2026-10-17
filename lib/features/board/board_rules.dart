@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/db/app_database.dart';
 import '../sessions/timeline.dart';
 import '../specs/spec_file.dart';
+import 'step_gate.dart';
 
 /// Pure rules of the Quadro: the spec is the card, its requirements are the
 /// steps (plano "specs no quadro").
@@ -15,6 +16,8 @@ class StepView {
     required this.text,
     this.status = StepStatus.pending,
     this.sessionId,
+    this.gate,
+    this.startSha,
   });
 
   /// `R1`.
@@ -23,7 +26,17 @@ class StepView {
   final StepStatus status;
   final String? sessionId;
 
+  /// Last gate of the step (null = never verified).
+  final GateReport? gate;
+
+  /// HEAD when its last session started (checkpoint).
+  final String? startSha;
+
   bool get isDone => status == StepStatus.done;
+
+  /// Waits for the user because the gate refused it.
+  bool get gateFailed =>
+      !isDone && status != StepStatus.verifying && gate != null && !gate!.ok;
 }
 
 /// Steps of [spec] in file order, with the state of [rows] (rows of steps
@@ -40,6 +53,8 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
         text: req.text,
         status: byStep[req.id]?.status ?? StepStatus.pending,
         sessionId: byStep[req.id]?.sessionId,
+        gate: GateReport.decode(byStep[req.id]?.gateReport),
+        startSha: byStep[req.id]?.startSha,
       ),
   ];
 }
@@ -114,6 +129,7 @@ String stepStatusLabel(StepStatus s) => switch (s) {
   StepStatus.running => 'rodando',
   StepStatus.done => 'concluída',
   StepStatus.needsInput => 'aguardando você',
+  StepStatus.verifying => 'verificando',
 };
 
 /// State of a subagent configured on a spec.

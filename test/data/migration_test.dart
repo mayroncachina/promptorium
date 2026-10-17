@@ -1,4 +1,6 @@
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'dart:io';
+
+import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
@@ -87,7 +89,7 @@ void main() {
     expect(n!.title, 'Nova');
     expect(n.permissionMode, 'plan');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 8);
+    expect(v.data.values.single, db.schemaVersion);
   });
 
   test('v2 → v4 adds conversation columns, conversation_events, '
@@ -186,7 +188,7 @@ void main() {
       expect(old.requirement, isNull);
       expect(await tasks.nextCode(1), 'TASK-008');
       final v = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(v.data.values.single, 8);
+      expect(v.data.values.single, db.schemaVersion);
     },
   );
 
@@ -238,7 +240,7 @@ void main() {
     );
     expect((await repo.getById('new'))!.baseBranch, 'main');
     final v = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(v.data.values.single, 8);
+    expect(v.data.values.single, db.schemaVersion);
   });
 
   test(
@@ -390,5 +392,56 @@ void main() {
     );
     final legacy = await TasksRepo(db).watchLegacy(1).first;
     expect(legacy.map((t) => t.code), ['TASK-006', 'TASK-007']);
+  });
+
+  test('v8 → v9 adds the gate / checkpoint columns of spec_steps and the '
+      'autopilot, review draft and notice tables; rows survive', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig9-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    // Current schema, then taken back to v8.
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await db.customStatement(
+      'INSERT INTO specs (workspace_id, code, title, path) VALUES '
+      "(1, 'SPEC-001', 'A', 'specs/a.md')",
+    );
+    await db.customStatement(
+      "INSERT INTO spec_steps (spec_id, step, status) VALUES (1, 'R1', 'done')",
+    );
+    for (final c in [
+      'start_sha',
+      'start_stash',
+      'gate_report',
+      'gate_attempts',
+    ]) {
+      await db.customStatement('ALTER TABLE spec_steps DROP COLUMN $c');
+    }
+    for (final t in ['autopilot_states', 'review_drafts', 'pending_notices']) {
+      await db.customStatement('DROP TABLE $t');
+    }
+    await db.customStatement('PRAGMA user_version = 8');
+    await db.close();
+
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.read<int>('user_version'), 9);
+    final row = await db.select(db.specSteps).getSingle();
+    expect(row.status, StepStatus.done);
+    expect(row.gateAttempts, 0);
+    expect(row.startSha, isNull);
+    await db
+        .into(db.autopilotStates)
+        .insert(AutopilotStatesCompanion.insert(workspaceId: const Value(1)));
+    await db
+        .into(db.reviewDrafts)
+        .insert(ReviewDraftsCompanion.insert(sessionId: 's', data: '{}'));
+    expect(await db.select(db.autopilotStates).get(), hasLength(1));
   });
 }

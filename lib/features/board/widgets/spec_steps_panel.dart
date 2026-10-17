@@ -8,6 +8,8 @@ import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
+import '../spec_runner.dart';
+import 'gate_report_view.dart';
 import 'subagent_status.dart';
 import '../board_screen.dart';
 import 'run_spec_dialog.dart';
@@ -25,6 +27,7 @@ Color stepStatusColor(StepStatus s) => switch (s) {
   StepStatus.running => AppColors.teal,
   StepStatus.done => AppColors.blue,
   StepStatus.needsInput => AppColors.amber,
+  StepStatus.verifying => AppColors.lilac,
 };
 
 /// Card details: the steps with their state and session.
@@ -214,8 +217,9 @@ class SpecStepsPanel extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Wrap(
+          alignment: WrapAlignment.end,
+          runSpacing: 6,
           children: [
             if (inDialog) ...[
               SmallButton(
@@ -226,6 +230,32 @@ class SpecStepsPanel extends ConsumerWidget {
                   ref.read(navigationProvider.notifier).go(AppSection.specs);
                   Navigator.of(context).pop();
                 },
+              ),
+              const SizedBox(width: 8),
+            ],
+            if (!busy && steps.any((s) => s.gateFailed)) ...[
+              if (steps
+                  .where((s) => s.gateFailed)
+                  .every((s) => s.gate!.onlyDirtyTree))
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SmallButton(
+                    key: const ValueKey('steps-commit-leftovers'),
+                    label: 'Commitar o que sobrou',
+                    onTap: () => _gateAction(
+                      context,
+                      () =>
+                          ref.read(specRunnerProvider).commitLeftovers(spec.id),
+                    ),
+                  ),
+                ),
+              SmallButton(
+                key: const ValueKey('steps-recheck'),
+                label: 'Verificar de novo',
+                onTap: () => _gateAction(
+                  context,
+                  () => ref.read(specRunnerProvider).recheck(spec.id),
+                ),
               ),
               const SizedBox(width: 8),
             ],
@@ -242,6 +272,19 @@ class SpecStepsPanel extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Runs a gate action; its failure becomes a snackbar.
+Future<void> _gateAction(
+  BuildContext context,
+  Future<void> Function() action,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    await action();
+  } catch (e) {
+    messenger?.showSnackBar(SnackBar(content: Text('$e')));
   }
 }
 
@@ -280,12 +323,21 @@ class _StepRow extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: Text(
-            step.text,
-            style: TextStyle(
-              fontSize: 13,
-              color: step.isDone ? AppColors.textSecondary : AppColors.text,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                step.text,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: step.isDone ? AppColors.textSecondary : AppColors.text,
+                ),
+              ),
+              if (step.gate case final g?) ...[
+                const SizedBox(height: 4),
+                GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),
+              ],
+            ],
           ),
         ),
         const SizedBox(width: 8),

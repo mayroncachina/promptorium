@@ -355,6 +355,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     await proc.process.send(msg);
   }
 
+  /// Line of the app in the session's timeline (gate results, hooks…).
+  Future<void> note(String id, String text, {bool error = false}) =>
+      _note(id, text, error: error);
+
   /// Message sent to the agent when the user saves [path] by hand.
   static String userEditNotice(String path) =>
       'O usuário editou $path manualmente; releia antes de alterar.';

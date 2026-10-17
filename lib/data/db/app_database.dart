@@ -140,8 +140,56 @@ class SpecSteps extends Table {
   TextColumn get sessionId => text().nullable()();
   DateTimeColumn get doneAt => dateTime().nullable()();
 
+  // --- gate and checkpoint (schema v9) ---------------------------------------
+
+  /// HEAD of the worktree when the step's session started (the gate looks
+  /// for the step's commit after it; "Voltar ao início da etapa" goes back
+  /// to it, also kept as `refs/promptorium/<spec>/<step>-inicio`).
+  TextColumn get startSha => text().nullable()();
+
+  /// `git stash create` of the uncommitted changes at that moment.
+  TextColumn get startStash => text().nullable()();
+
+  /// JSON of the last `GateReport`.
+  TextColumn get gateReport => text().nullable()();
+
+  /// Automatic resends after a failed gate, in the current session.
+  IntColumn get gateAttempts => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {specId, step};
+}
+
+/// Autopilot of the Quadro switched on for a workspace (schema v9): turned
+/// back on when the app opens.
+class AutopilotStates extends Table {
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+  DateTimeColumn get since => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {workspaceId};
+}
+
+/// Draft of the Review of one item (schema v9): pending comments and
+/// accepted hunks, as JSON.
+@DataClassName('ReviewDraftRow')
+class ReviewDrafts extends Table {
+  TextColumn get sessionId => text()();
+  TextColumn get data => text()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {sessionId};
+}
+
+/// Notices waiting to be sent to a session (manual edits, schema v9).
+class PendingNotices extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get sessionId =>
+      text().references(Sessions, #id, onDelete: KeyAction.cascade)();
+  TextColumn get body => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 class Tasks extends Table {
@@ -396,6 +444,9 @@ class AppSettings extends Table {
     McpToolRules,
     AppSettings,
     ProjectPlans,
+    AutopilotStates,
+    ReviewDrafts,
+    PendingNotices,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -413,12 +464,18 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   Future<bool> _hasTable(String name) async => (await customSelect(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
     variables: [Variable.withString(name)],
   ).get()).isNotEmpty;
+
+  Future<bool> _hasColumn(String table, String column) async =>
+      (await customSelect(
+        'SELECT 1 FROM pragma_table_info(?) WHERE name = ?',
+        variables: [Variable.withString(table), Variable.withString(column)],
+      ).get()).isNotEmpty;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -492,6 +549,28 @@ class AppDatabase extends _$AppDatabase {
           'ALTER TABLE sessions ADD COLUMN spec_id INTEGER NULL',
         );
         await m.addColumn(sessions, sessions.steps);
+      }
+      // v9: step gate and checkpoint; durable autopilot, review drafts and
+      // notices.
+      if (from < 9) {
+        if (await _hasTable('spec_steps')) {
+          // Created whole (with these columns) by a v7 → v8 upgrade.
+          for (final c in [
+            specSteps.startSha,
+            specSteps.startStash,
+            specSteps.gateReport,
+            specSteps.gateAttempts,
+          ]) {
+            if (!await _hasColumn('spec_steps', c.name)) {
+              await m.addColumn(specSteps, c);
+            }
+          }
+        }
+        if (await _hasTable('workspaces')) {
+          await m.createTable(autopilotStates);
+        }
+        await m.createTable(reviewDrafts);
+        if (await _hasTable('sessions')) await m.createTable(pendingNotices);
       }
     },
     beforeOpen: (details) async {
