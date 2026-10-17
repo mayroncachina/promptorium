@@ -1171,6 +1171,15 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Native notification. The click goes back to the screen the session was
   /// created from; approvals always go to Sessões (only answered there).
   void _notify(String title, String body, String id, {bool approval = false}) {
+    final section = approval
+        ? AppSection.sessions
+        : (_origins[id] ?? AppSection.sessions);
+    unawaited(
+      ref
+          .read(notificationsRepoProvider)
+          .add(title: title, body: body, section: section.name, sessionId: id)
+          .catchError((Object e) => debugPrint('notificação não gravada: $e')),
+    );
     ref
         .read(appNotifierProvider)
         .show(

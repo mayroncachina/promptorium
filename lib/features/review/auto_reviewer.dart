@@ -400,6 +400,16 @@ class AutoReviewer {
           .read(appNotifierProvider)
           .show('Pronta para review', '${spec.code} · ${spec.title}'),
     );
+    unawaited(
+      _ref
+          .read(notificationsRepoProvider)
+          .add(
+            title: 'Pronta para review',
+            body: '${spec.code} · ${spec.title}',
+            section: 'review',
+          )
+          .catchError((_) {}),
+    );
   }
 
   /// "Pular revisor" (Review screen) / interrupted run: straight to the user.

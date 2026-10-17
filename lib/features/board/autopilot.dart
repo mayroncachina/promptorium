@@ -92,6 +92,16 @@ class Autopilot extends Notifier<Set<int>> {
     _off(workspaceId);
     unawaited(
       ref
+          .read(notificationsRepoProvider)
+          .add(
+            title: 'Autopilot parado',
+            body: '${ws.name}: orçamento do dia atingido.',
+            section: 'tasks',
+          )
+          .catchError((_) {}),
+    );
+    unawaited(
+      ref
           .read(appNotifierProvider)
           .show(
             'Autopilot parado',

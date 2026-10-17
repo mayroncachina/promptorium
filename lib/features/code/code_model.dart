@@ -272,6 +272,24 @@ class CodeWorktreeModel extends ChangeNotifier {
     _changed();
   }
 
+  /// Opens [path] with the cursor on [line] (1-based; Problemas, Busca).
+  Future<OpenResult> openAt(String path, int line) async {
+    final r = await open(path);
+    if (r case Opened(:final tab)) {
+      final i = (line - 1).clamp(0, tab.controller.lineCount - 1);
+      try {
+        tab.controller.selection = CodeLineSelection.collapsed(
+          index: i,
+          offset: 0,
+        );
+        tab.controller.makeCursorVisible();
+      } catch (_) {
+        // not laid out yet: the file still opens
+      }
+    }
+    return r;
+  }
+
   Future<OpenResult> open(String path) async {
     final existing = tabFor(path);
     if (existing != null) {
