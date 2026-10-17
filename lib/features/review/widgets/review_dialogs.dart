@@ -331,3 +331,69 @@ Future<void> showReviewError(BuildContext context, String title, String msg) =>
         ],
       ),
     );
+
+/// "Mergear mesmo assim": criteria still unchecked; returns the reason
+/// (null = cancelled).
+Future<String?> showMergeOverrideDialog(
+  BuildContext context,
+  List<String> pending,
+) => showDialog<String>(
+  context: context,
+  barrierColor: AppColors.scrim,
+  builder: (_) => _OverrideDialog(pending: pending),
+);
+
+class _OverrideDialog extends StatefulWidget {
+  const _OverrideDialog({required this.pending});
+
+  final List<String> pending;
+
+  @override
+  State<_OverrideDialog> createState() => _OverrideDialogState();
+}
+
+class _OverrideDialogState extends State<_OverrideDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ReviewDialogFrame(
+    key: const ValueKey('review-override-dialog'),
+    title: 'Critérios de aceite sem marcar',
+    content: [
+      Text([for (final p in widget.pending) '• $p'].join('\n'), style: _body),
+      const SizedBox(height: 10),
+      const Text(
+        'Para mergear mesmo assim, diga o motivo (fica registrado na spec).',
+        style: _body,
+      ),
+      const SizedBox(height: 8),
+      TextField(
+        key: const ValueKey('review-override-reason'),
+        controller: _reason,
+        autofocus: true,
+        style: const TextStyle(fontSize: 13),
+        decoration: const InputDecoration(
+          isDense: true,
+          hintText: 'ex.: critério 3 vira spec própria',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+    ],
+    actions: [
+      SmallButton(label: 'Cancelar', onTap: () => Navigator.of(context).pop()),
+      AmberButton(
+        key: const ValueKey('review-override-confirm'),
+        label: 'Continuar',
+        onTap: _reason.text.trim().isEmpty
+            ? null
+            : () => Navigator.of(context).pop(_reason.text.trim()),
+      ),
+    ],
+  );
+}

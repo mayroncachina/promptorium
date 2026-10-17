@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/git/git_service.dart' show GitLogEntry;
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/db/app_database.dart';
 import 'package:promptorium/features/review/review_logic.dart';
@@ -115,5 +116,41 @@ void main() {
       '\n'
       'Faça os ajustes no worktree, rode os testes e resuma o que mudou.',
     );
+  });
+
+  test('splitPairs: context on both sides, removed next to added', () {
+    final f = DiffParser.parse(
+      'diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,4 +1,4 @@\n'
+      ' a\n-b\n-c\n+B\n d\n+e\n',
+    ).single;
+    final pairs = splitPairs(f.hunks.single);
+    String side((int, DiffLine)? l) => l?.$2.text ?? '·';
+    expect(
+      [for (final (l, r) in pairs) '${side(l)}|${side(r)}'],
+      ['a|a', 'b|B', 'c|·', 'd|d', '·|e'],
+    );
+  });
+
+  test('commitsByStep and gh pr checks', () {
+    GitLogEntry e(String s) => GitLogEntry(
+      sha: s,
+      shortSha: s,
+      author: '',
+      date: DateTime(2026),
+      subject: s,
+    );
+    final m = commitsByStep('SPEC-003', [
+      e('SPEC-003 R1: a'),
+      e('SPEC-003 R2, R3: b'),
+      e('outra coisa R1'),
+      e('SPEC-003 REV1: c'),
+      e('SPEC-003: spec concluída R9'),
+    ]);
+    expect(m.keys, ['R1', 'R2', 'R3', 'REV1']);
+    expect(m['R2']!.single.subject, 'SPEC-003 R2, R3: b');
+    expect(parsePrChecks('a\tpass\t1s\n\nb\tpending\n'), [
+      ('a', 'pass'),
+      ('b', 'pending'),
+    ]);
   });
 }

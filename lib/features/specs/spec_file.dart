@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:yaml/yaml.dart';
 
 import '../../data/db/app_database.dart';
@@ -395,6 +396,75 @@ String cloneSpecText(
     }
   }
   return meta.substring(0, doc.bodyStart) + out.join('\n');
+}
+
+/// One line of "## Critérios de aceite": `- [ ] texto [R2] · verificar: cmd`.
+@immutable
+class SpecCriterion {
+  const SpecCriterion({
+    required this.text,
+    this.requirements = const [],
+    this.verify,
+    this.checkedInFile = false,
+  });
+
+  /// The line without the checkbox and the `verificar:` part (also the key
+  /// of its state in `spec_criteria`).
+  final String text;
+
+  /// `[R1, R2]` of the line.
+  final List<String> requirements;
+
+  /// Shell command that checks it (run by the step gate).
+  final String? verify;
+
+  /// `- [x]` in the file.
+  final bool checkedInFile;
+}
+
+/// Lines of the section "Critérios de aceite" (accents / case tolerated),
+/// empty ones (`- [ ]`) skipped.
+List<SpecCriterion> parseCriteria(String text) {
+  final out = <SpecCriterion>[];
+  var inSection = false;
+  for (final line in text.split('\n')) {
+    final h = RegExp(r'^#{2,}\s*(.+?)\s*$').firstMatch(line.trim());
+    if (h != null) {
+      inSection = RegExp(
+        r'^crit[eé]rios(\s+de\s+aceita[cç][aã]o|\s+de\s+aceite)?\b',
+        caseSensitive: false,
+      ).hasMatch(h.group(1)!);
+      continue;
+    }
+    if (!inSection) continue;
+    final m = RegExp(r'^\s*[-*+]\s+\[([ xX])\]\s*(.*)$').firstMatch(line);
+    if (m == null) continue;
+    var body = m.group(2)!.trim();
+    String? verify;
+    final v = RegExp(
+      r'\s*(?:[·—–|-]\s*)?verificar:\s*`?([^`]+?)`?\s*$',
+      caseSensitive: false,
+    ).firstMatch(body);
+    if (v != null) {
+      verify = v.group(1)!.trim();
+      body = body.substring(0, v.start).trim();
+    }
+    if (body.isEmpty) continue;
+    final reqs = <String>[
+      for (final r in RegExp(r'\[([^\]]*)\]').allMatches(body))
+        for (final id in RegExp(r'\bR\d+\b').allMatches(r.group(1)!))
+          id.group(0)!,
+    ];
+    out.add(
+      SpecCriterion(
+        text: body,
+        requirements: reqs,
+        verify: verify == null || verify.isEmpty ? null : verify,
+        checkedInFile: m.group(1) != ' ',
+      ),
+    );
+  }
+  return out;
 }
 
 /// `SPEC-007` from `specs/SPEC-007-algo.md` (null when the name differs).

@@ -18,9 +18,10 @@ import '../tasks/task_rules_test.dart' show resultLine;
 
 /// `which` / `gh` simulated; everything else runs for real.
 class FakeCommands {
-  FakeCommands({this.hasGh = true});
+  FakeCommands({this.hasGh = true, this.authed = true});
 
   bool hasGh;
+  bool authed;
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -31,6 +32,12 @@ class FakeCommands {
     calls.add((exe, args, workingDirectory));
     if (exe == 'which') {
       return ProcessResult(1, hasGh ? 0 : 1, hasGh ? '/usr/bin/gh\n' : '', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'auth status') {
+      return ProcessResult(1, authed ? 0 : 1, '', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr checks') {
+      return ProcessResult(1, 0, 'build\tpass\t1m\nlint\tfail\t2s\n', '');
     }
     if (exe == 'gh') {
       return ProcessResult(1, 0, 'https://github.com/o/r/pull/7\n', '');
@@ -434,6 +441,28 @@ void main() {
     expect(gh.$2, containsAllInOrder(['--title', 'TASK-001: Barra de status']));
   });
 
+  test('Criar PR: gh not logged in blocks it; draft adds --draft; PR '
+      'checks are read', () async {
+    final cmds = FakeCommands(authed: false);
+    final e = await setUpSession(commands: cmds);
+    final remote = '${tmp.path}/remote.git';
+    await Process.run('git', ['init', '-q', '--bare', remote]);
+    await gitIn(repo, ['remote', 'add', 'origin', remote]);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.available, isFalse);
+    expect(a.reason, contains('gh auth login'));
+    cmds.authed = true;
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.available, isTrue);
+    await e.review.createPr(e.sessionId, draft: true);
+    final gh = cmds.calls.lastWhere((c) => c.$1 == 'gh' && c.$2.first == 'pr');
+    expect(gh.$2, contains('--draft'));
+    expect(await e.review.prChecks(e.sessionId), [
+      ('build', 'pass'),
+      ('lint', 'fail'),
+    ]);
+  });
+
   test('rejecting a content hunk of a renamed file keeps the rename', () async {
     final e = await setUpSession();
     await gitIn(e.worktree, ['mv', 'a.txt', 'c.txt']);
@@ -653,6 +682,95 @@ void specReviewTests() {
             const [],
             await c.read(specsRepoProvider).watchByWorkspace(ws.id).first,
           ),
+      isEmpty,
+    );
+  });
+
+  test('criteria block the merge until checked or overridden; the Review '
+      'filters the diff by step', () async {
+    File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+      '---\nid: SPEC-001\nstatus: aprovada\n---\n\n# Extração\n\n'
+      '## Requisitos\n\n- R1 · Tabelas\n- R2 · Índices\n\n'
+      '## Critérios de aceite\n\n- [ ] r1.txt existe [R1]\n'
+      '- [x] já conferido\n- [ ] r2.txt existe [R2]\n',
+    );
+    await gitIn(repo, ['commit', '-q', '-am', 'criterios']);
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      commandRunnerProvider.overrideWithValue(FakeCommands().call),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    await c.read(specServiceProvider).sync(ws);
+    final spec = (await c
+        .read(specsRepoProvider)
+        .getByCode(ws.id, 'SPEC-001'))!;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.singleSessionSteps, '1');
+    await c.read(specRunnerProvider).runNext(spec.id);
+    await settle();
+    final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+        .worktreePath!;
+    File('$wt/r1.txt').writeAsStringSync('1\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
+    await settle();
+    await settle();
+    File('$wt/r2.txt').writeAsStringSync('2\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
+    await settle();
+    await settle();
+    final review = c.read(reviewServiceProvider);
+    final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(row.stage, SpecStage.review);
+    final session = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+
+    // Diff by step.
+    final byStep = await review.stepCommits(session.id);
+    expect(byStep.keys, ['R1', 'R2']);
+    final r2 = await review.loadStep(session.id, 'R2');
+    expect(r2.files.map((f) => f.path), ['r2.txt']);
+
+    expect(await review.pendingCriteria(row, ws), [
+      'r1.txt existe [R1]',
+      'r2.txt existe [R2]',
+    ]);
+    await expectLater(
+      review.merge(session.id),
+      throwsA(
+        isA<ReviewException>().having(
+          (e) => e.message,
+          'message',
+          contains('Mergear mesmo assim'),
+        ),
+      ),
+    );
+    await c
+        .read(reviewCommentsRepoProvider)
+        .setCriterion(
+          spec.id,
+          'r1.txt existe [R1]',
+          checked: true,
+          by: 'humano',
+        );
+    expect(await review.pendingCriteria(row, ws), ['r2.txt existe [R2]']);
+    await review.merge(session.id, override: 'R2 conferido no terminal');
+    final done = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(done.stage, SpecStage.done);
+    expect(done.mergeOverride, 'R2 conferido no terminal');
+    expect(
+      (await gitIn(repo, ['for-each-ref', 'refs/promptorium/'])).trim(),
       isEmpty,
     );
   });

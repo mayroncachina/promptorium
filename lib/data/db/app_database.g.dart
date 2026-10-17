@@ -8846,6 +8846,381 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   }
 }
 
+class $SpecCriteriaTable extends SpecCriteria
+    with TableInfo<$SpecCriteriaTable, SpecCriteriaData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecCriteriaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _criterionMeta = const VerificationMeta(
+    'criterion',
+  );
+  @override
+  late final GeneratedColumn<String> criterion = GeneratedColumn<String>(
+    'criterion',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _checkedMeta = const VerificationMeta(
+    'checked',
+  );
+  @override
+  late final GeneratedColumn<bool> checked = GeneratedColumn<bool>(
+    'checked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("checked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _checkedByMeta = const VerificationMeta(
+    'checkedBy',
+  );
+  @override
+  late final GeneratedColumn<String> checkedBy = GeneratedColumn<String>(
+    'checked_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _checkedAtMeta = const VerificationMeta(
+    'checkedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> checkedAt = GeneratedColumn<DateTime>(
+    'checked_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    specId,
+    criterion,
+    checked,
+    checkedBy,
+    checkedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_criteria';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecCriteriaData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('criterion')) {
+      context.handle(
+        _criterionMeta,
+        criterion.isAcceptableOrUnknown(data['criterion']!, _criterionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criterionMeta);
+    }
+    if (data.containsKey('checked')) {
+      context.handle(
+        _checkedMeta,
+        checked.isAcceptableOrUnknown(data['checked']!, _checkedMeta),
+      );
+    }
+    if (data.containsKey('checked_by')) {
+      context.handle(
+        _checkedByMeta,
+        checkedBy.isAcceptableOrUnknown(data['checked_by']!, _checkedByMeta),
+      );
+    }
+    if (data.containsKey('checked_at')) {
+      context.handle(
+        _checkedAtMeta,
+        checkedAt.isAcceptableOrUnknown(data['checked_at']!, _checkedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {specId, criterion};
+  @override
+  SpecCriteriaData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecCriteriaData(
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      criterion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}criterion'],
+      )!,
+      checked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}checked'],
+      )!,
+      checkedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checked_by'],
+      ),
+      checkedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}checked_at'],
+      ),
+    );
+  }
+
+  @override
+  $SpecCriteriaTable createAlias(String alias) {
+    return $SpecCriteriaTable(attachedDatabase, alias);
+  }
+}
+
+class SpecCriteriaData extends DataClass
+    implements Insertable<SpecCriteriaData> {
+  final int specId;
+  final String criterion;
+  final bool checked;
+
+  /// `gate`, `revisor` or `humano`.
+  final String? checkedBy;
+  final DateTime? checkedAt;
+  const SpecCriteriaData({
+    required this.specId,
+    required this.criterion,
+    required this.checked,
+    this.checkedBy,
+    this.checkedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['spec_id'] = Variable<int>(specId);
+    map['criterion'] = Variable<String>(criterion);
+    map['checked'] = Variable<bool>(checked);
+    if (!nullToAbsent || checkedBy != null) {
+      map['checked_by'] = Variable<String>(checkedBy);
+    }
+    if (!nullToAbsent || checkedAt != null) {
+      map['checked_at'] = Variable<DateTime>(checkedAt);
+    }
+    return map;
+  }
+
+  SpecCriteriaCompanion toCompanion(bool nullToAbsent) {
+    return SpecCriteriaCompanion(
+      specId: Value(specId),
+      criterion: Value(criterion),
+      checked: Value(checked),
+      checkedBy: checkedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedBy),
+      checkedAt: checkedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedAt),
+    );
+  }
+
+  factory SpecCriteriaData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecCriteriaData(
+      specId: serializer.fromJson<int>(json['specId']),
+      criterion: serializer.fromJson<String>(json['criterion']),
+      checked: serializer.fromJson<bool>(json['checked']),
+      checkedBy: serializer.fromJson<String?>(json['checkedBy']),
+      checkedAt: serializer.fromJson<DateTime?>(json['checkedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'specId': serializer.toJson<int>(specId),
+      'criterion': serializer.toJson<String>(criterion),
+      'checked': serializer.toJson<bool>(checked),
+      'checkedBy': serializer.toJson<String?>(checkedBy),
+      'checkedAt': serializer.toJson<DateTime?>(checkedAt),
+    };
+  }
+
+  SpecCriteriaData copyWith({
+    int? specId,
+    String? criterion,
+    bool? checked,
+    Value<String?> checkedBy = const Value.absent(),
+    Value<DateTime?> checkedAt = const Value.absent(),
+  }) => SpecCriteriaData(
+    specId: specId ?? this.specId,
+    criterion: criterion ?? this.criterion,
+    checked: checked ?? this.checked,
+    checkedBy: checkedBy.present ? checkedBy.value : this.checkedBy,
+    checkedAt: checkedAt.present ? checkedAt.value : this.checkedAt,
+  );
+  SpecCriteriaData copyWithCompanion(SpecCriteriaCompanion data) {
+    return SpecCriteriaData(
+      specId: data.specId.present ? data.specId.value : this.specId,
+      criterion: data.criterion.present ? data.criterion.value : this.criterion,
+      checked: data.checked.present ? data.checked.value : this.checked,
+      checkedBy: data.checkedBy.present ? data.checkedBy.value : this.checkedBy,
+      checkedAt: data.checkedAt.present ? data.checkedAt.value : this.checkedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecCriteriaData(')
+          ..write('specId: $specId, ')
+          ..write('criterion: $criterion, ')
+          ..write('checked: $checked, ')
+          ..write('checkedBy: $checkedBy, ')
+          ..write('checkedAt: $checkedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(specId, criterion, checked, checkedBy, checkedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecCriteriaData &&
+          other.specId == this.specId &&
+          other.criterion == this.criterion &&
+          other.checked == this.checked &&
+          other.checkedBy == this.checkedBy &&
+          other.checkedAt == this.checkedAt);
+}
+
+class SpecCriteriaCompanion extends UpdateCompanion<SpecCriteriaData> {
+  final Value<int> specId;
+  final Value<String> criterion;
+  final Value<bool> checked;
+  final Value<String?> checkedBy;
+  final Value<DateTime?> checkedAt;
+  final Value<int> rowid;
+  const SpecCriteriaCompanion({
+    this.specId = const Value.absent(),
+    this.criterion = const Value.absent(),
+    this.checked = const Value.absent(),
+    this.checkedBy = const Value.absent(),
+    this.checkedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SpecCriteriaCompanion.insert({
+    required int specId,
+    required String criterion,
+    this.checked = const Value.absent(),
+    this.checkedBy = const Value.absent(),
+    this.checkedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : specId = Value(specId),
+       criterion = Value(criterion);
+  static Insertable<SpecCriteriaData> custom({
+    Expression<int>? specId,
+    Expression<String>? criterion,
+    Expression<bool>? checked,
+    Expression<String>? checkedBy,
+    Expression<DateTime>? checkedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (specId != null) 'spec_id': specId,
+      if (criterion != null) 'criterion': criterion,
+      if (checked != null) 'checked': checked,
+      if (checkedBy != null) 'checked_by': checkedBy,
+      if (checkedAt != null) 'checked_at': checkedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SpecCriteriaCompanion copyWith({
+    Value<int>? specId,
+    Value<String>? criterion,
+    Value<bool>? checked,
+    Value<String?>? checkedBy,
+    Value<DateTime?>? checkedAt,
+    Value<int>? rowid,
+  }) {
+    return SpecCriteriaCompanion(
+      specId: specId ?? this.specId,
+      criterion: criterion ?? this.criterion,
+      checked: checked ?? this.checked,
+      checkedBy: checkedBy ?? this.checkedBy,
+      checkedAt: checkedAt ?? this.checkedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (criterion.present) {
+      map['criterion'] = Variable<String>(criterion.value);
+    }
+    if (checked.present) {
+      map['checked'] = Variable<bool>(checked.value);
+    }
+    if (checkedBy.present) {
+      map['checked_by'] = Variable<String>(checkedBy.value);
+    }
+    if (checkedAt.present) {
+      map['checked_at'] = Variable<DateTime>(checkedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecCriteriaCompanion(')
+          ..write('specId: $specId, ')
+          ..write('criterion: $criterion, ')
+          ..write('checked: $checked, ')
+          ..write('checkedBy: $checkedBy, ')
+          ..write('checkedAt: $checkedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8869,6 +9244,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ReviewDraftsTable reviewDrafts = $ReviewDraftsTable(this);
   late final $PendingNoticesTable pendingNotices = $PendingNoticesTable(this);
   late final $ReviewCommentsTable reviewComments = $ReviewCommentsTable(this);
+  late final $SpecCriteriaTable specCriteria = $SpecCriteriaTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8891,6 +9267,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     reviewDrafts,
     pendingNotices,
     reviewComments,
+    specCriteria,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8998,6 +9375,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_criteria', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -9896,6 +10280,24 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SpecCriteriaTable, List<SpecCriteriaData>>
+  _specCriteriaRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specCriteria,
+    aliasName: 'specs__id__spec_criteria__spec_id',
+  );
+
+  $$SpecCriteriaTableProcessedTableManager get specCriteriaRefs {
+    final manager = $$SpecCriteriaTableTableManager(
+      $_db,
+      $_db.specCriteria,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specCriteriaRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -10123,6 +10525,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$ReviewCommentsTableFilterComposer(
             $db: $db,
             $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specCriteriaRefs(
+    Expression<bool> Function($$SpecCriteriaTableFilterComposer f) f,
+  ) {
+    final $$SpecCriteriaTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specCriteria,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecCriteriaTableFilterComposer(
+            $db: $db,
+            $table: $db.specCriteria,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -10468,6 +10895,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> specCriteriaRefs<T extends Object>(
+    Expression<T> Function($$SpecCriteriaTableAnnotationComposer a) f,
+  ) {
+    final $$SpecCriteriaTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specCriteria,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecCriteriaTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specCriteria,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -10489,6 +10941,7 @@ class $$SpecsTableTableManager
             bool tasksRefs,
             bool sessionsRefs,
             bool reviewCommentsRefs,
+            bool specCriteriaRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -10607,6 +11060,7 @@ class $$SpecsTableTableManager
                 tasksRefs = false,
                 sessionsRefs = false,
                 reviewCommentsRefs = false,
+                specCriteriaRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -10615,6 +11069,7 @@ class $$SpecsTableTableManager
                     if (tasksRefs) db.tasks,
                     if (sessionsRefs) db.sessions,
                     if (reviewCommentsRefs) db.reviewComments,
+                    if (specCriteriaRefs) db.specCriteria,
                   ],
                   addJoins:
                       <
@@ -10716,6 +11171,27 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (specCriteriaRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          SpecCriteriaData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specCriteriaRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specCriteriaRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -10742,6 +11218,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool tasksRefs,
         bool sessionsRefs,
         bool reviewCommentsRefs,
+        bool specCriteriaRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -16511,6 +16988,322 @@ typedef $$ReviewCommentsTableProcessedTableManager =
       ReviewCommentRow,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$SpecCriteriaTableCreateCompanionBuilder =
+    SpecCriteriaCompanion Function({
+      required int specId,
+      required String criterion,
+      Value<bool> checked,
+      Value<String?> checkedBy,
+      Value<DateTime?> checkedAt,
+      Value<int> rowid,
+    });
+typedef $$SpecCriteriaTableUpdateCompanionBuilder =
+    SpecCriteriaCompanion Function({
+      Value<int> specId,
+      Value<String> criterion,
+      Value<bool> checked,
+      Value<String?> checkedBy,
+      Value<DateTime?> checkedAt,
+      Value<int> rowid,
+    });
+
+final class $$SpecCriteriaTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SpecCriteriaTable, SpecCriteriaData> {
+  $$SpecCriteriaTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_criteria__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecCriteriaTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get criterion => $composableBuilder(
+    column: $table.criterion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get checked => $composableBuilder(
+    column: $table.checked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get checkedBy => $composableBuilder(
+    column: $table.checkedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get checkedAt => $composableBuilder(
+    column: $table.checkedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get criterion => $composableBuilder(
+    column: $table.criterion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get checked => $composableBuilder(
+    column: $table.checked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get checkedBy => $composableBuilder(
+    column: $table.checkedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get checkedAt => $composableBuilder(
+    column: $table.checkedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get criterion =>
+      $composableBuilder(column: $table.criterion, builder: (column) => column);
+
+  GeneratedColumn<bool> get checked =>
+      $composableBuilder(column: $table.checked, builder: (column) => column);
+
+  GeneratedColumn<String> get checkedBy =>
+      $composableBuilder(column: $table.checkedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get checkedAt =>
+      $composableBuilder(column: $table.checkedAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecCriteriaTable,
+          SpecCriteriaData,
+          $$SpecCriteriaTableFilterComposer,
+          $$SpecCriteriaTableOrderingComposer,
+          $$SpecCriteriaTableAnnotationComposer,
+          $$SpecCriteriaTableCreateCompanionBuilder,
+          $$SpecCriteriaTableUpdateCompanionBuilder,
+          (SpecCriteriaData, $$SpecCriteriaTableReferences),
+          SpecCriteriaData,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecCriteriaTableTableManager(_$AppDatabase db, $SpecCriteriaTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecCriteriaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecCriteriaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecCriteriaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> specId = const Value.absent(),
+                Value<String> criterion = const Value.absent(),
+                Value<bool> checked = const Value.absent(),
+                Value<String?> checkedBy = const Value.absent(),
+                Value<DateTime?> checkedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecCriteriaCompanion(
+                specId: specId,
+                criterion: criterion,
+                checked: checked,
+                checkedBy: checkedBy,
+                checkedAt: checkedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int specId,
+                required String criterion,
+                Value<bool> checked = const Value.absent(),
+                Value<String?> checkedBy = const Value.absent(),
+                Value<DateTime?> checkedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecCriteriaCompanion.insert(
+                specId: specId,
+                criterion: criterion,
+                checked: checked,
+                checkedBy: checkedBy,
+                checkedAt: checkedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecCriteriaTable, SpecCriteriaData>(table),
+                  $$SpecCriteriaTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecCriteriaTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecCriteriaTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecCriteriaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecCriteriaTable,
+      SpecCriteriaData,
+      $$SpecCriteriaTableFilterComposer,
+      $$SpecCriteriaTableOrderingComposer,
+      $$SpecCriteriaTableAnnotationComposer,
+      $$SpecCriteriaTableCreateCompanionBuilder,
+      $$SpecCriteriaTableUpdateCompanionBuilder,
+      (SpecCriteriaData, $$SpecCriteriaTableReferences),
+      SpecCriteriaData,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16549,4 +17342,6 @@ class $AppDatabaseManager {
       $$PendingNoticesTableTableManager(_db, _db.pendingNotices);
   $$ReviewCommentsTableTableManager get reviewComments =>
       $$ReviewCommentsTableTableManager(_db, _db.reviewComments);
+  $$SpecCriteriaTableTableManager get specCriteria =>
+      $$SpecCriteriaTableTableManager(_db, _db.specCriteria);
 }

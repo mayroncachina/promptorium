@@ -240,6 +240,22 @@ class ReviewComments extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Acceptance criterion of a spec checked in the Review (schema v10), by
+/// its text in the file.
+class SpecCriteria extends Table {
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+  TextColumn get criterion => text()();
+  BoolColumn get checked => boolean().withDefault(const Constant(false))();
+
+  /// `gate`, `revisor` or `humano`.
+  TextColumn get checkedBy => text().nullable()();
+  DateTimeColumn get checkedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {specId, criterion};
+}
+
 /// Notices waiting to be sent to a session (manual edits, schema v9).
 class PendingNotices extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -505,6 +521,7 @@ class AppSettings extends Table {
     ReviewDrafts,
     PendingNotices,
     ReviewComments,
+    SpecCriteria,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -643,6 +660,7 @@ class AppDatabase extends _$AppDatabase {
           if (!await _hasColumn('specs', c.name)) await m.addColumn(specs, c);
         }
         await m.createTable(reviewComments);
+        await m.createTable(specCriteria);
         if (await _hasTable('spec_steps') &&
             !await _hasColumn('spec_steps', 'body')) {
           await m.addColumn(specSteps, specSteps.body);

@@ -48,8 +48,20 @@ vazio = a spec como um todo), o que está errado e o que fazer, com o requisito
 final reviewerSchema = {
   'type': 'object',
   'additionalProperties': false,
-  'required': ['veredito', 'resumo', 'comentarios'],
+  'required': ['veredito', 'resumo', 'comentarios', 'criterios'],
   'properties': {
+    'criterios': {
+      'type': 'array',
+      'items': {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['indice', 'atendido'],
+        'properties': {
+          'indice': {'type': 'integer'},
+          'atendido': {'type': 'boolean'},
+        },
+      },
+    },
     'veredito': {
       'type': 'string',
       'enum': ['aprovar', 'corrigir'],
@@ -107,11 +119,16 @@ class ReviewerVerdict {
     required this.approve,
     this.summary = '',
     this.comments = const [],
+    this.met = const {},
   });
 
   final bool approve;
   final String summary;
   final List<ReviewerComment> comments;
+
+  /// Indices (0-based, as listed in the prompt) of the acceptance criteria
+  /// the reviewer found met.
+  final Set<int> met;
 
   static ReviewerVerdict? parse(Object? data) {
     if (data is! Map) return null;
@@ -136,6 +153,11 @@ class ReviewerVerdict {
       approve: data['veredito'] != 'corrigir' || comments.isEmpty,
       summary: opt(data['resumo']) ?? '',
       comments: comments,
+      met: {
+        for (final c in (data['criterios'] as List? ?? const []))
+          if (c is Map && c['atendido'] == true && c['indice'] is num)
+            (c['indice'] as num).toInt() - 1,
+      },
     );
   }
 }
@@ -161,6 +183,7 @@ String reviewerPrompt({
   List<String> gates = const [],
   List<ReviewCommentRow> previous = const [],
   String? memory,
+  List<String> criteria = const [],
 }) {
   final b = StringBuffer()
     ..writeln(
@@ -176,6 +199,17 @@ String reviewerPrompt({
       ..writeln()
       ..writeln('Memória do projeto:')
       ..writeln(memory.trim());
+  }
+  if (criteria.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Critérios de aceite (responda em "criterios" quais estão atendidos, '
+        'pelo número):',
+      );
+    for (final (i, c) in criteria.indexed) {
+      b.writeln('${i + 1}. $c');
+    }
   }
   if (gates.isNotEmpty) {
     b
@@ -248,6 +282,7 @@ class AutoReviewer {
     final diff = await _diff(git, ws, spec);
     final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
     final previous = await _ref.read(reviewCommentsRepoProvider).bySpec(specId);
+    final criteria = parseCriteria(text);
     final memory = File('${ws.path}/.promptorium/memoria.md');
     final ownAgent = File('${ws.path}/.claude/agents/spec-reviewer.md')
         .existsSync();
@@ -279,11 +314,18 @@ class AutoReviewer {
         ],
         previous: previous,
         memory: memory.existsSync() ? memory.readAsStringSync() : null,
+        criteria: [for (final c in criteria) c.text],
       ),
     );
     final verdict = ReviewerVerdict.parse(structuredOutput(r));
     if (verdict == null) {
       throw const PlannerException('O revisor não devolveu um veredito.');
+    }
+    for (final i in verdict.met) {
+      if (i < 0 || i >= criteria.length) continue;
+      await _ref
+          .read(reviewCommentsRepoProvider)
+          .setCriterion(specId, criteria[i].text, checked: true, by: 'revisor');
     }
     final head = await git.headSha();
     await _ref.read(reviewCommentsRepoProvider).insertAll([

@@ -49,6 +49,7 @@ Future<void> downgrade(AppDatabase db, int version) async {
       await db.customStatement('ALTER TABLE specs DROP COLUMN $c');
     }
     await db.customStatement('DROP TABLE review_comments');
+    await db.customStatement('DROP TABLE spec_criteria');
     await db.customStatement('ALTER TABLE spec_steps DROP COLUMN body');
   }
   if (version < 9) {

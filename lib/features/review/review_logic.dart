@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../core/git/diff_parser.dart';
+import '../../core/git/git_service.dart' show GitLogEntry;
 import '../../data/db/app_database.dart';
 
 /// Pure rules of the Review screen (plano, Fase 9).
@@ -48,6 +49,68 @@ bool isAwaitingReview({
   }
   if (task?.status == TaskStatus.review) return true;
   return session.status == SessionStatus.completed && hasChanges;
+}
+
+/// Commits of a spec's branch by step: a subject `SPEC-003 R2, R3: …` goes
+/// to R2 and R3 (`REV1` too); other commits are left out.
+Map<String, List<GitLogEntry>> commitsByStep(
+  String specCode,
+  List<GitLogEntry> commits,
+) {
+  final out = <String, List<GitLogEntry>>{};
+  for (final c in commits) {
+    if (!c.subject.toUpperCase().startsWith(specCode.toUpperCase())) continue;
+    final head = c.subject.split(':').first;
+    for (final m in RegExp(r'\b(?:REV|R)\d+\b').allMatches(head)) {
+      out.putIfAbsent(m.group(0)!, () => []).add(c);
+    }
+  }
+  return out;
+}
+
+/// Lines of `gh pr checks` (`nome\testado\t…`) → `(nome, estado)`.
+List<(String, String)> parsePrChecks(String out) => [
+  for (final l in out.split('\n'))
+    if (l.split('\t') case [final name, final state, ...] when name.isNotEmpty)
+      (name.trim(), state.trim()),
+];
+
+/// Lines of every hunk of [f].
+int diffLineCount(DiffFile f) => f.hunks.fold(0, (n, h) => n + h.lines.length);
+
+/// A line of a hunk with its index in the hunk.
+typedef IndexedLine = (int, DiffLine);
+
+/// Rows of the side-by-side view of [h]: context on both sides; a run of
+/// removed lines next to the added lines that follow it.
+List<(IndexedLine?, IndexedLine?)> splitPairs(DiffHunk h) {
+  final out = <(IndexedLine?, IndexedLine?)>[];
+  final lines = h.lines;
+  var i = 0;
+  while (i < lines.length) {
+    if (lines[i].kind == DiffLineKind.context) {
+      out.add(((i, lines[i]), (i, lines[i])));
+      i++;
+      continue;
+    }
+    final dels = <IndexedLine>[], adds = <IndexedLine>[];
+    while (i < lines.length && lines[i].kind == DiffLineKind.del) {
+      dels.add((i, lines[i]));
+      i++;
+    }
+    while (i < lines.length && lines[i].kind == DiffLineKind.add) {
+      adds.add((i, lines[i]));
+      i++;
+    }
+    final n = dels.length > adds.length ? dels.length : adds.length;
+    for (var k = 0; k < n; k++) {
+      out.add((
+        k < dels.length ? dels[k] : null,
+        k < adds.length ? adds[k] : null,
+      ));
+    }
+  }
+  return out;
 }
 
 /// `A` / `M` / `D` / `R` of the file list.

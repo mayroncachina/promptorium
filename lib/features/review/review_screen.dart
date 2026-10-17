@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/git/diff_parser.dart';
+import '../../core/git/git_service.dart' show GitLogEntry;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
+import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import 'auto_reviewer.dart';
 import 'review_service.dart';
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
+import 'widgets/review_all_files.dart';
 import 'widgets/review_dialogs.dart';
 
 /// Review screen (docs/mockups/Review.dc.html, plano Fase 9): "Aguardando
@@ -135,6 +138,44 @@ final _selectedFileProvider = NotifierProvider<_SelectedFile, String?>(
   _SelectedFile.new,
 );
 
+/// How the diff is shown (kept while switching items).
+@immutable
+class ReviewView {
+  const ReviewView({this.allFiles = true, this.sideBySide = false});
+
+  /// Every file in one page (the file list scrolls to the file).
+  final bool allFiles;
+  final bool sideBySide;
+}
+
+class _ReviewViewNotifier extends Notifier<ReviewView> {
+  @override
+  ReviewView build() => const ReviewView();
+
+  void set(ReviewView v) => state = v;
+}
+
+final reviewViewProvider = NotifierProvider<_ReviewViewNotifier, ReviewView>(
+  _ReviewViewNotifier.new,
+);
+
+/// Commits of the item by step (the "Etapa" filter).
+final stepCommitsProvider =
+    FutureProvider.family<Map<String, List<GitLogEntry>>, String>(
+      (ref, sessionId) =>
+          ref.read(reviewServiceProvider).stepCommits(sessionId),
+    );
+
+/// Diff of the commits of one step of the item.
+final reviewStepDetailProvider =
+    FutureProvider.family<ReviewDetail, (String, String)>(
+      (ref, key) => ref.read(reviewServiceProvider).loadStep(key.$1, key.$2),
+    );
+
+/// Above this many diff lines, "Todos os arquivos" falls back to one file
+/// at a time (the page builds every line).
+const allFilesMaxLines = 4000;
+
 DiffFile? _fileOf(ReviewDetail? d, String? path) {
   if (d == null || d.files.isEmpty) return null;
   for (final f in d.files) {
@@ -214,8 +255,12 @@ class _ReviewSidebar extends ConsumerWidget {
                 child: _FileTile(
                   file: f,
                   selected: identical(f, current),
-                  onTap: () =>
-                      ref.read(_selectedFileProvider.notifier).select(f.path),
+                  onTap: () {
+                    ref.read(_selectedFileProvider.notifier).select(f.path);
+                    ref.read(reviewScrollTargetProvider.notifier)
+                      ..go(null)
+                      ..go(f.path);
+                  },
                 ),
               ),
           ],
@@ -369,6 +414,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   CommentTarget? _target;
   String? _busy;
 
+  /// Step whose commits are shown (null = the whole branch).
+  String? _step;
+
   String get _id => widget.item.session.id;
 
   ReviewService get _service => ref.read(reviewServiceProvider);
@@ -400,7 +448,18 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     }
   }
 
-  void _setTarget(CommentTarget? t) => setState(() => _target = t);
+  void _selectStep(String? step) => setState(() {
+    _step = step;
+    _target = null;
+  });
+
+  /// File of [_target] (the page with every file has several).
+  String? _targetPath;
+
+  void _setTarget(CommentTarget? t, [String? path]) => setState(() {
+    _target = t;
+    _targetPath = path;
+  });
 
   void _refresh() {
     ref.invalidate(reviewDetailProvider(_id));
@@ -443,18 +502,24 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     });
   }
 
-  Future<void> _createPr() => _run('Criar PR', () async {
-    final url = await _service.createPr(_id);
-    _refresh();
-    if (!mounted) return;
-    await showPrCreatedDialog(
-      context,
-      url: url,
-      onOpen: () => _service.openUrl(url),
-    );
-  });
+  Future<void> _createPr({bool draft = false}) =>
+      _run(draft ? 'Criar PR rascunho' : 'Criar PR', () async {
+        final url = await _service.createPr(_id, draft: draft);
+        _refresh();
+        if (!mounted) return;
+        await showPrCreatedDialog(
+          context,
+          url: url,
+          onOpen: () => _service.openUrl(url),
+        );
+      });
 
-  Future<void> _merge(ReviewDetail d) async {
+  Future<void> _merge(ReviewDetail d, {List<String> pending = const []}) async {
+    String? override;
+    if (pending.isNotEmpty) {
+      override = await showMergeOverrideDialog(context, pending);
+      if (override == null || !mounted) return;
+    }
     final deleteBranch = await showMergeDialog(
       context,
       branch: d.session.branch,
@@ -463,7 +528,11 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     );
     if (deleteBranch == null || !mounted) return;
     await _run('Fazer merge', () async {
-      final r = await _service.merge(_id, deleteBranch: deleteBranch);
+      final r = await _service.merge(
+        _id,
+        deleteBranch: deleteBranch,
+        override: override,
+      );
       ref.read(selectedReviewProvider.notifier).select(null);
       _refresh();
       final short = r.commit.length > 7 ? r.commit.substring(0, 7) : r.commit;
@@ -496,6 +565,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         widget.item.spec?.reviewPhase == ReviewPhase.auto &&
         widget.item.spec?.stage == SpecStage.review;
     final canMerge = !busy && d != null && d.error == null && !reviewing;
+    final pending = widget.item.spec == null
+        ? const <String>[]
+        : ref.watch(pendingCriteriaProvider(widget.item.spec!.id)).value ??
+              const <String>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -553,21 +626,48 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                   onTap: canPr ? _createPr : null,
                 ),
               ),
+              if (s.prUrl == null) ...[
+                const SizedBox(width: 4),
+                Tooltip(
+                  message: 'Criar PR como rascunho (gh pr create --draft)',
+                  child: SmallButton(
+                    key: const ValueKey('review-create-pr-draft'),
+                    label: 'Rascunho',
+                    onTap: canPr ? () => _createPr(draft: true) : null,
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
-              AmberButton(
-                key: const ValueKey('review-merge'),
-                label: 'Fazer merge',
-                onTap: canMerge ? () => _merge(d) : null,
+              Tooltip(
+                message: reviewing
+                    ? 'O revisor automático ainda está revisando'
+                    : pending.isEmpty
+                    ? ''
+                    : 'Critérios de aceite sem marcar: ${pending.length}',
+                child: AmberButton(
+                  key: const ValueKey('review-merge'),
+                  label: pending.isEmpty
+                      ? 'Fazer merge'
+                      : 'Mergear mesmo assim…',
+                  onTap: canMerge ? () => _merge(d, pending: pending) : null,
+                ),
               ),
             ],
           ),
         ),
         if (widget.item.spec != null)
-          SpecReviewPanel(specId: widget.item.spec!.id),
+          SpecReviewPanel(
+            specId: widget.item.spec!.id,
+            sessionId: _id,
+            prUrl: s.prUrl,
+          ),
+        _toolbar(),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: _body(async, d, file, draft, busy),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+            child: _step == null
+                ? _body(async, d, file, draft, busy)
+                : _stepBody(),
           ),
         ),
       ],
@@ -602,8 +702,30 @@ extension on _ReviewMainState {
       return _message('Nenhuma alteração em relação à branch base.');
     }
     final notifier = ref.read(reviewDraftProvider(_id).notifier);
+    final view = ref.watch(reviewViewProvider);
+    final lines = d.files.fold(0, (n, f) => n + diffLineCount(f));
+    if (view.allFiles && lines <= allFilesMaxLines) {
+      return ReviewAllFiles(
+        files: d.files,
+        sideBySide: view.sideBySide,
+        draft: draft,
+        target: _target,
+        busy: busy,
+        onOpenComment: (f, t) => _setTarget(t, f.path),
+        onCancelComment: () => _setTarget(null),
+        onSubmitComment: (f, t, text) {
+          notifier.addComment(commentFor(f, f.hunks[t.$1], t.$2, text));
+          _setTarget(null);
+        },
+        onRemoveComment: notifier.removeComment,
+        onRejectHunk: _reject,
+        onToggleAccept: (f, h) => notifier.toggleAccepted(hunkKey(f, h)),
+        targetPath: _targetPath,
+      );
+    }
     return ReviewFileDiff(
       key: ValueKey('review-file-diff-${file.path}'),
+      sideBySide: view.sideBySide,
       file: file,
       comments: [
         for (final c in draft.comments)
@@ -621,6 +743,127 @@ extension on _ReviewMainState {
       onRemoveComment: notifier.removeComment,
       onRejectHunk: (h) => _reject(file, h),
       onToggleAccept: (h) => notifier.toggleAccepted(hunkKey(file, h)),
+    );
+  }
+}
+
+extension on _ReviewMainState {
+  Widget _toolbar() {
+    final view = ref.watch(reviewViewProvider);
+    final notifier = ref.read(reviewViewProvider.notifier);
+    final steps = widget.item.spec == null
+        ? const <String, List<GitLogEntry>>{}
+        : ref.watch(stepCommitsProvider(_id)).value ??
+              const <String, List<GitLogEntry>>{};
+    Widget toggle(String key, String label, bool on, VoidCallback tap) =>
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: ToggleBox(
+            key: ValueKey(key),
+            on: on,
+            height: 26,
+            onTap: tap,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: on ? AppColors.amber : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              toggle(
+                'review-view-one',
+                'Um arquivo',
+                !view.allFiles,
+                () => notifier.set(
+                  ReviewView(allFiles: false, sideBySide: view.sideBySide),
+                ),
+              ),
+              toggle(
+                'review-view-all',
+                'Todos os arquivos',
+                view.allFiles,
+                () => notifier.set(
+                  ReviewView(allFiles: true, sideBySide: view.sideBySide),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              toggle(
+                'review-view-unified',
+                'Unificado',
+                !view.sideBySide,
+                () => notifier.set(ReviewView(allFiles: view.allFiles)),
+              ),
+              toggle(
+                'review-view-split',
+                'Lado a lado',
+                view.sideBySide,
+                () => notifier.set(
+                  ReviewView(allFiles: view.allFiles, sideBySide: true),
+                ),
+              ),
+            ],
+          ),
+          if (steps.isNotEmpty)
+            DropdownButton<String?>(
+              key: const ValueKey('review-step-filter'),
+              value: steps.containsKey(_step) ? _step : null,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              style: const TextStyle(fontSize: 12, color: AppColors.text),
+              dropdownColor: AppColors.panel,
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Todas as etapas'),
+                ),
+                for (final MapEntry(:key, :value) in steps.entries)
+                  DropdownMenuItem<String?>(
+                    value: key,
+                    child: Text(
+                      '$key · ${value.length} commit(s)',
+                      key: ValueKey('review-step-$key'),
+                    ),
+                  ),
+              ],
+              onChanged: _selectStep,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Diff of the commits of [_step] (read only).
+  Widget _stepBody() {
+    final async = ref.watch(reviewStepDetailProvider((_id, _step!)));
+    final d = async.value;
+    if (d == null) {
+      return async.hasError
+          ? _message('${async.error}', color: AppColors.red)
+          : _message('Carregando os commits de $_step…');
+    }
+    if (d.error != null) return _message(d.error!, color: AppColors.red);
+    final view = ref.watch(reviewViewProvider);
+    return ReviewAllFiles(
+      files: d.files,
+      sideBySide: view.sideBySide,
+      draft: const ReviewDraft(),
+      readOnly: true,
     );
   }
 }

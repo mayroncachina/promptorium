@@ -179,7 +179,13 @@ void main() {
     final draft = c.read(reviewDraftProvider('s1'));
     expect(draft.comments.single.location, 'lib/ui/status_bar.dart:8');
 
-    await tester.tap(find.byKey(const ValueKey('review-accept-0')));
+    // Every file is on the page: the hunk of the first one.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-diff-lib/ui/status_bar.dart')),
+        matching: find.byKey(const ValueKey('review-accept-0')),
+      ),
+    );
     await tester.pump();
     expect(find.text('✓ Revisado'), findsOneWidget);
 
@@ -193,6 +199,22 @@ void main() {
       preview.data,
       contains('lib/ui/status_bar.dart:8 — Use o tema do app.'),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('one file / every file, unified / side by side', (tester) async {
+    await pumpReview(tester, size: const Size(1044, 628));
+    expect(find.byKey(const ValueKey('review-all-files')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('review-view-split')));
+    await tester.pump();
+    // Old lines on the left half, new ones on the right half.
+    final old = tester.getTopLeft(find.byKey(const ValueKey('review-line-o7')));
+    final now = tester.getTopLeft(find.byKey(const ValueKey('review-line-8')));
+    expect(now.dx, greaterThan(old.dx + 200));
+    await tester.tap(find.byKey(const ValueKey('review-view-one')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('review-all-files')), findsNothing);
+    expect(find.byKey(const ValueKey('review-file-title')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
