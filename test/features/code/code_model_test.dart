@@ -6,6 +6,7 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/code/code_model.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 
+import '../../core/claude/claude_event_test.dart' show permissionRequestLine;
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
@@ -137,7 +138,8 @@ void main() {
       final tab = ((await m.open('a.txt')) as Opened).tab;
       tab.controller.text = 'editado à mão\n';
 
-      // Turn running: not sent during the turn, queued.
+      // Turn running: written into the running turn right away (CLI
+      // 2.1.302 joins it to the turn), nothing left queued.
       final notified = await m.save(tab, workspaceId: ws.id);
       expect(notified, [id]);
       final notice = SessionManager.userEditNotice('a.txt');
@@ -145,16 +147,30 @@ void main() {
         notice,
         'O usuário editou a.txt manualmente; releia antes de alterar.',
       );
-      expect(manager.pendingNotices(id), [notice]);
-      expect(cli.last.writtenJson, hasLength(1)); // only the prompt
-
-      // Result → idle → the notice goes out.
-      cli.last.emit(resultLine());
       await settle();
+      expect(manager.pendingNotices(id), isEmpty);
       final sent = cli.last.writtenJson;
       expect(sent, hasLength(2));
       expect(sent.last['message']['content'], notice);
+
+      // Waiting for an approval: queued until the result.
+      cli.last.emit(permissionRequestLine);
+      await settle();
+      expect(await manager.notifyUserEdit(id, 'c.txt'), isFalse);
+      expect(manager.pendingNotices(id), [
+        SessionManager.userEditNotice('c.txt'),
+      ]);
+      final stored = await c.read(durableStateRepoProvider).notices();
+      expect(stored[id], [SessionManager.userEditNotice('c.txt')]);
+      await manager.approve(id, 'req-1');
+      cli.last.emit(resultLine());
+      await settle();
       expect(manager.pendingNotices(id), isEmpty);
+      expect(await c.read(durableStateRepoProvider).notices(), isEmpty);
+      expect(
+        cli.last.writtenJson.last['message']['content'],
+        SessionManager.userEditNotice('c.txt'),
+      );
 
       // Idle live session: notifyUserEdit sends right away.
       cli.last.emit(resultLine());

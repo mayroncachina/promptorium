@@ -15,6 +15,7 @@ import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
+import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
@@ -221,11 +222,13 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// In-flight [resume] calls (two quick sends must not start two processes).
   final Map<String, Future<void>> _resuming = {};
 
-  /// Notices of manual edits (Código, Fase 10) waiting for the session to be
-  /// idle, by session id. Sending in the middle of a turn is not listed in
-  /// plano 0.2 (stream-json input during a turn not verified), so they are
-  /// delivered after the turn's `result` (live process) or prepended to the
-  /// next message (no process, e.g. "Pausar agente").
+  /// Notices of manual edits (Código, Fase 10) not delivered yet, by
+  /// session id; mirrored in `pending_notices` (schema v9) so closing the
+  /// app does not lose them. A live process gets them right away, even in
+  /// the middle of a turn (verified on CLI 2.1.302: the message joins the
+  /// running turn — docs/pesquisa/hooks-settings-stream-json.md §3); with an
+  /// approval pending they wait for the turn's `result`; without a process
+  /// (e.g. "Pausar agente") they go with the next message.
   final Map<String, List<String>> _notices = {};
 
   /// Screen that was open when each session was created (Tarefas, Projeto,
@@ -331,7 +334,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> send(String id, String text) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
-    final notices = _notices.remove(id);
+    final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
     }
@@ -370,35 +373,88 @@ class SessionManager extends Notifier<SessionManagerState> {
       'O usuário editou $path manualmente; releia antes de alterar.';
 
   /// Code screen: the user saved [path] (relative to the worktree) while the
-  /// session works there. Queued and sent when the session is idle (see
-  /// [_notices]); a live idle process gets it right away. Returns true when
-  /// it was sent now.
+  /// session works there (see [_notices]). Returns true when it was sent
+  /// now.
   Future<bool> notifyUserEdit(String id, String path) async {
     final text = userEditNotice(path);
     final list = _notices.putIfAbsent(id, () => []);
-    if (!list.contains(text)) list.add(text);
-    final p = _procs[id];
-    if (p != null && !p.busy && p.pending.isEmpty && !p.stopping) {
-      await _flushNotices(id);
-      return true;
+    if (!list.contains(text)) {
+      list.add(text);
+      await _durable((r) => r.addNotice(id, text));
     }
-    return false;
+    final p = _procs[id];
+    if (p == null || p.pending.isNotEmpty || p.stopping) return false;
+    if (p.busy) {
+      await _sendMidTurn(id, p);
+    } else {
+      await _flushNotices(id);
+    }
+    return true;
   }
 
   /// Notices not delivered yet (tests / UI).
   List<String> pendingNotices(String id) =>
       List.unmodifiable(_notices[id] ?? const []);
 
+  /// Splash: notices left in the database when the app closed.
+  Future<void> restoreNotices() async {
+    try {
+      final stored = await ref.read(durableStateRepoProvider).notices();
+      for (final MapEntry(:key, :value) in stored.entries) {
+        final list = _notices.putIfAbsent(key, () => []);
+        for (final n in value) {
+          if (!list.contains(n)) list.add(n);
+        }
+      }
+    } catch (e) {
+      debugPrint('avisos pendentes não restaurados — $e');
+    }
+  }
+
+  /// [_notices] of [id] were delivered: forget them (memory and database).
+  Future<List<String>?> _takeNotices(String id) async {
+    final list = _notices.remove(id);
+    if (list != null) await _durable((r) => r.clearNotices(id));
+    return list;
+  }
+
+  Future<void> _durable(Future<void> Function(DurableStateRepo r) job) async {
+    try {
+      await job(ref.read(durableStateRepoProvider));
+    } catch (e) {
+      debugPrint('estado durável não gravado — $e');
+    }
+  }
+
   Future<void> _flushNotices(String id) async {
     final p = _procs[id];
     if (p == null || p.busy || p.stopping || _shuttingDown) return;
     if (!(_notices[id]?.isNotEmpty ?? false)) return;
-    final text = _notices.remove(id)!.join('\n');
+    final text = (await _takeNotices(id))!.join('\n');
     try {
       await send(id, text);
     } catch (e) {
       debugPrint('sessão $id: aviso de edição não enviado — $e');
     }
+  }
+
+  /// Writes the notices into the running turn (no new turn, no status
+  /// change: the turn's `result` still ends it).
+  Future<void> _sendMidTurn(String id, _Proc p) async {
+    final list = await _takeNotices(id);
+    if (list == null || list.isEmpty) return;
+    final msg = list.join('\n');
+    await _enqueue(id, p, () async {
+      final json = AppEventTypes.userMessage(msg, DateTime.now());
+      final row = await _repo.appendEvent(
+        id,
+        type: AppEventTypes.user,
+        json: _encode(json),
+      );
+      _timeline(id).push(UnknownEvent(json), seq: row.seq);
+    });
+    p.lastActivity = DateTime.now();
+    await p.process.send(msg);
   }
 
   /// Starts `claude --resume <id>` in the session's worktree (no message).

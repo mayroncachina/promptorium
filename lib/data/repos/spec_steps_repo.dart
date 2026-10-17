@@ -102,14 +102,14 @@ class SpecStepsRepo {
     int? attempts,
   }) => _db.transaction(() async {
     for (final step in steps) {
-      await (_db.update(_t)
-            ..where((s) => s.specId.equals(specId) & s.step.equals(step)))
-          .write(
-            SpecStepsCompanion(
-              gateReport: Value(report),
-              gateAttempts: Value.absentIfNull(attempts),
-            ),
-          );
+      await (_db.update(
+        _t,
+      )..where((s) => s.specId.equals(specId) & s.step.equals(step))).write(
+        SpecStepsCompanion(
+          gateReport: Value(report),
+          gateAttempts: Value.absentIfNull(attempts),
+        ),
+      );
     }
   });
 
@@ -117,16 +117,16 @@ class SpecStepsRepo {
   Future<void> reset(int specId, Iterable<String> steps) =>
       _db.transaction(() async {
         for (final step in steps) {
-          await (_db.update(_t)
-                ..where((s) => s.specId.equals(specId) & s.step.equals(step)))
-              .write(
-                const SpecStepsCompanion(
-                  status: Value(StepStatus.pending),
-                  doneAt: Value(null),
-                  gateReport: Value(null),
-                  gateAttempts: Value(0),
-                ),
-              );
+          await (_db.update(
+            _t,
+          )..where((s) => s.specId.equals(specId) & s.step.equals(step))).write(
+            const SpecStepsCompanion(
+              status: Value(StepStatus.pending),
+              doneAt: Value(null),
+              gateReport: Value(null),
+              gateAttempts: Value(0),
+            ),
+          );
         }
       });
 }

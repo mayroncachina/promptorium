@@ -186,6 +186,20 @@ void main() {
     Future<SpecStage> stage() async =>
         (await c.read(specsRepoProvider).getById(spec.id))!.stage;
 
+    /// Waits (up to 15 s) for [cond]: the gate runs real git / bash.
+    Future<void> until(Future<bool> Function() cond) async {
+      final end = DateTime.now().add(const Duration(seconds: 15));
+      while (!await cond()) {
+        if (DateTime.now().isAfter(end)) fail('condição não atingida');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      await settle();
+    }
+
+    Future<SpecStep> stepRow(String step) async =>
+        (await c.read(specStepsRepoProvider).bySpec(spec.id))
+            .firstWhere((r) => r.step == step);
+
     test('step by step in the spec worktree: marker → done → next session; '
         'no marker → waits for the user; last step → Review', () async {
       final runner = c.read(specRunnerProvider);
@@ -222,10 +236,8 @@ void main() {
 
       // R1 done → its process is closed and R2 starts in the same worktree.
       cli.last.emit(resultLine('Pronto.\nETAPA CONCLUÍDA: R1'));
-      await settle();
-      await settle();
+      await until(() async => cli.processes.length == 2);
       expect((await states())['R1'], StepStatus.done);
-      expect(cli.processes, hasLength(2));
       expect(cli.processes.first.signals, isNotEmpty);
       expect(cli.cwds.last, row.worktreePath);
       expect(
@@ -248,9 +260,7 @@ void main() {
       await settle();
       expect((await states())['R2'], StepStatus.running);
       cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
-      await settle();
-      await settle();
-      expect(cli.processes, hasLength(3));
+      await until(() async => cli.processes.length == 3);
 
       // Turn off auto-advance: R3 done does not open R4.
       await c.read(specsRepoProvider).setAutoAdvance(spec.id, false);
@@ -300,9 +310,7 @@ void main() {
         await runner.runNext(spec.id, reviewUnblocks: true);
         await settle();
         cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
-        await settle();
-        await settle();
-        expect(cli.processes, hasLength(2));
+        await until(() async => cli.processes.length == 2);
       },
     );
 
@@ -313,14 +321,12 @@ void main() {
         await pilot.start(ws.id);
         await settle();
         expect(c.read(autopilotProvider), {ws.id});
-        for (final r in ['R1', 'R2', 'R3', 'R4']) {
+        for (final (i, r) in ['R1', 'R2', 'R3', 'R4'].indexed) {
           cli.last.emit(resultLine('ETAPA CONCLUÍDA: $r'));
-          await settle();
-          await settle();
+          await until(() async => i == 3 || cli.processes.length == i + 2);
         }
-        expect(await stage(), SpecStage.review);
-        await settle();
-        expect(c.read(autopilotProvider), isEmpty);
+        await until(() async => await stage() == SpecStage.review);
+        await until(() async => c.read(autopilotProvider).isEmpty);
       },
     );
 
@@ -360,8 +366,7 @@ void main() {
         'R1',
       );
       cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1, R2'));
-      await settle();
-      await settle();
+      await until(() async => (await states())['R2'] == StepStatus.running);
       expect((await states())['R1'], StepStatus.done);
       // R2 (left waiting by the failure) is picked by the next session.
       expect((await states())['R2'], StepStatus.running);
@@ -397,20 +402,6 @@ void main() {
         ),
       );
     });
-
-    /// Waits (up to 15 s) for [cond]: the gate runs real git / bash.
-    Future<void> until(Future<bool> Function() cond) async {
-      final end = DateTime.now().add(const Duration(seconds: 15));
-      while (!await cond()) {
-        if (DateTime.now().isAfter(end)) fail('condição não atingida');
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
-      await settle();
-    }
-
-    Future<SpecStep> stepRow(String step) async =>
-        (await c.read(specStepsRepoProvider).bySpec(spec.id))
-            .firstWhere((r) => r.step == step);
 
     test('gate: marker without commit → resent once to the same session; '
         'fixed → done and next step; failing again → waits for the user; '
@@ -488,6 +479,68 @@ void main() {
       await settle();
       expect((await states())['R1'], StepStatus.done);
       expect((await stepRow('R1')).gateReport, isNull);
+    });
+
+    test('checkpoint: back to the start of a step (commits and files '
+        'discarded, uncommitted changes of the start restored); redo sends '
+        'the previous attempt', () async {
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      final r1Start = (await stepRow('R1')).startSha!;
+      expect(
+        (await gitIn(wt, [
+          'rev-parse',
+          checkpointRef('SPEC-001', 'R1'),
+        ])).trim(),
+        r1Start,
+      );
+      File('$wt/r1.txt').writeAsStringSync('r1');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      // Uncommitted change of a tracked file when R2 starts.
+      File('$wt/a.txt').writeAsStringSync('mexido antes de R2\n');
+      cli.last.emit(resultLine('Feito.\nETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R2'] == StepStatus.running);
+      final r2 = await stepRow('R2');
+      expect(r2.startStash, isNotNull);
+
+      // R2 work: a commit and a new file.
+      File('$wt/r2.txt').writeAsStringSync('r2');
+      await gitIn(wt, ['add', 'r2.txt']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+      File('$wt/lixo.txt').writeAsStringSync('x');
+
+      final preview = await runner.rewindPreview(spec.id, 'R2');
+      expect(preview.commits, ['SPEC-001 R2: índices']);
+      expect(preview.files, containsAll(['lixo.txt', 'a.txt']));
+      expect(preview.steps, ['R2']);
+      expect(preview.restoresStash, isTrue);
+
+      await runner.rewind(spec.id, 'R2');
+      await settle();
+      expect((await gitIn(wt, ['rev-parse', 'HEAD'])).trim(), r2.startSha);
+      expect(File('$wt/r2.txt').existsSync(), isFalse);
+      expect(File('$wt/lixo.txt').existsSync(), isFalse);
+      expect(File('$wt/a.txt').readAsStringSync(), 'mexido antes de R2\n');
+      expect((await states())['R1'], StepStatus.done);
+      expect((await states())['R2'], StepStatus.pending);
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.every((s) => s.status.isTerminal), isTrue);
+
+      // Redo R1: R1 and R2 back to pending, a new session with the last
+      // answer of R1.
+      await runner.redo(spec.id, 'R1');
+      await settle();
+      expect((await gitIn(wt, ['rev-parse', 'HEAD'])).trim(), r1Start);
+      expect((await states())['R1'], StepStatus.running);
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(prompt, contains('<tentativa-anterior>'));
+      expect(prompt, contains('Feito.'));
+      expect(prompt, contains('Implemente a etapa R1'));
     });
   });
 }

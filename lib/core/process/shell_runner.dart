@@ -28,13 +28,12 @@ class ShellOutcome {
 
 /// Runs [command] with `bash -c` in [cwd]. [timeout] ends it with SIGTERM
 /// on its whole process group, then SIGKILL.
-typedef ShellRunner =
-    Future<ShellOutcome> Function(
-      String command, {
-      required String cwd,
-      required Duration timeout,
-      Map<String, String>? environment,
-    });
+typedef ShellRunner = Future<ShellOutcome> Function(
+  String command, {
+  required String cwd,
+  required Duration timeout,
+  Map<String, String>? environment,
+});
 
 /// Keeps the last [max] bytes of what was written (UTF-8, cut on a char).
 class _Tail {
@@ -121,10 +120,8 @@ Future<ShellOutcome> runShell(
       );
     }
   }
-  await Future.wait([out, err]).timeout(
-    const Duration(seconds: 2),
-    onTimeout: () => const [],
-  );
+  await Future.wait([out, err])
+      .timeout(const Duration(seconds: 2), onTimeout: () => const []);
   watch.stop();
   var text = tail.text();
   if (timedOut) {

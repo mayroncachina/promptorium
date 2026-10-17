@@ -9,6 +9,7 @@ import 'db/app_database.dart';
 import 'repos/agent_settings_repo.dart';
 import 'repos/app_settings_repo.dart';
 import 'repos/conversations_repo.dart';
+import 'repos/durable_state_repo.dart';
 import 'repos/mcp_tool_rules_repo.dart';
 import 'repos/project_plans_repo.dart';
 import 'repos/saved_prompts_repo.dart';
@@ -63,6 +64,9 @@ final appSettingsRepoProvider = Provider(
 );
 final projectPlansRepoProvider = Provider(
   (ref) => ProjectPlansRepo(ref.watch(appDatabaseProvider)),
+);
+final durableStateRepoProvider = Provider(
+  (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),
 );
 
 // --- lists used by the screens ----------------------------------------------

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,7 +8,9 @@ import '../../core/git/git_service.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
+import '../board/autopilot.dart';
 import '../prompt/prompt_actions.dart' show seedSavedPrompts;
+import '../sessions/session_manager.dart';
 
 /// Values produced by startup steps and consumed by later steps / the app.
 class StartupContext {
@@ -184,6 +188,14 @@ class RestoreSessionsStep extends StartupStep {
   Future<void> run(StartupContext ctx) async {
     final n = await ctx.ref.read(sessionsRepoProvider).markLiveAsInterrupted();
     if (n > 0) debugPrint('$n sessão(ões) marcada(s) como interrompida(s)');
+    // Notices not delivered before closing; the autopilot that was on
+    // resumes (not awaited: it may start sessions).
+    await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    unawaited(
+      ctx.ref.read(autopilotProvider.notifier).restore().catchError((Object e) {
+        debugPrint('autopilot não retomado — $e');
+      }),
+    );
   }
 }
 

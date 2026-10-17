@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -65,6 +66,7 @@ String specStepPrompt({
   required List<String> todo,
   List<SpecSubagent> subagents = const [],
   String? testCommand,
+  String? previousAttempt,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
   final now = [
@@ -123,6 +125,18 @@ String specStepPrompt({
       'tentativas); se ainda reprovar, termine mesmo assim e descreva o '
       'parecer na resposta final.',
     );
+  }
+  if (previousAttempt != null && previousAttempt.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Tentativa anterior desta etapa (descartada pelo usuário; o código '
+        'voltou ao início da etapa):',
+      )
+      ..writeln('<tentativa-anterior>')
+      ..writeln(previousAttempt.trim())
+      ..writeln('</tentativa-anterior>')
+      ..writeln('Faça diferente do que não funcionou.');
   }
   b
     ..writeln()
@@ -206,6 +220,30 @@ String specSessionTitle(Spec spec, List<StepView> steps, List<String> todo) {
   return '${spec.code} · ${todo.first}–${todo.last} · ${spec.title}';
 }
 
+/// Ref of the checkpoint of [step] (`refs/promptorium/SPEC-003/R2-inicio`).
+String checkpointRef(String specCode, String step) =>
+    'refs/promptorium/$specCode/$step-inicio';
+
+/// What [SpecRunner.rewind] would discard.
+@immutable
+class RewindPreview {
+  const RewindPreview({
+    required this.commits,
+    required this.files,
+    required this.steps,
+    required this.restoresStash,
+  });
+
+  final List<String> commits;
+  final List<String> files;
+
+  /// Steps that go back to pending.
+  final List<String> steps;
+
+  /// The changes uncommitted at the start of the step come back.
+  final bool restoresStash;
+}
+
 /// Timeline line of a gate result: `Verificação: ✓ commit · ✗ testes (12 s)`.
 String gateNote(GateReport r) {
   String secs(Duration d) => d.inSeconds >= 1 ? ' (${d.inSeconds} s)' : '';
@@ -237,6 +275,7 @@ class SpecRunner {
     String? agent,
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
+    String? previousAttempt,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -345,6 +384,7 @@ class SpecRunner {
             config.subagents,
           ),
           testCommand: config.testCommand,
+          previousAttempt: previousAttempt,
         ),
         agent: spec.agentName ?? config.agent,
         model: model ?? last?.model ?? prefs.model(RunKind.session),
@@ -409,19 +449,163 @@ class SpecRunner {
 
   /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
   /// commit after it).
+  /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
+  /// commit after it), kept also as `refs/promptorium/<spec>/<step>-inicio`,
+  /// and the uncommitted changes (`git stash create`) — the checkpoint of
+  /// "Voltar ao início da etapa".
   Future<void> _markStart(
     Spec spec,
     String worktree,
     List<String> steps,
   ) async {
-    String? sha;
+    String? sha, stash;
+    final git = _ref.read(gitServiceFactoryProvider)(worktree);
     try {
-      sha = await _ref.read(gitServiceFactoryProvider)(worktree).headSha();
+      sha = await git.headSha();
+      stash = await git.stashCreate();
+      if (sha != null) {
+        for (final step in steps) {
+          await git.updateRef(checkpointRef(spec.code, step), sha);
+        }
+      }
     } on GitException catch (e) {
       debugPrint('${spec.code}: início da etapa não gravado — $e');
     }
-    await _ref.read(specStepsRepoProvider).markStart(spec.id, steps, sha: sha);
+    await _ref
+        .read(specStepsRepoProvider)
+        .markStart(spec.id, steps, sha: sha, stash: stash);
   }
+
+  // --- checkpoint ------------------------------------------------------------
+
+  /// [step] and every step after it in the file: what going back to the
+  /// start of [step] undoes.
+  Future<(Spec, List<StepView>, SpecStep)> _rewindTarget(
+    int specId,
+    String step,
+  ) async {
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (spec == null) throw const SpecRunException('Spec não encontrada.');
+    if (spec.worktreePath == null) {
+      throw SpecRunException('${spec.code} não tem worktree (já mergeada?).');
+    }
+    final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+    final row = rows.where((r) => r.step == step).firstOrNull;
+    if (row?.startSha == null) {
+      throw SpecRunException('$step não tem ponto de início gravado.');
+    }
+    final steps = stepsOf(spec, rows);
+    final i = steps.indexWhere((s) => s.id == step);
+    return (spec, steps.sublist(i < 0 ? 0 : i), row!);
+  }
+
+  /// What "Voltar ao início da etapa" would discard: commits after the
+  /// start, uncommitted files and the steps that go back to pending.
+  Future<RewindPreview> rewindPreview(int specId, String step) async {
+    final (spec, after, row) = await _rewindTarget(specId, step);
+    final git = _ref.read(gitServiceFactoryProvider)(spec.worktreePath!);
+    try {
+      return RewindPreview(
+        commits: await git.subjectsSince(row.startSha!),
+        files: [for (final e in await git.status()) e.path],
+        steps: [
+          for (final s in after)
+            if (s.status != StepStatus.pending || s.id == step) s.id,
+        ],
+        restoresStash: row.startStash != null,
+      );
+    } on GitException catch (e) {
+      throw SpecRunException('Não foi possível ler o worktree: $e');
+    }
+  }
+
+  /// "Voltar ao início da etapa": stops the spec's live session, resets the
+  /// worktree to the step's start (plus the changes that were uncommitted
+  /// then) and turns [step] and the later steps back to pending.
+  Future<void> rewind(int specId, String step) async {
+    final (spec, after, row) = await _rewindTarget(specId, step);
+    for (final s in await _ref.read(sessionsRepoProvider).bySpec(specId)) {
+      if (_manager.isAlive(s.id)) await _manager.release(s.id);
+      if (!s.status.isTerminal) {
+        await _ref
+            .read(sessionsRepoProvider)
+            .setStatus(s.id, SessionStatus.stopped);
+      }
+    }
+    final git = _ref.read(gitServiceFactoryProvider)(spec.worktreePath!);
+    try {
+      await git.resetHard(row.startSha!);
+      if (row.startStash != null) await git.stashApply(row.startStash!);
+    } on GitException catch (e) {
+      throw SpecRunException('Falha ao voltar o worktree: $e');
+    }
+    await _ref.read(specStepsRepoProvider).reset(specId, [
+      for (final s in after) s.id,
+    ]);
+    if (spec.stage == SpecStage.review) {
+      await _ref.read(specsRepoProvider).setStage(specId, SpecStage.running);
+    }
+  }
+
+  /// "Refazer etapa": [rewind], then a new session for the step with the
+  /// previous attempt (last answer and gate) in the prompt.
+  Future<String> redo(int specId, String step) async {
+    final previous = await _previousAttempt(specId, step);
+    final last = (await _ref.read(sessionsRepoProvider).bySpec(specId))
+        .lastOrNull;
+    await rewind(specId, step);
+    return runNext(
+      specId,
+      mode: ClaudePermissionMode.fromCli(last?.permissionMode),
+      model: last?.model,
+      effort: last?.effort,
+      ignoreBlockers: true,
+      previousAttempt: previous,
+    );
+  }
+
+  /// Last answer of the step's session and its last gate, for the prompt of
+  /// "Refazer etapa".
+  Future<String?> _previousAttempt(int specId, String step) async {
+    final row = (await _ref.read(specStepsRepoProvider).bySpec(specId))
+        .where((r) => r.step == step)
+        .firstOrNull;
+    if (row == null) return null;
+    final b = StringBuffer();
+    if (row.sessionId case final id?) {
+      final events = await _ref.read(sessionsRepoProvider).events(id);
+      final result = events
+          .where((e) => e.type.startsWith('result'))
+          .lastOrNull;
+      if (result != null) {
+        try {
+          final j = jsonDecode(result.json);
+          final text = j is Map ? '${j['result'] ?? ''}'.trim() : '';
+          if (text.isNotEmpty) {
+            b
+              ..writeln('Última resposta:')
+              ..writeln(_clip(text, 1500));
+          }
+        } on FormatException {
+          // ignore
+        }
+      }
+    }
+    final gate = GateReport.decode(row.gateReport);
+    if (gate != null && !gate.ok) {
+      b.writeln('Verificação falhou: ${gate.summary}.');
+      for (final c in gate.failures) {
+        b
+          ..writeln('${c.label}:')
+          ..writeln(tailLines(c.output, 20));
+      }
+    }
+    final text = b.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  static String _clip(String s, int max) =>
+      s.length <= max ? s : '${s.substring(0, max)}…';
 
   // --- session events (SessionManager) ---------------------------------------
 

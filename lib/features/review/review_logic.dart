@@ -126,6 +126,27 @@ class ReviewComment {
   final bool removedLine;
 
   String get location => '$path:$line${removedLine ? ' (linha removida)' : ''}';
+
+  Map<String, Object?> toJson() => {
+    'path': path,
+    'line': line,
+    'text': text,
+    'snippet': snippet,
+    if (removedLine) 'removed': true,
+    if (anchor.isNotEmpty) 'anchor': anchor,
+  };
+
+  static ReviewComment? fromJson(Object? j) {
+    if (j is! Map || j['path'] is! String || j['text'] is! String) return null;
+    return ReviewComment(
+      path: j['path'] as String,
+      line: (j['line'] as num?)?.toInt() ?? 0,
+      text: j['text'] as String,
+      snippet: [for (final l in (j['snippet'] as List? ?? const [])) '$l'],
+      removedLine: j['removed'] == true,
+      anchor: '${j['anchor'] ?? ''}',
+    );
+  }
 }
 
 /// Builds the comment for the line at [index] of [hunk]: the snippet is the

@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -673,6 +675,11 @@ class ReviewService {
     if (spec != null) {
       warnings.addAll(await _closeSpec(ws, spec, commit, base));
     }
+    try {
+      await _ref.read(durableStateRepoProvider).setReviewDraft(sessionId, null);
+    } catch (e) {
+      debugPrint('rascunho do review $sessionId não removido — $e');
+    }
     return MergeResult(commit: commit, warnings: warnings);
   }
 
@@ -706,6 +713,12 @@ class ReviewService {
     }
     await repo.setStage(spec.id, SpecStage.done);
     await repo.setWorktree(spec.id);
+    try {
+      // Checkpoints of the steps ("Voltar ao início da etapa").
+      await _git(ws.path).deleteRefs('refs/promptorium/${spec.code}/');
+    } on GitException catch (e) {
+      warnings.add('checkpoints das etapas não removidos: $e');
+    }
     try {
       final service = _ref.read(specServiceProvider);
       final text = await service.read(ws, spec);
@@ -837,7 +850,8 @@ final selectedReviewProvider = NotifierProvider<SelectedReview, String?>(
   SelectedReview.new,
 );
 
-/// Pending comments and accepted hunks of one session (not persisted).
+/// Pending comments and accepted hunks of one session, kept in
+/// `review_drafts` (schema v9) so closing the app does not lose them.
 @immutable
 class ReviewDraft {
   const ReviewDraft({this.comments = const [], this.accepted = const {}});
@@ -846,6 +860,30 @@ class ReviewDraft {
 
   /// [hunkKey]s marked "Aceitar hunk".
   final Set<String> accepted;
+
+  bool get isEmpty => comments.isEmpty && accepted.isEmpty;
+
+  String encode() => jsonEncode({
+    'comentarios': [for (final c in comments) c.toJson()],
+    'aceitos': accepted.toList(),
+  });
+
+  static ReviewDraft decode(String? text) {
+    if (text == null) return const ReviewDraft();
+    try {
+      final j = jsonDecode(text);
+      if (j is! Map) return const ReviewDraft();
+      return ReviewDraft(
+        comments: [
+          for (final c in (j['comentarios'] as List? ?? const []))
+            ?ReviewComment.fromJson(c),
+        ],
+        accepted: {for (final a in (j['aceitos'] as List? ?? const [])) '$a'},
+      );
+    } on FormatException {
+      return const ReviewDraft();
+    }
+  }
 }
 
 class ReviewDraftNotifier extends Notifier<ReviewDraft> {
@@ -853,29 +891,70 @@ class ReviewDraftNotifier extends Notifier<ReviewDraft> {
 
   final String sessionId;
 
+  /// A change was made before the stored draft was read: it wins.
+  bool _touched = false;
+  Future<void> _writes = Future.value();
+
   @override
-  ReviewDraft build() => const ReviewDraft();
+  ReviewDraft build() {
+    unawaited(Future<void>.microtask(_restore));
+    return const ReviewDraft();
+  }
 
-  void addComment(ReviewComment c) => state = ReviewDraft(
-    comments: [...state.comments, c],
-    accepted: state.accepted,
+  Future<void> _restore() async {
+    try {
+      final text = await ref
+          .read(durableStateRepoProvider)
+          .reviewDraft(sessionId);
+      if (!ref.mounted || _touched || text == null) return;
+      state = ReviewDraft.decode(text);
+    } catch (e) {
+      debugPrint('rascunho do review $sessionId não lido — $e');
+    }
+  }
+
+  void _set(ReviewDraft d) {
+    _touched = true;
+    state = d;
+    final repo = ref.read(durableStateRepoProvider);
+    _writes = _writes.then(
+      (_) => repo
+          .setReviewDraft(sessionId, d.isEmpty ? null : d.encode())
+          .catchError((Object e) {
+            debugPrint('rascunho do review $sessionId não gravado — $e');
+          }),
+    );
+  }
+
+  /// Completes when the stored draft matches the state (tests).
+  Future<void> get saved => _writes;
+
+  void addComment(ReviewComment c) => _set(
+    ReviewDraft(comments: [...state.comments, c], accepted: state.accepted),
   );
 
-  void removeComment(ReviewComment c) => state = ReviewDraft(
-    comments: [
-      for (final x in state.comments)
-        if (!identical(x, c)) x,
-    ],
-    accepted: state.accepted,
+  void removeComment(ReviewComment c) => _set(
+    ReviewDraft(
+      comments: [
+        for (final x in state.comments)
+          if (!identical(x, c)) x,
+      ],
+      accepted: state.accepted,
+    ),
   );
 
-  void clearComments() => state = ReviewDraft(accepted: state.accepted);
+  void clearComments() => _set(ReviewDraft(accepted: state.accepted));
 
-  void toggleAccepted(String key) => state = ReviewDraft(
-    comments: state.comments,
-    accepted: state.accepted.contains(key)
-        ? ({...state.accepted}..remove(key))
-        : {...state.accepted, key},
+  /// Merged / rejected: nothing to keep.
+  void clear() => _set(const ReviewDraft());
+
+  void toggleAccepted(String key) => _set(
+    ReviewDraft(
+      comments: state.comments,
+      accepted: state.accepted.contains(key)
+          ? ({...state.accepted}..remove(key))
+          : {...state.accepted, key},
+    ),
   );
 }
 
