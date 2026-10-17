@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 
 /// Version of this build (keep in sync with `pubspec.yaml`).
-const appVersion = '0.1.0';
+const appVersion = '0.2.0';
 
 /// Releases of the project on GitHub.
 const releasesApi =
