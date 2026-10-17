@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
+import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -18,9 +20,16 @@ import '../tasks/task_rules_test.dart' show resultLine;
 
 /// `which` / `gh` simulated; everything else runs for real.
 class FakeCommands {
-  FakeCommands({this.hasGh = true});
+  FakeCommands({this.hasGh = true, this.authed = true});
 
   bool hasGh;
+  bool authed;
+
+  /// `gh pr merge` merges but exits 1 (local branch still checked out).
+  bool mergeExitsWithError = false;
+
+  /// Output of `gh pr view --json` (null = the default PR URL output).
+  String? prView;
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -31,6 +40,20 @@ class FakeCommands {
     calls.add((exe, args, workingDirectory));
     if (exe == 'which') {
       return ProcessResult(1, hasGh ? 0 : 1, hasGh ? '/usr/bin/gh\n' : '', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'auth status') {
+      return ProcessResult(1, authed ? 0 : 1, '', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr view') {
+      return ProcessResult(1, 0, prView ?? '{}', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr merge') {
+      return mergeExitsWithError
+          ? ProcessResult(1, 1, '', 'failed to delete local branch\n')
+          : ProcessResult(1, 0, 'merged\n', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr checks') {
+      return ProcessResult(1, 0, 'build\tpass\t1m\nlint\tfail\t2s\n', '');
     }
     if (exe == 'gh') {
       return ProcessResult(1, 0, 'https://github.com/o/r/pull/7\n', '');
@@ -434,6 +457,97 @@ void main() {
     expect(gh.$2, containsAllInOrder(['--title', 'TASK-001: Barra de status']));
   });
 
+  test('Criar PR: gh not logged in blocks it; draft adds --draft; PR '
+      'checks are read', () async {
+    final cmds = FakeCommands(authed: false);
+    final e = await setUpSession(commands: cmds);
+    final remote = '${tmp.path}/remote.git';
+    await Process.run('git', ['init', '-q', '--bare', remote]);
+    await gitIn(repo, ['remote', 'add', 'origin', remote]);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.available, isFalse);
+    expect(a.reason, contains('gh auth login'));
+    cmds.authed = true;
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.available, isTrue);
+    await e.review.createPr(e.sessionId, draft: true);
+    final gh = cmds.calls.lastWhere((c) => c.$1 == 'gh' && c.$2.first == 'pr');
+    expect(gh.$2, contains('--draft'));
+    expect(await e.review.prChecks(e.sessionId), [
+      ('build', 'pass'),
+      ('lint', 'fail'),
+    ]);
+  });
+
+  test('PR babysit: new comments go to the session once; merge via gh '
+      'closes the session; conflict instructions (F16)', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await e.c
+        .read(sessionsRepoProvider)
+        .setPrUrl(e.sessionId, 'https://x/pr/7');
+    final sitter = e.c.read(prBabysitterProvider.notifier);
+    await sitter.toggle(e.sessionId);
+    expect(sitter.isWatching(e.sessionId), isTrue);
+    final later = DateTime.now().add(const Duration(minutes: 1));
+    cmds.prView = jsonEncode({
+      'state': 'OPEN',
+      'mergeable': 'CONFLICTING',
+      'reviewDecision': 'CHANGES_REQUESTED',
+      'comments': [
+        {
+          'author': {'login': 'ana'},
+          'body': 'Faltou tratar o erro de rede.',
+          'createdAt': later.toIso8601String(),
+        },
+      ],
+      'reviews': [],
+      'statusCheckRollup': [
+        {'name': 'build', 'conclusion': 'FAILURE'},
+      ],
+    });
+    final before = e.cli.processes.length;
+    await sitter.check(e.sessionId);
+    await settle();
+    final status = e.c.read(prBabysitterProvider)[e.sessionId]!.status!;
+    expect(status.summary, contains('com conflito'));
+    expect(status.summary, contains('1 check(s) falhando'));
+    final sent = e.cli.last.writtenJson.last['message']['content'] as String;
+    expect(sent, contains('@ana (comentário):'));
+    expect(sent, contains('Faltou tratar o erro de rede.'));
+    expect(e.cli.processes.length, greaterThanOrEqualTo(before));
+    // The same comment is not sent twice.
+    final count = e.cli.last.writtenJson.length;
+    await sitter.check(e.sessionId);
+    await settle();
+    expect(e.cli.last.writtenJson.length, count);
+
+    await e.review.resolveConflict(e.sessionId);
+    await settle();
+    expect(
+      e.cli.last.writtenJson.last['message']['content'],
+      contains('git merge main'),
+    );
+
+    // Merged on GitHub, but gh fails deleting the local branch: still closes.
+    cmds.mergeExitsWithError = true;
+    cmds.prView = jsonEncode({'state': 'MERGED'});
+    final branch = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!
+        .branch;
+    await e.review.mergePr(e.sessionId, PrMergeMethod.squash);
+    expect(
+      (await gitIn(e.ws.path, ['branch', '--list', branch])).trim(),
+      isEmpty,
+    );
+    final merge = cmds.calls.lastWhere(
+      (c) => c.$2.take(2).join(' ') == 'pr merge',
+    );
+    expect(merge.$2, containsAll(['--squash', '--delete-branch']));
+    final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
+    expect(s.status, SessionStatus.merged);
+    expect(Directory(e.worktree).existsSync(), isFalse);
+  });
+
   test('rejecting a content hunk of a renamed file keeps the rename', () async {
     final e = await setUpSession();
     await gitIn(e.worktree, ['mv', 'a.txt', 'c.txt']);
@@ -653,6 +767,95 @@ void specReviewTests() {
             const [],
             await c.read(specsRepoProvider).watchByWorkspace(ws.id).first,
           ),
+      isEmpty,
+    );
+  });
+
+  test('criteria block the merge until checked or overridden; the Review '
+      'filters the diff by step', () async {
+    File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+      '---\nid: SPEC-001\nstatus: aprovada\n---\n\n# Extração\n\n'
+      '## Requisitos\n\n- R1 · Tabelas\n- R2 · Índices\n\n'
+      '## Critérios de aceite\n\n- [ ] r1.txt existe [R1]\n'
+      '- [x] já conferido\n- [ ] r2.txt existe [R2]\n',
+    );
+    await gitIn(repo, ['commit', '-q', '-am', 'criterios']);
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      commandRunnerProvider.overrideWithValue(FakeCommands().call),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    await c.read(specServiceProvider).sync(ws);
+    final spec = (await c
+        .read(specsRepoProvider)
+        .getByCode(ws.id, 'SPEC-001'))!;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.singleSessionSteps, '1');
+    await c.read(specRunnerProvider).runNext(spec.id);
+    await settle();
+    final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+        .worktreePath!;
+    File('$wt/r1.txt').writeAsStringSync('1\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
+    await settle();
+    await settle();
+    File('$wt/r2.txt').writeAsStringSync('2\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
+    await settle();
+    await settle();
+    final review = c.read(reviewServiceProvider);
+    final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(row.stage, SpecStage.review);
+    final session = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+
+    // Diff by step.
+    final byStep = await review.stepCommits(session.id);
+    expect(byStep.keys, ['R1', 'R2']);
+    final r2 = await review.loadStep(session.id, 'R2');
+    expect(r2.files.map((f) => f.path), ['r2.txt']);
+
+    expect(await review.pendingCriteria(row, ws), [
+      'r1.txt existe [R1]',
+      'r2.txt existe [R2]',
+    ]);
+    await expectLater(
+      review.merge(session.id),
+      throwsA(
+        isA<ReviewException>().having(
+          (e) => e.message,
+          'message',
+          contains('Mergear mesmo assim'),
+        ),
+      ),
+    );
+    await c
+        .read(reviewCommentsRepoProvider)
+        .setCriterion(
+          spec.id,
+          'r1.txt existe [R1]',
+          checked: true,
+          by: 'humano',
+        );
+    expect(await review.pendingCriteria(row, ws), ['r2.txt existe [R2]']);
+    await review.merge(session.id, override: 'R2 conferido no terminal');
+    final done = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(done.stage, SpecStage.done);
+    expect(done.mergeOverride, 'R2 conferido no terminal');
+    expect(
+      (await gitIn(repo, ['for-each-ref', 'refs/promptorium/'])).trim(),
       isEmpty,
     );
   });

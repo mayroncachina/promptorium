@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/fs/dir_watcher.dart';
+import 'code_panels.dart';
+
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
@@ -29,8 +32,11 @@ class CodeScreen extends ConsumerStatefulWidget {
 
   static const editorKey = 'code';
 
-  /// Disk check interval (mtime of the open tabs).
-  static const pollInterval = Duration(seconds: 2);
+  /// Safety net of the disk watcher (folders it could not watch).
+  static const pollInterval = Duration(seconds: 30);
+
+  /// At most this many folders are watched (inotify limits).
+  static const maxWatchedDirs = 2000;
 
   @override
   ConsumerState<CodeScreen> createState() => _CodeScreenState();
@@ -38,12 +44,18 @@ class CodeScreen extends ConsumerStatefulWidget {
 
 class _CodeScreenState extends ConsumerState<CodeScreen> {
   Timer? _poll;
-  int _tick = 0;
+
+  /// Folders of the open worktree (F11: changes arrive as events; the poll
+  /// is only a safety net).
+  DirWatcher? _watcher;
+  String? _watchedRoot;
+  int _watchedDirs = -1;
   final Set<String> _loaded = {};
   bool _panelOpen = true;
   int _panelTab = 0; // 0 terminal, 1 problemas
   CodeWorktreeModel? _model;
   int? _workspaceId;
+  final _searchFocus = FocusNode();
 
   @override
   void initState() {
@@ -54,6 +66,8 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   @override
   void dispose() {
     _poll?.cancel();
+    unawaited(_watcher?.close());
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -61,7 +75,31 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     final m = _model;
     if (m == null || !mounted) return;
     unawaited(m.checkDisk());
-    if (++_tick % 5 == 0) unawaited(m.refresh(quiet: true));
+    unawaited(m.refresh(quiet: true));
+  }
+
+  /// Watches the folders of [m] (re-done when the tree changes).
+  void _watch(CodeWorktreeModel m) {
+    final dirs = m.index.dirs;
+    if (_watchedRoot == m.root && _watchedDirs == dirs.length) return;
+    _watchedRoot = m.root;
+    _watchedDirs = dirs.length;
+    final paths = [
+      m.root,
+      for (final d in dirs.take(CodeScreen.maxWatchedDirs)) '${m.root}/$d',
+    ];
+    if (_watcher == null) {
+      _watcher = DirWatcher(paths, onChange: (_) => _onDisk());
+    } else {
+      _watcher!.update(paths);
+    }
+  }
+
+  void _onDisk() {
+    final m = _model;
+    if (m == null || !mounted) return;
+    unawaited(m.checkDisk());
+    unawaited(m.refresh(quiet: true));
   }
 
   void _snack(String msg) {
@@ -83,6 +121,11 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   Future<void> _save(CodeWorktreeModel m, CodeTab tab) async {
     try {
       final notified = await m.save(tab, workspaceId: _workspaceId);
+      // `lint:` of the project on save → Problemas (F13).
+      final root = ref.read(activeWorkspaceProvider)?.path;
+      if (root != null) {
+        unawaited(ref.read(problemsProvider(m.root).notifier).run(root));
+      }
       if (notified.isNotEmpty) {
         _snack(
           '${tab.name} salvo · aviso enfileirado para o agente '
@@ -230,6 +273,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     );
     final model = ref.watch(codeWorktreeModelProvider(selected.path));
     _model = model;
+    _watch(model);
     model.setBaseBranch(selected.isRoot ? null : selected.session?.baseBranch);
     if (_loaded.add(selected.path)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -259,6 +303,20 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): () {
           final t = model.activeTab;
           if (t != null) _save(model, t);
+        },
+        // Global search (F13).
+        const SingleActivator(
+          LogicalKeyboardKey.keyF,
+          control: true,
+          shift: true,
+        ): () {
+          setState(() {
+            _panelTab = 3;
+            _panelOpen = true;
+          });
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _searchFocus.requestFocus(),
+          );
         },
       },
       child: Focus(
@@ -319,6 +377,13 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
                       Expanded(child: _editor(model)),
                       _BottomPanel(
                         path: selected.path,
+                        root: ws.path,
+                        files: model.index.files,
+                        searchFocus: _searchFocus,
+                        onOpenAt: (p, line) async {
+                          final r = await model.openAt(p, line);
+                          if (r case NotOpened(:final reason)) _snack(reason);
+                        },
                         open: _panelOpen,
                         tab: _panelTab,
                         onTab: (i) => setState(() {
@@ -767,17 +832,29 @@ class _Breadcrumb extends StatelessWidget {
 class _BottomPanel extends ConsumerWidget {
   const _BottomPanel({
     required this.path,
+    required this.root,
+    required this.files,
     required this.open,
     required this.tab,
     required this.onTab,
     required this.onToggle,
+    required this.onOpenAt,
+    this.searchFocus,
   });
 
   final String path;
+
+  /// Workspace root (its config has `lint:`).
+  final String root;
+  final List<String> files;
   final bool open;
+
+  /// 0 terminal, 1 problemas, 2 git, 3 busca.
   final int tab;
   final ValueChanged<int> onTab;
   final VoidCallback onToggle;
+  final void Function(String path, int line) onOpenAt;
+  final FocusNode? searchFocus;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -824,7 +901,12 @@ class _BottomPanel extends ConsumerWidget {
             child: Row(
               children: [
                 tabBtn(0, 'Terminal'),
-                tabBtn(1, 'Problemas · 0'),
+                tabBtn(
+                  1,
+                  'Problemas · ${ref.watch(problemsProvider(path).select((s) => s.problems.length))}',
+                ),
+                tabBtn(2, 'Git'),
+                tabBtn(3, 'Busca'),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -857,21 +939,18 @@ class _BottomPanel extends ConsumerWidget {
           ),
           if (open)
             SizedBox(
-              height: 160,
-              child: tab == 0
-                  ? _TerminalBody(path: path)
-                  : const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: Text(
-                        'Nenhum problema. Diagnósticos do analisador (LSP) '
-                        'ainda não estão integrados (DT-04) — rode '
-                        '`flutter analyze` no terminal.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
+              height: 180,
+              child: switch (tab) {
+                0 => _TerminalBody(path: path),
+                1 => ProblemsBody(worktree: path, root: root, onOpen: onOpenAt),
+                2 => GitBody(worktree: path, onOpen: (p) => onOpenAt(p, 1)),
+                _ => SearchBody(
+                  root: path,
+                  files: files,
+                  onOpen: onOpenAt,
+                  focus: searchFocus,
+                ),
+              },
             ),
         ],
       ),

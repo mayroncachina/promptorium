@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -109,6 +110,10 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
         ],
       ],
       cwd: s.worktreePath,
+      environment: switch (ref.read(worktreeEnvProvider)[s.worktreePath]) {
+        final env? => {...Platform.environment, ...env},
+        null => null,
+      },
       onExit: () {
         if (ref.mounted) state = {...state};
       },

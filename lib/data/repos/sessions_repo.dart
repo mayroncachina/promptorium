@@ -46,6 +46,7 @@ class SessionsRepo {
     String? baseBranch,
     double costUsd = 0,
     SessionStatus status = SessionStatus.running,
+    int? duelId,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -65,6 +66,7 @@ class SessionsRepo {
           baseBranch: Value(baseBranch),
           costUsd: Value(costUsd),
           status: Value(status),
+          duelId: Value(duelId),
         ),
       );
 
@@ -152,6 +154,23 @@ class SessionsRepo {
   /// `interrupted` (Fase 5, item 8). Steps of specs left "running" wait for
   /// the user (no session is alive at startup). Returns how many sessions
   /// changed.
+  /// PID of the running `claude` (null when it ended; schema v12).
+  Future<int> setPid(String id, int? pid) => (_db.update(
+    _t,
+  )..where((s) => s.id.equals(id))).write(SessionsCompanion(pid: Value(pid)));
+
+  /// Sessions with a PID stored: id → pid (orphans after a crash).
+  Future<Map<String, int>> pids() async => {
+    for (final s in await (_db.select(
+      _t,
+    )..where((s) => s.pid.isNotNull())).get())
+      s.id: s.pid!,
+  };
+
+  /// Forgets every stored PID.
+  Future<void> clearPids() =>
+      _db.update(_t).write(const SessionsCompanion(pid: Value(null)));
+
   Future<int> markLiveAsInterrupted() => _db.transaction(() async {
     await (_db.update(_db.specSteps)
           ..where((s) => s.status.equals(StepStatus.running.name)))

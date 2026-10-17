@@ -54,6 +54,100 @@ void main() {
     },
   );
 
+  test('thinking streams collapsed and the subagent card counts its tools '
+      '(UX v2, U3)', () {
+    final t = Timeline();
+    Map<String, dynamic> think(String text) => {
+      'type': 'stream_event',
+      'event': {
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': {'type': 'thinking_delta', 'thinking': text},
+      },
+      'parent_tool_use_id': null,
+    };
+    t.apply(ev(think('Preciso ')));
+    t.apply(ev(think('ler o parser')));
+    final live = t.items.single as ThinkingItem;
+    expect((live.text, live.live), ('Preciso ler o parser', true));
+    // The assistant message consolidates it and adds the text after.
+    t.apply(
+      ev({
+        'type': 'assistant',
+        'message': {
+          'id': 'm1',
+          'content': [
+            {'type': 'thinking', 'thinking': 'Preciso ler o parser.'},
+            {'type': 'text', 'text': 'Vou ler.'},
+          ],
+        },
+        'parent_tool_use_id': null,
+      }),
+    );
+    expect(t.items, hasLength(2));
+    final done = t.items.first as ThinkingItem;
+    expect((done.text, done.live), ('Preciso ler o parser.', false));
+    expect((t.items.last as AssistantTextItem).text, 'Vou ler.');
+
+    // A thinking block without deltas is an item of its own; a tool use
+    // closes a live one.
+    t.apply(ev(think('outra ideia')));
+    t.apply(
+      ev({
+        'type': 'assistant',
+        'message': {
+          'id': 'm2',
+          'content': [
+            {
+              'type': 'tool_use',
+              'id': 'task1',
+              'name': 'Task',
+              'input': {'prompt': 'revise'},
+            },
+          ],
+        },
+        'parent_tool_use_id': null,
+      }),
+    );
+    expect((t.items[2] as ThinkingItem).live, isFalse);
+    final task = t.items.last as ToolItem;
+    for (final id in ['g1', 'g2']) {
+      t.apply(
+        ev({
+          'type': 'assistant',
+          'message': {
+            'id': 'sub-$id',
+            'content': [
+              {
+                'type': 'tool_use',
+                'id': id,
+                'name': 'Grep',
+                'input': {'pattern': 'x'},
+              },
+            ],
+          },
+          'parent_tool_use_id': 'task1',
+        }),
+      );
+    }
+    expect(task.childToolCount, 2);
+    expect(task.doneAt, isNull);
+    t.apply(
+      ev({
+        'type': 'user',
+        'message': {
+          'role': 'user',
+          'content': [
+            {'type': 'tool_result', 'tool_use_id': 'task1', 'content': 'ok'},
+          ],
+        },
+        'parent_tool_use_id': null,
+      }),
+      at: DateTime(2026, 1, 1, 0, 0, 41),
+    );
+    expect(task.doneAt, DateTime(2026, 1, 1, 0, 0, 41));
+  });
+
   test('fixture replays to init notice, text and result', () {
     final t = Timeline();
     for (final l in File(

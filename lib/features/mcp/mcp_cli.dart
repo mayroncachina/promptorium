@@ -481,7 +481,14 @@ class McpCli {
       );
     }
     final r = await _run(args, cwd, commandTimeout);
-    final msg = redact(_message(r, ''), req.secretValues);
+    // The CLI may echo the command: env / header values and the masked
+    // arguments never reach the message (F12).
+    final masked = maskArgs(req.args);
+    final msg = redact(_message(r, ''), [
+      ...req.secretValues,
+      for (final (i, a) in req.args.indexed)
+        if (masked[i] == mcpMask && a.length >= 3) a,
+    ]);
     if (r.exitCode != 0) {
       throw McpException(msg.isEmpty ? 'claude mcp add falhou.' : msg);
     }

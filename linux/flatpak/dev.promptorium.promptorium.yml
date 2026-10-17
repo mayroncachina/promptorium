@@ -1,0 +1,51 @@
+# Flatpak do Promptorium (F18). Empacota o bundle já compilado:
+#   flutter build linux --release
+#   flatpak-builder --user --install --force-clean build-flatpak \
+#     linux/flatpak/dev.promptorium.promptorium.yml
+# Veja docs/flatpak.md (o Claude Code CLI, o git e o gh ficam no host).
+app-id: dev.promptorium.promptorium
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: promptorium
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  # Repositórios do usuário, worktrees (~/.promptorium) e ~/.claude.
+  - --filesystem=home
+  # claude, git, gh, rg e os comandos do projeto rodam no host.
+  - --talk-name=org.freedesktop.Flatpak
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+modules:
+  - name: promptorium
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/lib/promptorium /app/bin
+      - cp -r bundle/* /app/lib/promptorium/
+      - install -Dm755 promptorium-wrapper.sh /app/bin/promptorium
+      - install -Dm644 promptorium.desktop
+        /app/share/applications/dev.promptorium.promptorium.desktop
+      - install -Dm644 icon-512.png
+        /app/share/icons/hicolor/512x512/apps/dev.promptorium.promptorium.png
+      - install -Dm644 icon-256.png
+        /app/share/icons/hicolor/256x256/apps/dev.promptorium.promptorium.png
+      - install -Dm644 dev.promptorium.promptorium.metainfo.xml
+        /app/share/metainfo/dev.promptorium.promptorium.metainfo.xml
+    sources:
+      - type: dir
+        path: ../../build/linux/x64/release/bundle
+        dest: bundle
+      - type: file
+        path: promptorium-wrapper.sh
+      - type: file
+        path: promptorium.desktop
+      - type: file
+        path: ../../assets/icon/icon-512.png
+      - type: file
+        path: ../../assets/icon/icon-256.png
+      - type: file
+        path: dev.promptorium.promptorium.metainfo.xml

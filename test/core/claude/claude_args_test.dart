@@ -106,6 +106,18 @@ void main() {
     ]);
   });
 
+  test('--settings with the managed hooks file', () {
+    const o = ClaudeOptions(
+      settingsFile: '/run/s/settings.json',
+      includePartialMessages: false,
+    );
+    expect(o.toArgs(), [...base, '--settings', '/run/s/settings.json']);
+    expect(
+      const ClaudeOptions().copyWith(settingsFile: '/x').toArgs(),
+      containsAllInOrder(['--settings', '/x']),
+    );
+  });
+
   test('effort and auto-compact', () {
     const o = ClaudeOptions(
       model: 'sonnet',

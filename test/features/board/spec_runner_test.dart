@@ -9,8 +9,11 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
+import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/project/project_memory.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
+import 'package:promptorium/features/specs/workspace_watcher.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
@@ -113,6 +116,9 @@ void main() {
         requirements: const [],
         dependsOn: const [],
         autoAdvance: true,
+        reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
       );
       const steps = [
         StepView(id: 'R1', text: 'Extrair tabelas', status: StepStatus.done),
@@ -185,6 +191,20 @@ void main() {
     Future<SpecStage> stage() async =>
         (await c.read(specsRepoProvider).getById(spec.id))!.stage;
 
+    /// Waits (up to 15 s) for [cond]: the gate runs real git / bash.
+    Future<void> until(Future<bool> Function() cond) async {
+      final end = DateTime.now().add(const Duration(seconds: 15));
+      while (!await cond()) {
+        if (DateTime.now().isAfter(end)) fail('condição não atingida');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      await settle();
+    }
+
+    Future<SpecStep> stepRow(String step) async =>
+        (await c.read(specStepsRepoProvider).bySpec(spec.id))
+            .firstWhere((r) => r.step == step);
+
     test('step by step in the spec worktree: marker → done → next session; '
         'no marker → waits for the user; last step → Review', () async {
       final runner = c.read(specRunnerProvider);
@@ -221,10 +241,8 @@ void main() {
 
       // R1 done → its process is closed and R2 starts in the same worktree.
       cli.last.emit(resultLine('Pronto.\nETAPA CONCLUÍDA: R1'));
-      await settle();
-      await settle();
+      await until(() async => cli.processes.length == 2);
       expect((await states())['R1'], StepStatus.done);
-      expect(cli.processes, hasLength(2));
       expect(cli.processes.first.signals, isNotEmpty);
       expect(cli.cwds.last, row.worktreePath);
       expect(
@@ -247,9 +265,7 @@ void main() {
       await settle();
       expect((await states())['R2'], StepStatus.running);
       cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
-      await settle();
-      await settle();
-      expect(cli.processes, hasLength(3));
+      await until(() async => cli.processes.length == 3);
 
       // Turn off auto-advance: R3 done does not open R4.
       await c.read(specsRepoProvider).setAutoAdvance(spec.id, false);
@@ -299,9 +315,7 @@ void main() {
         await runner.runNext(spec.id, reviewUnblocks: true);
         await settle();
         cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
-        await settle();
-        await settle();
-        expect(cli.processes, hasLength(2));
+        await until(() async => cli.processes.length == 2);
       },
     );
 
@@ -312,14 +326,12 @@ void main() {
         await pilot.start(ws.id);
         await settle();
         expect(c.read(autopilotProvider), {ws.id});
-        for (final r in ['R1', 'R2', 'R3', 'R4']) {
+        for (final (i, r) in ['R1', 'R2', 'R3', 'R4'].indexed) {
           cli.last.emit(resultLine('ETAPA CONCLUÍDA: $r'));
-          await settle();
-          await settle();
+          await until(() async => i == 3 || cli.processes.length == i + 2);
         }
-        expect(await stage(), SpecStage.review);
-        await settle();
-        expect(c.read(autopilotProvider), isEmpty);
+        await until(() async => await stage() == SpecStage.review);
+        await until(() async => c.read(autopilotProvider).isEmpty);
       },
     );
 
@@ -359,8 +371,7 @@ void main() {
         'R1',
       );
       cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1, R2'));
-      await settle();
-      await settle();
+      await until(() async => (await states())['R2'] == StepStatus.running);
       expect((await states())['R1'], StepStatus.done);
       // R2 (left waiting by the failure) is picked by the next session.
       expect((await states())['R2'], StepStatus.running);
@@ -395,6 +406,387 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('gate: marker without commit → resent once to the same session; '
+        'fixed → done and next step; failing again → waits for the user; '
+        'Commitar o que sobrou', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: test ! -f quebrado.txt\nverificacao:\n  tentativas: 1\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      expect((await stepRow('R1')).startSha, isNotNull);
+
+      // 1. Marker, no commit: verifying → resend with the failure.
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => cli.last.writtenJson.length == 2);
+      expect(cli.processes, hasLength(1));
+      final retry = cli.last.writtenJson.last['message']['content'] as String;
+      expect(retry, contains('A verificação do Promptorium falhou: commit'));
+      expect(retry, endsWith('ETAPA CONCLUÍDA: R1'));
+      expect((await stepRow('R1')).gateAttempts, 1);
+      expect(
+        (await c.read(specsRepoProvider).getById(spec.id))!.gateResends,
+        1,
+      );
+      expect(
+        GateReport.decode((await stepRow('R1')).gateReport)!.summary,
+        'commit',
+      );
+
+      // 2. The agent commits and repeats the marker: done, R2 starts.
+      File('$wt/r1.txt').writeAsStringSync('ok');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      cli.last.emit(resultLine('Corrigido.\nETAPA CONCLUÍDA: R1'));
+      await until(() async => cli.processes.length == 2);
+      expect((await states())['R1'], StepStatus.done);
+      expect((await states())['R2'], StepStatus.running);
+      expect((await stepRow('R2')).gateAttempts, 0);
+
+      // 3. R2 breaks the tests twice: one resend, then waits for the user.
+      File('$wt/quebrado.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => cli.last.writtenJson.length == 2);
+      expect(
+        cli.last.writtenJson.last['message']['content'],
+        contains('falhou: testes'),
+      );
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => (await states())['R2'] == StepStatus.needsInput);
+      expect(cli.last.writtenJson, hasLength(2));
+      expect(cli.processes, hasLength(2));
+
+      // 4. The user fixes it but leaves the file uncommitted.
+      await gitIn(wt, ['rm', '-q', '--cached', 'quebrado.txt']);
+      File('$wt/quebrado.txt').deleteSync();
+      await runner.recheck(spec.id);
+      expect((await states())['R2'], StepStatus.needsInput);
+      expect(
+        GateReport.decode((await stepRow('R2')).gateReport)!.onlyDirtyTree,
+        isTrue, // tests pass now; only the staged deletion is left
+      );
+      await runner.commitLeftovers(spec.id);
+      await until(() async => cli.processes.length == 3);
+      expect((await states())['R2'], StepStatus.done);
+      final log = await gitIn(wt, ['log', '--format=%s', '-1']);
+      expect(log.trim(), 'SPEC-001 R2: arquivos restantes da etapa');
+    });
+
+    test('no config: the marker alone finishes the step (as before)', () async {
+      await c.read(specRunnerProvider).runNext(spec.id);
+      await settle();
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await settle();
+      await settle();
+      expect((await states())['R1'], StepStatus.done);
+      expect((await stepRow('R1')).gateReport, isNull);
+    });
+
+    test('checkpoint: back to the start of a step (commits and files '
+        'discarded, uncommitted changes of the start restored); redo sends '
+        'the previous attempt', () async {
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      final r1Start = (await stepRow('R1')).startSha!;
+      expect(
+        (await gitIn(wt, [
+          'rev-parse',
+          checkpointRef('SPEC-001', 'R1'),
+        ])).trim(),
+        r1Start,
+      );
+      File('$wt/r1.txt').writeAsStringSync('r1');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      // Uncommitted change of a tracked file when R2 starts.
+      File('$wt/a.txt').writeAsStringSync('mexido antes de R2\n');
+      // Untracked file that already exists when R2 starts.
+      File('$wt/antes.txt').writeAsStringSync('novo antes de R2\n');
+      cli.last.emit(resultLine('Feito.\nETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R2'] == StepStatus.running);
+      final r2 = await stepRow('R2');
+      expect(r2.startStash, isNotNull);
+      // The snapshot is kept by a ref (safe from `git gc`).
+      expect(
+        (await gitIn(wt, [
+          'rev-parse',
+          checkpointStateRef('SPEC-001', 'R2'),
+        ])).trim(),
+        r2.startStash,
+      );
+
+      // R2 work: a commit and a new file.
+      File('$wt/r2.txt').writeAsStringSync('r2');
+      await gitIn(wt, ['add', 'r2.txt']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+      File('$wt/lixo.txt').writeAsStringSync('x');
+
+      final preview = await runner.rewindPreview(spec.id, 'R2');
+      expect(preview.commits, ['SPEC-001 R2: índices']);
+      expect(preview.files, containsAll(['lixo.txt', 'a.txt']));
+      expect(preview.steps, ['R2']);
+      expect(preview.restoresStash, isTrue);
+
+      await runner.rewind(spec.id, 'R2');
+      await settle();
+      expect((await gitIn(wt, ['rev-parse', 'HEAD'])).trim(), r2.startSha);
+      expect(File('$wt/r2.txt').existsSync(), isFalse);
+      expect(File('$wt/lixo.txt').existsSync(), isFalse);
+      expect(File('$wt/a.txt').readAsStringSync(), 'mexido antes de R2\n');
+      expect(File('$wt/antes.txt').readAsStringSync(), 'novo antes de R2\n');
+      expect((await states())['R1'], StepStatus.done);
+      expect((await states())['R2'], StepStatus.pending);
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.every((s) => s.status.isTerminal), isTrue);
+
+      // Redo R1: R1 and R2 back to pending, a new session with the last
+      // answer of R1.
+      await runner.redo(spec.id, 'R1');
+      await settle();
+      expect((await gitIn(wt, ['rev-parse', 'HEAD'])).trim(), r1Start);
+      expect((await states())['R1'], StepStatus.running);
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(prompt, contains('<tentativa-anterior>'));
+      expect(prompt, contains('Feito.'));
+      expect(prompt, contains('Implemente a etapa R1'));
+    });
+
+    test('new worktree: copiar / preparar, index and PROMPTORIUM_* in the '
+        'session; a failed preparar is retried by the next run', () async {
+      File('$repo/.gitignore').writeAsStringSync('.env\n');
+      await gitIn(repo, ['add', '.gitignore']);
+      await gitIn(repo, ['commit', '-q', '-m', 'ignore']);
+      File('$repo/.env').writeAsStringSync('X=1\n');
+      Directory('$repo/.promptorium').createSync();
+      final cfg = File('$repo/.promptorium/config.yml')
+        ..writeAsStringSync(
+          'worktree:\n  copiar: [.env]\n  preparar: exit 3\n'
+          '  porta-base: 4000\n',
+        );
+      final runner = c.read(specRunnerProvider);
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains('Falha ao preparar o worktree'),
+          ),
+        ),
+      );
+      expect(c.read(worktreePrepProvider)[spec.id]?.error, isNotNull);
+      expect(cli.processes, isEmpty);
+      var row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(row.preparedAt, isNull);
+      expect(row.worktreeIndex, 1);
+
+      cfg.writeAsStringSync(
+        'worktree:\n  copiar: [.env]\n  preparar: touch pronto\n'
+        '  porta-base: 4000\n',
+      );
+      await runner.runNext(spec.id);
+      await settle();
+      row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(row.preparedAt, isNotNull);
+      expect(c.read(worktreePrepProvider)[spec.id], isNull);
+      expect(File('${row.worktreePath}/.env').existsSync(), isTrue);
+      expect(File('${row.worktreePath}/pronto').existsSync(), isTrue);
+      expect(cli.envs.single, {
+        'PROMPTORIUM_ROOT': repo,
+        'PROMPTORIUM_WORKTREE': row.worktreePath,
+        'PROMPTORIUM_SPEC': 'SPEC-001',
+        'PROMPTORIUM_PORT': '4001',
+      });
+    });
+
+    test('gate runs the verificar: of the step criteria and checks them '
+        '(F7)', () async {
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        specText.replaceFirst(
+          '- R4 · Ligar na CLI\n',
+          '- R4 · Ligar na CLI\n'
+              '\n## Critérios de aceite\n\n'
+              '- [ ] r1.txt existe [R1] · verificar: test -f r1.txt\n',
+        ),
+      );
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('testes: "true"\nverificacao:\n  tentativas: 0\n');
+      await c.read(specServiceProvider).sync(ws);
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      // Commit without r1.txt: the criterion's check fails.
+      File('$wt/outro.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: quase']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.needsInput);
+      final failed = GateReport.decode((await stepRow('R1')).gateReport)!;
+      expect(failed.failures.single.name, 'verificar');
+      expect(failed.failures.single.command, 'test -f r1.txt');
+
+      File('$wt/r1.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: r1']);
+      await runner.recheck(spec.id);
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      final marks = await c.read(reviewCommentsRepoProvider).criteria(spec.id);
+      expect(marks.single.criterion, 'r1.txt existe [R1]');
+      expect(marks.single.checkedBy, 'gate');
+    });
+
+    test('memory: the prompt carries it and asks for APRENDIZADO; the line '
+        'of the answer and the gate times go to memoria.md (F8)', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/memoria.md')
+          .writeAsStringSync('- Use drift  <!-- você, 2026-10-01 -->\n');
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: sleep 5\nverificacao:\n  exigir-commit: false\n'
+        '  exigir-arvore-limpa: false\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(prompt, contains('Memória do projeto'));
+      expect(prompt, contains('- Use drift'));
+      expect(prompt, contains('APRENDIZADO: <o que aprendeu>'));
+      cli.last.emit(
+        resultLine('APRENDIZADO: o build precisa de -j1\nETAPA CONCLUÍDA: R1'),
+      );
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      final m = ProjectMemory.loadSync(repo);
+      expect(m.entries.map((e) => e.text), [
+        'Use drift',
+        'o build precisa de -j1',
+        '`sleep 5` (testes) passa em ~5 s',
+      ]);
+      expect(m.entries[1].origin, 'SPEC-001 R1');
+    }, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('spec file changed while it runs: flagged, no next step until '
+        'confirmed (F11)', () async {
+      c.listen(workspacesProvider, (_, _) {});
+      await c
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.activeWorkspace, '${ws.id}');
+      await until(() async => c.read(activeWorkspaceProvider) != null);
+      c.listen(workspaceWatcherProvider, (_, _) {});
+      await c.read(specsRepoProvider).setAutoAdvance(spec.id, false);
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+        specText.replaceFirst('Extrair índices', 'Extrair índices e views'),
+      );
+      await until(
+        () async => c.read(workspaceWatcherProvider).contains(spec.id),
+      );
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains('alterada no disco'),
+          ),
+        ),
+      );
+      c.read(workspaceWatcherProvider.notifier).confirm(spec.id);
+      await runner.runNext(spec.id);
+      await settle();
+      expect(
+        cli.last.writtenJson.single['message']['content'],
+        contains('Extrair índices e views'),
+      );
+    });
+
+    test('best-of-N: A and B get their own PROMPTORIUM_PORT, apart from the '
+        "spec's", () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('worktree:\n  porta-base: 4000\n');
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id, duel: true);
+      await settle();
+      expect(cli.envs.map((e) => e!['PROMPTORIUM_PORT']), ['4002', '4003']);
+      final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+      await runner.discardDuel(duel.id);
+    });
+
+    test('best-of-N: R1 runs in two temporary worktrees; choosing B brings '
+        'its commit, removes both and the spec goes on (F15)', () async {
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id, duel: true);
+      await settle();
+      expect(cli.processes, hasLength(2));
+      final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+      expect(cli.cwds, [duel.worktreeA, duel.worktreeB]);
+      expect(cli.envs.last!['PROMPTORIUM_WORKTREE'], duel.worktreeB);
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.map((s) => s.duelId), [duel.id, duel.id]);
+      expect(sessions.map((s) => s.title), [
+        'SPEC-001 · R1 · Extrair tabelas · A',
+        'SPEC-001 · R1 · Extrair tabelas · B',
+      ]);
+      // Busy: neither a normal run nor a second duel.
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(isA<SpecRunException>()),
+      );
+
+      Future<void> attempt(String wt, String file, int i) async {
+        File('$wt/$file').writeAsStringSync(file);
+        await gitIn(wt, ['add', '.']);
+        await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: $file']);
+        cli.processes[i].emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      }
+
+      await attempt(duel.worktreeA, 'a.dart', 0);
+      await settle();
+      expect(
+        (await c.read(specDuelsRepoProvider).getById(duel.id))!.state,
+        'rodando',
+      );
+      await attempt(duel.worktreeB, 'b.dart', 1);
+      await until(
+        () async =>
+            (await c.read(specDuelsRepoProvider).getById(duel.id))!.state ==
+            'pronto',
+      );
+      expect((await states())['R1'], StepStatus.needsInput);
+
+      await runner.chooseDuel(duel.id, 'B');
+      await until(() async => cli.processes.length == 3);
+      expect(File('${row.worktreePath}/b.dart').existsSync(), isTrue);
+      expect(File('${row.worktreePath}/a.dart').existsSync(), isFalse);
+      expect(Directory(duel.worktreeA).existsSync(), isFalse);
+      expect(Directory(duel.worktreeB).existsSync(), isFalse);
+      expect((await states())['R1'], StepStatus.done);
+      expect(cli.cwds.last, row.worktreePath);
+      final done = (await c.read(specDuelsRepoProvider).getById(duel.id))!;
+      expect(done.state, 'escolhido');
+      expect(done.chosen, 'B');
     });
   });
 }

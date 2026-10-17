@@ -10,15 +10,20 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
+import '../../core/git/worktree_setup.dart';
+import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
+import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
 import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
+import '../project/project_config.dart';
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -57,6 +62,8 @@ class NewSessionRequest {
     this.worktreePath,
     this.branch,
     this.baseBranch,
+    this.environment,
+    this.duelId,
   });
 
   final Workspace workspace;
@@ -97,6 +104,12 @@ class NewSessionRequest {
   final String? worktreePath;
   final String? branch;
   final String? baseBranch;
+
+  /// Extra variables of the process (`PROMPTORIUM_*`); null = computed.
+  final Map<String, String>? environment;
+
+  /// Best-of-N attempt (`spec_duels.id`) the session runs.
+  final int? duelId;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -172,10 +185,19 @@ class SessionException implements Exception {
 
 /// Mutable bookkeeping of one running process.
 class _Proc {
-  _Proc(this.process, this.title, this.lastCost);
+  _Proc(
+    this.process,
+    this.title,
+    this.lastCost, {
+    this.skipPermissions = false,
+  });
 
   final ClaudeProcess process;
   String title;
+
+  /// Started with `--dangerously-skip-permissions` (a start flag: a live
+  /// switch to another mode does not undo it).
+  final bool skipPermissions;
 
   /// Highest cumulative `total_cost_usd` seen (the session cost).
   double lastCost;
@@ -202,6 +224,9 @@ class _Proc {
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
+
+  /// Bytes of the hooks log already shown.
+  int hookOffset = 0;
   StreamSubscription<ClaudeEvent>? sub;
   StreamSubscription<String>? logSub;
 }
@@ -216,11 +241,17 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// In-flight [resume] calls (two quick sends must not start two processes).
   final Map<String, Future<void>> _resuming = {};
 
-  /// Notices of manual edits (Código, Fase 10) waiting for the session to be
-  /// idle, by session id. Sending in the middle of a turn is not listed in
-  /// plano 0.2 (stream-json input during a turn not verified), so they are
-  /// delivered after the turn's `result` (live process) or prepended to the
-  /// next message (no process, e.g. "Pausar agente").
+  /// Removal of the hook files of a process that ended, by session id; a
+  /// quick resume waits for it before writing the new ones.
+  final Map<String, Future<void>> _hookCleanups = {};
+
+  /// Notices of manual edits (Código, Fase 10) not delivered yet, by
+  /// session id; mirrored in `pending_notices` (schema v9) so closing the
+  /// app does not lose them. A live process gets them right away, even in
+  /// the middle of a turn (verified on CLI 2.1.302: the message joins the
+  /// running turn — docs/pesquisa/hooks-settings-stream-json.md §3); with an
+  /// approval pending they wait for the turn's `result`; without a process
+  /// (e.g. "Pausar agente") they go with the next message.
   final Map<String, List<String>> _notices = {};
 
   /// Screen that was open when each session was created (Tarefas, Projeto,
@@ -272,11 +303,19 @@ class SessionManager extends Notifier<SessionManagerState> {
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
+        await _setupWorktree(ws.path, wt);
       } else {
         branch = await git.currentBranch() ?? 'HEAD';
       }
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
+    }
+    if (r.permissionMode == ClaudePermissionMode.skipPermissions &&
+        path == ws.path) {
+      throw const SessionException(
+        '"Sem perguntar" só roda em worktree isolado: marque "Criar '
+        'worktree isolado" ou escolha outro modo.',
+      );
     }
     final effort =
         r.effort ?? ref.read(runPrefsProvider).effort(RunKind.session);
@@ -294,10 +333,13 @@ class SessionManager extends Notifier<SessionManagerState> {
       specId: r.specId,
       steps: r.steps,
       baseBranch: base,
+      duelId: r.duelId,
     );
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
+    final env =
+        r.environment ?? worktreeEnvironment(root: ws.path, worktree: path);
     await _start(
       id,
       ClaudeOptions(
@@ -315,6 +357,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       ),
       cwd: path,
       title: title,
+      root: ws.path,
+      environment: env,
     );
     await send(id, prompt);
     return id;
@@ -325,7 +369,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> send(String id, String text) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
-    final notices = _notices.remove(id);
+    final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
     }
@@ -355,40 +399,97 @@ class SessionManager extends Notifier<SessionManagerState> {
     await proc.process.send(msg);
   }
 
+  /// Line of the app in the session's timeline (gate results, hooks…).
+  Future<void> note(String id, String text, {bool error = false}) =>
+      _note(id, text, error: error);
+
   /// Message sent to the agent when the user saves [path] by hand.
   static String userEditNotice(String path) =>
       'O usuário editou $path manualmente; releia antes de alterar.';
 
   /// Code screen: the user saved [path] (relative to the worktree) while the
-  /// session works there. Queued and sent when the session is idle (see
-  /// [_notices]); a live idle process gets it right away. Returns true when
-  /// it was sent now.
+  /// session works there (see [_notices]). Returns true when it was sent
+  /// now.
   Future<bool> notifyUserEdit(String id, String path) async {
     final text = userEditNotice(path);
     final list = _notices.putIfAbsent(id, () => []);
-    if (!list.contains(text)) list.add(text);
-    final p = _procs[id];
-    if (p != null && !p.busy && p.pending.isEmpty && !p.stopping) {
-      await _flushNotices(id);
-      return true;
+    if (!list.contains(text)) {
+      list.add(text);
+      await _durable((r) => r.addNotice(id, text));
     }
-    return false;
+    final p = _procs[id];
+    if (p == null || p.pending.isNotEmpty || p.stopping) return false;
+    if (p.busy) {
+      await _sendMidTurn(id, p);
+    } else {
+      await _flushNotices(id);
+    }
+    return true;
   }
 
   /// Notices not delivered yet (tests / UI).
   List<String> pendingNotices(String id) =>
       List.unmodifiable(_notices[id] ?? const []);
 
+  /// Splash: notices left in the database when the app closed.
+  Future<void> restoreNotices() async {
+    try {
+      final stored = await ref.read(durableStateRepoProvider).notices();
+      for (final MapEntry(:key, :value) in stored.entries) {
+        final list = _notices.putIfAbsent(key, () => []);
+        for (final n in value) {
+          if (!list.contains(n)) list.add(n);
+        }
+      }
+    } catch (e) {
+      debugPrint('avisos pendentes não restaurados — $e');
+    }
+  }
+
+  /// [_notices] of [id] were delivered: forget them (memory and database).
+  Future<List<String>?> _takeNotices(String id) async {
+    final list = _notices.remove(id);
+    if (list != null) await _durable((r) => r.clearNotices(id));
+    return list;
+  }
+
+  Future<void> _durable(Future<void> Function(DurableStateRepo r) job) async {
+    try {
+      await job(ref.read(durableStateRepoProvider));
+    } catch (e) {
+      debugPrint('estado durável não gravado — $e');
+    }
+  }
+
   Future<void> _flushNotices(String id) async {
     final p = _procs[id];
     if (p == null || p.busy || p.stopping || _shuttingDown) return;
     if (!(_notices[id]?.isNotEmpty ?? false)) return;
-    final text = _notices.remove(id)!.join('\n');
+    final text = (await _takeNotices(id))!.join('\n');
     try {
       await send(id, text);
     } catch (e) {
       debugPrint('sessão $id: aviso de edição não enviado — $e');
     }
+  }
+
+  /// Writes the notices into the running turn (no new turn, no status
+  /// change: the turn's `result` still ends it).
+  Future<void> _sendMidTurn(String id, _Proc p) async {
+    final list = await _takeNotices(id);
+    if (list == null || list.isEmpty) return;
+    final msg = list.join('\n');
+    await _enqueue(id, p, () async {
+      final json = AppEventTypes.userMessage(msg, DateTime.now());
+      final row = await _repo.appendEvent(
+        id,
+        type: AppEventTypes.user,
+        json: _encode(json),
+      );
+      _timeline(id).push(UnknownEvent(json), seq: row.seq);
+    });
+    p.lastActivity = DateTime.now();
+    await p.process.send(msg);
   }
 
   /// Starts `claude --resume <id>` in the session's worktree (no message).
@@ -419,7 +520,11 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(s.model),
         effort: _effort(s.effort),
         agent: s.agentName,
-        permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
+        permissionMode: skipOnlyInWorktree(
+          ClaudePermissionMode.fromCli(s.permissionMode),
+          worktree: s.worktreePath,
+          root: ws?.path,
+        ),
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
         allowedTools: mcp.allowed,
@@ -428,6 +533,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       cwd: s.worktreePath,
       title: _titleOf(s),
       baseCost: s.costUsd,
+      root: ws?.path,
+      environment: ws == null ? null : await _environmentOf(s, ws),
     );
     await _repo.setStatus(id, SessionStatus.completed);
   }
@@ -453,16 +560,44 @@ class SessionManager extends Notifier<SessionManagerState> {
         : 'Fork de ${_titleOf(parent)}';
     String path = ws.path, branch = parent.branch;
     if (parent.worktreePath != ws.path) {
+      final factory = ref.read(gitServiceFactoryProvider);
       try {
-        final wt = await ref
-            .read(gitServiceFactoryProvider)(ws.path)
+        // The parent's uncommitted changes go along (DT-18).
+        String? stash;
+        try {
+          stash = await factory(parent.worktreePath).stashCreate();
+        } on GitException catch (e) {
+          debugPrint('fork de $id: alterações não copiadas — $e');
+        }
+        final wt = await factory(ws.path)
             .addWorktree(sessionSlug(name, newId), baseBranch: parent.branch);
         path = wt.path;
         branch = wt.branch;
+        if (stash != null) {
+          try {
+            await factory(path).stashApply(stash);
+          } on GitException {
+            // No worktree / branch left behind without a session.
+            try {
+              await factory(ws.path).removeWorktree(path, force: true);
+              await factory(ws.path).deleteBranch(branch, force: true);
+            } on GitException catch (e) {
+              debugPrint('worktree $path não removido — $e');
+            }
+            rethrow;
+          }
+        }
+        await _setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
     }
+    // "Sem perguntar" never in the workspace root (F12), as in create/resume.
+    final mode = skipOnlyInWorktree(
+      ClaudePermissionMode.fromCli(parent.permissionMode),
+      worktree: path,
+      root: ws.path,
+    );
     await _repo.insert(
       id: newId,
       workspaceId: ws.id,
@@ -472,7 +607,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       effort: parent.effort,
       agentName: parent.agentName,
       title: name,
-      permissionMode: parent.permissionMode,
+      permissionMode: mode?.cliValue ?? parent.permissionMode,
       taskId: parent.taskId,
       // Same merge target as the parent (its worktree came from there).
       baseBranch: parent.worktreePath != ws.path ? parent.baseBranch : null,
@@ -491,7 +626,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(parent.model),
         effort: _effort(parent.effort),
         agent: parent.agentName,
-        permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
+        permissionMode: mode,
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
         allowedTools: mcp.allowed,
@@ -500,6 +635,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       cwd: path,
       title: name,
       baseCost: parent.costUsd,
+      root: ws.path,
+      environment: worktreeEnvironment(root: ws.path, worktree: path),
     );
     await send(newId, prompt);
     return newId;
@@ -577,8 +714,47 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   /// Changes the permission mode used the next time the process starts.
-  Future<void> setPermissionMode(String id, ClaudePermissionMode mode) =>
-      _repo.setPermissionMode(id, mode.cliValue);
+  /// "Sem perguntar" is refused for a session in the workspace root (F12).
+  Future<void> setPermissionMode(String id, ClaudePermissionMode mode) async {
+    if (mode == ClaudePermissionMode.skipPermissions) {
+      final s = await _repo.getById(id);
+      final ws = s == null
+          ? null
+          : await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      if (s != null && ws != null && s.worktreePath == ws.path) {
+        throw const SessionException(
+          '"Sem perguntar" só roda em worktree isolado.',
+        );
+      }
+    }
+    await _repo.setPermissionMode(id, mode.cliValue);
+    // A live process switches now (except to/from "sem perguntar", which is
+    // a start flag of the CLI).
+    final p = _procs[id];
+    if (p == null) return;
+    if (p.skipPermissions && mode != ClaudePermissionMode.skipPermissions) {
+      // Leaving "sem perguntar": the process keeps skipping approvals, so an
+      // idle one closes and the next message resumes in [mode].
+      if (!p.busy && p.pending.isEmpty && p.subagents.isEmpty) {
+        await _note(
+          id,
+          'Modo de permissão: ${mode.cliValue} (processo reiniciado na '
+          'próxima mensagem)',
+        );
+        await release(id);
+      } else {
+        await _note(
+          id,
+          'Modo de permissão: ${mode.cliValue} — vale quando a sessão '
+          'reiniciar; este turno continua sem perguntar',
+          error: true,
+        );
+      }
+    } else if (mode != ClaudePermissionMode.skipPermissions) {
+      await p.process.setPermissionMode(mode);
+      await _note(id, 'Modo de permissão: ${mode.cliValue}');
+    }
+  }
 
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
@@ -663,25 +839,46 @@ class SessionManager extends Notifier<SessionManagerState> {
     required String cwd,
     required String title,
     double baseCost = 0,
+    String? root,
+    Map<String, String>? environment,
   }) async {
     if (_shuttingDown) {
       throw const SessionException('O aplicativo está sendo encerrado.');
     }
+    final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
     final ClaudeProcess process;
     try {
       process = await ClaudeProcess.start(
-        options.copyWith(autocompact: ref.read(runPrefsProvider).autocompact),
+        options.copyWith(
+          autocompact: ref.read(runPrefsProvider).autocompact,
+          settingsFile: settingsFile,
+        ),
         workingDirectory: cwd,
         executable: ref.read(claudeExecutableProvider),
         starter: ref.read(claudeProcessStarterProvider),
+        environment: environment,
       );
     } catch (e) {
       await _note(id, 'Falha ao iniciar o Claude Code: $e', error: true);
       await _repo.setStatus(id, SessionStatus.failed);
       throw SessionException('Falha ao iniciar o Claude Code: $e');
     }
-    final p = _Proc(process, title, baseCost);
+    final p = _Proc(
+      process,
+      title,
+      baseCost,
+      skipPermissions:
+          options.permissionMode == ClaudePermissionMode.skipPermissions,
+    );
     _procs[id] = p;
+    try {
+      await _repo.setPid(id, process.pid);
+    } catch (e) {
+      debugPrint('sessão $id: pid não gravado — $e');
+    }
+    if (environment != null) {
+      ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
+    }
     p.logSub = process.logs.listen(
       (l) => debugPrint('claude[$id] $l'),
       onError: (_) {},
@@ -691,6 +888,107 @@ class SessionManager extends Notifier<SessionManagerState> {
       onDone: () => _enqueue(id, p, () => _onExit(id, p)),
     );
     _publish();
+  }
+
+  /// A new session / fork worktree: `copiar:` and `preparar:` of the
+  /// project's config. Failure removes the worktree (nothing was done in
+  /// it yet) and is reported to the caller.
+  Future<void> _setupWorktree(String root, CreatedWorktree wt) async {
+    final config = ProjectConfig.loadSync(root);
+    final wc = config.worktree;
+    if (wc.copy.isEmpty && wc.prepare == null) return;
+    final git = ref.read(gitServiceFactoryProvider)(root);
+    final r =
+        await WorktreeSetup(
+          root: git,
+          shell: ref.read(shellRunnerProvider),
+        ).run(
+          wt.path,
+          copy: wc.copy,
+          prepare: wc.prepare,
+          timeout: config.gate.timeout,
+          environment: worktreeEnvironment(root: root, worktree: wt.path),
+        );
+    if (r.ok) return;
+    try {
+      await git.removeWorktree(wt.path, force: true);
+      await git.deleteBranch(wt.branch, force: true);
+    } on GitException catch (e) {
+      debugPrint('worktree ${wt.path} não removido — $e');
+    }
+    throw GitException(
+      'preparar: (${wc.prepare}) falhou',
+      stdout: r.prepare!.output,
+    );
+  }
+
+  /// `PROMPTORIUM_*` of a stored session (spec code and port when it works
+  /// on a spec).
+  Future<Map<String, String>> _environmentOf(Session s, Workspace ws) async {
+    final spec = s.specId == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(s.specId!);
+    final base = spec == null
+        ? null
+        : ProjectConfig.loadSync(ws.path).worktree.basePort;
+    return worktreeEnvironment(
+      root: ws.path,
+      worktree: s.worktreePath,
+      specCode: spec?.code,
+      port: base == null || spec?.worktreeIndex == null
+          ? null
+          : base + spec!.worktreeIndex!,
+    );
+  }
+
+  /// The app's hooks of the session (`--settings`); null = none (off in
+  /// Configurações → Automações, no `python3`, or an error writing them).
+  Future<String?> _prepareHooks(
+    String id, {
+    required String cwd,
+    String? root,
+  }) async {
+    final hooks = ref.read(managedHooksProvider);
+    if (hooks == null) return null;
+    await _hookCleanups[id];
+    try {
+      if (!await pythonAvailable()) return null;
+      final settings = ref.read(appSettingsProvider.notifier);
+      final enabled = {
+        for (final h in ManagedHook.values)
+          if (settings.get(h.settingKey) != '0') h,
+      };
+      final config = root == null ? null : ProjectConfig.loadSync(root);
+      return await hooks.prepare(
+        id,
+        enabled: enabled,
+        rules: blockRules(
+          projectGlobs: config?.blockedCommands ?? const [],
+          root: root,
+          cwd: cwd,
+        ),
+        formatCommand: config?.formatCommand,
+      );
+    } catch (e) {
+      debugPrint('sessão $id: hooks do app não preparados — $e');
+      return null;
+    }
+  }
+
+  /// New lines of the session's hooks log → timeline notes.
+  Future<void> _readHooks(String id, _Proc p) async {
+    final hooks = ref.read(managedHooksProvider);
+    if (hooks == null) return;
+    try {
+      final (items, offset) = await hooks.readLog(id, p.hookOffset);
+      p.hookOffset = offset;
+      for (final a in items) {
+        await _note(id, a.text, error: a.error);
+        if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+      }
+    } catch (e) {
+      debugPrint('sessão $id: log de hooks não lido — $e');
+    }
   }
 
   Future<void> _enqueue(String id, _Proc p, Future<void> Function() job) {
@@ -752,6 +1050,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case ToolResult():
         p.subagents.remove(e.toolUseId);
+        await _readHooks(id, p);
       case Result():
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
         final u = e.usage;
@@ -812,6 +1111,26 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
     _procs.remove(id);
+    if (ref.mounted) {
+      try {
+        await _repo.setPid(id, null);
+      } catch (_) {
+        // the database is closing
+      }
+    }
+    if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
+    final hooks = ref.mounted ? ref.read(managedHooksProvider) : null;
+    if (hooks != null) {
+      final done = hooks.cleanup(id).catchError((Object e) {
+        debugPrint('sessão $id: hooks não removidos — $e');
+      });
+      _hookCleanups[id] = done;
+      unawaited(
+        done.whenComplete(() {
+          if (_hookCleanups[id] == done) _hookCleanups.remove(id);
+        }),
+      );
+    }
     if (!ref.mounted || _shuttingDown) return;
     if (p.released) {
       _publish();
@@ -926,6 +1245,15 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Native notification. The click goes back to the screen the session was
   /// created from; approvals always go to Sessões (only answered there).
   void _notify(String title, String body, String id, {bool approval = false}) {
+    final section = approval
+        ? AppSection.sessions
+        : (_origins[id] ?? AppSection.sessions);
+    unawaited(
+      ref
+          .read(notificationsRepoProvider)
+          .add(title: title, body: body, section: section.name, sessionId: id)
+          .catchError((Object e) => debugPrint('notificação não gravada: $e')),
+    );
     ref
         .read(appNotifierProvider)
         .show(
@@ -954,6 +1282,16 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   static String _encode(Map<String, dynamic> j) => jsonEncode(j);
 }
+
+/// "Sem perguntar" never runs in the workspace root (F12): a stored
+/// session there resumes in the default mode.
+ClaudePermissionMode? skipOnlyInWorktree(
+  ClaudePermissionMode? mode, {
+  required String worktree,
+  required String? root,
+}) => mode == ClaudePermissionMode.skipPermissions && worktree == root
+    ? ClaudePermissionMode.defaultMode
+    : mode;
 
 /// Title shown for a session row.
 String sessionTitle(Session s) => (s.title?.isNotEmpty ?? false)
@@ -988,6 +1326,21 @@ String sessionSlug(String title, String id) {
   final tail = suffix.substring(0, math.min(6, suffix.length)).toLowerCase();
   return slug.isEmpty ? 'sessao-$tail' : '$slug-$tail';
 }
+
+/// `PROMPTORIUM_*` of each worktree that had a session in this app session,
+/// by path (the embedded terminals use them).
+class WorktreeEnvs extends Notifier<Map<String, Map<String, String>>> {
+  @override
+  Map<String, Map<String, String>> build() => const {};
+
+  void set(String path, Map<String, String> env) =>
+      state = {...state, path: env};
+}
+
+final worktreeEnvProvider =
+    NotifierProvider<WorktreeEnvs, Map<String, Map<String, String>>>(
+      WorktreeEnvs.new,
+    );
 
 final sessionManagerProvider =
     NotifierProvider<SessionManager, SessionManagerState>(SessionManager.new);

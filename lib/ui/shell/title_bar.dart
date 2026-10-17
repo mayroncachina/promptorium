@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
+import 'notification_center.dart';
 
 /// Top bar (44px): logo, workspace selector, command search, contextual action.
 class TitleBar extends StatelessWidget {
@@ -47,6 +48,8 @@ class TitleBar extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(width: 8),
+          const NotificationBell(),
           if (action != null) ...[
             const SizedBox(width: 12),
             _ActionButton(

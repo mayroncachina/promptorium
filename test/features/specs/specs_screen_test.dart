@@ -112,22 +112,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('clicking a step opens its traceability panel (UX v2, U5)', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1440, 900));
+    expect(find.byKey(const ValueKey('step-trace-R2')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('step-R2')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('step-trace-R2')), findsOneWidget);
+    expect(find.text('Eventos persistidos no SQLite'), findsWidgets);
+    expect(find.textContaining('Nenhum critério cita'), findsOneWidget);
+    expect(find.text('A spec não tem seção Design.'), findsOneWidget);
+    expect(find.text('A etapa ainda não rodou.'), findsOneWidget);
+    expect(find.text('Sem sessão para esta etapa.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // Same step again closes it; another step switches.
+    await tester.tap(find.byKey(const ValueKey('step-R2')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('step-trace-R2')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('step-R1')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('step-trace-R1')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('step-trace-close')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('step-trace-R1')), findsNothing);
+  });
+
   testWidgets('"Aprovar spec" writes status: aprovada in the file', (
     tester,
   ) async {
     await pump(tester, const Size(1440, 900));
     expect(find.text('Aprovar spec'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('spec-approve')));
+    // (the button only acts once the file is loaded)
+    final dialog = find.byKey(const ValueKey('spec-no-design-dialog'));
+    for (var i = 0; i < 5 && dialog.evaluate().isEmpty; i++) {
+      await tester.tap(find.byKey(const ValueKey('spec-approve')));
+      await settleIo(tester, until: () => dialog.evaluate().isNotEmpty);
+    }
+    // No ## Design: asks first (F7); a trivial spec goes without it.
+    expect(find.byKey(const ValueKey('spec-no-design-dialog')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('spec-approve-no-design')));
     await settleIo(
       tester,
       until: () =>
           readSpec(tmp).contains('status: aprovada') &&
           find.text('Aprovada').evaluate().isNotEmpty,
     );
-    expect(
-      File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync(),
-      contains('status: aprovada'),
-    );
+    final saved = File('${tmp.path}/specs/SPEC-002-sessoes.md')
+        .readAsStringSync();
+    expect(saved, contains('status: aprovada'));
+    expect(saved, contains('design: dispensado'));
     expect(find.text('Aprovada'), findsWidgets);
     expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
   });

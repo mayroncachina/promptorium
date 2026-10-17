@@ -4,6 +4,7 @@ import '../../../core/git/diff_parser.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../review_logic.dart';
+import 'diff_highlight.dart';
 
 const _mono = TextStyle(
   fontFamily: AppFonts.mono,
@@ -32,6 +33,9 @@ class ReviewFileDiff extends StatelessWidget {
     required this.onRejectHunk,
     required this.onToggleAccept,
     this.busy = false,
+    this.embedded = false,
+    this.sideBySide = false,
+    this.readOnly = false,
   });
 
   final DiffFile file;
@@ -47,6 +51,15 @@ class ReviewFileDiff extends StatelessWidget {
   final void Function(DiffHunk) onRejectHunk;
   final void Function(DiffHunk) onToggleAccept;
   final bool busy;
+
+  /// Part of the page with every file: no scrolling of its own.
+  final bool embedded;
+
+  /// Removed lines on the left, added on the right.
+  final bool sideBySide;
+
+  /// Diff of commits (step filter): no reject / accept.
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -72,41 +85,81 @@ class ReviewFileDiff extends StatelessWidget {
           hunk: h,
           accepted: accepted.contains(key),
           busy: busy,
+          readOnly: readOnly,
           onReject: () => onRejectHunk(h),
           onAccept: () => onToggleAccept(h),
           index: hi,
         ),
       );
+      void notes(Iterable<int> indices) {
+        for (final li in indices) {
+          final target = (hi, li);
+          for (final c in comments) {
+            if (c.anchor == '$key#$li') {
+              rows.add(
+                () => _PendingComment(
+                  comment: c,
+                  onRemove: () => onRemoveComment(c),
+                ),
+              );
+            }
+          }
+          if (commentTarget == target) {
+            rows.add(
+              () => _CommentBox(
+                key: ValueKey('review-comment-box-$hi-$li'),
+                onCancel: onCancelComment,
+                onSubmit: (t) => onSubmitComment(target, t),
+              ),
+            );
+          }
+        }
+      }
+
+      if (sideBySide) {
+        for (final (left, right) in splitPairs(h)) {
+          rows.add(
+            () => _SplitRow(
+              path: file.path,
+              left: left,
+              right: right,
+              accepted: accepted.contains(key),
+              onNumberTap: (li) => onOpenComment((hi, li)),
+            ),
+          );
+          notes({?left?.$1, ?right?.$1});
+        }
+        continue;
+      }
       for (var li = 0; li < h.lines.length; li++) {
         final line = h.lines[li];
         final target = (hi, li);
         rows.add(
           () => _LineRow(
+            path: file.path,
             line: line,
             accepted: accepted.contains(key),
             onNumberTap: () => onOpenComment(target),
           ),
         );
-        for (final c in comments) {
-          if (c.anchor == '$key#$li') {
-            rows.add(
-              () => _PendingComment(
-                comment: c,
-                onRemove: () => onRemoveComment(c),
-              ),
-            );
-          }
-        }
-        if (commentTarget == target) {
-          rows.add(
-            () => _CommentBox(
-              key: ValueKey('review-comment-box-$hi-$li'),
-              onCancel: onCancelComment,
-              onSubmit: (t) => onSubmitComment(target, t),
-            ),
-          );
-        }
+        notes([li]);
       }
+    }
+    if (embedded) {
+      return DecoratedBox(
+        key: ValueKey('review-diff-${file.path}'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [for (final r in rows) r()],
+          ),
+        ),
+      );
     }
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -198,11 +251,13 @@ class _HunkHeader extends StatelessWidget {
     required this.onReject,
     required this.onAccept,
     required this.index,
+    this.readOnly = false,
   });
 
   final DiffHunk hunk;
   final bool accepted;
   final bool busy;
+  final bool readOnly;
   final VoidCallback onReject;
   final VoidCallback onAccept;
   final int index;
@@ -227,19 +282,21 @@ class _HunkHeader extends StatelessWidget {
               style: _mono.copyWith(color: AppColors.blue, height: 1.3),
             ),
           ),
-          const SizedBox(width: 8),
-          _HunkButton(
-            key: ValueKey('review-reject-$index'),
-            label: 'Rejeitar hunk',
-            onTap: busy ? null : onReject,
-          ),
-          const SizedBox(width: 6),
-          _HunkButton(
-            key: ValueKey('review-accept-$index'),
-            label: accepted ? '✓ Revisado' : 'Aceitar hunk',
-            accent: true,
-            onTap: onAccept,
-          ),
+          if (!readOnly) ...[
+            const SizedBox(width: 8),
+            _HunkButton(
+              key: ValueKey('review-reject-$index'),
+              label: 'Rejeitar hunk',
+              onTap: busy ? null : onReject,
+            ),
+            const SizedBox(width: 6),
+            _HunkButton(
+              key: ValueKey('review-accept-$index'),
+              label: accepted ? '✓ Revisado' : 'Aceitar hunk',
+              accent: true,
+              onTap: onAccept,
+            ),
+          ],
         ],
       ),
     );
@@ -295,11 +352,13 @@ class _HunkButton extends StatelessWidget {
 
 class _LineRow extends StatelessWidget {
   const _LineRow({
+    required this.path,
     required this.line,
     required this.accepted,
     required this.onNumberTap,
   });
 
+  final String path;
   final DiffLine line;
   final bool accepted;
   final VoidCallback onNumberTap;
@@ -345,18 +404,92 @@ class _LineRow extends StatelessWidget {
             child: Text(sign, style: _mono.copyWith(color: signColor)),
           ),
           Expanded(
-            child: Text(
-              line.text.isEmpty ? ' ' : line.text,
+            child: Text.rich(
+              DiffHighlight.line(path, line.text, _mono),
               softWrap: false,
               overflow: TextOverflow.clip,
               maxLines: 1,
-              style: _mono,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// One row of the side-by-side view: the old line left, the new one right.
+class _SplitRow extends StatelessWidget {
+  const _SplitRow({
+    required this.path,
+    required this.left,
+    required this.right,
+    required this.accepted,
+    required this.onNumberTap,
+  });
+
+  final String path;
+  final IndexedLine? left;
+  final IndexedLine? right;
+  final bool accepted;
+  final void Function(int lineIndex) onNumberTap;
+
+  Widget _side(IndexedLine? l, {required bool old}) {
+    if (l == null) {
+      return const Expanded(child: ColoredBox(color: AppColors.background));
+    }
+    final (index, line) = l;
+    final changed = line.kind != DiffLineKind.context;
+    final bg = !changed
+        ? Colors.transparent
+        : old
+        ? SessionColors.delBg
+        : SessionColors.addBg;
+    final no = old ? line.oldNo : line.newNo;
+    return Expanded(
+      child: Container(
+        color: accepted && changed ? bg.withValues(alpha: 0.55) : bg,
+        child: Row(
+          children: [
+            GestureDetector(
+              key: ValueKey('review-line-${old ? 'o' : ''}$no'),
+              onTap: () => onNumberTap(index),
+              child: Container(
+                width: 44,
+                padding: const EdgeInsets.only(right: 6),
+                alignment: Alignment.centerRight,
+                child: Text(
+                  no == null ? '' : '$no',
+                  style: _mono.copyWith(color: ReviewColors.lineNumber),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text.rich(
+                DiffHighlight.line(path, line.text, _mono),
+                softWrap: false,
+                overflow: TextOverflow.clip,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _side(left, old: true),
+      const SizedBox(
+        width: 1,
+        height: 20,
+        child: ColoredBox(color: AppColors.border),
+      ),
+      _side(right, old: false),
+    ],
+  );
 }
 
 class _PendingComment extends StatelessWidget {

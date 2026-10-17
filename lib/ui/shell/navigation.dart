@@ -5,6 +5,8 @@ import '../widgets/app_icon.dart';
 
 /// Top-level screens of the IDE, in sidebar order (see docs/mockups/Main.dc.html).
 enum AppSection {
+  /// "Para você": everything waiting for a human decision (UX v2, U1).
+  home('Início', null),
   project('Projeto', 'Novo projeto'),
   sessions('Sessões', 'Nova sessão'),
   prompt('Prompt', 'Nova conversa'),
@@ -30,33 +32,35 @@ enum AppSection {
   /// Contextual primary action in the title bar (null = no button).
   final String? actionLabel;
 
-  /// Sections shown as the main sidebar items (everything except settings).
+  /// Main sidebar items, in the order of the work (plano F10, UX v2):
+  /// Início · Projeto · Specs · Quadro · Sessões · Review · Código · Prompt ·
+  /// Ferramentas. [agents] stands for "Ferramentas" (Agentes / Skills / MCP
+  /// as tabs).
   static const navItems = [
+    home,
     project,
-    sessions,
-    prompt,
     specs,
     tasks,
+    sessions,
     review,
     code,
+    prompt,
     agents,
-    skills,
-    mcp,
   ];
 
-  /// Ctrl+1…9 targets. Projeto came after the others, so it takes Ctrl+9
-  /// and the older shortcuts keep their digits.
-  static const shortcutItems = [
-    sessions,
-    prompt,
-    specs,
-    tasks,
-    agents,
-    review,
-    code,
-    mcp,
-    project,
-  ];
+  /// Screens shown as tabs of "Ferramentas".
+  static const toolTabs = [agents, skills, mcp];
+
+  bool get isTool => toolTabs.contains(this);
+
+  /// Ctrl+1…9 targets (same order as the sidebar).
+  static const shortcutItems = navItems;
+
+  /// Version of the shortcut layout; a change shows a one-time notice.
+  static const shortcutsVersion = 3;
+
+  /// Sidebar / palette name: the tools group is "Ferramentas".
+  String get navLabel => this == agents ? 'Ferramentas' : label;
 
   /// `Ctrl 3` (null = no shortcut).
   String? get shortcutLabel {
@@ -65,6 +69,7 @@ enum AppSection {
   }
 
   AppIconData get icon => switch (this) {
+    home => AppIcons.home,
     project => AppIcons.project,
     sessions => AppIcons.sessions,
     prompt => AppIcons.prompt,
@@ -94,7 +99,7 @@ class NavigationController extends Notifier<AppSection> {
     final saved = ref
         .read(appSettingsProvider.notifier)
         .get(AppSettingKeys.lastSection);
-    return AppSection.values.asNameMap()[saved] ?? AppSection.sessions;
+    return AppSection.values.asNameMap()[saved] ?? AppSection.home;
   }
 
   void go(AppSection section) {

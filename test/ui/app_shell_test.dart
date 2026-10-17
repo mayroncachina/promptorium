@@ -50,38 +50,40 @@ Future<void> ctrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('renders 10 navigation items in mockup order plus the gear', (
-    tester,
-  ) async {
+  testWidgets('renders the navigation in the order of the work plus the '
+      'gear; Ferramentas holds Agentes / Skills / MCP as tabs', (tester) async {
     await pumpShell(tester);
 
-    expect(AppSection.navItems.map((s) => s.label), [
+    expect(AppSection.navItems.map((s) => s.navLabel), [
+      'Início',
       'Projeto',
-      'Sessões',
-      'Prompt',
       'Specs',
       'Quadro',
+      'Sessões',
       'Review',
       'Código',
-      'Agentes',
-      'Skills',
-      'Servidores MCP',
+      'Prompt',
+      'Ferramentas',
     ]);
-    expect(find.byType(SideBarItem), findsNWidgets(11));
+    expect(find.byType(SideBarItem), findsNWidgets(10));
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
     }
     expect(find.byKey(const ValueKey('nav-settings')), findsOneWidget);
 
-    // Gear is below the 10 items.
+    // Gear is below the items.
     final gearY = tester
         .getTopLeft(find.byKey(const ValueKey('nav-settings')))
         .dy;
-    final mcpY = tester.getTopLeft(find.byKey(const ValueKey('nav-mcp'))).dy;
-    expect(gearY, greaterThan(mcpY));
+    final toolsY = tester
+        .getTopLeft(find.byKey(const ValueKey('nav-agents')))
+        .dy;
+    expect(gearY, greaterThan(toolsY));
 
-    expect(item(tester, AppSection.sessions).active, isTrue);
-    expect(find.text('Nova sessão'), findsOneWidget);
+    // First run opens Início (UX v2).
+    expect(item(tester, AppSection.home).active, isTrue);
+    expect(find.byKey(const ValueKey('screen-home')), findsOneWidget);
+    expect(find.byKey(const ValueKey('title-action')), findsNothing);
     expect(find.text('Claude Code CLI —'), findsOneWidget);
   });
 
@@ -94,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(item(tester, AppSection.specs).active, isTrue);
-    expect(item(tester, AppSection.sessions).active, isFalse);
+    expect(item(tester, AppSection.home).active, isFalse);
     expect(find.byKey(const ValueKey('screen-specs')), findsOneWidget);
     expect(find.text('Nova spec'), findsOneWidget);
 
@@ -110,11 +112,23 @@ void main() {
   ) async {
     await pumpShell(tester);
 
-    // Projeto came last: Ctrl+9, the older digits are unchanged.
-    await ctrl(tester, LogicalKeyboardKey.digit9);
+    // Ctrl+1…9 follow the sidebar (F10, UX v2).
+    await ctrl(tester, LogicalKeyboardKey.digit2);
     expect(item(tester, AppSection.project).active, isTrue);
     await ctrl(tester, LogicalKeyboardKey.digit1);
+    expect(item(tester, AppSection.home).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit5);
     expect(item(tester, AppSection.sessions).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit9);
+    expect(item(tester, AppSection.agents).active, isTrue);
+    await tester.tap(find.byKey(const ValueKey('tools-tab-skills')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
+    // Ferramentas stays lit and Ctrl+9 keeps the tab.
+    expect(item(tester, AppSection.agents).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit5);
+    await ctrl(tester, LogicalKeyboardKey.digit9);
+    expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
 
     await ctrl(tester, LogicalKeyboardKey.digit7);
     expect(item(tester, AppSection.code).active, isTrue);
@@ -135,6 +149,43 @@ void main() {
     expect(find.text('120%'), findsOneWidget);
     await ctrl(tester, LogicalKeyboardKey.digit0);
     expect(find.text('100%'), findsOneWidget);
+  });
+
+  testWidgets('Ctrl+/ and the palette footer open the shortcut sheet', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsOneWidget);
+    expect(find.text('Paleta de comandos'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('shortcut-sheet-filter')),
+      'zoom',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Paleta de comandos'), findsNothing);
+    expect(find.text('Zoom + / − / 100%'), findsOneWidget);
+    // Ctrl+/ closes it too ("abre e fecha").
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsNothing);
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Fechar'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsNothing);
+
+    await ctrl(tester, LogicalKeyboardKey.keyK);
+    // Group headers and the prefix chips (UX v2).
+    expect(find.byKey(const ValueKey('palette-group-Ações')), findsOneWidget);
+    expect(find.byKey(const ValueKey('palette-group-Telas')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('palette-chip->')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('palette-group-Telas')), findsNothing);
+    expect(find.text('Nova sessão'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('palette-shortcuts')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsOneWidget);
   });
 
   testWidgets('Ctrl+K opens the palette and a command navigates', (
@@ -158,8 +209,15 @@ void main() {
   testWidgets('fits the minimum window size without overflow', (tester) async {
     await pumpShell(tester, size: const Size(1100, 700));
     expect(tester.takeException(), isNull);
-    for (final s in AppSection.values) {
+    for (final s in [...AppSection.navItems, AppSection.settings]) {
       await tester.tap(find.byKey(ValueKey('nav-${s.name}')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    await tester.tap(find.byKey(const ValueKey('nav-agents')));
+    await tester.pumpAndSettle();
+    for (final s in AppSection.toolTabs) {
+      await tester.tap(find.byKey(ValueKey('tools-tab-${s.name}')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
@@ -169,6 +227,7 @@ void main() {
     tester,
   ) async {
     await pumpShell(tester);
+    await ctrl(tester, LogicalKeyboardKey.digit5);
     await tester.tap(find.byKey(const ValueKey('title-action')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
@@ -184,7 +243,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('new-session-dialog')), findsNothing);
 
-    await ctrl(tester, LogicalKeyboardKey.digit3);
+    await ctrl(tester, LogicalKeyboardKey.digit4);
     await ctrl(tester, LogicalKeyboardKey.keyN);
     expect(find.byKey(const ValueKey('new-session-dialog')), findsOneWidget);
     expect(item(tester, AppSection.sessions).active, isTrue);
@@ -196,6 +255,7 @@ void main() {
     String value(String key) => tester
         .widget<DropdownButtonFormField<String>>(find.byKey(ValueKey(key)))
         .initialValue!;
+    await ctrl(tester, LogicalKeyboardKey.digit5);
     await tester.tap(find.byKey(const ValueKey('title-action')));
     await tester.pumpAndSettle();
     expect(value('new-session-model'), 'sonnet');
@@ -217,6 +277,7 @@ void main() {
   testWidgets('Nova sessão: "sem perguntar" is opt-in, warns, and is '
       'remembered for the next session', (tester) async {
     final db = await pumpShell(tester);
+    await ctrl(tester, LogicalKeyboardKey.digit5);
     await tester.tap(find.byKey(const ValueKey('title-action')));
     await tester.pumpAndSettle();
     ClaudePermissionMode mode() => tester

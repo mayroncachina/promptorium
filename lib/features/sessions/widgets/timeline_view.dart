@@ -157,8 +157,93 @@ class TimelineItemView extends StatelessWidget {
         name: assistantName,
       ),
       ToolItem() => ToolCard(tool: it, root: root, waitingTools: waitingTools),
+      ThinkingItem() => ThinkingCard(item: it),
       NoticeItem() => _Notice(it),
     };
+  }
+}
+
+/// Claude's reasoning, collapsed by default (UX v2, U3): a dashed line with
+/// the size; click to read it.
+class ThinkingCard extends StatefulWidget {
+  const ThinkingCard({super.key, required this.item});
+
+  final ThinkingItem item;
+
+  @override
+  State<ThinkingCard> createState() => _ThinkingCardState();
+}
+
+class _ThinkingCardState extends State<ThinkingCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final it = widget.item;
+    final words = it.text.trim().isEmpty
+        ? 0
+        : it.text.trim().split(RegExp(r'\s+')).length;
+    final label = it.live
+        ? 'Pensando…'
+        : 'Pensou · ${words == 1 ? '1 palavra' : '$words palavras'}';
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Container(
+          key: const ValueKey('thinking-card'),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: SessionColors.selectedBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InkWell(
+                key: const ValueKey('thinking-toggle'),
+                onTap: () => setState(() => _open = !_open),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _open ? Icons.expand_less : Icons.expand_more,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_open)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                  child: SelectableText(
+                    it.text,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -322,6 +407,16 @@ class ToolCard extends StatefulWidget {
   State<ToolCard> createState() => _ToolCardState();
 }
 
+/// `3 ferramentas · 41 s` of a finished subagent card (UX v2, U3).
+String _subagentSummary(ToolItem t) {
+  final n = t.childToolCount;
+  final tools = n == 1 ? '1 ferramenta' : '$n ferramentas';
+  final start = t.at, end = t.doneAt;
+  if (start == null || end == null) return tools;
+  final secs = end.difference(start).inSeconds;
+  return secs < 1 ? tools : '$tools · ${formatDuration(end.difference(start))}';
+}
+
 class _ToolCardState extends State<ToolCard> {
   bool _open = false;
 
@@ -354,7 +449,13 @@ class _ToolCardState extends State<ToolCard> {
         const Text('executando', style: TextStyle(color: AppColors.teal))
       else if (t.isError)
         const Text('erro', style: TextStyle(color: AppColors.red))
-      else if (stats != null) ...[
+      else if (t.isSubagent) ...[
+        Text(
+          _subagentSummary(t),
+          key: ValueKey('subagent-summary-${t.id}'),
+          style: const TextStyle(color: AppColors.lilac),
+        ),
+      ] else if (stats != null) ...[
         Text('+${stats.$1}', style: const TextStyle(color: AppColors.teal)),
         if (stats.$2 > 0)
           Text('−${stats.$2}', style: const TextStyle(color: AppColors.red)),

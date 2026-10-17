@@ -116,7 +116,10 @@ const roadmapSystemPrompt =
     'testes e CI); a primeira não depende de nada. Specs com phase "mvp": '
     'uma por área funcional do MVP. Cada spec: code único em todo o roadmap '
     '(S1, S2, …), title, objective (1 ou 2 frases), requirements (ids R1, '
-    'R2… dentro da spec, com text), acceptance (critérios verificáveis) e '
+    'R2… dentro da spec, com text, no estilo EARS quando couber: "Quando '
+    '<gatilho>, o sistema deve <resposta>"), acceptance (critérios '
+    'verificáveis, cada um terminando com o requisito entre colchetes, ex.: '
+    '[R2]) e '
     'dependsOn (codes das specs que precisam estar concluídas antes). Cada '
     'requisito vira uma etapa que o agente implementa numa sessão própria: '
     'escreva-os pequenos, verificáveis e em ordem de execução (cada um pode '
@@ -130,7 +133,9 @@ const ideaSystemPrompt =
     'que estava fora do escopo. Escreva UMA spec para ela, na phase pedida: '
     'code (use o code novo indicado), title, objective (1 ou 2 frases), '
     'requirements (R1, R2…, pequenos, verificáveis e em ordem de execução; no '
-    'máximo ${Roadmap.maxRequirements}), acceptance (critérios verificáveis) '
+    'máximo ${Roadmap.maxRequirements}; estilo EARS quando couber), '
+    'acceptance (critérios verificáveis, cada um com o requisito entre '
+    'colchetes, ex.: [R2]) '
     'e dependsOn (codes de specs existentes listadas — toda spec do mvp '
     'depende, direta ou indiretamente, da fundação).';
 
@@ -588,6 +593,22 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           roadmap: change(d.roadmap).normalized().copyWith(edited: true),
         ),
       );
+
+  /// "Gerar proposta completa" (UX v2, U7): one idea → vision, stack and
+  /// roadmap in sequence, landing on "Revisar e criar". Stops at the first
+  /// failure (the error is in the chat / activity as usual).
+  Future<void> proposeAll(Workspace ws, String idea) async {
+    await sendVision(ws, idea);
+    final (_, afterVision) = await _load(ws);
+    if (!afterVision.vision.isReady) return;
+    await proposeStack(ws);
+    if (state[ws.id]?.error != null) return;
+    final (_, afterStack) = await _load(ws);
+    if (afterStack.stack.decisions.isEmpty) return;
+    await planRoadmap(ws);
+    if (state[ws.id]?.error != null) return;
+    await goTo(ws, ProjectStep.create);
+  }
 
   Future<void> goTo(Workspace ws, ProjectStep step) => ref
       .read(projectPlansRepoProvider)

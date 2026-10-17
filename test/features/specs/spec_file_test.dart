@@ -310,6 +310,9 @@ void main() {
         requirements: [],
         dependsOn: [],
         autoAdvance: true,
+        reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
@@ -413,5 +416,37 @@ depende-de: [SPEC-001]
       SpecDocument.parse('# T\n').withSubagents([list.first]),
       startsWith('---\nsubagentes:'),
     );
+  });
+
+  test('parseCriteria: checkbox, requirements, verificar; other sections and '
+      'empty lines ignored', () {
+    final c = parseCriteria('''
+## Requisitos
+
+- [ ] R1 · não é critério
+
+## Critérios de aceite
+
+- [ ]
+- [ ] ola.txt existe na raiz. [R1] · verificar: `test -f ola.txt`
+- [x] Os dois arquivos têm uma linha [R1, R2]
+- [ ] Sem ligação com requisito — verificar: make check
+
+## Design
+
+- [ ] fora
+''');
+    expect(c.map((x) => x.text), [
+      'ola.txt existe na raiz. [R1]',
+      'Os dois arquivos têm uma linha [R1, R2]',
+      'Sem ligação com requisito',
+    ]);
+    expect(c[0].requirements, ['R1']);
+    expect(c[0].verify, 'test -f ola.txt');
+    expect(c[1].requirements, ['R1', 'R2']);
+    expect(c[1].checkedInFile, isTrue);
+    expect(c[2].verify, 'make check');
+    expect(c[2].requirements, isEmpty);
+    expect(parseCriteria('## Criterios\n- [ ] sem acento'), hasLength(1));
   });
 }

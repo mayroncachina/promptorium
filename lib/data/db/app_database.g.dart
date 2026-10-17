@@ -471,6 +471,97 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _worktreeIndexMeta = const VerificationMeta(
+    'worktreeIndex',
+  );
+  @override
+  late final GeneratedColumn<int> worktreeIndex = GeneratedColumn<int>(
+    'worktree_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _preparedAtMeta = const VerificationMeta(
+    'preparedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> preparedAt = GeneratedColumn<DateTime>(
+    'prepared_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewPhaseMeta = const VerificationMeta(
+    'reviewPhase',
+  );
+  @override
+  late final GeneratedColumn<String> reviewPhase = GeneratedColumn<String>(
+    'review_phase',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewRoundsMeta = const VerificationMeta(
+    'reviewRounds',
+  );
+  @override
+  late final GeneratedColumn<int> reviewRounds = GeneratedColumn<int>(
+    'review_rounds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _mergeOverrideMeta = const VerificationMeta(
+    'mergeOverride',
+  );
+  @override
+  late final GeneratedColumn<String> mergeOverride = GeneratedColumn<String>(
+    'merge_override',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _boardOrderMeta = const VerificationMeta(
+    'boardOrder',
+  );
+  @override
+  late final GeneratedColumn<int> boardOrder = GeneratedColumn<int>(
+    'board_order',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gateResendsMeta = const VerificationMeta(
+    'gateResends',
+  );
+  @override
+  late final GeneratedColumn<int> gateResends = GeneratedColumn<int>(
+    'gate_resends',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _rejectedHunksMeta = const VerificationMeta(
+    'rejectedHunks',
+  );
+  @override
+  late final GeneratedColumn<int> rejectedHunks = GeneratedColumn<int>(
+    'rejected_hunks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -488,6 +579,14 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     branch,
     baseBranch,
     autoAdvance,
+    worktreeIndex,
+    preparedAt,
+    reviewPhase,
+    reviewRounds,
+    mergeOverride,
+    boardOrder,
+    gateResends,
+    rejectedHunks,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -581,6 +680,72 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('worktree_index')) {
+      context.handle(
+        _worktreeIndexMeta,
+        worktreeIndex.isAcceptableOrUnknown(
+          data['worktree_index']!,
+          _worktreeIndexMeta,
+        ),
+      );
+    }
+    if (data.containsKey('prepared_at')) {
+      context.handle(
+        _preparedAtMeta,
+        preparedAt.isAcceptableOrUnknown(data['prepared_at']!, _preparedAtMeta),
+      );
+    }
+    if (data.containsKey('review_phase')) {
+      context.handle(
+        _reviewPhaseMeta,
+        reviewPhase.isAcceptableOrUnknown(
+          data['review_phase']!,
+          _reviewPhaseMeta,
+        ),
+      );
+    }
+    if (data.containsKey('review_rounds')) {
+      context.handle(
+        _reviewRoundsMeta,
+        reviewRounds.isAcceptableOrUnknown(
+          data['review_rounds']!,
+          _reviewRoundsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('merge_override')) {
+      context.handle(
+        _mergeOverrideMeta,
+        mergeOverride.isAcceptableOrUnknown(
+          data['merge_override']!,
+          _mergeOverrideMeta,
+        ),
+      );
+    }
+    if (data.containsKey('board_order')) {
+      context.handle(
+        _boardOrderMeta,
+        boardOrder.isAcceptableOrUnknown(data['board_order']!, _boardOrderMeta),
+      );
+    }
+    if (data.containsKey('gate_resends')) {
+      context.handle(
+        _gateResendsMeta,
+        gateResends.isAcceptableOrUnknown(
+          data['gate_resends']!,
+          _gateResendsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rejected_hunks')) {
+      context.handle(
+        _rejectedHunksMeta,
+        rejectedHunks.isAcceptableOrUnknown(
+          data['rejected_hunks']!,
+          _rejectedHunksMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -662,6 +827,38 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.bool,
         data['${effectivePrefix}auto_advance'],
       )!,
+      worktreeIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}worktree_index'],
+      ),
+      preparedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}prepared_at'],
+      ),
+      reviewPhase: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}review_phase'],
+      ),
+      reviewRounds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}review_rounds'],
+      )!,
+      mergeOverride: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}merge_override'],
+      ),
+      boardOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}board_order'],
+      ),
+      gateResends: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}gate_resends'],
+      )!,
+      rejectedHunks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rejected_hunks'],
+      )!,
     );
   }
 
@@ -715,6 +912,34 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// A finished step opens the session of the next one.
   final bool autoAdvance;
+
+  /// Smallest free index among the workspace's live spec worktrees:
+  /// `PROMPTORIUM_PORT` = `porta-base` + index.
+  final int? worktreeIndex;
+
+  /// When the worktree got the `copiar:` files and ran `preparar:` (null =
+  /// not prepared yet: the next run prepares it first).
+  final DateTime? preparedAt;
+
+  /// `auto` while the automatic reviewer works on the spec, `human` after
+  /// it approved or ran out of rounds (null = no reviewer).
+  final String? reviewPhase;
+
+  /// Correction rounds asked by the automatic reviewer.
+  final int reviewRounds;
+
+  /// Reason given for "Mergear mesmo assim" with acceptance criteria
+  /// unchecked.
+  final String? mergeOverride;
+
+  /// Position in its column of the Quadro (schema v11; null = by code).
+  final int? boardOrder;
+
+  /// Failures of the step gate sent back to the agent (automatic fixes).
+  final int gateResends;
+
+  /// Hunks rejected in the Review.
+  final int rejectedHunks;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -731,6 +956,14 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.branch,
     this.baseBranch,
     required this.autoAdvance,
+    this.worktreeIndex,
+    this.preparedAt,
+    this.reviewPhase,
+    required this.reviewRounds,
+    this.mergeOverride,
+    this.boardOrder,
+    required this.gateResends,
+    required this.rejectedHunks,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -774,6 +1007,24 @@ class Spec extends DataClass implements Insertable<Spec> {
       map['base_branch'] = Variable<String>(baseBranch);
     }
     map['auto_advance'] = Variable<bool>(autoAdvance);
+    if (!nullToAbsent || worktreeIndex != null) {
+      map['worktree_index'] = Variable<int>(worktreeIndex);
+    }
+    if (!nullToAbsent || preparedAt != null) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt);
+    }
+    if (!nullToAbsent || reviewPhase != null) {
+      map['review_phase'] = Variable<String>(reviewPhase);
+    }
+    map['review_rounds'] = Variable<int>(reviewRounds);
+    if (!nullToAbsent || mergeOverride != null) {
+      map['merge_override'] = Variable<String>(mergeOverride);
+    }
+    if (!nullToAbsent || boardOrder != null) {
+      map['board_order'] = Variable<int>(boardOrder);
+    }
+    map['gate_resends'] = Variable<int>(gateResends);
+    map['rejected_hunks'] = Variable<int>(rejectedHunks);
     return map;
   }
 
@@ -804,6 +1055,24 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? const Value.absent()
           : Value(baseBranch),
       autoAdvance: Value(autoAdvance),
+      worktreeIndex: worktreeIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(worktreeIndex),
+      preparedAt: preparedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preparedAt),
+      reviewPhase: reviewPhase == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewPhase),
+      reviewRounds: Value(reviewRounds),
+      mergeOverride: mergeOverride == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mergeOverride),
+      boardOrder: boardOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardOrder),
+      gateResends: Value(gateResends),
+      rejectedHunks: Value(rejectedHunks),
     );
   }
 
@@ -834,6 +1103,14 @@ class Spec extends DataClass implements Insertable<Spec> {
       branch: serializer.fromJson<String?>(json['branch']),
       baseBranch: serializer.fromJson<String?>(json['baseBranch']),
       autoAdvance: serializer.fromJson<bool>(json['autoAdvance']),
+      worktreeIndex: serializer.fromJson<int?>(json['worktreeIndex']),
+      preparedAt: serializer.fromJson<DateTime?>(json['preparedAt']),
+      reviewPhase: serializer.fromJson<String?>(json['reviewPhase']),
+      reviewRounds: serializer.fromJson<int>(json['reviewRounds']),
+      mergeOverride: serializer.fromJson<String?>(json['mergeOverride']),
+      boardOrder: serializer.fromJson<int?>(json['boardOrder']),
+      gateResends: serializer.fromJson<int>(json['gateResends']),
+      rejectedHunks: serializer.fromJson<int>(json['rejectedHunks']),
     );
   }
   @override
@@ -861,6 +1138,14 @@ class Spec extends DataClass implements Insertable<Spec> {
       'branch': serializer.toJson<String?>(branch),
       'baseBranch': serializer.toJson<String?>(baseBranch),
       'autoAdvance': serializer.toJson<bool>(autoAdvance),
+      'worktreeIndex': serializer.toJson<int?>(worktreeIndex),
+      'preparedAt': serializer.toJson<DateTime?>(preparedAt),
+      'reviewPhase': serializer.toJson<String?>(reviewPhase),
+      'reviewRounds': serializer.toJson<int>(reviewRounds),
+      'mergeOverride': serializer.toJson<String?>(mergeOverride),
+      'boardOrder': serializer.toJson<int?>(boardOrder),
+      'gateResends': serializer.toJson<int>(gateResends),
+      'rejectedHunks': serializer.toJson<int>(rejectedHunks),
     };
   }
 
@@ -880,6 +1165,14 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> branch = const Value.absent(),
     Value<String?> baseBranch = const Value.absent(),
     bool? autoAdvance,
+    Value<int?> worktreeIndex = const Value.absent(),
+    Value<DateTime?> preparedAt = const Value.absent(),
+    Value<String?> reviewPhase = const Value.absent(),
+    int? reviewRounds,
+    Value<String?> mergeOverride = const Value.absent(),
+    Value<int?> boardOrder = const Value.absent(),
+    int? gateResends,
+    int? rejectedHunks,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -896,6 +1189,18 @@ class Spec extends DataClass implements Insertable<Spec> {
     branch: branch.present ? branch.value : this.branch,
     baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
     autoAdvance: autoAdvance ?? this.autoAdvance,
+    worktreeIndex: worktreeIndex.present
+        ? worktreeIndex.value
+        : this.worktreeIndex,
+    preparedAt: preparedAt.present ? preparedAt.value : this.preparedAt,
+    reviewPhase: reviewPhase.present ? reviewPhase.value : this.reviewPhase,
+    reviewRounds: reviewRounds ?? this.reviewRounds,
+    mergeOverride: mergeOverride.present
+        ? mergeOverride.value
+        : this.mergeOverride,
+    boardOrder: boardOrder.present ? boardOrder.value : this.boardOrder,
+    gateResends: gateResends ?? this.gateResends,
+    rejectedHunks: rejectedHunks ?? this.rejectedHunks,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -924,6 +1229,30 @@ class Spec extends DataClass implements Insertable<Spec> {
       autoAdvance: data.autoAdvance.present
           ? data.autoAdvance.value
           : this.autoAdvance,
+      worktreeIndex: data.worktreeIndex.present
+          ? data.worktreeIndex.value
+          : this.worktreeIndex,
+      preparedAt: data.preparedAt.present
+          ? data.preparedAt.value
+          : this.preparedAt,
+      reviewPhase: data.reviewPhase.present
+          ? data.reviewPhase.value
+          : this.reviewPhase,
+      reviewRounds: data.reviewRounds.present
+          ? data.reviewRounds.value
+          : this.reviewRounds,
+      mergeOverride: data.mergeOverride.present
+          ? data.mergeOverride.value
+          : this.mergeOverride,
+      boardOrder: data.boardOrder.present
+          ? data.boardOrder.value
+          : this.boardOrder,
+      gateResends: data.gateResends.present
+          ? data.gateResends.value
+          : this.gateResends,
+      rejectedHunks: data.rejectedHunks.present
+          ? data.rejectedHunks.value
+          : this.rejectedHunks,
     );
   }
 
@@ -944,13 +1273,21 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('baseBranch: $baseBranch, ')
-          ..write('autoAdvance: $autoAdvance')
+          ..write('autoAdvance: $autoAdvance, ')
+          ..write('worktreeIndex: $worktreeIndex, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('reviewPhase: $reviewPhase, ')
+          ..write('reviewRounds: $reviewRounds, ')
+          ..write('mergeOverride: $mergeOverride, ')
+          ..write('boardOrder: $boardOrder, ')
+          ..write('gateResends: $gateResends, ')
+          ..write('rejectedHunks: $rejectedHunks')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     workspaceId,
     code,
@@ -966,7 +1303,15 @@ class Spec extends DataClass implements Insertable<Spec> {
     branch,
     baseBranch,
     autoAdvance,
-  );
+    worktreeIndex,
+    preparedAt,
+    reviewPhase,
+    reviewRounds,
+    mergeOverride,
+    boardOrder,
+    gateResends,
+    rejectedHunks,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -985,7 +1330,15 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.worktreePath == this.worktreePath &&
           other.branch == this.branch &&
           other.baseBranch == this.baseBranch &&
-          other.autoAdvance == this.autoAdvance);
+          other.autoAdvance == this.autoAdvance &&
+          other.worktreeIndex == this.worktreeIndex &&
+          other.preparedAt == this.preparedAt &&
+          other.reviewPhase == this.reviewPhase &&
+          other.reviewRounds == this.reviewRounds &&
+          other.mergeOverride == this.mergeOverride &&
+          other.boardOrder == this.boardOrder &&
+          other.gateResends == this.gateResends &&
+          other.rejectedHunks == this.rejectedHunks);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1004,6 +1357,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> branch;
   final Value<String?> baseBranch;
   final Value<bool> autoAdvance;
+  final Value<int?> worktreeIndex;
+  final Value<DateTime?> preparedAt;
+  final Value<String?> reviewPhase;
+  final Value<int> reviewRounds;
+  final Value<String?> mergeOverride;
+  final Value<int?> boardOrder;
+  final Value<int> gateResends;
+  final Value<int> rejectedHunks;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1020,6 +1381,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.branch = const Value.absent(),
     this.baseBranch = const Value.absent(),
     this.autoAdvance = const Value.absent(),
+    this.worktreeIndex = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.reviewPhase = const Value.absent(),
+    this.reviewRounds = const Value.absent(),
+    this.mergeOverride = const Value.absent(),
+    this.boardOrder = const Value.absent(),
+    this.gateResends = const Value.absent(),
+    this.rejectedHunks = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1037,6 +1406,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.branch = const Value.absent(),
     this.baseBranch = const Value.absent(),
     this.autoAdvance = const Value.absent(),
+    this.worktreeIndex = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.reviewPhase = const Value.absent(),
+    this.reviewRounds = const Value.absent(),
+    this.mergeOverride = const Value.absent(),
+    this.boardOrder = const Value.absent(),
+    this.gateResends = const Value.absent(),
+    this.rejectedHunks = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1057,6 +1434,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? branch,
     Expression<String>? baseBranch,
     Expression<bool>? autoAdvance,
+    Expression<int>? worktreeIndex,
+    Expression<DateTime>? preparedAt,
+    Expression<String>? reviewPhase,
+    Expression<int>? reviewRounds,
+    Expression<String>? mergeOverride,
+    Expression<int>? boardOrder,
+    Expression<int>? gateResends,
+    Expression<int>? rejectedHunks,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1074,6 +1459,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (branch != null) 'branch': branch,
       if (baseBranch != null) 'base_branch': baseBranch,
       if (autoAdvance != null) 'auto_advance': autoAdvance,
+      if (worktreeIndex != null) 'worktree_index': worktreeIndex,
+      if (preparedAt != null) 'prepared_at': preparedAt,
+      if (reviewPhase != null) 'review_phase': reviewPhase,
+      if (reviewRounds != null) 'review_rounds': reviewRounds,
+      if (mergeOverride != null) 'merge_override': mergeOverride,
+      if (boardOrder != null) 'board_order': boardOrder,
+      if (gateResends != null) 'gate_resends': gateResends,
+      if (rejectedHunks != null) 'rejected_hunks': rejectedHunks,
     });
   }
 
@@ -1093,6 +1486,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? branch,
     Value<String?>? baseBranch,
     Value<bool>? autoAdvance,
+    Value<int?>? worktreeIndex,
+    Value<DateTime?>? preparedAt,
+    Value<String?>? reviewPhase,
+    Value<int>? reviewRounds,
+    Value<String?>? mergeOverride,
+    Value<int?>? boardOrder,
+    Value<int>? gateResends,
+    Value<int>? rejectedHunks,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -1110,6 +1511,14 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       branch: branch ?? this.branch,
       baseBranch: baseBranch ?? this.baseBranch,
       autoAdvance: autoAdvance ?? this.autoAdvance,
+      worktreeIndex: worktreeIndex ?? this.worktreeIndex,
+      preparedAt: preparedAt ?? this.preparedAt,
+      reviewPhase: reviewPhase ?? this.reviewPhase,
+      reviewRounds: reviewRounds ?? this.reviewRounds,
+      mergeOverride: mergeOverride ?? this.mergeOverride,
+      boardOrder: boardOrder ?? this.boardOrder,
+      gateResends: gateResends ?? this.gateResends,
+      rejectedHunks: rejectedHunks ?? this.rejectedHunks,
     );
   }
 
@@ -1169,6 +1578,30 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (autoAdvance.present) {
       map['auto_advance'] = Variable<bool>(autoAdvance.value);
     }
+    if (worktreeIndex.present) {
+      map['worktree_index'] = Variable<int>(worktreeIndex.value);
+    }
+    if (preparedAt.present) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt.value);
+    }
+    if (reviewPhase.present) {
+      map['review_phase'] = Variable<String>(reviewPhase.value);
+    }
+    if (reviewRounds.present) {
+      map['review_rounds'] = Variable<int>(reviewRounds.value);
+    }
+    if (mergeOverride.present) {
+      map['merge_override'] = Variable<String>(mergeOverride.value);
+    }
+    if (boardOrder.present) {
+      map['board_order'] = Variable<int>(boardOrder.value);
+    }
+    if (gateResends.present) {
+      map['gate_resends'] = Variable<int>(gateResends.value);
+    }
+    if (rejectedHunks.present) {
+      map['rejected_hunks'] = Variable<int>(rejectedHunks.value);
+    }
     return map;
   }
 
@@ -1189,7 +1622,15 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('worktreePath: $worktreePath, ')
           ..write('branch: $branch, ')
           ..write('baseBranch: $baseBranch, ')
-          ..write('autoAdvance: $autoAdvance')
+          ..write('autoAdvance: $autoAdvance, ')
+          ..write('worktreeIndex: $worktreeIndex, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('reviewPhase: $reviewPhase, ')
+          ..write('reviewRounds: $reviewRounds, ')
+          ..write('mergeOverride: $mergeOverride, ')
+          ..write('boardOrder: $boardOrder, ')
+          ..write('gateResends: $gateResends, ')
+          ..write('rejectedHunks: $rejectedHunks')
           ..write(')'))
         .toString();
   }
@@ -1252,6 +1693,60 @@ class $SpecStepsTable extends SpecSteps
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _startShaMeta = const VerificationMeta(
+    'startSha',
+  );
+  @override
+  late final GeneratedColumn<String> startSha = GeneratedColumn<String>(
+    'start_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startStashMeta = const VerificationMeta(
+    'startStash',
+  );
+  @override
+  late final GeneratedColumn<String> startStash = GeneratedColumn<String>(
+    'start_stash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gateReportMeta = const VerificationMeta(
+    'gateReport',
+  );
+  @override
+  late final GeneratedColumn<String> gateReport = GeneratedColumn<String>(
+    'gate_report',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gateAttemptsMeta = const VerificationMeta(
+    'gateAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> gateAttempts = GeneratedColumn<int>(
+    'gate_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     specId,
@@ -1259,6 +1754,11 @@ class $SpecStepsTable extends SpecSteps
     status,
     sessionId,
     doneAt,
+    startSha,
+    startStash,
+    gateReport,
+    gateAttempts,
+    body,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1300,6 +1800,39 @@ class $SpecStepsTable extends SpecSteps
         doneAt.isAcceptableOrUnknown(data['done_at']!, _doneAtMeta),
       );
     }
+    if (data.containsKey('start_sha')) {
+      context.handle(
+        _startShaMeta,
+        startSha.isAcceptableOrUnknown(data['start_sha']!, _startShaMeta),
+      );
+    }
+    if (data.containsKey('start_stash')) {
+      context.handle(
+        _startStashMeta,
+        startStash.isAcceptableOrUnknown(data['start_stash']!, _startStashMeta),
+      );
+    }
+    if (data.containsKey('gate_report')) {
+      context.handle(
+        _gateReportMeta,
+        gateReport.isAcceptableOrUnknown(data['gate_report']!, _gateReportMeta),
+      );
+    }
+    if (data.containsKey('gate_attempts')) {
+      context.handle(
+        _gateAttemptsMeta,
+        gateAttempts.isAcceptableOrUnknown(
+          data['gate_attempts']!,
+          _gateAttemptsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
     return context;
   }
 
@@ -1331,6 +1864,26 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.dateTime,
         data['${effectivePrefix}done_at'],
       ),
+      startSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_sha'],
+      ),
+      startStash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_stash'],
+      ),
+      gateReport: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gate_report'],
+      ),
+      gateAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}gate_attempts'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      ),
     );
   }
 
@@ -1353,12 +1906,35 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
   /// Last session that worked on the step.
   final String? sessionId;
   final DateTime? doneAt;
+
+  /// HEAD of the worktree when the step's session started (the gate looks
+  /// for the step's commit after it; "Voltar ao início da etapa" goes back
+  /// to it, also kept as `refs/promptorium/<spec>/<step>-inicio`).
+  final String? startSha;
+
+  /// `git stash create` of the uncommitted changes at that moment.
+  final String? startStash;
+
+  /// JSON of the last `GateReport`.
+  final String? gateReport;
+
+  /// Automatic resends after a failed gate, in the current session.
+  final int gateAttempts;
+
+  /// Text of a step that is not in the file (schema v10): `REV1`, the
+  /// corrections asked by the automatic reviewer.
+  final String? body;
   const SpecStep({
     required this.specId,
     required this.step,
     required this.status,
     this.sessionId,
     this.doneAt,
+    this.startSha,
+    this.startStash,
+    this.gateReport,
+    required this.gateAttempts,
+    this.body,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1376,6 +1952,19 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     if (!nullToAbsent || doneAt != null) {
       map['done_at'] = Variable<DateTime>(doneAt);
     }
+    if (!nullToAbsent || startSha != null) {
+      map['start_sha'] = Variable<String>(startSha);
+    }
+    if (!nullToAbsent || startStash != null) {
+      map['start_stash'] = Variable<String>(startStash);
+    }
+    if (!nullToAbsent || gateReport != null) {
+      map['gate_report'] = Variable<String>(gateReport);
+    }
+    map['gate_attempts'] = Variable<int>(gateAttempts);
+    if (!nullToAbsent || body != null) {
+      map['body'] = Variable<String>(body);
+    }
     return map;
   }
 
@@ -1390,6 +1979,17 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       doneAt: doneAt == null && nullToAbsent
           ? const Value.absent()
           : Value(doneAt),
+      startSha: startSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startSha),
+      startStash: startStash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startStash),
+      gateReport: gateReport == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gateReport),
+      gateAttempts: Value(gateAttempts),
+      body: body == null && nullToAbsent ? const Value.absent() : Value(body),
     );
   }
 
@@ -1406,6 +2006,11 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       ),
       sessionId: serializer.fromJson<String?>(json['sessionId']),
       doneAt: serializer.fromJson<DateTime?>(json['doneAt']),
+      startSha: serializer.fromJson<String?>(json['startSha']),
+      startStash: serializer.fromJson<String?>(json['startStash']),
+      gateReport: serializer.fromJson<String?>(json['gateReport']),
+      gateAttempts: serializer.fromJson<int>(json['gateAttempts']),
+      body: serializer.fromJson<String?>(json['body']),
     );
   }
   @override
@@ -1419,6 +2024,11 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       ),
       'sessionId': serializer.toJson<String?>(sessionId),
       'doneAt': serializer.toJson<DateTime?>(doneAt),
+      'startSha': serializer.toJson<String?>(startSha),
+      'startStash': serializer.toJson<String?>(startStash),
+      'gateReport': serializer.toJson<String?>(gateReport),
+      'gateAttempts': serializer.toJson<int>(gateAttempts),
+      'body': serializer.toJson<String?>(body),
     };
   }
 
@@ -1428,12 +2038,22 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     StepStatus? status,
     Value<String?> sessionId = const Value.absent(),
     Value<DateTime?> doneAt = const Value.absent(),
+    Value<String?> startSha = const Value.absent(),
+    Value<String?> startStash = const Value.absent(),
+    Value<String?> gateReport = const Value.absent(),
+    int? gateAttempts,
+    Value<String?> body = const Value.absent(),
   }) => SpecStep(
     specId: specId ?? this.specId,
     step: step ?? this.step,
     status: status ?? this.status,
     sessionId: sessionId.present ? sessionId.value : this.sessionId,
     doneAt: doneAt.present ? doneAt.value : this.doneAt,
+    startSha: startSha.present ? startSha.value : this.startSha,
+    startStash: startStash.present ? startStash.value : this.startStash,
+    gateReport: gateReport.present ? gateReport.value : this.gateReport,
+    gateAttempts: gateAttempts ?? this.gateAttempts,
+    body: body.present ? body.value : this.body,
   );
   SpecStep copyWithCompanion(SpecStepsCompanion data) {
     return SpecStep(
@@ -1442,6 +2062,17 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       status: data.status.present ? data.status.value : this.status,
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       doneAt: data.doneAt.present ? data.doneAt.value : this.doneAt,
+      startSha: data.startSha.present ? data.startSha.value : this.startSha,
+      startStash: data.startStash.present
+          ? data.startStash.value
+          : this.startStash,
+      gateReport: data.gateReport.present
+          ? data.gateReport.value
+          : this.gateReport,
+      gateAttempts: data.gateAttempts.present
+          ? data.gateAttempts.value
+          : this.gateAttempts,
+      body: data.body.present ? data.body.value : this.body,
     );
   }
 
@@ -1452,13 +2083,29 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('step: $step, ')
           ..write('status: $status, ')
           ..write('sessionId: $sessionId, ')
-          ..write('doneAt: $doneAt')
+          ..write('doneAt: $doneAt, ')
+          ..write('startSha: $startSha, ')
+          ..write('startStash: $startStash, ')
+          ..write('gateReport: $gateReport, ')
+          ..write('gateAttempts: $gateAttempts, ')
+          ..write('body: $body')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(specId, step, status, sessionId, doneAt);
+  int get hashCode => Object.hash(
+    specId,
+    step,
+    status,
+    sessionId,
+    doneAt,
+    startSha,
+    startStash,
+    gateReport,
+    gateAttempts,
+    body,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1467,7 +2114,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.step == this.step &&
           other.status == this.status &&
           other.sessionId == this.sessionId &&
-          other.doneAt == this.doneAt);
+          other.doneAt == this.doneAt &&
+          other.startSha == this.startSha &&
+          other.startStash == this.startStash &&
+          other.gateReport == this.gateReport &&
+          other.gateAttempts == this.gateAttempts &&
+          other.body == this.body);
 }
 
 class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
@@ -1476,6 +2128,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<StepStatus> status;
   final Value<String?> sessionId;
   final Value<DateTime?> doneAt;
+  final Value<String?> startSha;
+  final Value<String?> startStash;
+  final Value<String?> gateReport;
+  final Value<int> gateAttempts;
+  final Value<String?> body;
   final Value<int> rowid;
   const SpecStepsCompanion({
     this.specId = const Value.absent(),
@@ -1483,6 +2140,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.status = const Value.absent(),
     this.sessionId = const Value.absent(),
     this.doneAt = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.startStash = const Value.absent(),
+    this.gateReport = const Value.absent(),
+    this.gateAttempts = const Value.absent(),
+    this.body = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SpecStepsCompanion.insert({
@@ -1491,6 +2153,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.status = const Value.absent(),
     this.sessionId = const Value.absent(),
     this.doneAt = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.startStash = const Value.absent(),
+    this.gateReport = const Value.absent(),
+    this.gateAttempts = const Value.absent(),
+    this.body = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : specId = Value(specId),
        step = Value(step);
@@ -1500,6 +2167,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? status,
     Expression<String>? sessionId,
     Expression<DateTime>? doneAt,
+    Expression<String>? startSha,
+    Expression<String>? startStash,
+    Expression<String>? gateReport,
+    Expression<int>? gateAttempts,
+    Expression<String>? body,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1508,6 +2180,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (status != null) 'status': status,
       if (sessionId != null) 'session_id': sessionId,
       if (doneAt != null) 'done_at': doneAt,
+      if (startSha != null) 'start_sha': startSha,
+      if (startStash != null) 'start_stash': startStash,
+      if (gateReport != null) 'gate_report': gateReport,
+      if (gateAttempts != null) 'gate_attempts': gateAttempts,
+      if (body != null) 'body': body,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1518,6 +2195,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<StepStatus>? status,
     Value<String?>? sessionId,
     Value<DateTime?>? doneAt,
+    Value<String?>? startSha,
+    Value<String?>? startStash,
+    Value<String?>? gateReport,
+    Value<int>? gateAttempts,
+    Value<String?>? body,
     Value<int>? rowid,
   }) {
     return SpecStepsCompanion(
@@ -1526,6 +2208,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       status: status ?? this.status,
       sessionId: sessionId ?? this.sessionId,
       doneAt: doneAt ?? this.doneAt,
+      startSha: startSha ?? this.startSha,
+      startStash: startStash ?? this.startStash,
+      gateReport: gateReport ?? this.gateReport,
+      gateAttempts: gateAttempts ?? this.gateAttempts,
+      body: body ?? this.body,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1550,6 +2237,21 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (doneAt.present) {
       map['done_at'] = Variable<DateTime>(doneAt.value);
     }
+    if (startSha.present) {
+      map['start_sha'] = Variable<String>(startSha.value);
+    }
+    if (startStash.present) {
+      map['start_stash'] = Variable<String>(startStash.value);
+    }
+    if (gateReport.present) {
+      map['gate_report'] = Variable<String>(gateReport.value);
+    }
+    if (gateAttempts.present) {
+      map['gate_attempts'] = Variable<int>(gateAttempts.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1564,6 +2266,11 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('status: $status, ')
           ..write('sessionId: $sessionId, ')
           ..write('doneAt: $doneAt, ')
+          ..write('startSha: $startSha, ')
+          ..write('startStash: $startStash, ')
+          ..write('gateReport: $gateReport, ')
+          ..write('gateAttempts: $gateAttempts, ')
+          ..write('body: $body, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2471,6 +3178,24 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _pidMeta = const VerificationMeta('pid');
+  @override
+  late final GeneratedColumn<int> pid = GeneratedColumn<int>(
+    'pid',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _duelIdMeta = const VerificationMeta('duelId');
+  @override
+  late final GeneratedColumn<int> duelId = GeneratedColumn<int>(
+    'duel_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2494,6 +3219,8 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     baseBranch,
     mergeCommit,
     prUrl,
+    pid,
+    duelId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2646,6 +3373,18 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         prUrl.isAcceptableOrUnknown(data['pr_url']!, _prUrlMeta),
       );
     }
+    if (data.containsKey('pid')) {
+      context.handle(
+        _pidMeta,
+        pid.isAcceptableOrUnknown(data['pid']!, _pidMeta),
+      );
+    }
+    if (data.containsKey('duel_id')) {
+      context.handle(
+        _duelIdMeta,
+        duelId.isAcceptableOrUnknown(data['duel_id']!, _duelIdMeta),
+      );
+    }
     return context;
   }
 
@@ -2741,6 +3480,14 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.string,
         data['${effectivePrefix}pr_url'],
       ),
+      pid: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pid'],
+      ),
+      duelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duel_id'],
+      ),
     );
   }
 
@@ -2793,6 +3540,14 @@ class Session extends DataClass implements Insertable<Session> {
 
   /// URL of the pull request opened by the Review (schema v5).
   final String? prUrl;
+
+  /// PID of the `claude` process while it runs (schema v12): the next
+  /// launch ends the ones left behind by a crash of the app.
+  final int? pid;
+
+  /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
+  /// result does not move the spec's steps, the user picks a winner.
+  final int? duelId;
   const Session({
     required this.id,
     required this.workspaceId,
@@ -2815,6 +3570,8 @@ class Session extends DataClass implements Insertable<Session> {
     this.baseBranch,
     this.mergeCommit,
     this.prUrl,
+    this.pid,
+    this.duelId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2866,6 +3623,12 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || prUrl != null) {
       map['pr_url'] = Variable<String>(prUrl);
     }
+    if (!nullToAbsent || pid != null) {
+      map['pid'] = Variable<int>(pid);
+    }
+    if (!nullToAbsent || duelId != null) {
+      map['duel_id'] = Variable<int>(duelId);
+    }
     return map;
   }
 
@@ -2914,6 +3677,10 @@ class Session extends DataClass implements Insertable<Session> {
       prUrl: prUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(prUrl),
+      pid: pid == null && nullToAbsent ? const Value.absent() : Value(pid),
+      duelId: duelId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(duelId),
     );
   }
 
@@ -2946,6 +3713,8 @@ class Session extends DataClass implements Insertable<Session> {
       baseBranch: serializer.fromJson<String?>(json['baseBranch']),
       mergeCommit: serializer.fromJson<String?>(json['mergeCommit']),
       prUrl: serializer.fromJson<String?>(json['prUrl']),
+      pid: serializer.fromJson<int?>(json['pid']),
+      duelId: serializer.fromJson<int?>(json['duelId']),
     );
   }
   @override
@@ -2975,6 +3744,8 @@ class Session extends DataClass implements Insertable<Session> {
       'baseBranch': serializer.toJson<String?>(baseBranch),
       'mergeCommit': serializer.toJson<String?>(mergeCommit),
       'prUrl': serializer.toJson<String?>(prUrl),
+      'pid': serializer.toJson<int?>(pid),
+      'duelId': serializer.toJson<int?>(duelId),
     };
   }
 
@@ -3000,6 +3771,8 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> baseBranch = const Value.absent(),
     Value<String?> mergeCommit = const Value.absent(),
     Value<String?> prUrl = const Value.absent(),
+    Value<int?> pid = const Value.absent(),
+    Value<int?> duelId = const Value.absent(),
   }) => Session(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -3024,6 +3797,8 @@ class Session extends DataClass implements Insertable<Session> {
     baseBranch: baseBranch.present ? baseBranch.value : this.baseBranch,
     mergeCommit: mergeCommit.present ? mergeCommit.value : this.mergeCommit,
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
+    pid: pid.present ? pid.value : this.pid,
+    duelId: duelId.present ? duelId.value : this.duelId,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -3058,6 +3833,8 @@ class Session extends DataClass implements Insertable<Session> {
           ? data.mergeCommit.value
           : this.mergeCommit,
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
+      pid: data.pid.present ? data.pid.value : this.pid,
+      duelId: data.duelId.present ? data.duelId.value : this.duelId,
     );
   }
 
@@ -3084,7 +3861,9 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('endedAt: $endedAt, ')
           ..write('baseBranch: $baseBranch, ')
           ..write('mergeCommit: $mergeCommit, ')
-          ..write('prUrl: $prUrl')
+          ..write('prUrl: $prUrl, ')
+          ..write('pid: $pid, ')
+          ..write('duelId: $duelId')
           ..write(')'))
         .toString();
   }
@@ -3112,6 +3891,8 @@ class Session extends DataClass implements Insertable<Session> {
     baseBranch,
     mergeCommit,
     prUrl,
+    pid,
+    duelId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3137,7 +3918,9 @@ class Session extends DataClass implements Insertable<Session> {
           other.endedAt == this.endedAt &&
           other.baseBranch == this.baseBranch &&
           other.mergeCommit == this.mergeCommit &&
-          other.prUrl == this.prUrl);
+          other.prUrl == this.prUrl &&
+          other.pid == this.pid &&
+          other.duelId == this.duelId);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -3162,6 +3945,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> baseBranch;
   final Value<String?> mergeCommit;
   final Value<String?> prUrl;
+  final Value<int?> pid;
+  final Value<int?> duelId;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -3185,6 +3970,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.baseBranch = const Value.absent(),
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
+    this.pid = const Value.absent(),
+    this.duelId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -3209,6 +3996,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.baseBranch = const Value.absent(),
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
+    this.pid = const Value.absent(),
+    this.duelId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -3237,6 +4026,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? baseBranch,
     Expression<String>? mergeCommit,
     Expression<String>? prUrl,
+    Expression<int>? pid,
+    Expression<int>? duelId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3261,6 +4052,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (baseBranch != null) 'base_branch': baseBranch,
       if (mergeCommit != null) 'merge_commit': mergeCommit,
       if (prUrl != null) 'pr_url': prUrl,
+      if (pid != null) 'pid': pid,
+      if (duelId != null) 'duel_id': duelId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3287,6 +4080,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? baseBranch,
     Value<String?>? mergeCommit,
     Value<String?>? prUrl,
+    Value<int?>? pid,
+    Value<int?>? duelId,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -3311,6 +4106,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       baseBranch: baseBranch ?? this.baseBranch,
       mergeCommit: mergeCommit ?? this.mergeCommit,
       prUrl: prUrl ?? this.prUrl,
+      pid: pid ?? this.pid,
+      duelId: duelId ?? this.duelId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3383,6 +4180,12 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (prUrl.present) {
       map['pr_url'] = Variable<String>(prUrl.value);
     }
+    if (pid.present) {
+      map['pid'] = Variable<int>(pid.value);
+    }
+    if (duelId.present) {
+      map['duel_id'] = Variable<int>(duelId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3413,6 +4216,8 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('baseBranch: $baseBranch, ')
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
+          ..write('pid: $pid, ')
+          ..write('duelId: $duelId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6821,6 +7626,3592 @@ class ProjectPlansCompanion extends UpdateCompanion<ProjectPlan> {
   }
 }
 
+class $AutopilotStatesTable extends AutopilotStates
+    with TableInfo<$AutopilotStatesTable, AutopilotState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AutopilotStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sinceMeta = const VerificationMeta('since');
+  @override
+  late final GeneratedColumn<DateTime> since = GeneratedColumn<DateTime>(
+    'since',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [workspaceId, since];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'autopilot_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AutopilotState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('since')) {
+      context.handle(
+        _sinceMeta,
+        since.isAcceptableOrUnknown(data['since']!, _sinceMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workspaceId};
+  @override
+  AutopilotState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AutopilotState(
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      since: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}since'],
+      )!,
+    );
+  }
+
+  @override
+  $AutopilotStatesTable createAlias(String alias) {
+    return $AutopilotStatesTable(attachedDatabase, alias);
+  }
+}
+
+class AutopilotState extends DataClass implements Insertable<AutopilotState> {
+  final int workspaceId;
+  final DateTime since;
+  const AutopilotState({required this.workspaceId, required this.since});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['since'] = Variable<DateTime>(since);
+    return map;
+  }
+
+  AutopilotStatesCompanion toCompanion(bool nullToAbsent) {
+    return AutopilotStatesCompanion(
+      workspaceId: Value(workspaceId),
+      since: Value(since),
+    );
+  }
+
+  factory AutopilotState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AutopilotState(
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      since: serializer.fromJson<DateTime>(json['since']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'since': serializer.toJson<DateTime>(since),
+    };
+  }
+
+  AutopilotState copyWith({int? workspaceId, DateTime? since}) =>
+      AutopilotState(
+        workspaceId: workspaceId ?? this.workspaceId,
+        since: since ?? this.since,
+      );
+  AutopilotState copyWithCompanion(AutopilotStatesCompanion data) {
+    return AutopilotState(
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      since: data.since.present ? data.since.value : this.since,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutopilotState(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('since: $since')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(workspaceId, since);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AutopilotState &&
+          other.workspaceId == this.workspaceId &&
+          other.since == this.since);
+}
+
+class AutopilotStatesCompanion extends UpdateCompanion<AutopilotState> {
+  final Value<int> workspaceId;
+  final Value<DateTime> since;
+  const AutopilotStatesCompanion({
+    this.workspaceId = const Value.absent(),
+    this.since = const Value.absent(),
+  });
+  AutopilotStatesCompanion.insert({
+    this.workspaceId = const Value.absent(),
+    this.since = const Value.absent(),
+  });
+  static Insertable<AutopilotState> custom({
+    Expression<int>? workspaceId,
+    Expression<DateTime>? since,
+  }) {
+    return RawValuesInsertable({
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (since != null) 'since': since,
+    });
+  }
+
+  AutopilotStatesCompanion copyWith({
+    Value<int>? workspaceId,
+    Value<DateTime>? since,
+  }) {
+    return AutopilotStatesCompanion(
+      workspaceId: workspaceId ?? this.workspaceId,
+      since: since ?? this.since,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (since.present) {
+      map['since'] = Variable<DateTime>(since.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AutopilotStatesCompanion(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('since: $since')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReviewDraftsTable extends ReviewDrafts
+    with TableInfo<$ReviewDraftsTable, ReviewDraftRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sessionId, data, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewDraftRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  @override
+  ReviewDraftRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewDraftRow(
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReviewDraftsTable createAlias(String alias) {
+    return $ReviewDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewDraftRow extends DataClass implements Insertable<ReviewDraftRow> {
+  final String sessionId;
+  final String data;
+  final DateTime updatedAt;
+  const ReviewDraftRow({
+    required this.sessionId,
+    required this.data,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_id'] = Variable<String>(sessionId);
+    map['data'] = Variable<String>(data);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  ReviewDraftsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewDraftsCompanion(
+      sessionId: Value(sessionId),
+      data: Value(data),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory ReviewDraftRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewDraftRow(
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      data: serializer.fromJson<String>(json['data']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionId': serializer.toJson<String>(sessionId),
+      'data': serializer.toJson<String>(data),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  ReviewDraftRow copyWith({
+    String? sessionId,
+    String? data,
+    DateTime? updatedAt,
+  }) => ReviewDraftRow(
+    sessionId: sessionId ?? this.sessionId,
+    data: data ?? this.data,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  ReviewDraftRow copyWithCompanion(ReviewDraftsCompanion data) {
+    return ReviewDraftRow(
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      data: data.data.present ? data.data.value : this.data,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewDraftRow(')
+          ..write('sessionId: $sessionId, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sessionId, data, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewDraftRow &&
+          other.sessionId == this.sessionId &&
+          other.data == this.data &&
+          other.updatedAt == this.updatedAt);
+}
+
+class ReviewDraftsCompanion extends UpdateCompanion<ReviewDraftRow> {
+  final Value<String> sessionId;
+  final Value<String> data;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const ReviewDraftsCompanion({
+    this.sessionId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReviewDraftsCompanion.insert({
+    required String sessionId,
+    required String data,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       data = Value(data);
+  static Insertable<ReviewDraftRow> custom({
+    Expression<String>? sessionId,
+    Expression<String>? data,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sessionId != null) 'session_id': sessionId,
+      if (data != null) 'data': data,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReviewDraftsCompanion copyWith({
+    Value<String>? sessionId,
+    Value<String>? data,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return ReviewDraftsCompanion(
+      sessionId: sessionId ?? this.sessionId,
+      data: data ?? this.data,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewDraftsCompanion(')
+          ..write('sessionId: $sessionId, ')
+          ..write('data: $data, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PendingNoticesTable extends PendingNotices
+    with TableInfo<$PendingNoticesTable, PendingNotice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PendingNoticesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, sessionId, body, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pending_notices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PendingNotice> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PendingNotice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PendingNotice(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PendingNoticesTable createAlias(String alias) {
+    return $PendingNoticesTable(attachedDatabase, alias);
+  }
+}
+
+class PendingNotice extends DataClass implements Insertable<PendingNotice> {
+  final int id;
+  final String sessionId;
+  final String body;
+  final DateTime createdAt;
+  const PendingNotice({
+    required this.id,
+    required this.sessionId,
+    required this.body,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<String>(sessionId);
+    map['body'] = Variable<String>(body);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PendingNoticesCompanion toCompanion(bool nullToAbsent) {
+    return PendingNoticesCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      body: Value(body),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PendingNotice.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PendingNotice(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      body: serializer.fromJson<String>(json['body']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<String>(sessionId),
+      'body': serializer.toJson<String>(body),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  PendingNotice copyWith({
+    int? id,
+    String? sessionId,
+    String? body,
+    DateTime? createdAt,
+  }) => PendingNotice(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    body: body ?? this.body,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PendingNotice copyWithCompanion(PendingNoticesCompanion data) {
+    return PendingNotice(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      body: data.body.present ? data.body.value : this.body,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingNotice(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, sessionId, body, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PendingNotice &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.body == this.body &&
+          other.createdAt == this.createdAt);
+}
+
+class PendingNoticesCompanion extends UpdateCompanion<PendingNotice> {
+  final Value<int> id;
+  final Value<String> sessionId;
+  final Value<String> body;
+  final Value<DateTime> createdAt;
+  const PendingNoticesCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.body = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  PendingNoticesCompanion.insert({
+    this.id = const Value.absent(),
+    required String sessionId,
+    required String body,
+    this.createdAt = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       body = Value(body);
+  static Insertable<PendingNotice> custom({
+    Expression<int>? id,
+    Expression<String>? sessionId,
+    Expression<String>? body,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (body != null) 'body': body,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  PendingNoticesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? sessionId,
+    Value<String>? body,
+    Value<DateTime>? createdAt,
+  }) {
+    return PendingNoticesCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      body: body ?? this.body,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PendingNoticesCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('body: $body, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReviewCommentsTable extends ReviewComments
+    with TableInfo<$ReviewCommentsTable, ReviewCommentRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReviewCommentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _roundMeta = const VerificationMeta('round');
+  @override
+  late final GeneratedColumn<int> round = GeneratedColumn<int>(
+    'round',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _authorMeta = const VerificationMeta('author');
+  @override
+  late final GeneratedColumn<String> author = GeneratedColumn<String>(
+    'author',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lineMeta = const VerificationMeta('line');
+  @override
+  late final GeneratedColumn<int> line = GeneratedColumn<int>(
+    'line',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _severityMeta = const VerificationMeta(
+    'severity',
+  );
+  @override
+  late final GeneratedColumn<String> severity = GeneratedColumn<String>(
+    'severity',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _requirementMeta = const VerificationMeta(
+    'requirement',
+  );
+  @override
+  late final GeneratedColumn<String> requirement = GeneratedColumn<String>(
+    'requirement',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _verdictMeta = const VerificationMeta(
+    'verdict',
+  );
+  @override
+  late final GeneratedColumn<String> verdict = GeneratedColumn<String>(
+    'verdict',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _commitShaMeta = const VerificationMeta(
+    'commitSha',
+  );
+  @override
+  late final GeneratedColumn<String> commitSha = GeneratedColumn<String>(
+    'commit_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    round,
+    author,
+    path,
+    line,
+    body,
+    severity,
+    requirement,
+    verdict,
+    commitSha,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'review_comments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReviewCommentRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('round')) {
+      context.handle(
+        _roundMeta,
+        round.isAcceptableOrUnknown(data['round']!, _roundMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roundMeta);
+    }
+    if (data.containsKey('author')) {
+      context.handle(
+        _authorMeta,
+        author.isAcceptableOrUnknown(data['author']!, _authorMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_authorMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    }
+    if (data.containsKey('line')) {
+      context.handle(
+        _lineMeta,
+        line.isAcceptableOrUnknown(data['line']!, _lineMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('severity')) {
+      context.handle(
+        _severityMeta,
+        severity.isAcceptableOrUnknown(data['severity']!, _severityMeta),
+      );
+    }
+    if (data.containsKey('requirement')) {
+      context.handle(
+        _requirementMeta,
+        requirement.isAcceptableOrUnknown(
+          data['requirement']!,
+          _requirementMeta,
+        ),
+      );
+    }
+    if (data.containsKey('verdict')) {
+      context.handle(
+        _verdictMeta,
+        verdict.isAcceptableOrUnknown(data['verdict']!, _verdictMeta),
+      );
+    }
+    if (data.containsKey('commit_sha')) {
+      context.handle(
+        _commitShaMeta,
+        commitSha.isAcceptableOrUnknown(data['commit_sha']!, _commitShaMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReviewCommentRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReviewCommentRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      round: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}round'],
+      )!,
+      author: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      ),
+      line: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}line'],
+      ),
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      severity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}severity'],
+      ),
+      requirement: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}requirement'],
+      ),
+      verdict: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}verdict'],
+      ),
+      commitSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}commit_sha'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReviewCommentsTable createAlias(String alias) {
+    return $ReviewCommentsTable(attachedDatabase, alias);
+  }
+}
+
+class ReviewCommentRow extends DataClass
+    implements Insertable<ReviewCommentRow> {
+  final int id;
+  final int specId;
+
+  /// 1, 2… (the round that asked for it).
+  final int round;
+
+  /// `revisor` (automatic) or `humano`.
+  final String author;
+
+  /// Relative path; null = about the spec as a whole.
+  final String? path;
+  final int? line;
+  final String body;
+
+  /// `alta` / `media` / `baixa`.
+  final String? severity;
+
+  /// Requirement it is about (`R2`).
+  final String? requirement;
+
+  /// Verdict of the round (`aprovar` / `corrigir`) on its first comment, and
+  /// the commit reviewed.
+  final String? verdict;
+  final String? commitSha;
+  final DateTime createdAt;
+  const ReviewCommentRow({
+    required this.id,
+    required this.specId,
+    required this.round,
+    required this.author,
+    this.path,
+    this.line,
+    required this.body,
+    this.severity,
+    this.requirement,
+    this.verdict,
+    this.commitSha,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    map['round'] = Variable<int>(round);
+    map['author'] = Variable<String>(author);
+    if (!nullToAbsent || path != null) {
+      map['path'] = Variable<String>(path);
+    }
+    if (!nullToAbsent || line != null) {
+      map['line'] = Variable<int>(line);
+    }
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || severity != null) {
+      map['severity'] = Variable<String>(severity);
+    }
+    if (!nullToAbsent || requirement != null) {
+      map['requirement'] = Variable<String>(requirement);
+    }
+    if (!nullToAbsent || verdict != null) {
+      map['verdict'] = Variable<String>(verdict);
+    }
+    if (!nullToAbsent || commitSha != null) {
+      map['commit_sha'] = Variable<String>(commitSha);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ReviewCommentsCompanion toCompanion(bool nullToAbsent) {
+    return ReviewCommentsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      round: Value(round),
+      author: Value(author),
+      path: path == null && nullToAbsent ? const Value.absent() : Value(path),
+      line: line == null && nullToAbsent ? const Value.absent() : Value(line),
+      body: Value(body),
+      severity: severity == null && nullToAbsent
+          ? const Value.absent()
+          : Value(severity),
+      requirement: requirement == null && nullToAbsent
+          ? const Value.absent()
+          : Value(requirement),
+      verdict: verdict == null && nullToAbsent
+          ? const Value.absent()
+          : Value(verdict),
+      commitSha: commitSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(commitSha),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ReviewCommentRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReviewCommentRow(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      round: serializer.fromJson<int>(json['round']),
+      author: serializer.fromJson<String>(json['author']),
+      path: serializer.fromJson<String?>(json['path']),
+      line: serializer.fromJson<int?>(json['line']),
+      body: serializer.fromJson<String>(json['body']),
+      severity: serializer.fromJson<String?>(json['severity']),
+      requirement: serializer.fromJson<String?>(json['requirement']),
+      verdict: serializer.fromJson<String?>(json['verdict']),
+      commitSha: serializer.fromJson<String?>(json['commitSha']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'round': serializer.toJson<int>(round),
+      'author': serializer.toJson<String>(author),
+      'path': serializer.toJson<String?>(path),
+      'line': serializer.toJson<int?>(line),
+      'body': serializer.toJson<String>(body),
+      'severity': serializer.toJson<String?>(severity),
+      'requirement': serializer.toJson<String?>(requirement),
+      'verdict': serializer.toJson<String?>(verdict),
+      'commitSha': serializer.toJson<String?>(commitSha),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ReviewCommentRow copyWith({
+    int? id,
+    int? specId,
+    int? round,
+    String? author,
+    Value<String?> path = const Value.absent(),
+    Value<int?> line = const Value.absent(),
+    String? body,
+    Value<String?> severity = const Value.absent(),
+    Value<String?> requirement = const Value.absent(),
+    Value<String?> verdict = const Value.absent(),
+    Value<String?> commitSha = const Value.absent(),
+    DateTime? createdAt,
+  }) => ReviewCommentRow(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    round: round ?? this.round,
+    author: author ?? this.author,
+    path: path.present ? path.value : this.path,
+    line: line.present ? line.value : this.line,
+    body: body ?? this.body,
+    severity: severity.present ? severity.value : this.severity,
+    requirement: requirement.present ? requirement.value : this.requirement,
+    verdict: verdict.present ? verdict.value : this.verdict,
+    commitSha: commitSha.present ? commitSha.value : this.commitSha,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
+    return ReviewCommentRow(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      round: data.round.present ? data.round.value : this.round,
+      author: data.author.present ? data.author.value : this.author,
+      path: data.path.present ? data.path.value : this.path,
+      line: data.line.present ? data.line.value : this.line,
+      body: data.body.present ? data.body.value : this.body,
+      severity: data.severity.present ? data.severity.value : this.severity,
+      requirement: data.requirement.present
+          ? data.requirement.value
+          : this.requirement,
+      verdict: data.verdict.present ? data.verdict.value : this.verdict,
+      commitSha: data.commitSha.present ? data.commitSha.value : this.commitSha,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCommentRow(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('round: $round, ')
+          ..write('author: $author, ')
+          ..write('path: $path, ')
+          ..write('line: $line, ')
+          ..write('body: $body, ')
+          ..write('severity: $severity, ')
+          ..write('requirement: $requirement, ')
+          ..write('verdict: $verdict, ')
+          ..write('commitSha: $commitSha, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    specId,
+    round,
+    author,
+    path,
+    line,
+    body,
+    severity,
+    requirement,
+    verdict,
+    commitSha,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReviewCommentRow &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.round == this.round &&
+          other.author == this.author &&
+          other.path == this.path &&
+          other.line == this.line &&
+          other.body == this.body &&
+          other.severity == this.severity &&
+          other.requirement == this.requirement &&
+          other.verdict == this.verdict &&
+          other.commitSha == this.commitSha &&
+          other.createdAt == this.createdAt);
+}
+
+class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<int> round;
+  final Value<String> author;
+  final Value<String?> path;
+  final Value<int?> line;
+  final Value<String> body;
+  final Value<String?> severity;
+  final Value<String?> requirement;
+  final Value<String?> verdict;
+  final Value<String?> commitSha;
+  final Value<DateTime> createdAt;
+  const ReviewCommentsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.round = const Value.absent(),
+    this.author = const Value.absent(),
+    this.path = const Value.absent(),
+    this.line = const Value.absent(),
+    this.body = const Value.absent(),
+    this.severity = const Value.absent(),
+    this.requirement = const Value.absent(),
+    this.verdict = const Value.absent(),
+    this.commitSha = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ReviewCommentsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    required int round,
+    required String author,
+    this.path = const Value.absent(),
+    this.line = const Value.absent(),
+    required String body,
+    this.severity = const Value.absent(),
+    this.requirement = const Value.absent(),
+    this.verdict = const Value.absent(),
+    this.commitSha = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       round = Value(round),
+       author = Value(author),
+       body = Value(body);
+  static Insertable<ReviewCommentRow> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<int>? round,
+    Expression<String>? author,
+    Expression<String>? path,
+    Expression<int>? line,
+    Expression<String>? body,
+    Expression<String>? severity,
+    Expression<String>? requirement,
+    Expression<String>? verdict,
+    Expression<String>? commitSha,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (round != null) 'round': round,
+      if (author != null) 'author': author,
+      if (path != null) 'path': path,
+      if (line != null) 'line': line,
+      if (body != null) 'body': body,
+      if (severity != null) 'severity': severity,
+      if (requirement != null) 'requirement': requirement,
+      if (verdict != null) 'verdict': verdict,
+      if (commitSha != null) 'commit_sha': commitSha,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ReviewCommentsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<int>? round,
+    Value<String>? author,
+    Value<String?>? path,
+    Value<int?>? line,
+    Value<String>? body,
+    Value<String?>? severity,
+    Value<String?>? requirement,
+    Value<String?>? verdict,
+    Value<String?>? commitSha,
+    Value<DateTime>? createdAt,
+  }) {
+    return ReviewCommentsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      round: round ?? this.round,
+      author: author ?? this.author,
+      path: path ?? this.path,
+      line: line ?? this.line,
+      body: body ?? this.body,
+      severity: severity ?? this.severity,
+      requirement: requirement ?? this.requirement,
+      verdict: verdict ?? this.verdict,
+      commitSha: commitSha ?? this.commitSha,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (round.present) {
+      map['round'] = Variable<int>(round.value);
+    }
+    if (author.present) {
+      map['author'] = Variable<String>(author.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (line.present) {
+      map['line'] = Variable<int>(line.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (severity.present) {
+      map['severity'] = Variable<String>(severity.value);
+    }
+    if (requirement.present) {
+      map['requirement'] = Variable<String>(requirement.value);
+    }
+    if (verdict.present) {
+      map['verdict'] = Variable<String>(verdict.value);
+    }
+    if (commitSha.present) {
+      map['commit_sha'] = Variable<String>(commitSha.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReviewCommentsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('round: $round, ')
+          ..write('author: $author, ')
+          ..write('path: $path, ')
+          ..write('line: $line, ')
+          ..write('body: $body, ')
+          ..write('severity: $severity, ')
+          ..write('requirement: $requirement, ')
+          ..write('verdict: $verdict, ')
+          ..write('commitSha: $commitSha, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SpecCriteriaTable extends SpecCriteria
+    with TableInfo<$SpecCriteriaTable, SpecCriteriaData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecCriteriaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _criterionMeta = const VerificationMeta(
+    'criterion',
+  );
+  @override
+  late final GeneratedColumn<String> criterion = GeneratedColumn<String>(
+    'criterion',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _checkedMeta = const VerificationMeta(
+    'checked',
+  );
+  @override
+  late final GeneratedColumn<bool> checked = GeneratedColumn<bool>(
+    'checked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("checked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _checkedByMeta = const VerificationMeta(
+    'checkedBy',
+  );
+  @override
+  late final GeneratedColumn<String> checkedBy = GeneratedColumn<String>(
+    'checked_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _checkedAtMeta = const VerificationMeta(
+    'checkedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> checkedAt = GeneratedColumn<DateTime>(
+    'checked_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    specId,
+    criterion,
+    checked,
+    checkedBy,
+    checkedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_criteria';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecCriteriaData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('criterion')) {
+      context.handle(
+        _criterionMeta,
+        criterion.isAcceptableOrUnknown(data['criterion']!, _criterionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_criterionMeta);
+    }
+    if (data.containsKey('checked')) {
+      context.handle(
+        _checkedMeta,
+        checked.isAcceptableOrUnknown(data['checked']!, _checkedMeta),
+      );
+    }
+    if (data.containsKey('checked_by')) {
+      context.handle(
+        _checkedByMeta,
+        checkedBy.isAcceptableOrUnknown(data['checked_by']!, _checkedByMeta),
+      );
+    }
+    if (data.containsKey('checked_at')) {
+      context.handle(
+        _checkedAtMeta,
+        checkedAt.isAcceptableOrUnknown(data['checked_at']!, _checkedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {specId, criterion};
+  @override
+  SpecCriteriaData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecCriteriaData(
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      criterion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}criterion'],
+      )!,
+      checked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}checked'],
+      )!,
+      checkedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}checked_by'],
+      ),
+      checkedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}checked_at'],
+      ),
+    );
+  }
+
+  @override
+  $SpecCriteriaTable createAlias(String alias) {
+    return $SpecCriteriaTable(attachedDatabase, alias);
+  }
+}
+
+class SpecCriteriaData extends DataClass
+    implements Insertable<SpecCriteriaData> {
+  final int specId;
+  final String criterion;
+  final bool checked;
+
+  /// `gate`, `revisor` or `humano`.
+  final String? checkedBy;
+  final DateTime? checkedAt;
+  const SpecCriteriaData({
+    required this.specId,
+    required this.criterion,
+    required this.checked,
+    this.checkedBy,
+    this.checkedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['spec_id'] = Variable<int>(specId);
+    map['criterion'] = Variable<String>(criterion);
+    map['checked'] = Variable<bool>(checked);
+    if (!nullToAbsent || checkedBy != null) {
+      map['checked_by'] = Variable<String>(checkedBy);
+    }
+    if (!nullToAbsent || checkedAt != null) {
+      map['checked_at'] = Variable<DateTime>(checkedAt);
+    }
+    return map;
+  }
+
+  SpecCriteriaCompanion toCompanion(bool nullToAbsent) {
+    return SpecCriteriaCompanion(
+      specId: Value(specId),
+      criterion: Value(criterion),
+      checked: Value(checked),
+      checkedBy: checkedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedBy),
+      checkedAt: checkedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(checkedAt),
+    );
+  }
+
+  factory SpecCriteriaData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecCriteriaData(
+      specId: serializer.fromJson<int>(json['specId']),
+      criterion: serializer.fromJson<String>(json['criterion']),
+      checked: serializer.fromJson<bool>(json['checked']),
+      checkedBy: serializer.fromJson<String?>(json['checkedBy']),
+      checkedAt: serializer.fromJson<DateTime?>(json['checkedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'specId': serializer.toJson<int>(specId),
+      'criterion': serializer.toJson<String>(criterion),
+      'checked': serializer.toJson<bool>(checked),
+      'checkedBy': serializer.toJson<String?>(checkedBy),
+      'checkedAt': serializer.toJson<DateTime?>(checkedAt),
+    };
+  }
+
+  SpecCriteriaData copyWith({
+    int? specId,
+    String? criterion,
+    bool? checked,
+    Value<String?> checkedBy = const Value.absent(),
+    Value<DateTime?> checkedAt = const Value.absent(),
+  }) => SpecCriteriaData(
+    specId: specId ?? this.specId,
+    criterion: criterion ?? this.criterion,
+    checked: checked ?? this.checked,
+    checkedBy: checkedBy.present ? checkedBy.value : this.checkedBy,
+    checkedAt: checkedAt.present ? checkedAt.value : this.checkedAt,
+  );
+  SpecCriteriaData copyWithCompanion(SpecCriteriaCompanion data) {
+    return SpecCriteriaData(
+      specId: data.specId.present ? data.specId.value : this.specId,
+      criterion: data.criterion.present ? data.criterion.value : this.criterion,
+      checked: data.checked.present ? data.checked.value : this.checked,
+      checkedBy: data.checkedBy.present ? data.checkedBy.value : this.checkedBy,
+      checkedAt: data.checkedAt.present ? data.checkedAt.value : this.checkedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecCriteriaData(')
+          ..write('specId: $specId, ')
+          ..write('criterion: $criterion, ')
+          ..write('checked: $checked, ')
+          ..write('checkedBy: $checkedBy, ')
+          ..write('checkedAt: $checkedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(specId, criterion, checked, checkedBy, checkedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecCriteriaData &&
+          other.specId == this.specId &&
+          other.criterion == this.criterion &&
+          other.checked == this.checked &&
+          other.checkedBy == this.checkedBy &&
+          other.checkedAt == this.checkedAt);
+}
+
+class SpecCriteriaCompanion extends UpdateCompanion<SpecCriteriaData> {
+  final Value<int> specId;
+  final Value<String> criterion;
+  final Value<bool> checked;
+  final Value<String?> checkedBy;
+  final Value<DateTime?> checkedAt;
+  final Value<int> rowid;
+  const SpecCriteriaCompanion({
+    this.specId = const Value.absent(),
+    this.criterion = const Value.absent(),
+    this.checked = const Value.absent(),
+    this.checkedBy = const Value.absent(),
+    this.checkedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SpecCriteriaCompanion.insert({
+    required int specId,
+    required String criterion,
+    this.checked = const Value.absent(),
+    this.checkedBy = const Value.absent(),
+    this.checkedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : specId = Value(specId),
+       criterion = Value(criterion);
+  static Insertable<SpecCriteriaData> custom({
+    Expression<int>? specId,
+    Expression<String>? criterion,
+    Expression<bool>? checked,
+    Expression<String>? checkedBy,
+    Expression<DateTime>? checkedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (specId != null) 'spec_id': specId,
+      if (criterion != null) 'criterion': criterion,
+      if (checked != null) 'checked': checked,
+      if (checkedBy != null) 'checked_by': checkedBy,
+      if (checkedAt != null) 'checked_at': checkedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SpecCriteriaCompanion copyWith({
+    Value<int>? specId,
+    Value<String>? criterion,
+    Value<bool>? checked,
+    Value<String?>? checkedBy,
+    Value<DateTime?>? checkedAt,
+    Value<int>? rowid,
+  }) {
+    return SpecCriteriaCompanion(
+      specId: specId ?? this.specId,
+      criterion: criterion ?? this.criterion,
+      checked: checked ?? this.checked,
+      checkedBy: checkedBy ?? this.checkedBy,
+      checkedAt: checkedAt ?? this.checkedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (criterion.present) {
+      map['criterion'] = Variable<String>(criterion.value);
+    }
+    if (checked.present) {
+      map['checked'] = Variable<bool>(checked.value);
+    }
+    if (checkedBy.present) {
+      map['checked_by'] = Variable<String>(checkedBy.value);
+    }
+    if (checkedAt.present) {
+      map['checked_at'] = Variable<DateTime>(checkedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecCriteriaCompanion(')
+          ..write('specId: $specId, ')
+          ..write('criterion: $criterion, ')
+          ..write('checked: $checked, ')
+          ..write('checkedBy: $checkedBy, ')
+          ..write('checkedAt: $checkedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SpecSuggestionsTable extends SpecSuggestions
+    with TableInfo<$SpecSuggestionsTable, SpecSuggestion> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecSuggestionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pendente'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    sessionId,
+    steps,
+    body,
+    state,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_suggestions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecSuggestion> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpecSuggestion map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecSuggestion(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      ),
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecSuggestionsTable createAlias(String alias) {
+    return $SpecSuggestionsTable(attachedDatabase, alias);
+  }
+}
+
+class SpecSuggestion extends DataClass implements Insertable<SpecSuggestion> {
+  final int id;
+  final int specId;
+  final String? sessionId;
+
+  /// Steps of the session that wrote it (`R2`).
+  final String? steps;
+  final String body;
+
+  /// `pendente` / `aplicada` / `ignorada`.
+  final String state;
+  final DateTime createdAt;
+  const SpecSuggestion({
+    required this.id,
+    required this.specId,
+    this.sessionId,
+    this.steps,
+    required this.body,
+    required this.state,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || steps != null) {
+      map['steps'] = Variable<String>(steps);
+    }
+    map['body'] = Variable<String>(body);
+    map['state'] = Variable<String>(state);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SpecSuggestionsCompanion toCompanion(bool nullToAbsent) {
+    return SpecSuggestionsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      steps: steps == null && nullToAbsent
+          ? const Value.absent()
+          : Value(steps),
+      body: Value(body),
+      state: Value(state),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SpecSuggestion.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecSuggestion(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      steps: serializer.fromJson<String?>(json['steps']),
+      body: serializer.fromJson<String>(json['body']),
+      state: serializer.fromJson<String>(json['state']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'steps': serializer.toJson<String?>(steps),
+      'body': serializer.toJson<String>(body),
+      'state': serializer.toJson<String>(state),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SpecSuggestion copyWith({
+    int? id,
+    int? specId,
+    Value<String?> sessionId = const Value.absent(),
+    Value<String?> steps = const Value.absent(),
+    String? body,
+    String? state,
+    DateTime? createdAt,
+  }) => SpecSuggestion(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    steps: steps.present ? steps.value : this.steps,
+    body: body ?? this.body,
+    state: state ?? this.state,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SpecSuggestion copyWithCompanion(SpecSuggestionsCompanion data) {
+    return SpecSuggestion(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      body: data.body.present ? data.body.value : this.body,
+      state: data.state.present ? data.state.value : this.state,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecSuggestion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('body: $body, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, specId, sessionId, steps, body, state, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecSuggestion &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
+          other.steps == this.steps &&
+          other.body == this.body &&
+          other.state == this.state &&
+          other.createdAt == this.createdAt);
+}
+
+class SpecSuggestionsCompanion extends UpdateCompanion<SpecSuggestion> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String?> sessionId;
+  final Value<String?> steps;
+  final Value<String> body;
+  final Value<String> state;
+  final Value<DateTime> createdAt;
+  const SpecSuggestionsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.body = const Value.absent(),
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SpecSuggestionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    required String body,
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       body = Value(body);
+  static Insertable<SpecSuggestion> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? sessionId,
+    Expression<String>? steps,
+    Expression<String>? body,
+    Expression<String>? state,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (steps != null) 'steps': steps,
+      if (body != null) 'body': body,
+      if (state != null) 'state': state,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SpecSuggestionsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String?>? sessionId,
+    Value<String?>? steps,
+    Value<String>? body,
+    Value<String>? state,
+    Value<DateTime>? createdAt,
+  }) {
+    return SpecSuggestionsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
+      steps: steps ?? this.steps,
+      body: body ?? this.body,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecSuggestionsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('body: $body, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NotificationsTable extends Notifications
+    with TableInfo<$NotificationsTable, AppNotification> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotificationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sectionMeta = const VerificationMeta(
+    'section',
+  );
+  @override
+  late final GeneratedColumn<String> section = GeneratedColumn<String>(
+    'section',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _readMeta = const VerificationMeta('read');
+  @override
+  late final GeneratedColumn<bool> read = GeneratedColumn<bool>(
+    'read',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("read" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    body,
+    section,
+    sessionId,
+    read,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notifications';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppNotification> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('section')) {
+      context.handle(
+        _sectionMeta,
+        section.isAcceptableOrUnknown(data['section']!, _sectionMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('read')) {
+      context.handle(
+        _readMeta,
+        read.isAcceptableOrUnknown(data['read']!, _readMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppNotification map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppNotification(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      section: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}section'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      read: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}read'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $NotificationsTable createAlias(String alias) {
+    return $NotificationsTable(attachedDatabase, alias);
+  }
+}
+
+class AppNotification extends DataClass implements Insertable<AppNotification> {
+  final int id;
+  final String title;
+  final String body;
+
+  /// `AppSection.name` the click goes to.
+  final String? section;
+
+  /// Session selected by the click.
+  final String? sessionId;
+  final bool read;
+  final DateTime createdAt;
+  const AppNotification({
+    required this.id,
+    required this.title,
+    required this.body,
+    this.section,
+    this.sessionId,
+    required this.read,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['title'] = Variable<String>(title);
+    map['body'] = Variable<String>(body);
+    if (!nullToAbsent || section != null) {
+      map['section'] = Variable<String>(section);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    map['read'] = Variable<bool>(read);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  NotificationsCompanion toCompanion(bool nullToAbsent) {
+    return NotificationsCompanion(
+      id: Value(id),
+      title: Value(title),
+      body: Value(body),
+      section: section == null && nullToAbsent
+          ? const Value.absent()
+          : Value(section),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      read: Value(read),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AppNotification.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppNotification(
+      id: serializer.fromJson<int>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      body: serializer.fromJson<String>(json['body']),
+      section: serializer.fromJson<String?>(json['section']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      read: serializer.fromJson<bool>(json['read']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'title': serializer.toJson<String>(title),
+      'body': serializer.toJson<String>(body),
+      'section': serializer.toJson<String?>(section),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'read': serializer.toJson<bool>(read),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AppNotification copyWith({
+    int? id,
+    String? title,
+    String? body,
+    Value<String?> section = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    bool? read,
+    DateTime? createdAt,
+  }) => AppNotification(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    body: body ?? this.body,
+    section: section.present ? section.value : this.section,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    read: read ?? this.read,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AppNotification copyWithCompanion(NotificationsCompanion data) {
+    return AppNotification(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      body: data.body.present ? data.body.value : this.body,
+      section: data.section.present ? data.section.value : this.section,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      read: data.read.present ? data.read.value : this.read,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppNotification(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('section: $section, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('read: $read, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, title, body, section, sessionId, read, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppNotification &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.body == this.body &&
+          other.section == this.section &&
+          other.sessionId == this.sessionId &&
+          other.read == this.read &&
+          other.createdAt == this.createdAt);
+}
+
+class NotificationsCompanion extends UpdateCompanion<AppNotification> {
+  final Value<int> id;
+  final Value<String> title;
+  final Value<String> body;
+  final Value<String?> section;
+  final Value<String?> sessionId;
+  final Value<bool> read;
+  final Value<DateTime> createdAt;
+  const NotificationsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.body = const Value.absent(),
+    this.section = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.read = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  NotificationsCompanion.insert({
+    this.id = const Value.absent(),
+    required String title,
+    required String body,
+    this.section = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.read = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : title = Value(title),
+       body = Value(body);
+  static Insertable<AppNotification> custom({
+    Expression<int>? id,
+    Expression<String>? title,
+    Expression<String>? body,
+    Expression<String>? section,
+    Expression<String>? sessionId,
+    Expression<bool>? read,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (section != null) 'section': section,
+      if (sessionId != null) 'session_id': sessionId,
+      if (read != null) 'read': read,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  NotificationsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? title,
+    Value<String>? body,
+    Value<String?>? section,
+    Value<String?>? sessionId,
+    Value<bool>? read,
+    Value<DateTime>? createdAt,
+  }) {
+    return NotificationsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      section: section ?? this.section,
+      sessionId: sessionId ?? this.sessionId,
+      read: read ?? this.read,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (section.present) {
+      map['section'] = Variable<String>(section.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (read.present) {
+      map['read'] = Variable<bool>(read.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotificationsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('body: $body, ')
+          ..write('section: $section, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('read: $read, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SpecDuelsTable extends SpecDuels
+    with TableInfo<$SpecDuelsTable, SpecDuel> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecDuelsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseShaMeta = const VerificationMeta(
+    'baseSha',
+  );
+  @override
+  late final GeneratedColumn<String> baseSha = GeneratedColumn<String>(
+    'base_sha',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sessionAMeta = const VerificationMeta(
+    'sessionA',
+  );
+  @override
+  late final GeneratedColumn<String> sessionA = GeneratedColumn<String>(
+    'session_a',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionBMeta = const VerificationMeta(
+    'sessionB',
+  );
+  @override
+  late final GeneratedColumn<String> sessionB = GeneratedColumn<String>(
+    'session_b',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _worktreeAMeta = const VerificationMeta(
+    'worktreeA',
+  );
+  @override
+  late final GeneratedColumn<String> worktreeA = GeneratedColumn<String>(
+    'worktree_a',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _worktreeBMeta = const VerificationMeta(
+    'worktreeB',
+  );
+  @override
+  late final GeneratedColumn<String> worktreeB = GeneratedColumn<String>(
+    'worktree_b',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchAMeta = const VerificationMeta(
+    'branchA',
+  );
+  @override
+  late final GeneratedColumn<String> branchA = GeneratedColumn<String>(
+    'branch_a',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchBMeta = const VerificationMeta(
+    'branchB',
+  );
+  @override
+  late final GeneratedColumn<String> branchB = GeneratedColumn<String>(
+    'branch_b',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reportAMeta = const VerificationMeta(
+    'reportA',
+  );
+  @override
+  late final GeneratedColumn<String> reportA = GeneratedColumn<String>(
+    'report_a',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reportBMeta = const VerificationMeta(
+    'reportB',
+  );
+  @override
+  late final GeneratedColumn<String> reportB = GeneratedColumn<String>(
+    'report_b',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('rodando'),
+  );
+  static const VerificationMeta _chosenMeta = const VerificationMeta('chosen');
+  @override
+  late final GeneratedColumn<String> chosen = GeneratedColumn<String>(
+    'chosen',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    steps,
+    baseSha,
+    sessionA,
+    sessionB,
+    worktreeA,
+    worktreeB,
+    branchA,
+    branchB,
+    reportA,
+    reportB,
+    state,
+    chosen,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_duels';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecDuel> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stepsMeta);
+    }
+    if (data.containsKey('base_sha')) {
+      context.handle(
+        _baseShaMeta,
+        baseSha.isAcceptableOrUnknown(data['base_sha']!, _baseShaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_baseShaMeta);
+    }
+    if (data.containsKey('session_a')) {
+      context.handle(
+        _sessionAMeta,
+        sessionA.isAcceptableOrUnknown(data['session_a']!, _sessionAMeta),
+      );
+    }
+    if (data.containsKey('session_b')) {
+      context.handle(
+        _sessionBMeta,
+        sessionB.isAcceptableOrUnknown(data['session_b']!, _sessionBMeta),
+      );
+    }
+    if (data.containsKey('worktree_a')) {
+      context.handle(
+        _worktreeAMeta,
+        worktreeA.isAcceptableOrUnknown(data['worktree_a']!, _worktreeAMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreeAMeta);
+    }
+    if (data.containsKey('worktree_b')) {
+      context.handle(
+        _worktreeBMeta,
+        worktreeB.isAcceptableOrUnknown(data['worktree_b']!, _worktreeBMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreeBMeta);
+    }
+    if (data.containsKey('branch_a')) {
+      context.handle(
+        _branchAMeta,
+        branchA.isAcceptableOrUnknown(data['branch_a']!, _branchAMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchAMeta);
+    }
+    if (data.containsKey('branch_b')) {
+      context.handle(
+        _branchBMeta,
+        branchB.isAcceptableOrUnknown(data['branch_b']!, _branchBMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchBMeta);
+    }
+    if (data.containsKey('report_a')) {
+      context.handle(
+        _reportAMeta,
+        reportA.isAcceptableOrUnknown(data['report_a']!, _reportAMeta),
+      );
+    }
+    if (data.containsKey('report_b')) {
+      context.handle(
+        _reportBMeta,
+        reportB.isAcceptableOrUnknown(data['report_b']!, _reportBMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('chosen')) {
+      context.handle(
+        _chosenMeta,
+        chosen.isAcceptableOrUnknown(data['chosen']!, _chosenMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpecDuel map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecDuel(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      )!,
+      baseSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_sha'],
+      )!,
+      sessionA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_a'],
+      ),
+      sessionB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_b'],
+      ),
+      worktreeA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_a'],
+      )!,
+      worktreeB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_b'],
+      )!,
+      branchA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_a'],
+      )!,
+      branchB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_b'],
+      )!,
+      reportA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_a'],
+      ),
+      reportB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_b'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      chosen: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chosen'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecDuelsTable createAlias(String alias) {
+    return $SpecDuelsTable(attachedDatabase, alias);
+  }
+}
+
+class SpecDuel extends DataClass implements Insertable<SpecDuel> {
+  final int id;
+  final int specId;
+
+  /// `R2` / `R2,R3`.
+  final String steps;
+
+  /// HEAD of the spec's worktree when the attempts started.
+  final String baseSha;
+  final String? sessionA;
+  final String? sessionB;
+  final String worktreeA;
+  final String worktreeB;
+  final String branchA;
+  final String branchB;
+
+  /// Gate of each attempt (JSON of `GateReport`).
+  final String? reportA;
+  final String? reportB;
+
+  /// `rodando` / `pronto` / `escolhido` / `descartado`.
+  final String state;
+
+  /// `A` / `B` once chosen.
+  final String? chosen;
+  final DateTime createdAt;
+  const SpecDuel({
+    required this.id,
+    required this.specId,
+    required this.steps,
+    required this.baseSha,
+    this.sessionA,
+    this.sessionB,
+    required this.worktreeA,
+    required this.worktreeB,
+    required this.branchA,
+    required this.branchB,
+    this.reportA,
+    this.reportB,
+    required this.state,
+    this.chosen,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    map['steps'] = Variable<String>(steps);
+    map['base_sha'] = Variable<String>(baseSha);
+    if (!nullToAbsent || sessionA != null) {
+      map['session_a'] = Variable<String>(sessionA);
+    }
+    if (!nullToAbsent || sessionB != null) {
+      map['session_b'] = Variable<String>(sessionB);
+    }
+    map['worktree_a'] = Variable<String>(worktreeA);
+    map['worktree_b'] = Variable<String>(worktreeB);
+    map['branch_a'] = Variable<String>(branchA);
+    map['branch_b'] = Variable<String>(branchB);
+    if (!nullToAbsent || reportA != null) {
+      map['report_a'] = Variable<String>(reportA);
+    }
+    if (!nullToAbsent || reportB != null) {
+      map['report_b'] = Variable<String>(reportB);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || chosen != null) {
+      map['chosen'] = Variable<String>(chosen);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SpecDuelsCompanion toCompanion(bool nullToAbsent) {
+    return SpecDuelsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      steps: Value(steps),
+      baseSha: Value(baseSha),
+      sessionA: sessionA == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionA),
+      sessionB: sessionB == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionB),
+      worktreeA: Value(worktreeA),
+      worktreeB: Value(worktreeB),
+      branchA: Value(branchA),
+      branchB: Value(branchB),
+      reportA: reportA == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reportA),
+      reportB: reportB == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reportB),
+      state: Value(state),
+      chosen: chosen == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chosen),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SpecDuel.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecDuel(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      steps: serializer.fromJson<String>(json['steps']),
+      baseSha: serializer.fromJson<String>(json['baseSha']),
+      sessionA: serializer.fromJson<String?>(json['sessionA']),
+      sessionB: serializer.fromJson<String?>(json['sessionB']),
+      worktreeA: serializer.fromJson<String>(json['worktreeA']),
+      worktreeB: serializer.fromJson<String>(json['worktreeB']),
+      branchA: serializer.fromJson<String>(json['branchA']),
+      branchB: serializer.fromJson<String>(json['branchB']),
+      reportA: serializer.fromJson<String?>(json['reportA']),
+      reportB: serializer.fromJson<String?>(json['reportB']),
+      state: serializer.fromJson<String>(json['state']),
+      chosen: serializer.fromJson<String?>(json['chosen']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'steps': serializer.toJson<String>(steps),
+      'baseSha': serializer.toJson<String>(baseSha),
+      'sessionA': serializer.toJson<String?>(sessionA),
+      'sessionB': serializer.toJson<String?>(sessionB),
+      'worktreeA': serializer.toJson<String>(worktreeA),
+      'worktreeB': serializer.toJson<String>(worktreeB),
+      'branchA': serializer.toJson<String>(branchA),
+      'branchB': serializer.toJson<String>(branchB),
+      'reportA': serializer.toJson<String?>(reportA),
+      'reportB': serializer.toJson<String?>(reportB),
+      'state': serializer.toJson<String>(state),
+      'chosen': serializer.toJson<String?>(chosen),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SpecDuel copyWith({
+    int? id,
+    int? specId,
+    String? steps,
+    String? baseSha,
+    Value<String?> sessionA = const Value.absent(),
+    Value<String?> sessionB = const Value.absent(),
+    String? worktreeA,
+    String? worktreeB,
+    String? branchA,
+    String? branchB,
+    Value<String?> reportA = const Value.absent(),
+    Value<String?> reportB = const Value.absent(),
+    String? state,
+    Value<String?> chosen = const Value.absent(),
+    DateTime? createdAt,
+  }) => SpecDuel(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    steps: steps ?? this.steps,
+    baseSha: baseSha ?? this.baseSha,
+    sessionA: sessionA.present ? sessionA.value : this.sessionA,
+    sessionB: sessionB.present ? sessionB.value : this.sessionB,
+    worktreeA: worktreeA ?? this.worktreeA,
+    worktreeB: worktreeB ?? this.worktreeB,
+    branchA: branchA ?? this.branchA,
+    branchB: branchB ?? this.branchB,
+    reportA: reportA.present ? reportA.value : this.reportA,
+    reportB: reportB.present ? reportB.value : this.reportB,
+    state: state ?? this.state,
+    chosen: chosen.present ? chosen.value : this.chosen,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SpecDuel copyWithCompanion(SpecDuelsCompanion data) {
+    return SpecDuel(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      baseSha: data.baseSha.present ? data.baseSha.value : this.baseSha,
+      sessionA: data.sessionA.present ? data.sessionA.value : this.sessionA,
+      sessionB: data.sessionB.present ? data.sessionB.value : this.sessionB,
+      worktreeA: data.worktreeA.present ? data.worktreeA.value : this.worktreeA,
+      worktreeB: data.worktreeB.present ? data.worktreeB.value : this.worktreeB,
+      branchA: data.branchA.present ? data.branchA.value : this.branchA,
+      branchB: data.branchB.present ? data.branchB.value : this.branchB,
+      reportA: data.reportA.present ? data.reportA.value : this.reportA,
+      reportB: data.reportB.present ? data.reportB.value : this.reportB,
+      state: data.state.present ? data.state.value : this.state,
+      chosen: data.chosen.present ? data.chosen.value : this.chosen,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDuel(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('baseSha: $baseSha, ')
+          ..write('sessionA: $sessionA, ')
+          ..write('sessionB: $sessionB, ')
+          ..write('worktreeA: $worktreeA, ')
+          ..write('worktreeB: $worktreeB, ')
+          ..write('branchA: $branchA, ')
+          ..write('branchB: $branchB, ')
+          ..write('reportA: $reportA, ')
+          ..write('reportB: $reportB, ')
+          ..write('state: $state, ')
+          ..write('chosen: $chosen, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    specId,
+    steps,
+    baseSha,
+    sessionA,
+    sessionB,
+    worktreeA,
+    worktreeB,
+    branchA,
+    branchB,
+    reportA,
+    reportB,
+    state,
+    chosen,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecDuel &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.steps == this.steps &&
+          other.baseSha == this.baseSha &&
+          other.sessionA == this.sessionA &&
+          other.sessionB == this.sessionB &&
+          other.worktreeA == this.worktreeA &&
+          other.worktreeB == this.worktreeB &&
+          other.branchA == this.branchA &&
+          other.branchB == this.branchB &&
+          other.reportA == this.reportA &&
+          other.reportB == this.reportB &&
+          other.state == this.state &&
+          other.chosen == this.chosen &&
+          other.createdAt == this.createdAt);
+}
+
+class SpecDuelsCompanion extends UpdateCompanion<SpecDuel> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String> steps;
+  final Value<String> baseSha;
+  final Value<String?> sessionA;
+  final Value<String?> sessionB;
+  final Value<String> worktreeA;
+  final Value<String> worktreeB;
+  final Value<String> branchA;
+  final Value<String> branchB;
+  final Value<String?> reportA;
+  final Value<String?> reportB;
+  final Value<String> state;
+  final Value<String?> chosen;
+  final Value<DateTime> createdAt;
+  const SpecDuelsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.baseSha = const Value.absent(),
+    this.sessionA = const Value.absent(),
+    this.sessionB = const Value.absent(),
+    this.worktreeA = const Value.absent(),
+    this.worktreeB = const Value.absent(),
+    this.branchA = const Value.absent(),
+    this.branchB = const Value.absent(),
+    this.reportA = const Value.absent(),
+    this.reportB = const Value.absent(),
+    this.state = const Value.absent(),
+    this.chosen = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SpecDuelsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    required String steps,
+    required String baseSha,
+    this.sessionA = const Value.absent(),
+    this.sessionB = const Value.absent(),
+    required String worktreeA,
+    required String worktreeB,
+    required String branchA,
+    required String branchB,
+    this.reportA = const Value.absent(),
+    this.reportB = const Value.absent(),
+    this.state = const Value.absent(),
+    this.chosen = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       steps = Value(steps),
+       baseSha = Value(baseSha),
+       worktreeA = Value(worktreeA),
+       worktreeB = Value(worktreeB),
+       branchA = Value(branchA),
+       branchB = Value(branchB);
+  static Insertable<SpecDuel> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? steps,
+    Expression<String>? baseSha,
+    Expression<String>? sessionA,
+    Expression<String>? sessionB,
+    Expression<String>? worktreeA,
+    Expression<String>? worktreeB,
+    Expression<String>? branchA,
+    Expression<String>? branchB,
+    Expression<String>? reportA,
+    Expression<String>? reportB,
+    Expression<String>? state,
+    Expression<String>? chosen,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (steps != null) 'steps': steps,
+      if (baseSha != null) 'base_sha': baseSha,
+      if (sessionA != null) 'session_a': sessionA,
+      if (sessionB != null) 'session_b': sessionB,
+      if (worktreeA != null) 'worktree_a': worktreeA,
+      if (worktreeB != null) 'worktree_b': worktreeB,
+      if (branchA != null) 'branch_a': branchA,
+      if (branchB != null) 'branch_b': branchB,
+      if (reportA != null) 'report_a': reportA,
+      if (reportB != null) 'report_b': reportB,
+      if (state != null) 'state': state,
+      if (chosen != null) 'chosen': chosen,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SpecDuelsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String>? steps,
+    Value<String>? baseSha,
+    Value<String?>? sessionA,
+    Value<String?>? sessionB,
+    Value<String>? worktreeA,
+    Value<String>? worktreeB,
+    Value<String>? branchA,
+    Value<String>? branchB,
+    Value<String?>? reportA,
+    Value<String?>? reportB,
+    Value<String>? state,
+    Value<String?>? chosen,
+    Value<DateTime>? createdAt,
+  }) {
+    return SpecDuelsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      steps: steps ?? this.steps,
+      baseSha: baseSha ?? this.baseSha,
+      sessionA: sessionA ?? this.sessionA,
+      sessionB: sessionB ?? this.sessionB,
+      worktreeA: worktreeA ?? this.worktreeA,
+      worktreeB: worktreeB ?? this.worktreeB,
+      branchA: branchA ?? this.branchA,
+      branchB: branchB ?? this.branchB,
+      reportA: reportA ?? this.reportA,
+      reportB: reportB ?? this.reportB,
+      state: state ?? this.state,
+      chosen: chosen ?? this.chosen,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (baseSha.present) {
+      map['base_sha'] = Variable<String>(baseSha.value);
+    }
+    if (sessionA.present) {
+      map['session_a'] = Variable<String>(sessionA.value);
+    }
+    if (sessionB.present) {
+      map['session_b'] = Variable<String>(sessionB.value);
+    }
+    if (worktreeA.present) {
+      map['worktree_a'] = Variable<String>(worktreeA.value);
+    }
+    if (worktreeB.present) {
+      map['worktree_b'] = Variable<String>(worktreeB.value);
+    }
+    if (branchA.present) {
+      map['branch_a'] = Variable<String>(branchA.value);
+    }
+    if (branchB.present) {
+      map['branch_b'] = Variable<String>(branchB.value);
+    }
+    if (reportA.present) {
+      map['report_a'] = Variable<String>(reportA.value);
+    }
+    if (reportB.present) {
+      map['report_b'] = Variable<String>(reportB.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (chosen.present) {
+      map['chosen'] = Variable<String>(chosen.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDuelsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('baseSha: $baseSha, ')
+          ..write('sessionA: $sessionA, ')
+          ..write('sessionB: $sessionB, ')
+          ..write('worktreeA: $worktreeA, ')
+          ..write('worktreeB: $worktreeB, ')
+          ..write('branchA: $branchA, ')
+          ..write('branchB: $branchB, ')
+          ..write('reportA: $reportA, ')
+          ..write('reportB: $reportB, ')
+          ..write('state: $state, ')
+          ..write('chosen: $chosen, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -6838,6 +11229,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $McpToolRulesTable mcpToolRules = $McpToolRulesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $ProjectPlansTable projectPlans = $ProjectPlansTable(this);
+  late final $AutopilotStatesTable autopilotStates = $AutopilotStatesTable(
+    this,
+  );
+  late final $ReviewDraftsTable reviewDrafts = $ReviewDraftsTable(this);
+  late final $PendingNoticesTable pendingNotices = $PendingNoticesTable(this);
+  late final $ReviewCommentsTable reviewComments = $ReviewCommentsTable(this);
+  late final $SpecCriteriaTable specCriteria = $SpecCriteriaTable(this);
+  late final $SpecSuggestionsTable specSuggestions = $SpecSuggestionsTable(
+    this,
+  );
+  late final $NotificationsTable notifications = $NotificationsTable(this);
+  late final $SpecDuelsTable specDuels = $SpecDuelsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6856,6 +11259,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     mcpToolRules,
     appSettings,
     projectPlans,
+    autopilotStates,
+    reviewDrafts,
+    pendingNotices,
+    reviewComments,
+    specCriteria,
+    specSuggestions,
+    notifications,
+    specDuels,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -6942,6 +11353,48 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('project_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('autopilot_states', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('pending_notices', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_criteria', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_suggestions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_duels', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -7051,6 +11504,26 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_projectPlansRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$AutopilotStatesTable, List<AutopilotState>>
+  _autopilotStatesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.autopilotStates,
+    aliasName: 'workspaces__id__autopilot_states__workspace_id',
+  );
+
+  $$AutopilotStatesTableProcessedTableManager get autopilotStatesRefs {
+    final manager = $$AutopilotStatesTableTableManager(
+      $_db,
+      $_db.autopilotStates,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _autopilotStatesRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -7202,6 +11675,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$ProjectPlansTableFilterComposer(
             $db: $db,
             $table: $db.projectPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> autopilotStatesRefs(
+    Expression<bool> Function($$AutopilotStatesTableFilterComposer f) f,
+  ) {
+    final $$AutopilotStatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.autopilotStates,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutopilotStatesTableFilterComposer(
+            $db: $db,
+            $table: $db.autopilotStates,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -7387,6 +11885,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> autopilotStatesRefs<T extends Object>(
+    Expression<T> Function($$AutopilotStatesTableAnnotationComposer a) f,
+  ) {
+    final $$AutopilotStatesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.autopilotStates,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AutopilotStatesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.autopilotStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -7408,6 +11931,7 @@ class $$WorkspacesTableTableManager
             bool sessionsRefs,
             bool conversationsRefs,
             bool projectPlansRefs,
+            bool autopilotStatesRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -7460,6 +11984,7 @@ class $$WorkspacesTableTableManager
                 sessionsRefs = false,
                 conversationsRefs = false,
                 projectPlansRefs = false,
+                autopilotStatesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -7469,6 +11994,7 @@ class $$WorkspacesTableTableManager
                     if (sessionsRefs) db.sessions,
                     if (conversationsRefs) db.conversations,
                     if (projectPlansRefs) db.projectPlans,
+                    if (autopilotStatesRefs) db.autopilotStates,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -7578,6 +12104,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (autopilotStatesRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          AutopilotState
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._autopilotStatesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).autopilotStatesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7604,6 +12151,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool sessionsRefs,
         bool conversationsRefs,
         bool projectPlansRefs,
+        bool autopilotStatesRefs,
       })
     >;
 typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
@@ -7622,6 +12170,14 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> branch,
   Value<String?> baseBranch,
   Value<bool> autoAdvance,
+  Value<int?> worktreeIndex,
+  Value<DateTime?> preparedAt,
+  Value<String?> reviewPhase,
+  Value<int> reviewRounds,
+  Value<String?> mergeOverride,
+  Value<int?> boardOrder,
+  Value<int> gateResends,
+  Value<int> rejectedHunks,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -7639,6 +12195,14 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> branch,
   Value<String?> baseBranch,
   Value<bool> autoAdvance,
+  Value<int?> worktreeIndex,
+  Value<DateTime?> preparedAt,
+  Value<String?> reviewPhase,
+  Value<int> reviewRounds,
+  Value<String?> mergeOverride,
+  Value<int?> boardOrder,
+  Value<int> gateResends,
+  Value<int> rejectedHunks,
 });
 
 final class $$SpecsTableReferences
@@ -7713,6 +12277,80 @@ final class $$SpecsTableReferences
     ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_sessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ReviewCommentsTable, List<ReviewCommentRow>>
+  _reviewCommentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.reviewComments,
+    aliasName: 'specs__id__review_comments__spec_id',
+  );
+
+  $$ReviewCommentsTableProcessedTableManager get reviewCommentsRefs {
+    final manager = $$ReviewCommentsTableTableManager(
+      $_db,
+      $_db.reviewComments,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_reviewCommentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SpecCriteriaTable, List<SpecCriteriaData>>
+  _specCriteriaRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specCriteria,
+    aliasName: 'specs__id__spec_criteria__spec_id',
+  );
+
+  $$SpecCriteriaTableProcessedTableManager get specCriteriaRefs {
+    final manager = $$SpecCriteriaTableTableManager(
+      $_db,
+      $_db.specCriteria,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specCriteriaRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SpecSuggestionsTable, List<SpecSuggestion>>
+  _specSuggestionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specSuggestions,
+    aliasName: 'specs__id__spec_suggestions__spec_id',
+  );
+
+  $$SpecSuggestionsTableProcessedTableManager get specSuggestionsRefs {
+    final manager = $$SpecSuggestionsTableTableManager(
+      $_db,
+      $_db.specSuggestions,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _specSuggestionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SpecDuelsTable, List<SpecDuel>>
+  _specDuelsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specDuels,
+    aliasName: 'specs__id__spec_duels__spec_id',
+  );
+
+  $$SpecDuelsTableProcessedTableManager get specDuelsRefs {
+    final manager = $$SpecDuelsTableTableManager(
+      $_db,
+      $_db.specDuels,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specDuelsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -7802,6 +12440,46 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7902,6 +12580,106 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     );
     return f(composer);
   }
+
+  Expression<bool> reviewCommentsRefs(
+    Expression<bool> Function($$ReviewCommentsTableFilterComposer f) f,
+  ) {
+    final $$ReviewCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specCriteriaRefs(
+    Expression<bool> Function($$SpecCriteriaTableFilterComposer f) f,
+  ) {
+    final $$SpecCriteriaTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specCriteria,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecCriteriaTableFilterComposer(
+            $db: $db,
+            $table: $db.specCriteria,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specSuggestionsRefs(
+    Expression<bool> Function($$SpecSuggestionsTableFilterComposer f) f,
+  ) {
+    final $$SpecSuggestionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSuggestions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecSuggestionsTableFilterComposer(
+            $db: $db,
+            $table: $db.specSuggestions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specDuelsRefs(
+    Expression<bool> Function($$SpecDuelsTableFilterComposer f) f,
+  ) {
+    final $$SpecDuelsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDuels,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDuelsTableFilterComposer(
+            $db: $db,
+            $table: $db.specDuels,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableOrderingComposer
@@ -7980,6 +12758,46 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -8064,6 +12882,46 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<bool> get autoAdvance => $composableBuilder(
     column: $table.autoAdvance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get worktreeIndex => $composableBuilder(
+    column: $table.worktreeIndex,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get preparedAt => $composableBuilder(
+    column: $table.preparedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reviewPhase => $composableBuilder(
+    column: $table.reviewPhase,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get reviewRounds => $composableBuilder(
+    column: $table.reviewRounds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mergeOverride => $composableBuilder(
+    column: $table.mergeOverride,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
     builder: (column) => column,
   );
 
@@ -8164,6 +13022,106 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> reviewCommentsRefs<T extends Object>(
+    Expression<T> Function($$ReviewCommentsTableAnnotationComposer a) f,
+  ) {
+    final $$ReviewCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> specCriteriaRefs<T extends Object>(
+    Expression<T> Function($$SpecCriteriaTableAnnotationComposer a) f,
+  ) {
+    final $$SpecCriteriaTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specCriteria,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecCriteriaTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specCriteria,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> specSuggestionsRefs<T extends Object>(
+    Expression<T> Function($$SpecSuggestionsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecSuggestionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSuggestions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecSuggestionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specSuggestions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> specDuelsRefs<T extends Object>(
+    Expression<T> Function($$SpecDuelsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecDuelsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDuels,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDuelsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specDuels,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -8184,6 +13142,10 @@ class $$SpecsTableTableManager
             bool specStepsRefs,
             bool tasksRefs,
             bool sessionsRefs,
+            bool reviewCommentsRefs,
+            bool specCriteriaRefs,
+            bool specSuggestionsRefs,
+            bool specDuelsRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -8215,6 +13177,14 @@ class $$SpecsTableTableManager
                 Value<String?> branch = const Value.absent(),
                 Value<String?> baseBranch = const Value.absent(),
                 Value<bool> autoAdvance = const Value.absent(),
+                Value<int?> worktreeIndex = const Value.absent(),
+                Value<DateTime?> preparedAt = const Value.absent(),
+                Value<String?> reviewPhase = const Value.absent(),
+                Value<int> reviewRounds = const Value.absent(),
+                Value<String?> mergeOverride = const Value.absent(),
+                Value<int?> boardOrder = const Value.absent(),
+                Value<int> gateResends = const Value.absent(),
+                Value<int> rejectedHunks = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -8231,6 +13201,14 @@ class $$SpecsTableTableManager
                 branch: branch,
                 baseBranch: baseBranch,
                 autoAdvance: autoAdvance,
+                worktreeIndex: worktreeIndex,
+                preparedAt: preparedAt,
+                reviewPhase: reviewPhase,
+                reviewRounds: reviewRounds,
+                mergeOverride: mergeOverride,
+                boardOrder: boardOrder,
+                gateResends: gateResends,
+                rejectedHunks: rejectedHunks,
               ),
           createCompanionCallback:
               ({
@@ -8250,6 +13228,14 @@ class $$SpecsTableTableManager
                 Value<String?> branch = const Value.absent(),
                 Value<String?> baseBranch = const Value.absent(),
                 Value<bool> autoAdvance = const Value.absent(),
+                Value<int?> worktreeIndex = const Value.absent(),
+                Value<DateTime?> preparedAt = const Value.absent(),
+                Value<String?> reviewPhase = const Value.absent(),
+                Value<int> reviewRounds = const Value.absent(),
+                Value<String?> mergeOverride = const Value.absent(),
+                Value<int?> boardOrder = const Value.absent(),
+                Value<int> gateResends = const Value.absent(),
+                Value<int> rejectedHunks = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -8266,6 +13252,14 @@ class $$SpecsTableTableManager
                 branch: branch,
                 baseBranch: baseBranch,
                 autoAdvance: autoAdvance,
+                worktreeIndex: worktreeIndex,
+                preparedAt: preparedAt,
+                reviewPhase: reviewPhase,
+                reviewRounds: reviewRounds,
+                mergeOverride: mergeOverride,
+                boardOrder: boardOrder,
+                gateResends: gateResends,
+                rejectedHunks: rejectedHunks,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -8281,6 +13275,10 @@ class $$SpecsTableTableManager
                 specStepsRefs = false,
                 tasksRefs = false,
                 sessionsRefs = false,
+                reviewCommentsRefs = false,
+                specCriteriaRefs = false,
+                specSuggestionsRefs = false,
+                specDuelsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -8288,6 +13286,10 @@ class $$SpecsTableTableManager
                     if (specStepsRefs) db.specSteps,
                     if (tasksRefs) db.tasks,
                     if (sessionsRefs) db.sessions,
+                    if (reviewCommentsRefs) db.reviewComments,
+                    if (specCriteriaRefs) db.specCriteria,
+                    if (specSuggestionsRefs) db.specSuggestions,
+                    if (specDuelsRefs) db.specDuels,
                   ],
                   addJoins:
                       <
@@ -8368,6 +13370,86 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (reviewCommentsRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          ReviewCommentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._reviewCommentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).reviewCommentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (specCriteriaRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          SpecCriteriaData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specCriteriaRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specCriteriaRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (specSuggestionsRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          SpecSuggestion
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specSuggestionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specSuggestionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (specDuelsRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, SpecDuel>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specDuelsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specDuelsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -8393,6 +13475,10 @@ typedef $$SpecsTableProcessedTableManager =
         bool specStepsRefs,
         bool tasksRefs,
         bool sessionsRefs,
+        bool reviewCommentsRefs,
+        bool specCriteriaRefs,
+        bool specSuggestionsRefs,
+        bool specDuelsRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -8401,6 +13487,11 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<StepStatus> status,
   Value<String?> sessionId,
   Value<DateTime?> doneAt,
+  Value<String?> startSha,
+  Value<String?> startStash,
+  Value<String?> gateReport,
+  Value<int> gateAttempts,
+  Value<String?> body,
   Value<int> rowid,
 });
 typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
@@ -8409,6 +13500,11 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<StepStatus> status,
   Value<String?> sessionId,
   Value<DateTime?> doneAt,
+  Value<String?> startSha,
+  Value<String?> startStash,
+  Value<String?> gateReport,
+  Value<int> gateAttempts,
+  Value<String?> body,
   Value<int> rowid,
 });
 
@@ -8461,6 +13557,31 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<DateTime> get doneAt => $composableBuilder(
     column: $table.doneAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8517,6 +13638,31 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8561,6 +13707,27 @@ class $$SpecStepsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get doneAt =>
       $composableBuilder(column: $table.doneAt, builder: (column) => column);
+
+  GeneratedColumn<String> get startSha =>
+      $composableBuilder(column: $table.startSha, builder: (column) => column);
+
+  GeneratedColumn<String> get startStash => $composableBuilder(
+    column: $table.startStash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get gateReport => $composableBuilder(
+    column: $table.gateReport,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gateAttempts => $composableBuilder(
+    column: $table.gateAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
 
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
@@ -8619,6 +13786,11 @@ class $$SpecStepsTableTableManager
                 Value<StepStatus> status = const Value.absent(),
                 Value<String?> sessionId = const Value.absent(),
                 Value<DateTime?> doneAt = const Value.absent(),
+                Value<String?> startSha = const Value.absent(),
+                Value<String?> startStash = const Value.absent(),
+                Value<String?> gateReport = const Value.absent(),
+                Value<int> gateAttempts = const Value.absent(),
+                Value<String?> body = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion(
                 specId: specId,
@@ -8626,6 +13798,11 @@ class $$SpecStepsTableTableManager
                 status: status,
                 sessionId: sessionId,
                 doneAt: doneAt,
+                startSha: startSha,
+                startStash: startStash,
+                gateReport: gateReport,
+                gateAttempts: gateAttempts,
+                body: body,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8635,6 +13812,11 @@ class $$SpecStepsTableTableManager
                 Value<StepStatus> status = const Value.absent(),
                 Value<String?> sessionId = const Value.absent(),
                 Value<DateTime?> doneAt = const Value.absent(),
+                Value<String?> startSha = const Value.absent(),
+                Value<String?> startStash = const Value.absent(),
+                Value<String?> gateReport = const Value.absent(),
+                Value<int> gateAttempts = const Value.absent(),
+                Value<String?> body = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion.insert(
                 specId: specId,
@@ -8642,6 +13824,11 @@ class $$SpecStepsTableTableManager
                 status: status,
                 sessionId: sessionId,
                 doneAt: doneAt,
+                startSha: startSha,
+                startStash: startStash,
+                gateReport: gateReport,
+                gateAttempts: gateAttempts,
+                body: body,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -9331,6 +14518,8 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> baseBranch,
   Value<String?> mergeCommit,
   Value<String?> prUrl,
+  Value<int?> pid,
+  Value<int?> duelId,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -9355,6 +14544,8 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> baseBranch,
   Value<String?> mergeCommit,
   Value<String?> prUrl,
+  Value<int?> pid,
+  Value<int?> duelId,
   Value<int> rowid,
 });
 
@@ -9444,6 +14635,24 @@ final class $$SessionsTableReferences
     ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_conversationsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$PendingNoticesTable, List<PendingNotice>>
+  _pendingNoticesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.pendingNotices,
+    aliasName: 'sessions__id__pending_notices__session_id',
+  );
+
+  $$PendingNoticesTableProcessedTableManager get pendingNoticesRefs {
+    final manager = $$PendingNoticesTableTableManager(
+      $_db,
+      $_db.pendingNotices,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_pendingNoticesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -9547,6 +14756,16 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<String> get prUrl => $composableBuilder(
     column: $table.prUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pid => $composableBuilder(
+    column: $table.pid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get duelId => $composableBuilder(
+    column: $table.duelId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9668,6 +14887,31 @@ class $$SessionsTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> pendingNoticesRefs(
+    Expression<bool> Function($$PendingNoticesTableFilterComposer f) f,
+  ) {
+    final $$PendingNoticesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pendingNotices,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PendingNoticesTableFilterComposer(
+            $db: $db,
+            $table: $db.pendingNotices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableOrderingComposer
@@ -9766,6 +15010,16 @@ class $$SessionsTableOrderingComposer
 
   ColumnOrderings<String> get prUrl => $composableBuilder(
     column: $table.prUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pid => $composableBuilder(
+    column: $table.pid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get duelId => $composableBuilder(
+    column: $table.duelId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -9910,6 +15164,12 @@ class $$SessionsTableAnnotationComposer
   GeneratedColumn<String> get prUrl =>
       $composableBuilder(column: $table.prUrl, builder: (column) => column);
 
+  GeneratedColumn<int> get pid =>
+      $composableBuilder(column: $table.pid, builder: (column) => column);
+
+  GeneratedColumn<int> get duelId =>
+      $composableBuilder(column: $table.duelId, builder: (column) => column);
+
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -10028,6 +15288,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> pendingNoticesRefs<T extends Object>(
+    Expression<T> Function($$PendingNoticesTableAnnotationComposer a) f,
+  ) {
+    final $$PendingNoticesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pendingNotices,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PendingNoticesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pendingNotices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -10049,6 +15334,7 @@ class $$SessionsTableTableManager
             bool specId,
             bool sessionEventsRefs,
             bool conversationsRefs,
+            bool pendingNoticesRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -10085,6 +15371,8 @@ class $$SessionsTableTableManager
                 Value<String?> baseBranch = const Value.absent(),
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
+                Value<int?> pid = const Value.absent(),
+                Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -10108,6 +15396,8 @@ class $$SessionsTableTableManager
                 baseBranch: baseBranch,
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
+                pid: pid,
+                duelId: duelId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10133,6 +15423,8 @@ class $$SessionsTableTableManager
                 Value<String?> baseBranch = const Value.absent(),
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
+                Value<int?> pid = const Value.absent(),
+                Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -10156,6 +15448,8 @@ class $$SessionsTableTableManager
                 baseBranch: baseBranch,
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
+                pid: pid,
+                duelId: duelId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -10173,12 +15467,14 @@ class $$SessionsTableTableManager
                 specId = false,
                 sessionEventsRefs = false,
                 conversationsRefs = false,
+                pendingNoticesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (sessionEventsRefs) db.sessionEvents,
                     if (conversationsRefs) db.conversations,
+                    if (pendingNoticesRefs) db.pendingNotices,
                   ],
                   addJoins:
                       <
@@ -10276,6 +15572,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (pendingNoticesRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          PendingNotice
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._pendingNoticesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pendingNoticesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -10302,6 +15619,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool specId,
         bool sessionEventsRefs,
         bool conversationsRefs,
+        bool pendingNoticesRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -12791,6 +18109,2591 @@ typedef $$ProjectPlansTableProcessedTableManager =
       ProjectPlan,
       PrefetchHooks Function({bool workspaceId})
     >;
+typedef $$AutopilotStatesTableCreateCompanionBuilder =
+    AutopilotStatesCompanion Function({
+      Value<int> workspaceId,
+      Value<DateTime> since,
+    });
+typedef $$AutopilotStatesTableUpdateCompanionBuilder =
+    AutopilotStatesCompanion Function({
+      Value<int> workspaceId,
+      Value<DateTime> since,
+    });
+
+final class $$AutopilotStatesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $AutopilotStatesTable, AutopilotState> {
+  $$AutopilotStatesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) => db.workspaces
+      .createAlias('autopilot_states__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AutopilotStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get since => $composableBuilder(
+    column: $table.since,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get since => $composableBuilder(
+    column: $table.since,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AutopilotStatesTable> {
+  $$AutopilotStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get since =>
+      $composableBuilder(column: $table.since, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AutopilotStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AutopilotStatesTable,
+          AutopilotState,
+          $$AutopilotStatesTableFilterComposer,
+          $$AutopilotStatesTableOrderingComposer,
+          $$AutopilotStatesTableAnnotationComposer,
+          $$AutopilotStatesTableCreateCompanionBuilder,
+          $$AutopilotStatesTableUpdateCompanionBuilder,
+          (AutopilotState, $$AutopilotStatesTableReferences),
+          AutopilotState,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$AutopilotStatesTableTableManager(
+    _$AppDatabase db,
+    $AutopilotStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AutopilotStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AutopilotStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AutopilotStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<DateTime> since = const Value.absent(),
+              }) => AutopilotStatesCompanion(
+                workspaceId: workspaceId,
+                since: since,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<DateTime> since = const Value.absent(),
+              }) => AutopilotStatesCompanion.insert(
+                workspaceId: workspaceId,
+                since: since,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AutopilotStatesTable, AutopilotState>(table),
+                  $$AutopilotStatesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$AutopilotStatesTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$AutopilotStatesTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AutopilotStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AutopilotStatesTable,
+      AutopilotState,
+      $$AutopilotStatesTableFilterComposer,
+      $$AutopilotStatesTableOrderingComposer,
+      $$AutopilotStatesTableAnnotationComposer,
+      $$AutopilotStatesTableCreateCompanionBuilder,
+      $$AutopilotStatesTableUpdateCompanionBuilder,
+      (AutopilotState, $$AutopilotStatesTableReferences),
+      AutopilotState,
+      PrefetchHooks Function({bool workspaceId})
+    >;
+typedef $$ReviewDraftsTableCreateCompanionBuilder =
+    ReviewDraftsCompanion Function({
+      required String sessionId,
+      required String data,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$ReviewDraftsTableUpdateCompanionBuilder =
+    ReviewDraftsCompanion Function({
+      Value<String> sessionId,
+      Value<String> data,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$ReviewDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReviewDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReviewDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewDraftsTable> {
+  $$ReviewDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$ReviewDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewDraftsTable,
+          ReviewDraftRow,
+          $$ReviewDraftsTableFilterComposer,
+          $$ReviewDraftsTableOrderingComposer,
+          $$ReviewDraftsTableAnnotationComposer,
+          $$ReviewDraftsTableCreateCompanionBuilder,
+          $$ReviewDraftsTableUpdateCompanionBuilder,
+          (
+            ReviewDraftRow,
+            BaseReferences<_$AppDatabase, $ReviewDraftsTable, ReviewDraftRow>,
+          ),
+          ReviewDraftRow,
+          PrefetchHooks Function()
+        > {
+  $$ReviewDraftsTableTableManager(_$AppDatabase db, $ReviewDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> sessionId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewDraftsCompanion(
+                sessionId: sessionId,
+                data: data,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sessionId,
+                required String data,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReviewDraftsCompanion.insert(
+                sessionId: sessionId,
+                data: data,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReviewDraftsTable, ReviewDraftRow>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ReviewDraftsTable,
+                    ReviewDraftRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReviewDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewDraftsTable,
+      ReviewDraftRow,
+      $$ReviewDraftsTableFilterComposer,
+      $$ReviewDraftsTableOrderingComposer,
+      $$ReviewDraftsTableAnnotationComposer,
+      $$ReviewDraftsTableCreateCompanionBuilder,
+      $$ReviewDraftsTableUpdateCompanionBuilder,
+      (
+        ReviewDraftRow,
+        BaseReferences<_$AppDatabase, $ReviewDraftsTable, ReviewDraftRow>,
+      ),
+      ReviewDraftRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PendingNoticesTableCreateCompanionBuilder =
+    PendingNoticesCompanion Function({
+      Value<int> id,
+      required String sessionId,
+      required String body,
+      Value<DateTime> createdAt,
+    });
+typedef $$PendingNoticesTableUpdateCompanionBuilder =
+    PendingNoticesCompanion Function({
+      Value<int> id,
+      Value<String> sessionId,
+      Value<String> body,
+      Value<DateTime> createdAt,
+    });
+
+final class $$PendingNoticesTableReferences
+    extends BaseReferences<_$AppDatabase, $PendingNoticesTable, PendingNotice> {
+  $$PendingNoticesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('pending_notices__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<String>('session_id')!;
+
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PendingNoticesTableFilterComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PendingNoticesTable> {
+  $$PendingNoticesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PendingNoticesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PendingNoticesTable,
+          PendingNotice,
+          $$PendingNoticesTableFilterComposer,
+          $$PendingNoticesTableOrderingComposer,
+          $$PendingNoticesTableAnnotationComposer,
+          $$PendingNoticesTableCreateCompanionBuilder,
+          $$PendingNoticesTableUpdateCompanionBuilder,
+          (PendingNotice, $$PendingNoticesTableReferences),
+          PendingNotice,
+          PrefetchHooks Function({bool sessionId})
+        > {
+  $$PendingNoticesTableTableManager(
+    _$AppDatabase db,
+    $PendingNoticesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PendingNoticesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PendingNoticesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PendingNoticesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> sessionId = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PendingNoticesCompanion(
+                id: id,
+                sessionId: sessionId,
+                body: body,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String sessionId,
+                required String body,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => PendingNoticesCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                body: body,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PendingNoticesTable, PendingNotice>(table),
+                  $$PendingNoticesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$PendingNoticesTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$PendingNoticesTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PendingNoticesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PendingNoticesTable,
+      PendingNotice,
+      $$PendingNoticesTableFilterComposer,
+      $$PendingNoticesTableOrderingComposer,
+      $$PendingNoticesTableAnnotationComposer,
+      $$PendingNoticesTableCreateCompanionBuilder,
+      $$PendingNoticesTableUpdateCompanionBuilder,
+      (PendingNotice, $$PendingNoticesTableReferences),
+      PendingNotice,
+      PrefetchHooks Function({bool sessionId})
+    >;
+typedef $$ReviewCommentsTableCreateCompanionBuilder =
+    ReviewCommentsCompanion Function({
+      Value<int> id,
+      required int specId,
+      required int round,
+      required String author,
+      Value<String?> path,
+      Value<int?> line,
+      required String body,
+      Value<String?> severity,
+      Value<String?> requirement,
+      Value<String?> verdict,
+      Value<String?> commitSha,
+      Value<DateTime> createdAt,
+    });
+typedef $$ReviewCommentsTableUpdateCompanionBuilder =
+    ReviewCommentsCompanion Function({
+      Value<int> id,
+      Value<int> specId,
+      Value<int> round,
+      Value<String> author,
+      Value<String?> path,
+      Value<int?> line,
+      Value<String> body,
+      Value<String?> severity,
+      Value<String?> requirement,
+      Value<String?> verdict,
+      Value<String?> commitSha,
+      Value<DateTime> createdAt,
+    });
+
+final class $$ReviewCommentsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $ReviewCommentsTable, ReviewCommentRow> {
+  $$ReviewCommentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('review_comments__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ReviewCommentsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get author => $composableBuilder(
+    column: $table.author,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get line => $composableBuilder(
+    column: $table.line,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get verdict => $composableBuilder(
+    column: $table.verdict,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get commitSha => $composableBuilder(
+    column: $table.commitSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get author => $composableBuilder(
+    column: $table.author,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get line => $composableBuilder(
+    column: $table.line,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get severity => $composableBuilder(
+    column: $table.severity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get verdict => $composableBuilder(
+    column: $table.verdict,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get commitSha => $composableBuilder(
+    column: $table.commitSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReviewCommentsTable> {
+  $$ReviewCommentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get round =>
+      $composableBuilder(column: $table.round, builder: (column) => column);
+
+  GeneratedColumn<String> get author =>
+      $composableBuilder(column: $table.author, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<int> get line =>
+      $composableBuilder(column: $table.line, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get severity =>
+      $composableBuilder(column: $table.severity, builder: (column) => column);
+
+  GeneratedColumn<String> get requirement => $composableBuilder(
+    column: $table.requirement,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get verdict =>
+      $composableBuilder(column: $table.verdict, builder: (column) => column);
+
+  GeneratedColumn<String> get commitSha =>
+      $composableBuilder(column: $table.commitSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ReviewCommentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReviewCommentsTable,
+          ReviewCommentRow,
+          $$ReviewCommentsTableFilterComposer,
+          $$ReviewCommentsTableOrderingComposer,
+          $$ReviewCommentsTableAnnotationComposer,
+          $$ReviewCommentsTableCreateCompanionBuilder,
+          $$ReviewCommentsTableUpdateCompanionBuilder,
+          (ReviewCommentRow, $$ReviewCommentsTableReferences),
+          ReviewCommentRow,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$ReviewCommentsTableTableManager(
+    _$AppDatabase db,
+    $ReviewCommentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReviewCommentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReviewCommentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReviewCommentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<int> round = const Value.absent(),
+                Value<String> author = const Value.absent(),
+                Value<String?> path = const Value.absent(),
+                Value<int?> line = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> severity = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
+                Value<String?> verdict = const Value.absent(),
+                Value<String?> commitSha = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ReviewCommentsCompanion(
+                id: id,
+                specId: specId,
+                round: round,
+                author: author,
+                path: path,
+                line: line,
+                body: body,
+                severity: severity,
+                requirement: requirement,
+                verdict: verdict,
+                commitSha: commitSha,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                required int round,
+                required String author,
+                Value<String?> path = const Value.absent(),
+                Value<int?> line = const Value.absent(),
+                required String body,
+                Value<String?> severity = const Value.absent(),
+                Value<String?> requirement = const Value.absent(),
+                Value<String?> verdict = const Value.absent(),
+                Value<String?> commitSha = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => ReviewCommentsCompanion.insert(
+                id: id,
+                specId: specId,
+                round: round,
+                author: author,
+                path: path,
+                line: line,
+                body: body,
+                severity: severity,
+                requirement: requirement,
+                verdict: verdict,
+                commitSha: commitSha,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReviewCommentsTable, ReviewCommentRow>(table),
+                  $$ReviewCommentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$ReviewCommentsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$ReviewCommentsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ReviewCommentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReviewCommentsTable,
+      ReviewCommentRow,
+      $$ReviewCommentsTableFilterComposer,
+      $$ReviewCommentsTableOrderingComposer,
+      $$ReviewCommentsTableAnnotationComposer,
+      $$ReviewCommentsTableCreateCompanionBuilder,
+      $$ReviewCommentsTableUpdateCompanionBuilder,
+      (ReviewCommentRow, $$ReviewCommentsTableReferences),
+      ReviewCommentRow,
+      PrefetchHooks Function({bool specId})
+    >;
+typedef $$SpecCriteriaTableCreateCompanionBuilder =
+    SpecCriteriaCompanion Function({
+      required int specId,
+      required String criterion,
+      Value<bool> checked,
+      Value<String?> checkedBy,
+      Value<DateTime?> checkedAt,
+      Value<int> rowid,
+    });
+typedef $$SpecCriteriaTableUpdateCompanionBuilder =
+    SpecCriteriaCompanion Function({
+      Value<int> specId,
+      Value<String> criterion,
+      Value<bool> checked,
+      Value<String?> checkedBy,
+      Value<DateTime?> checkedAt,
+      Value<int> rowid,
+    });
+
+final class $$SpecCriteriaTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SpecCriteriaTable, SpecCriteriaData> {
+  $$SpecCriteriaTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_criteria__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecCriteriaTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get criterion => $composableBuilder(
+    column: $table.criterion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get checked => $composableBuilder(
+    column: $table.checked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get checkedBy => $composableBuilder(
+    column: $table.checkedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get checkedAt => $composableBuilder(
+    column: $table.checkedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get criterion => $composableBuilder(
+    column: $table.criterion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get checked => $composableBuilder(
+    column: $table.checked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get checkedBy => $composableBuilder(
+    column: $table.checkedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get checkedAt => $composableBuilder(
+    column: $table.checkedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecCriteriaTable> {
+  $$SpecCriteriaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get criterion =>
+      $composableBuilder(column: $table.criterion, builder: (column) => column);
+
+  GeneratedColumn<bool> get checked =>
+      $composableBuilder(column: $table.checked, builder: (column) => column);
+
+  GeneratedColumn<String> get checkedBy =>
+      $composableBuilder(column: $table.checkedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get checkedAt =>
+      $composableBuilder(column: $table.checkedAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecCriteriaTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecCriteriaTable,
+          SpecCriteriaData,
+          $$SpecCriteriaTableFilterComposer,
+          $$SpecCriteriaTableOrderingComposer,
+          $$SpecCriteriaTableAnnotationComposer,
+          $$SpecCriteriaTableCreateCompanionBuilder,
+          $$SpecCriteriaTableUpdateCompanionBuilder,
+          (SpecCriteriaData, $$SpecCriteriaTableReferences),
+          SpecCriteriaData,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecCriteriaTableTableManager(_$AppDatabase db, $SpecCriteriaTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecCriteriaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecCriteriaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecCriteriaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> specId = const Value.absent(),
+                Value<String> criterion = const Value.absent(),
+                Value<bool> checked = const Value.absent(),
+                Value<String?> checkedBy = const Value.absent(),
+                Value<DateTime?> checkedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecCriteriaCompanion(
+                specId: specId,
+                criterion: criterion,
+                checked: checked,
+                checkedBy: checkedBy,
+                checkedAt: checkedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int specId,
+                required String criterion,
+                Value<bool> checked = const Value.absent(),
+                Value<String?> checkedBy = const Value.absent(),
+                Value<DateTime?> checkedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SpecCriteriaCompanion.insert(
+                specId: specId,
+                criterion: criterion,
+                checked: checked,
+                checkedBy: checkedBy,
+                checkedAt: checkedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecCriteriaTable, SpecCriteriaData>(table),
+                  $$SpecCriteriaTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecCriteriaTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecCriteriaTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecCriteriaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecCriteriaTable,
+      SpecCriteriaData,
+      $$SpecCriteriaTableFilterComposer,
+      $$SpecCriteriaTableOrderingComposer,
+      $$SpecCriteriaTableAnnotationComposer,
+      $$SpecCriteriaTableCreateCompanionBuilder,
+      $$SpecCriteriaTableUpdateCompanionBuilder,
+      (SpecCriteriaData, $$SpecCriteriaTableReferences),
+      SpecCriteriaData,
+      PrefetchHooks Function({bool specId})
+    >;
+typedef $$SpecSuggestionsTableCreateCompanionBuilder =
+    SpecSuggestionsCompanion Function({
+      Value<int> id,
+      required int specId,
+      Value<String?> sessionId,
+      Value<String?> steps,
+      required String body,
+      Value<String> state,
+      Value<DateTime> createdAt,
+    });
+typedef $$SpecSuggestionsTableUpdateCompanionBuilder =
+    SpecSuggestionsCompanion Function({
+      Value<int> id,
+      Value<int> specId,
+      Value<String?> sessionId,
+      Value<String?> steps,
+      Value<String> body,
+      Value<String> state,
+      Value<DateTime> createdAt,
+    });
+
+final class $$SpecSuggestionsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SpecSuggestionsTable, SpecSuggestion> {
+  $$SpecSuggestionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_suggestions__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecSuggestionsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecSuggestionsTable,
+          SpecSuggestion,
+          $$SpecSuggestionsTableFilterComposer,
+          $$SpecSuggestionsTableOrderingComposer,
+          $$SpecSuggestionsTableAnnotationComposer,
+          $$SpecSuggestionsTableCreateCompanionBuilder,
+          $$SpecSuggestionsTableUpdateCompanionBuilder,
+          (SpecSuggestion, $$SpecSuggestionsTableReferences),
+          SpecSuggestion,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecSuggestionsTableTableManager(
+    _$AppDatabase db,
+    $SpecSuggestionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecSuggestionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecSuggestionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecSuggestionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecSuggestionsCompanion(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                body: body,
+                state: state,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                required String body,
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecSuggestionsCompanion.insert(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                body: body,
+                state: state,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecSuggestionsTable, SpecSuggestion>(table),
+                  $$SpecSuggestionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecSuggestionsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecSuggestionsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecSuggestionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecSuggestionsTable,
+      SpecSuggestion,
+      $$SpecSuggestionsTableFilterComposer,
+      $$SpecSuggestionsTableOrderingComposer,
+      $$SpecSuggestionsTableAnnotationComposer,
+      $$SpecSuggestionsTableCreateCompanionBuilder,
+      $$SpecSuggestionsTableUpdateCompanionBuilder,
+      (SpecSuggestion, $$SpecSuggestionsTableReferences),
+      SpecSuggestion,
+      PrefetchHooks Function({bool specId})
+    >;
+typedef $$NotificationsTableCreateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      required String title,
+      required String body,
+      Value<String?> section,
+      Value<String?> sessionId,
+      Value<bool> read,
+      Value<DateTime> createdAt,
+    });
+typedef $$NotificationsTableUpdateCompanionBuilder =
+    NotificationsCompanion Function({
+      Value<int> id,
+      Value<String> title,
+      Value<String> body,
+      Value<String?> section,
+      Value<String?> sessionId,
+      Value<bool> read,
+      Value<DateTime> createdAt,
+    });
+
+class $$NotificationsTableFilterComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotificationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get section => $composableBuilder(
+    column: $table.section,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get read => $composableBuilder(
+    column: $table.read,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotificationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotificationsTable> {
+  $$NotificationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get section =>
+      $composableBuilder(column: $table.section, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<bool> get read =>
+      $composableBuilder(column: $table.read, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$NotificationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NotificationsTable,
+          AppNotification,
+          $$NotificationsTableFilterComposer,
+          $$NotificationsTableOrderingComposer,
+          $$NotificationsTableAnnotationComposer,
+          $$NotificationsTableCreateCompanionBuilder,
+          $$NotificationsTableUpdateCompanionBuilder,
+          (
+            AppNotification,
+            BaseReferences<_$AppDatabase, $NotificationsTable, AppNotification>,
+          ),
+          AppNotification,
+          PrefetchHooks Function()
+        > {
+  $$NotificationsTableTableManager(_$AppDatabase db, $NotificationsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotificationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotificationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotificationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String?> section = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => NotificationsCompanion(
+                id: id,
+                title: title,
+                body: body,
+                section: section,
+                sessionId: sessionId,
+                read: read,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String title,
+                required String body,
+                Value<String?> section = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<bool> read = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => NotificationsCompanion.insert(
+                id: id,
+                title: title,
+                body: body,
+                section: section,
+                sessionId: sessionId,
+                read: read,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotificationsTable, AppNotification>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NotificationsTable,
+                    AppNotification
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotificationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NotificationsTable,
+      AppNotification,
+      $$NotificationsTableFilterComposer,
+      $$NotificationsTableOrderingComposer,
+      $$NotificationsTableAnnotationComposer,
+      $$NotificationsTableCreateCompanionBuilder,
+      $$NotificationsTableUpdateCompanionBuilder,
+      (
+        AppNotification,
+        BaseReferences<_$AppDatabase, $NotificationsTable, AppNotification>,
+      ),
+      AppNotification,
+      PrefetchHooks Function()
+    >;
+typedef $$SpecDuelsTableCreateCompanionBuilder = SpecDuelsCompanion Function({
+  Value<int> id,
+  required int specId,
+  required String steps,
+  required String baseSha,
+  Value<String?> sessionA,
+  Value<String?> sessionB,
+  required String worktreeA,
+  required String worktreeB,
+  required String branchA,
+  required String branchB,
+  Value<String?> reportA,
+  Value<String?> reportB,
+  Value<String> state,
+  Value<String?> chosen,
+  Value<DateTime> createdAt,
+});
+typedef $$SpecDuelsTableUpdateCompanionBuilder = SpecDuelsCompanion Function({
+  Value<int> id,
+  Value<int> specId,
+  Value<String> steps,
+  Value<String> baseSha,
+  Value<String?> sessionA,
+  Value<String?> sessionB,
+  Value<String> worktreeA,
+  Value<String> worktreeB,
+  Value<String> branchA,
+  Value<String> branchB,
+  Value<String?> reportA,
+  Value<String?> reportB,
+  Value<String> state,
+  Value<String?> chosen,
+  Value<DateTime> createdAt,
+});
+
+final class $$SpecDuelsTableReferences
+    extends BaseReferences<_$AppDatabase, $SpecDuelsTable, SpecDuel> {
+  $$SpecDuelsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_duels__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecDuelsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseSha => $composableBuilder(
+    column: $table.baseSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionA => $composableBuilder(
+    column: $table.sessionA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionB => $composableBuilder(
+    column: $table.sessionB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreeA => $composableBuilder(
+    column: $table.worktreeA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreeB => $composableBuilder(
+    column: $table.worktreeB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchA => $composableBuilder(
+    column: $table.branchA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchB => $composableBuilder(
+    column: $table.branchB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportA => $composableBuilder(
+    column: $table.reportA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportB => $composableBuilder(
+    column: $table.reportB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chosen => $composableBuilder(
+    column: $table.chosen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseSha => $composableBuilder(
+    column: $table.baseSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionA => $composableBuilder(
+    column: $table.sessionA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionB => $composableBuilder(
+    column: $table.sessionB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreeA => $composableBuilder(
+    column: $table.worktreeA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreeB => $composableBuilder(
+    column: $table.worktreeB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchA => $composableBuilder(
+    column: $table.branchA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchB => $composableBuilder(
+    column: $table.branchB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportA => $composableBuilder(
+    column: $table.reportA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportB => $composableBuilder(
+    column: $table.reportB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chosen => $composableBuilder(
+    column: $table.chosen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get baseSha =>
+      $composableBuilder(column: $table.baseSha, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionA =>
+      $composableBuilder(column: $table.sessionA, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionB =>
+      $composableBuilder(column: $table.sessionB, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreeA =>
+      $composableBuilder(column: $table.worktreeA, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreeB =>
+      $composableBuilder(column: $table.worktreeB, builder: (column) => column);
+
+  GeneratedColumn<String> get branchA =>
+      $composableBuilder(column: $table.branchA, builder: (column) => column);
+
+  GeneratedColumn<String> get branchB =>
+      $composableBuilder(column: $table.branchB, builder: (column) => column);
+
+  GeneratedColumn<String> get reportA =>
+      $composableBuilder(column: $table.reportA, builder: (column) => column);
+
+  GeneratedColumn<String> get reportB =>
+      $composableBuilder(column: $table.reportB, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get chosen =>
+      $composableBuilder(column: $table.chosen, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecDuelsTable,
+          SpecDuel,
+          $$SpecDuelsTableFilterComposer,
+          $$SpecDuelsTableOrderingComposer,
+          $$SpecDuelsTableAnnotationComposer,
+          $$SpecDuelsTableCreateCompanionBuilder,
+          $$SpecDuelsTableUpdateCompanionBuilder,
+          (SpecDuel, $$SpecDuelsTableReferences),
+          SpecDuel,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecDuelsTableTableManager(_$AppDatabase db, $SpecDuelsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecDuelsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecDuelsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecDuelsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String> steps = const Value.absent(),
+                Value<String> baseSha = const Value.absent(),
+                Value<String?> sessionA = const Value.absent(),
+                Value<String?> sessionB = const Value.absent(),
+                Value<String> worktreeA = const Value.absent(),
+                Value<String> worktreeB = const Value.absent(),
+                Value<String> branchA = const Value.absent(),
+                Value<String> branchB = const Value.absent(),
+                Value<String?> reportA = const Value.absent(),
+                Value<String?> reportB = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> chosen = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecDuelsCompanion(
+                id: id,
+                specId: specId,
+                steps: steps,
+                baseSha: baseSha,
+                sessionA: sessionA,
+                sessionB: sessionB,
+                worktreeA: worktreeA,
+                worktreeB: worktreeB,
+                branchA: branchA,
+                branchB: branchB,
+                reportA: reportA,
+                reportB: reportB,
+                state: state,
+                chosen: chosen,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                required String steps,
+                required String baseSha,
+                Value<String?> sessionA = const Value.absent(),
+                Value<String?> sessionB = const Value.absent(),
+                required String worktreeA,
+                required String worktreeB,
+                required String branchA,
+                required String branchB,
+                Value<String?> reportA = const Value.absent(),
+                Value<String?> reportB = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> chosen = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecDuelsCompanion.insert(
+                id: id,
+                specId: specId,
+                steps: steps,
+                baseSha: baseSha,
+                sessionA: sessionA,
+                sessionB: sessionB,
+                worktreeA: worktreeA,
+                worktreeB: worktreeB,
+                branchA: branchA,
+                branchB: branchB,
+                reportA: reportA,
+                reportB: reportB,
+                state: state,
+                chosen: chosen,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecDuelsTable, SpecDuel>(table),
+                  $$SpecDuelsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecDuelsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecDuelsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecDuelsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecDuelsTable,
+      SpecDuel,
+      $$SpecDuelsTableFilterComposer,
+      $$SpecDuelsTableOrderingComposer,
+      $$SpecDuelsTableAnnotationComposer,
+      $$SpecDuelsTableCreateCompanionBuilder,
+      $$SpecDuelsTableUpdateCompanionBuilder,
+      (SpecDuel, $$SpecDuelsTableReferences),
+      SpecDuel,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12821,4 +20724,20 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$ProjectPlansTableTableManager get projectPlans =>
       $$ProjectPlansTableTableManager(_db, _db.projectPlans);
+  $$AutopilotStatesTableTableManager get autopilotStates =>
+      $$AutopilotStatesTableTableManager(_db, _db.autopilotStates);
+  $$ReviewDraftsTableTableManager get reviewDrafts =>
+      $$ReviewDraftsTableTableManager(_db, _db.reviewDrafts);
+  $$PendingNoticesTableTableManager get pendingNotices =>
+      $$PendingNoticesTableTableManager(_db, _db.pendingNotices);
+  $$ReviewCommentsTableTableManager get reviewComments =>
+      $$ReviewCommentsTableTableManager(_db, _db.reviewComments);
+  $$SpecCriteriaTableTableManager get specCriteria =>
+      $$SpecCriteriaTableTableManager(_db, _db.specCriteria);
+  $$SpecSuggestionsTableTableManager get specSuggestions =>
+      $$SpecSuggestionsTableTableManager(_db, _db.specSuggestions);
+  $$NotificationsTableTableManager get notifications =>
+      $$NotificationsTableTableManager(_db, _db.notifications);
+  $$SpecDuelsTableTableManager get specDuels =>
+      $$SpecDuelsTableTableManager(_db, _db.specDuels);
 }

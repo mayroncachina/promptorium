@@ -5,7 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/claude/claude_args.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
-import '../../prompt/prompt_actions.dart' show mentionedFiles;
+import '../../prompt/prompt_actions.dart'
+    show
+        ComposerTrigger,
+        filterFiles,
+        mentionedFiles,
+        triggerAt,
+        workspaceFilesProvider;
+import '../../prompt/widgets/prompt_composer.dart'
+    show ComposerSuggestions, insertSavedPrompt, replaceComposerRange;
 import '../session_manager.dart';
 import 'session_style.dart';
 
@@ -38,6 +46,7 @@ class SessionComposer extends ConsumerStatefulWidget {
     required this.sessionId,
     required this.permissionMode,
     this.canSend,
+    this.root,
   });
 
   final String sessionId;
@@ -45,6 +54,9 @@ class SessionComposer extends ConsumerStatefulWidget {
 
   /// Returns an error message when sending is not allowed right now.
   final String? Function()? canSend;
+
+  /// Worktree of the session: the `@` picker lists its files (UX v2, U4).
+  final String? root;
 
   @override
   ConsumerState<SessionComposer> createState() => _SessionComposerState();
@@ -84,7 +96,11 @@ String removeMention(String text, String path) => text
 
 class _SessionComposerState extends ConsumerState<SessionComposer> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
   bool _busy = false;
+  ComposerTrigger? _trigger;
+  int _highlight = 0;
+  int? _dismissedAt;
 
   @override
   void initState() {
@@ -94,8 +110,66 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
 
   void _onText() {
     final specs = attachedSpecs(_text.text);
-    if (!_sameList(specs, _chips)) setState(() => _chips = specs);
+    final cursor = _text.selection.isValid ? _text.selection.extentOffset : -1;
+    var t = triggerAt(_text.text, cursor);
+    if (t != null && t.start == _dismissedAt) t = null;
+    if (t?.start != _trigger?.start || t?.char != _trigger?.char) {
+      _highlight = 0;
+    }
+    if (!_sameList(specs, _chips) || t != null || _trigger != null) {
+      setState(() {
+        _chips = specs;
+        _trigger = t;
+      });
+    }
   }
+
+  List<String> _files() {
+    final root = widget.root;
+    final t = _trigger;
+    if (root == null || t == null || t.char != '@') return const [];
+    final all = ref.watch(workspaceFilesProvider(root)).value ?? const [];
+    return filterFiles(all, t.query);
+  }
+
+  List<SavedPrompt> _prompts() {
+    final t = _trigger;
+    if (t == null || t.char != '/') return const [];
+    final q = t.query.toLowerCase();
+    final all = ref.watch(savedPromptsProvider).value ?? const [];
+    return [
+      for (final p in all)
+        if (p.command.contains(q) || p.description.toLowerCase().contains(q)) p,
+    ];
+  }
+
+  void _pickFile(String path) {
+    final t = _trigger;
+    if (t == null) return;
+    final cursor = _text.selection.isValid
+        ? _text.selection.extentOffset
+        : t.start;
+    replaceComposerRange(_text, t.start, cursor, '@$path ');
+    setState(() => _trigger = null);
+    _focus.requestFocus();
+  }
+
+  Future<void> _pickPrompt(SavedPrompt p) async {
+    final t = _trigger;
+    setState(() => _trigger = null);
+    await insertSavedPrompt(ref, _text, p, trigger: t);
+    _focus.requestFocus();
+  }
+
+  void _move(int delta, int count) {
+    if (count == 0) return;
+    setState(() => _highlight = (_highlight + delta) % count);
+  }
+
+  void _dismiss() => setState(() {
+    _dismissedAt = _trigger?.start;
+    _trigger = null;
+  });
 
   List<String> _chips = const [];
 
@@ -120,6 +194,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
   void dispose() {
     _text.removeListener(_onText);
     _text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -157,6 +232,35 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
     final alive = ref.watch(
       sessionManagerProvider.select((s) => s.isAlive(widget.sessionId)),
     );
+    final files = _files();
+    final prompts = _prompts();
+    final trigger = _trigger;
+    final showing = trigger != null;
+    final count = trigger?.char == '@' ? files.length : prompts.length;
+    final hi = count == 0 ? 0 : _highlight.clamp(0, count - 1);
+    void choose() {
+      if (count == 0) return;
+      if (trigger!.char == '@') {
+        _pickFile(files[hi]);
+      } else {
+        _pickPrompt(prompts[hi]);
+      }
+    }
+
+    final bindings = <ShortcutActivator, VoidCallback>{
+      const SingleActivator(LogicalKeyboardKey.enter, control: true): _send,
+      if (showing) ...{
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+            _move(1, count),
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+            _move(-1, count),
+        const SingleActivator(LogicalKeyboardKey.escape): _dismiss,
+        if (count > 0) ...{
+          const SingleActivator(LogicalKeyboardKey.enter): choose,
+          const SingleActivator(LogicalKeyboardKey.tab): choose,
+        },
+      },
+    };
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: const BoxDecoration(
@@ -172,6 +276,16 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (showing)
+              ComposerSuggestions(
+                trigger: trigger,
+                files: files,
+                prompts: prompts,
+                highlight: hi,
+                hasWorkspace: widget.root != null,
+                onFile: _pickFile,
+                onPrompt: _pickPrompt,
+              ),
             if (_chips.isNotEmpty) ...[
               Wrap(
                 spacing: 6,
@@ -201,19 +315,18 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
               const SizedBox(height: 8),
             ],
             CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                    _send,
-              },
+              bindings: bindings,
               child: TextField(
                 key: const ValueKey('composer-field'),
                 controller: _text,
+                focusNode: _focus,
                 minLines: 2,
                 maxLines: 6,
                 style: const TextStyle(fontSize: 13, color: AppColors.text),
                 decoration: const InputDecoration.collapsed(
                   hintText:
-                      'Envie uma mensagem para a sessão…  (Ctrl+Enter envia)',
+                      'Envie uma mensagem para a sessão…  @ arquivo  '
+                      '/ prompt salvo  (Ctrl+Enter envia)',
                   hintStyle: TextStyle(
                     fontSize: 13,
                     color: AppColors.textMuted,
@@ -227,12 +340,21 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                 Flexible(
                   child: PopupMenuButton<ClaudePermissionMode>(
                     tooltip: alive
-                        ? 'Vale na próxima vez que a sessão for retomada'
+                        ? 'Muda já na sessão em andamento'
                         : 'Modo de permissão ao retomar',
                     color: AppColors.panel,
-                    onSelected: (m) => ref
-                        .read(sessionManagerProvider.notifier)
-                        .setPermissionMode(widget.sessionId, m),
+                    onSelected: (m) async {
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      try {
+                        await ref
+                            .read(sessionManagerProvider.notifier)
+                            .setPermissionMode(widget.sessionId, m);
+                      } on SessionException catch (e) {
+                        messenger?.showSnackBar(
+                          SnackBar(content: Text(e.message)),
+                        );
+                      }
+                    },
                     itemBuilder: (_) => [
                       for (final m in uiPermissionModes)
                         PopupMenuItem(

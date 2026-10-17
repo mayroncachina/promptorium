@@ -383,7 +383,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                       value: _mode,
                       items: [
                         for (final m in uiPermissionModes)
-                          (m, '${m.cliValue} — ${permissionLabel(m)}'),
+                          if (_worktree ||
+                              m != ClaudePermissionMode.skipPermissions)
+                            (m, '${m.cliValue} — ${permissionLabel(m)}'),
                       ],
                       onChanged: (v) => setState(() => _mode = v),
                     ),
@@ -407,7 +409,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     controlAffinity: ListTileControlAffinity.leading,
-                    onChanged: (v) => setState(() => _worktree = v ?? true),
+                    onChanged: (v) => setState(() {
+                      _worktree = v ?? true;
+                      // "Sem perguntar" only in a worktree (F12).
+                      if (!_worktree &&
+                          _mode == ClaudePermissionMode.skipPermissions) {
+                        _mode = ClaudePermissionMode.defaultMode;
+                      }
+                    }),
                     title: const Text(
                       'Criar worktree isolado (branch pr/<slug>)',
                       style: TextStyle(fontSize: 13),

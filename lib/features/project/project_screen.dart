@@ -5,12 +5,15 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../sessions/widgets/session_style.dart';
-import 'new_project_dialog.dart';
 import 'project_plan.dart';
 import 'project_planner.dart';
 import 'project_service.dart';
 import 'widgets/create_step.dart';
 import 'widgets/project_config_view.dart';
+import 'widgets/project_health_view.dart';
+import 'widgets/project_memory_view.dart';
+import 'widgets/spec_metrics_view.dart';
+import 'widgets/start_screen.dart';
 import 'widgets/project_widgets.dart';
 import 'widgets/roadmap_step.dart';
 import 'widgets/stack_step.dart';
@@ -25,21 +28,9 @@ class ProjectScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ws = ref.watch(activeWorkspaceProvider);
-    if (ws == null) {
-      return ColoredBox(
-        color: AppColors.background,
-        child: StepEmpty(
-          title: 'Nenhum workspace',
-          text:
-              'Crie um projeto novo ou selecione um workspace na barra de '
-              'título para planejá-lo.',
-          action: AmberButton(
-            key: const ValueKey('project-new'),
-            label: 'Novo projeto…',
-            onTap: () => showNewProjectDialog(context),
-          ),
-        ),
-      );
+    // "Começar" (UX v2, U7): no workspace, or asked for ("Novo projeto").
+    if (ws == null || ref.watch(startScreenProvider)) {
+      return StartScreen(canClose: ws != null);
     }
     final plan = ref.watch(projectPlanProvider(ws.id));
     return ColoredBox(
@@ -47,14 +38,42 @@ class ProjectScreen extends ConsumerWidget {
       child: switch (plan) {
         AsyncData(value: null)
             when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
-          ProjectConfigView(
-            key: ValueKey('project-config-${ws.id}'),
-            workspace: ws,
-            intro:
-                'Este repositório já tem código: não é preciso planejar do '
-                'zero. Ajuste como o Promptorium trabalha nele; as specs '
-                'você cria na tela Specs.',
-            onPlan: () => ref.read(projectPlannerProvider.notifier).start(ws),
+          DefaultTabController(
+            length: 4,
+            child: Column(
+              children: [
+                const TabBar(
+                  key: ValueKey('project-tabs'),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  tabs: [
+                    Tab(key: ValueKey('project-tab-health'), text: 'Saúde'),
+                    Tab(text: 'Configuração'),
+                    Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
+                    Tab(key: ValueKey('project-tab-metrics'), text: 'Métricas'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      ProjectHealthView(workspace: ws),
+                      ProjectConfigView(
+                        key: ValueKey('project-config-${ws.id}'),
+                        workspace: ws,
+                        intro:
+                            'Este repositório já tem código: não é preciso '
+                            'planejar do zero. Ajuste como o Promptorium '
+                            'trabalha nele; as specs você cria na tela Specs.',
+                        onPlan: () =>
+                            ref.read(projectPlannerProvider.notifier).start(ws),
+                      ),
+                      ProjectMemoryView(workspace: ws),
+                      SpecMetricsView(workspace: ws),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         AsyncData(value: null) => StepEmpty(
           title: 'Planejar ${ws.name}',
@@ -70,7 +89,7 @@ class ProjectScreen extends ConsumerWidget {
               SmallButton(
                 label: 'Novo projeto…',
                 height: 34,
-                onTap: () => showNewProjectDialog(context),
+                onTap: () => ref.read(startScreenProvider.notifier).set(true),
               ),
               AmberButton(
                 key: const ValueKey('project-start'),
@@ -301,6 +320,46 @@ class _Stepper extends ConsumerWidget {
                     icon: const Icon(Icons.tune, size: 16),
                     label: const Text(
                       'Configuração do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('project-memory-open'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 680,
+                          height: 620,
+                          child: ProjectMemoryView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.psychology_outlined, size: 16),
+                    label: const Text(
+                      'Memória do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('project-metrics-open'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 900,
+                          height: 620,
+                          child: SpecMetricsView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.insights_outlined, size: 16),
+                    label: const Text(
+                      'Métricas',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),

@@ -167,25 +167,60 @@ final _secretWord = RegExp(
   caseSensitive: false,
 );
 
-/// Masks the value after a secret-looking flag (`--api-key X`,
-/// `--token=X`) — tokens are sometimes passed as arguments.
+/// Flags whose value is never a secret (kept when showing a command).
+const _safeFlags = {
+  '-y',
+  '--yes',
+  '-p',
+  '--port',
+  '--host',
+  '--transport',
+  '--stdio',
+  '--verbose',
+  '--debug',
+  '--directory',
+  '--dir',
+  '--log-level',
+};
+
+/// Something that looks like a key / token: long, letters and digits, no
+/// path or package separators.
+bool _looksSecret(String a) =>
+    a.length >= 24 &&
+    !a.contains('/') &&
+    !a.contains('@') &&
+    RegExp(r'[A-Za-z]').hasMatch(a) &&
+    RegExp(r'\d').hasMatch(a);
+
+/// Arguments of a server command for display (F12): the value of every
+/// flag that is not known to be harmless is masked (`--x V`, `--x=V`), as
+/// is any positional argument that looks like a token; the command, the
+/// known flags and the package names stay readable.
 List<String> maskArgs(List<String> args) {
   final out = <String>[];
   var maskNext = false;
   for (final a in args) {
-    if (maskNext) {
+    if (maskNext && !a.startsWith('-')) {
       out.add(mcpMask);
       maskNext = false;
       continue;
     }
+    maskNext = false;
     final eq = a.indexOf('=');
-    if (a.startsWith('-') &&
-        eq > 0 &&
-        _secretWord.hasMatch(a.substring(0, eq))) {
-      out.add('${a.substring(0, eq)}=$mcpMask');
-    } else {
+    if (a.startsWith('-') && eq > 0) {
+      final flag = a.substring(0, eq);
+      out.add(_safeFlags.contains(flag) ? a : '$flag=$mcpMask');
+    } else if (a.startsWith('-')) {
       out.add(a);
-      maskNext = a.startsWith('-') && eq < 0 && _secretWord.hasMatch(a);
+      maskNext =
+          !_safeFlags.contains(a) &&
+          (a.startsWith('--') || _secretWord.hasMatch(a));
+    } else {
+      out.add(
+        _looksSecret(a) || _secretWord.hasMatch(a) && a.contains('=')
+            ? mcpMask
+            : a,
+      );
     }
   }
   return out;

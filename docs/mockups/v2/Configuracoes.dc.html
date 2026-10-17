@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Configurações</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button,input,select{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px; letter-spacing: 0.2px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer"><span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span></button>
+<a href="Paleta.dc.html" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; text-decoration: none; box-sizing: border-box"><span style="flex: 1">Buscar ou executar comando…</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span></a>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Início" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1.5 3h5L16 13h5"></path></svg><span style="position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #F2A541; color: #1A1206; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box">7</span></a>
+<a href="Projeto.dc.html" aria-label="Projeto" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg></a>
+<a href="Quadro.dc.html" aria-label="Quadro" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg></a>
+<a href="Sessoes.dc.html" aria-label="Sessões" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg></a>
+<a href="Main.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg></a>
+<a href="Main.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg></a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path></svg></a>
+<a href="Main.dc.html" aria-label="Ferramentas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-2.4z"></path></svg></a>
+<div style="flex: 1"></div>
+<a href="Configuracoes.dc.html" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></a>
+</nav>
+
+<aside aria-label="Seções das configurações" style="overflow-y: auto; flex: 0 1 240px; display: flex; flex-direction: column; gap: 4px; padding: 14px 10px; background: #14171D; border-right: 1px solid #252B35; min-width: 0; box-sizing: border-box">
+<label for="settings-search" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Buscar configuração</label>
+<input id="settings-search" type="text" placeholder="Buscar configuração…" style="height: 30px; margin: 0 4px 8px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; box-sizing: border-box">
+<sc-for list="{{sections}}" as="sec" hint-placeholder-count="2">
+<div style="padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6; display: flex; align-items: center; gap: 6px">{{sec.title}}<span style="font-weight: 400; text-transform: none; letter-spacing: 0; color: {{sec.subColor}}">{{sec.sub}}</span></div>
+<sc-for list="{{sec.items}}" as="it" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{it.on}}" style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 6px; border: none; background: {{it.bg}}; color: {{it.fg}}; font-size: 12px; text-align: left; cursor: pointer">
+<span style="flex: 1">{{it.label}}</span>
+<sc-if value="{{it.changed}}" hint-placeholder-val="{{false}}"><span style="width: 6px; height: 6px; border-radius: 50%; background: #F2A541" title="alterado do padrão"></span></sc-if>
+</button>
+</sc-for>
+</sc-for>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 560px; min-width: 0; overflow: auto; padding: 20px 28px; box-sizing: border-box">
+<div style="max-width: 820px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px">
+<div style="flex: 1 1 300px">
+<div style="font-size: 11px; color: #A0A8B6">Workspace promptorium · <span style="font-family: 'JetBrains Mono', monospace">.promptorium/config.yml</span></div>
+<h1 style="margin: 2px 0 0; font-size: 20px; font-weight: 600">Verificação e gate</h1>
+<p style="margin: 4px 0 0; color: #A0A8B6">Uma etapa só fica "feita" se passar por aqui. Valem para as próximas sessões; as que estão rodando continuam como começaram.</p>
+</div>
+<button type="button" style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Restaurar padrões da seção</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; background: #11201D; border: 1px solid #2F6B5E; font-size: 12px">
+<span style="font-weight: 500">Com estas opções, a etapa só passa se:</span>
+<span style="padding: 2px 8px; border-radius: 4px; background: #0E1014; color: #4FD1B5; font-family: 'JetBrains Mono', monospace; font-size: 11px">✓ flutter test</span>
+<span style="padding: 2px 8px; border-radius: 4px; background: #0E1014; color: #4FD1B5; font-family: 'JetBrains Mono', monospace; font-size: 11px">✓ flutter analyze</span>
+<span style="padding: 2px 8px; border-radius: 4px; background: #0E1014; color: #4FD1B5; font-family: 'JetBrains Mono', monospace; font-size: 11px">✓ commit</span>
+<span style="padding: 2px 8px; border-radius: 4px; background: #0E1014; color: #4FD1B5; font-family: 'JetBrains Mono', monospace; font-size: 11px">✓ árvore limpa</span>
+<span style="flex: 1"></span>
+<span style="color: #A0A8B6">1 reenvio automático antes de pedir você</span>
+</div>
+
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<div style="display: flex; align-items: flex-start; gap: 16px; padding: 12px 0; border-bottom: 1px solid #252B35">
+<div style="flex: 1 1 320px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 8px; font-weight: 500">{{r.label}}<sc-if value="{{r.changed}}" hint-placeholder-val="{{false}}"><span style="font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #2A2418; color: #F2A541; font-weight: 500">alterado</span></sc-if></div>
+<div style="font-size: 12px; color: #A0A8B6; margin-top: 2px">{{r.help}}</div>
+</div>
+<div style="flex: 0 1 300px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0">
+<sc-if value="{{r.isToggle}}" hint-placeholder-val="{{false}}">
+<label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #A0A8B6; cursor: pointer"><input type="checkbox" checked="{{r.checked}}"><span>{{r.toggleLabel}}</span></label>
+</sc-if>
+<sc-if value="{{r.isText}}" hint-placeholder-val="{{false}}">
+<input type="text" value="{{r.value}}" aria-label="{{r.label}}" style="width: 100%; max-width: 300px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px; box-sizing: border-box">
+</sc-if>
+<sc-if value="{{r.isSelect}}" hint-placeholder-val="{{false}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 5px 10px; border-radius: 6px; background: #0E1014; border: 1px solid #252B35">{{r.value}}</span>
+<span style="font-size: 11px; color: #A0A8B6; white-space: nowrap">{{r.unit}}</span>
+</sc-if>
+</div>
+</div>
+</sc-for>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 8px"><h2 style="margin: 0; font-size: 13px; font-weight: 600">Comandos bloqueados</h2><span style="font-size: 11px; color: #A0A8B6">hook PreToolUse em Bash · somam-se à lista embutida</span></div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap; font-family: 'JetBrains Mono', monospace; font-size: 11px">
+<span style="padding: 4px 8px; border-radius: 4px; background: #14171D; border: 1px solid #252B35; color: #A0A8B6">rm -rf / <span style="color: #7C8595">· embutido</span></span>
+<span style="padding: 4px 8px; border-radius: 4px; background: #14171D; border: 1px solid #252B35; color: #A0A8B6">git checkout na raiz <span style="color: #7C8595">· embutido</span></span>
+<span style="padding: 4px 8px; border-radius: 4px; background: #14171D; border: 1px solid #5C4520; color: #E7E9EE">git push --force* <button type="button" aria-label="Remover" style="border: none; background: none; color: #A0A8B6; cursor: pointer; font-family: inherit">×</button></span>
+<span style="padding: 4px 8px; border-radius: 4px; background: #14171D; border: 1px solid #5C4520; color: #E7E9EE">flutter clean <button type="button" aria-label="Remover" style="border: none; background: none; color: #A0A8B6; cursor: pointer; font-family: inherit">×</button></span>
+<input type="text" placeholder="adicionar padrão…" aria-label="Adicionar comando bloqueado" style="height: 26px; padding: 0 8px; background: #0E1014; border: 1px dashed #252B35; border-radius: 4px; color: #E7E9EE; font-family: inherit; font-size: 11px; width: 160px">
+</div>
+</section>
+
+<div style="display: flex; align-items: center; gap: 10px; padding-top: 6px">
+<button type="button" style="height: 32px; padding: 0 14px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Salvar</button>
+<span style="font-size: 12px; color: #A0A8B6">2 alterações · grava em <span style="font-family: 'JetBrains Mono', monospace">.promptorium/config.yml</span> (versionado)</span>
+<span style="flex: 1"></span>
+<a href="Projeto.dc.html" style="font-size: 12px">Ver efeito na aba Saúde do Projeto</a>
+</div>
+</div>
+</main>
+</div>
+
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/9</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">1 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">4/4</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Uso 5h</span>
+<span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span>
+<span>· reinicia em 2h13</span>
+</span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Semana</span>
+<span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span>
+</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const item = (label, on, changed) => ({ label, on: !!on, changed: !!changed, bg: on ? '#2A2418' : 'transparent', fg: on ? '#F2A541' : '#E7E9EE' });
+    const row = (r) => ({ isToggle: false, isText: false, isSelect: false, changed: false, checked: false, toggleLabel: '', value: '', unit: '', ...r });
+    return {
+      sections: [
+        { title: 'App', sub: '', subColor: '#A0A8B6', items: [
+          item('Geral e aparência'), item('Modelo e consumo', false, true), item('Sessões'), item('Atalhos'), item('Notificações'), item('Provedores (ACP)'), item('Banco e backups'), item('Atualizações')
+        ]},
+        { title: 'Workspace', sub: 'promptorium', subColor: '#F2A541', items: [
+          item('Specs e branch'), item('Verificação e gate', true, true), item('Automações (hooks)', false, true), item('Worktree'), item('Revisor automático'), item('Agentes e subagentes'), item('Autopilot e agenda')
+        ]}
+      ],
+      rows: [
+        row({ label: 'Comando de testes', help: 'Roda antes de cada commit de etapa. Detectado do pubspec; deixe vazio para desligar o gate.', isText: true, value: 'flutter test' }),
+        row({ label: 'Lint', help: 'Também alimenta a aba Problemas do Código ao salvar.', isText: true, value: 'flutter analyze' }),
+        row({ label: 'Build (opcional)', help: 'Só em etapas marcadas com build: true na spec.', isText: true, value: '' }),
+        row({ label: 'Reenvios automáticos', help: 'Quantas vezes o app devolve "os testes falharam" ao agente antes de pedir você.', isSelect: true, value: '1', unit: 'vez', changed: true }),
+        row({ label: 'Tempo limite por comando', help: 'Depois disso o comando é interrompido e conta como falha.', isSelect: true, value: '600', unit: 'segundos' }),
+        row({ label: 'Exigir commit da etapa', help: 'Sem commit o marcador ETAPA CONCLUÍDA é recusado.', isToggle: true, checked: true, toggleLabel: 'ligado' }),
+        row({ label: 'Exigir árvore limpa', help: 'Nada sem commit no worktree ao fim da etapa.', isToggle: true, checked: true, toggleLabel: 'ligado', changed: true }),
+        row({ label: 'Formatar ao editar', help: 'Hook PostToolUse em Edit/Write; {arquivo} é o arquivo editado.', isText: true, value: 'dart format {arquivo}' })
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

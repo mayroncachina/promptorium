@@ -33,7 +33,10 @@ class GlobalApprovals extends ConsumerWidget {
           _Item(a, sessionId: a.sessionId),
       for (final e in conversations.live.entries)
         if (!(section == AppSection.prompt && selectedConversation == e.key))
-          for (final a in e.value.approvals) _Item(a, conversationId: e.key),
+          for (final a in e.value.approvals)
+            // "Plano pronto" is answered on the Prompt screen (U4).
+            if (a.request.toolName != 'ExitPlanMode')
+              _Item(a, conversationId: e.key),
     ]..sort((a, b) => a.approval.receivedAt.compareTo(b.approval.receivedAt));
     if (items.isEmpty) return const SizedBox.shrink();
 

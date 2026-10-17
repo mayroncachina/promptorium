@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show max;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
@@ -8,8 +11,10 @@ import '../../core/git/diff_parser.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
+import '../project/project_memory.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
+import 'pr_babysitter.dart';
 import 'review_logic.dart';
 
 export 'review_logic.dart';
@@ -188,7 +193,7 @@ class ReviewService {
     final latestOfSpec = <int, Session>{};
     for (final s in sessions) {
       final id = s.specId;
-      if (id == null) continue;
+      if (id == null || s.duelId != null) continue;
       final cur = latestOfSpec[id];
       if (cur == null || s.startedAt.isAfter(cur.startedAt)) {
         latestOfSpec[id] = s;
@@ -196,6 +201,8 @@ class ReviewService {
     }
     final items = <ReviewItem>[];
     for (final s in sessions) {
+      // Best-of-N attempts are compared on the card, not reviewed.
+      if (s.duelId != null) continue;
       final spec = s.specId == null ? null : specById[s.specId];
       if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];
@@ -312,6 +319,9 @@ class ReviewService {
       await patch.writeAsString(rejectPatch(file, hunk));
       await _git(c.session.worktreePath)
           .git(['apply', '-R', '--whitespace=nowarn', patch.path]);
+      if (c.spec case final spec?) {
+        await _ref.read(specsRepoProvider).countRejectedHunk(spec.id);
+      }
     } on GitException catch (e) {
       throw ReviewException(
         'Não foi possível rejeitar o hunk (o arquivo mudou desde o diff?): '
@@ -346,6 +356,38 @@ class ReviewService {
     final task = c.task;
     if (task != null && task.status != TaskStatus.running) {
       await _ref.read(taskActionsProvider).move(task.id, TaskStatus.running);
+    }
+    if (c.spec case final spec?) {
+      // A round of the user's in the spec's review history.
+      final repo = _ref.read(reviewCommentsRepoProvider);
+      final rounds = (await repo.bySpec(spec.id)).map((x) => x.round);
+      final round = rounds.isEmpty ? 1 : rounds.reduce(max) + 1;
+      String? head;
+      try {
+        head = await _git(c.session.worktreePath).headSha();
+      } on GitException {
+        head = null;
+      }
+      await repo.insertAll([
+        ReviewCommentsCompanion.insert(
+          specId: spec.id,
+          round: round,
+          author: 'humano',
+          body: note.trim().isEmpty ? 'Ajustes pedidos.' : note.trim(),
+          verdict: const Value('corrigir'),
+          commitSha: Value(head),
+        ),
+        for (final x in comments)
+          ReviewCommentsCompanion.insert(
+            specId: spec.id,
+            round: round,
+            author: 'humano',
+            path: Value(x.path),
+            line: Value(x.line),
+            body: x.text,
+            commitSha: Value(head),
+          ),
+      ]);
     }
     return msg;
   }
@@ -390,6 +432,23 @@ class ReviewService {
         reason: 'A sessão não tem worktree próprio.',
       );
     }
+    try {
+      final auth = await _run('gh', [
+        'auth',
+        'status',
+      ], workingDirectory: c.workspace.path);
+      if (auth.exitCode != 0) {
+        return const PrAvailability(
+          available: false,
+          reason: 'gh não está autenticado: rode gh auth login no terminal.',
+        );
+      }
+    } on ProcessException {
+      return const PrAvailability(
+        available: false,
+        reason: 'GitHub CLI (gh) não encontrado no PATH.',
+      );
+    }
     return PrAvailability(
       available: true,
       remote: remotes.contains('origin') ? 'origin' : remotes.first,
@@ -408,7 +467,7 @@ class ReviewService {
   /// "Criar PR": commit pending changes, `git push -u <remote> <branch>`,
   /// `gh pr create` (title/body from the task, `--fill` without one).
   /// Returns the PR URL (also stored in `sessions.pr_url`).
-  Future<String> createPr(String sessionId) async {
+  Future<String> createPr(String sessionId, {bool draft = false}) async {
     final avail = await prAvailability(sessionId);
     if (!avail.available) {
       throw ReviewException(avail.reason ?? 'Indisponível.');
@@ -448,6 +507,7 @@ class ReviewService {
       s.branch,
       '--base',
       base,
+      if (draft) '--draft',
       if (task == null && spec == null)
         '--fill'
       else ...[
@@ -493,6 +553,228 @@ class ReviewService {
     return url;
   }
 
+  /// `gh pr view <url> --json …` of the session's PR (null = no PR).
+  Future<PrStatus?> prView(String sessionId) async {
+    final c = await _context(sessionId);
+    final url = c.session.prUrl;
+    if (url == null) return null;
+    final ProcessResult r;
+    try {
+      r = await _run('gh', [
+        'pr',
+        'view',
+        url,
+        '--json',
+        prViewFields,
+      ], workingDirectory: c.workspace.path);
+    } on ProcessException catch (e) {
+      throw ReviewException('Falha ao executar gh: ${e.message}');
+    }
+    if (r.exitCode != 0) {
+      throw ReviewException('gh pr view falhou: ${'${r.stderr}'.trim()}');
+    }
+    return parsePrView('${r.stdout}');
+  }
+
+  /// Pushes the session's branch when it has commits the PR does not.
+  Future<bool> pushIfAhead(String sessionId) async {
+    final c = await _context(sessionId);
+    if (c.session.prUrl == null || !hasWorktree(c.session, c.workspace)) {
+      return false;
+    }
+    final git = _git(c.session.worktreePath);
+    if (!await aheadOfUpstream(git)) return false;
+    await git.git(['push']);
+    return true;
+  }
+
+  /// "Mergear PR": `gh pr merge --squash|--rebase|--merge --delete-branch`;
+  /// then the session / spec close like a local merge (the worktree goes
+  /// away; the base branch gets the work with the next `git pull`).
+  Future<void> mergePr(String sessionId, PrMergeMethod method) async {
+    final c = await _context(sessionId);
+    final url = c.session.prUrl;
+    if (url == null) throw const ReviewException('A sessão não tem PR.');
+    final ProcessResult r;
+    try {
+      r = await _run('gh', [
+        'pr',
+        'merge',
+        url,
+        method.flag,
+        '--delete-branch',
+      ], workingDirectory: c.workspace.path);
+    } on ProcessException catch (e) {
+      throw ReviewException('Falha ao executar gh: ${e.message}');
+    }
+    // gh exits 1 when only the local branch could not be deleted (it is
+    // still checked out in the session's worktree): merged all the same.
+    if (r.exitCode != 0 && !await _prMerged(url, c.workspace.path)) {
+      throw ReviewException(
+        'gh pr merge falhou: ${'${r.stderr}'.trim().isEmpty ? '${r.stdout}'.trim() : '${r.stderr}'.trim()}',
+      );
+    }
+    final ws = c.workspace, s = c.session;
+    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+    try {
+      await _git(ws.path).removeWorktree(s.worktreePath, force: true);
+    } on GitException catch (e) {
+      debugPrint('worktree ${s.worktreePath} não removido — $e');
+    }
+    if (r.exitCode != 0) {
+      try {
+        await _git(ws.path).deleteBranch(s.branch, force: true);
+      } on GitException catch (e) {
+        debugPrint('branch ${s.branch} não removida — $e');
+      }
+    }
+    final sessions = _ref.read(sessionsRepoProvider);
+    await sessions.setMerged(s.id, url);
+    final spec = c.spec;
+    if (spec != null) {
+      await _closeSpec(ws, spec, url, await baseBranchOf(s, ws));
+    } else if (c.task != null) {
+      await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.done);
+    }
+  }
+
+  /// Whether `gh pr view` reports [url] as merged.
+  Future<bool> _prMerged(String url, String cwd) async {
+    try {
+      final r = await _run('gh', [
+        'pr',
+        'view',
+        url,
+        '--json',
+        'state',
+      ], workingDirectory: cwd);
+      if (r.exitCode != 0) return false;
+      final j = jsonDecode('${r.stdout}');
+      return j is Map && j['state'] == 'MERGED';
+    } on Object {
+      return false;
+    }
+  }
+
+  /// "Resolver conflito": the session gets the instructions to merge the
+  /// base into its branch and resolve.
+  Future<void> resolveConflict(String sessionId) async {
+    final c = await _context(sessionId);
+    final base = await baseBranchOf(c.session, c.workspace);
+    try {
+      await _ref
+          .read(sessionManagerProvider.notifier)
+          .send(sessionId, conflictMessage(base));
+    } on SessionException catch (e) {
+      throw ReviewException('$e');
+    }
+  }
+
+  /// Criteria of [spec] not checked yet (text). A criterion counts as
+  /// checked when it is `- [x]` in the file or marked in the Review.
+  Future<List<String>> pendingCriteria(Spec spec, Workspace ws) async {
+    final text = await _ref.read(specServiceProvider).read(ws, spec);
+    if (text == null) return const [];
+    final marks = {
+      for (final m
+          in await _ref.read(reviewCommentsRepoProvider).criteria(spec.id))
+        m.criterion: m.checked,
+    };
+    return [
+      for (final c in parseCriteria(text))
+        if (!(marks[c.text] ?? c.checkedInFile)) c.text,
+    ];
+  }
+
+  /// Commits of the spec's branch by step (`SPEC-003 R2: …` → R2), oldest
+  /// first: the "Etapa" filter of the Review.
+  Future<Map<String, List<GitLogEntry>>> stepCommits(String sessionId) async {
+    final c = await _context(sessionId);
+    final spec = c.spec;
+    if (spec == null || !hasWorktree(c.session, c.workspace)) return const {};
+    final git = _git(c.session.worktreePath);
+    try {
+      final base = await baseBranchOf(c.session, c.workspace);
+      final out = await git.git([
+        'log',
+        '--reverse',
+        '--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e',
+        '$base..HEAD',
+      ]);
+      return commitsByStep(spec.code, [
+        for (final rec in out.split('\x1e'))
+          if (rec.trim().isNotEmpty) _logEntry(rec.trim()),
+      ]);
+    } on GitException catch (e) {
+      debugPrint('review $sessionId: commits por etapa — $e');
+      return const {};
+    }
+  }
+
+  static GitLogEntry _logEntry(String rec) {
+    final f = rec.split('\x1f');
+    return GitLogEntry(
+      sha: f[0],
+      shortSha: f.length > 1 ? f[1] : '',
+      author: f.length > 2 ? f[2] : '',
+      date: DateTime.tryParse(f.length > 3 ? f[3] : '') ?? DateTime(1970),
+      subject: f.length > 4 ? f[4] : '',
+    );
+  }
+
+  /// Diff of the commits of one step (each commit's own diff, in order).
+  Future<ReviewDetail> loadStep(String sessionId, String step) async {
+    final c = await _context(sessionId);
+    final commits = (await stepCommits(sessionId))[step] ?? const [];
+    final git = _git(c.session.worktreePath);
+    final files = <DiffFile>[];
+    try {
+      for (final commit in commits) {
+        files.addAll(
+          DiffParser.parse(
+            await git.git([
+              'show',
+              '--format=',
+              '--no-color',
+              '--no-ext-diff',
+              '--unified=3',
+              '-M',
+              commit.sha,
+            ]),
+          ),
+        );
+      }
+    } on GitException catch (e) {
+      return ReviewDetail(session: c.session, task: c.task, error: '$e');
+    }
+    return ReviewDetail(
+      session: c.session,
+      task: c.task,
+      baseBranch: await baseBranchOf(c.session, c.workspace),
+      files: files,
+      commitsAhead: commits.length,
+      error: commits.isEmpty ? 'Nenhum commit de $step nesta branch.' : null,
+    );
+  }
+
+  /// `gh pr checks` of the session's PR: `(nome, estado)` per check; empty
+  /// without a PR or `gh`.
+  Future<List<(String, String)>> prChecks(String sessionId) async {
+    final c = await _context(sessionId);
+    final url = c.session.prUrl;
+    if (url == null) return const [];
+    try {
+      final r = await _run('gh', [
+        'pr',
+        'checks',
+        url,
+      ], workingDirectory: c.workspace.path);
+      return parsePrChecks('${r.stdout}');
+    } on ProcessException {
+      return const [];
+    }
+  }
+
   /// "Fazer merge" (in the **workspace root**):
   /// 1. the root must be on the base branch with no tracked changes
   ///    (untracked files do not block);
@@ -506,11 +788,29 @@ class ReviewService {
   Future<MergeResult> merge(
     String sessionId, {
     bool deleteBranch = true,
+    String? override,
   }) async {
     final c = await _context(sessionId);
     final s = c.session, ws = c.workspace, task = c.task, spec = c.spec;
     if (s.status == SessionStatus.merged) {
       throw const ReviewException('O merge desta sessão já foi feito.');
+    }
+    if (spec != null) {
+      final open = await pendingCriteria(spec, ws);
+      if (open.isNotEmpty) {
+        if (override == null || override.trim().isEmpty) {
+          throw ReviewException(
+            'Critérios de aceite sem marcar: ${open.join('; ')}. Marque-os '
+            'ou use "Mergear mesmo assim" com um motivo.',
+          );
+        }
+        await _ref
+            .read(specsRepoProvider)
+            .update(
+              spec.id,
+              SpecsCompanion(mergeOverride: Value(override.trim())),
+            );
+      }
     }
     if (!hasWorktree(s, ws)) {
       throw const ReviewException(
@@ -561,7 +861,10 @@ class ReviewService {
           '(git switch $base) e tente de novo.',
         );
       }
-      final dirty = (await main.status()).where((e) => !e.isUntracked).toList();
+      // The project memory is written by the app while specs run (F8).
+      final dirty = (await main.status())
+          .where((e) => !e.isUntracked && e.path != ProjectMemory.filePath)
+          .toList();
       if (dirty.isNotEmpty) {
         throw ReviewException(
           'O repositório principal tem alterações não commitadas '
@@ -673,6 +976,11 @@ class ReviewService {
     if (spec != null) {
       warnings.addAll(await _closeSpec(ws, spec, commit, base));
     }
+    try {
+      await _ref.read(durableStateRepoProvider).setReviewDraft(sessionId, null);
+    } catch (e) {
+      debugPrint('rascunho do review $sessionId não removido — $e');
+    }
     return MergeResult(commit: commit, warnings: warnings);
   }
 
@@ -706,6 +1014,12 @@ class ReviewService {
     }
     await repo.setStage(spec.id, SpecStage.done);
     await repo.setWorktree(spec.id);
+    try {
+      // Checkpoints of the steps ("Voltar ao início da etapa").
+      await _git(ws.path).deleteRefs('refs/promptorium/${spec.code}/');
+    } on GitException catch (e) {
+      warnings.add('checkpoints das etapas não removidos: $e');
+    }
     try {
       final service = _ref.read(specServiceProvider);
       final text = await service.read(ws, spec);
@@ -825,6 +1139,19 @@ final prAvailabilityProvider = FutureProvider.family<PrAvailability, String>(
   (ref, sessionId) => ref.read(reviewServiceProvider).prAvailability(sessionId),
 );
 
+/// Step ("R2") the Review opens filtered on, set by "Ver diff da etapa" of
+/// the Specs screen and consumed once (UX v2, U5).
+class ReviewInitialStep extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? step) => state = step;
+}
+
+final reviewInitialStepProvider = NotifierProvider<ReviewInitialStep, String?>(
+  ReviewInitialStep.new,
+);
+
 /// Session shown in the Review screen (null = first of the queue).
 class SelectedReview extends Notifier<String?> {
   @override
@@ -837,7 +1164,8 @@ final selectedReviewProvider = NotifierProvider<SelectedReview, String?>(
   SelectedReview.new,
 );
 
-/// Pending comments and accepted hunks of one session (not persisted).
+/// Pending comments and accepted hunks of one session, kept in
+/// `review_drafts` (schema v9) so closing the app does not lose them.
 @immutable
 class ReviewDraft {
   const ReviewDraft({this.comments = const [], this.accepted = const {}});
@@ -846,6 +1174,30 @@ class ReviewDraft {
 
   /// [hunkKey]s marked "Aceitar hunk".
   final Set<String> accepted;
+
+  bool get isEmpty => comments.isEmpty && accepted.isEmpty;
+
+  String encode() => jsonEncode({
+    'comentarios': [for (final c in comments) c.toJson()],
+    'aceitos': accepted.toList(),
+  });
+
+  static ReviewDraft decode(String? text) {
+    if (text == null) return const ReviewDraft();
+    try {
+      final j = jsonDecode(text);
+      if (j is! Map) return const ReviewDraft();
+      return ReviewDraft(
+        comments: [
+          for (final c in (j['comentarios'] as List? ?? const []))
+            ?ReviewComment.fromJson(c),
+        ],
+        accepted: {for (final a in (j['aceitos'] as List? ?? const [])) '$a'},
+      );
+    } on FormatException {
+      return const ReviewDraft();
+    }
+  }
 }
 
 class ReviewDraftNotifier extends Notifier<ReviewDraft> {
@@ -853,29 +1205,70 @@ class ReviewDraftNotifier extends Notifier<ReviewDraft> {
 
   final String sessionId;
 
+  /// A change was made before the stored draft was read: it wins.
+  bool _touched = false;
+  Future<void> _writes = Future.value();
+
   @override
-  ReviewDraft build() => const ReviewDraft();
+  ReviewDraft build() {
+    unawaited(Future<void>.microtask(_restore));
+    return const ReviewDraft();
+  }
 
-  void addComment(ReviewComment c) => state = ReviewDraft(
-    comments: [...state.comments, c],
-    accepted: state.accepted,
+  Future<void> _restore() async {
+    try {
+      final text = await ref
+          .read(durableStateRepoProvider)
+          .reviewDraft(sessionId);
+      if (!ref.mounted || _touched || text == null) return;
+      state = ReviewDraft.decode(text);
+    } catch (e) {
+      debugPrint('rascunho do review $sessionId não lido — $e');
+    }
+  }
+
+  void _set(ReviewDraft d) {
+    _touched = true;
+    state = d;
+    final repo = ref.read(durableStateRepoProvider);
+    _writes = _writes.then(
+      (_) => repo
+          .setReviewDraft(sessionId, d.isEmpty ? null : d.encode())
+          .catchError((Object e) {
+            debugPrint('rascunho do review $sessionId não gravado — $e');
+          }),
+    );
+  }
+
+  /// Completes when the stored draft matches the state (tests).
+  Future<void> get saved => _writes;
+
+  void addComment(ReviewComment c) => _set(
+    ReviewDraft(comments: [...state.comments, c], accepted: state.accepted),
   );
 
-  void removeComment(ReviewComment c) => state = ReviewDraft(
-    comments: [
-      for (final x in state.comments)
-        if (!identical(x, c)) x,
-    ],
-    accepted: state.accepted,
+  void removeComment(ReviewComment c) => _set(
+    ReviewDraft(
+      comments: [
+        for (final x in state.comments)
+          if (!identical(x, c)) x,
+      ],
+      accepted: state.accepted,
+    ),
   );
 
-  void clearComments() => state = ReviewDraft(accepted: state.accepted);
+  void clearComments() => _set(ReviewDraft(accepted: state.accepted));
 
-  void toggleAccepted(String key) => state = ReviewDraft(
-    comments: state.comments,
-    accepted: state.accepted.contains(key)
-        ? ({...state.accepted}..remove(key))
-        : {...state.accepted, key},
+  /// Merged / rejected: nothing to keep.
+  void clear() => _set(const ReviewDraft());
+
+  void toggleAccepted(String key) => _set(
+    ReviewDraft(
+      comments: state.comments,
+      accepted: state.accepted.contains(key)
+          ? ({...state.accepted}..remove(key))
+          : {...state.accepted, key},
+    ),
   );
 }
 

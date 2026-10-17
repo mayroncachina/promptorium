@@ -76,6 +76,15 @@ class AssistantTextItem extends TimelineItem {
   bool live;
 }
 
+/// Claude's reasoning (`thinking` block / `thinking_delta`), shown
+/// collapsed (UX v2, U3; DT-20). [live] while it streams.
+class ThinkingItem extends TimelineItem {
+  ThinkingItem(this.text, {this.live = false, super.at, super.parentToolUseId});
+
+  String text;
+  bool live;
+}
+
 /// A `tool_use` block and (once it arrives) its `tool_result`.
 class ToolItem extends TimelineItem {
   ToolItem({
@@ -95,7 +104,21 @@ class ToolItem extends TimelineItem {
   /// Subagent messages (`parent_tool_use_id == id`).
   final List<TimelineItem> children = [];
 
+  /// When the result arrived (subagent duration).
+  DateTime? doneAt;
+
   bool get done => result != null;
+
+  /// Tool calls made by the subagent (nested, any depth).
+  int get childToolCount => _countTools(children);
+
+  static int _countTools(List<TimelineItem> items) {
+    var n = 0;
+    for (final i in items) {
+      if (i is ToolItem) n += 1 + _countTools(i.children);
+    }
+    return n;
+  }
 
   /// Task / Agent tool: runs a subagent.
   bool get isSubagent => isSubagentTool(name);
@@ -123,6 +146,7 @@ class Timeline {
   final List<TimelineItem> items = [];
   final Map<String, ToolItem> _tools = {};
   final Map<String?, AssistantTextItem> _live = {};
+  final Map<String?, ThinkingItem> _liveThinking = {};
   bool _sawInit = false;
 
   /// Model reported by the first `system/init`.
@@ -163,7 +187,22 @@ class Timeline {
           final mode = e.permissionMode.isEmpty ? '' : ' · ${e.permissionMode}';
           items.add(NoticeItem('Sessão iniciada · ${e.model}$mode', at: now));
         }
+      case StreamDelta(kind: StreamDeltaKind.thinking):
+        final live = _liveThinking[e.parentToolUseId];
+        if (live != null) {
+          live.text += e.text;
+        } else {
+          final item = ThinkingItem(
+            e.text,
+            live: true,
+            at: now,
+            parentToolUseId: e.parentToolUseId,
+          );
+          _liveThinking[e.parentToolUseId] = item;
+          _target(e.parentToolUseId).add(item);
+        }
       case StreamDelta(kind: StreamDeltaKind.text):
+        _finishThinking(e.parentToolUseId);
         final live = _live[e.parentToolUseId];
         if (live != null) {
           live.text += e.text;
@@ -197,6 +236,7 @@ class Timeline {
               }
             case ToolUseBlock():
               _finishLive(e.parentToolUseId);
+              _finishThinking(e.parentToolUseId);
               final t = ToolItem(
                 id: b.id,
                 name: b.name,
@@ -206,7 +246,22 @@ class Timeline {
               );
               _tools[b.id] = t;
               _target(e.parentToolUseId).add(t);
-            case ThinkingBlock() || OtherBlock():
+            case ThinkingBlock(:final thinking):
+              final live = _liveThinking.remove(e.parentToolUseId);
+              if (live != null) {
+                live
+                  ..text = thinking.isEmpty ? live.text : thinking
+                  ..live = false;
+              } else if (thinking.trim().isNotEmpty) {
+                _target(e.parentToolUseId).add(
+                  ThinkingItem(
+                    thinking,
+                    at: now,
+                    parentToolUseId: e.parentToolUseId,
+                  ),
+                );
+              }
+            case OtherBlock():
               break;
           }
         }
@@ -215,12 +270,14 @@ class Timeline {
         if (t != null) {
           t
             ..result = e.content
-            ..isError = e.isError;
+            ..isError = e.isError
+            ..doneAt = now;
         } else if (e.isError) {
           items.add(NoticeItem(e.content, level: NoticeLevel.error, at: now));
         }
       case Result():
         _live.keys.toList().forEach(_finishLive);
+        _liveThinking.keys.toList().forEach(_finishThinking);
         items.add(_resultNotice(e, now));
       case SystemOther(subtype: 'api_retry'):
         items.add(NoticeItem('Falha na API; tentando novamente…', at: now));
@@ -233,6 +290,11 @@ class Timeline {
 
   void _finishLive(String? parent) {
     final live = _live.remove(parent);
+    if (live != null) live.live = false;
+  }
+
+  void _finishThinking(String? parent) {
+    final live = _liveThinking.remove(parent);
     if (live != null) live.live = false;
   }
 

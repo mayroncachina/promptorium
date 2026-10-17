@@ -1,0 +1,45 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-17T13:40:00Z"},
+  "title": "Promptorium UX v2",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "1 · Início (Para você)", "expand": "fill"},
+    "Sessoes.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "2 · Sessões lado a lado + timeline", "expand": "fill"},
+    "Paleta.dc.html": {"x": 0, "y": 1220, "w": 1440, "h": 900, "title": "3 · Paleta Ctrl+K com ações", "expand": "fill"},
+    "Atalhos.dc.html": {"x": 1520, "y": 1220, "w": 1440, "h": 900, "title": "4 · Folha de atalhos Ctrl+/", "expand": "fill"},
+    "Prompt.dc.html": {"x": 3040, "y": 1220, "w": 1440, "h": 900, "title": "5 · Prompt: Planejar → Implementar", "expand": "fill"},
+    "Specs.dc.html": {"x": 0, "y": 2440, "w": 1440, "h": 900, "title": "6 · Spec com rastreabilidade", "expand": "fill"},
+    "Projeto.dc.html": {"x": 1520, "y": 2440, "w": 1440, "h": 900, "title": "7 · Projeto: saúde e memória", "expand": "fill"},
+    "NovoProjeto.dc.html": {"x": 0, "y": 3660, "w": 1440, "h": 900, "title": "8 · Novo projeto: Começar", "expand": "fill"},
+    "Planejar.dc.html": {"x": 1520, "y": 3660, "w": 1440, "h": 900, "title": "9 · Novo projeto: Proposta e criar", "expand": "fill"},
+    "Quadro.dc.html": {"x": 0, "y": 4880, "w": 1440, "h": 900, "title": "10 · Quadro com painel lateral", "expand": "fill"},
+    "Configuracoes.dc.html": {"x": 1520, "y": 4880, "w": 1440, "h": 900, "title": "11 · Configurações por seção", "expand": "fill"}
+  },
+  "order": [
+    "Main.dc.html",
+    "Sessoes.dc.html",
+    "Paleta.dc.html",
+    "Atalhos.dc.html",
+    "Prompt.dc.html",
+    "Specs.dc.html",
+    "Projeto.dc.html",
+    "NovoProjeto.dc.html",
+    "Planejar.dc.html",
+    "Quadro.dc.html",
+    "Configuracoes.dc.html"
+  ],
+  "notes": {
+    "t1": {"x": 0, "y": -250, "text": "Caixa de entrada e sessões", "kind": "title1", "maxW": 2960},
+    "t2": {"x": 0, "y": 970, "text": "Teclado e Prompt", "kind": "title1", "maxW": 4480},
+    "t3": {"x": 0, "y": 2190, "text": "Spec e Projeto", "kind": "title1", "maxW": 2960},
+    "t4": {"x": 0, "y": 3410, "text": "Novo projeto (fluxo refeito)", "kind": "title1", "maxW": 2960},
+    "t5": {"x": 0, "y": 4630, "text": "Quadro e Configurações", "kind": "title1", "maxW": 2960},
+    "n1": {"x": 3040, "y": 0, "w": 360, "text": "Barra lateral nova: Início · Projeto · Specs · Quadro · Sessões · Review · Código · Prompt · Ferramentas (Ctrl+1…9). Os contadores laranja na barra são o que espera decisão humana.", "fill": "orange"},
+    "n2": {"x": 3040, "y": 2440, "w": 360, "text": "Specs: clicar em R2 abre o painel de rastreabilidade (critérios, design, commits, diff, sessão). Projeto: a aba Saúde substitui o stepper quando o repositório já tem código.", "fill": "blue"},
+    "n3": {"x": 3040, "y": 3660, "w": 360, "text": "Novo projeto em 3 telas no máximo: Começar (sem modal) → Proposta (uma ideia, o planner gera visão, stack e roadmap de uma vez; refinar é opcional) → Criar. Repositório existente ganha 'Analisar repositório'.", "fill": "green"},
+    "n4": {"x": 3040, "y": 4880, "w": 360, "text": "Quadro: clicar no cartão abre painel lateral (etapas, sessões, gate) em vez de diálogo; cartões que pedem atenção sobem; Backlog separa 'pronta' de 'bloqueada' por onda; limite de paralelo visível. Configurações: seções à esquerda, busca, escopo App × Workspace na mesma tela (a config do projeto sai do diálogo do Projeto).", "fill": "purple"}
+  },
+  "designSystems": []
+}

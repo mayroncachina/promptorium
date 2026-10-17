@@ -82,18 +82,19 @@ void main() {
       expect(PromptMode.fromName('refine'), PromptMode.refine);
     });
 
-    test('registry: Claude Code active, Codex / Gemini CLI coming soon', () {
+    test('registry: Claude Code, the ACP agents (default Gemini CLI, F18) '
+        'and Codex coming soon', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
       final all = c.read(agentProvidersProvider);
       expect(all.map((p) => p.displayName), [
         'Claude Code',
-        'Codex',
         'Gemini CLI',
+        'Codex',
       ]);
-      expect(all.map((p) => p.enabled), [true, false, false]);
+      expect(all.map((p) => p.enabled), [true, true, false]);
       expect(
-        () => all[1].start(
+        () => all[2].start(
           const AgentStartOptions(workingDirectory: '/', mode: PromptMode.ask),
         ),
         throwsA(isA<AgentUnavailable>()),

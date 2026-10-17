@@ -1,32 +1,46 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
+import '../../features/home/home_inbox.dart';
+import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
+import '../../features/mcp/mcp_state.dart' show mcpListProvider;
 import '../../features/mcp/widgets/add_server_dialog.dart';
-import '../../features/project/new_project_dialog.dart';
+import '../../features/project/widgets/start_screen.dart'
+    show startScreenProvider;
 import '../../features/project/project_screen.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
-import '../../features/sessions/sessions_screen.dart';
+import '../../features/sessions/session_manager.dart';
+import '../../features/sessions/sessions_screen.dart'
+    show SessionsScreen, toggleSplit;
 import '../../features/settings/settings_screen.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
+import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
+import '../../core/update/update_check.dart';
+import '../../data/providers.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
 import 'editor_zoom.dart';
 import 'global_approvals.dart';
 import 'navigation.dart';
 import 'shell_intents.dart';
+import 'shortcut_sheet.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
 import 'title_bar.dart';
+import 'tools_tabs.dart';
 import 'workspace_picker.dart';
 
 /// IDE shell (docs/mockups/Main.dc.html): title bar, sidebar, content, footer.
@@ -43,16 +57,146 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _paletteOpen = false;
 
-  void _go(AppSection s) => ref.read(navigationProvider.notifier).go(s);
+  /// Last tab of "Ferramentas" (Ctrl+8 / the sidebar go back to it).
+  AppSection _lastTool = AppSection.agents;
+
+  void _go(AppSection s) {
+    if (s.isTool) _lastTool = s;
+    ref.read(navigationProvider.notifier).go(s);
+  }
+
+  /// Sidebar / Ctrl+8: "Ferramentas" opens its last tab.
+  void _goNav(AppSection s) {
+    if (s == AppSection.agents) {
+      final current = ref.read(navigationProvider);
+      if (current.isTool) return;
+      return _go(_lastTool);
+    }
+    _go(s);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _shortcutsNotice();
+      _warmMcpList();
+      _checkUpdate();
+    });
+  }
+
+  /// A newer release on GitHub becomes a notification (F18; once a day).
+  void _checkUpdate() {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+    unawaited(
+      () async {
+        final u = await ref.read(updateCheckerProvider.notifier).check();
+        if (u == null || !mounted) return;
+        await ref
+            .read(notificationsRepoProvider)
+            .add(
+              title: 'Versão ${u.version} disponível',
+              body: u.url,
+              section: AppSection.settings.name,
+            );
+      }().catchError((Object e) => debugPrint('atualização: $e')),
+    );
+  }
+
+  /// `claude mcp list` health-checks every server (slow): it runs once in
+  /// the background after the splash and the MCP screen opens with the
+  /// result (cached per workspace for the app session; F12).
+  void _warmMcpList() {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 3), () async {
+        if (!mounted) return;
+        final cwd = ref.read(activeWorkspaceProvider)?.path;
+        await ref.read(mcpListProvider(cwd).future);
+      }).catchError((Object e) {
+        debugPrint('mcp list em segundo plano: $e');
+      }),
+    );
+  }
+
+  /// Once, after the menus were reordered (F10): the old digits moved.
+  void _shortcutsNotice() {
+    if (!mounted) return;
+    final settings = ref.read(appSettingsProvider.notifier);
+    final seen = settings.getInt(AppSettingKeys.shortcutsVersion) ?? 0;
+    if (seen >= AppSection.shortcutsVersion) return;
+    settings.set(
+      AppSettingKeys.shortcutsVersion,
+      '${AppSection.shortcutsVersion}',
+    );
+    // A first run has nothing to unlearn.
+    if (settings.get(AppSettingKeys.lastSection) == null) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        key: const ValueKey('shortcuts-changed'),
+        duration: const Duration(seconds: 10),
+        content: Text(
+          'Os atalhos mudaram com a nova ordem dos menus: '
+          '${[for (final s in AppSection.shortcutItems) '${s.shortcutLabel} ${s.navLabel}'].join(' · ')}.',
+        ),
+      ),
+    );
+  }
 
   Future<void> _openPalette() async {
     if (_paletteOpen) return;
     _paletteOpen = true;
     try {
-      await showCommandPalette(context, onNavigate: _go);
+      await showCommandPalette(context, ref: ref, onNavigate: _go);
     } finally {
       _paletteOpen = false;
     }
+  }
+
+  bool _sheetOpen = false;
+
+  Future<void> _openShortcuts() async {
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    try {
+      await showShortcutSheet(context);
+    } finally {
+      _sheetOpen = false;
+    }
+  }
+
+  /// Ctrl+Shift+A / D: the oldest approval of any session or conversation.
+  Future<void> _answerOldest({required bool approve}) async {
+    final items = [
+      for (final g in ref.read(inboxProvider))
+        if (g.kind == InboxKind.approval) ...g.items,
+    ]..sort((a, b) => a.at.compareTo(b.at));
+    final it = items.firstOrNull;
+    final a = it?.approval;
+    if (it == null || a == null) return;
+    final conv = it.conversationId;
+    if (conv != null) {
+      final m = ref.read(conversationManagerProvider.notifier);
+      await (approve
+          ? m.approve(conv, a.requestId)
+          : m.deny(conv, a.requestId));
+    } else {
+      final m = ref.read(sessionManagerProvider.notifier);
+      await (approve
+          ? m.approve(a.sessionId, a.requestId)
+          : m.deny(a.sessionId, a.requestId));
+    }
+  }
+
+  /// Ctrl+\: goes to Sessões and opens / closes the second pane.
+  void _toggleSplit() {
+    _go(AppSection.sessions);
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null) return;
+    final sessions = ref.read(sessionsProvider(ws.id)).value ?? const [];
+    if (sessions.isEmpty) return;
+    final selected = ref.read(selectedSessionProvider) ?? sessions.first.id;
+    toggleSplit(ref, sessions, selected);
   }
 
   void _zoom(ZoomOp op) {
@@ -97,7 +241,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     } else if (section == AppSection.mcp) {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
-      showNewProjectDialog(context);
+      ref.read(startScreenProvider.notifier).set(true);
     } else if (section == AppSection.skills) {
       showNewSkillDialog(context);
     } else {
@@ -116,7 +260,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       );
   }
 
-  static Widget _screenFor(AppSection s) => switch (s) {
+  Widget _screenFor(AppSection s) => s.isTool
+      ? ToolsTabs(active: s, onSelect: _go, child: _screen(s))
+      : _screen(s);
+
+  static Widget _screen(AppSection s) => switch (s) {
+    AppSection.home => const HomeScreen(),
     AppSection.project => const ProjectScreen(),
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),
@@ -133,6 +282,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final section = ref.watch(navigationProvider);
+    // Watches the workspace's specs / agents / skills / config (F11).
+    ref.watch(workspaceWatcherProvider);
     return Shortcuts(
       shortcuts: shellShortcuts,
       child: Actions(
@@ -155,9 +306,28 @@ class _AppShellState extends ConsumerState<AppShell> {
               return null;
             },
           ),
+          ToggleSplitIntent: CallbackAction<ToggleSplitIntent>(
+            onInvoke: (_) {
+              _toggleSplit();
+              return null;
+            },
+          ),
+          OpenShortcutsIntent: CallbackAction<OpenShortcutsIntent>(
+            onInvoke: (_) {
+              _openShortcuts();
+              return null;
+            },
+          ),
+          AnswerOldestApprovalIntent:
+              CallbackAction<AnswerOldestApprovalIntent>(
+                onInvoke: (i) {
+                  _answerOldest(approve: i.approve);
+                  return null;
+                },
+              ),
           GoToSectionIntent: CallbackAction<GoToSectionIntent>(
             onInvoke: (i) {
-              _go(i.section);
+              _goNav(i.section);
               return null;
             },
           ),
@@ -178,7 +348,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SideBar(active: section, onSelect: _go),
+                      SideBar(active: section, onSelect: _goNav),
                       Expanded(
                         child: Stack(
                           children: [

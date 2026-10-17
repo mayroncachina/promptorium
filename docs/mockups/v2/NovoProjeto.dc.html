@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Novo projeto, começar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px; letter-spacing: 0.2px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #F2A541; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer"><span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">Novo…</span></button>
+<a href="Paleta.dc.html" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; text-decoration: none; box-sizing: border-box"><span style="flex: 1">Buscar ou executar comando…</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span></a>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Início" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1.5 3h5L16 13h5"></path></svg></a>
+<a href="Projeto.dc.html" aria-label="Projeto" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #4A5260"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg></a>
+<a href="Paleta.dc.html" aria-label="Quadro" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #4A5260"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg></a>
+<a href="Sessoes.dc.html" aria-label="Sessões" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #4A5260"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg></a>
+<a href="Main.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #4A5260"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg></a>
+<a href="Main.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #4A5260"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg></a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path></svg></a>
+<a href="Main.dc.html" aria-label="Ferramentas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-2.4z"></path></svg></a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+</nav>
+
+<main style="min-height: 0; flex: 999 1 560px; min-width: 0; overflow: auto; padding: 28px 32px; box-sizing: border-box">
+<div style="max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px">
+<div>
+<h1 style="margin: 0; font-size: 22px; font-weight: 600">Começar</h1>
+<p style="margin: 4px 0 0; color: #A0A8B6">Escolha de onde vem o código. Planejar com o planner é opcional e pode ser feito depois, na tela Projeto.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<button type="button" aria-pressed="false" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border-radius: 10px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="display: flex; align-items: center; gap: 8px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8EA4C8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>Abrir pasta existente</span>
+<span style="font-size: 12px; color: #A0A8B6">Repositório que já tem código. O Promptorium analisa a stack, detecta testes e lint e sugere o CLAUDE.md.</span>
+</button>
+<button type="button" aria-pressed="true" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border-radius: 10px; border: 1px solid #F2A541; background: #1A1710; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="display: flex; align-items: center; gap: 8px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Criar projeto novo</span>
+<span style="font-size: 12px; color: #A0A8B6">Pasta nova com git init. Depois, uma ideia em um parágrafo e o planner propõe visão, stack e roadmap de uma vez.</span>
+</button>
+<button type="button" aria-pressed="false" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border-radius: 10px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; text-align: left; cursor: pointer">
+<span style="display: flex; align-items: center; gap: 8px; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C79BF2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 17l-4-4 4-4M16 7l4 4-4 4M14 4l-4 16"></path></svg>Clonar de uma URL</span>
+<span style="font-size: 12px; color: #A0A8B6">git clone para uma pasta local e segue como pasta existente.</span>
+</button>
+</div>
+
+<section aria-label="Criar projeto novo" style="display: flex; flex-wrap: wrap; gap: 22px; padding: 18px 20px; border-radius: 10px; background: #14171D; border: 1px solid #252B35">
+<form style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px" action="Planejar.dc.html">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="np-name" style="font-size: 12px; color: #A0A8B6">Nome da pasta</label>
+<input id="np-name" type="text" value="agenda-dança" style="height: 32px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px; box-sizing: border-box">
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="np-parent" style="font-size: 12px; color: #A0A8B6">Criar dentro de</label>
+<div style="display: flex; gap: 6px">
+<input id="np-parent" type="text" value="~/workspace" style="flex: 1; min-width: 0; height: 32px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px; box-sizing: border-box">
+<button type="button" style="height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font-size: 12px; cursor: pointer">Procurar…</button>
+</div>
+</div>
+</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">Será criada: ~/workspace/agenda-dança · branch main · commit inicial</div>
+
+<fieldset style="margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: 6px">
+<legend style="font-size: 12px; color: #A0A8B6; padding: 0; margin-bottom: 4px">Ponto de partida</legend>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{templates}}" as="t" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{t.on}}" style="height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; font-size: 12px; cursor: pointer">{{t.label}}</button>
+</sc-for>
+</div>
+<div style="font-size: 11px; color: #A0A8B6">O modelo preenche stack, comandos de teste e lint e o CLAUDE.md; o planner só ajusta. "Vazio" deixa tudo para o planner.</div>
+</fieldset>
+
+<fieldset style="margin: 0; padding: 0; border: none; display: flex; flex-direction: column; gap: 6px">
+<legend style="font-size: 12px; color: #A0A8B6; padding: 0; margin-bottom: 4px">Repositório remoto</legend>
+<div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center">
+<label style="display: flex; align-items: center; gap: 6px; font-size: 12px"><input type="radio" name="remote" checked> Só local por enquanto</label>
+<label style="display: flex; align-items: center; gap: 6px; font-size: 12px"><input type="radio" name="remote"> Conectar a</label>
+<input type="text" placeholder="git@github.com:org/projeto.git" aria-label="URL do repositório remoto" style="flex: 1 1 240px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-family: 'JetBrains Mono', monospace; font-size: 12px; box-sizing: border-box">
+<button type="button" style="height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 12px; cursor: pointer">Criar no GitHub (gh)</button>
+</div>
+</fieldset>
+
+<div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 4px; border-top: 1px solid #252B35">
+<a href="Planejar.dc.html" style="display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 6px; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; text-decoration: none">Criar e planejar com o planner</a>
+<button type="submit" style="height: 34px; padding: 0 14px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #E7E9EE; font-size: 12px; cursor: pointer">Criar sem planejar</button>
+<span style="font-size: 11px; color: #A0A8B6">Nada é enviado ao planner até você escrever a ideia na próxima tela.</span>
+</div>
+</form>
+
+<aside style="flex: 0 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<section>
+<h2 style="margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">O que acontece</h2>
+<ol style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #A0A8B6">
+<li><span style="color: #E7E9EE">Pasta, git init e commit inicial</span> · 1 s</li>
+<li><span style="color: #E7E9EE">Proposta do planner</span> · visão, stack e roadmap de uma vez · ~$0,30 · 1 a 2 min · <span style="color: #F2A541">opcional</span></li>
+<li><span style="color: #E7E9EE">Revisar e criar</span> · CLAUDE.md, specs e Quadro</li>
+</ol>
+</section>
+<section>
+<h2 style="margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Recentes</h2>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{recent}}" as="r" hint-placeholder-count="3">
+<a href="Projeto.dc.html" style="display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: #0E1014; border: 1px solid #252B35; color: #E7E9EE; text-decoration: none; font-size: 12px">
+<span style="font-weight: 500">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">{{r.path}} · {{r.meta}}</span>
+</a>
+</sc-for>
+</div>
+</section>
+</aside>
+</section>
+</div>
+</main>
+</div>
+
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/9</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">1 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">4/4</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Uso 5h</span>
+<span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span>
+<span>· reinicia em 2h13</span>
+</span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Semana</span>
+<span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span>
+</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const names = ['Vazio', 'Flutter app', 'Next.js', 'API Python', 'CLI Dart'];
+    return {
+      templates: names.map((label, i) => ({ label, on: i === 1, border: i === 1 ? '#F2A541' : '#252B35', bg: i === 1 ? '#2A2418' : 'transparent', fg: i === 1 ? '#F2A541' : '#A0A8B6' })),
+      recent: [
+        { name: 'promptorium', path: '~/workspace/promptorium', meta: '14 specs · hoje' },
+        { name: 'dancadigital-site', path: '~/workspace/dancadigital-site', meta: '3 specs · ter' },
+        { name: 'bot-agenda', path: '~/workspace/bot-agenda', meta: 'sem specs · 02/10' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

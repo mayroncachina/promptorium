@@ -72,6 +72,58 @@ void main() {
     expect(ProjectConfig.parse(': : :'), const ProjectConfig());
   });
 
+  test('round trip of the gate, hooks, worktree, reviewer and autopilot '
+      'keys; invalid values fall back', () {
+    const c = ProjectConfig(
+      testCommand: 'flutter test',
+      lintCommand: 'flutter analyze',
+      buildCommand: 'flutter build linux',
+      formatCommand: 'dart format {arquivo}',
+      verification: VerificationConfig(
+        attempts: 2,
+        timeoutSeconds: 300,
+        requireCleanTree: false,
+      ),
+      blockedCommands: ['git push --force*', 'rm -rf "x"'],
+      worktree: WorktreeConfig(
+        copy: ['.env', '.env.local'],
+        prepare: 'flutter pub get',
+        basePort: 4000,
+      ),
+      reviewer: ReviewerConfig(enabled: true, budgetUsd: 0.5, rounds: 3),
+      autopilot: AutopilotConfig(parallel: 3, dailyBudgetUsd: 10),
+    );
+    final back = ProjectConfig.parse(c.toYaml());
+    expect(back, c);
+    expect(back.gate.attempts, 2);
+    expect(back.gate.requireCommit, isTrue);
+    expect(back.blockedCommands.last, 'rm -rf "x"');
+    expect(back.worktree.copy, ['.env', '.env.local']);
+    expect(back.reviewer.model, 'haiku');
+    expect(back.autopilot.dailyBudgetUsd, 10);
+    final odd = ProjectConfig.parse('''
+verificacao:
+  tentativas: muitas
+  timeout: 0
+  exigir-commit: nao
+worktree:
+  copiar: [../fora, /etc/passwd, .env]
+  porta-base: -1
+revisor: sim
+autopilot:
+  paralelo: 0
+''');
+    expect(odd.gate.attempts, 1);
+    expect(odd.gate.timeoutSeconds, 600);
+    expect(odd.gate.requireCommit, isFalse);
+    expect(odd.worktree.copy, ['.env']);
+    expect(odd.worktree.basePort, isNull);
+    expect(odd.reviewer.enabled, isFalse);
+    expect(odd.autopilot.parallel, isNull);
+    // Only the specs folder differs: still not "default" for saving.
+    expect(const ProjectConfig(specsDir: 'docs').isDefault, isFalse);
+  });
+
   test('save / load / remove when back to the defaults', () async {
     final tmp = Directory.systemTemp.createTempSync('promptorium-config-');
     addTearDown(() => tmp.deleteSync(recursive: true));

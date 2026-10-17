@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
+import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -110,6 +111,14 @@ String text(WidgetTester t, String key) =>
     t.widget<Text>(find.byKey(ValueKey(key))).data!;
 
 void main() {
+  test('moveInColumn saves the move against the shown neighbour, keeping '
+      'the cards hidden by a filter in place', () {
+    // Column 1..5; shown (filtered / attention first): 4, 2, 5.
+    expect(moveInColumn([1, 2, 3, 4, 5], 2, 4, -1), [1, 3, 2, 4, 5]);
+    expect(moveInColumn([1, 2, 3, 4, 5], 2, 5, 1), [1, 3, 4, 5, 2]);
+    expect(moveInColumn([1, 2, 3], 1, 9, 1), [1, 2, 3]);
+  });
+
   testWidgets('one card per approved spec, in its column, with progress, '
       'blockers and the right action', (tester) async {
     await pumpBoard(tester);
@@ -145,9 +154,11 @@ void main() {
     // Moved by hand with steps left: it can still run.
     expect(find.byKey(const ValueKey('board-run-SPEC-003')), findsOneWidget);
 
+    // Clicking the card opens the side panel (UX v2, U8).
     await tester.tap(find.byKey(const ValueKey('board-open-SPEC-002')));
     await pumpFor(tester);
-    expect(find.byKey(const ValueKey('spec-detail-dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey('board-side-panel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-detail-dialog')), findsNothing);
     expect(text(tester, 'steps-progress'), '1/3 etapas');
     expect(text(tester, 'step-status-R1'), 'concluída');
     expect(text(tester, 'step-status-R2'), 'aguardando você');
@@ -162,6 +173,39 @@ void main() {
     await pumpFor(tester);
     final spec = await c.read(specsRepoProvider).getByCode(1, 'SPEC-002');
     expect(spec!.autoAdvance, isFalse);
+    await tester.tap(find.byKey(const ValueKey('board-side-close')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-side-panel')), findsNothing);
+  });
+
+  testWidgets('filters, backlog groups, attention first and segments '
+      '(UX v2, U8)', (tester) async {
+    await pumpBoard(tester);
+    // Backlog: SPEC-003 is ready, SPEC-004 blocked by SPEC-002.
+    expect(
+      find.byKey(const ValueKey('board-group-Prontas · onda 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('board-group-Bloqueadas · onda 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('board-segments-SPEC-002')),
+      findsOneWidget,
+    );
+    expect(text(tester, 'board-strip'), '1 em execução · onda 1 de 2 · \$0.00 hoje');
+    // "Precisam de mim": only SPEC-002 (R2 waits for the user).
+    expect(find.text('Precisam de mim · 1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('board-filter-attention')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-card-SPEC-002')), findsOneWidget);
+    expect(find.byKey(const ValueKey('board-card-SPEC-003')), findsNothing);
+    expect(find.byKey(const ValueKey('board-card-SPEC-001')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('board-filter-attention')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-card-SPEC-003')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('dragging a card changes its stage; old tasks show a banner', (
@@ -189,5 +233,48 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('legacy-drop-TASK-9')));
     await pumpFor(tester);
     expect(await db.select(db.tasks).get(), isEmpty);
+  });
+
+  testWidgets('a step refused by the gate shows its checks on the card and '
+      'in the details, with the output and the gate actions', (tester) async {
+    final (c, db) = await pumpBoard(tester);
+    final report = GateReport(
+      at: DateTime(2026, 10, 17, 9, 30),
+      attempt: 1,
+      checks: const [
+        GateCheck(name: 'commit', ok: true),
+        GateCheck(
+          name: 'arvore',
+          ok: false,
+          output: 'Arquivos sem commit:\n?? sobrou.txt',
+        ),
+      ],
+    );
+    await c.read(specStepsRepoProvider).setGate(2, [
+      'R2',
+    ], report: report.encode());
+    await pumpFor(tester);
+    expect(text(tester, 'board-meta-SPEC-002'), 'R2 · verificação falhou');
+    expect(
+      find.byKey(const ValueKey('board-gate-SPEC-002-arvore')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('board-gate-SPEC-002-arvore')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('gate-report-dialog')), findsOneWidget);
+    expect(find.textContaining('sobrou.txt'), findsOneWidget);
+    await tester.tap(find.text('Fechar'));
+    await pumpFor(tester);
+
+    await tester.tap(find.byKey(const ValueKey('board-open-SPEC-002')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-gate-R2-commit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('steps-recheck')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('steps-commit-leftovers')),
+      findsOneWidget,
+    );
+    expect(db, isNotNull);
+    expect(tester.takeException(), isNull);
   });
 }

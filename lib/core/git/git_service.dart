@@ -142,11 +142,16 @@ class GitService {
   }
 
   /// Runs `git -C repoRoot <args>` and returns stdout. Throws [GitException].
-  Future<String> git(List<String> args) async {
+  Future<String> git(List<String> args) => _git(args);
+
+  /// [git] with `GIT_INDEX_FILE=<indexFile>` (a scratch index).
+  Future<String> _git(List<String> args, {String? indexFile}) async {
     final full = ['-C', repoRoot, ...args];
     final ProcessResult r;
     try {
-      r = await _run('git', full);
+      r = indexFile == null
+          ? await _run('git', full)
+          : await _run('env', ['GIT_INDEX_FILE=$indexFile', 'git', ...full]);
     } on ProcessException catch (e) {
       throw GitException(
         'git não encontrado',
@@ -306,6 +311,136 @@ class GitService {
 
   /// `git merge --abort` (after a conflicting [merge]).
   Future<void> mergeAbort() => git(['merge', '--abort']);
+
+  /// Whether [path] (relative) is ignored by git (`git check-ignore -q`).
+  Future<bool> isIgnored(String path) async {
+    final r = await _run('git', [
+      '-C',
+      repoRoot,
+      'check-ignore',
+      '-q',
+      '--',
+      _arg(path, 'caminho'),
+    ]);
+    return r.exitCode == 0;
+  }
+
+  /// Full hash of HEAD (null in a repository without commits).
+  Future<String?> headSha() async {
+    try {
+      return (await git(['rev-parse', 'HEAD'])).trim();
+    } on GitException catch (e) {
+      if (e.exitCode != null) return null;
+      rethrow;
+    }
+  }
+
+  /// Subjects of the commits in `<sha>..HEAD`, newest first.
+  Future<List<String>> subjectsSince(String sha) async {
+    final out = await git([
+      'log',
+      '--format=%s',
+      '${_arg(sha, 'commit')}..HEAD',
+    ]);
+    return [
+      for (final l in out.split('\n'))
+        if (l.trim().isNotEmpty) l.trim(),
+    ];
+  }
+
+  /// `git add -A && git commit -m <message>` (nothing staged = no commit,
+  /// returns false).
+  Future<bool> commitAll(String message) async {
+    await git(['add', '-A']);
+    if ((await git(['diff', '--cached', '--name-only'])).trim().isEmpty) {
+      return false;
+    }
+    await git(['commit', '-q', '-m', message]);
+    return true;
+  }
+
+  /// `git update-ref <ref> <sha>` (refs under `refs/promptorium/`).
+  Future<void> updateRef(String ref, String sha) =>
+      git(['update-ref', _arg(ref, 'ref'), _arg(sha, 'commit')]);
+
+  /// Hash [ref] points to, or null.
+  Future<String?> resolveRef(String ref) async {
+    try {
+      return (await git([
+        'rev-parse',
+        '--verify',
+        '-q',
+        '${_arg(ref, 'ref')}^{commit}',
+      ])).trim();
+    } on GitException {
+      return null;
+    }
+  }
+
+  /// Removes every ref under [prefix] (`refs/promptorium/SPEC-003/`).
+  Future<void> deleteRefs(String prefix) async {
+    final out = await git([
+      'for-each-ref',
+      '--format=%(refname)',
+      _arg(prefix, 'prefixo'),
+    ]);
+    for (final r in out.split('\n')) {
+      if (r.trim().isNotEmpty) await git(['update-ref', '-d', r.trim()]);
+    }
+  }
+
+  /// `git stash create`: a commit with the uncommitted changes (tracked files)
+  /// without touching the tree; null when the tree is clean.
+  Future<String?> stashCreate() async {
+    final sha = (await git(['stash', 'create'])).trim();
+    return sha.isEmpty ? null : sha;
+  }
+
+  /// `git stash apply <sha>`.
+  Future<void> stashApply(String sha) =>
+      git(['stash', 'apply', _arg(sha, 'stash')]);
+
+  /// The working tree (tracked and untracked files; ignored ones left out)
+  /// as a commit on top of HEAD, built in a scratch index so neither the
+  /// tree nor the index is touched; null when the tree is clean.
+  Future<String?> snapshot() async {
+    if ((await git(['status', '--porcelain'])).trim().isEmpty) return null;
+    final dir = await Directory.systemTemp.createTemp('promptorium-index');
+    try {
+      final index = '${dir.path}/index';
+      await _git(['read-tree', 'HEAD'], indexFile: index);
+      await _git(['add', '-A'], indexFile: index);
+      final tree = (await _git(['write-tree'], indexFile: index)).trim();
+      return (await git([
+        '-c',
+        'user.name=Promptorium',
+        '-c',
+        'user.email=promptorium@localhost',
+        'commit-tree',
+        tree,
+        '-p',
+        'HEAD',
+        '-m',
+        'promptorium: estado do worktree',
+      ])).trim();
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  /// Puts the files of [sha] (a [snapshot] or a `git stash create` commit)
+  /// in the working tree, leaving the index at HEAD.
+  Future<void> restoreSnapshot(String sha) async {
+    await git(['read-tree', '-u', '--reset', '${_arg(sha, 'commit')}^{tree}']);
+    await git(['reset', '-q']);
+  }
+
+  /// `git reset --hard <sha>` + `git clean -fd` (untracked files removed;
+  /// ignored ones kept).
+  Future<void> resetHard(String sha) async {
+    await git(['reset', '-q', '--hard', _arg(sha, 'commit')]);
+    await git(['clean', '-q', '-fd']);
+  }
 
   /// Last [n] commits of HEAD.
   Future<List<GitLogEntry>> log(int n) async {

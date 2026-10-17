@@ -1,0 +1,78 @@
+name: Windows
+
+# Manual (Actions → Windows → Run workflow): compila o Windows release da
+# branch escolhida em "Use workflow from" (ou do ref informado) e deixa um
+# .zip como artefato da execução por 14 dias. Por ora fora da release.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag ou commit (vazio = a branch escolhida acima)"
+        required: false
+        default: ""
+      flutter-version:
+        description: Tag do Flutter
+        required: false
+        default: "3.47.7"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Versão
+        id: version
+        run: |
+          base="$(grep -m1 '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+          sha="$(git rev-parse --short=7 HEAD)"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "name=promptorium-${base}-ci.${sha}-windows-x64" >> "$GITHUB_OUTPUT"
+
+      - name: Flutter
+        run: |
+          git clone --depth 1 --branch "${{ inputs.flutter-version }}" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Projeto Windows
+        # O repositório ainda não versiona windows/: gera o runner padrão
+        # (não sobrescreve nada que já exista).
+        run: |
+          flutter --version
+          flutter config --enable-windows-desktop
+          if [ ! -d windows ]; then
+            flutter create --platforms=windows --project-name promptorium .
+          fi
+
+      - name: Compilar
+        run: |
+          flutter pub get
+          flutter build windows --release \
+            --build-name="${{ steps.version.outputs.base }}" \
+            --build-number="${{ github.run_number }}"
+
+      - name: Empacotar
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* `
+            -DestinationPath "dist\${{ steps.version.outputs.name }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.name }}
+          path: dist/*.zip
+          retention-days: 14
+          if-no-files-found: error

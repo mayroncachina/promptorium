@@ -106,6 +106,9 @@ class WorktreeIndex {
 
   bool isDir(String path) => _dirs.contains(path);
 
+  /// Every folder (relative), for the disk watcher.
+  Iterable<String> get dirs => _dirs;
+
   bool contains(String path) => isDir(path) || files.contains(path);
 
   /// Direct children of [dir] ('' = root): folders first, then files, by name.
@@ -364,10 +367,34 @@ class WorktreeFiles {
     return TextFileContent(body, crlf: body.contains('\r\n'), stat: stat);
   }
 
-  /// Writes [text] in place (keeps permissions). Returns the new stat.
+  /// Writes [text] atomically (F11): a temporary file next to it, then
+  /// `rename`, so a crash never leaves half a file; the mode of the old
+  /// file is kept (`chmod` when it differs from the new one's). A symbolic
+  /// link is written through (its target is replaced in place).
   Future<FileStat> write(String rel, String text) async {
     final f = File(resolve(rel));
-    await f.writeAsString(text, flush: true);
+    if (await FileSystemEntity.isLink(f.path)) {
+      await f.writeAsString(text, flush: true);
+      return f.stat();
+    }
+    final old = await f.exists() ? await f.stat() : null;
+    final tmp = File('${f.path}.promptorium-tmp');
+    try {
+      await tmp.writeAsString(text, flush: true);
+      if (old != null) {
+        final now = await tmp.stat();
+        if ((now.mode & 0x1ff) != (old.mode & 0x1ff)) {
+          await Process.run('chmod', [
+            (old.mode & 0x1ff).toRadixString(8),
+            tmp.path,
+          ]);
+        }
+      }
+      await tmp.rename(f.path);
+    } catch (_) {
+      if (await tmp.exists()) await tmp.delete();
+      rethrow;
+    }
     return f.stat();
   }
 

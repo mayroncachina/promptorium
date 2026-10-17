@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/home/home_inbox.dart' show navBadgesProvider;
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
 
-/// Left navigation bar (56px): 10 sections + settings gear at the bottom.
-class SideBar extends StatelessWidget {
+/// Left navigation bar (56px): the [AppSection.navItems] + settings gear at
+/// the bottom. An amber counter on an item is what waits for the user there
+/// (UX v2: [navBadgesProvider]).
+class SideBar extends ConsumerWidget {
   const SideBar({super.key, required this.active, required this.onSelect});
 
   final AppSection active;
   final ValueChanged<AppSection> onSelect;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final badges = ref.watch(navBadgesProvider);
     SideBarItem item(AppSection s) => SideBarItem(
       key: ValueKey('nav-${s.name}'),
       section: s,
-      active: s == active,
+      // "Ferramentas" stays lit on any of its tabs.
+      active: s == active || (s == AppSection.agents && active.isTool),
+      badge: badges[s] ?? 0,
       onTap: () => onSelect(s),
     );
     return Container(
@@ -46,23 +53,30 @@ class SideBarItem extends StatelessWidget {
     required this.section,
     required this.active,
     required this.onTap,
+    this.badge = 0,
   });
 
   final AppSection section;
   final bool active;
   final VoidCallback onTap;
 
+  /// Pending items shown as a counter (0 = none).
+  final int badge;
+
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(8);
+    final label = badge > 0
+        ? '${section.navLabel} · $badge ${badge == 1 ? 'pendente' : 'pendentes'}'
+        : section.navLabel;
     return Tooltip(
-      message: section.label,
+      message: label,
       waitDuration: const Duration(milliseconds: 400),
       preferBelow: false,
       child: Semantics(
         button: true,
         selected: active,
-        label: section.label,
+        label: label,
         excludeSemantics: true,
         child: Material(
           color: active ? AppColors.amberTint : Colors.transparent,
@@ -74,12 +88,42 @@ class SideBarItem extends StatelessWidget {
             child: SizedBox(
               width: 44,
               height: 44,
-              child: Center(
-                child: AppIcon(
-                  section.icon,
-                  size: 20,
-                  color: active ? AppColors.amber : AppColors.textSecondary,
-                ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: AppIcon(
+                      section.icon,
+                      size: 20,
+                      color: active ? AppColors.amber : AppColors.textSecondary,
+                    ),
+                  ),
+                  if (badge > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        key: ValueKey('nav-badge-${section.name}'),
+                        constraints: const BoxConstraints(minWidth: 16),
+                        height: 16,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.amber,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badge > 99 ? '99+' : '$badge',
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onAmber,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

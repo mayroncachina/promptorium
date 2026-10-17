@@ -174,6 +174,17 @@ class ClaudeProcess {
     );
   }
 
+  int _controlSeq = 0;
+
+  /// Changes the permission mode of the live process
+  /// (`control_request` `set_permission_mode`; verified on CLI 2.1.302,
+  /// docs/pesquisa/hooks-settings-stream-json.md §2).
+  Future<void> setPermissionMode(ClaudePermissionMode mode) => _write({
+    'type': 'control_request',
+    'request_id': 'promptorium-mode-${++_controlSeq}',
+    'request': {'subtype': 'set_permission_mode', 'mode': mode.cliValue},
+  });
+
   /// `control_response` envelope (plano, Fase 0.3).
   @visibleForTesting
   static Map<String, dynamic> controlResponse(

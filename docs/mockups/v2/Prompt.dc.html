@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Prompt, modo Planejar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px; letter-spacing: 0.2px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer"><span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span></button>
+<a href="Paleta.dc.html" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; text-decoration: none; box-sizing: border-box"><span style="flex: 1">Buscar ou executar comando…</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span></a>
+<button type="button" style="height: 30px; padding: 0 12px; background: #F2A541; border: none; border-radius: 6px; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Nova conversa</button>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Início" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1.5 3h5L16 13h5"></path></svg><span style="position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #F2A541; color: #1A1206; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box">7</span></a>
+<a href="Projeto.dc.html" aria-label="Projeto" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></a>
+<a href="Specs.dc.html" aria-label="Specs" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg></a>
+<a href="Paleta.dc.html" aria-label="Quadro" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg></a>
+<a href="Sessoes.dc.html" aria-label="Sessões" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg><span style="position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #F2A541; color: #1A1206; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box">2</span></a>
+<a href="Main.dc.html" aria-label="Review" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg></a>
+<a href="Main.dc.html" aria-label="Código" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg></a>
+<a href="Prompt.dc.html" aria-label="Prompt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path></svg></a>
+<a href="Main.dc.html" aria-label="Ferramentas" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-2.4z"></path></svg></a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg></button>
+</nav>
+
+<aside aria-label="Conversas" style="overflow-y: auto; flex: 0 1 236px; display: flex; flex-direction: column; background: #14171D; border-right: 1px solid #252B35; min-width: 0">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Conversas</h2>
+<button type="button" aria-label="Buscar conversa" style="width: 24px; height: 24px; border: none; background: none; color: #A0A8B6; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg></button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px">
+<sc-for list="{{convos}}" as="c" hint-placeholder-count="5">
+<button type="button" style="display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: 8px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: #E7E9EE; text-align: left; cursor: pointer; font-size: 12px">
+<span style="display: flex; align-items: center; gap: 6px; width: 100%"><span style="flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.title}}</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #A0A8B6">{{c.when}}</span></span>
+<span style="font-size: 11px; color: {{c.modeColor}}">{{c.mode}}</span>
+</button>
+</sc-for>
+</div>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; background: #0E1014">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 18px; border-bottom: 1px solid #252B35">
+<h1 style="margin: 0; font-size: 15px; font-weight: 600; flex: 1 1 200px; min-width: 0">Thinking recolhido na timeline</h1>
+<div role="group" aria-label="Modo" style="display: flex; border: 1px solid #252B35; border-radius: 6px; overflow: hidden; font-size: 12px">
+<button type="button" aria-pressed="false" style="height: 28px; padding: 0 10px; background: none; border: none; color: #A0A8B6; cursor: pointer">Perguntar</button>
+<button type="button" aria-pressed="true" style="height: 28px; padding: 0 10px; background: #2A2418; border: none; color: #F2A541; cursor: pointer">Planejar</button>
+<button type="button" aria-pressed="false" style="height: 28px; padding: 0 10px; background: none; border: none; color: #A0A8B6; cursor: pointer">Editar</button>
+</div>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Sonnet 5.5</button>
+</div>
+
+<div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 18px; overflow: auto">
+<div style="align-self: flex-end; max-width: 520px; padding: 8px 12px; border-radius: 10px; background: #1F2430; border: 1px solid #2E3542">
+<div style="font-size: 11px; color: #A0A8B6; margin-bottom: 2px">Você · 11:02</div>
+Quero mostrar os blocos de thinking na timeline, recolhidos por padrão. Veja <span style="color: #F2A541">@lib/features/sessions/widgets/timeline_view.dart</span> e proponha um plano.
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 520px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35"><span style="color: #8EA4C8; width: 44px">Read</span><span style="flex: 1">lib/features/sessions/widgets/timeline_view.dart</span><span style="color: #A0A8B6">412 linhas</span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35"><span style="color: #8EA4C8; width: 44px">Grep</span><span style="flex: 1">thinking · lib/core/claude</span><span style="color: #A0A8B6">3 arquivos</span></div>
+</div>
+<div style="max-width: 560px">
+<div style="font-size: 11px; color: #A0A8B6; margin-bottom: 2px">Claude · 11:04</div>
+Hoje o parser descarta os blocos <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #F2A541">thinking</code> antes de gravar o evento. O plano tem três partes: gravar o bloco, exibir recolhido e cobrir com teste de widget. Nenhum arquivo foi alterado.
+</div>
+
+<div style="max-width: 560px; border-radius: 10px; border: 1px solid #5C4520; background: #241E12; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #5C4520">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #F2A541"></span>
+<span style="font-weight: 600">Plano pronto</span>
+<span style="color: #A0A8B6; font-size: 12px">· 3 etapas · 4 arquivos · estimativa $0,40</span>
+</div>
+<ol style="margin: 0; padding: 10px 14px 10px 32px; display: flex; flex-direction: column; gap: 6px; font-size: 12px">
+<li>Gravar <code style="font-family: 'JetBrains Mono', monospace; color: #F2A541">thinking</code> como evento próprio em <code style="font-family: 'JetBrains Mono', monospace">stream_parser.dart</code> e <code style="font-family: 'JetBrains Mono', monospace">session_events</code> (sem migração: usa a coluna <code style="font-family: 'JetBrains Mono', monospace">kind</code>).</li>
+<li>Card recolhido na timeline com contagem de tokens e duração; aberto só por clique.</li>
+<li>Teste de widget: bloco aparece recolhido e expande.</li>
+</ol>
+<div style="display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid #5C4520">
+<a href="Sessoes.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 6px; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; text-decoration: none">Implementar como sessão</a>
+<a href="Specs.dc.html" style="display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #5C4520; color: #F2A541; font-size: 12px; text-decoration: none">Transformar em spec</a>
+<button type="button" style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #E7E9EE; font-size: 12px; cursor: pointer">Continuar planejando</button>
+<span style="flex: 1"></span>
+<span style="font-size: 11px; color: #A0A8B6; align-self: center">O plano fica salvo em .promptorium/planos/</span>
+</div>
+</div>
+</div>
+
+<div style="position: relative; padding: 10px 18px 14px; border-top: 1px solid #252B35">
+<div role="listbox" aria-label="Sugestões de arquivo" style="position: absolute; left: 18px; bottom: 100%; margin-bottom: -4px; width: 420px; max-width: calc(100% - 36px); border-radius: 8px; background: #14171D; border: 1px solid #2E3542; box-shadow: 0 12px 32px rgba(0,0,0,0.5); overflow: hidden; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<div style="padding: 6px 10px; font-size: 11px; color: #A0A8B6; font-family: 'IBM Plex Sans', system-ui, sans-serif; border-bottom: 1px solid #252B35">Arquivos · @time</div>
+<div role="option" aria-selected="true" style="display: flex; gap: 10px; padding: 6px 10px; background: #2A2418; color: #E7E9EE"><span style="flex: 1">lib/features/sessions/widgets/<b>time</b>line_view.dart</span><span style="color: #A0A8B6">aberto</span></div>
+<div role="option" aria-selected="false" style="display: flex; gap: 10px; padding: 6px 10px; color: #E7E9EE"><span style="flex: 1">lib/features/sessions/<b>time</b>line.dart</span></div>
+<div role="option" aria-selected="false" style="display: flex; gap: 10px; padding: 6px 10px; color: #E7E9EE"><span style="flex: 1">test/features/sessions/<b>time</b>line_test.dart</span></div>
+<div style="padding: 6px 10px; font-size: 11px; color: #A0A8B6; font-family: 'IBM Plex Sans', system-ui, sans-serif; border-top: 1px solid #252B35">Também: <b>/</b> comandos e prompts salvos · <b>#</b> specs · <b>:</b> sessões</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #14171D; border: 1px solid #F2A541">
+<label for="composer" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Mensagem</label>
+<textarea id="composer" rows="2" style="width: 100%; box-sizing: border-box; resize: none; background: none; border: none; outline: none; color: #E7E9EE; font-family: inherit; font-size: 13px">Compare com o que o Review faz em @time</textarea>
+<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px">
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">@ arquivo</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">/ prompt</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer"># spec</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">Anexar</button>
+<span style="flex: 1"></span>
+<span style="color: #A0A8B6">Ctrl+Enter envia</span>
+<button type="button" style="height: 28px; padding: 0 12px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Enviar</button>
+</div>
+</div>
+</div>
+</main>
+
+<aside aria-label="Contexto" style="overflow-y: auto; flex: 1 1 260px; max-width: 320px; display: flex; flex-direction: column; gap: 16px; padding: 16px; background: #14171D; border-left: 1px solid #252B35; min-width: 0; box-sizing: border-box">
+<section>
+<h2 style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Modo Planejar</h2>
+<p style="margin: 0; font-size: 12px; color: #A0A8B6">Só leitura. Ao aprovar um plano a conversa <b style="color: #E7E9EE">não</b> vira Editar: você escolhe onde implementar.</p>
+</section>
+<section>
+<h2 style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Contexto anexado</h2>
+<div style="display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px">
+<div style="display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px; background: #0E1014; border: 1px solid #252B35"><span style="color: #8EA4C8">@</span><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">lib/features/sessions/widgets/timeline_view.dart</span></div>
+<div style="display: flex; gap: 8px; padding: 6px 8px; border-radius: 6px; background: #0E1014; border: 1px solid #252B35"><span style="color: #8EA4C8">CLAUDE</span><span style="flex: 1">CLAUDE.md · memoria.md</span></div>
+</div>
+</section>
+<section>
+<h2 style="margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Esta conversa</h2>
+<dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 6px; column-gap: 8px; font-size: 12px">
+<dt style="color: #A0A8B6">Turnos</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace">2</dd>
+<dt style="color: #A0A8B6">Custo</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace">$0.06</dd>
+<dt style="color: #A0A8B6">Planos</dt><dd style="margin: 0; font-family: 'JetBrains Mono', monospace">1 pronto</dd>
+</dl>
+</section>
+</aside>
+</div>
+
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/9</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">1 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">4/4</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Uso 5h</span>
+<span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span>
+<span>· reinicia em 2h13</span>
+</span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Semana</span>
+<span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span>
+</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const M = { Planejar: '#F2A541', Perguntar: '#8EA4C8', Editar: '#4FD1B5', Refinar: '#C79BF2' };
+    const raw = [
+      { title: 'Thinking recolhido na timeline', mode: 'Planejar · plano pronto', m: 'Planejar', when: 'agora', active: true },
+      { title: 'Por que o gate reenvia duas vezes?', mode: 'Perguntar', m: 'Perguntar', when: '09:40' },
+      { title: 'Refinar SPEC-015', mode: 'Refinar', m: 'Refinar', when: 'ontem' },
+      { title: 'Ajustar cores do footer', mode: 'Editar · 2 arquivos', m: 'Editar', when: 'ontem' },
+      { title: 'Ideias para o preview', mode: 'Perguntar', m: 'Perguntar', when: 'ter' }
+    ];
+    return { convos: raw.map((c) => ({ ...c, modeColor: M[c.m], bg: c.active ? '#1F2430' : 'transparent', border: c.active ? '#2E3542' : 'transparent' })) };
+  }
+}
+</script>
+</body>
+</html>

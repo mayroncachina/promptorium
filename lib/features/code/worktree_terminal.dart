@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../sessions/session_manager.dart' show worktreeEnvProvider;
+
 import '../sessions/widgets/session_terminal.dart';
 
 /// Shell of the user (`$SHELL`, else `/bin/bash`).
@@ -47,7 +49,10 @@ class WorktreeTerminals extends Notifier<Map<String, SessionTerminal>> {
       cwd: path,
       // Full environment (PATH with flutter, etc.), not only flutter_pty's
       // short list.
-      environment: Map.of(Platform.environment),
+      environment: {
+        ...Platform.environment,
+        ...?ref.read(worktreeEnvProvider)[path],
+      },
       onExit: () {
         if (ref.mounted) state = {...state};
       },

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Promptorium · Sessões lado a lado</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC872}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 100%; height: 100vh; min-height: 600px; overflow: hidden; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<header style="min-height: 44px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 6px 12px; background: #14171D; border-bottom: 1px solid #252B35; box-sizing: border-box">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="width: 26px; height: 26px; border-radius: 6px; background: #F2A541; color: #1A1206; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+</div>
+<span style="font-weight: 600; font-size: 14px; letter-spacing: 0.2px">Promptorium</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font-size: 12px; cursor: pointer">
+<span style="color: #A0A8B6">Workspace</span><span style="font-weight: 500">promptorium</span><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">main</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</button>
+<a href="Paleta.dc.html" style="flex: 1 1 260px; max-width: 520px; margin: 0 auto; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font-size: 12px; text-decoration: none; box-sizing: border-box">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="flex: 1; text-align: left">Buscar ou executar comando…</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 6px; border: 1px solid #252B35; border-radius: 4px">Ctrl K</span>
+</a>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; background: #F2A541; border: none; border-radius: 6px; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Nova sessão
+</button>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; overflow: hidden">
+
+<nav aria-label="Navegação principal" style="flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: #14171D; border-right: 1px solid #252B35">
+<a href="Main.dc.html" aria-label="Início · 7 itens" title="Início · Ctrl+1" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1.5 3h5L16 13h5"></path></svg>
+<span style="position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #F2A541; color: #1A1206; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box">7</span>
+</a>
+<a href="Projeto.dc.html" aria-label="Projeto" title="Projeto · Ctrl+2" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+</a>
+<a href="Specs.dc.html" aria-label="Specs" title="Specs · Ctrl+3" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
+</a>
+<a href="Paleta.dc.html" aria-label="Quadro" title="Quadro · Ctrl+4" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="10" y="4" width="5" height="10" rx="1"></rect><rect x="17" y="4" width="4" height="13" rx="1"></rect></svg>
+</a>
+<a href="Sessoes.dc.html" aria-label="Sessões · 2 aprovações" title="Sessões · Ctrl+5" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #2A2418; color: #F2A541">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9l3 3-3 3M12 15h5"></path></svg>
+<span style="position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #F2A541; color: #1A1206; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; box-sizing: border-box">2</span>
+</a>
+<a href="Main.dc.html" aria-label="Review" title="Review · Ctrl+6" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="12" r="2"></circle><path d="M6 7v10M16 12h-3a5 5 0 0 1-5-5"></path></svg>
+</a>
+<a href="Main.dc.html" aria-label="Código" title="Código · Ctrl+7" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg>
+</a>
+<a href="Prompt.dc.html" aria-label="Prompt" title="Prompt · Ctrl+8" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z"></path></svg>
+</a>
+<a href="Main.dc.html" aria-label="Ferramentas" title="Ferramentas · Ctrl+9" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #A0A8B6">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-2.4z"></path></svg>
+</a>
+<div style="flex: 1"></div>
+<button type="button" aria-label="Configurações" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: none; border: none; color: #A0A8B6; cursor: pointer">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9L7 7M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"></path></svg>
+</button>
+</nav>
+
+<aside aria-label="Lista de sessões" style="overflow-y: auto; flex: 0 1 236px; display: flex; flex-direction: column; background: #14171D; border-right: 1px solid #252B35; min-width: 0">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 8px">
+<h2 style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #A0A8B6">Sessões</h2>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6">3 ativas</span>
+</div>
+<div style="display: flex; gap: 6px; padding: 0 12px 10px; flex-wrap: wrap">
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid #F2A541; background: #2A2418; color: #F2A541; font-size: 11px; cursor: pointer">Todas 9</button>
+<button type="button" style="height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid #252B35; background: none; color: #A0A8B6; font-size: 11px; cursor: pointer">Aguardando 2</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px 12px">
+<sc-for list="{{sessions}}" as="s" hint-placeholder-count="6">
+<button type="button" style="display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 8px; border: 1px solid {{s.border}}; background: {{s.bg}}; color: #E7E9EE; text-align: left; cursor: pointer; font-size: 12px">
+<span style="display: flex; align-items: center; gap: 8px; width: 100%">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{s.color}}; flex: none"></span>
+<span style="flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{s.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: {{s.paneColor}}">{{s.pane}}</span>
+</span>
+<span style="display: flex; gap: 6px; padding-left: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A0A8B6; width: 100%; box-sizing: border-box"><span style="color: {{s.toolColor}}">{{s.tool}}</span><span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{s.arg}}</span></span>
+</button>
+</sc-for>
+</div>
+</aside>
+
+<main style="min-height: 0; flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; background: #0E1014">
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid #252B35; font-size: 12px; color: #A0A8B6; flex-wrap: wrap">
+<span>Visão</span>
+<div role="group" aria-label="Disposição das sessões" style="display: flex; border: 1px solid #252B35; border-radius: 6px; overflow: hidden">
+<button type="button" aria-pressed="false" style="height: 26px; padding: 0 10px; background: none; border: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Uma</button>
+<button type="button" aria-pressed="true" style="height: 26px; padding: 0 10px; background: #2A2418; border: none; color: #F2A541; font-size: 12px; cursor: pointer">Lado a lado</button>
+<button type="button" aria-pressed="false" style="height: 26px; padding: 0 10px; background: none; border: none; color: #A0A8B6; font-size: 12px; cursor: pointer">Grade 2×2</button>
+</div>
+<span style="flex: 1"></span>
+<span>Arraste uma sessão da lista para um painel · Ctrl+\ divide</span>
+</div>
+
+<div style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap">
+
+<section aria-label="Sessão A" style="flex: 1 1 420px; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #252B35">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #252B35">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #4FD1B5"></span>
+<h1 style="margin: 0; font-size: 14px; font-weight: 600; flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">SPEC-012 · R3 Parser stream-json</h1>
+<span style="padding: 2px 8px; border-radius: 4px; background: #1A1E26; color: #A0A8B6; font-size: 11px; font-family: 'JetBrains Mono', monospace">pr/spec-012</span>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Abrir preview :4001</button>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #5A2E2A; background: #14171D; color: #F27A6E; font-size: 12px; cursor: pointer">Parar</button>
+<button type="button" aria-label="Fechar painel" style="width: 28px; height: 28px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #A0A8B6; cursor: pointer">×</button>
+</div>
+<div role="tablist" aria-label="Visões da sessão A" style="display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid #252B35; font-size: 12px">
+<button type="button" role="tab" aria-selected="true" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid #F2A541; color: #E7E9EE; font-weight: 500; cursor: pointer">Timeline</button>
+<button type="button" role="tab" aria-selected="false" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid transparent; color: #A0A8B6; cursor: pointer">Terminal</button>
+<button type="button" role="tab" aria-selected="false" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid transparent; color: #A0A8B6; cursor: pointer">Diff · 4</button>
+<span style="flex: 1"></span>
+<label style="display: flex; align-items: center; gap: 6px; color: #A0A8B6; font-size: 11px"><input type="checkbox" checked> só agente principal</label>
+</div>
+
+<div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; overflow: auto">
+<div style="align-self: flex-end; max-width: 440px; padding: 8px 12px; border-radius: 10px; background: #1F2430; border: 1px solid #2E3542">
+<div style="font-size: 11px; color: #A0A8B6; margin-bottom: 2px">Você · 10:02</div>
+Etapa R3: parser de <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #F2A541">stream_event</code> com deltas. Critérios: [R3] testes em test/core/stream_parser_test.dart.
+</div>
+
+<details style="max-width: 520px; border-radius: 6px; border: 1px dashed #2E3542; color: #A0A8B6; font-size: 12px">
+<summary style="padding: 6px 10px; cursor: pointer">Pensando · 1,2k tokens · 4 s</summary>
+<div style="padding: 0 10px 8px; font-style: italic">Preciso ver como o parser atual trata `assistant` antes de aceitar deltas parciais…</div>
+</details>
+
+<div style="max-width: 520px"><div style="font-size: 11px; color: #A0A8B6; margin-bottom: 2px">Claude · 10:03</div>Vou ler o parser atual e os testes existentes antes de mexer.</div>
+
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 520px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35"><span style="color: #8EA4C8; width: 44px">Read</span><span style="flex: 1">lib/core/claude/stream_parser.dart</span><span style="color: #A0A8B6">212 linhas</span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35">
+<span style="color: #F2A541; width: 44px">Edit</span><span style="flex: 1">lib/core/claude/stream_parser.dart</span><span style="color: #4FD1B5">+31</span><span style="color: #F27A6E">−4</span>
+<button type="button" title="Restaura os arquivos como estavam antes desta edição e avisa o agente" style="display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid #5C4520; background: #241E12; color: #F2A541; font-size: 11px; font-family: inherit; cursor: pointer">↶ voltar para aqui</button>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35">
+<span style="color: #F2A541; width: 44px">Write</span><span style="flex: 1">test/core/stream_parser_test.dart</span><span style="color: #4FD1B5">+58</span>
+<button type="button" style="display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid #5C4520; background: #241E12; color: #F2A541; font-size: 11px; font-family: inherit; cursor: pointer">↶ voltar para aqui</button>
+</div>
+<details style="border-radius: 6px; background: #14171D; border: 1px solid #3A2F55">
+<summary style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; cursor: pointer; list-style: none"><span style="color: #C79BF2; width: 44px">Agent</span><span style="flex: 1">spec-reviewer · somente leitura</span><span style="color: #A0A8B6">$0.03 · 41 s</span><span style="color: #4FD1B5">ok</span></summary>
+<div style="padding: 6px 10px 8px 64px; border-top: 1px solid #252B35; color: #A0A8B6; font-family: 'IBM Plex Sans', system-ui, sans-serif">Diff cobre R3. Sugeriu testar delta vazio; o agente adicionou o caso.</div>
+</details>
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; border: 1px dashed #2F6B5E; background: #11201D">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #4FD1B5"></span><span style="color: #C79BF2">Bash</span><span style="flex: 1">flutter test test/core</span><span style="color: #4FD1B5">executando · 0:42</span>
+</div>
+</div>
+</div>
+
+<div style="padding: 10px 14px 12px; border-top: 1px solid #252B35">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #14171D; border: 1px solid #2E3542">
+<label for="composer-a" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Mensagem para a sessão A</label>
+<textarea id="composer-a" rows="1" placeholder="Mensagem…  /comandos  @arquivos" style="width: 100%; box-sizing: border-box; resize: none; background: none; border: none; outline: none; color: #E7E9EE; font-family: inherit; font-size: 13px"></textarea>
+<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px">
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">Aceitar edições</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">@ arquivo</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">/ comando</button>
+<span style="flex: 1"></span>
+<button type="button" style="height: 28px; padding: 0 12px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Enviar</button>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-label="Sessão B" style="flex: 1 1 420px; min-width: 0; min-height: 0; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #252B35">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #F2A541"></span>
+<h1 style="margin: 0; font-size: 14px; font-weight: 600; flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">SPEC-014 · R1 Painel Git</h1>
+<span style="padding: 2px 8px; border-radius: 4px; background: #1A1E26; color: #A0A8B6; font-size: 11px; font-family: 'JetBrains Mono', monospace">pr/spec-014</span>
+<button type="button" style="height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Fork</button>
+<button type="button" aria-label="Fechar painel" style="width: 28px; height: 28px; border-radius: 6px; border: 1px solid #252B35; background: none; color: #A0A8B6; cursor: pointer">×</button>
+</div>
+<div role="tablist" aria-label="Visões da sessão B" style="display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid #252B35; font-size: 12px">
+<button type="button" role="tab" aria-selected="true" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid #F2A541; color: #E7E9EE; font-weight: 500; cursor: pointer">Timeline</button>
+<button type="button" role="tab" aria-selected="false" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid transparent; color: #A0A8B6; cursor: pointer">Terminal</button>
+<button type="button" role="tab" aria-selected="false" style="height: 32px; padding: 0 10px; background: none; border: none; border-bottom: 2px solid transparent; color: #A0A8B6; cursor: pointer">Diff · 2</button>
+</div>
+
+<div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; overflow: auto">
+<div style="max-width: 520px"><div style="font-size: 11px; color: #A0A8B6; margin-bottom: 2px">Claude · 10:05</div>O painel precisa de <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #F2A541">git_service.dart</code> expondo stage e unstage. Vou adicionar a dependência e os métodos.</div>
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 520px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35"><span style="color: #8EA4C8; width: 44px">Read</span><span style="flex: 1">lib/core/git/git_service.dart</span><span style="color: #A0A8B6">340 linhas</span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #14171D; border: 1px solid #252B35">
+<span style="color: #F2A541; width: 44px">Edit</span><span style="flex: 1">lib/core/git/git_service.dart</span><span style="color: #4FD1B5">+22</span>
+<button type="button" style="display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid #5C4520; background: #241E12; color: #F2A541; font-size: 11px; font-family: inherit; cursor: pointer">↶ voltar para aqui</button>
+</div>
+</div>
+
+<div style="max-width: 520px; padding: 12px; border-radius: 8px; background: #241E12; border: 1px solid #5C4520">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #F2A541; margin-bottom: 6px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #F2A541"></span>Aguardando sua aprovação · quer editar</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 8px; border-radius: 4px; background: #0E1014; margin-bottom: 8px">pubspec.yaml  <span style="color: #4FD1B5">+2</span>  <span style="color: #A0A8B6">file_picker: ^8.1.0</span></div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<button type="button" style="flex: 1 1 100px; height: 30px; border-radius: 6px; border: 1px solid #252B35; background: #14171D; color: #E7E9EE; font-size: 12px; cursor: pointer">Negar</button>
+<button type="button" style="flex: 1 1 100px; height: 30px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Aprovar</button>
+<button type="button" style="flex: 1 1 160px; height: 30px; border-radius: 6px; border: 1px solid #5C4520; background: none; color: #F2A541; font-size: 12px; cursor: pointer">Sempre permitir pubspec.yaml</button>
+</div>
+</div>
+</div>
+
+<div style="padding: 10px 14px 12px; border-top: 1px solid #252B35">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: #14171D; border: 1px solid #2E3542">
+<label for="composer-b" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Mensagem para a sessão B</label>
+<textarea id="composer-b" rows="1" placeholder="Mensagem…  /comandos  @arquivos" style="width: 100%; box-sizing: border-box; resize: none; background: none; border: none; outline: none; color: #E7E9EE; font-family: inherit; font-size: 13px"></textarea>
+<div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px">
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">Perguntar</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">@ arquivo</button>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #A0A8B6; font-size: 11px; cursor: pointer">/ comando</button>
+<span style="flex: 1"></span>
+<button type="button" style="height: 28px; padding: 0 12px; border-radius: 6px; border: none; background: #F2A541; color: #1A1206; font-weight: 600; font-size: 12px; cursor: pointer">Enviar</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+
+<footer style="flex: none; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; background: #14171D; border-top: 1px solid #252B35; font-size: 11px; color: #A0A8B6">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: #4FD1B5"></span>Claude Code CLI conectado</span>
+<span style="width: 1px; height: 14px; background: #252B35"></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Sessões</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">3/9</span><span style="color: #F2A541">· 2 aguardando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>Subagentes</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">1 rodando</span></span>
+<span style="display: flex; align-items: center; gap: 6px"><span>MCP</span><span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">4/4</span></span>
+<span style="flex: 1"></span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Uso 5h</span>
+<span role="img" aria-label="42% do limite de 5 horas" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 42%; background: #4FD1B5"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">42%</span>
+<span>· reinicia em 2h13</span>
+</span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span>Semana</span>
+<span role="img" aria-label="18% do limite semanal" style="width: 60px; height: 6px; border-radius: 3px; background: #252B35; overflow: hidden; display: flex"><span style="width: 18%; background: #8EA4C8"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #E7E9EE">18%</span>
+</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { run: '#4FD1B5', wait: '#F2A541', done: '#8EA4C8', fail: '#F27A6E', idle: '#7C8595' };
+    const T = { Bash: '#C79BF2', Edit: '#F2A541', Read: '#8EA4C8', Agent: '#C79BF2', '': '#7C8595' };
+    const raw = [
+      { name: 'SPEC-012 · R3 Parser', k: 'run', tool: 'Bash', arg: 'flutter test test/core · 0:42', pane: 'A', active: true },
+      { name: 'SPEC-014 · R1 Painel Git', k: 'wait', tool: 'Edit', arg: 'pubspec.yaml · aguardando', pane: 'B', active: true },
+      { name: 'SPEC-015 · A/B R2', k: 'run', tool: 'Read', arg: 'B · specs/SPEC-015.md', pane: '' },
+      { name: 'SPEC-009 · R2 GitService', k: 'fail', tool: '', arg: 'gate recusou · precisa de resposta', pane: '' },
+      { name: 'SPEC-011 · R4 Painel', k: 'done', tool: '', arg: 'concluída · $0.81', pane: '' },
+      { name: 'SPEC-013 · R1', k: 'idle', tool: '', arg: 'interrompida ontem', pane: '' }
+    ];
+    return {
+      sessions: raw.map((s) => ({ ...s, color: C[s.k], toolColor: T[s.tool], paneColor: s.pane ? '#F2A541' : 'transparent', bg: s.active ? '#1F2430' : 'transparent', border: s.active ? '#2E3542' : 'transparent' }))
+    };
+  }
+}
+</script>
+</body>
+</html>

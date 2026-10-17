@@ -7,8 +7,10 @@ import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_service.dart';
+import 'package:promptorium/features/project/project_templates.dart';
 import 'package:promptorium/features/specs/spec_file.dart';
 
 import '../../core/git/git_test_utils.dart';
@@ -112,6 +114,46 @@ void main() {
     Directory('${tmp.path}/vazia').createSync();
     await service().createProject(parent: tmp.path, name: 'vazia');
     expect(Directory('${tmp.path}/vazia/.git').existsSync(), isTrue);
+  });
+
+  test('createProject with a template commits config.yml and CLAUDE.md; '
+      'plan: false starts no plan (UX v2, U7)', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'app',
+      template: templateById('flutter'),
+      plan: false,
+    );
+    final path = '${tmp.path}/app';
+    expect(ProjectConfig.loadSync(path).testCommand, 'flutter test');
+    expect(ProjectConfig.loadSync(path).worktree.prepare, 'flutter pub get');
+    expect(File('$path/CLAUDE.md').readAsStringSync(), contains('Flutter'));
+    // Both files are in the initial commit.
+    expect(
+      await gitIn(path, ['ls-tree', '--name-only', '-r', 'HEAD']),
+      contains('.promptorium/config.yml'),
+    );
+    expect(await c.read(projectPlansRepoProvider).get(ws.id), isNull);
+
+    // With a plan: the template's choices are pinned for the planner.
+    final ws2 = await service().createProject(
+      parent: tmp.path,
+      name: 'app2',
+      template: templateById('flutter'),
+    );
+    final row = await c.read(projectPlansRepoProvider).get(ws2.id);
+    final data = ProjectPlanData.decode(row!.data);
+    expect(data.stack.decisions.map((d) => d.choice), ['Flutter', 'Riverpod']);
+    expect(data.stack.decisions.every((d) => d.pinned), isTrue);
+
+    // "Vazio" writes nothing extra.
+    await service().createProject(
+      parent: tmp.path,
+      name: 'vazio2',
+      template: templateById('empty'),
+      plan: false,
+    );
+    expect(File('${tmp.path}/vazio2/CLAUDE.md').existsSync(), isFalse);
   });
 
   test('createProject rejects bad names and non-empty folders', () async {

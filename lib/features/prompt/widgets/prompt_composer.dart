@@ -237,7 +237,7 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (showing)
-                _Suggestions(
+                ComposerSuggestions(
                   trigger: trigger,
                   files: files,
                   prompts: prompts,
@@ -511,8 +511,11 @@ class FileChip extends StatelessWidget {
   }
 }
 
-class _Suggestions extends StatelessWidget {
-  const _Suggestions({
+/// `@` file / `/` saved-prompt suggestions above a composer (Prompt and
+/// Sessões; UX v2, U4).
+class ComposerSuggestions extends StatelessWidget {
+  const ComposerSuggestions({
+    super.key,
     required this.trigger,
     required this.files,
     required this.prompts,

@@ -89,3 +89,31 @@ contra a configuração real do usuário:
 | Criar PR com `gh` instalado e autenticado | app + GitHub | F9, DT-38 |
 | Terminal da tela Código rodando `flutter run -d linux` no worktree | app | F10, DT-43 |
 | Tela MCP com a config real (`claude mcp list` sobe todos os servidores) | app | F11, DT-46 |
+
+## Atualização — plano de melhorias (2026-10-17, branch `teste`)
+
+Resolvidos ou reduzidos pelo [plano de melhorias](plano-melhorias-ides.md):
+
+- **DT-01** Painel Git na tela Código (F13). **DT-02** Busca global Ctrl+Shift+F (F13; sem substituir).
+  **DT-04** Aba Problemas com o `lint:` do projeto ao salvar (F13; não é LSP). **DT-05** Central de
+  notificações (F13; sem folha de atalhos).
+- **DT-06** Checkpoint por etapa (F3). **DT-12** Ctrl+K real (F10). **DT-16** Migrações geradas de v8 em
+  diante + backup (F11). **DT-18** Fork leva as alterações sem commit (F4). **DT-19** Modo trocado com a
+  sessão viva (F12).
+- **DT-25** Perguntar com `--tools` + `--strict-mcp-config` (F12). **DT-32** Specs observadas no disco
+  (F11). **DT-33** Linha ao vivo, grafo, ordem persistida, falha de sessão (F9).
+- **DT-36** Rascunho do Review persistido, todos os arquivos, lado a lado, realce, rodadas (F3, F6).
+- **DT-37** Squash/rebase e "resolver conflito" (F16). **DT-38** `gh auth status` e PR rascunho (F6).
+- **DT-41** Avisos no meio do turno e persistidos (F3). **DT-42** Watch de disco no Código (F11).
+  **DT-44** Gravação atômica (F11). **DT-45** Mascaramento mais rígido (F12; argv continua, ver pesquisa).
+  **DT-48** `mcp list` em segundo plano depois do splash (F12). **DT-08** Provedores ACP (F18).
+
+Novos:
+
+| Item | Descrição | Prioridade | Notas |
+|---|---|---|---|
+| DT-50 | **Hooks dependem de `python3`** | Baixa | Sem `python3`, os hooks gerenciados ficam desligados (aviso em Automações). Alternativa: executável Dart compilado junto |
+| DT-51 | **Cliente ACP sem agente real** | Média | Testado com processo falso. Conferir com `gemini --experimental-acp` (Node 20 ou mais novo) e outros agentes ACP |
+| DT-52 | **Flatpak não testado** | Média | Manifesto e wrapper escritos sem `flatpak-builder` |
+| DT-53 | **`spec_runner.dart` grande** | Baixa | ~1500 linhas (gate, checkpoint, A/B). Separar em arquivos por assunto |
+| DT-54 | **Babysit de PR: comentários por linha** | Baixa | `gh pr view --json` não traz comentários de linha (precisa de `gh api …/pulls/N/comments`) |

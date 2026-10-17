@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/db/app_database.dart';
 import '../sessions/timeline.dart';
 import '../specs/spec_file.dart';
+import 'step_gate.dart';
 
 /// Pure rules of the Quadro: the spec is the card, its requirements are the
 /// steps (plano "specs no quadro").
@@ -15,6 +16,8 @@ class StepView {
     required this.text,
     this.status = StepStatus.pending,
     this.sessionId,
+    this.gate,
+    this.startSha,
   });
 
   /// `R1`.
@@ -23,7 +26,17 @@ class StepView {
   final StepStatus status;
   final String? sessionId;
 
+  /// Last gate of the step (null = never verified).
+  final GateReport? gate;
+
+  /// HEAD when its last session started (checkpoint).
+  final String? startSha;
+
   bool get isDone => status == StepStatus.done;
+
+  /// Waits for the user because the gate refused it.
+  bool get gateFailed =>
+      !isDone && status != StepStatus.verifying && gate != null && !gate!.ok;
 }
 
 /// Steps of [spec] in file order, with the state of [rows] (rows of steps
@@ -33,16 +46,29 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
     for (final r in rows)
       if (r.specId == spec.id) r.step: r,
   };
+  StepView view(String id, String text) => StepView(
+    id: id,
+    text: text,
+    status: byStep[id]?.status ?? StepStatus.pending,
+    sessionId: byStep[id]?.sessionId,
+    gate: GateReport.decode(byStep[id]?.gateReport),
+    startSha: byStep[id]?.startSha,
+  );
+  // Steps added by the app (the reviewer's corrections), after the file's.
+  final extra = [
+    for (final r in byStep.values)
+      if (isReviewStep(r.step) && r.body != null) r,
+  ]..sort((a, b) => reviewStepRound(a.step).compareTo(reviewStepRound(b.step)));
   return [
-    for (final req in spec.requirements)
-      StepView(
-        id: req.id,
-        text: req.text,
-        status: byStep[req.id]?.status ?? StepStatus.pending,
-        sessionId: byStep[req.id]?.sessionId,
-      ),
+    for (final req in spec.requirements) view(req.id, req.text),
+    for (final r in extra) view(r.step, r.body!),
   ];
 }
+
+/// `REV1`, `REV2`…: correction steps of the automatic reviewer.
+bool isReviewStep(String id) => RegExp(r'^REV\d+$').hasMatch(id);
+
+int reviewStepRound(String id) => int.tryParse(id.substring(3)) ?? 0;
 
 /// `(done, total)` of [steps].
 (int, int) progressOf(List<StepView> steps) =>
@@ -114,6 +140,7 @@ String stepStatusLabel(StepStatus s) => switch (s) {
   StepStatus.running => 'rodando',
   StepStatus.done => 'concluída',
   StepStatus.needsInput => 'aguardando você',
+  StepStatus.verifying => 'verificando',
 };
 
 /// State of a subagent configured on a spec.

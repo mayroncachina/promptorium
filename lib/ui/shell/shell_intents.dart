@@ -20,6 +20,23 @@ class NewSessionIntent extends Intent {
   const NewSessionIntent();
 }
 
+/// Ctrl+/: the shortcut sheet.
+class OpenShortcutsIntent extends Intent {
+  const OpenShortcutsIntent();
+}
+
+/// Ctrl+Shift+A / Ctrl+Shift+D: answer the oldest pending approval.
+class AnswerOldestApprovalIntent extends Intent {
+  const AnswerOldestApprovalIntent({required this.approve});
+
+  final bool approve;
+}
+
+/// Ctrl+\: Sessões side by side (second pane on / off).
+class ToggleSplitIntent extends Intent {
+  const ToggleSplitIntent();
+}
+
 class GoToSectionIntent extends Intent {
   const GoToSectionIntent(this.section);
 
@@ -44,6 +61,14 @@ final Map<ShortcutActivator, Intent> shellShortcuts = {
       const OpenPaletteIntent(),
   const SingleActivator(LogicalKeyboardKey.keyN, control: true):
       const NewSessionIntent(),
+  const SingleActivator(LogicalKeyboardKey.slash, control: true):
+      const OpenShortcutsIntent(),
+  const SingleActivator(LogicalKeyboardKey.backslash, control: true):
+      const ToggleSplitIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):
+      const AnswerOldestApprovalIntent(approve: true),
+  const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true):
+      const AnswerOldestApprovalIntent(approve: false),
   // Ctrl+= / Ctrl++ (with or without Shift, main row or numpad).
   const SingleActivator(LogicalKeyboardKey.equal, control: true):
       const ZoomIntent(ZoomOp.zoomIn),

@@ -26,6 +26,10 @@ enum StepStatus {
 
   /// The session ended without `ETAPA CONCLUÍDA`: waits for the user.
   needsInput,
+
+  /// Marked done by the agent; the gate (tests, commit…) is running or the
+  /// agent is fixing what it found (schema v9).
+  verifying,
 }
 
 /// State of a Claude Code session (Fase 5).

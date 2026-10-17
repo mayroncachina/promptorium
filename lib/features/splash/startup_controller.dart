@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
 import '../../core/git/git_service.dart';
+import '../../core/process/orphans.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
+import '../board/autopilot.dart';
 import '../prompt/prompt_actions.dart' show seedSavedPrompts;
+import '../sessions/session_manager.dart';
 
 /// Values produced by startup steps and consumed by later steps / the app.
 class StartupContext {
@@ -182,8 +187,40 @@ class RestoreSessionsStep extends StartupStep {
 
   @override
   Future<void> run(StartupContext ctx) async {
-    final n = await ctx.ref.read(sessionsRepoProvider).markLiveAsInterrupted();
+    // `claude` processes left alive by a crash of the app (F11).
+    final repo = ctx.ref.read(sessionsRepoProvider);
+    final ended = killOrphans(await repo.pids());
+    if (ended.isNotEmpty) {
+      debugPrint('${ended.length} processo(s) claude órfão(s) encerrado(s)');
+    }
+    await repo.clearPids();
+    final n = await repo.markLiveAsInterrupted();
     if (n > 0) debugPrint('$n sessão(ões) marcada(s) como interrompida(s)');
+    // Notices not delivered before closing; the autopilot that was on
+    // resumes (not awaited: it may start sessions).
+    await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    // A spec in execution: the app opens on the Quadro (F10).
+    final running = await ctx.ref
+        .read(appDatabaseProvider)
+        .customSelect("SELECT 1 FROM specs WHERE stage = 'running' LIMIT 1")
+        .get();
+    if (running.isNotEmpty) {
+      await ctx.ref
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.lastSection, 'tasks');
+    }
+    // A review interrupted by closing the app goes to the user.
+    await ctx.ref
+        .read(appDatabaseProvider)
+        .customStatement(
+          "UPDATE specs SET review_phase = 'human' "
+          "WHERE review_phase = 'auto' AND stage = 'review'",
+        );
+    unawaited(
+      ctx.ref.read(autopilotProvider.notifier).restore().catchError((Object e) {
+        debugPrint('autopilot não retomado — $e');
+      }),
+    );
   }
 }
 
