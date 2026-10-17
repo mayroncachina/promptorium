@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../project/project_config.dart';
+import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart';
@@ -64,14 +66,59 @@ class Autopilot extends Notifier<Set<int>> {
     }
   }
 
-  /// Starts what can start now. Called on play and when a spec reaches Review.
+  /// Spec sessions' cost of the day in [workspaceId] (`orcamento-dia`).
+  Future<double> spentToday(int workspaceId, {DateTime? now}) async {
+    final t = now ?? DateTime.now();
+    final day = DateTime(t.year, t.month, t.day);
+    final sessions = await ref
+        .read(sessionsRepoProvider)
+        .watchByWorkspace(workspaceId)
+        .first;
+    return sessions
+        .where((s) => s.specId != null && !s.startedAt.isBefore(day))
+        .fold<double>(0, (a, s) => a + s.costUsd);
+  }
+
+  /// Off (with a notification) when the day's budget is spent. Returns
+  /// whether it turned off. Sessions already running finish their turn.
+  Future<bool> checkBudget(int workspaceId) async {
+    if (!isOn(workspaceId)) return false;
+    final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+    if (ws == null) return false;
+    final budget = ProjectConfig.loadSync(ws.path).autopilot.dailyBudgetUsd;
+    if (budget == null) return false;
+    final spent = await spentToday(workspaceId);
+    if (spent < budget) return false;
+    _off(workspaceId);
+    unawaited(
+      ref
+          .read(appNotifierProvider)
+          .show(
+            'Autopilot parado',
+            '${ws.name}: orçamento do dia atingido '
+                '(US\$ ${spent.toStringAsFixed(2)} de '
+                'US\$ ${budget.toStringAsFixed(2)}).',
+          ),
+    );
+    return true;
+  }
+
+  /// Starts what can start now, up to `autopilot.paralelo` specs running at
+  /// once. Called on play and when a spec reaches Review.
   Future<void> tick(int workspaceId) async {
     if (!isOn(workspaceId)) return;
+    if (await checkBudget(workspaceId)) return;
+    final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+    final parallel = ws == null
+        ? null
+        : ProjectConfig.loadSync(ws.path).autopilot.parallel;
     final specs = ref.read(specsRepoProvider);
     final all = await specs.watchByWorkspace(workspaceId).first;
     final byCode = specsByCode(all);
+    var running = all.where((s) => s.stage == SpecStage.running).length;
     var started = 0;
     for (final s in all) {
+      if (parallel != null && running >= parallel) break;
       if (!isOnBoard(s) ||
           s.stage != SpecStage.backlog ||
           s.status == SpecStatus.done) {
@@ -81,6 +128,7 @@ class Autopilot extends Notifier<Set<int>> {
       try {
         await ref.read(specRunnerProvider).runNext(s.id, reviewUnblocks: true);
         started++;
+        running++;
       } catch (e) {
         debugPrint('autopilot: ${s.code} não iniciada — $e');
       }

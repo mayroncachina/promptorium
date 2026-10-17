@@ -37,6 +37,21 @@ const stepMarker = 'ETAPA CONCLUÍDA';
 /// Line of a step answer that goes to the project memory (F8).
 const learningMarker = 'APRENDIZADO';
 
+/// Line of a step answer proposing a change to the spec (F9).
+const suggestionMarker = 'SPEC SUGESTÃO';
+
+/// Text of the `SPEC SUGESTÃO: …` lines of [text] (accents / case
+/// tolerated).
+List<String> parseSuggestions(String? text) => [
+  if (text != null)
+    for (final m in RegExp(
+      r'^\s*SPEC\s+SUGEST[AÃ]O\s*:\s*(.+?)\s*$',
+      caseSensitive: false,
+      multiLine: true,
+    ).allMatches(text))
+      m.group(1)!,
+];
+
 /// The part of the spec a session needs (F7): objective, its requirements,
 /// the blocks of `## Design` that mention its steps (or the files of its
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
@@ -277,7 +292,11 @@ String specStepPrompt({
       'armadilha, uma convenção do projeto), escreva no máximo uma linha '
       '"$learningMarker: <o que aprendeu>";',
     )
-    ..writeln('4. termine a resposta com a linha exata: $stepMarker: $ids')
+    ..writeln(
+      '4. se a spec precisar mudar (requisito grande demais, faltando ou '
+      'errado), escreva "$suggestionMarker: <o que mudar>" — o usuário decide;',
+    )
+    ..writeln('5. termine a resposta com a linha exata: $stepMarker: $ids')
     ..writeln()
     ..writeln(
       'Se faltar informação ou algo impedir a etapa, explique e pergunte, '
@@ -857,6 +876,16 @@ class SpecRunner {
     final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
     final config = await _config(s.workspaceId);
     final gated = config != null && config.gateEnabled;
+    for (final text in parseSuggestions(r.result)) {
+      await _ref
+          .read(specSuggestionsRepoProvider)
+          .add(
+            specId: specId,
+            body: text,
+            sessionId: sessionId,
+            steps: s.steps,
+          );
+    }
     if (parseLearning(r.isSuccess ? r.result : null) case final l?) {
       final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
       final spec = await _ref.read(specsRepoProvider).getById(specId);
@@ -1138,6 +1167,12 @@ class SpecRunner {
   /// finished one's idle process is closed first.
   Future<void> _advance(Session done) async {
     try {
+      // The autopilot's daily budget also stops the next step.
+      if (await _ref
+          .read(autopilotProvider.notifier)
+          .checkBudget(done.workspaceId)) {
+        return;
+      }
       await _manager.release(done.id);
       await runNext(
         done.specId!,

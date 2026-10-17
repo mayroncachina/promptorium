@@ -140,6 +140,9 @@ class Specs extends Table {
   /// unchecked.
   TextColumn get mergeOverride => text().nullable()();
 
+  /// Position in its column of the Quadro (schema v11; null = by code).
+  IntColumn get boardOrder => integer().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {workspaceId, code},
@@ -254,6 +257,23 @@ class SpecCriteria extends Table {
 
   @override
   Set<Column> get primaryKey => {specId, criterion};
+}
+
+/// `SPEC SUGESTÃO: …` written by a step session (schema v11): shown on the
+/// card until the user applies or ignores it.
+class SpecSuggestions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+  TextColumn get sessionId => text().nullable()();
+
+  /// Steps of the session that wrote it (`R2`).
+  TextColumn get steps => text().nullable()();
+  TextColumn get body => text()();
+
+  /// `pendente` / `aplicada` / `ignorada`.
+  TextColumn get state => text().withDefault(const Constant('pendente'))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Notices waiting to be sent to a session (manual edits, schema v9).
@@ -522,6 +542,7 @@ class AppSettings extends Table {
     PendingNotices,
     ReviewComments,
     SpecCriteria,
+    SpecSuggestions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -539,7 +560,7 @@ class AppDatabase extends _$AppDatabase {
   static const fileName = 'promptorium';
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   Future<bool> _hasTable(String name) async => (await customSelect(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -665,6 +686,13 @@ class AppDatabase extends _$AppDatabase {
             !await _hasColumn('spec_steps', 'body')) {
           await m.addColumn(specSteps, specSteps.body);
         }
+      }
+      // v11: order of the cards and suggestions of the sessions (Quadro).
+      if (from < 11 && await _hasTable('specs')) {
+        if (!await _hasColumn('specs', 'board_order')) {
+          await m.addColumn(specs, specs.boardOrder);
+        }
+        await m.createTable(specSuggestions);
       }
     },
     beforeOpen: (details) async {

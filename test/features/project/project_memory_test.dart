@@ -81,28 +81,29 @@ void main() {
         ),
       ),
     );
-    Future<void> io() async {
-      for (var i = 0; i < 10; i++) {
+    Future<void> io([Finder? until]) async {
+      for (var i = 0; i < 150; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
         await tester.pump();
+        if (i >= 5 && (until == null || until.evaluate().isNotEmpty)) return;
       }
     }
 
-    await io();
+    await io(find.text('Nada anotado ainda.'));
     expect(find.text('Nada anotado ainda.'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('memory-new')),
       'docker precisa estar rodando',
     );
     await tester.tap(find.byKey(const ValueKey('memory-add')));
-    await io();
+    await io(find.text('docker precisa estar rodando'));
     expect(find.text('docker precisa estar rodando'), findsOneWidget);
     final file = File('${tmp.path}/${ProjectMemory.filePath}');
     expect(file.readAsStringSync(), contains('- docker precisa estar rodando'));
     await tester.tap(find.byKey(const ValueKey('memory-remove-0')));
-    await io();
+    await io(find.text('Nada anotado ainda.'));
     expect(find.text('Nada anotado ainda.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

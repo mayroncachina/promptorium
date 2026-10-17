@@ -8,16 +8,19 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
 import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
+import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart' show worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
+import 'widgets/card_extras.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/subagent_status.dart';
+import 'widgets/wave_graph.dart';
 
 /// Step rows of every spec of a workspace.
 final specStepsProvider = StreamProvider.family<List<SpecStep>, int>(
@@ -71,6 +74,29 @@ class SpecCardData {
           .firstOrNull ??
       steps.where((s) => !s.isDone).firstOrNull;
 }
+
+/// "Grafo" (dependency waves) instead of the columns.
+class BoardGraphView extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool graph) => state = graph;
+}
+
+final boardGraphViewProvider = NotifierProvider<BoardGraphView, bool>(
+  BoardGraphView.new,
+);
+
+/// Cards of one column in their saved order (`specs.board_order`; the rest
+/// by code).
+List<SpecCardData> orderedCards(Iterable<SpecCardData> cards) =>
+    cards.toList()..sort((a, b) {
+      final oa = a.spec.boardOrder, ob = b.spec.boardOrder;
+      if (oa != null && ob != null && oa != ob) return oa.compareTo(ob);
+      if (oa != null && ob == null) return -1;
+      if (oa == null && ob != null) return 1;
+      return a.spec.code.compareTo(b.spec.code);
+    });
 
 /// Quadro: one card per approved spec; its requirements are the steps
 /// (docs/plano-specs-no-quadro.md).
@@ -128,6 +154,15 @@ class BoardScreen extends ConsumerWidget {
                               'o projeto em Projeto.'
                         : 'Nenhuma spec aprovada. Aprove uma spec na tela '
                               'Specs para ela entrar no quadro.',
+                  )
+                : ref.watch(boardGraphViewProvider)
+                ? WaveGraph(
+                    specs: [for (final d in cards) d.spec],
+                    highlightNext: ref.watch(
+                      autopilotProvider.select((s) => s.contains(ws.id)),
+                    ),
+                    cardBuilder: (spec) =>
+                        SpecCard(data: cards.firstWhere((d) => d.spec == spec)),
                   )
                 : _Board(cards: cards),
           ),
@@ -209,6 +244,27 @@ class _Header extends ConsumerWidget {
               style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
           const SizedBox(width: 12),
+          for (final (graph, label) in [(false, 'Colunas'), (true, 'Grafo')])
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: ToggleBox(
+                key: ValueKey('board-view-${graph ? 'graph' : 'columns'}'),
+                on: ref.watch(boardGraphViewProvider) == graph,
+                height: 28,
+                onTap: () =>
+                    ref.read(boardGraphViewProvider.notifier).set(graph),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: ref.watch(boardGraphViewProvider) == graph
+                        ? AppColors.amber
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
           Tooltip(
             message: on
                 ? 'Parar: desliga o automático e interrompe as sessões das specs'
@@ -295,10 +351,10 @@ class _Board extends StatelessWidget {
                   child: _Column(
                     stage: s,
                     width: colW,
-                    cards: [
+                    cards: orderedCards([
                       for (final d in cards)
                         if (d.spec.stage == s) d,
-                    ],
+                    ]),
                   ),
                 ),
               ],
@@ -387,7 +443,22 @@ class _Column extends ConsumerWidget {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final d = cards[i];
-                      final card = SpecCard(data: d);
+                      Future<void> move(int delta) async {
+                        final ids = [for (final c in cards) c.spec.id];
+                        final j = i + delta;
+                        if (j < 0 || j >= ids.length) return;
+                        ids
+                          ..removeAt(i)
+                          ..insert(j, d.spec.id);
+                        await ref.read(specsRepoProvider).setBoardOrder(ids);
+                      }
+
+                      final card = SpecCard(
+                        data: d,
+                        onMove: cards.length > 1 ? move : null,
+                        isFirst: i == 0,
+                        isLast: i == cards.length - 1,
+                      );
                       return Draggable<int>(
                         key: ValueKey('board-card-${d.spec.code}'),
                         data: d.spec.id,
@@ -413,9 +484,20 @@ class _Column extends ConsumerWidget {
 /// Card of a spec: code, phase, title, progress, current step, blockers,
 /// agent, cost and the action that fits its state.
 class SpecCard extends ConsumerWidget {
-  const SpecCard({super.key, required this.data});
+  const SpecCard({
+    super.key,
+    required this.data,
+    this.onMove,
+    this.isFirst = false,
+    this.isLast = false,
+  });
 
   final SpecCardData data;
+
+  /// Moves the card up (-1) / down (+1) in its column (null = no menu item).
+  final Future<void> Function(int delta)? onMove;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -528,7 +610,13 @@ class SpecCard extends ConsumerWidget {
                       color: AppColors.textMuted,
                     ),
                   ),
-                _CardMenu(data: data, canRun: canRun),
+                _CardMenu(
+                  data: data,
+                  canRun: canRun,
+                  onMove: onMove,
+                  isFirst: isFirst,
+                  isLast: isLast,
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -571,6 +659,11 @@ class SpecCard extends ConsumerWidget {
                 GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
               ],
             ],
+            if (busy && last != null) ...[
+              const SizedBox(height: 4),
+              LiveToolLine(session: last, specCode: spec.code),
+            ],
+            SuggestionBanner(spec: spec),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -765,10 +858,19 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _CardMenu extends ConsumerWidget {
-  const _CardMenu({required this.data, required this.canRun});
+  const _CardMenu({
+    required this.data,
+    required this.canRun,
+    this.onMove,
+    this.isFirst = false,
+    this.isLast = false,
+  });
 
   final SpecCardData data;
   final bool canRun;
+  final Future<void> Function(int delta)? onMove;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -792,6 +894,10 @@ class _CardMenu extends ConsumerWidget {
               await repo.setAutoAdvance(spec.id, !spec.autoAdvance);
             case 'details':
               if (context.mounted) await showSpecDetailDialog(context, spec.id);
+            case 'up':
+              await onMove?.call(-1);
+            case 'down':
+              await onMove?.call(1);
             default:
               final s = SpecStage.values.asNameMap()[v];
               if (s != null) await repo.setStage(spec.id, s);
@@ -819,6 +925,16 @@ class _CardMenu extends ConsumerWidget {
             value: 'details',
             child: Text('Etapas e sessões', style: TextStyle(fontSize: 12)),
           ),
+          if (onMove != null && !isFirst)
+            const PopupMenuItem(
+              value: 'up',
+              child: Text('Subir na coluna', style: TextStyle(fontSize: 12)),
+            ),
+          if (onMove != null && !isLast)
+            const PopupMenuItem(
+              value: 'down',
+              child: Text('Descer na coluna', style: TextStyle(fontSize: 12)),
+            ),
           for (final s in SpecStage.values)
             if (s != spec.stage)
               PopupMenuItem(

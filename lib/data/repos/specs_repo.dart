@@ -114,6 +114,13 @@ class SpecsRepo {
     ),
   );
 
+  /// Order of the cards of a column: [ids] get 0, 1, 2…
+  Future<void> setBoardOrder(List<int> ids) => _db.transaction(() async {
+    for (final (i, id) in ids.indexed) {
+      await update(id, SpecsCompanion(boardOrder: Value(i)));
+    }
+  });
+
   /// The worktree got its files and ran `preparar:` (null = not yet).
   Future<int> setPrepared(int id, DateTime? at) =>
       update(id, SpecsCompanion(preparedAt: Value(at)));

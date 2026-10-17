@@ -527,6 +527,17 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _boardOrderMeta = const VerificationMeta(
+    'boardOrder',
+  );
+  @override
+  late final GeneratedColumn<int> boardOrder = GeneratedColumn<int>(
+    'board_order',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -549,6 +560,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     reviewPhase,
     reviewRounds,
     mergeOverride,
+    boardOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -684,6 +696,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('board_order')) {
+      context.handle(
+        _boardOrderMeta,
+        boardOrder.isAcceptableOrUnknown(data['board_order']!, _boardOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -785,6 +803,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.string,
         data['${effectivePrefix}merge_override'],
       ),
+      boardOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}board_order'],
+      ),
     );
   }
 
@@ -857,6 +879,9 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// Reason given for "Mergear mesmo assim" with acceptance criteria
   /// unchecked.
   final String? mergeOverride;
+
+  /// Position in its column of the Quadro (schema v11; null = by code).
+  final int? boardOrder;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -878,6 +903,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.reviewPhase,
     required this.reviewRounds,
     this.mergeOverride,
+    this.boardOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -934,6 +960,9 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || mergeOverride != null) {
       map['merge_override'] = Variable<String>(mergeOverride);
     }
+    if (!nullToAbsent || boardOrder != null) {
+      map['board_order'] = Variable<int>(boardOrder);
+    }
     return map;
   }
 
@@ -977,6 +1006,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       mergeOverride: mergeOverride == null && nullToAbsent
           ? const Value.absent()
           : Value(mergeOverride),
+      boardOrder: boardOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(boardOrder),
     );
   }
 
@@ -1012,6 +1044,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       reviewPhase: serializer.fromJson<String?>(json['reviewPhase']),
       reviewRounds: serializer.fromJson<int>(json['reviewRounds']),
       mergeOverride: serializer.fromJson<String?>(json['mergeOverride']),
+      boardOrder: serializer.fromJson<int?>(json['boardOrder']),
     );
   }
   @override
@@ -1044,6 +1077,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       'reviewPhase': serializer.toJson<String?>(reviewPhase),
       'reviewRounds': serializer.toJson<int>(reviewRounds),
       'mergeOverride': serializer.toJson<String?>(mergeOverride),
+      'boardOrder': serializer.toJson<int?>(boardOrder),
     };
   }
 
@@ -1068,6 +1102,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> reviewPhase = const Value.absent(),
     int? reviewRounds,
     Value<String?> mergeOverride = const Value.absent(),
+    Value<int?> boardOrder = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1093,6 +1128,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     mergeOverride: mergeOverride.present
         ? mergeOverride.value
         : this.mergeOverride,
+    boardOrder: boardOrder.present ? boardOrder.value : this.boardOrder,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1136,6 +1172,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       mergeOverride: data.mergeOverride.present
           ? data.mergeOverride.value
           : this.mergeOverride,
+      boardOrder: data.boardOrder.present
+          ? data.boardOrder.value
+          : this.boardOrder,
     );
   }
 
@@ -1161,13 +1200,14 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('preparedAt: $preparedAt, ')
           ..write('reviewPhase: $reviewPhase, ')
           ..write('reviewRounds: $reviewRounds, ')
-          ..write('mergeOverride: $mergeOverride')
+          ..write('mergeOverride: $mergeOverride, ')
+          ..write('boardOrder: $boardOrder')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     workspaceId,
     code,
@@ -1188,7 +1228,8 @@ class Spec extends DataClass implements Insertable<Spec> {
     reviewPhase,
     reviewRounds,
     mergeOverride,
-  );
+    boardOrder,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1212,7 +1253,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.preparedAt == this.preparedAt &&
           other.reviewPhase == this.reviewPhase &&
           other.reviewRounds == this.reviewRounds &&
-          other.mergeOverride == this.mergeOverride);
+          other.mergeOverride == this.mergeOverride &&
+          other.boardOrder == this.boardOrder);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1236,6 +1278,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> reviewPhase;
   final Value<int> reviewRounds;
   final Value<String?> mergeOverride;
+  final Value<int?> boardOrder;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1257,6 +1300,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.reviewPhase = const Value.absent(),
     this.reviewRounds = const Value.absent(),
     this.mergeOverride = const Value.absent(),
+    this.boardOrder = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1279,6 +1323,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.reviewPhase = const Value.absent(),
     this.reviewRounds = const Value.absent(),
     this.mergeOverride = const Value.absent(),
+    this.boardOrder = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1304,6 +1349,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? reviewPhase,
     Expression<int>? reviewRounds,
     Expression<String>? mergeOverride,
+    Expression<int>? boardOrder,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1326,6 +1372,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (reviewPhase != null) 'review_phase': reviewPhase,
       if (reviewRounds != null) 'review_rounds': reviewRounds,
       if (mergeOverride != null) 'merge_override': mergeOverride,
+      if (boardOrder != null) 'board_order': boardOrder,
     });
   }
 
@@ -1350,6 +1397,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? reviewPhase,
     Value<int>? reviewRounds,
     Value<String?>? mergeOverride,
+    Value<int?>? boardOrder,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -1372,6 +1420,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       reviewPhase: reviewPhase ?? this.reviewPhase,
       reviewRounds: reviewRounds ?? this.reviewRounds,
       mergeOverride: mergeOverride ?? this.mergeOverride,
+      boardOrder: boardOrder ?? this.boardOrder,
     );
   }
 
@@ -1446,6 +1495,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (mergeOverride.present) {
       map['merge_override'] = Variable<String>(mergeOverride.value);
     }
+    if (boardOrder.present) {
+      map['board_order'] = Variable<int>(boardOrder.value);
+    }
     return map;
   }
 
@@ -1471,7 +1523,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('preparedAt: $preparedAt, ')
           ..write('reviewPhase: $reviewPhase, ')
           ..write('reviewRounds: $reviewRounds, ')
-          ..write('mergeOverride: $mergeOverride')
+          ..write('mergeOverride: $mergeOverride, ')
+          ..write('boardOrder: $boardOrder')
           ..write(')'))
         .toString();
   }
@@ -9221,6 +9274,450 @@ class SpecCriteriaCompanion extends UpdateCompanion<SpecCriteriaData> {
   }
 }
 
+class $SpecSuggestionsTable extends SpecSuggestions
+    with TableInfo<$SpecSuggestionsTable, SpecSuggestion> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecSuggestionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pendente'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    sessionId,
+    steps,
+    body,
+    state,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_suggestions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecSuggestion> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpecSuggestion map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecSuggestion(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      ),
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecSuggestionsTable createAlias(String alias) {
+    return $SpecSuggestionsTable(attachedDatabase, alias);
+  }
+}
+
+class SpecSuggestion extends DataClass implements Insertable<SpecSuggestion> {
+  final int id;
+  final int specId;
+  final String? sessionId;
+
+  /// Steps of the session that wrote it (`R2`).
+  final String? steps;
+  final String body;
+
+  /// `pendente` / `aplicada` / `ignorada`.
+  final String state;
+  final DateTime createdAt;
+  const SpecSuggestion({
+    required this.id,
+    required this.specId,
+    this.sessionId,
+    this.steps,
+    required this.body,
+    required this.state,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || steps != null) {
+      map['steps'] = Variable<String>(steps);
+    }
+    map['body'] = Variable<String>(body);
+    map['state'] = Variable<String>(state);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SpecSuggestionsCompanion toCompanion(bool nullToAbsent) {
+    return SpecSuggestionsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      steps: steps == null && nullToAbsent
+          ? const Value.absent()
+          : Value(steps),
+      body: Value(body),
+      state: Value(state),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SpecSuggestion.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecSuggestion(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      steps: serializer.fromJson<String?>(json['steps']),
+      body: serializer.fromJson<String>(json['body']),
+      state: serializer.fromJson<String>(json['state']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'steps': serializer.toJson<String?>(steps),
+      'body': serializer.toJson<String>(body),
+      'state': serializer.toJson<String>(state),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SpecSuggestion copyWith({
+    int? id,
+    int? specId,
+    Value<String?> sessionId = const Value.absent(),
+    Value<String?> steps = const Value.absent(),
+    String? body,
+    String? state,
+    DateTime? createdAt,
+  }) => SpecSuggestion(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    steps: steps.present ? steps.value : this.steps,
+    body: body ?? this.body,
+    state: state ?? this.state,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SpecSuggestion copyWithCompanion(SpecSuggestionsCompanion data) {
+    return SpecSuggestion(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      body: data.body.present ? data.body.value : this.body,
+      state: data.state.present ? data.state.value : this.state,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecSuggestion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('body: $body, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, specId, sessionId, steps, body, state, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecSuggestion &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
+          other.steps == this.steps &&
+          other.body == this.body &&
+          other.state == this.state &&
+          other.createdAt == this.createdAt);
+}
+
+class SpecSuggestionsCompanion extends UpdateCompanion<SpecSuggestion> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String?> sessionId;
+  final Value<String?> steps;
+  final Value<String> body;
+  final Value<String> state;
+  final Value<DateTime> createdAt;
+  const SpecSuggestionsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.body = const Value.absent(),
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SpecSuggestionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    required String body,
+    this.state = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       body = Value(body);
+  static Insertable<SpecSuggestion> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? sessionId,
+    Expression<String>? steps,
+    Expression<String>? body,
+    Expression<String>? state,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (steps != null) 'steps': steps,
+      if (body != null) 'body': body,
+      if (state != null) 'state': state,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SpecSuggestionsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String?>? sessionId,
+    Value<String?>? steps,
+    Value<String>? body,
+    Value<String>? state,
+    Value<DateTime>? createdAt,
+  }) {
+    return SpecSuggestionsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
+      steps: steps ?? this.steps,
+      body: body ?? this.body,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecSuggestionsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('body: $body, ')
+          ..write('state: $state, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -9245,6 +9742,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PendingNoticesTable pendingNotices = $PendingNoticesTable(this);
   late final $ReviewCommentsTable reviewComments = $ReviewCommentsTable(this);
   late final $SpecCriteriaTable specCriteria = $SpecCriteriaTable(this);
+  late final $SpecSuggestionsTable specSuggestions = $SpecSuggestionsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9268,6 +9768,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pendingNotices,
     reviewComments,
     specCriteria,
+    specSuggestions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9382,6 +9883,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('spec_criteria', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_suggestions', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -10162,6 +10670,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> reviewPhase,
   Value<int> reviewRounds,
   Value<String?> mergeOverride,
+  Value<int?> boardOrder,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -10184,6 +10693,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> reviewPhase,
   Value<int> reviewRounds,
   Value<String?> mergeOverride,
+  Value<int?> boardOrder,
 });
 
 final class $$SpecsTableReferences
@@ -10298,6 +10808,26 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SpecSuggestionsTable, List<SpecSuggestion>>
+  _specSuggestionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specSuggestions,
+    aliasName: 'specs__id__spec_suggestions__spec_id',
+  );
+
+  $$SpecSuggestionsTableProcessedTableManager get specSuggestionsRefs {
+    final manager = $$SpecSuggestionsTableTableManager(
+      $_db,
+      $_db.specSuggestions,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _specSuggestionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -10408,6 +10938,11 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<String> get mergeOverride => $composableBuilder(
     column: $table.mergeOverride,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10558,6 +11093,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     );
     return f(composer);
   }
+
+  Expression<bool> specSuggestionsRefs(
+    Expression<bool> Function($$SpecSuggestionsTableFilterComposer f) f,
+  ) {
+    final $$SpecSuggestionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSuggestions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecSuggestionsTableFilterComposer(
+            $db: $db,
+            $table: $db.specSuggestions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableOrderingComposer
@@ -10661,6 +11221,11 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<String> get mergeOverride => $composableBuilder(
     column: $table.mergeOverride,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10770,6 +11335,11 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<String> get mergeOverride => $composableBuilder(
     column: $table.mergeOverride,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get boardOrder => $composableBuilder(
+    column: $table.boardOrder,
     builder: (column) => column,
   );
 
@@ -10920,6 +11490,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> specSuggestionsRefs<T extends Object>(
+    Expression<T> Function($$SpecSuggestionsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecSuggestionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specSuggestions,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecSuggestionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specSuggestions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -10942,6 +11537,7 @@ class $$SpecsTableTableManager
             bool sessionsRefs,
             bool reviewCommentsRefs,
             bool specCriteriaRefs,
+            bool specSuggestionsRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -10978,6 +11574,7 @@ class $$SpecsTableTableManager
                 Value<String?> reviewPhase = const Value.absent(),
                 Value<int> reviewRounds = const Value.absent(),
                 Value<String?> mergeOverride = const Value.absent(),
+                Value<int?> boardOrder = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -10999,6 +11596,7 @@ class $$SpecsTableTableManager
                 reviewPhase: reviewPhase,
                 reviewRounds: reviewRounds,
                 mergeOverride: mergeOverride,
+                boardOrder: boardOrder,
               ),
           createCompanionCallback:
               ({
@@ -11023,6 +11621,7 @@ class $$SpecsTableTableManager
                 Value<String?> reviewPhase = const Value.absent(),
                 Value<int> reviewRounds = const Value.absent(),
                 Value<String?> mergeOverride = const Value.absent(),
+                Value<int?> boardOrder = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -11044,6 +11643,7 @@ class $$SpecsTableTableManager
                 reviewPhase: reviewPhase,
                 reviewRounds: reviewRounds,
                 mergeOverride: mergeOverride,
+                boardOrder: boardOrder,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -11061,6 +11661,7 @@ class $$SpecsTableTableManager
                 sessionsRefs = false,
                 reviewCommentsRefs = false,
                 specCriteriaRefs = false,
+                specSuggestionsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -11070,6 +11671,7 @@ class $$SpecsTableTableManager
                     if (sessionsRefs) db.sessions,
                     if (reviewCommentsRefs) db.reviewComments,
                     if (specCriteriaRefs) db.specCriteria,
+                    if (specSuggestionsRefs) db.specSuggestions,
                   ],
                   addJoins:
                       <
@@ -11192,6 +11794,27 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (specSuggestionsRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          SpecSuggestion
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specSuggestionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specSuggestionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -11219,6 +11842,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool sessionsRefs,
         bool reviewCommentsRefs,
         bool specCriteriaRefs,
+        bool specSuggestionsRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -17304,6 +17928,360 @@ typedef $$SpecCriteriaTableProcessedTableManager =
       SpecCriteriaData,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$SpecSuggestionsTableCreateCompanionBuilder =
+    SpecSuggestionsCompanion Function({
+      Value<int> id,
+      required int specId,
+      Value<String?> sessionId,
+      Value<String?> steps,
+      required String body,
+      Value<String> state,
+      Value<DateTime> createdAt,
+    });
+typedef $$SpecSuggestionsTableUpdateCompanionBuilder =
+    SpecSuggestionsCompanion Function({
+      Value<int> id,
+      Value<int> specId,
+      Value<String?> sessionId,
+      Value<String?> steps,
+      Value<String> body,
+      Value<String> state,
+      Value<DateTime> createdAt,
+    });
+
+final class $$SpecSuggestionsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $SpecSuggestionsTable, SpecSuggestion> {
+  $$SpecSuggestionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_suggestions__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecSuggestionsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecSuggestionsTable> {
+  $$SpecSuggestionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecSuggestionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecSuggestionsTable,
+          SpecSuggestion,
+          $$SpecSuggestionsTableFilterComposer,
+          $$SpecSuggestionsTableOrderingComposer,
+          $$SpecSuggestionsTableAnnotationComposer,
+          $$SpecSuggestionsTableCreateCompanionBuilder,
+          $$SpecSuggestionsTableUpdateCompanionBuilder,
+          (SpecSuggestion, $$SpecSuggestionsTableReferences),
+          SpecSuggestion,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecSuggestionsTableTableManager(
+    _$AppDatabase db,
+    $SpecSuggestionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecSuggestionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecSuggestionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecSuggestionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecSuggestionsCompanion(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                body: body,
+                state: state,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                required String body,
+                Value<String> state = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecSuggestionsCompanion.insert(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                body: body,
+                state: state,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecSuggestionsTable, SpecSuggestion>(table),
+                  $$SpecSuggestionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecSuggestionsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecSuggestionsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecSuggestionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecSuggestionsTable,
+      SpecSuggestion,
+      $$SpecSuggestionsTableFilterComposer,
+      $$SpecSuggestionsTableOrderingComposer,
+      $$SpecSuggestionsTableAnnotationComposer,
+      $$SpecSuggestionsTableCreateCompanionBuilder,
+      $$SpecSuggestionsTableUpdateCompanionBuilder,
+      (SpecSuggestion, $$SpecSuggestionsTableReferences),
+      SpecSuggestion,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -17344,4 +18322,6 @@ class $AppDatabaseManager {
       $$ReviewCommentsTableTableManager(_db, _db.reviewComments);
   $$SpecCriteriaTableTableManager get specCriteria =>
       $$SpecCriteriaTableTableManager(_db, _db.specCriteria);
+  $$SpecSuggestionsTableTableManager get specSuggestions =>
+      $$SpecSuggestionsTableTableManager(_db, _db.specSuggestions);
 }

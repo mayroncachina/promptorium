@@ -38,6 +38,10 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 11) {
+    await db.customStatement('ALTER TABLE specs DROP COLUMN board_order');
+    await db.customStatement('DROP TABLE spec_suggestions');
+  }
   if (version < 10) {
     for (final c in [
       'worktree_index',
@@ -503,5 +507,31 @@ void main() {
           ),
         );
     expect(await db.select(db.reviewComments).get(), hasLength(1));
+  });
+
+  test('v10 → v11 adds specs.board_order and spec_suggestions', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig11-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await db.customStatement(
+      'INSERT INTO specs (workspace_id, code, title, path) VALUES '
+      "(1, 'SPEC-001', 'A', 'specs/a.md')",
+    );
+    await downgrade(db, 10);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    expect((await db.select(db.specs).getSingle()).boardOrder, isNull);
+    await db
+        .into(db.specSuggestions)
+        .insert(SpecSuggestionsCompanion.insert(specId: 1, body: 'x'));
+    expect((await db.select(db.specSuggestions).getSingle()).state, 'pendente');
   });
 }
