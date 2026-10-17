@@ -6,6 +6,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/readonly_run.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
+import '../project/project_memory.dart';
 import 'spec_file.dart';
 
 /// Instructions of "Gerar design" (read-only run in the repository).
@@ -90,7 +91,11 @@ class SpecDesigner {
         maxBudgetUsd: budgetUsd,
         includePartialMessages: false,
       ),
-      prompt: 'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
+      prompt: [
+        if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
+          'Memória do projeto:\n${m.toPrompt()}\n',
+        'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
+      ].join('\n'),
     );
     return applyDesignAnswer(specText, structuredOutput(r));
   }

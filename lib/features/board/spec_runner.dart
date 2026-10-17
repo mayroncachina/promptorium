@@ -15,6 +15,7 @@ import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
 import '../project/project_config.dart';
+import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
 import '../specs/spec_service.dart';
 import 'autopilot.dart';
@@ -32,6 +33,9 @@ class SpecRunException implements Exception {
 
 /// Line the agent writes when it finishes the steps it was given.
 const stepMarker = 'ETAPA CONCLUÍDA';
+
+/// Line of a step answer that goes to the project memory (F8).
+const learningMarker = 'APRENDIZADO';
 
 /// The part of the spec a session needs (F7): objective, its requirements,
 /// the blocks of `## Design` that mention its steps (or the files of its
@@ -164,6 +168,7 @@ String specStepPrompt({
   List<SpecSubagent> subagents = const [],
   String? testCommand,
   String? previousAttempt,
+  String? memory,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
   final now = [
@@ -235,6 +240,15 @@ String specStepPrompt({
       ..writeln('</tentativa-anterior>')
       ..writeln('Faça diferente do que não funcionou.');
   }
+  if (memory != null && memory.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Memória do projeto (aprendizados de sessões anteriores; '
+        '${ProjectMemory.filePath}):',
+      )
+      ..writeln(memory.trim());
+  }
   final focused = focusedSpecText(specText, steps: steps, todo: todo);
   b
     ..writeln()
@@ -258,7 +272,12 @@ String specStepPrompt({
       '2. faça commit com a mensagem "${spec.code} $ids: <resumo do que '
       'mudou>";',
     )
-    ..writeln('3. termine a resposta com a linha exata: $stepMarker: $ids')
+    ..writeln(
+      '3. se aprendeu algo que ajuda as próximas sessões (um comando, uma '
+      'armadilha, uma convenção do projeto), escreva no máximo uma linha '
+      '"$learningMarker: <o que aprendeu>";',
+    )
+    ..writeln('4. termine a resposta com a linha exata: $stepMarker: $ids')
     ..writeln()
     ..writeln(
       'Se faltar informação ou algo impedir a etapa, explique e pergunte, '
@@ -522,6 +541,7 @@ class SpecRunner {
           ),
           testCommand: config.testCommand,
           previousAttempt: previousAttempt,
+          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
         ),
         agent: spec.agentName ?? config.agent,
         model: model ?? last?.model ?? prefs.model(RunKind.session),
@@ -824,43 +844,57 @@ class SpecRunner {
   /// gate, when the project has one), the others of the session wait for
   /// the user. All steps done → Review; this session's steps done and
   /// auto-advance on → next session.
-  Future<void> onResult(String sessionId, Result r) => _guard(
-    sessionId,
-    () async {
-      final s = await _specSession(sessionId);
-      if (s == null) return;
-      final specId = s.specId!;
-      final mine = parseSessionSteps(s.steps);
-      final marked = r.isSuccess ? parseStepMarker(r.result) : const <String>{};
-      final repo = _ref.read(specStepsRepoProvider);
-      final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
-      final config = await _config(s.workspaceId);
-      final gated = config != null && config.gateEnabled;
-      final toVerify = <String>[];
-      for (final step in mine) {
-        if (rows[step]?.status == StepStatus.done) continue;
-        final ok = marked.contains(step);
-        if (ok && gated) toVerify.add(step);
-        await repo.set(
-          specId,
-          step,
-          !ok
-              ? StepStatus.needsInput
-              : gated
-              ? StepStatus.verifying
-              : StepStatus.done,
-          sessionId: sessionId,
+  Future<void> onResult(
+    String sessionId,
+    Result r,
+  ) => _guard(sessionId, () async {
+    final s = await _specSession(sessionId);
+    if (s == null) return;
+    final specId = s.specId!;
+    final mine = parseSessionSteps(s.steps);
+    final marked = r.isSuccess ? parseStepMarker(r.result) : const <String>{};
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+    final config = await _config(s.workspaceId);
+    final gated = config != null && config.gateEnabled;
+    if (parseLearning(r.isSuccess ? r.result : null) case final l?) {
+      final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      final spec = await _ref.read(specsRepoProvider).getById(specId);
+      if (ws != null) {
+        await ProjectMemory.record(
+          ws.path,
+          MemoryEntry(
+            text: l,
+            origin: '${spec?.code ?? 'spec'} ${mine.join(', ')}',
+            date: DateTime.now(),
+          ),
         );
       }
-      if (toVerify.isNotEmpty) {
-        // Outside the session's event queue: the gate may take minutes and
-        // its retry message goes through that queue.
-        unawaited(Future<void>.microtask(() => _verify(s, toVerify, config!)));
-        return;
-      }
-      await _continue(s);
-    },
-  );
+    }
+    final toVerify = <String>[];
+    for (final step in mine) {
+      if (rows[step]?.status == StepStatus.done) continue;
+      final ok = marked.contains(step);
+      if (ok && gated) toVerify.add(step);
+      await repo.set(
+        specId,
+        step,
+        !ok
+            ? StepStatus.needsInput
+            : gated
+            ? StepStatus.verifying
+            : StepStatus.done,
+        sessionId: sessionId,
+      );
+    }
+    if (toVerify.isNotEmpty) {
+      // Outside the session's event queue: the gate may take minutes and
+      // its retry message goes through that queue.
+      unawaited(Future<void>.microtask(() => _verify(s, toVerify, config!)));
+      return;
+    }
+    await _continue(s);
+  });
 
   Future<ProjectConfig?> _config(int workspaceId) async {
     final ws = await _ref.read(workspacesRepoProvider).getById(workspaceId);
@@ -954,6 +988,23 @@ class SpecRunner {
                     specCode: spec.code,
                   ),
           );
+      if (report.ok && ws != null) {
+        // How long the project's commands take (F8).
+        for (final c in report.checks) {
+          if (c.command == null || c.name == 'verificar') continue;
+          final secs = c.duration.inSeconds;
+          if (secs < 5) continue;
+          await ProjectMemory.record(
+            ws.path,
+            MemoryEntry(
+              text: '`${c.command}` (${c.name}) passa em ~$secs s',
+              origin: 'verificação',
+              date: DateTime.now(),
+            ),
+            replacing: (e) => e.text.startsWith('`${c.command}` (${c.name})'),
+          );
+        }
+      }
       if (report.ok && text != null) {
         // Criteria with a `verificar:` that just passed are checked.
         for (final c in parseCriteria(text)) {

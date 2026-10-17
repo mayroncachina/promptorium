@@ -15,6 +15,7 @@ import '../board/board_rules.dart';
 import '../board/spec_runner.dart';
 import '../board/step_gate.dart';
 import '../project/project_config.dart';
+import '../project/project_memory.dart';
 import '../sessions/app_notifier.dart';
 import '../specs/spec_service.dart';
 
@@ -283,7 +284,6 @@ class AutoReviewer {
     final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
     final previous = await _ref.read(reviewCommentsRepoProvider).bySpec(specId);
     final criteria = parseCriteria(text);
-    final memory = File('${ws.path}/.promptorium/memoria.md');
     final ownAgent = File('${ws.path}/.claude/agents/spec-reviewer.md')
         .existsSync();
     final r = await runReadOnlyClaude(
@@ -313,7 +313,7 @@ class AutoReviewer {
               '${row.step}: ${g.ok ? 'aprovada' : 'falhou (${g.summary})'}',
         ],
         previous: previous,
-        memory: memory.existsSync() ? memory.readAsStringSync() : null,
+        memory: ProjectMemory.loadSync(ws.path).toPrompt(),
         criteria: [for (final c in criteria) c.text],
       ),
     );

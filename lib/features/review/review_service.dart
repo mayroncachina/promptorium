@@ -11,6 +11,7 @@ import '../../core/git/diff_parser.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
+import '../project/project_memory.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'review_logic.dart';
@@ -737,7 +738,10 @@ class ReviewService {
           '(git switch $base) e tente de novo.',
         );
       }
-      final dirty = (await main.status()).where((e) => !e.isUntracked).toList();
+      // The project memory is written by the app while specs run (F8).
+      final dirty = (await main.status())
+          .where((e) => !e.isUntracked && e.path != ProjectMemory.filePath)
+          .toList();
       if (dirty.isNotEmpty) {
         throw ReviewException(
           'O repositório principal tem alterações não commitadas '

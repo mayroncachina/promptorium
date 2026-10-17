@@ -11,6 +11,7 @@ import 'project_planner.dart';
 import 'project_service.dart';
 import 'widgets/create_step.dart';
 import 'widgets/project_config_view.dart';
+import 'widgets/project_memory_view.dart';
 import 'widgets/project_widgets.dart';
 import 'widgets/roadmap_step.dart';
 import 'widgets/stack_step.dart';
@@ -47,14 +48,38 @@ class ProjectScreen extends ConsumerWidget {
       child: switch (plan) {
         AsyncData(value: null)
             when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
-          ProjectConfigView(
-            key: ValueKey('project-config-${ws.id}'),
-            workspace: ws,
-            intro:
-                'Este repositório já tem código: não é preciso planejar do '
-                'zero. Ajuste como o Promptorium trabalha nele; as specs '
-                'você cria na tela Specs.',
-            onPlan: () => ref.read(projectPlannerProvider.notifier).start(ws),
+          DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                const TabBar(
+                  key: ValueKey('project-tabs'),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  tabs: [
+                    Tab(text: 'Configuração'),
+                    Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      ProjectConfigView(
+                        key: ValueKey('project-config-${ws.id}'),
+                        workspace: ws,
+                        intro:
+                            'Este repositório já tem código: não é preciso '
+                            'planejar do zero. Ajuste como o Promptorium '
+                            'trabalha nele; as specs você cria na tela Specs.',
+                        onPlan: () =>
+                            ref.read(projectPlannerProvider.notifier).start(ws),
+                      ),
+                      ProjectMemoryView(workspace: ws),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         AsyncData(value: null) => StepEmpty(
           title: 'Planejar ${ws.name}',
@@ -301,6 +326,26 @@ class _Stepper extends ConsumerWidget {
                     icon: const Icon(Icons.tune, size: 16),
                     label: const Text(
                       'Configuração do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('project-memory-open'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 680,
+                          height: 620,
+                          child: ProjectMemoryView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.psychology_outlined, size: 16),
+                    label: const Text(
+                      'Memória do projeto',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),

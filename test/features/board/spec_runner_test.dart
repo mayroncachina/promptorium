@@ -10,6 +10,7 @@ import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/project/project_memory.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
@@ -630,5 +631,35 @@ void main() {
       expect(marks.single.criterion, 'r1.txt existe [R1]');
       expect(marks.single.checkedBy, 'gate');
     });
+
+    test('memory: the prompt carries it and asks for APRENDIZADO; the line '
+        'of the answer and the gate times go to memoria.md (F8)', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/memoria.md')
+          .writeAsStringSync('- Use drift  <!-- você, 2026-10-01 -->\n');
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: sleep 5\nverificacao:\n  exigir-commit: false\n'
+        '  exigir-arvore-limpa: false\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final prompt =
+          cli.last.writtenJson.single['message']['content'] as String;
+      expect(prompt, contains('Memória do projeto'));
+      expect(prompt, contains('- Use drift'));
+      expect(prompt, contains('APRENDIZADO: <o que aprendeu>'));
+      cli.last.emit(
+        resultLine('APRENDIZADO: o build precisa de -j1\nETAPA CONCLUÍDA: R1'),
+      );
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      final m = ProjectMemory.loadSync(repo);
+      expect(m.entries.map((e) => e.text), [
+        'Use drift',
+        'o build precisa de -j1',
+        '`sleep 5` (testes) passa em ~5 s',
+      ]);
+      expect(m.entries[1].origin, 'SPEC-001 R1');
+    }, timeout: const Timeout(Duration(seconds: 60)));
   });
 }
