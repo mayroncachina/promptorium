@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
@@ -12,6 +13,7 @@ import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
+import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
 import '../project/project_config.dart';
@@ -442,6 +444,7 @@ class SpecRunner {
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
     String? previousAttempt,
+    bool duel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -500,6 +503,12 @@ class SpecRunner {
         );
       }
     }
+    if (await _ref.read(specDuelsRepoProvider).openOf(specId) != null) {
+      throw SpecRunException(
+        '${spec.code} tem uma comparação A/B aberta: escolha A ou B (ou '
+        'descarte) antes de continuar.',
+      );
+    }
     final config = ProjectConfig.loadSync(ws.path);
     final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
     final live = sessions.where(
@@ -554,40 +563,326 @@ class SpecRunner {
     await _markStart(spec, wt.path, todo);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
-    final id = await _manager.create(
-      NewSessionRequest(
-        workspace: ws,
-        title: specSessionTitle(spec, steps, todo),
-        prompt: specStepPrompt(
-          spec: spec,
-          specText: text,
-          steps: steps,
-          todo: todo,
-          subagents: mergeSubagents(
-            SpecDocument.parse(text).subagents,
-            config.subagents,
-          ),
-          testCommand: config.testCommand,
-          previousAttempt: previousAttempt,
-          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+    NewSessionRequest request({
+      required String path,
+      required String branch,
+      String suffix = '',
+      int? duelId,
+    }) => NewSessionRequest(
+      workspace: ws,
+      title: '${specSessionTitle(spec!, steps, todo)}$suffix',
+      prompt: specStepPrompt(
+        spec: spec,
+        specText: text,
+        steps: steps,
+        todo: todo,
+        subagents: mergeSubagents(
+          SpecDocument.parse(text).subagents,
+          config.subagents,
         ),
-        agent: spec.agentName ?? config.agent,
-        model: model ?? last?.model ?? prefs.model(RunKind.session),
-        effort: effort ?? last?.effort,
-        permissionMode:
-            mode ??
-            ClaudePermissionMode.fromCli(last?.permissionMode) ??
-            ClaudePermissionMode.fromCli(settings.get(lastPermissionModeKey)) ??
-            ClaudePermissionMode.defaultMode,
-        specId: specId,
+        testCommand: config.testCommand,
+        previousAttempt: previousAttempt,
+        memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+      ),
+      agent: spec.agentName ?? config.agent,
+      model: model ?? last?.model ?? prefs.model(RunKind.session),
+      effort: effort ?? last?.effort,
+      permissionMode:
+          mode ??
+          ClaudePermissionMode.fromCli(last?.permissionMode) ??
+          ClaudePermissionMode.fromCli(settings.get(lastPermissionModeKey)) ??
+          ClaudePermissionMode.defaultMode,
+      specId: specId,
+      steps: todo.join(','),
+      worktreePath: path,
+      branch: branch,
+      baseBranch: wt.base,
+      environment: duelId == null
+          ? env
+          : {...env, 'PROMPTORIUM_WORKTREE': path},
+      duelId: duelId,
+    );
+    if (!duel) {
+      return _manager.create(request(path: wt.path, branch: wt.branch));
+    }
+    return _startDuel(
+      spec,
+      ws,
+      config,
+      specWorktree: wt,
+      todo: todo,
+      request: request,
+    );
+  }
+
+  // --- best-of-N (F15) -------------------------------------------------------
+
+  /// Two temporary worktrees from the spec's HEAD, one session in each;
+  /// returns the first session's id.
+  Future<String> _startDuel(
+    Spec spec,
+    Workspace ws,
+    ProjectConfig config, {
+    required ({String path, String branch, String? base}) specWorktree,
+    required List<String> todo,
+    required NewSessionRequest Function({
+      required String path,
+      required String branch,
+      String suffix,
+      int? duelId,
+    })
+    request,
+  }) async {
+    final factory = _ref.read(gitServiceFactoryProvider);
+    final root = factory(ws.path);
+    final base = await factory(specWorktree.path).headSha();
+    if (base == null) {
+      throw const SpecRunException('O worktree da spec não tem commits.');
+    }
+    final created = <CreatedWorktree>[];
+    try {
+      for (final v in ['a', 'b']) {
+        final wt = await root.addWorktree(
+          sessionSlug(
+            '${spec.code.toLowerCase()} $v',
+            _ref.read(sessionIdGeneratorProvider)(),
+          ),
+          baseBranch: specWorktree.branch,
+        );
+        created.add(wt);
+        final r =
+            await WorktreeSetup(
+              root: root,
+              shell: _ref.read(shellRunnerProvider),
+            ).run(
+              wt.path,
+              copy: config.worktree.copy,
+              prepare: config.worktree.prepare,
+              timeout: config.gate.timeout,
+            );
+        if (!r.ok) {
+          throw SpecRunException(
+            'Falha ao preparar o worktree $v: '
+            '${tailLines(r.prepare!.output, 5)}',
+          );
+        }
+      }
+    } catch (e) {
+      for (final wt in created) {
+        await _dropWorktree(root, wt.path, wt.branch);
+      }
+      if (e is SpecRunException) rethrow;
+      throw SpecRunException('Falha ao criar os worktrees A/B: $e');
+    }
+    final duels = _ref.read(specDuelsRepoProvider);
+    final duel = await duels.insert(
+      SpecDuelsCompanion.insert(
+        specId: spec.id,
         steps: todo.join(','),
-        worktreePath: wt.path,
-        branch: wt.branch,
-        baseBranch: wt.base,
-        environment: env,
+        baseSha: base,
+        worktreeA: created[0].path,
+        worktreeB: created[1].path,
+        branchA: created[0].branch,
+        branchB: created[1].branch,
       ),
     );
-    return id;
+    final a = await _manager.create(
+      request(
+        path: created[0].path,
+        branch: created[0].branch,
+        suffix: ' · A',
+        duelId: duel.id,
+      ),
+    );
+    final b = await _manager.create(
+      request(
+        path: created[1].path,
+        branch: created[1].branch,
+        suffix: ' · B',
+        duelId: duel.id,
+      ),
+    );
+    await duels.update(
+      duel.id,
+      SpecDuelsCompanion(sessionA: Value(a), sessionB: Value(b)),
+    );
+    return a;
+  }
+
+  Future<void> _dropWorktree(
+    GitService root,
+    String path,
+    String branch,
+  ) async {
+    try {
+      await root.removeWorktree(path, force: true);
+    } on GitException catch (e) {
+      debugPrint('worktree $path não removido — $e');
+    }
+    try {
+      await root.deleteBranch(branch, force: true);
+    } on GitException catch (e) {
+      debugPrint('branch $branch não removida — $e');
+    }
+  }
+
+  /// End of an attempt's turn: its gate (when the project has one and the
+  /// marker came) is stored; both done → the user compares.
+  Future<void> _duelResult(Session s, Result r) async {
+    final duels = _ref.read(specDuelsRepoProvider);
+    final duel = await duels.getById(s.duelId!);
+    if (duel == null || duel.state != 'rodando') return;
+    final isA = duel.sessionA == s.id;
+    final steps = parseSessionSteps(s.steps);
+    final marked = r.isSuccess ? parseStepMarker(r.result) : const <String>{};
+    final config = await _config(s.workspaceId);
+    final spec = await _ref.read(specsRepoProvider).getById(duel.specId);
+    if (spec == null) return;
+    GateReport report;
+    if (!steps.every(marked.contains)) {
+      report = GateReport(
+        at: DateTime.now(),
+        checks: const [
+          GateCheck(
+            name: 'marcador',
+            ok: false,
+            output: 'A sessão terminou sem ETAPA CONCLUÍDA.',
+          ),
+        ],
+      );
+    } else if (config != null && config.gateEnabled) {
+      await _manager.note(s.id, 'Verificando a tentativa ${isA ? 'A' : 'B'}…');
+      report =
+          await StepGate(
+            git: _ref.read(gitServiceFactoryProvider)(s.worktreePath),
+            shell: _ref.read(shellRunnerProvider),
+          ).run(
+            specCode: spec.code,
+            steps: steps,
+            startSha: duel.baseSha,
+            config: config,
+          );
+      await _manager.note(s.id, gateNote(report), error: !report.ok);
+    } else {
+      report = GateReport(at: DateTime.now(), checks: const []);
+    }
+    await duels.update(
+      duel.id,
+      isA
+          ? SpecDuelsCompanion(reportA: Value(report.encode()))
+          : SpecDuelsCompanion(reportB: Value(report.encode())),
+    );
+    final now = (await duels.getById(duel.id))!;
+    if (now.reportA != null && now.reportB != null) {
+      await duels.update(
+        duel.id,
+        const SpecDuelsCompanion(state: Value('pronto')),
+      );
+      for (final step in steps) {
+        await _ref
+            .read(specStepsRepoProvider)
+            .set(spec.id, step, StepStatus.needsInput);
+      }
+      unawaited(
+        _ref
+            .read(appNotifierProvider)
+            .show(
+              'Comparar A/B',
+              '${spec.code}: as duas tentativas terminaram.',
+            ),
+      );
+    }
+  }
+
+  /// "Escolher A/B": the chosen attempt goes into the spec's branch, both
+  /// temporary worktrees go away and the spec continues.
+  Future<void> chooseDuel(int duelId, String variant) async {
+    final duels = _ref.read(specDuelsRepoProvider);
+    final duel = await duels.getById(duelId);
+    if (duel == null || duel.state == 'escolhido') return;
+    final spec = await _ref.read(specsRepoProvider).getById(duel.specId);
+    final ws = spec == null
+        ? null
+        : await _ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    if (spec?.worktreePath == null || ws == null) {
+      throw const SpecRunException('A spec não tem worktree.');
+    }
+    final a = variant == 'A';
+    final branch = a ? duel.branchA : duel.branchB;
+    final session = a ? duel.sessionA : duel.sessionB;
+    for (final id in [duel.sessionA, duel.sessionB]) {
+      if (id != null) await _manager.release(id);
+    }
+    final factory = _ref.read(gitServiceFactoryProvider);
+    final specGit = factory(spec!.worktreePath!);
+    try {
+      try {
+        await specGit.git(['merge', '--ff-only', branch]);
+      } on GitException {
+        await specGit.git(['merge', '--no-edit', branch]);
+      }
+    } on GitException catch (e) {
+      throw SpecRunException('Falha ao trazer a tentativa $variant: $e');
+    }
+    final root = factory(ws.path);
+    await _dropWorktree(root, duel.worktreeA, duel.branchA);
+    await _dropWorktree(root, duel.worktreeB, duel.branchB);
+    await duels.update(
+      duel.id,
+      SpecDuelsCompanion(
+        state: const Value('escolhido'),
+        chosen: Value(variant),
+      ),
+    );
+    final steps = parseSessionSteps(duel.steps);
+    final repo = _ref.read(specStepsRepoProvider);
+    final report = a ? duel.reportA : duel.reportB;
+    await repo.setGate(spec.id, steps, report: report);
+    for (final step in steps) {
+      await repo.set(spec.id, step, StepStatus.done, sessionId: session);
+    }
+    for (final id in [duel.sessionA, duel.sessionB]) {
+      if (id == null) continue;
+      await _ref
+          .read(sessionsRepoProvider)
+          .setStatus(id, SessionStatus.stopped);
+    }
+    final chosen = session == null
+        ? null
+        : await _ref.read(sessionsRepoProvider).getById(session);
+    if (chosen != null) await _continue(chosen);
+  }
+
+  /// "Descartar A/B": both attempts go away; the steps are pending again.
+  Future<void> discardDuel(int duelId) async {
+    final duels = _ref.read(specDuelsRepoProvider);
+    final duel = await duels.getById(duelId);
+    if (duel == null) return;
+    final spec = await _ref.read(specsRepoProvider).getById(duel.specId);
+    final ws = spec == null
+        ? null
+        : await _ref.read(workspacesRepoProvider).getById(spec.workspaceId);
+    for (final id in [duel.sessionA, duel.sessionB]) {
+      if (id == null) continue;
+      await _manager.release(id);
+      await _ref
+          .read(sessionsRepoProvider)
+          .setStatus(id, SessionStatus.stopped);
+    }
+    if (ws != null) {
+      final root = _ref.read(gitServiceFactoryProvider)(ws.path);
+      await _dropWorktree(root, duel.worktreeA, duel.branchA);
+      await _dropWorktree(root, duel.worktreeB, duel.branchB);
+    }
+    await duels.update(
+      duel.id,
+      const SpecDuelsCompanion(state: Value('descartado')),
+    );
+    if (spec != null) {
+      await _ref
+          .read(specStepsRepoProvider)
+          .reset(spec.id, parseSessionSteps(duel.steps));
+    }
   }
 
   /// First run in a new worktree: `copiar:` and `preparar:` of the config
@@ -878,6 +1173,11 @@ class SpecRunner {
   ) => _guard(sessionId, () async {
     final s = await _specSession(sessionId);
     if (s == null) return;
+    if (s.duelId != null) {
+      // An attempt of a best-of-N: the user picks the winner.
+      unawaited(Future<void>.microtask(() => _duelResult(s, r)));
+      return;
+    }
     final specId = s.specId!;
     final mine = parseSessionSteps(s.steps);
     final marked = r.isSuccess ? parseStepMarker(r.result) : const <String>{};
@@ -1158,7 +1458,7 @@ class SpecRunner {
   Future<void> onEnded(String sessionId, SessionStatus status) =>
       _guard(sessionId, () async {
         final s = await _specSession(sessionId);
-        if (s == null) return;
+        if (s == null || s.duelId != null) return;
         final repo = _ref.read(specStepsRepoProvider);
         final rows = {for (final x in await repo.bySpec(s.specId!)) x.step: x};
         for (final step in parseSessionSteps(s.steps)) {

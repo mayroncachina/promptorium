@@ -192,7 +192,7 @@ class ReviewService {
     final latestOfSpec = <int, Session>{};
     for (final s in sessions) {
       final id = s.specId;
-      if (id == null) continue;
+      if (id == null || s.duelId != null) continue;
       final cur = latestOfSpec[id];
       if (cur == null || s.startedAt.isAfter(cur.startedAt)) {
         latestOfSpec[id] = s;
@@ -200,6 +200,8 @@ class ReviewService {
     }
     final items = <ReviewItem>[];
     for (final s in sessions) {
+      // Best-of-N attempts are compared on the card, not reviewed.
+      if (s.duelId != null) continue;
       final spec = s.specId == null ? null : specById[s.specId];
       if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];

@@ -63,6 +63,7 @@ class NewSessionRequest {
     this.branch,
     this.baseBranch,
     this.environment,
+    this.duelId,
   });
 
   final Workspace workspace;
@@ -106,6 +107,9 @@ class NewSessionRequest {
 
   /// Extra variables of the process (`PROMPTORIUM_*`); null = computed.
   final Map<String, String>? environment;
+
+  /// Best-of-N attempt (`spec_duels.id`) the session runs.
+  final int? duelId;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -316,6 +320,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       specId: r.specId,
       steps: r.steps,
       baseBranch: base,
+      duelId: r.duelId,
     );
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);

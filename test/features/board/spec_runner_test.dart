@@ -708,5 +708,61 @@ void main() {
         contains('Extrair índices e views'),
       );
     });
+
+    test('best-of-N: R1 runs in two temporary worktrees; choosing B brings '
+        'its commit, removes both and the spec goes on (F15)', () async {
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id, duel: true);
+      await settle();
+      expect(cli.processes, hasLength(2));
+      final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+      final duel = (await c.read(specDuelsRepoProvider).openOf(spec.id))!;
+      expect(cli.cwds, [duel.worktreeA, duel.worktreeB]);
+      expect(cli.envs.last!['PROMPTORIUM_WORKTREE'], duel.worktreeB);
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.map((s) => s.duelId), [duel.id, duel.id]);
+      expect(sessions.map((s) => s.title), [
+        'SPEC-001 · R1 · Extrair tabelas · A',
+        'SPEC-001 · R1 · Extrair tabelas · B',
+      ]);
+      // Busy: neither a normal run nor a second duel.
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(isA<SpecRunException>()),
+      );
+
+      Future<void> attempt(String wt, String file, int i) async {
+        File('$wt/$file').writeAsStringSync(file);
+        await gitIn(wt, ['add', '.']);
+        await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: $file']);
+        cli.processes[i].emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      }
+
+      await attempt(duel.worktreeA, 'a.dart', 0);
+      await settle();
+      expect(
+        (await c.read(specDuelsRepoProvider).getById(duel.id))!.state,
+        'rodando',
+      );
+      await attempt(duel.worktreeB, 'b.dart', 1);
+      await until(
+        () async =>
+            (await c.read(specDuelsRepoProvider).getById(duel.id))!.state ==
+            'pronto',
+      );
+      expect((await states())['R1'], StepStatus.needsInput);
+
+      await runner.chooseDuel(duel.id, 'B');
+      await until(() async => cli.processes.length == 3);
+      expect(File('${row.worktreePath}/b.dart').existsSync(), isTrue);
+      expect(File('${row.worktreePath}/a.dart').existsSync(), isFalse);
+      expect(Directory(duel.worktreeA).existsSync(), isFalse);
+      expect(Directory(duel.worktreeB).existsSync(), isFalse);
+      expect((await states())['R1'], StepStatus.done);
+      expect(cli.cwds.last, row.worktreePath);
+      final done = (await c.read(specDuelsRepoProvider).getById(duel.id))!;
+      expect(done.state, 'escolhido');
+      expect(done.chosen, 'B');
+    });
   });
 }

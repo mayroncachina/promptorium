@@ -3187,6 +3187,15 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _duelIdMeta = const VerificationMeta('duelId');
+  @override
+  late final GeneratedColumn<int> duelId = GeneratedColumn<int>(
+    'duel_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3211,6 +3220,7 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
     mergeCommit,
     prUrl,
     pid,
+    duelId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3369,6 +3379,12 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         pid.isAcceptableOrUnknown(data['pid']!, _pidMeta),
       );
     }
+    if (data.containsKey('duel_id')) {
+      context.handle(
+        _duelIdMeta,
+        duelId.isAcceptableOrUnknown(data['duel_id']!, _duelIdMeta),
+      );
+    }
     return context;
   }
 
@@ -3468,6 +3484,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
         DriftSqlType.int,
         data['${effectivePrefix}pid'],
       ),
+      duelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duel_id'],
+      ),
     );
   }
 
@@ -3524,6 +3544,10 @@ class Session extends DataClass implements Insertable<Session> {
   /// PID of the `claude` process while it runs (schema v12): the next
   /// launch ends the ones left behind by a crash of the app.
   final int? pid;
+
+  /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
+  /// result does not move the spec's steps, the user picks a winner.
+  final int? duelId;
   const Session({
     required this.id,
     required this.workspaceId,
@@ -3547,6 +3571,7 @@ class Session extends DataClass implements Insertable<Session> {
     this.mergeCommit,
     this.prUrl,
     this.pid,
+    this.duelId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3601,6 +3626,9 @@ class Session extends DataClass implements Insertable<Session> {
     if (!nullToAbsent || pid != null) {
       map['pid'] = Variable<int>(pid);
     }
+    if (!nullToAbsent || duelId != null) {
+      map['duel_id'] = Variable<int>(duelId);
+    }
     return map;
   }
 
@@ -3650,6 +3678,9 @@ class Session extends DataClass implements Insertable<Session> {
           ? const Value.absent()
           : Value(prUrl),
       pid: pid == null && nullToAbsent ? const Value.absent() : Value(pid),
+      duelId: duelId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(duelId),
     );
   }
 
@@ -3683,6 +3714,7 @@ class Session extends DataClass implements Insertable<Session> {
       mergeCommit: serializer.fromJson<String?>(json['mergeCommit']),
       prUrl: serializer.fromJson<String?>(json['prUrl']),
       pid: serializer.fromJson<int?>(json['pid']),
+      duelId: serializer.fromJson<int?>(json['duelId']),
     );
   }
   @override
@@ -3713,6 +3745,7 @@ class Session extends DataClass implements Insertable<Session> {
       'mergeCommit': serializer.toJson<String?>(mergeCommit),
       'prUrl': serializer.toJson<String?>(prUrl),
       'pid': serializer.toJson<int?>(pid),
+      'duelId': serializer.toJson<int?>(duelId),
     };
   }
 
@@ -3739,6 +3772,7 @@ class Session extends DataClass implements Insertable<Session> {
     Value<String?> mergeCommit = const Value.absent(),
     Value<String?> prUrl = const Value.absent(),
     Value<int?> pid = const Value.absent(),
+    Value<int?> duelId = const Value.absent(),
   }) => Session(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -3764,6 +3798,7 @@ class Session extends DataClass implements Insertable<Session> {
     mergeCommit: mergeCommit.present ? mergeCommit.value : this.mergeCommit,
     prUrl: prUrl.present ? prUrl.value : this.prUrl,
     pid: pid.present ? pid.value : this.pid,
+    duelId: duelId.present ? duelId.value : this.duelId,
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
@@ -3799,6 +3834,7 @@ class Session extends DataClass implements Insertable<Session> {
           : this.mergeCommit,
       prUrl: data.prUrl.present ? data.prUrl.value : this.prUrl,
       pid: data.pid.present ? data.pid.value : this.pid,
+      duelId: data.duelId.present ? data.duelId.value : this.duelId,
     );
   }
 
@@ -3826,7 +3862,8 @@ class Session extends DataClass implements Insertable<Session> {
           ..write('baseBranch: $baseBranch, ')
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
-          ..write('pid: $pid')
+          ..write('pid: $pid, ')
+          ..write('duelId: $duelId')
           ..write(')'))
         .toString();
   }
@@ -3855,6 +3892,7 @@ class Session extends DataClass implements Insertable<Session> {
     mergeCommit,
     prUrl,
     pid,
+    duelId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3881,7 +3919,8 @@ class Session extends DataClass implements Insertable<Session> {
           other.baseBranch == this.baseBranch &&
           other.mergeCommit == this.mergeCommit &&
           other.prUrl == this.prUrl &&
-          other.pid == this.pid);
+          other.pid == this.pid &&
+          other.duelId == this.duelId);
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
@@ -3907,6 +3946,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<String?> mergeCommit;
   final Value<String?> prUrl;
   final Value<int?> pid;
+  final Value<int?> duelId;
   final Value<int> rowid;
   const SessionsCompanion({
     this.id = const Value.absent(),
@@ -3931,6 +3971,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
+    this.duelId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
@@ -3956,6 +3997,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.mergeCommit = const Value.absent(),
     this.prUrl = const Value.absent(),
     this.pid = const Value.absent(),
+    this.duelId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        workspaceId = Value(workspaceId),
@@ -3985,6 +4027,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<String>? mergeCommit,
     Expression<String>? prUrl,
     Expression<int>? pid,
+    Expression<int>? duelId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4010,6 +4053,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       if (mergeCommit != null) 'merge_commit': mergeCommit,
       if (prUrl != null) 'pr_url': prUrl,
       if (pid != null) 'pid': pid,
+      if (duelId != null) 'duel_id': duelId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4037,6 +4081,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<String?>? mergeCommit,
     Value<String?>? prUrl,
     Value<int?>? pid,
+    Value<int?>? duelId,
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
@@ -4062,6 +4107,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
       mergeCommit: mergeCommit ?? this.mergeCommit,
       prUrl: prUrl ?? this.prUrl,
       pid: pid ?? this.pid,
+      duelId: duelId ?? this.duelId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4137,6 +4183,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     if (pid.present) {
       map['pid'] = Variable<int>(pid.value);
     }
+    if (duelId.present) {
+      map['duel_id'] = Variable<int>(duelId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4168,6 +4217,7 @@ class SessionsCompanion extends UpdateCompanion<Session> {
           ..write('mergeCommit: $mergeCommit, ')
           ..write('prUrl: $prUrl, ')
           ..write('pid: $pid, ')
+          ..write('duelId: $duelId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10318,6 +10368,850 @@ class NotificationsCompanion extends UpdateCompanion<AppNotification> {
   }
 }
 
+class $SpecDuelsTable extends SpecDuels
+    with TableInfo<$SpecDuelsTable, SpecDuel> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecDuelsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _baseShaMeta = const VerificationMeta(
+    'baseSha',
+  );
+  @override
+  late final GeneratedColumn<String> baseSha = GeneratedColumn<String>(
+    'base_sha',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sessionAMeta = const VerificationMeta(
+    'sessionA',
+  );
+  @override
+  late final GeneratedColumn<String> sessionA = GeneratedColumn<String>(
+    'session_a',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionBMeta = const VerificationMeta(
+    'sessionB',
+  );
+  @override
+  late final GeneratedColumn<String> sessionB = GeneratedColumn<String>(
+    'session_b',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _worktreeAMeta = const VerificationMeta(
+    'worktreeA',
+  );
+  @override
+  late final GeneratedColumn<String> worktreeA = GeneratedColumn<String>(
+    'worktree_a',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _worktreeBMeta = const VerificationMeta(
+    'worktreeB',
+  );
+  @override
+  late final GeneratedColumn<String> worktreeB = GeneratedColumn<String>(
+    'worktree_b',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchAMeta = const VerificationMeta(
+    'branchA',
+  );
+  @override
+  late final GeneratedColumn<String> branchA = GeneratedColumn<String>(
+    'branch_a',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _branchBMeta = const VerificationMeta(
+    'branchB',
+  );
+  @override
+  late final GeneratedColumn<String> branchB = GeneratedColumn<String>(
+    'branch_b',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reportAMeta = const VerificationMeta(
+    'reportA',
+  );
+  @override
+  late final GeneratedColumn<String> reportA = GeneratedColumn<String>(
+    'report_a',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reportBMeta = const VerificationMeta(
+    'reportB',
+  );
+  @override
+  late final GeneratedColumn<String> reportB = GeneratedColumn<String>(
+    'report_b',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('rodando'),
+  );
+  static const VerificationMeta _chosenMeta = const VerificationMeta('chosen');
+  @override
+  late final GeneratedColumn<String> chosen = GeneratedColumn<String>(
+    'chosen',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    steps,
+    baseSha,
+    sessionA,
+    sessionB,
+    worktreeA,
+    worktreeB,
+    branchA,
+    branchB,
+    reportA,
+    reportB,
+    state,
+    chosen,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_duels';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecDuel> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stepsMeta);
+    }
+    if (data.containsKey('base_sha')) {
+      context.handle(
+        _baseShaMeta,
+        baseSha.isAcceptableOrUnknown(data['base_sha']!, _baseShaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_baseShaMeta);
+    }
+    if (data.containsKey('session_a')) {
+      context.handle(
+        _sessionAMeta,
+        sessionA.isAcceptableOrUnknown(data['session_a']!, _sessionAMeta),
+      );
+    }
+    if (data.containsKey('session_b')) {
+      context.handle(
+        _sessionBMeta,
+        sessionB.isAcceptableOrUnknown(data['session_b']!, _sessionBMeta),
+      );
+    }
+    if (data.containsKey('worktree_a')) {
+      context.handle(
+        _worktreeAMeta,
+        worktreeA.isAcceptableOrUnknown(data['worktree_a']!, _worktreeAMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreeAMeta);
+    }
+    if (data.containsKey('worktree_b')) {
+      context.handle(
+        _worktreeBMeta,
+        worktreeB.isAcceptableOrUnknown(data['worktree_b']!, _worktreeBMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreeBMeta);
+    }
+    if (data.containsKey('branch_a')) {
+      context.handle(
+        _branchAMeta,
+        branchA.isAcceptableOrUnknown(data['branch_a']!, _branchAMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchAMeta);
+    }
+    if (data.containsKey('branch_b')) {
+      context.handle(
+        _branchBMeta,
+        branchB.isAcceptableOrUnknown(data['branch_b']!, _branchBMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_branchBMeta);
+    }
+    if (data.containsKey('report_a')) {
+      context.handle(
+        _reportAMeta,
+        reportA.isAcceptableOrUnknown(data['report_a']!, _reportAMeta),
+      );
+    }
+    if (data.containsKey('report_b')) {
+      context.handle(
+        _reportBMeta,
+        reportB.isAcceptableOrUnknown(data['report_b']!, _reportBMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('chosen')) {
+      context.handle(
+        _chosenMeta,
+        chosen.isAcceptableOrUnknown(data['chosen']!, _chosenMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpecDuel map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecDuel(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      )!,
+      baseSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}base_sha'],
+      )!,
+      sessionA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_a'],
+      ),
+      sessionB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_b'],
+      ),
+      worktreeA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_a'],
+      )!,
+      worktreeB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_b'],
+      )!,
+      branchA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_a'],
+      )!,
+      branchB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}branch_b'],
+      )!,
+      reportA: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_a'],
+      ),
+      reportB: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_b'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      chosen: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chosen'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecDuelsTable createAlias(String alias) {
+    return $SpecDuelsTable(attachedDatabase, alias);
+  }
+}
+
+class SpecDuel extends DataClass implements Insertable<SpecDuel> {
+  final int id;
+  final int specId;
+
+  /// `R2` / `R2,R3`.
+  final String steps;
+
+  /// HEAD of the spec's worktree when the attempts started.
+  final String baseSha;
+  final String? sessionA;
+  final String? sessionB;
+  final String worktreeA;
+  final String worktreeB;
+  final String branchA;
+  final String branchB;
+
+  /// Gate of each attempt (JSON of `GateReport`).
+  final String? reportA;
+  final String? reportB;
+
+  /// `rodando` / `pronto` / `escolhido` / `descartado`.
+  final String state;
+
+  /// `A` / `B` once chosen.
+  final String? chosen;
+  final DateTime createdAt;
+  const SpecDuel({
+    required this.id,
+    required this.specId,
+    required this.steps,
+    required this.baseSha,
+    this.sessionA,
+    this.sessionB,
+    required this.worktreeA,
+    required this.worktreeB,
+    required this.branchA,
+    required this.branchB,
+    this.reportA,
+    this.reportB,
+    required this.state,
+    this.chosen,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    map['steps'] = Variable<String>(steps);
+    map['base_sha'] = Variable<String>(baseSha);
+    if (!nullToAbsent || sessionA != null) {
+      map['session_a'] = Variable<String>(sessionA);
+    }
+    if (!nullToAbsent || sessionB != null) {
+      map['session_b'] = Variable<String>(sessionB);
+    }
+    map['worktree_a'] = Variable<String>(worktreeA);
+    map['worktree_b'] = Variable<String>(worktreeB);
+    map['branch_a'] = Variable<String>(branchA);
+    map['branch_b'] = Variable<String>(branchB);
+    if (!nullToAbsent || reportA != null) {
+      map['report_a'] = Variable<String>(reportA);
+    }
+    if (!nullToAbsent || reportB != null) {
+      map['report_b'] = Variable<String>(reportB);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || chosen != null) {
+      map['chosen'] = Variable<String>(chosen);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SpecDuelsCompanion toCompanion(bool nullToAbsent) {
+    return SpecDuelsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      steps: Value(steps),
+      baseSha: Value(baseSha),
+      sessionA: sessionA == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionA),
+      sessionB: sessionB == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionB),
+      worktreeA: Value(worktreeA),
+      worktreeB: Value(worktreeB),
+      branchA: Value(branchA),
+      branchB: Value(branchB),
+      reportA: reportA == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reportA),
+      reportB: reportB == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reportB),
+      state: Value(state),
+      chosen: chosen == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chosen),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SpecDuel.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecDuel(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      steps: serializer.fromJson<String>(json['steps']),
+      baseSha: serializer.fromJson<String>(json['baseSha']),
+      sessionA: serializer.fromJson<String?>(json['sessionA']),
+      sessionB: serializer.fromJson<String?>(json['sessionB']),
+      worktreeA: serializer.fromJson<String>(json['worktreeA']),
+      worktreeB: serializer.fromJson<String>(json['worktreeB']),
+      branchA: serializer.fromJson<String>(json['branchA']),
+      branchB: serializer.fromJson<String>(json['branchB']),
+      reportA: serializer.fromJson<String?>(json['reportA']),
+      reportB: serializer.fromJson<String?>(json['reportB']),
+      state: serializer.fromJson<String>(json['state']),
+      chosen: serializer.fromJson<String?>(json['chosen']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'steps': serializer.toJson<String>(steps),
+      'baseSha': serializer.toJson<String>(baseSha),
+      'sessionA': serializer.toJson<String?>(sessionA),
+      'sessionB': serializer.toJson<String?>(sessionB),
+      'worktreeA': serializer.toJson<String>(worktreeA),
+      'worktreeB': serializer.toJson<String>(worktreeB),
+      'branchA': serializer.toJson<String>(branchA),
+      'branchB': serializer.toJson<String>(branchB),
+      'reportA': serializer.toJson<String?>(reportA),
+      'reportB': serializer.toJson<String?>(reportB),
+      'state': serializer.toJson<String>(state),
+      'chosen': serializer.toJson<String?>(chosen),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SpecDuel copyWith({
+    int? id,
+    int? specId,
+    String? steps,
+    String? baseSha,
+    Value<String?> sessionA = const Value.absent(),
+    Value<String?> sessionB = const Value.absent(),
+    String? worktreeA,
+    String? worktreeB,
+    String? branchA,
+    String? branchB,
+    Value<String?> reportA = const Value.absent(),
+    Value<String?> reportB = const Value.absent(),
+    String? state,
+    Value<String?> chosen = const Value.absent(),
+    DateTime? createdAt,
+  }) => SpecDuel(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    steps: steps ?? this.steps,
+    baseSha: baseSha ?? this.baseSha,
+    sessionA: sessionA.present ? sessionA.value : this.sessionA,
+    sessionB: sessionB.present ? sessionB.value : this.sessionB,
+    worktreeA: worktreeA ?? this.worktreeA,
+    worktreeB: worktreeB ?? this.worktreeB,
+    branchA: branchA ?? this.branchA,
+    branchB: branchB ?? this.branchB,
+    reportA: reportA.present ? reportA.value : this.reportA,
+    reportB: reportB.present ? reportB.value : this.reportB,
+    state: state ?? this.state,
+    chosen: chosen.present ? chosen.value : this.chosen,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SpecDuel copyWithCompanion(SpecDuelsCompanion data) {
+    return SpecDuel(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      baseSha: data.baseSha.present ? data.baseSha.value : this.baseSha,
+      sessionA: data.sessionA.present ? data.sessionA.value : this.sessionA,
+      sessionB: data.sessionB.present ? data.sessionB.value : this.sessionB,
+      worktreeA: data.worktreeA.present ? data.worktreeA.value : this.worktreeA,
+      worktreeB: data.worktreeB.present ? data.worktreeB.value : this.worktreeB,
+      branchA: data.branchA.present ? data.branchA.value : this.branchA,
+      branchB: data.branchB.present ? data.branchB.value : this.branchB,
+      reportA: data.reportA.present ? data.reportA.value : this.reportA,
+      reportB: data.reportB.present ? data.reportB.value : this.reportB,
+      state: data.state.present ? data.state.value : this.state,
+      chosen: data.chosen.present ? data.chosen.value : this.chosen,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDuel(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('baseSha: $baseSha, ')
+          ..write('sessionA: $sessionA, ')
+          ..write('sessionB: $sessionB, ')
+          ..write('worktreeA: $worktreeA, ')
+          ..write('worktreeB: $worktreeB, ')
+          ..write('branchA: $branchA, ')
+          ..write('branchB: $branchB, ')
+          ..write('reportA: $reportA, ')
+          ..write('reportB: $reportB, ')
+          ..write('state: $state, ')
+          ..write('chosen: $chosen, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    specId,
+    steps,
+    baseSha,
+    sessionA,
+    sessionB,
+    worktreeA,
+    worktreeB,
+    branchA,
+    branchB,
+    reportA,
+    reportB,
+    state,
+    chosen,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecDuel &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.steps == this.steps &&
+          other.baseSha == this.baseSha &&
+          other.sessionA == this.sessionA &&
+          other.sessionB == this.sessionB &&
+          other.worktreeA == this.worktreeA &&
+          other.worktreeB == this.worktreeB &&
+          other.branchA == this.branchA &&
+          other.branchB == this.branchB &&
+          other.reportA == this.reportA &&
+          other.reportB == this.reportB &&
+          other.state == this.state &&
+          other.chosen == this.chosen &&
+          other.createdAt == this.createdAt);
+}
+
+class SpecDuelsCompanion extends UpdateCompanion<SpecDuel> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String> steps;
+  final Value<String> baseSha;
+  final Value<String?> sessionA;
+  final Value<String?> sessionB;
+  final Value<String> worktreeA;
+  final Value<String> worktreeB;
+  final Value<String> branchA;
+  final Value<String> branchB;
+  final Value<String?> reportA;
+  final Value<String?> reportB;
+  final Value<String> state;
+  final Value<String?> chosen;
+  final Value<DateTime> createdAt;
+  const SpecDuelsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.baseSha = const Value.absent(),
+    this.sessionA = const Value.absent(),
+    this.sessionB = const Value.absent(),
+    this.worktreeA = const Value.absent(),
+    this.worktreeB = const Value.absent(),
+    this.branchA = const Value.absent(),
+    this.branchB = const Value.absent(),
+    this.reportA = const Value.absent(),
+    this.reportB = const Value.absent(),
+    this.state = const Value.absent(),
+    this.chosen = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SpecDuelsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    required String steps,
+    required String baseSha,
+    this.sessionA = const Value.absent(),
+    this.sessionB = const Value.absent(),
+    required String worktreeA,
+    required String worktreeB,
+    required String branchA,
+    required String branchB,
+    this.reportA = const Value.absent(),
+    this.reportB = const Value.absent(),
+    this.state = const Value.absent(),
+    this.chosen = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       steps = Value(steps),
+       baseSha = Value(baseSha),
+       worktreeA = Value(worktreeA),
+       worktreeB = Value(worktreeB),
+       branchA = Value(branchA),
+       branchB = Value(branchB);
+  static Insertable<SpecDuel> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? steps,
+    Expression<String>? baseSha,
+    Expression<String>? sessionA,
+    Expression<String>? sessionB,
+    Expression<String>? worktreeA,
+    Expression<String>? worktreeB,
+    Expression<String>? branchA,
+    Expression<String>? branchB,
+    Expression<String>? reportA,
+    Expression<String>? reportB,
+    Expression<String>? state,
+    Expression<String>? chosen,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (steps != null) 'steps': steps,
+      if (baseSha != null) 'base_sha': baseSha,
+      if (sessionA != null) 'session_a': sessionA,
+      if (sessionB != null) 'session_b': sessionB,
+      if (worktreeA != null) 'worktree_a': worktreeA,
+      if (worktreeB != null) 'worktree_b': worktreeB,
+      if (branchA != null) 'branch_a': branchA,
+      if (branchB != null) 'branch_b': branchB,
+      if (reportA != null) 'report_a': reportA,
+      if (reportB != null) 'report_b': reportB,
+      if (state != null) 'state': state,
+      if (chosen != null) 'chosen': chosen,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SpecDuelsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String>? steps,
+    Value<String>? baseSha,
+    Value<String?>? sessionA,
+    Value<String?>? sessionB,
+    Value<String>? worktreeA,
+    Value<String>? worktreeB,
+    Value<String>? branchA,
+    Value<String>? branchB,
+    Value<String?>? reportA,
+    Value<String?>? reportB,
+    Value<String>? state,
+    Value<String?>? chosen,
+    Value<DateTime>? createdAt,
+  }) {
+    return SpecDuelsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      steps: steps ?? this.steps,
+      baseSha: baseSha ?? this.baseSha,
+      sessionA: sessionA ?? this.sessionA,
+      sessionB: sessionB ?? this.sessionB,
+      worktreeA: worktreeA ?? this.worktreeA,
+      worktreeB: worktreeB ?? this.worktreeB,
+      branchA: branchA ?? this.branchA,
+      branchB: branchB ?? this.branchB,
+      reportA: reportA ?? this.reportA,
+      reportB: reportB ?? this.reportB,
+      state: state ?? this.state,
+      chosen: chosen ?? this.chosen,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (baseSha.present) {
+      map['base_sha'] = Variable<String>(baseSha.value);
+    }
+    if (sessionA.present) {
+      map['session_a'] = Variable<String>(sessionA.value);
+    }
+    if (sessionB.present) {
+      map['session_b'] = Variable<String>(sessionB.value);
+    }
+    if (worktreeA.present) {
+      map['worktree_a'] = Variable<String>(worktreeA.value);
+    }
+    if (worktreeB.present) {
+      map['worktree_b'] = Variable<String>(worktreeB.value);
+    }
+    if (branchA.present) {
+      map['branch_a'] = Variable<String>(branchA.value);
+    }
+    if (branchB.present) {
+      map['branch_b'] = Variable<String>(branchB.value);
+    }
+    if (reportA.present) {
+      map['report_a'] = Variable<String>(reportA.value);
+    }
+    if (reportB.present) {
+      map['report_b'] = Variable<String>(reportB.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (chosen.present) {
+      map['chosen'] = Variable<String>(chosen.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDuelsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('steps: $steps, ')
+          ..write('baseSha: $baseSha, ')
+          ..write('sessionA: $sessionA, ')
+          ..write('sessionB: $sessionB, ')
+          ..write('worktreeA: $worktreeA, ')
+          ..write('worktreeB: $worktreeB, ')
+          ..write('branchA: $branchA, ')
+          ..write('branchB: $branchB, ')
+          ..write('reportA: $reportA, ')
+          ..write('reportB: $reportB, ')
+          ..write('state: $state, ')
+          ..write('chosen: $chosen, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10346,6 +11240,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $NotificationsTable notifications = $NotificationsTable(this);
+  late final $SpecDuelsTable specDuels = $SpecDuelsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10371,6 +11266,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     specCriteria,
     specSuggestions,
     notifications,
+    specDuels,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -10492,6 +11388,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('spec_suggestions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_duels', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -11434,6 +12337,24 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SpecDuelsTable, List<SpecDuel>>
+  _specDuelsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specDuels,
+    aliasName: 'specs__id__spec_duels__spec_id',
+  );
+
+  $$SpecDuelsTableProcessedTableManager get specDuelsRefs {
+    final manager = $$SpecDuelsTableTableManager(
+      $_db,
+      $_db.specDuels,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specDuelsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -11726,6 +12647,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$SpecSuggestionsTableFilterComposer(
             $db: $db,
             $table: $db.specSuggestions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specDuelsRefs(
+    Expression<bool> Function($$SpecDuelsTableFilterComposer f) f,
+  ) {
+    final $$SpecDuelsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDuels,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDuelsTableFilterComposer(
+            $db: $db,
+            $table: $db.specDuels,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -12151,6 +13097,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> specDuelsRefs<T extends Object>(
+    Expression<T> Function($$SpecDuelsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecDuelsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDuels,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDuelsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specDuels,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -12174,6 +13145,7 @@ class $$SpecsTableTableManager
             bool reviewCommentsRefs,
             bool specCriteriaRefs,
             bool specSuggestionsRefs,
+            bool specDuelsRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -12306,6 +13278,7 @@ class $$SpecsTableTableManager
                 reviewCommentsRefs = false,
                 specCriteriaRefs = false,
                 specSuggestionsRefs = false,
+                specDuelsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -12316,6 +13289,7 @@ class $$SpecsTableTableManager
                     if (reviewCommentsRefs) db.reviewComments,
                     if (specCriteriaRefs) db.specCriteria,
                     if (specSuggestionsRefs) db.specSuggestions,
+                    if (specDuelsRefs) db.specDuels,
                   ],
                   addJoins:
                       <
@@ -12459,6 +13433,23 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (specDuelsRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, SpecDuel>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specDuelsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specDuelsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -12487,6 +13478,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool reviewCommentsRefs,
         bool specCriteriaRefs,
         bool specSuggestionsRefs,
+        bool specDuelsRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -13527,6 +14519,7 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<String?> mergeCommit,
   Value<String?> prUrl,
   Value<int?> pid,
+  Value<int?> duelId,
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
@@ -13552,6 +14545,7 @@ typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
   Value<String?> mergeCommit,
   Value<String?> prUrl,
   Value<int?> pid,
+  Value<int?> duelId,
   Value<int> rowid,
 });
 
@@ -13767,6 +14761,11 @@ class $$SessionsTableFilterComposer
 
   ColumnFilters<int> get pid => $composableBuilder(
     column: $table.pid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get duelId => $composableBuilder(
+    column: $table.duelId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14019,6 +15018,11 @@ class $$SessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get duelId => $composableBuilder(
+    column: $table.duelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14162,6 +15166,9 @@ class $$SessionsTableAnnotationComposer
 
   GeneratedColumn<int> get pid =>
       $composableBuilder(column: $table.pid, builder: (column) => column);
+
+  GeneratedColumn<int> get duelId =>
+      $composableBuilder(column: $table.duelId, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -14365,6 +15372,7 @@ class $$SessionsTableTableManager
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
+                Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
                 id: id,
@@ -14389,6 +15397,7 @@ class $$SessionsTableTableManager
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
                 pid: pid,
+                duelId: duelId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14415,6 +15424,7 @@ class $$SessionsTableTableManager
                 Value<String?> mergeCommit = const Value.absent(),
                 Value<String?> prUrl = const Value.absent(),
                 Value<int?> pid = const Value.absent(),
+                Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
                 id: id,
@@ -14439,6 +15449,7 @@ class $$SessionsTableTableManager
                 mergeCommit: mergeCommit,
                 prUrl: prUrl,
                 pid: pid,
+                duelId: duelId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -19186,6 +20197,503 @@ typedef $$NotificationsTableProcessedTableManager =
       AppNotification,
       PrefetchHooks Function()
     >;
+typedef $$SpecDuelsTableCreateCompanionBuilder = SpecDuelsCompanion Function({
+  Value<int> id,
+  required int specId,
+  required String steps,
+  required String baseSha,
+  Value<String?> sessionA,
+  Value<String?> sessionB,
+  required String worktreeA,
+  required String worktreeB,
+  required String branchA,
+  required String branchB,
+  Value<String?> reportA,
+  Value<String?> reportB,
+  Value<String> state,
+  Value<String?> chosen,
+  Value<DateTime> createdAt,
+});
+typedef $$SpecDuelsTableUpdateCompanionBuilder = SpecDuelsCompanion Function({
+  Value<int> id,
+  Value<int> specId,
+  Value<String> steps,
+  Value<String> baseSha,
+  Value<String?> sessionA,
+  Value<String?> sessionB,
+  Value<String> worktreeA,
+  Value<String> worktreeB,
+  Value<String> branchA,
+  Value<String> branchB,
+  Value<String?> reportA,
+  Value<String?> reportB,
+  Value<String> state,
+  Value<String?> chosen,
+  Value<DateTime> createdAt,
+});
+
+final class $$SpecDuelsTableReferences
+    extends BaseReferences<_$AppDatabase, $SpecDuelsTable, SpecDuel> {
+  $$SpecDuelsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_duels__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecDuelsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get baseSha => $composableBuilder(
+    column: $table.baseSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionA => $composableBuilder(
+    column: $table.sessionA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionB => $composableBuilder(
+    column: $table.sessionB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreeA => $composableBuilder(
+    column: $table.worktreeA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreeB => $composableBuilder(
+    column: $table.worktreeB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchA => $composableBuilder(
+    column: $table.branchA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get branchB => $composableBuilder(
+    column: $table.branchB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportA => $composableBuilder(
+    column: $table.reportA,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportB => $composableBuilder(
+    column: $table.reportB,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chosen => $composableBuilder(
+    column: $table.chosen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get baseSha => $composableBuilder(
+    column: $table.baseSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionA => $composableBuilder(
+    column: $table.sessionA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionB => $composableBuilder(
+    column: $table.sessionB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreeA => $composableBuilder(
+    column: $table.worktreeA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreeB => $composableBuilder(
+    column: $table.worktreeB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchA => $composableBuilder(
+    column: $table.branchA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get branchB => $composableBuilder(
+    column: $table.branchB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportA => $composableBuilder(
+    column: $table.reportA,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportB => $composableBuilder(
+    column: $table.reportB,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chosen => $composableBuilder(
+    column: $table.chosen,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecDuelsTable> {
+  $$SpecDuelsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get baseSha =>
+      $composableBuilder(column: $table.baseSha, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionA =>
+      $composableBuilder(column: $table.sessionA, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionB =>
+      $composableBuilder(column: $table.sessionB, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreeA =>
+      $composableBuilder(column: $table.worktreeA, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreeB =>
+      $composableBuilder(column: $table.worktreeB, builder: (column) => column);
+
+  GeneratedColumn<String> get branchA =>
+      $composableBuilder(column: $table.branchA, builder: (column) => column);
+
+  GeneratedColumn<String> get branchB =>
+      $composableBuilder(column: $table.branchB, builder: (column) => column);
+
+  GeneratedColumn<String> get reportA =>
+      $composableBuilder(column: $table.reportA, builder: (column) => column);
+
+  GeneratedColumn<String> get reportB =>
+      $composableBuilder(column: $table.reportB, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get chosen =>
+      $composableBuilder(column: $table.chosen, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDuelsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecDuelsTable,
+          SpecDuel,
+          $$SpecDuelsTableFilterComposer,
+          $$SpecDuelsTableOrderingComposer,
+          $$SpecDuelsTableAnnotationComposer,
+          $$SpecDuelsTableCreateCompanionBuilder,
+          $$SpecDuelsTableUpdateCompanionBuilder,
+          (SpecDuel, $$SpecDuelsTableReferences),
+          SpecDuel,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecDuelsTableTableManager(_$AppDatabase db, $SpecDuelsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecDuelsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecDuelsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecDuelsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String> steps = const Value.absent(),
+                Value<String> baseSha = const Value.absent(),
+                Value<String?> sessionA = const Value.absent(),
+                Value<String?> sessionB = const Value.absent(),
+                Value<String> worktreeA = const Value.absent(),
+                Value<String> worktreeB = const Value.absent(),
+                Value<String> branchA = const Value.absent(),
+                Value<String> branchB = const Value.absent(),
+                Value<String?> reportA = const Value.absent(),
+                Value<String?> reportB = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> chosen = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecDuelsCompanion(
+                id: id,
+                specId: specId,
+                steps: steps,
+                baseSha: baseSha,
+                sessionA: sessionA,
+                sessionB: sessionB,
+                worktreeA: worktreeA,
+                worktreeB: worktreeB,
+                branchA: branchA,
+                branchB: branchB,
+                reportA: reportA,
+                reportB: reportB,
+                state: state,
+                chosen: chosen,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                required String steps,
+                required String baseSha,
+                Value<String?> sessionA = const Value.absent(),
+                Value<String?> sessionB = const Value.absent(),
+                required String worktreeA,
+                required String worktreeB,
+                required String branchA,
+                required String branchB,
+                Value<String?> reportA = const Value.absent(),
+                Value<String?> reportB = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> chosen = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecDuelsCompanion.insert(
+                id: id,
+                specId: specId,
+                steps: steps,
+                baseSha: baseSha,
+                sessionA: sessionA,
+                sessionB: sessionB,
+                worktreeA: worktreeA,
+                worktreeB: worktreeB,
+                branchA: branchA,
+                branchB: branchB,
+                reportA: reportA,
+                reportB: reportB,
+                state: state,
+                chosen: chosen,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecDuelsTable, SpecDuel>(table),
+                  $$SpecDuelsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecDuelsTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecDuelsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecDuelsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecDuelsTable,
+      SpecDuel,
+      $$SpecDuelsTableFilterComposer,
+      $$SpecDuelsTableOrderingComposer,
+      $$SpecDuelsTableAnnotationComposer,
+      $$SpecDuelsTableCreateCompanionBuilder,
+      $$SpecDuelsTableUpdateCompanionBuilder,
+      (SpecDuel, $$SpecDuelsTableReferences),
+      SpecDuel,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -19230,4 +20738,6 @@ class $AppDatabaseManager {
       $$SpecSuggestionsTableTableManager(_db, _db.specSuggestions);
   $$NotificationsTableTableManager get notifications =>
       $$NotificationsTableTableManager(_db, _db.notifications);
+  $$SpecDuelsTableTableManager get specDuels =>
+      $$SpecDuelsTableTableManager(_db, _db.specDuels);
 }

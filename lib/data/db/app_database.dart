@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 13;
+const appSchemaVersion = 14;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -289,6 +289,37 @@ class SpecSuggestions extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// One step run twice in temporary worktrees (best-of-N, schema v14): the
+/// user compares A and B and the chosen one goes into the spec's branch.
+class SpecDuels extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// `R2` / `R2,R3`.
+  TextColumn get steps => text()();
+
+  /// HEAD of the spec's worktree when the attempts started.
+  TextColumn get baseSha => text()();
+  TextColumn get sessionA => text().nullable()();
+  TextColumn get sessionB => text().nullable()();
+  TextColumn get worktreeA => text()();
+  TextColumn get worktreeB => text()();
+  TextColumn get branchA => text()();
+  TextColumn get branchB => text()();
+
+  /// Gate of each attempt (JSON of `GateReport`).
+  TextColumn get reportA => text().nullable()();
+  TextColumn get reportB => text().nullable()();
+
+  /// `rodando` / `pronto` / `escolhido` / `descartado`.
+  TextColumn get state => text().withDefault(const Constant('rodando'))();
+
+  /// `A` / `B` once chosen.
+  TextColumn get chosen => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Notification shown by the app (schema v12): the history of the
 /// notification center, with where its click goes.
 @DataClassName('AppNotification')
@@ -407,6 +438,10 @@ class Sessions extends Table {
   /// PID of the `claude` process while it runs (schema v12): the next
   /// launch ends the ones left behind by a crash of the app.
   IntColumn get pid => integer().nullable()();
+
+  /// Best-of-N attempt it belongs to (schema v14; `spec_duels.id`): its
+  /// result does not move the spec's steps, the user picks a winner.
+  IntColumn get duelId => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -578,6 +613,7 @@ class AppSettings extends Table {
     SpecCriteria,
     SpecSuggestions,
     Notifications,
+    SpecDuels,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -766,6 +802,14 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(v.sessions, v.sessions.pid);
             }
             await m.createTable(v.notifications);
+          },
+          // v14: best-of-N attempts of a step.
+          from13To14: (m, v) async {
+            if (await _hasTable('specs')) await m.createTable(v.specDuels);
+            if (await _hasTable('sessions') &&
+                !await _hasColumn('sessions', 'duel_id')) {
+              await m.addColumn(v.sessions, v.sessions.duelId);
+            }
           },
           // v13: quality metrics of a spec (Projeto → Métricas).
           from12To13: (m, v) async {

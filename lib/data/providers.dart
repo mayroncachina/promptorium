@@ -16,6 +16,7 @@ import 'repos/project_plans_repo.dart';
 import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
+import 'repos/spec_duels_repo.dart';
 import 'repos/spec_steps_repo.dart';
 import 'repos/spec_suggestions_repo.dart';
 import 'repos/specs_repo.dart';
@@ -76,6 +77,9 @@ final specSuggestionsRepoProvider = Provider(
 );
 final notificationsRepoProvider = Provider(
   (ref) => NotificationsRepo(ref.watch(appDatabaseProvider)),
+);
+final specDuelsRepoProvider = Provider(
+  (ref) => SpecDuelsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

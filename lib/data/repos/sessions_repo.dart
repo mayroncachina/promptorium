@@ -46,6 +46,7 @@ class SessionsRepo {
     String? baseBranch,
     double costUsd = 0,
     SessionStatus status = SessionStatus.running,
+    int? duelId,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -65,6 +66,7 @@ class SessionsRepo {
           baseBranch: Value(baseBranch),
           costUsd: Value(costUsd),
           status: Value(status),
+          duelId: Value(duelId),
         ),
       );
 

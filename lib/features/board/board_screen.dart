@@ -13,9 +13,10 @@ import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
-import 'spec_runner.dart' show worktreePrepProvider;
+import 'spec_runner.dart' show specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
 import 'widgets/card_extras.dart';
+import 'widgets/duel_dialog.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
@@ -520,12 +521,22 @@ class SpecCard extends ConsumerWidget {
     final changedOnDisk = ref.watch(
       workspaceWatcherProvider.select((s) => s.contains(spec.id)),
     );
+    final duel =
+        (ref.watch(openDuelsProvider(spec.workspaceId)).value ??
+                const <SpecDuel>[])
+            .where((d) => d.specId == spec.id)
+            .firstOrNull;
 
     var meta = '';
     var metaColor = AppColors.textSecondary;
     var border = AppColors.border;
     if (spec.stage == SpecStage.done) {
       meta = 'concluída';
+    } else if (duel != null) {
+      meta = duel.state == 'pronto'
+          ? 'A/B prontas para comparar'
+          : 'A/B rodando · ${duel.steps}';
+      metaColor = AppColors.lilac;
     } else if (changedOnDisk && !busy) {
       meta = 'spec alterada no disco';
       metaColor = AppColors.amber;
@@ -703,7 +714,14 @@ class SpecCard extends ConsumerWidget {
                 ),
               ],
             ),
-            if (changedOnDisk) ...[
+            if (duel != null && duel.state == 'pronto') ...[
+              const SizedBox(height: 8),
+              _ActionButton(
+                key: ValueKey('board-duel-${spec.code}'),
+                label: 'Comparar A/B',
+                onTap: () => showDuelDialog(context, duel),
+              ),
+            ] else if (changedOnDisk) ...[
               const SizedBox(height: 6),
               const Text(
                 'O arquivo da spec mudou enquanto ela rodava. Confirme para '
@@ -918,6 +936,15 @@ class _CardMenu extends ConsumerWidget {
               await repo.setAutoAdvance(spec.id, !spec.autoAdvance);
             case 'details':
               if (context.mounted) await showSpecDetailDialog(context, spec.id);
+            case 'duel':
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              try {
+                await ref
+                    .read(specRunnerProvider)
+                    .runNext(spec.id, duel: true, reviewUnblocks: true);
+              } catch (e) {
+                messenger?.showSnackBar(SnackBar(content: Text('$e')));
+              }
             case 'up':
               await onMove?.call(-1);
             case 'down':
@@ -928,7 +955,7 @@ class _CardMenu extends ConsumerWidget {
           }
         },
         itemBuilder: (_) => [
-          if (canRun)
+          if (canRun) ...[
             const PopupMenuItem(
               value: 'run',
               child: Text(
@@ -936,6 +963,14 @@ class _CardMenu extends ConsumerWidget {
                 style: TextStyle(fontSize: 12),
               ),
             ),
+            const PopupMenuItem(
+              value: 'duel',
+              child: Text(
+                'Executar em dobro (A/B)',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
           PopupMenuItem(
             value: 'auto',
             child: Text(
