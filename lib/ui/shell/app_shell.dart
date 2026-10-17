@@ -11,7 +11,8 @@ import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/mcp_state.dart' show mcpListProvider;
 import '../../features/mcp/widgets/add_server_dialog.dart';
-import '../../features/project/new_project_dialog.dart';
+import '../../features/project/widgets/start_screen.dart'
+    show startScreenProvider;
 import '../../features/project/project_screen.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
@@ -240,7 +241,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     } else if (section == AppSection.mcp) {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {
-      showNewProjectDialog(context);
+      ref.read(startScreenProvider.notifier).set(true);
     } else if (section == AppSection.skills) {
       showNewSkillDialog(context);
     } else {

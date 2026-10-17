@@ -136,7 +136,12 @@ void main() {
   testWidgets('without a workspace offers a new project; without a plan '
       'starts one', (tester) async {
     var (c, _) = await pumpProject(tester, withWorkspace: false);
-    expect(find.byKey(const ValueKey('project-new')), findsOneWidget);
+    // No workspace: the "Começar" screen (UX v2, U7).
+    expect(find.byKey(const ValueKey('start-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('start-back')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('start-origin-clone')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('start-clone-url')), findsOneWidget);
     await unmount(tester, c);
 
     (c, _) = await pumpProject(tester);

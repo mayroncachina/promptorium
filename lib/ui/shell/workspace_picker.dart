@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/git_root.dart';
 import '../../core/git/repo_setup.dart';
 import '../../data/providers.dart';
-import '../../features/project/new_project_dialog.dart';
+import '../../features/project/widgets/start_screen.dart'
+    show startScreenProvider;
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
+import 'navigation.dart';
 
 /// Workspace selector opened from the title bar: lists the registered
 /// workspaces, selects one, removes one or adds a git folder (typed path or
@@ -230,9 +232,9 @@ class _WorkspacePickerState extends ConsumerState<WorkspacePicker> {
         label: 'Novo projeto…',
         hint: 'cria a pasta, o repositório e planeja com o planner',
         onTap: () {
-          final nav = Navigator.of(context);
-          nav.pop();
-          showNewProjectDialog(nav.context);
+          Navigator.of(context).pop();
+          ref.read(startScreenProvider.notifier).set(true);
+          ref.read(navigationProvider.notifier).go(AppSection.project);
         },
       ),
     ],

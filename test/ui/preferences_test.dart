@@ -10,6 +10,8 @@ import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/shell/side_bar.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart'
+    show AmberButton;
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../helpers/test_db.dart';
@@ -316,9 +318,8 @@ void main() {
     await unmount(tester, c);
   });
 
-  testWidgets('"Novo projeto…" in the workspace selector opens the dialog', (
-    tester,
-  ) async {
+  testWidgets('"Novo projeto…" in the workspace selector opens Começar '
+      '(UX v2, U7)', (tester) async {
     final db = memoryDatabase();
     addTearDown(db.close);
     final c = await pumpLoadedShell(tester, db);
@@ -328,21 +329,27 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('workspace-new-project')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('workspace-picker')), findsNothing);
-    expect(find.byKey(const ValueKey('new-project-dialog')), findsOneWidget);
-    final create = find.byKey(const ValueKey('new-project-create'));
-    expect(tester.widget<FilledButton>(create).onPressed, isNull);
+    expect(find.byKey(const ValueKey('start-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('start-origin-create')), findsOneWidget);
+    final create = find.byKey(const ValueKey('start-create-plan'));
+    expect(tester.widget<AmberButton>(create).onTap, isNull);
+    await tester.enterText(find.byKey(const ValueKey('start-parent')), '/srv');
     await tester.enterText(
-      find.byKey(const ValueKey('new-project-parent')),
-      '/srv',
-    );
-    await tester.enterText(
-      find.byKey(const ValueKey('new-project-name')),
+      find.byKey(const ValueKey('start-name')),
       'receitas',
     );
     await tester.pump();
-    expect(find.text('Será criada: /srv/receitas'), findsOneWidget);
-    expect(tester.widget<FilledButton>(create).onPressed, isNotNull);
-    await tester.tap(find.byKey(const ValueKey('new-project-remote')));
+    expect(
+      find.text('Será criada: /srv/receitas · branch main · commit inicial'),
+      findsOneWidget,
+    );
+    expect(tester.widget<AmberButton>(create).onTap, isNotNull);
+    // A template changes the summary line.
+    await tester.tap(find.byKey(const ValueKey('start-template-flutter')));
+    await tester.pump();
+    expect(find.textContaining('O modelo preenche Flutter'), findsOneWidget);
+    // Remote without URL is refused before touching the disk.
+    await tester.tap(find.byType(Radio<bool>).last);
     await tester.pump();
     await tester.tap(create);
     await tester.pump();

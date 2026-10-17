@@ -594,6 +594,22 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         ),
       );
 
+  /// "Gerar proposta completa" (UX v2, U7): one idea → vision, stack and
+  /// roadmap in sequence, landing on "Revisar e criar". Stops at the first
+  /// failure (the error is in the chat / activity as usual).
+  Future<void> proposeAll(Workspace ws, String idea) async {
+    await sendVision(ws, idea);
+    final (_, afterVision) = await _load(ws);
+    if (!afterVision.vision.isReady) return;
+    await proposeStack(ws);
+    if (state[ws.id]?.error != null) return;
+    final (_, afterStack) = await _load(ws);
+    if (afterStack.stack.decisions.isEmpty) return;
+    await planRoadmap(ws);
+    if (state[ws.id]?.error != null) return;
+    await goTo(ws, ProjectStep.create);
+  }
+
   Future<void> goTo(Workspace ws, ProjectStep step) => ref
       .read(projectPlansRepoProvider)
       .update(ws.id, ProjectPlansCompanion(step: Value(step.name)));

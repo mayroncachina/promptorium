@@ -11,7 +11,9 @@ import '../../data/providers.dart';
 import '../prompt/conversation_manager.dart';
 import '../sessions/session_manager.dart';
 import '../specs/spec_service.dart';
+import 'project_config.dart';
 import 'project_plan.dart';
+import 'project_templates.dart';
 
 class ProjectException implements Exception {
   const ProjectException(this.message);
@@ -64,6 +66,8 @@ class ProjectService {
     required String parent,
     required String name,
     String? remoteUrl,
+    ProjectTemplate? template,
+    bool plan = true,
   }) async {
     final n = name.trim();
     if (n.isEmpty) throw const ProjectException('Informe o nome da pasta.');
@@ -91,13 +95,37 @@ class ProjectService {
       default:
         throw ProjectException('Já existe um arquivo em $path.');
     }
+    // Template files first: the initial commit carries them (UX v2, U7).
+    final t = template;
+    if (t != null && !t.isEmpty) {
+      await ProjectConfig.save(path, t.config);
+      if (t.claudeMd case final md?) {
+        await File('$path/CLAUDE.md').writeAsString(md);
+      }
+    }
     try {
       await _ref.read(repoSetupProvider).init(path, remoteUrl: remoteUrl);
     } catch (e) {
       throw ProjectException(repoSetupError(e));
     }
     final ws = await _ref.read(workspaceActionsProvider).addFolder(path);
-    await _ref.read(projectPlansRepoProvider).start(ws.id);
+    if (plan) {
+      await _ref.read(projectPlansRepoProvider).start(ws.id);
+      if (t != null && t.decisions.isNotEmpty) {
+        // The planner keeps pinned choices.
+        await _ref
+            .read(projectPlansRepoProvider)
+            .update(
+              ws.id,
+              ProjectPlansCompanion(
+                data: Value(
+                  ProjectPlanData(stack: StackPlan(decisions: t.decisions))
+                      .encode(),
+                ),
+              ),
+            );
+      }
+    }
     return ws;
   }
 

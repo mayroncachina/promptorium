@@ -43,6 +43,7 @@ class VisionStep extends ConsumerWidget {
                   messages: data.messages,
                   busy: busy,
                   onSuggestion: (s) => planner.sendVision(workspace, s),
+                  onPropose: (idea) => planner.proposeAll(workspace, idea),
                 ),
               ),
               _Composer(
@@ -74,8 +75,94 @@ class VisionStep extends ConsumerWidget {
   }
 }
 
+/// Empty Visão (UX v2, U7): one paragraph and "Gerar proposta completa"
+/// (vision, stack and roadmap at once); the chat below keeps working for
+/// who prefers to converse.
+class _IdeaBox extends StatefulWidget {
+  const _IdeaBox({required this.onPropose});
+
+  final ValueChanged<String> onPropose;
+
+  @override
+  State<_IdeaBox> createState() => _IdeaBoxState();
+}
+
+class _IdeaBoxState extends State<_IdeaBox> {
+  final _text = TextEditingController();
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 640),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Conte a ideia',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Um parágrafo: o que é, para quem, o que precisa ter primeiro. '
+              'O planner devolve visão, stack e roadmap de uma vez; você '
+              'revisa cada parte antes de criar. Ou converse com ele pelo '
+              'campo de baixo.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('project-idea'),
+              controller: _text,
+              minLines: 4,
+              maxLines: 10,
+              style: const TextStyle(fontSize: 13, color: AppColors.text),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText:
+                    'App para escola de dança: turmas, matrícula, presença '
+                    'pelo celular e cobrança mensal por Pix…',
+                hintStyle: TextStyle(color: AppColors.textMuted),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                AmberButton(
+                  key: const ValueKey('project-propose-all'),
+                  label: 'Gerar proposta completa',
+                  onTap: _text.text.trim().isEmpty
+                      ? null
+                      : () => widget.onPropose(_text.text),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'visão + stack + roadmap · ~3 chamadas do planner',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class _Conversation extends StatefulWidget {
   const _Conversation({
+    required this.onPropose,
     required this.messages,
     required this.busy,
     required this.onSuggestion,
@@ -84,6 +171,7 @@ class _Conversation extends StatefulWidget {
   final List<PlanMessage> messages;
   final String? busy;
   final ValueChanged<String> onSuggestion;
+  final ValueChanged<String> onPropose;
 
   @override
   State<_Conversation> createState() => _ConversationState();
@@ -115,13 +203,7 @@ class _ConversationState extends State<_Conversation> {
   Widget build(BuildContext context) {
     final msgs = widget.messages;
     if (msgs.isEmpty && widget.busy == null) {
-      return const StepEmpty(
-        title: 'Conte a ideia',
-        text:
-            'Descreva o que você quer construir e para quem. O planner faz '
-            'perguntas e monta o plano: resumo, público, MVP e o que fica de '
-            'fora.',
-      );
+      return _IdeaBox(onPropose: widget.onPropose);
     }
     final lastPlanner = msgs.lastIndexWhere((m) => !m.fromUser && !m.error);
     return ListView(

@@ -229,6 +229,58 @@ void main() {
     expect(data.stack.claudeMdStale, isFalse);
   });
 
+  test('proposeAll: vision, stack and roadmap in sequence, landing on '
+      'Revisar e criar (UX v2, U7)', () async {
+    await planner().start(ws);
+    final f = planner().proposeAll(ws, 'App de receitas da família');
+    await settle();
+    expect(cli.processes, hasLength(1));
+    cli.last.emit(resultLine(visionOutput()));
+    await settle();
+    expect(cli.processes, hasLength(2));
+    expect(c.read(projectPlannerProvider)[ws.id]?.busy, 'Propondo a stack…');
+    cli.last.emit(
+      resultLine({
+        'decisions': [
+          {
+            'area': 'App',
+            'choice': 'Flutter',
+            'why': '',
+            'alternatives': <String>[],
+          },
+        ],
+        'claudeMd': '# Receitas',
+      }),
+    );
+    await settle();
+    expect(cli.processes, hasLength(3));
+    expect(c.read(projectPlannerProvider)[ws.id]?.busy, 'Montando o roadmap…');
+    cli.last.emit(
+      resultLine({
+        'specs': [
+          {
+            'code': 'S1',
+            'title': 'Esqueleto',
+            'phase': 'foundation',
+            'objective': '',
+            'requirements': [
+              {'id': 'R1', 'text': 'Fazer'},
+            ],
+            'acceptance': <String>[],
+            'dependsOn': <String>[],
+          },
+        ],
+        'later': <String>[],
+      }),
+    );
+    await f;
+    final (row, data) = await load();
+    expect(data.vision.name, 'Receitas');
+    expect(data.stack.decisions.single.choice, 'Flutter');
+    expect(data.roadmap.specs.single.title, 'Esqueleto');
+    expect(row.step, ProjectStep.create.name);
+  });
+
   test('Roadmap: stored normalized; failures go to the activity', () async {
     await planner().start(ws);
     var f = planner().planRoadmap(ws);
