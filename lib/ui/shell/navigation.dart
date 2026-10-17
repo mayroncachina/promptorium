@@ -30,33 +30,33 @@ enum AppSection {
   /// Contextual primary action in the title bar (null = no button).
   final String? actionLabel;
 
-  /// Sections shown as the main sidebar items (everything except settings).
+  /// Main sidebar items, in the order of the work (plano F10): Projeto ·
+  /// Specs · Quadro · Sessões · Review · Código · Prompt · Ferramentas.
+  /// [agents] stands for "Ferramentas" (Agentes / Skills / MCP as tabs).
   static const navItems = [
     project,
-    sessions,
-    prompt,
     specs,
     tasks,
+    sessions,
     review,
     code,
+    prompt,
     agents,
-    skills,
-    mcp,
   ];
 
-  /// Ctrl+1…9 targets. Projeto came after the others, so it takes Ctrl+9
-  /// and the older shortcuts keep their digits.
-  static const shortcutItems = [
-    sessions,
-    prompt,
-    specs,
-    tasks,
-    agents,
-    review,
-    code,
-    mcp,
-    project,
-  ];
+  /// Screens shown as tabs of "Ferramentas".
+  static const toolTabs = [agents, skills, mcp];
+
+  bool get isTool => toolTabs.contains(this);
+
+  /// Ctrl+1…8 targets (same order as the sidebar).
+  static const shortcutItems = navItems;
+
+  /// Version of the shortcut layout; a change shows a one-time notice.
+  static const shortcutsVersion = 2;
+
+  /// Sidebar / palette name: the tools group is "Ferramentas".
+  String get navLabel => this == agents ? 'Ferramentas' : label;
 
   /// `Ctrl 3` (null = no shortcut).
   String? get shortcutLabel {

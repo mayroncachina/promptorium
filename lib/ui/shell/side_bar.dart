@@ -4,7 +4,8 @@ import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
 
-/// Left navigation bar (56px): 10 sections + settings gear at the bottom.
+/// Left navigation bar (56px): the [AppSection.navItems] + settings gear at
+/// the bottom.
 class SideBar extends StatelessWidget {
   const SideBar({super.key, required this.active, required this.onSelect});
 
@@ -16,7 +17,8 @@ class SideBar extends StatelessWidget {
     SideBarItem item(AppSection s) => SideBarItem(
       key: ValueKey('nav-${s.name}'),
       section: s,
-      active: s == active,
+      // "Ferramentas" stays lit on any of its tabs.
+      active: s == active || (s == AppSection.agents && active.isTool),
       onTap: () => onSelect(s),
     );
     return Container(
@@ -56,13 +58,13 @@ class SideBarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(8);
     return Tooltip(
-      message: section.label,
+      message: section.navLabel,
       waitDuration: const Duration(milliseconds: 400),
       preferBelow: false,
       child: Semantics(
         button: true,
         selected: active,
-        label: section.label,
+        label: section.navLabel,
         excludeSemantics: true,
         child: Material(
           color: active ? AppColors.amberTint : Colors.transparent,

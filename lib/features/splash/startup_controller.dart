@@ -191,6 +191,16 @@ class RestoreSessionsStep extends StartupStep {
     // Notices not delivered before closing; the autopilot that was on
     // resumes (not awaited: it may start sessions).
     await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    // A spec in execution: the app opens on the Quadro (F10).
+    final running = await ctx.ref
+        .read(appDatabaseProvider)
+        .customSelect("SELECT 1 FROM specs WHERE stage = 'running' LIMIT 1")
+        .get();
+    if (running.isNotEmpty) {
+      await ctx.ref
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.lastSection, 'tasks');
+    }
     // A review interrupted by closing the app goes to the user.
     await ctx.ref
         .read(appDatabaseProvider)

@@ -18,6 +18,7 @@ import '../../features/skills/widgets/skill_dialogs.dart';
 import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/board/board_screen.dart';
+import '../../data/providers.dart';
 import '../theme/tokens.dart';
 import 'command_palette.dart';
 import 'editor_zoom.dart';
@@ -27,6 +28,7 @@ import 'shell_intents.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
 import 'title_bar.dart';
+import 'tools_tabs.dart';
 import 'workspace_picker.dart';
 
 /// IDE shell (docs/mockups/Main.dc.html): title bar, sidebar, content, footer.
@@ -43,13 +45,59 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _paletteOpen = false;
 
-  void _go(AppSection s) => ref.read(navigationProvider.notifier).go(s);
+  /// Last tab of "Ferramentas" (Ctrl+8 / the sidebar go back to it).
+  AppSection _lastTool = AppSection.agents;
+
+  void _go(AppSection s) {
+    if (s.isTool) _lastTool = s;
+    ref.read(navigationProvider.notifier).go(s);
+  }
+
+  /// Sidebar / Ctrl+8: "Ferramentas" opens its last tab.
+  void _goNav(AppSection s) {
+    if (s == AppSection.agents) {
+      final current = ref.read(navigationProvider);
+      if (current.isTool) return;
+      return _go(_lastTool);
+    }
+    _go(s);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _shortcutsNotice());
+  }
+
+  /// Once, after the menus were reordered (F10): the old digits moved.
+  void _shortcutsNotice() {
+    if (!mounted) return;
+    final settings = ref.read(appSettingsProvider.notifier);
+    final seen = settings.getInt(AppSettingKeys.shortcutsVersion) ?? 0;
+    if (seen >= AppSection.shortcutsVersion) return;
+    settings.set(
+      AppSettingKeys.shortcutsVersion,
+      '${AppSection.shortcutsVersion}',
+    );
+    // A first run has nothing to unlearn.
+    if (settings.get(AppSettingKeys.lastSection) == null) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        key: const ValueKey('shortcuts-changed'),
+        duration: const Duration(seconds: 10),
+        content: Text(
+          'Os atalhos mudaram com a nova ordem dos menus: '
+          '${[for (final s in AppSection.shortcutItems) '${s.shortcutLabel} ${s.navLabel}'].join(' · ')}.',
+        ),
+      ),
+    );
+  }
 
   Future<void> _openPalette() async {
     if (_paletteOpen) return;
     _paletteOpen = true;
     try {
-      await showCommandPalette(context, onNavigate: _go);
+      await showCommandPalette(context, ref: ref, onNavigate: _go);
     } finally {
       _paletteOpen = false;
     }
@@ -116,7 +164,11 @@ class _AppShellState extends ConsumerState<AppShell> {
       );
   }
 
-  static Widget _screenFor(AppSection s) => switch (s) {
+  Widget _screenFor(AppSection s) => s.isTool
+      ? ToolsTabs(active: s, onSelect: _go, child: _screen(s))
+      : _screen(s);
+
+  static Widget _screen(AppSection s) => switch (s) {
     AppSection.project => const ProjectScreen(),
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),
@@ -157,7 +209,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           ),
           GoToSectionIntent: CallbackAction<GoToSectionIntent>(
             onInvoke: (i) {
-              _go(i.section);
+              _goNav(i.section);
               return null;
             },
           ),
@@ -178,7 +230,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SideBar(active: section, onSelect: _go),
+                      SideBar(active: section, onSelect: _goNav),
                       Expanded(
                         child: Stack(
                           children: [

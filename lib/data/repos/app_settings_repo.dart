@@ -34,6 +34,9 @@ abstract final class AppSettingKeys {
   /// Worktree selected in the Code screen for a workspace (path).
   static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';
 
+  /// Shortcut layout the user was told about (`AppSection.shortcutsVersion`).
+  static const shortcutsVersion = 'ui.shortcutsVersion';
+
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 }

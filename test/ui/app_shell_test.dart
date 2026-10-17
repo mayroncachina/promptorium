@@ -50,35 +50,34 @@ Future<void> ctrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('renders 10 navigation items in mockup order plus the gear', (
-    tester,
-  ) async {
+  testWidgets('renders the navigation in the order of the work plus the '
+      'gear; Ferramentas holds Agentes / Skills / MCP as tabs', (tester) async {
     await pumpShell(tester);
 
-    expect(AppSection.navItems.map((s) => s.label), [
+    expect(AppSection.navItems.map((s) => s.navLabel), [
       'Projeto',
-      'Sessões',
-      'Prompt',
       'Specs',
       'Quadro',
+      'Sessões',
       'Review',
       'Código',
-      'Agentes',
-      'Skills',
-      'Servidores MCP',
+      'Prompt',
+      'Ferramentas',
     ]);
-    expect(find.byType(SideBarItem), findsNWidgets(11));
+    expect(find.byType(SideBarItem), findsNWidgets(9));
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
     }
     expect(find.byKey(const ValueKey('nav-settings')), findsOneWidget);
 
-    // Gear is below the 10 items.
+    // Gear is below the items.
     final gearY = tester
         .getTopLeft(find.byKey(const ValueKey('nav-settings')))
         .dy;
-    final mcpY = tester.getTopLeft(find.byKey(const ValueKey('nav-mcp'))).dy;
-    expect(gearY, greaterThan(mcpY));
+    final toolsY = tester
+        .getTopLeft(find.byKey(const ValueKey('nav-agents')))
+        .dy;
+    expect(gearY, greaterThan(toolsY));
 
     expect(item(tester, AppSection.sessions).active, isTrue);
     expect(find.text('Nova sessão'), findsOneWidget);
@@ -105,18 +104,28 @@ void main() {
     expect(find.byKey(const ValueKey('title-action')), findsNothing);
   });
 
-  testWidgets('Ctrl+1..9 switch screens and zoom shortcuts hit the editor', (
+  testWidgets('Ctrl+1..8 switch screens and zoom shortcuts hit the editor', (
     tester,
   ) async {
     await pumpShell(tester);
 
-    // Projeto came last: Ctrl+9, the older digits are unchanged.
-    await ctrl(tester, LogicalKeyboardKey.digit9);
-    expect(item(tester, AppSection.project).active, isTrue);
+    // Ctrl+1…8 follow the sidebar (F10).
     await ctrl(tester, LogicalKeyboardKey.digit1);
+    expect(item(tester, AppSection.project).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit4);
     expect(item(tester, AppSection.sessions).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit8);
+    expect(item(tester, AppSection.agents).active, isTrue);
+    await tester.tap(find.byKey(const ValueKey('tools-tab-skills')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
+    // Ferramentas stays lit and Ctrl+8 keeps the tab.
+    expect(item(tester, AppSection.agents).active, isTrue);
+    await ctrl(tester, LogicalKeyboardKey.digit4);
+    await ctrl(tester, LogicalKeyboardKey.digit8);
+    expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
 
-    await ctrl(tester, LogicalKeyboardKey.digit7);
+    await ctrl(tester, LogicalKeyboardKey.digit6);
     expect(item(tester, AppSection.code).active, isTrue);
     expect(find.text('100%'), findsOneWidget);
 
@@ -125,13 +134,13 @@ void main() {
     expect(find.text('120%'), findsOneWidget);
 
     // Zoom is kept per editor.
-    await ctrl(tester, LogicalKeyboardKey.digit3);
+    await ctrl(tester, LogicalKeyboardKey.digit2);
     expect(item(tester, AppSection.specs).active, isTrue);
     expect(find.text('100%'), findsOneWidget);
     await ctrl(tester, LogicalKeyboardKey.minus);
     expect(find.text('90%'), findsOneWidget);
 
-    await ctrl(tester, LogicalKeyboardKey.digit7);
+    await ctrl(tester, LogicalKeyboardKey.digit6);
     expect(find.text('120%'), findsOneWidget);
     await ctrl(tester, LogicalKeyboardKey.digit0);
     expect(find.text('100%'), findsOneWidget);
@@ -158,8 +167,15 @@ void main() {
   testWidgets('fits the minimum window size without overflow', (tester) async {
     await pumpShell(tester, size: const Size(1100, 700));
     expect(tester.takeException(), isNull);
-    for (final s in AppSection.values) {
+    for (final s in [...AppSection.navItems, AppSection.settings]) {
       await tester.tap(find.byKey(ValueKey('nav-${s.name}')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+    await tester.tap(find.byKey(const ValueKey('nav-agents')));
+    await tester.pumpAndSettle();
+    for (final s in AppSection.toolTabs) {
+      await tester.tap(find.byKey(ValueKey('tools-tab-${s.name}')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
