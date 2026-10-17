@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
+import '../../features/mcp/mcp_state.dart' show mcpListProvider;
 import '../../features/mcp/widgets/add_server_dialog.dart';
 import '../../features/project/new_project_dialog.dart';
 import '../../features/project/project_screen.dart';
@@ -67,7 +71,26 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _shortcutsNotice());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _shortcutsNotice();
+      _warmMcpList();
+    });
+  }
+
+  /// `claude mcp list` health-checks every server (slow): it runs once in
+  /// the background after the splash and the MCP screen opens with the
+  /// result (cached per workspace for the app session; F12).
+  void _warmMcpList() {
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 3), () async {
+        if (!mounted) return;
+        final cwd = ref.read(activeWorkspaceProvider)?.path;
+        await ref.read(mcpListProvider(cwd).future);
+      }).catchError((Object e) {
+        debugPrint('mcp list em segundo plano: $e');
+      }),
+    );
   }
 
   /// Once, after the menus were reordered (F10): the old digits moved.

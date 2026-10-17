@@ -227,12 +227,21 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                 Flexible(
                   child: PopupMenuButton<ClaudePermissionMode>(
                     tooltip: alive
-                        ? 'Vale na próxima vez que a sessão for retomada'
+                        ? 'Muda já na sessão em andamento'
                         : 'Modo de permissão ao retomar',
                     color: AppColors.panel,
-                    onSelected: (m) => ref
-                        .read(sessionManagerProvider.notifier)
-                        .setPermissionMode(widget.sessionId, m),
+                    onSelected: (m) async {
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      try {
+                        await ref
+                            .read(sessionManagerProvider.notifier)
+                            .setPermissionMode(widget.sessionId, m);
+                      } on SessionException catch (e) {
+                        messenger?.showSnackBar(
+                          SnackBar(content: Text(e.message)),
+                        );
+                      }
+                    },
                     itemBuilder: (_) => [
                       for (final m in uiPermissionModes)
                         PopupMenuItem(

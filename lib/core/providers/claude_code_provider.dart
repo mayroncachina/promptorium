@@ -40,6 +40,18 @@ class ClaudeCodeProvider implements AgentProvider {
     'Workflow',
   ];
 
+  /// Allow list of the read-only runs ("Perguntar", planner, reviewer, Gerar
+  /// design; F12): with `--tools` the rest does not exist, so a new
+  /// writing tool of a future CLI is not let in by default.
+  static const readOnlyTools = [
+    'Read',
+    'Glob',
+    'Grep',
+    'WebFetch',
+    'WebSearch',
+    'TodoWrite',
+  ];
+
   @override
   String get id => providerId;
 
@@ -91,6 +103,9 @@ class ClaudeCodeProvider implements AgentProvider {
         if (o.mode == PromptMode.ask) ...readOnlyDisallowedTools,
         ...o.mcpDisallowedTools,
       ],
+      // "Perguntar": an allow list and no MCP server (F12).
+      tools: o.mode == PromptMode.ask ? readOnlyTools : const [],
+      strictMcpConfig: o.mode == PromptMode.ask,
     );
   }
 

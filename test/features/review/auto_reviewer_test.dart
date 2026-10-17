@@ -121,6 +121,15 @@ void main() {
     expect(args, containsAllInOrder(['--model', 'haiku']));
     expect(args, contains('--json-schema'));
     expect(args, contains('--disallowedTools'));
+    // Read-only allow list and no MCP server (F12).
+    expect(
+      args,
+      containsAllInOrder([
+        '--tools',
+        'Read,Glob,Grep,WebFetch,WebSearch,TodoWrite',
+      ]),
+    );
+    expect(args, contains('--strict-mcp-config'));
     final prompt = cli.last.writtenJson.single['message']['content'] as String;
     expect(prompt, contains('Revise a implementação da spec SPEC-001'));
     expect(prompt, contains('+ola'));

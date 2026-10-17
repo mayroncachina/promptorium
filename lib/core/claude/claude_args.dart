@@ -54,6 +54,7 @@ class ClaudeOptions {
     this.effort,
     this.autocompact,
     this.settingsFile,
+    this.tools = const [],
   });
 
   /// New session id (`--session-id`, must be a UUID). Exclusive with
@@ -112,6 +113,12 @@ class ClaudeOptions {
   /// source run (docs/pesquisa/hooks-settings-stream-json.md).
   final String? settingsFile;
 
+  /// `--tools a,b,c`: the only built-in tools available (an allow list).
+  /// Verified on CLI 2.1.302: `system/init.tools` lists only them and the
+  /// model says the others do not exist (docs/pesquisa/
+  /// hooks-settings-stream-json.md §4). Empty = every tool.
+  final List<String> tools;
+
   /// Values accepted by `--effort` (CLI 2.1.301).
   static const effortLevels = ['low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -146,6 +153,7 @@ class ClaudeOptions {
     String? effort,
     String? autocompact,
     String? settingsFile,
+    List<String>? tools,
   }) => ClaudeOptions(
     sessionId: sessionId ?? this.sessionId,
     resumeId: resumeId ?? this.resumeId,
@@ -167,6 +175,7 @@ class ClaudeOptions {
     effort: effort ?? this.effort,
     autocompact: autocompact ?? this.autocompact,
     settingsFile: settingsFile ?? this.settingsFile,
+    tools: tools ?? this.tools,
   );
 
   /// Command-line arguments (without the executable).
@@ -217,6 +226,7 @@ class ClaudeOptions {
         '--agents',
         agentsJson!,
       ],
+      if (tools.isNotEmpty) ...['--tools', tools.join(',')],
       if (settingsFile != null && settingsFile!.isNotEmpty) ...[
         '--settings',
         settingsFile!,

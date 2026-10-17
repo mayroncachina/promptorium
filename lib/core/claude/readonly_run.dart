@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../providers/claude_code_provider.dart';
 import 'claude_args.dart';
 import 'claude_cli.dart';
 import 'claude_event.dart';
@@ -61,6 +62,11 @@ Future<Result> runReadOnlyClaude(
   try {
     process = await ClaudeProcess.start(
       options.copyWith(
+        // Read-only allow list, no MCP server (F12).
+        tools: options.tools.isEmpty
+            ? ClaudeCodeProvider.readOnlyTools
+            : options.tools,
+        strictMcpConfig: true,
         model: options.model ?? prefs.modelArg(RunKind.planner),
         effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
         autocompact: options.autocompact ?? prefs.autocompact,

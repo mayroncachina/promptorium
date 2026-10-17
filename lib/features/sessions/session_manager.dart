@@ -293,6 +293,13 @@ class SessionManager extends Notifier<SessionManagerState> {
     } on GitException catch (e) {
       throw SessionException('Falha ao criar o worktree: $e');
     }
+    if (r.permissionMode == ClaudePermissionMode.skipPermissions &&
+        path == ws.path) {
+      throw const SessionException(
+        '"Sem perguntar" só roda em worktree isolado: marque "Criar '
+        'worktree isolado" ou escolha outro modo.',
+      );
+    }
     final effort =
         r.effort ?? ref.read(runPrefsProvider).effort(RunKind.session);
     await _repo.insert(
@@ -495,7 +502,11 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(s.model),
         effort: _effort(s.effort),
         agent: s.agentName,
-        permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
+        permissionMode: skipOnlyInWorktree(
+          ClaudePermissionMode.fromCli(s.permissionMode),
+          worktree: s.worktreePath,
+          root: ws?.path,
+        ),
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
         allowedTools: mcp.allowed,
@@ -666,8 +677,28 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   /// Changes the permission mode used the next time the process starts.
-  Future<void> setPermissionMode(String id, ClaudePermissionMode mode) =>
-      _repo.setPermissionMode(id, mode.cliValue);
+  /// "Sem perguntar" is refused for a session in the workspace root (F12).
+  Future<void> setPermissionMode(String id, ClaudePermissionMode mode) async {
+    if (mode == ClaudePermissionMode.skipPermissions) {
+      final s = await _repo.getById(id);
+      final ws = s == null
+          ? null
+          : await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      if (s != null && ws != null && s.worktreePath == ws.path) {
+        throw const SessionException(
+          '"Sem perguntar" só roda em worktree isolado.',
+        );
+      }
+    }
+    await _repo.setPermissionMode(id, mode.cliValue);
+    // A live process switches now (except to/from "sem perguntar", which is
+    // a start flag of the CLI).
+    final p = _procs[id];
+    if (p != null && mode != ClaudePermissionMode.skipPermissions) {
+      await p.process.setPermissionMode(mode);
+      await _note(id, 'Modo de permissão: ${mode.cliValue}');
+    }
+  }
 
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
@@ -1168,6 +1199,16 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   static String _encode(Map<String, dynamic> j) => jsonEncode(j);
 }
+
+/// "Sem perguntar" never runs in the workspace root (F12): a stored
+/// session there resumes in the default mode.
+ClaudePermissionMode? skipOnlyInWorktree(
+  ClaudePermissionMode? mode, {
+  required String worktree,
+  required String? root,
+}) => mode == ClaudePermissionMode.skipPermissions && worktree == root
+    ? ClaudePermissionMode.defaultMode
+    : mode;
 
 /// Title shown for a session row.
 String sessionTitle(Session s) => (s.title?.isNotEmpty ?? false)

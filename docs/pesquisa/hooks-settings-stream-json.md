@@ -55,3 +55,12 @@ incorporou **no mesmo turno**: veio um único `result`, com o texto `PRIMEIRA BA
 `--tools Read,Glob,Grep`: o `system/init` lista só `['Glob', 'Grep', 'Read']`, e o agente respondeu que
 o Bash não existe ali, sem pedir permissão. Com `--strict-mcp-config`, nenhum servidor MCP entra. Isso
 vale para o modo Perguntar e para o planner (F12).
+
+## 5. `claude mcp add-json` lendo de arquivo
+
+Testado num `CLAUDE_CONFIG_DIR` temporário: `add-json -s user t1 - < s.json` e `add-json t2 @s.json`
+respondem `Invalid configuration: : Invalid input`. Só o JSON como argumento funciona
+(`add-json t3 "$(cat s.json)"`). **O CLI não lê o JSON de um arquivo nem do stdin**, então os
+valores de env e header continuam no argv do processo `claude mcp` durante os segundos em que ele roda,
+como no `mcp add -e/-H` atual. A F12 fica com o `mcp add` e passa a mascarar, nas mensagens mostradas,
+todo argumento que não seja flag conhecida.
