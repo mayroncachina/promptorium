@@ -103,24 +103,29 @@ bool sectionChanged(
   SettingsSection section,
   Map<String, String> settings,
   ProjectConfig? config,
-) => switch (section) {
-  SettingsSection.consumption =>
-    RunKind.values.any(
-          (k) =>
-              settings.containsKey(AppSettingKeys.runModel(k.name)) ||
-              settings.containsKey(AppSettingKeys.runEffort(k.name)),
-        ) ||
-        settings.containsKey(AppSettingKeys.autocompact),
-  SettingsSection.sessions => settings.containsKey(AppSettingKeys.idleMinutes),
-  SettingsSection.automations => ManagedHook.values.any(
-    (h) => settings[h.settingKey] == '0',
-  ),
-  SettingsSection.providers =>
-    (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,
-  SettingsSection.backups => false,
-  SettingsSection.updates => settings[UpdateChecker.enabledKey] == '0',
-  SettingsSection.project => config != null && !config.isDefault,
-};
+) {
+  // By value: picking the default chip stores the default (not a removal).
+  final now = RunPrefs(settings);
+  const defaults = RunPrefs({});
+  return switch (section) {
+    SettingsSection.consumption =>
+      RunKind.values.any(
+            (k) =>
+                now.model(k) != defaults.model(k) ||
+                now.effort(k) != defaults.effort(k),
+          ) ||
+          now.autocompact != defaults.autocompact,
+    SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.automations => ManagedHook.values.any(
+      (h) => settings[h.settingKey] == '0',
+    ),
+    SettingsSection.providers =>
+      (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,
+    SettingsSection.backups => false,
+    SettingsSection.updates => settings[UpdateChecker.enabledKey] == '0',
+    SettingsSection.project => config != null && !config.isDefault,
+  };
+}
 
 /// "A etapa só passa se: ✓ testes · ✓ lint · ✓ commit" from the saved
 /// config (null = no gate: the marker alone finishes a step).

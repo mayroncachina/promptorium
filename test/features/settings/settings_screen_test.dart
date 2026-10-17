@@ -5,11 +5,34 @@ import 'package:promptorium/core/claude/managed_hooks.dart';
 import 'package:promptorium/core/claude/run_prefs.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/settings/settings_screen.dart';
+import 'package:promptorium/features/settings/settings_sections.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
 
 void main() {
+  test(
+    '"alterado" compares values: the default picked again is not a change',
+    () {
+      final idle = AppSettingKeys.idleMinutes;
+      final model = AppSettingKeys.runModel(RunKind.session.name);
+      expect(
+        sectionChanged(SettingsSection.sessions, {
+          idle: '${RunPrefs.defaultIdleMinutes}',
+        }, null),
+        isFalse,
+      );
+      expect(
+        sectionChanged(SettingsSection.consumption, {model: 'sonnet'}, null),
+        isFalse,
+      );
+      expect(
+        sectionChanged(SettingsSection.consumption, {model: 'opus'}, null),
+        isTrue,
+      );
+    },
+  );
+
   test('RunPrefs defaults and stored values', () {
     const d = RunPrefs({});
     expect(d.model(RunKind.session), 'sonnet');
