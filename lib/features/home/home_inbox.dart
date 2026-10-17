@@ -250,6 +250,7 @@ List<InboxGroup> buildInbox({
 
 /// "quer executar" / "quer editar" / "quer acessar" (as the side panel).
 String approvalVerb(String tool) => switch (tool) {
+  'ExitPlanMode' => 'aprovar o plano (Prompt)',
   'Bash' => 'executar',
   'Edit' || 'Write' || 'MultiEdit' || 'NotebookEdit' => 'editar',
   'WebFetch' || 'WebSearch' => 'acessar',

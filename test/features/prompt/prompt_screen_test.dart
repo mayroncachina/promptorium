@@ -224,6 +224,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('"Plano pronto": ExitPlanMode becomes a card; "Continuar '
+      'planejando" denies it and the plan stays (UX v2, U4)', (tester) async {
+    final (_, cli, _) = await pumpPrompt(tester);
+    await tester.enterText(field, 'planeje o thinking');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpFor(tester);
+    cli.last.emit(
+      '{"type":"control_request","request_id":"req-plan","request":'
+      '{"subtype":"can_use_tool","tool_name":"ExitPlanMode","input":'
+      '{"plan":"1. Gravar em `stream_parser.dart`\\n2. Card recolhido"}}}',
+    );
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('plan-ready')), findsOneWidget);
+    expect(find.text('Plano pronto'), findsOneWidget);
+    expect(find.text('· 2 itens · 1 arquivo'), findsOneWidget);
+    // No generic approval card for it.
+    expect(find.byKey(const ValueKey('approve-req-plan')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('plan-keep-planning')));
+    await pumpFor(tester);
+    final resp = cli.last.writtenJson.last['response']['response'];
+    expect(resp['behavior'], 'deny');
+    expect(resp['message'], contains('continue planejando'));
+    // Keep planning: the card goes away until the next plan.
+    expect(find.byKey(const ValueKey('plan-ready')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('new conversation sends with the "Perguntar" args in the '
       'workspace root', (tester) async {
     final (db, cli, _) = await pumpPrompt(tester, withConversation: false);

@@ -59,6 +59,7 @@ Todas as mudanças relevantes do Promptorium.
 - **início:** Tela Início "Para você" (aprovações, etapas sem resposta, review, PR com problema, sessões interrompidas) com painel Agora; contadores na barra lateral; Ctrl+1…9 na nova ordem (UX v2, U1)
 - **paleta:** Pendências (Aprovar / Negar / Responder / Abrir review / Retomar) na paleta, prefixos `>` `#` `:`, recentes e cabeçalhos por grupo; folha de atalhos Ctrl+/; Ctrl+Shift+A / Ctrl+Shift+D respondem a pendência mais antiga (UX v2, U2)
 - **sessões:** Lado a lado (dois painéis, abas por sessão, ⫿ na lista, Ctrl+\\), linha ao vivo da ferramenta na lista, thinking recolhido na timeline (DT-20), resumo do subagente (ferramentas · tempo) e "Abrir preview :porta" (UX v2, U3)
+- **prompt:** "Plano pronto" no modo Planejar: o pedido de ExitPlanMode vira um card com Implementar como sessão / Transformar em spec / Continuar planejando, sem a conversa virar Editar (DT-26); plano guardado em `.promptorium/planos/`; `@` arquivo e `/` prompt salvo no composer de Sessões (DT-22) (UX v2, U4)
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)

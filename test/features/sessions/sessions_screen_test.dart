@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/saved_prompts_repo.dart';
 import 'package:promptorium/features/sessions/session_changes.dart';
 import 'package:promptorium/features/sessions/sessions_screen.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
@@ -380,6 +381,34 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('session-panes-one')));
     await pumpFor(tester, 3);
     expect(find.byKey(const ValueKey('session-main-s2')), findsNothing);
+  });
+
+  testWidgets('composer: "/" lists saved prompts and inserts the body '
+      '(UX v2, U4)', (tester) async {
+    final (db, _) = await pumpScreen(tester);
+    await tester.runAsync(
+      () => SavedPromptsRepo(db).upsert(
+        command: 'testes',
+        body: 'Escreva testes para',
+        description: 'Testes',
+      ),
+    );
+    await pumpFor(tester);
+    await tester.enterText(find.byKey(const ValueKey('composer-field')), '/te');
+    await pumpFor(tester, 3);
+    final item = find.byKey(const ValueKey('suggest-prompt-testes'));
+    expect(item, findsOneWidget);
+    await tester.tap(item);
+    await pumpFor(tester, 3);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('composer-field')))
+          .controller!
+          .text,
+      'Escreva testes para',
+    );
+    expect(find.byKey(const ValueKey('prompt-suggestions')), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('populated screen fits the minimum window (1100×700)', (

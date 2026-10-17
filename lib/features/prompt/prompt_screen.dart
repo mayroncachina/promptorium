@@ -14,6 +14,7 @@ import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import '../sessions/widgets/timeline_view.dart';
 import 'attachments.dart';
 import 'conversation_manager.dart';
+import 'plan_ready.dart';
 import 'prompt_actions.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
@@ -422,12 +423,44 @@ class _Conversation extends ConsumerWidget {
     final lastIsAnswer =
         snap.items.isNotEmpty && snap.items.last is! UserItem && answer != null;
 
-    final footer = approvals.isEmpty && (busy || !lastIsAnswer)
+    // "Plano pronto" (U4): the ExitPlanMode request becomes a card; the
+    // plan is kept after it is answered.
+    final planReq = planApproval(approvals);
+    final drafts = ref.watch(planDraftsProvider);
+    final planText = planReq == null
+        ? drafts[c.id]
+        : planOfRequest(planReq.request);
+    if (planReq != null && planText != null && drafts[c.id] != planText) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => ref.read(planDraftsProvider.notifier).set(c.id, planText),
+      );
+    }
+    final otherApprovals = [
+      for (final a in approvals)
+        if (a != planReq) a,
+    ];
+
+    final footer =
+        otherApprovals.isEmpty && planText == null && (busy || !lastIsAnswer)
         ? null
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final PendingApproval a in approvals) ...[
+              if (planText != null) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: PlanReadyCard(
+                      conversation: c,
+                      plan: planText,
+                      approval: planReq,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              for (final PendingApproval a in otherApprovals) ...[
                 Align(
                   alignment: Alignment.centerLeft,
                   child: ConstrainedBox(

@@ -349,6 +349,7 @@ class _SessionMain extends ConsumerWidget {
           SessionComposer(
             sessionId: s.id,
             permissionMode: s.permissionMode,
+            root: s.worktreePath,
             canSend: () =>
                 ref.read(sessionTerminalsProvider.notifier).isRunning(s.id)
                 ? 'Feche o terminal interativo desta sessão antes de enviar.'
