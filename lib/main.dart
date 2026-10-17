@@ -9,6 +9,7 @@ import 'app.dart';
 import 'core/claude/usage_poller.dart';
 import 'features/code/worktree_terminal.dart';
 import 'features/prompt/conversation_manager.dart';
+import 'features/review/pr_babysitter.dart';
 import 'features/sessions/session_manager.dart';
 import 'features/sessions/widgets/session_terminal.dart';
 import 'ui/theme/tokens.dart';
@@ -53,6 +54,11 @@ Future<void> main() async {
   Timer.periodic(
     const Duration(minutes: 1),
     (_) => container.read(sessionManagerProvider.notifier).closeIdle(),
+  );
+  // PRs under "Acompanhar PR" (F16).
+  Timer.periodic(
+    const Duration(minutes: 2),
+    (_) => container.read(prBabysitterProvider.notifier).tick(),
   );
 
   runApp(

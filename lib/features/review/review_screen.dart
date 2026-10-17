@@ -13,6 +13,7 @@ import 'auto_reviewer.dart';
 import 'review_service.dart';
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
+import 'widgets/pr_panel.dart';
 import 'widgets/review_all_files.dart';
 import 'widgets/review_dialogs.dart';
 
@@ -417,6 +418,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   /// Step whose commits are shown (null = the whole branch).
   String? _step;
 
+  /// The last "Fazer merge" stopped on a conflict.
+  bool _conflict = false;
+
   String get _id => widget.item.session.id;
 
   ReviewService get _service => ref.read(reviewServiceProvider);
@@ -440,6 +444,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     try {
       await job();
     } on ReviewException catch (e) {
+      if (e.message.startsWith('Conflito ao fazer merge')) {
+        setState(() => _conflict = true);
+      }
       if (mounted) await showReviewError(context, label, e.message);
     } catch (e) {
       if (mounted) await showReviewError(context, label, '$e');
@@ -655,6 +662,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
+        PrPanel(session: s, localConflict: _conflict),
         if (widget.item.spec != null)
           SpecReviewPanel(
             specId: widget.item.spec!.id,

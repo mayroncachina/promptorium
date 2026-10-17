@@ -14,6 +14,7 @@ import '../sessions/session_manager.dart';
 import '../project/project_memory.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
+import 'pr_babysitter.dart';
 import 'review_logic.dart';
 
 export 'review_logic.dart';
@@ -550,6 +551,96 @@ class ReviewService {
       await _ref.read(sessionsRepoProvider).setPrUrl(s.id, url);
     }
     return url;
+  }
+
+  /// `gh pr view <url> --json …` of the session's PR (null = no PR).
+  Future<PrStatus?> prView(String sessionId) async {
+    final c = await _context(sessionId);
+    final url = c.session.prUrl;
+    if (url == null) return null;
+    final ProcessResult r;
+    try {
+      r = await _run('gh', [
+        'pr',
+        'view',
+        url,
+        '--json',
+        prViewFields,
+      ], workingDirectory: c.workspace.path);
+    } on ProcessException catch (e) {
+      throw ReviewException('Falha ao executar gh: ${e.message}');
+    }
+    if (r.exitCode != 0) {
+      throw ReviewException('gh pr view falhou: ${'${r.stderr}'.trim()}');
+    }
+    return parsePrView('${r.stdout}');
+  }
+
+  /// Pushes the session's branch when it has commits the PR does not.
+  Future<bool> pushIfAhead(String sessionId) async {
+    final c = await _context(sessionId);
+    if (c.session.prUrl == null || !hasWorktree(c.session, c.workspace)) {
+      return false;
+    }
+    final git = _git(c.session.worktreePath);
+    if (!await aheadOfUpstream(git)) return false;
+    await git.git(['push']);
+    return true;
+  }
+
+  /// "Mergear PR": `gh pr merge --squash|--rebase|--merge --delete-branch`;
+  /// then the session / spec close like a local merge (the worktree goes
+  /// away; the base branch gets the work with the next `git pull`).
+  Future<void> mergePr(String sessionId, PrMergeMethod method) async {
+    final c = await _context(sessionId);
+    final url = c.session.prUrl;
+    if (url == null) throw const ReviewException('A sessão não tem PR.');
+    final ProcessResult r;
+    try {
+      r = await _run('gh', [
+        'pr',
+        'merge',
+        url,
+        method.flag,
+        '--delete-branch',
+      ], workingDirectory: c.workspace.path);
+    } on ProcessException catch (e) {
+      throw ReviewException('Falha ao executar gh: ${e.message}');
+    }
+    if (r.exitCode != 0) {
+      throw ReviewException(
+        'gh pr merge falhou: ${'${r.stderr}'.trim().isEmpty ? '${r.stdout}'.trim() : '${r.stderr}'.trim()}',
+      );
+    }
+    final ws = c.workspace, s = c.session;
+    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+    try {
+      await _git(ws.path).removeWorktree(s.worktreePath, force: true);
+    } on GitException catch (e) {
+      debugPrint('worktree ${s.worktreePath} não removido — $e');
+    }
+    final sessions = _ref.read(sessionsRepoProvider);
+    await sessions.setMerged(s.id, url);
+    final spec = c.spec;
+    if (spec != null) {
+      await _closeSpec(ws, spec, url, await baseBranchOf(s, ws));
+    } else if (c.task != null) {
+      await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.done);
+    }
+  }
+
+  /// "Resolver conflito": the session gets the instructions to merge the
+  /// base into its branch and resolve.
+  Future<void> resolveConflict(String sessionId) async {
+    final c = await _context(sessionId);
+    final base = await baseBranchOf(c.session, c.workspace);
+    try {
+      await _ref
+          .read(sessionManagerProvider.notifier)
+          .send(sessionId, conflictMessage(base));
+    } on SessionException catch (e) {
+      throw ReviewException('$e');
+    }
   }
 
   /// Criteria of [spec] not checked yet (text). A criterion counts as

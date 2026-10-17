@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
+import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -22,6 +24,9 @@ class FakeCommands {
 
   bool hasGh;
   bool authed;
+
+  /// Output of `gh pr view --json` (null = the default PR URL output).
+  String? prView;
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -35,6 +40,12 @@ class FakeCommands {
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'auth status') {
       return ProcessResult(1, authed ? 0 : 1, '', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr view') {
+      return ProcessResult(1, 0, prView ?? '{}', '');
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'pr merge') {
+      return ProcessResult(1, 0, 'merged\n', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'pr checks') {
       return ProcessResult(1, 0, 'build\tpass\t1m\nlint\tfail\t2s\n', '');
@@ -461,6 +472,66 @@ void main() {
       ('build', 'pass'),
       ('lint', 'fail'),
     ]);
+  });
+
+  test('PR babysit: new comments go to the session once; merge via gh '
+      'closes the session; conflict instructions (F16)', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await e.c
+        .read(sessionsRepoProvider)
+        .setPrUrl(e.sessionId, 'https://x/pr/7');
+    final sitter = e.c.read(prBabysitterProvider.notifier);
+    await sitter.toggle(e.sessionId);
+    expect(sitter.isWatching(e.sessionId), isTrue);
+    final later = DateTime.now().add(const Duration(minutes: 1));
+    cmds.prView = jsonEncode({
+      'state': 'OPEN',
+      'mergeable': 'CONFLICTING',
+      'reviewDecision': 'CHANGES_REQUESTED',
+      'comments': [
+        {
+          'author': {'login': 'ana'},
+          'body': 'Faltou tratar o erro de rede.',
+          'createdAt': later.toIso8601String(),
+        },
+      ],
+      'reviews': [],
+      'statusCheckRollup': [
+        {'name': 'build', 'conclusion': 'FAILURE'},
+      ],
+    });
+    final before = e.cli.processes.length;
+    await sitter.check(e.sessionId);
+    await settle();
+    final status = e.c.read(prBabysitterProvider)[e.sessionId]!.status!;
+    expect(status.summary, contains('com conflito'));
+    expect(status.summary, contains('1 check(s) falhando'));
+    final sent = e.cli.last.writtenJson.last['message']['content'] as String;
+    expect(sent, contains('@ana (comentário):'));
+    expect(sent, contains('Faltou tratar o erro de rede.'));
+    expect(e.cli.processes.length, greaterThanOrEqualTo(before));
+    // The same comment is not sent twice.
+    final count = e.cli.last.writtenJson.length;
+    await sitter.check(e.sessionId);
+    await settle();
+    expect(e.cli.last.writtenJson.length, count);
+
+    await e.review.resolveConflict(e.sessionId);
+    await settle();
+    expect(
+      e.cli.last.writtenJson.last['message']['content'],
+      contains('git merge main'),
+    );
+
+    await e.review.mergePr(e.sessionId, PrMergeMethod.squash);
+    final merge = cmds.calls.lastWhere(
+      (c) => c.$2.take(2).join(' ') == 'pr merge',
+    );
+    expect(merge.$2, containsAll(['--squash', '--delete-branch']));
+    final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
+    expect(s.status, SessionStatus.merged);
+    expect(Directory(e.worktree).existsSync(), isFalse);
   });
 
   test('rejecting a content hunk of a renamed file keeps the rename', () async {
