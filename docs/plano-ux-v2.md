@@ -37,3 +37,4 @@
 |---|---|---|
 | U1 | (ver git log) | "Aprovar todas as edições seguras" e "Histórico de avisos" do topo ficaram de fora (o segundo já é o sino da barra de título). Aprovações aparecem com o `ApprovalCard` das Sessões (Negar / Aprovar / Sempre permitir), não como linha simples. Início é a tela inicial só na primeira abertura; depois vale a última tela |
 | U2 | (ver git log) | Sem o prefixo `@` (arquivos): a busca de arquivos continua no Ctrl+P da tela Código. Sem "Ctrl+Enter abrir ao lado" (depende da U3). A folha lista só atalhos que existem de fato |
+| U3 | (ver git log) | Dois painéis, sem grade 2×2. Sem "↶ voltar para aqui" por edição: exigiria checkpoint por `Edit` via hook (hoje só há o checkpoint por etapa, F3); fica para uma fase própria. O custo do subagente não vem no stream-json: o card mostra ferramentas e duração. Preview abre no navegador (`xdg-open`), não embutido |

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../board/widgets/card_extras.dart' show LiveToolLine;
 import '../session_manager.dart';
+import '../sessions_screen.dart' show splitSessionProvider;
 import 'session_activity.dart';
 import 'session_style.dart';
 
@@ -33,10 +35,14 @@ class SessionListPanel extends ConsumerWidget {
     super.key,
     required this.sessions,
     required this.selectedId,
+    this.splitId,
   });
 
   final List<Session> sessions;
   final String? selectedId;
+
+  /// Session open in the second pane (UX v2, U3).
+  final String? splitId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -139,6 +145,11 @@ class SessionListPanel extends ConsumerWidget {
                     itemBuilder: (context, i) => _SessionTile(
                       session: visible[i],
                       selected: visible[i].id == selectedId,
+                      pane: visible[i].id == selectedId && splitId != null
+                          ? 'A'
+                          : visible[i].id == splitId
+                          ? 'B'
+                          : null,
                       alive: manager.isAlive(visible[i].id),
                     ),
                   ),
@@ -154,11 +165,15 @@ class _SessionTile extends ConsumerWidget {
     required this.session,
     required this.selected,
     required this.alive,
+    this.pane,
   });
 
   final Session session;
   final bool selected;
   final bool alive;
+
+  /// `A` / `B` while shown in a pane of "Lado a lado".
+  final String? pane;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -203,12 +218,46 @@ class _SessionTile extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (pane != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Text(
+                        pane!,
+                        key: ValueKey('session-pane-${session.id}'),
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 10,
+                          color: AppColors.amber,
+                        ),
+                      ),
+                    ),
                   Text(
                     formatAge(end.difference(session.startedAt)),
                     style: const TextStyle(
                       fontFamily: AppFonts.mono,
                       fontSize: 11,
                       color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  InkWell(
+                    key: ValueKey('session-split-${session.id}'),
+                    borderRadius: BorderRadius.circular(4),
+                    onTap: () => ref
+                        .read(splitSessionProvider.notifier)
+                        .set(pane == 'B' ? null : session.id),
+                    child: Tooltip(
+                      message: pane == 'B'
+                          ? 'Fechar o painel B'
+                          : 'Abrir ao lado (painel B)',
+                      child: const Padding(
+                        padding: EdgeInsets.all(2),
+                        child: Icon(
+                          Icons.vertical_split_outlined,
+                          size: 14,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -250,6 +299,14 @@ class _SessionTile extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (alive && busy)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, top: 2),
+                  child: LiveToolLine(
+                    session: session,
+                    specCode: 'list-${session.id}',
+                  ),
+                ),
             ],
           ),
         ),

@@ -39,6 +39,7 @@ const shortcutGroups = [
   ShortcutGroup('Sessões e Prompt', [
     ShortcutEntry('Nova sessão', 'Ctrl+N'),
     ShortcutEntry('Enviar mensagem', 'Ctrl+Enter'),
+    ShortcutEntry('Sessões lado a lado (abre / fecha o painel B)', 'Ctrl+\\'),
     ShortcutEntry('Mencionar arquivo · prompt salvo (Prompt)', '@ · /'),
   ]),
   ShortcutGroup('Paleta', [

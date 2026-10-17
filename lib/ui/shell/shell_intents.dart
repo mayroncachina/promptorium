@@ -32,6 +32,11 @@ class AnswerOldestApprovalIntent extends Intent {
   final bool approve;
 }
 
+/// Ctrl+\: Sessões side by side (second pane on / off).
+class ToggleSplitIntent extends Intent {
+  const ToggleSplitIntent();
+}
+
 class GoToSectionIntent extends Intent {
   const GoToSectionIntent(this.section);
 
@@ -58,6 +63,8 @@ final Map<ShortcutActivator, Intent> shellShortcuts = {
       const NewSessionIntent(),
   const SingleActivator(LogicalKeyboardKey.slash, control: true):
       const OpenShortcutsIntent(),
+  const SingleActivator(LogicalKeyboardKey.backslash, control: true):
+      const ToggleSplitIntent(),
   const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):
       const AnswerOldestApprovalIntent(approve: true),
   const SingleActivator(LogicalKeyboardKey.keyD, control: true, shift: true):

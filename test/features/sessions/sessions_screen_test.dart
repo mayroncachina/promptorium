@@ -61,6 +61,7 @@ final storedEvents = <Map<String, dynamic>>[
     DateTime(2026, 10, 15, 21, 14),
   ),
   assistant([
+    {'type': 'thinking', 'thinking': 'Preciso ler a spec antes de editar.'},
     {'type': 'text', 'text': 'Vou ler a spec.'},
   ]),
   assistant([
@@ -201,6 +202,19 @@ void main() {
 
     expect(find.text('Implemente o shell'), findsOneWidget);
     expect(find.text('Vou ler a spec.'), findsOneWidget);
+    // Thinking is collapsed; a click opens it (UX v2, U3).
+    expect(find.byKey(const ValueKey('thinking-card')), findsOneWidget);
+    expect(find.text('Pensou · 7 palavras'), findsOneWidget);
+    expect(find.textContaining('antes de editar'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('thinking-toggle')));
+    await tester.pump();
+    expect(find.textContaining('antes de editar'), findsOneWidget);
+    // Subagent card: tool count.
+    expect(
+      find.byKey(const ValueKey('subagent-summary-t_task')),
+      findsOneWidget,
+    );
+    expect(find.text('1 ferramenta'), findsOneWidget);
     // Read card: name, target relative to the worktree, summary.
     final read = find.byKey(const ValueKey('tool-t_read'));
     expect(
@@ -305,6 +319,67 @@ void main() {
     expect(resp['response']['response']['behavior'], 'allow');
     expect(find.text('APROVAÇÕES PENDENTES · 0'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('side by side: the list icon opens a second pane with its own '
+      'tabs; × and Ctrl+\\ close it', (tester) async {
+    final (db, _) = await pumpScreen(tester);
+    await tester.runAsync(
+      () => db
+          .into(db.sessions)
+          .insert(
+            SessionsCompanion.insert(
+              id: 's2',
+              workspaceId: 1,
+              worktreePath: root,
+              branch: 'pr/outra',
+              model: 'sonnet',
+              title: const Value('Outra sessão'),
+              status: const Value(SessionStatus.completed),
+            ),
+          ),
+    );
+    await pumpFor(tester);
+    // The newest session comes first and gets selected: pick s1 by hand.
+    await tester.tap(find.byKey(const ValueKey('session-tile-s1')));
+    await pumpFor(tester, 3);
+    expect(find.byKey(const ValueKey('session-main-s1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-main-s2')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('session-split-s2')));
+    await pumpFor(tester, 3);
+    expect(find.byKey(const ValueKey('session-main-s1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-main-s2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-pane-s1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('session-pane-s2')), findsOneWidget);
+    // Tabs are per pane.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('session-main-s2')),
+        matching: find.byKey(const ValueKey('session-tab-raw')),
+      ),
+    );
+    await pumpFor(tester, 3);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('session-main-s1')),
+        matching: find.byKey(const ValueKey('composer-field')),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('session-pane-close')));
+    await pumpFor(tester, 3);
+    expect(find.byKey(const ValueKey('session-main-s2')), findsNothing);
+
+    // "Lado a lado" of the bar opens the next session.
+    await tester.tap(find.byKey(const ValueKey('session-panes-split')));
+    await pumpFor(tester, 3);
+    expect(find.byKey(const ValueKey('session-main-s2')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('session-panes-one')));
+    await pumpFor(tester, 3);
+    expect(find.byKey(const ValueKey('session-main-s2')), findsNothing);
   });
 
   testWidgets('populated screen fits the minimum window (1100×700)', (

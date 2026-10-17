@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'session_manager.dart';
@@ -17,15 +20,34 @@ import 'widgets/timeline_view.dart';
 
 enum SessionTab { timeline, terminal, diff, raw }
 
+/// Tab of one session's pane (kept per session: two panes side by side can
+/// show different tabs; UX v2, U3).
 class SessionTabController extends Notifier<SessionTab> {
+  SessionTabController(this.sessionId);
+
+  final String sessionId;
+
   @override
   SessionTab build() => SessionTab.timeline;
 
   void set(SessionTab t) => state = t;
 }
 
-final sessionTabProvider = NotifierProvider<SessionTabController, SessionTab>(
-  SessionTabController.new,
+final sessionTabProvider =
+    NotifierProvider.family<SessionTabController, SessionTab, String>(
+      SessionTabController.new,
+    );
+
+/// Session shown in the second pane ("Lado a lado"; null = one pane).
+class SplitSessionController extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? id) => state = id;
+}
+
+final splitSessionProvider = NotifierProvider<SplitSessionController, String?>(
+  SplitSessionController.new,
 );
 
 /// Sessions screen (docs/mockups/Main.dc.html): list · timeline · approvals
@@ -45,6 +67,11 @@ class SessionsScreen extends ConsumerWidget {
       if (s.id == selectedId) selected = s;
     }
     selected ??= sessions.isEmpty ? null : sessions.first;
+    final splitId = ref.watch(splitSessionProvider);
+    Session? second;
+    for (final s in sessions) {
+      if (s.id == splitId && s.id != selected?.id) second = s;
+    }
 
     return LayoutBuilder(
       builder: (context, c) {
@@ -61,15 +88,56 @@ class SessionsScreen extends ConsumerWidget {
                 child: SessionListPanel(
                   sessions: sessions,
                   selectedId: selected?.id,
+                  splitId: second?.id,
                 ),
               ),
               const VerticalDivider(width: 1),
               Expanded(
                 child: selected == null
                     ? _Empty(hasWorkspace: ws != null)
-                    : _SessionMain(
-                        key: ValueKey('session-main-${selected.id}'),
-                        session: selected,
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _PanesBar(
+                            sessions: sessions,
+                            selected: selected,
+                            second: second,
+                          ),
+                          Expanded(
+                            child: second == null
+                                ? _SessionMain(
+                                    key: ValueKey(
+                                      'session-main-${selected.id}',
+                                    ),
+                                    session: selected,
+                                  )
+                                : Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        child: _SessionMain(
+                                          key: ValueKey(
+                                            'session-main-${selected.id}',
+                                          ),
+                                          session: selected,
+                                          pane: 'A',
+                                        ),
+                                      ),
+                                      const VerticalDivider(width: 1),
+                                      Expanded(
+                                        child: _SessionMain(
+                                          key: ValueKey(
+                                            'session-main-${second.id}',
+                                          ),
+                                          session: second,
+                                          pane: 'B',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ],
                       ),
               ),
               const VerticalDivider(width: 1),
@@ -83,6 +151,106 @@ class SessionsScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// "Uma · Lado a lado" above the panes (UX v2, U3). Side by side opens the
+/// next session of the list in a second pane; Ctrl+\ does the same.
+class _PanesBar extends ConsumerWidget {
+  const _PanesBar({
+    required this.sessions,
+    required this.selected,
+    required this.second,
+  });
+
+  final List<Session> sessions;
+  final Session selected;
+  final Session? second;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final split = second != null;
+    Widget seg(String label, bool on, VoidCallback onTap, String keyName) =>
+        InkWell(
+          key: ValueKey('session-panes-$keyName'),
+          onTap: onTap,
+          child: Container(
+            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.center,
+            color: on ? AppColors.amberTint : Colors.transparent,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: on ? AppColors.amber : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        );
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          const Text(
+            'Visão',
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                seg(
+                  'Uma',
+                  !split,
+                  () => ref.read(splitSessionProvider.notifier).set(null),
+                  'one',
+                ),
+                seg(
+                  'Lado a lado',
+                  split,
+                  () => toggleSplit(ref, sessions, selected.id),
+                  'split',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              split
+                  ? 'Clique numa sessão da lista para trocá-la no painel A · '
+                        'Ctrl+\\ fecha'
+                  : 'Ctrl+\\ divide · ⫿ na lista abre ao lado',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Opens the next session of the list (after [selectedId]) in the second
+/// pane, or closes the pane if it is open.
+void toggleSplit(WidgetRef ref, List<Session> sessions, String selectedId) {
+  final split = ref.read(splitSessionProvider.notifier);
+  if (ref.read(splitSessionProvider) != null) return split.set(null);
+  final i = sessions.indexWhere((s) => s.id == selectedId);
+  final next = [...sessions.skip(i + 1), ...sessions.take(i)].firstOrNull;
+  if (next != null) split.set(next.id);
 }
 
 class _Empty extends StatelessWidget {
@@ -129,13 +297,16 @@ class _Empty extends StatelessWidget {
 }
 
 class _SessionMain extends ConsumerWidget {
-  const _SessionMain({super.key, required this.session});
+  const _SessionMain({super.key, required this.session, this.pane});
 
   final Session session;
 
+  /// `A` / `B` when side by side (null = single pane).
+  final String? pane;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tab = ref.watch(sessionTabProvider);
+    final tab = ref.watch(sessionTabProvider(session.id));
     final changes = ref.watch(sessionChangesProvider(session.id)).value;
     final s = session;
 
@@ -143,7 +314,7 @@ class _SessionMain extends ConsumerWidget {
       final on = t == tab;
       return InkWell(
         key: ValueKey('session-tab-${t.name}'),
-        onTap: () => ref.read(sessionTabProvider.notifier).set(t),
+        onTap: () => ref.read(sessionTabProvider(s.id).notifier).set(t),
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -193,7 +364,7 @@ class _SessionMain extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Header(session: s),
+        _Header(session: s, pane: pane),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: const BoxDecoration(
@@ -223,10 +394,44 @@ class _SessionMain extends ConsumerWidget {
   }
 }
 
+/// `PROMPTORIUM_PORT` of a spec session (`worktree.porta-base` + the
+/// worktree index; null = no port) — "Abrir preview" (UX v2, U3).
+final previewPortProvider = Provider.autoDispose.family<int?, String>((
+  ref,
+  sessionId,
+) {
+  final ws = ref.watch(activeWorkspaceProvider);
+  if (ws == null) return null;
+  final base = ref
+      .watch(projectConfigProvider(ws.path))
+      .value
+      ?.worktree
+      .basePort;
+  if (base == null) return null;
+  final session = (ref.watch(sessionsProvider(ws.id)).value ?? const [])
+      .where((s) => s.id == sessionId)
+      .firstOrNull;
+  if (session?.specId == null) return null;
+  final spec = (ref.watch(specsProvider(ws.id)).value ?? const [])
+      .where((x) => x.id == session!.specId)
+      .firstOrNull;
+  return spec?.worktreeIndex == null ? null : base + spec!.worktreeIndex!;
+});
+
+/// Opens `http://localhost:[port]` in the browser (`xdg-open`).
+Future<void> openPreview(int port) async {
+  try {
+    await Process.run('xdg-open', ['http://localhost:$port']);
+  } catch (e) {
+    debugPrint('xdg-open preview: $e');
+  }
+}
+
 class _Header extends ConsumerWidget {
-  const _Header({required this.session});
+  const _Header({required this.session, this.pane});
 
   final Session session;
+  final String? pane;
 
   void _snack(BuildContext context, Object e) {
     ScaffoldMessenger.maybeOf(context)
@@ -251,6 +456,7 @@ class _Header extends ConsumerWidget {
       s.agentName ?? 'sem agente',
       model ?? (s.model == 'inherit' ? 'modelo padrão' : s.model),
     ].join(' · ');
+    final previewPort = ref.watch(previewPortProvider(s.id));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -312,7 +518,7 @@ class _Header extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           Flexible(
-            flex: 0,
+            flex: 2,
             child: Wrap(
               alignment: WrapAlignment.end,
               spacing: 6,
@@ -323,7 +529,7 @@ class _Header extends ConsumerWidget {
                   label: 'Abrir terminal',
                   onTap: () {
                     ref
-                        .read(sessionTabProvider.notifier)
+                        .read(sessionTabProvider(s.id).notifier)
                         .set(SessionTab.terminal);
                     if (!alive) {
                       ref.read(sessionTerminalsProvider.notifier).open(s);
@@ -335,6 +541,19 @@ class _Header extends ConsumerWidget {
                   label: 'Fork',
                   onTap: () => showForkDialog(context, s),
                 ),
+                if (previewPort != null)
+                  SmallButton(
+                    key: ValueKey('session-preview-${s.id}'),
+                    label: 'Abrir preview :$previewPort',
+                    onTap: () => openPreview(previewPort),
+                  ),
+                if (pane == 'B')
+                  SmallButton(
+                    key: const ValueKey('session-pane-close'),
+                    label: '×',
+                    onTap: () =>
+                        ref.read(splitSessionProvider.notifier).set(null),
+                  ),
                 if (canResume)
                   SmallButton(
                     key: const ValueKey('session-resume'),

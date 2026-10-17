@@ -18,7 +18,8 @@ import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/session_manager.dart';
-import '../../features/sessions/sessions_screen.dart';
+import '../../features/sessions/sessions_screen.dart'
+    show SessionsScreen, toggleSplit;
 import '../../features/settings/settings_screen.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
@@ -186,6 +187,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  /// Ctrl+\: goes to Sessões and opens / closes the second pane.
+  void _toggleSplit() {
+    _go(AppSection.sessions);
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null) return;
+    final sessions = ref.read(sessionsProvider(ws.id)).value ?? const [];
+    if (sessions.isEmpty) return;
+    final selected = ref.read(selectedSessionProvider) ?? sessions.first.id;
+    toggleSplit(ref, sessions, selected);
+  }
+
   void _zoom(ZoomOp op) {
     final key = ref.read(navigationProvider).editorKey;
     if (key == null) return; // no editor on this screen
@@ -290,6 +302,12 @@ class _AppShellState extends ConsumerState<AppShell> {
           NewSessionIntent: CallbackAction<NewSessionIntent>(
             onInvoke: (_) {
               _newSession();
+              return null;
+            },
+          ),
+          ToggleSplitIntent: CallbackAction<ToggleSplitIntent>(
+            onInvoke: (_) {
+              _toggleSplit();
               return null;
             },
           ),
