@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/claude/managed_hooks.dart';
 import 'package:promptorium/core/claude/run_prefs.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/settings/settings_screen.dart';
@@ -66,6 +67,13 @@ void main() {
     expect(prefs.model(RunKind.session), 'sonnet');
     expect(prefs.effort(RunKind.planner), 'medium');
     expect(prefs.autocompact, '200k');
+
+    // Automações: each managed hook can be turned off.
+    final format = find.byKey(const ValueKey('automation-format'));
+    await tester.ensureVisible(format);
+    await tester.tap(format);
+    await tester.pump();
+    expect(c.read(appSettingsProvider)[ManagedHook.format.settingKey], '0');
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   });
 }

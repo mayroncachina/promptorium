@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/managed_hooks.dart';
 import 'package:promptorium/core/claude/usage_tracker.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
@@ -83,6 +84,81 @@ void main() {
       expect(events.first.json, contains('Continuação da conversa'));
     },
   );
+
+  test('managed hooks: --settings per session with the project rules; the '
+      'hook log becomes timeline notes; files removed at the end', () async {
+    final hooks = ManagedHooks(runBase: '${tmp.path}/run');
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      managedHooksProvider.overrideWithValue(hooks),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    Directory('$repo/.promptorium').createSync();
+    File('$repo/.promptorium/config.yml')
+        .writeAsStringSync('bloquear-comandos:\n  - "npm publish*"\n');
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Hooks', prompt: 'oi'),
+    );
+    if (!await pythonAvailable()) return; // no python3: no hooks
+    final args = cli.args.single;
+    final i = args.indexOf('--settings');
+    expect(args[i + 1], '${tmp.path}/run/$id/settings.json');
+    final cfg = File('${tmp.path}/run/$id/hooks-config.json')
+        .readAsStringSync();
+    expect(cfg, contains('npm publish'));
+    expect(cfg, contains('git -C na raiz'));
+
+    // The hook wrote to its log; the next tool result shows it.
+    File(hooks.logOf(id)).writeAsStringSync(
+      '${jsonEncode({'evento': 'bloqueio', 'comando': 'npm publish', 'regra': 'npm publish*'})}\n',
+    );
+    cli.last.emit(
+      jsonEncode({
+        'type': 'user',
+        'message': {
+          'role': 'user',
+          'content': [
+            {
+              'type': 'tool_result',
+              'tool_use_id': 't1',
+              'content': 'PreToolUse:Bash hook error: bloqueado',
+              'is_error': true,
+            },
+          ],
+        },
+        'session_id': id,
+      }),
+    );
+    await settle();
+    final events = await c.read(sessionsRepoProvider).events(id);
+    expect(
+      events.where((e) => e.type == AppEventTypes.note).last.json,
+      contains('Hook bloqueou `npm publish`'),
+    );
+    expect(c.read(hookActivityProvider)[ManagedHook.block], isNotNull);
+
+    // Turned off in Automações: no hook file for the next session.
+    for (final h in ManagedHook.values) {
+      await c.read(appSettingsProvider.notifier).set(h.settingKey, '0');
+    }
+    await m.create(
+      NewSessionRequest(workspace: ws, title: 'Sem hooks', prompt: 'oi'),
+    );
+    expect(cli.args.last, isNot(contains('--settings')));
+
+    await m.stop(id);
+    await settle();
+    expect(Directory(hooks.dirOf(id)).existsSync(), isFalse);
+  });
 
   test('notification clicks: approvals → Sessões; done/failed → the screen '
       'the session was created from', () async {

@@ -53,6 +53,7 @@ class ClaudeOptions {
     this.includePartialMessages = true,
     this.effort,
     this.autocompact,
+    this.settingsFile,
   });
 
   /// New session id (`--session-id`, must be a UUID). Exclusive with
@@ -106,6 +107,11 @@ class ClaudeOptions {
   /// smaller values before starting). Null or empty = CLI default.
   final String? autocompact;
 
+  /// `--settings <file>`: settings added to the user's / project's ones
+  /// (the app's managed hooks). Verified on CLI 2.1.302: hooks of every
+  /// source run (docs/pesquisa/hooks-settings-stream-json.md).
+  final String? settingsFile;
+
   /// Values accepted by `--effort` (CLI 2.1.301).
   static const effortLevels = ['low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -139,6 +145,7 @@ class ClaudeOptions {
     bool? includePartialMessages,
     String? effort,
     String? autocompact,
+    String? settingsFile,
   }) => ClaudeOptions(
     sessionId: sessionId ?? this.sessionId,
     resumeId: resumeId ?? this.resumeId,
@@ -159,6 +166,7 @@ class ClaudeOptions {
         includePartialMessages ?? this.includePartialMessages,
     effort: effort ?? this.effort,
     autocompact: autocompact ?? this.autocompact,
+    settingsFile: settingsFile ?? this.settingsFile,
   );
 
   /// Command-line arguments (without the executable).
@@ -208,6 +216,10 @@ class ClaudeOptions {
       if (agentsJson != null && agentsJson!.isNotEmpty) ...[
         '--agents',
         agentsJson!,
+      ],
+      if (settingsFile != null && settingsFile!.isNotEmpty) ...[
+        '--settings',
+        settingsFile!,
       ],
       if (maxBudgetUsd != null) ...['--max-budget-usd', _num(maxBudgetUsd!)],
       if (maxTurns != null) ...['--max-turns', '$maxTurns'],

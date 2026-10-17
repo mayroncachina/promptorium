@@ -10,6 +10,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/git_service.dart';
@@ -19,6 +20,7 @@ import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
+import '../project/project_config.dart';
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -202,6 +204,9 @@ class _Proc {
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
+
+  /// Bytes of the hooks log already shown.
+  int hookOffset = 0;
   StreamSubscription<ClaudeEvent>? sub;
   StreamSubscription<String>? logSub;
 }
@@ -315,6 +320,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ),
       cwd: path,
       title: title,
+      root: ws.path,
     );
     await send(id, prompt);
     return id;
@@ -432,6 +438,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       cwd: s.worktreePath,
       title: _titleOf(s),
       baseCost: s.costUsd,
+      root: ws?.path,
     );
     await _repo.setStatus(id, SessionStatus.completed);
   }
@@ -504,6 +511,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       cwd: path,
       title: name,
       baseCost: parent.costUsd,
+      root: ws.path,
     );
     await send(newId, prompt);
     return newId;
@@ -667,14 +675,19 @@ class SessionManager extends Notifier<SessionManagerState> {
     required String cwd,
     required String title,
     double baseCost = 0,
+    String? root,
   }) async {
     if (_shuttingDown) {
       throw const SessionException('O aplicativo está sendo encerrado.');
     }
+    final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
     final ClaudeProcess process;
     try {
       process = await ClaudeProcess.start(
-        options.copyWith(autocompact: ref.read(runPrefsProvider).autocompact),
+        options.copyWith(
+          autocompact: ref.read(runPrefsProvider).autocompact,
+          settingsFile: settingsFile,
+        ),
         workingDirectory: cwd,
         executable: ref.read(claudeExecutableProvider),
         starter: ref.read(claudeProcessStarterProvider),
@@ -695,6 +708,55 @@ class SessionManager extends Notifier<SessionManagerState> {
       onDone: () => _enqueue(id, p, () => _onExit(id, p)),
     );
     _publish();
+  }
+
+  /// The app's hooks of the session (`--settings`); null = none (off in
+  /// Configurações → Automações, no `python3`, or an error writing them).
+  Future<String?> _prepareHooks(
+    String id, {
+    required String cwd,
+    String? root,
+  }) async {
+    final hooks = ref.read(managedHooksProvider);
+    if (hooks == null) return null;
+    try {
+      if (!await pythonAvailable()) return null;
+      final settings = ref.read(appSettingsProvider.notifier);
+      final enabled = {
+        for (final h in ManagedHook.values)
+          if (settings.get(h.settingKey) != '0') h,
+      };
+      final config = root == null ? null : ProjectConfig.loadSync(root);
+      return await hooks.prepare(
+        id,
+        enabled: enabled,
+        rules: blockRules(
+          projectGlobs: config?.blockedCommands ?? const [],
+          root: root,
+          cwd: cwd,
+        ),
+        formatCommand: config?.formatCommand,
+      );
+    } catch (e) {
+      debugPrint('sessão $id: hooks do app não preparados — $e');
+      return null;
+    }
+  }
+
+  /// New lines of the session's hooks log → timeline notes.
+  Future<void> _readHooks(String id, _Proc p) async {
+    final hooks = ref.read(managedHooksProvider);
+    if (hooks == null) return;
+    try {
+      final (items, offset) = await hooks.readLog(id, p.hookOffset);
+      p.hookOffset = offset;
+      for (final a in items) {
+        await _note(id, a.text, error: a.error);
+        if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
+      }
+    } catch (e) {
+      debugPrint('sessão $id: log de hooks não lido — $e');
+    }
   }
 
   Future<void> _enqueue(String id, _Proc p, Future<void> Function() job) {
@@ -756,6 +818,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
       case ToolResult():
         p.subagents.remove(e.toolUseId);
+        await _readHooks(id, p);
       case Result():
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
         final u = e.usage;
@@ -816,6 +879,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
     _procs.remove(id);
+    if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
+    if (ref.mounted) unawaited(ref.read(managedHooksProvider)?.cleanup(id));
     if (!ref.mounted || _shuttingDown) return;
     if (p.released) {
       _publish();
