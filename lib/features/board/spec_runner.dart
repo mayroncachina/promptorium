@@ -392,6 +392,12 @@ final worktreePrepProvider =
 String checkpointRef(String specCode, String step) =>
     'refs/promptorium/$specCode/$step-inicio';
 
+/// Ref that keeps the snapshot of the uncommitted files at the start of
+/// [step] alive (`refs/promptorium/SPEC-003/R2-estado`; without it `git gc`
+/// could prune it).
+String checkpointStateRef(String specCode, String step) =>
+    'refs/promptorium/$specCode/$step-estado';
+
 /// What [SpecRunner.rewind] would discard.
 @immutable
 class RewindPreview {
@@ -979,8 +985,8 @@ class SpecRunner {
 
   /// Where [steps] start: `HEAD` of the worktree (the gate looks for their
   /// commit after it), kept also as `refs/promptorium/<spec>/<step>-inicio`,
-  /// and the uncommitted changes (`git stash create`) — the checkpoint of
-  /// "Voltar ao início da etapa".
+  /// and the uncommitted files, untracked ones included ([GitService.snapshot],
+  /// kept as `<step>-estado`) — the checkpoint of "Voltar ao início da etapa".
   Future<void> _markStart(
     Spec spec,
     String worktree,
@@ -990,10 +996,13 @@ class SpecRunner {
     final git = _ref.read(gitServiceFactoryProvider)(worktree);
     try {
       sha = await git.headSha();
-      stash = await git.stashCreate();
-      if (sha != null) {
-        for (final step in steps) {
+      stash = await git.snapshot();
+      for (final step in steps) {
+        if (sha != null) {
           await git.updateRef(checkpointRef(spec.code, step), sha);
+        }
+        if (stash != null) {
+          await git.updateRef(checkpointStateRef(spec.code, step), stash);
         }
       }
     } on GitException catch (e) {
@@ -1063,7 +1072,7 @@ class SpecRunner {
     final git = _ref.read(gitServiceFactoryProvider)(spec.worktreePath!);
     try {
       await git.resetHard(row.startSha!);
-      if (row.startStash != null) await git.stashApply(row.startStash!);
+      if (row.startStash != null) await git.restoreSnapshot(row.startStash!);
     } on GitException catch (e) {
       throw SpecRunException('Falha ao voltar o worktree: $e');
     }

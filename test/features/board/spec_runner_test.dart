@@ -511,10 +511,20 @@ void main() {
       await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
       // Uncommitted change of a tracked file when R2 starts.
       File('$wt/a.txt').writeAsStringSync('mexido antes de R2\n');
+      // Untracked file that already exists when R2 starts.
+      File('$wt/antes.txt').writeAsStringSync('novo antes de R2\n');
       cli.last.emit(resultLine('Feito.\nETAPA CONCLUÍDA: R1'));
       await until(() async => (await states())['R2'] == StepStatus.running);
       final r2 = await stepRow('R2');
       expect(r2.startStash, isNotNull);
+      // The snapshot is kept by a ref (safe from `git gc`).
+      expect(
+        (await gitIn(wt, [
+          'rev-parse',
+          checkpointStateRef('SPEC-001', 'R2'),
+        ])).trim(),
+        r2.startStash,
+      );
 
       // R2 work: a commit and a new file.
       File('$wt/r2.txt').writeAsStringSync('r2');
@@ -534,6 +544,7 @@ void main() {
       expect(File('$wt/r2.txt').existsSync(), isFalse);
       expect(File('$wt/lixo.txt').existsSync(), isFalse);
       expect(File('$wt/a.txt').readAsStringSync(), 'mexido antes de R2\n');
+      expect(File('$wt/antes.txt').readAsStringSync(), 'novo antes de R2\n');
       expect((await states())['R1'], StepStatus.done);
       expect((await states())['R2'], StepStatus.pending);
       final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);

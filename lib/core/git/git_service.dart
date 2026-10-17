@@ -142,11 +142,16 @@ class GitService {
   }
 
   /// Runs `git -C repoRoot <args>` and returns stdout. Throws [GitException].
-  Future<String> git(List<String> args) async {
+  Future<String> git(List<String> args) => _git(args);
+
+  /// [git] with `GIT_INDEX_FILE=<indexFile>` (a scratch index).
+  Future<String> _git(List<String> args, {String? indexFile}) async {
     final full = ['-C', repoRoot, ...args];
     final ProcessResult r;
     try {
-      r = await _run('git', full);
+      r = indexFile == null
+          ? await _run('git', full)
+          : await _run('env', ['GIT_INDEX_FILE=$indexFile', 'git', ...full]);
     } on ProcessException catch (e) {
       throw GitException(
         'git não encontrado',
@@ -394,6 +399,41 @@ class GitService {
   /// `git stash apply <sha>`.
   Future<void> stashApply(String sha) =>
       git(['stash', 'apply', _arg(sha, 'stash')]);
+
+  /// The working tree (tracked and untracked files; ignored ones left out)
+  /// as a commit on top of HEAD, built in a scratch index so neither the
+  /// tree nor the index is touched; null when the tree is clean.
+  Future<String?> snapshot() async {
+    if ((await git(['status', '--porcelain'])).trim().isEmpty) return null;
+    final dir = await Directory.systemTemp.createTemp('promptorium-index');
+    try {
+      final index = '${dir.path}/index';
+      await _git(['read-tree', 'HEAD'], indexFile: index);
+      await _git(['add', '-A'], indexFile: index);
+      final tree = (await _git(['write-tree'], indexFile: index)).trim();
+      return (await git([
+        '-c',
+        'user.name=Promptorium',
+        '-c',
+        'user.email=promptorium@localhost',
+        'commit-tree',
+        tree,
+        '-p',
+        'HEAD',
+        '-m',
+        'promptorium: estado do worktree',
+      ])).trim();
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  /// Puts the files of [sha] (a [snapshot] or a `git stash create` commit)
+  /// in the working tree, leaving the index at HEAD.
+  Future<void> restoreSnapshot(String sha) async {
+    await git(['read-tree', '-u', '--reset', '${_arg(sha, 'commit')}^{tree}']);
+    await git(['reset', '-q']);
+  }
 
   /// `git reset --hard <sha>` + `git clean -fd` (untracked files removed;
   /// ignored ones kept).
