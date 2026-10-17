@@ -32,6 +32,8 @@ Spec spec(int id, String code, List<String> deps, {SpecStage? stage}) => Spec(
   dependsOn: deps,
   autoAdvance: true,
   reviewRounds: 0,
+  gateResends: 0,
+  rejectedHunks: 0,
 );
 
 void main() {

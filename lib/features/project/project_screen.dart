@@ -12,6 +12,7 @@ import 'project_service.dart';
 import 'widgets/create_step.dart';
 import 'widgets/project_config_view.dart';
 import 'widgets/project_memory_view.dart';
+import 'widgets/spec_metrics_view.dart';
 import 'widgets/project_widgets.dart';
 import 'widgets/roadmap_step.dart';
 import 'widgets/stack_step.dart';
@@ -49,7 +50,7 @@ class ProjectScreen extends ConsumerWidget {
         AsyncData(value: null)
             when ref.watch(hasExistingCodeProvider(ws.path)).value ?? false =>
           DefaultTabController(
-            length: 2,
+            length: 3,
             child: Column(
               children: [
                 const TabBar(
@@ -59,6 +60,7 @@ class ProjectScreen extends ConsumerWidget {
                   tabs: [
                     Tab(text: 'Configuração'),
                     Tab(key: ValueKey('project-tab-memory'), text: 'Memória'),
+                    Tab(key: ValueKey('project-tab-metrics'), text: 'Métricas'),
                   ],
                 ),
                 Expanded(
@@ -75,6 +77,7 @@ class ProjectScreen extends ConsumerWidget {
                             ref.read(projectPlannerProvider.notifier).start(ws),
                       ),
                       ProjectMemoryView(workspace: ws),
+                      SpecMetricsView(workspace: ws),
                     ],
                   ),
                 ),
@@ -346,6 +349,26 @@ class _Stepper extends ConsumerWidget {
                     icon: const Icon(Icons.psychology_outlined, size: 16),
                     label: const Text(
                       'Memória do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('project-metrics-open'),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 900,
+                          height: 620,
+                          child: SpecMetricsView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.insights_outlined, size: 16),
+                    label: const Text(
+                      'Métricas',
                       style: TextStyle(fontSize: 12),
                     ),
                   ),

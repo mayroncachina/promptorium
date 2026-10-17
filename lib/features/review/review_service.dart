@@ -316,6 +316,9 @@ class ReviewService {
       await patch.writeAsString(rejectPatch(file, hunk));
       await _git(c.session.worktreePath)
           .git(['apply', '-R', '--whitespace=nowarn', patch.path]);
+      if (c.spec case final spec?) {
+        await _ref.read(specsRepoProvider).countRejectedHunk(spec.id);
+      }
     } on GitException catch (e) {
       throw ReviewException(
         'Não foi possível rejeitar o hunk (o arquivo mudou desde o diff?): '

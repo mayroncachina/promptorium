@@ -114,6 +114,20 @@ class SpecsRepo {
     ),
   );
 
+  /// One more automatic fix sent by the gate (metrics, schema v13).
+  Future<void> countGateResend(int id) => _db.customUpdate(
+    'UPDATE specs SET gate_resends = gate_resends + 1 WHERE id = ?',
+    variables: [Variable.withInt(id)],
+    updates: {_t},
+  );
+
+  /// One more hunk rejected in the Review (metrics, schema v13).
+  Future<void> countRejectedHunk(int id) => _db.customUpdate(
+    'UPDATE specs SET rejected_hunks = rejected_hunks + 1 WHERE id = ?',
+    variables: [Variable.withInt(id)],
+    updates: {_t},
+  );
+
   /// Order of the cards of a column: [ids] get 0, 1, 2…
   Future<void> setBoardOrder(List<int> ids) => _db.transaction(() async {
     for (final (i, id) in ids.indexed) {

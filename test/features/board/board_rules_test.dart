@@ -23,6 +23,8 @@ Spec spec(
   dependsOn: deps,
   autoAdvance: true,
   reviewRounds: 0,
+  gateResends: 0,
+  rejectedHunks: 0,
 );
 
 SpecStep row(int spec, String step, StepStatus status) =>

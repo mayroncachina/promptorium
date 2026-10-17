@@ -311,6 +311,8 @@ void main() {
         dependsOn: [],
         autoAdvance: true,
         reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));

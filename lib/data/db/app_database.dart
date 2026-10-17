@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 12;
+const appSchemaVersion = 13;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -147,6 +147,14 @@ class Specs extends Table {
 
   /// Position in its column of the Quadro (schema v11; null = by code).
   IntColumn get boardOrder => integer().nullable()();
+
+  // --- quality metrics (schema v13) ------------------------------------------
+
+  /// Failures of the step gate sent back to the agent (automatic fixes).
+  IntColumn get gateResends => integer().withDefault(const Constant(0))();
+
+  /// Hunks rejected in the Review.
+  IntColumn get rejectedHunks => integer().withDefault(const Constant(0))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -758,6 +766,15 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(v.sessions, v.sessions.pid);
             }
             await m.createTable(v.notifications);
+          },
+          // v13: quality metrics of a spec (Projeto → Métricas).
+          from12To13: (m, v) async {
+            if (!await _hasTable('specs')) return;
+            for (final c in [v.specs.gateResends, v.specs.rejectedHunks]) {
+              if (!await _hasColumn('specs', c.name)) {
+                await m.addColumn(v.specs, c);
+              }
+            }
           },
         ),
       );

@@ -1069,6 +1069,7 @@ class SpecRunner {
           report: report.encode(),
           attempts: attempts + 1,
         );
+        await _ref.read(specsRepoProvider).countGateResend(specId);
         await _manager.send(s.id, gateRetryMessage(report, steps));
         return;
       }

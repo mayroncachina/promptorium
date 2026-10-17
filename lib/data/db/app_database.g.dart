@@ -538,6 +538,30 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gateResendsMeta = const VerificationMeta(
+    'gateResends',
+  );
+  @override
+  late final GeneratedColumn<int> gateResends = GeneratedColumn<int>(
+    'gate_resends',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _rejectedHunksMeta = const VerificationMeta(
+    'rejectedHunks',
+  );
+  @override
+  late final GeneratedColumn<int> rejectedHunks = GeneratedColumn<int>(
+    'rejected_hunks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -561,6 +585,8 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     reviewRounds,
     mergeOverride,
     boardOrder,
+    gateResends,
+    rejectedHunks,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -702,6 +728,24 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         boardOrder.isAcceptableOrUnknown(data['board_order']!, _boardOrderMeta),
       );
     }
+    if (data.containsKey('gate_resends')) {
+      context.handle(
+        _gateResendsMeta,
+        gateResends.isAcceptableOrUnknown(
+          data['gate_resends']!,
+          _gateResendsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rejected_hunks')) {
+      context.handle(
+        _rejectedHunksMeta,
+        rejectedHunks.isAcceptableOrUnknown(
+          data['rejected_hunks']!,
+          _rejectedHunksMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -807,6 +851,14 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.int,
         data['${effectivePrefix}board_order'],
       ),
+      gateResends: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}gate_resends'],
+      )!,
+      rejectedHunks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rejected_hunks'],
+      )!,
     );
   }
 
@@ -882,6 +934,12 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// Position in its column of the Quadro (schema v11; null = by code).
   final int? boardOrder;
+
+  /// Failures of the step gate sent back to the agent (automatic fixes).
+  final int gateResends;
+
+  /// Hunks rejected in the Review.
+  final int rejectedHunks;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -904,6 +962,8 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.reviewRounds,
     this.mergeOverride,
     this.boardOrder,
+    required this.gateResends,
+    required this.rejectedHunks,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -963,6 +1023,8 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || boardOrder != null) {
       map['board_order'] = Variable<int>(boardOrder);
     }
+    map['gate_resends'] = Variable<int>(gateResends);
+    map['rejected_hunks'] = Variable<int>(rejectedHunks);
     return map;
   }
 
@@ -1009,6 +1071,8 @@ class Spec extends DataClass implements Insertable<Spec> {
       boardOrder: boardOrder == null && nullToAbsent
           ? const Value.absent()
           : Value(boardOrder),
+      gateResends: Value(gateResends),
+      rejectedHunks: Value(rejectedHunks),
     );
   }
 
@@ -1045,6 +1109,8 @@ class Spec extends DataClass implements Insertable<Spec> {
       reviewRounds: serializer.fromJson<int>(json['reviewRounds']),
       mergeOverride: serializer.fromJson<String?>(json['mergeOverride']),
       boardOrder: serializer.fromJson<int?>(json['boardOrder']),
+      gateResends: serializer.fromJson<int>(json['gateResends']),
+      rejectedHunks: serializer.fromJson<int>(json['rejectedHunks']),
     );
   }
   @override
@@ -1078,6 +1144,8 @@ class Spec extends DataClass implements Insertable<Spec> {
       'reviewRounds': serializer.toJson<int>(reviewRounds),
       'mergeOverride': serializer.toJson<String?>(mergeOverride),
       'boardOrder': serializer.toJson<int?>(boardOrder),
+      'gateResends': serializer.toJson<int>(gateResends),
+      'rejectedHunks': serializer.toJson<int>(rejectedHunks),
     };
   }
 
@@ -1103,6 +1171,8 @@ class Spec extends DataClass implements Insertable<Spec> {
     int? reviewRounds,
     Value<String?> mergeOverride = const Value.absent(),
     Value<int?> boardOrder = const Value.absent(),
+    int? gateResends,
+    int? rejectedHunks,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1129,6 +1199,8 @@ class Spec extends DataClass implements Insertable<Spec> {
         ? mergeOverride.value
         : this.mergeOverride,
     boardOrder: boardOrder.present ? boardOrder.value : this.boardOrder,
+    gateResends: gateResends ?? this.gateResends,
+    rejectedHunks: rejectedHunks ?? this.rejectedHunks,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1175,6 +1247,12 @@ class Spec extends DataClass implements Insertable<Spec> {
       boardOrder: data.boardOrder.present
           ? data.boardOrder.value
           : this.boardOrder,
+      gateResends: data.gateResends.present
+          ? data.gateResends.value
+          : this.gateResends,
+      rejectedHunks: data.rejectedHunks.present
+          ? data.rejectedHunks.value
+          : this.rejectedHunks,
     );
   }
 
@@ -1201,7 +1279,9 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('reviewPhase: $reviewPhase, ')
           ..write('reviewRounds: $reviewRounds, ')
           ..write('mergeOverride: $mergeOverride, ')
-          ..write('boardOrder: $boardOrder')
+          ..write('boardOrder: $boardOrder, ')
+          ..write('gateResends: $gateResends, ')
+          ..write('rejectedHunks: $rejectedHunks')
           ..write(')'))
         .toString();
   }
@@ -1229,6 +1309,8 @@ class Spec extends DataClass implements Insertable<Spec> {
     reviewRounds,
     mergeOverride,
     boardOrder,
+    gateResends,
+    rejectedHunks,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1254,7 +1336,9 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.reviewPhase == this.reviewPhase &&
           other.reviewRounds == this.reviewRounds &&
           other.mergeOverride == this.mergeOverride &&
-          other.boardOrder == this.boardOrder);
+          other.boardOrder == this.boardOrder &&
+          other.gateResends == this.gateResends &&
+          other.rejectedHunks == this.rejectedHunks);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1279,6 +1363,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<int> reviewRounds;
   final Value<String?> mergeOverride;
   final Value<int?> boardOrder;
+  final Value<int> gateResends;
+  final Value<int> rejectedHunks;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1301,6 +1387,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.reviewRounds = const Value.absent(),
     this.mergeOverride = const Value.absent(),
     this.boardOrder = const Value.absent(),
+    this.gateResends = const Value.absent(),
+    this.rejectedHunks = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1324,6 +1412,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.reviewRounds = const Value.absent(),
     this.mergeOverride = const Value.absent(),
     this.boardOrder = const Value.absent(),
+    this.gateResends = const Value.absent(),
+    this.rejectedHunks = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1350,6 +1440,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<int>? reviewRounds,
     Expression<String>? mergeOverride,
     Expression<int>? boardOrder,
+    Expression<int>? gateResends,
+    Expression<int>? rejectedHunks,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1373,6 +1465,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (reviewRounds != null) 'review_rounds': reviewRounds,
       if (mergeOverride != null) 'merge_override': mergeOverride,
       if (boardOrder != null) 'board_order': boardOrder,
+      if (gateResends != null) 'gate_resends': gateResends,
+      if (rejectedHunks != null) 'rejected_hunks': rejectedHunks,
     });
   }
 
@@ -1398,6 +1492,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<int>? reviewRounds,
     Value<String?>? mergeOverride,
     Value<int?>? boardOrder,
+    Value<int>? gateResends,
+    Value<int>? rejectedHunks,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -1421,6 +1517,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       reviewRounds: reviewRounds ?? this.reviewRounds,
       mergeOverride: mergeOverride ?? this.mergeOverride,
       boardOrder: boardOrder ?? this.boardOrder,
+      gateResends: gateResends ?? this.gateResends,
+      rejectedHunks: rejectedHunks ?? this.rejectedHunks,
     );
   }
 
@@ -1498,6 +1596,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (boardOrder.present) {
       map['board_order'] = Variable<int>(boardOrder.value);
     }
+    if (gateResends.present) {
+      map['gate_resends'] = Variable<int>(gateResends.value);
+    }
+    if (rejectedHunks.present) {
+      map['rejected_hunks'] = Variable<int>(rejectedHunks.value);
+    }
     return map;
   }
 
@@ -1524,7 +1628,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('reviewPhase: $reviewPhase, ')
           ..write('reviewRounds: $reviewRounds, ')
           ..write('mergeOverride: $mergeOverride, ')
-          ..write('boardOrder: $boardOrder')
+          ..write('boardOrder: $boardOrder, ')
+          ..write('gateResends: $gateResends, ')
+          ..write('rejectedHunks: $rejectedHunks')
           ..write(')'))
         .toString();
   }
@@ -11167,6 +11273,8 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int> reviewRounds,
   Value<String?> mergeOverride,
   Value<int?> boardOrder,
+  Value<int> gateResends,
+  Value<int> rejectedHunks,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -11190,6 +11298,8 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> reviewRounds,
   Value<String?> mergeOverride,
   Value<int?> boardOrder,
+  Value<int> gateResends,
+  Value<int> rejectedHunks,
 });
 
 final class $$SpecsTableReferences
@@ -11439,6 +11549,16 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<int> get boardOrder => $composableBuilder(
     column: $table.boardOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11725,6 +11845,16 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -11836,6 +11966,16 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<int> get boardOrder => $composableBuilder(
     column: $table.boardOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get gateResends => $composableBuilder(
+    column: $table.gateResends,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rejectedHunks => $composableBuilder(
+    column: $table.rejectedHunks,
     builder: (column) => column,
   );
 
@@ -12071,6 +12211,8 @@ class $$SpecsTableTableManager
                 Value<int> reviewRounds = const Value.absent(),
                 Value<String?> mergeOverride = const Value.absent(),
                 Value<int?> boardOrder = const Value.absent(),
+                Value<int> gateResends = const Value.absent(),
+                Value<int> rejectedHunks = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -12093,6 +12235,8 @@ class $$SpecsTableTableManager
                 reviewRounds: reviewRounds,
                 mergeOverride: mergeOverride,
                 boardOrder: boardOrder,
+                gateResends: gateResends,
+                rejectedHunks: rejectedHunks,
               ),
           createCompanionCallback:
               ({
@@ -12118,6 +12262,8 @@ class $$SpecsTableTableManager
                 Value<int> reviewRounds = const Value.absent(),
                 Value<String?> mergeOverride = const Value.absent(),
                 Value<int?> boardOrder = const Value.absent(),
+                Value<int> gateResends = const Value.absent(),
+                Value<int> rejectedHunks = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -12140,6 +12286,8 @@ class $$SpecsTableTableManager
                 reviewRounds: reviewRounds,
                 mergeOverride: mergeOverride,
                 boardOrder: boardOrder,
+                gateResends: gateResends,
+                rejectedHunks: rejectedHunks,
               ),
           withReferenceMapper: (p0) => p0
               .map(

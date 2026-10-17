@@ -38,6 +38,10 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 13) {
+    await db.customStatement('ALTER TABLE specs DROP COLUMN gate_resends');
+    await db.customStatement('ALTER TABLE specs DROP COLUMN rejected_hunks');
+  }
   if (version < 12) {
     await db.customStatement('ALTER TABLE sessions DROP COLUMN pid');
     await db.customStatement('DROP TABLE notifications');

@@ -117,6 +117,8 @@ void main() {
         dependsOn: const [],
         autoAdvance: true,
         reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
       );
       const steps = [
         StepView(id: 'R1', text: 'Extrair tabelas', status: StepStatus.done),
@@ -428,6 +430,10 @@ void main() {
       expect(retry, contains('A verificação do Promptorium falhou: commit'));
       expect(retry, endsWith('ETAPA CONCLUÍDA: R1'));
       expect((await stepRow('R1')).gateAttempts, 1);
+      expect(
+        (await c.read(specsRepoProvider).getById(spec.id))!.gateResends,
+        1,
+      );
       expect(
         GateReport.decode((await stepRow('R1')).gateReport)!.summary,
         'commit',
