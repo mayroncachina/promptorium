@@ -58,6 +58,138 @@ Future<void> showSpecDetailDialog(BuildContext context, int specId) =>
 
 /// Steps of a spec (Quadro details and the Specs screen): state, session of
 /// each step, auto-advance and the run action.
+/// Step selected in the Specs screen (its traceability panel opens; UX v2,
+/// U5). Null = none.
+class SelectedStep extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? id) => state = id;
+}
+
+final selectedStepProvider = NotifierProvider<SelectedStep, String?>(
+  SelectedStep.new,
+);
+
+/// "Voltar ao início da etapa" / "Refazer etapa": lists what will be
+/// discarded and asks first.
+Future<void> rewindStepAction(
+  BuildContext context,
+  WidgetRef ref,
+  Spec spec,
+  StepView step, {
+  required bool redo,
+}) async {
+  final runner = ref.read(specRunnerProvider);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final RewindPreview preview;
+  try {
+    preview = await runner.rewindPreview(spec.id, step.id);
+  } catch (e) {
+    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    return;
+  }
+  if (!context.mounted) return;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      key: const ValueKey('rewind-dialog'),
+      backgroundColor: AppColors.panel,
+      title: Text(
+        redo ? 'Refazer ${step.id}?' : 'Voltar ao início de ${step.id}?',
+        style: const TextStyle(fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'A sessão da spec é encerrada e o worktree volta ao ponto '
+                'em que ${step.id} começou. Etapas que voltam a pendente: '
+                '${preview.steps.join(', ')}.'
+                '${redo ? ' Depois, uma sessão nova refaz a etapa com o '
+                          'resumo da tentativa anterior.' : ''}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                preview.commits.isEmpty
+                    ? 'Nenhum commit será descartado.'
+                    : 'Commits descartados:',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              for (final c in preview.commits)
+                Text(
+                  '• $c',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontFamily: AppFonts.mono,
+                  ),
+                ),
+              if (preview.files.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Arquivos sem commit descartados:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                for (final f in preview.files)
+                  Text(
+                    '• $f',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontFamily: AppFonts.mono,
+                    ),
+                  ),
+              ],
+              if (preview.restoresStash) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'As alterações sem commit que existiam no início da '
+                  'etapa voltam.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          key: const ValueKey('rewind-confirm'),
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(
+            redo ? 'Descartar e refazer' : 'Descartar e voltar',
+            style: const TextStyle(color: AppColors.red),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    if (redo) {
+      await runner.redo(spec.id, step.id);
+    } else {
+      await runner.rewind(spec.id, step.id);
+    }
+  } catch (e) {
+    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+  }
+}
+
 class SpecStepsPanel extends ConsumerWidget {
   const SpecStepsPanel({
     super.key,
@@ -299,238 +431,137 @@ class _StepRow extends ConsumerWidget {
   final StepView step;
   final bool inDialog;
 
-  /// "Voltar ao início da etapa" / "Refazer etapa": lists what will be
-  /// discarded and asks first.
-  Future<void> _rewind(
-    BuildContext context,
-    WidgetRef ref, {
-    required bool redo,
-  }) async {
-    final runner = ref.read(specRunnerProvider);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final RewindPreview preview;
-    try {
-      preview = await runner.rewindPreview(spec.id, step.id);
-    } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('$e')));
-      return;
-    }
-    if (!context.mounted) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        key: const ValueKey('rewind-dialog'),
-        backgroundColor: AppColors.panel,
-        title: Text(
-          redo ? 'Refazer ${step.id}?' : 'Voltar ao início de ${step.id}?',
-          style: const TextStyle(fontSize: 16),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = !inDialog && ref.watch(selectedStepProvider) == step.id;
+    return InkWell(
+      key: ValueKey('step-${step.id}'),
+      onTap: inDialog
+          ? null
+          : () => ref
+                .read(selectedStepProvider.notifier)
+                .select(selected ? null : step.id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected ? SessionColors.selectedBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
         ),
-        content: SizedBox(
-          width: 480,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'A sessão da spec é encerrada e o worktree volta ao ponto '
-                  'em que ${step.id} começou. Etapas que voltam a pendente: '
-                  '${preview.steps.join(', ')}.'
-                  '${redo ? ' Depois, uma sessão nova refaz a etapa com o '
-                            'resumo da tentativa anterior.' : ''}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  preview.commits.isEmpty
-                      ? 'Nenhum commit será descartado.'
-                      : 'Commits descartados:',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                for (final c in preview.commits)
-                  Text(
-                    '• $c',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontFamily: AppFonts.mono,
-                    ),
-                  ),
-                if (preview.files.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Arquivos sem commit descartados:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                  for (final f in preview.files)
-                    Text(
-                      '• $f',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontFamily: AppFonts.mono,
-                      ),
-                    ),
-                ],
-                if (preview.restoresStash) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'As alterações sem commit que existiam no início da '
-                    'etapa voltam.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            key: const ValueKey('rewind-confirm'),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              redo ? 'Descartar e refazer' : 'Descartar e voltar',
-              style: const TextStyle(color: AppColors.red),
-            ),
-          ),
-        ],
+        child: _row(context, ref),
       ),
     );
-    if (ok != true) return;
-    try {
-      if (redo) {
-        await runner.redo(spec.id, step.id);
-      } else {
-        await runner.rewind(spec.id, step.id);
-      }
-    } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('$e')));
-    }
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-    key: ValueKey('step-${step.id}'),
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Dot(stepStatusColor(step.status)),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 32,
-          child: Text(
-            step.id,
-            style: const TextStyle(
-              fontFamily: AppFonts.mono,
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+  Widget _row(BuildContext context, WidgetRef ref) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.only(top: 5),
+        child: Dot(stepStatusColor(step.status)),
+      ),
+      const SizedBox(width: 8),
+      SizedBox(
+        width: 32,
+        child: Text(
+          step.id,
+          style: const TextStyle(
+            fontFamily: AppFonts.mono,
+            fontSize: 12,
+            color: AppColors.textSecondary,
           ),
         ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                step.text,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: step.isDone ? AppColors.textSecondary : AppColors.text,
+      ),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              step.text,
+              style: TextStyle(
+                fontSize: 13,
+                color: step.isDone ? AppColors.textSecondary : AppColors.text,
+              ),
+            ),
+            if (step.gate case final g?) ...[
+              const SizedBox(height: 4),
+              GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        stepStatusLabel(step.status),
+        key: ValueKey('step-status-${step.id}'),
+        style: TextStyle(fontSize: 11, color: stepStatusColor(step.status)),
+      ),
+      if (step.sessionId != null)
+        IconButton(
+          key: ValueKey('step-session-${step.id}'),
+          tooltip: 'Ver sessão',
+          iconSize: 14,
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.open_in_new, color: AppColors.textSecondary),
+          onPressed: () {
+            if (inDialog) Navigator.of(context).pop();
+            openSession(ref, step.sessionId!);
+          },
+        ),
+      SizedBox(
+        width: 24,
+        child: PopupMenuButton<String>(
+          key: ValueKey('step-menu-${step.id}'),
+          padding: EdgeInsets.zero,
+          iconSize: 14,
+          tooltip: 'Marcar',
+          color: AppColors.panel,
+          icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
+          onSelected: (v) => switch (v) {
+            'done' =>
+              ref
+                  .read(specStepsRepoProvider)
+                  .set(spec.id, step.id, StepStatus.done),
+            'pending' =>
+              ref
+                  .read(specStepsRepoProvider)
+                  .set(spec.id, step.id, StepStatus.pending),
+            _ => rewindStepAction(context, ref, spec, step, redo: v == 'redo'),
+          },
+          itemBuilder: (_) => [
+            if (!step.isDone)
+              const PopupMenuItem(
+                value: 'done',
+                child: Text(
+                  'Marcar como concluída',
+                  style: TextStyle(fontSize: 12),
                 ),
               ),
-              if (step.gate case final g?) ...[
-                const SizedBox(height: 4),
-                GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),
-              ],
+            if (step.status != StepStatus.pending)
+              const PopupMenuItem(
+                value: 'pending',
+                child: Text(
+                  'Voltar para pendente',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            if (step.startSha != null &&
+                spec.worktreePath != null &&
+                spec.stage != SpecStage.done) ...[
+              const PopupMenuItem(
+                value: 'rewind',
+                child: Text(
+                  'Voltar ao início da etapa…',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'redo',
+                child: Text('Refazer etapa…', style: TextStyle(fontSize: 12)),
+              ),
             ],
-          ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Text(
-          stepStatusLabel(step.status),
-          key: ValueKey('step-status-${step.id}'),
-          style: TextStyle(fontSize: 11, color: stepStatusColor(step.status)),
-        ),
-        if (step.sessionId != null)
-          IconButton(
-            key: ValueKey('step-session-${step.id}'),
-            tooltip: 'Ver sessão',
-            iconSize: 14,
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.open_in_new, color: AppColors.textSecondary),
-            onPressed: () {
-              if (inDialog) Navigator.of(context).pop();
-              openSession(ref, step.sessionId!);
-            },
-          ),
-        SizedBox(
-          width: 24,
-          child: PopupMenuButton<String>(
-            key: ValueKey('step-menu-${step.id}'),
-            padding: EdgeInsets.zero,
-            iconSize: 14,
-            tooltip: 'Marcar',
-            color: AppColors.panel,
-            icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
-            onSelected: (v) => switch (v) {
-              'done' =>
-                ref
-                    .read(specStepsRepoProvider)
-                    .set(spec.id, step.id, StepStatus.done),
-              'pending' =>
-                ref
-                    .read(specStepsRepoProvider)
-                    .set(spec.id, step.id, StepStatus.pending),
-              _ => _rewind(context, ref, redo: v == 'redo'),
-            },
-            itemBuilder: (_) => [
-              if (!step.isDone)
-                const PopupMenuItem(
-                  value: 'done',
-                  child: Text(
-                    'Marcar como concluída',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              if (step.status != StepStatus.pending)
-                const PopupMenuItem(
-                  value: 'pending',
-                  child: Text(
-                    'Voltar para pendente',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              if (step.startSha != null &&
-                  spec.worktreePath != null &&
-                  spec.stage != SpecStage.done) ...[
-                const PopupMenuItem(
-                  value: 'rewind',
-                  child: Text(
-                    'Voltar ao início da etapa…',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'redo',
-                  child: Text('Refazer etapa…', style: TextStyle(fontSize: 12)),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    ),
+      ),
+    ],
   );
 }

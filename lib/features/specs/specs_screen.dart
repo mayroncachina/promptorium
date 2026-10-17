@@ -16,6 +16,7 @@ import 'spec_design.dart';
 import 'spec_service.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_list.dart';
+import 'widgets/step_trace_panel.dart';
 import 'widgets/subagents_editor.dart';
 import '../board/widgets/subagent_status.dart' show specSubagentsProvider;
 import '../board/board_rules.dart'
@@ -362,6 +363,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
     final text = _controller?.text ?? '';
     final doc = SpecDocument.parse(text);
+    // Traceability of the step clicked in the steps panel (U5).
+    final selectedStep = ref.watch(selectedStepProvider);
+    final tracedStep = spec == null || selectedStep == null
+        ? null
+        : stepsOf(
+            spec,
+            stepRows,
+          ).where((st) => st.id == selectedStep).firstOrNull;
     final ready = spec != null && _controller != null && !_loading;
     // Started specs are a record of what was delivered: changes go to a
     // clone ("Clonar para alterar").
@@ -486,8 +495,35 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(child: SpecStepsPanel(specId: spec.id)),
-                          if (ready) ...[
+                          Expanded(
+                            flex: tracedStep == null ? 1 : 2,
+                            child: SpecStepsPanel(specId: spec.id),
+                          ),
+                          if (tracedStep != null) ...[
+                            const Divider(height: 24, color: AppColors.border),
+                            Expanded(
+                              flex: 3,
+                              child: StepTracePanel(
+                                spec: spec,
+                                step: tracedStep,
+                                text: text,
+                                sessions:
+                                    [
+                                      for (final x
+                                          in ref
+                                                  .watch(
+                                                    sessionsProvider(ws.id),
+                                                  )
+                                                  .value ??
+                                              const <Session>[])
+                                        if (x.specId == spec.id) x,
+                                    ]..sort(
+                                      (a, b) =>
+                                          a.startedAt.compareTo(b.startedAt),
+                                    ),
+                              ),
+                            ),
+                          ] else if (ready) ...[
                             const Divider(height: 24, color: AppColors.border),
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxHeight: 280),

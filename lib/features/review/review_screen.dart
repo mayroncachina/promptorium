@@ -425,6 +425,19 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   ReviewService get _service => ref.read(reviewServiceProvider);
 
+  @override
+  void initState() {
+    super.initState();
+    // "Ver diff da etapa" (Specs, U5) opens the item on that step; the
+    // provider is cleared after this frame (no writes during build).
+    _step = ref.read(reviewInitialStepProvider);
+    if (_step != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(reviewInitialStepProvider.notifier).set(null);
+      });
+    }
+  }
+
   void _toast(String msg, {SnackBarAction? action}) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()

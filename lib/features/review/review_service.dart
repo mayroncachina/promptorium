@@ -1112,6 +1112,19 @@ final prAvailabilityProvider = FutureProvider.family<PrAvailability, String>(
   (ref, sessionId) => ref.read(reviewServiceProvider).prAvailability(sessionId),
 );
 
+/// Step ("R2") the Review opens filtered on, set by "Ver diff da etapa" of
+/// the Specs screen and consumed once (UX v2, U5).
+class ReviewInitialStep extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? step) => state = step;
+}
+
+final reviewInitialStepProvider = NotifierProvider<ReviewInitialStep, String?>(
+  ReviewInitialStep.new,
+);
+
 /// Session shown in the Review screen (null = first of the queue).
 class SelectedReview extends Notifier<String?> {
   @override
