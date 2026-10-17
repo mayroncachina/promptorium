@@ -7,7 +7,9 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
+import 'auto_reviewer.dart';
 import 'review_service.dart';
+import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
 import 'widgets/review_dialogs.dart';
 
@@ -490,7 +492,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
               : 'Commita pendências, envia a branch e roda gh pr create')
         : pr.reason ?? 'Indisponível';
     final canPr = !busy && d?.error == null && (pr?.available ?? false);
-    final canMerge = !busy && d != null && d.error == null;
+    final reviewing =
+        widget.item.spec?.reviewPhase == ReviewPhase.auto &&
+        widget.item.spec?.stage == SpecStage.review;
+    final canMerge = !busy && d != null && d.error == null && !reviewing;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -557,6 +562,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
+        if (widget.item.spec != null)
+          SpecReviewPanel(specId: widget.item.spec!.id),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),

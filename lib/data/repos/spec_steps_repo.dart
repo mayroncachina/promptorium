@@ -129,4 +129,16 @@ class SpecStepsRepo {
           );
         }
       });
+
+  /// A step that is not in the file ([body] = its text): pending.
+  Future<void> addExtra(int specId, String step, String body) => _db
+      .into(_t)
+      .insertOnConflictUpdate(
+        SpecStepsCompanion.insert(
+          specId: specId,
+          step: step,
+          status: const Value(StepStatus.pending),
+          body: Value(body),
+        ),
+      );
 }

@@ -46,18 +46,29 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
     for (final r in rows)
       if (r.specId == spec.id) r.step: r,
   };
+  StepView view(String id, String text) => StepView(
+    id: id,
+    text: text,
+    status: byStep[id]?.status ?? StepStatus.pending,
+    sessionId: byStep[id]?.sessionId,
+    gate: GateReport.decode(byStep[id]?.gateReport),
+    startSha: byStep[id]?.startSha,
+  );
+  // Steps added by the app (the reviewer's corrections), after the file's.
+  final extra = [
+    for (final r in byStep.values)
+      if (isReviewStep(r.step) && r.body != null) r,
+  ]..sort((a, b) => reviewStepRound(a.step).compareTo(reviewStepRound(b.step)));
   return [
-    for (final req in spec.requirements)
-      StepView(
-        id: req.id,
-        text: req.text,
-        status: byStep[req.id]?.status ?? StepStatus.pending,
-        sessionId: byStep[req.id]?.sessionId,
-        gate: GateReport.decode(byStep[req.id]?.gateReport),
-        startSha: byStep[req.id]?.startSha,
-      ),
+    for (final req in spec.requirements) view(req.id, req.text),
+    for (final r in extra) view(r.step, r.body!),
   ];
 }
+
+/// `REV1`, `REV2`…: correction steps of the automatic reviewer.
+bool isReviewStep(String id) => RegExp(r'^REV\d+$').hasMatch(id);
+
+int reviewStepRound(String id) => int.tryParse(id.substring(3)) ?? 0;
 
 /// `(done, total)` of [steps].
 (int, int) progressOf(List<StepView> steps) =>

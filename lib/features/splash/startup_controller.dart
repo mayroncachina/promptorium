@@ -191,6 +191,13 @@ class RestoreSessionsStep extends StartupStep {
     // Notices not delivered before closing; the autopilot that was on
     // resumes (not awaited: it may start sessions).
     await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    // A review interrupted by closing the app goes to the user.
+    await ctx.ref
+        .read(appDatabaseProvider)
+        .customStatement(
+          "UPDATE specs SET review_phase = 'human' "
+          "WHERE review_phase = 'auto' AND stage = 'review'",
+        );
     unawaited(
       ctx.ref.read(autopilotProvider.notifier).restore().catchError((Object e) {
         debugPrint('autopilot não retomado — $e');

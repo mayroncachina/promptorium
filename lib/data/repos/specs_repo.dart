@@ -104,6 +104,16 @@ class SpecsRepo {
     ),
   );
 
+  /// Phase of the Review column (`auto` / `human` / null) and the rounds
+  /// of corrections asked by the automatic reviewer.
+  Future<int> setReview(int id, {String? phase, int? rounds}) => update(
+    id,
+    SpecsCompanion(
+      reviewPhase: Value(phase),
+      reviewRounds: Value.absentIfNull(rounds),
+    ),
+  );
+
   /// The worktree got its files and ran `preparar:` (null = not yet).
   Future<int> setPrepared(int id, DateTime? at) =>
       update(id, SpecsCompanion(preparedAt: Value(at)));

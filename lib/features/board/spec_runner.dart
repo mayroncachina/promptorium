@@ -15,6 +15,7 @@ import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
 import '../project/project_config.dart';
+import '../review/auto_reviewer.dart';
 import '../specs/spec_service.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
@@ -44,7 +45,7 @@ Set<String> parseStepMarker(String? text) {
   if (m == null) return const {};
   return {
     for (final r in RegExp(
-      r'\bR\d+\b',
+      r'\b(?:REV|R)\d+\b',
       caseSensitive: false,
     ).allMatches(m.group(1)!))
       r.group(0)!.toUpperCase(),
@@ -776,6 +777,18 @@ class SpecRunner {
     final steps = stepsOf(spec, await repo.bySpec(specId));
     if (steps.isNotEmpty && steps.every((x) => x.isDone)) {
       await _ref.read(specsRepoProvider).setStage(specId, SpecStage.review);
+      final config = await _config(spec.workspaceId);
+      if (config != null && config.reviewer.enabled) {
+        // The automatic reviewer goes first (F5); the user's Review after.
+        await _ref
+            .read(specsRepoProvider)
+            .setReview(specId, phase: ReviewPhase.auto);
+        unawaited(
+          Future<void>.microtask(
+            () => _ref.read(autoReviewerProvider).review(specId),
+          ),
+        );
+      }
       unawaited(
         Future<void>.microtask(
           () => _ref.read(autopilotProvider.notifier).tick(spec.workspaceId),

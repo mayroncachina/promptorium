@@ -75,6 +75,16 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _port = TextEditingController(
     text: _saved.worktree.basePort?.toString() ?? '',
   );
+  late bool _reviewerOn = _saved.reviewer.enabled;
+  late final _reviewerModel = TextEditingController(
+    text: _saved.reviewer.model,
+  );
+  late final _reviewerBudget = TextEditingController(
+    text: '${_saved.reviewer.budgetUsd}',
+  );
+  late final _reviewerRounds = TextEditingController(
+    text: '${_saved.reviewer.rounds}',
+  );
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
   late String? _agent = _saved.agent;
@@ -97,6 +107,9 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _copy,
       _prepare,
       _port,
+      _reviewerModel,
+      _reviewerBudget,
+      _reviewerRounds,
     ]) {
       c.dispose();
     }
@@ -143,6 +156,16 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       ],
       prepare: _text(_prepare),
       basePort: int.tryParse(_port.text.trim()),
+    ),
+    reviewer: ReviewerConfig(
+      enabled: _reviewerOn,
+      model: _text(_reviewerModel) ?? const ReviewerConfig().model,
+      budgetUsd:
+          double.tryParse(_reviewerBudget.text.trim().replaceAll(',', '.')) ??
+          const ReviewerConfig().budgetUsd,
+      rounds:
+          int.tryParse(_reviewerRounds.text.trim()) ??
+          const ReviewerConfig().rounds,
     ),
   );
 
@@ -474,6 +497,53 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
         _port,
         'porta base: ex.: 4000 (PROMPTORIUM_PORT = base + índice)',
       ),
+      _label(
+        'Revisor automático',
+        'revisa a spec terminada antes de você (somente leitura)',
+      ),
+      CheckboxListTile(
+        key: const ValueKey('config-reviewer'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _reviewerOn,
+        title: const Text(
+          'Ligado: aprova ou devolve a spec com apontamentos',
+          style: TextStyle(fontSize: 12),
+        ),
+        onChanged: (v) => setState(() => _reviewerOn = v ?? false),
+      ),
+      if (_reviewerOn)
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            SizedBox(
+              width: 140,
+              child: _field(
+                const ValueKey('config-reviewer-model'),
+                _reviewerModel,
+                'modelo',
+              ),
+            ),
+            SizedBox(
+              width: 140,
+              child: _field(
+                const ValueKey('config-reviewer-budget'),
+                _reviewerBudget,
+                'US\$ por rodada',
+              ),
+            ),
+            SizedBox(
+              width: 140,
+              child: _field(
+                const ValueKey('config-reviewer-rounds'),
+                _reviewerRounds,
+                'rodadas',
+              ),
+            ),
+          ],
+        ),
       _label(
         'Branch base',
         'origem dos worktrees e destino do merge (vazio = a atual)',

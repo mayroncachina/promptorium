@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
+import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
 import '../sessions/widgets/session_style.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
@@ -472,7 +473,12 @@ class SpecCard extends ConsumerWidget {
       meta = 'sem requisitos';
       metaColor = AppColors.red;
     } else if (spec.stage == SpecStage.review) {
-      meta = 'pronta para review';
+      meta =
+          reviewerLabel(spec, running: true) ??
+          (spec.reviewRounds > 0
+              ? 'pronta para review · ${spec.reviewRounds} correção(ões) do revisor'
+              : 'pronta para review');
+      if (spec.reviewPhase == ReviewPhase.auto) metaColor = AppColors.lilac;
     } else {
       meta = done == 0 ? 'pronta' : 'próxima: ${current?.id ?? '—'}';
     }

@@ -177,6 +177,10 @@ class SpecSteps extends Table {
   /// Automatic resends after a failed gate, in the current session.
   IntColumn get gateAttempts => integer().withDefault(const Constant(0))();
 
+  /// Text of a step that is not in the file (schema v10): `REV1`, the
+  /// corrections asked by the automatic reviewer.
+  TextColumn get body => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {specId, step};
 }
@@ -639,6 +643,10 @@ class AppDatabase extends _$AppDatabase {
           if (!await _hasColumn('specs', c.name)) await m.addColumn(specs, c);
         }
         await m.createTable(reviewComments);
+        if (await _hasTable('spec_steps') &&
+            !await _hasColumn('spec_steps', 'body')) {
+          await m.addColumn(specSteps, specSteps.body);
+        }
       }
     },
     beforeOpen: (details) async {

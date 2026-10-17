@@ -12,6 +12,7 @@ import 'repos/conversations_repo.dart';
 import 'repos/durable_state_repo.dart';
 import 'repos/mcp_tool_rules_repo.dart';
 import 'repos/project_plans_repo.dart';
+import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
 import 'repos/spec_steps_repo.dart';
@@ -64,6 +65,9 @@ final appSettingsRepoProvider = Provider(
 );
 final projectPlansRepoProvider = Provider(
   (ref) => ProjectPlansRepo(ref.watch(appDatabaseProvider)),
+);
+final reviewCommentsRepoProvider = Provider(
+  (ref) => ReviewCommentsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

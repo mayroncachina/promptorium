@@ -1579,6 +1579,15 @@ class $SpecStepsTable extends SpecSteps
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     specId,
@@ -1590,6 +1599,7 @@ class $SpecStepsTable extends SpecSteps
     startStash,
     gateReport,
     gateAttempts,
+    body,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1658,6 +1668,12 @@ class $SpecStepsTable extends SpecSteps
         ),
       );
     }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
     return context;
   }
 
@@ -1705,6 +1721,10 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.int,
         data['${effectivePrefix}gate_attempts'],
       )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      ),
     );
   }
 
@@ -1741,6 +1761,10 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
 
   /// Automatic resends after a failed gate, in the current session.
   final int gateAttempts;
+
+  /// Text of a step that is not in the file (schema v10): `REV1`, the
+  /// corrections asked by the automatic reviewer.
+  final String? body;
   const SpecStep({
     required this.specId,
     required this.step,
@@ -1751,6 +1775,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     this.startStash,
     this.gateReport,
     required this.gateAttempts,
+    this.body,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1778,6 +1803,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       map['gate_report'] = Variable<String>(gateReport);
     }
     map['gate_attempts'] = Variable<int>(gateAttempts);
+    if (!nullToAbsent || body != null) {
+      map['body'] = Variable<String>(body);
+    }
     return map;
   }
 
@@ -1802,6 +1830,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ? const Value.absent()
           : Value(gateReport),
       gateAttempts: Value(gateAttempts),
+      body: body == null && nullToAbsent ? const Value.absent() : Value(body),
     );
   }
 
@@ -1822,6 +1851,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       startStash: serializer.fromJson<String?>(json['startStash']),
       gateReport: serializer.fromJson<String?>(json['gateReport']),
       gateAttempts: serializer.fromJson<int>(json['gateAttempts']),
+      body: serializer.fromJson<String?>(json['body']),
     );
   }
   @override
@@ -1839,6 +1869,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       'startStash': serializer.toJson<String?>(startStash),
       'gateReport': serializer.toJson<String?>(gateReport),
       'gateAttempts': serializer.toJson<int>(gateAttempts),
+      'body': serializer.toJson<String?>(body),
     };
   }
 
@@ -1852,6 +1883,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     Value<String?> startStash = const Value.absent(),
     Value<String?> gateReport = const Value.absent(),
     int? gateAttempts,
+    Value<String?> body = const Value.absent(),
   }) => SpecStep(
     specId: specId ?? this.specId,
     step: step ?? this.step,
@@ -1862,6 +1894,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     startStash: startStash.present ? startStash.value : this.startStash,
     gateReport: gateReport.present ? gateReport.value : this.gateReport,
     gateAttempts: gateAttempts ?? this.gateAttempts,
+    body: body.present ? body.value : this.body,
   );
   SpecStep copyWithCompanion(SpecStepsCompanion data) {
     return SpecStep(
@@ -1880,6 +1913,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       gateAttempts: data.gateAttempts.present
           ? data.gateAttempts.value
           : this.gateAttempts,
+      body: data.body.present ? data.body.value : this.body,
     );
   }
 
@@ -1894,7 +1928,8 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('startSha: $startSha, ')
           ..write('startStash: $startStash, ')
           ..write('gateReport: $gateReport, ')
-          ..write('gateAttempts: $gateAttempts')
+          ..write('gateAttempts: $gateAttempts, ')
+          ..write('body: $body')
           ..write(')'))
         .toString();
   }
@@ -1910,6 +1945,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     startStash,
     gateReport,
     gateAttempts,
+    body,
   );
   @override
   bool operator ==(Object other) =>
@@ -1923,7 +1959,8 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.startSha == this.startSha &&
           other.startStash == this.startStash &&
           other.gateReport == this.gateReport &&
-          other.gateAttempts == this.gateAttempts);
+          other.gateAttempts == this.gateAttempts &&
+          other.body == this.body);
 }
 
 class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
@@ -1936,6 +1973,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<String?> startStash;
   final Value<String?> gateReport;
   final Value<int> gateAttempts;
+  final Value<String?> body;
   final Value<int> rowid;
   const SpecStepsCompanion({
     this.specId = const Value.absent(),
@@ -1947,6 +1985,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.startStash = const Value.absent(),
     this.gateReport = const Value.absent(),
     this.gateAttempts = const Value.absent(),
+    this.body = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SpecStepsCompanion.insert({
@@ -1959,6 +1998,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.startStash = const Value.absent(),
     this.gateReport = const Value.absent(),
     this.gateAttempts = const Value.absent(),
+    this.body = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : specId = Value(specId),
        step = Value(step);
@@ -1972,6 +2012,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? startStash,
     Expression<String>? gateReport,
     Expression<int>? gateAttempts,
+    Expression<String>? body,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1984,6 +2025,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (startStash != null) 'start_stash': startStash,
       if (gateReport != null) 'gate_report': gateReport,
       if (gateAttempts != null) 'gate_attempts': gateAttempts,
+      if (body != null) 'body': body,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1998,6 +2040,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<String?>? startStash,
     Value<String?>? gateReport,
     Value<int>? gateAttempts,
+    Value<String?>? body,
     Value<int>? rowid,
   }) {
     return SpecStepsCompanion(
@@ -2010,6 +2053,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       startStash: startStash ?? this.startStash,
       gateReport: gateReport ?? this.gateReport,
       gateAttempts: gateAttempts ?? this.gateAttempts,
+      body: body ?? this.body,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2046,6 +2090,9 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (gateAttempts.present) {
       map['gate_attempts'] = Variable<int>(gateAttempts.value);
     }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2064,6 +2111,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('startStash: $startStash, ')
           ..write('gateReport: $gateReport, ')
           ..write('gateAttempts: $gateAttempts, ')
+          ..write('body: $body, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10706,6 +10754,7 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> startStash,
   Value<String?> gateReport,
   Value<int> gateAttempts,
+  Value<String?> body,
   Value<int> rowid,
 });
 typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
@@ -10718,6 +10767,7 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> startStash,
   Value<String?> gateReport,
   Value<int> gateAttempts,
+  Value<String?> body,
   Value<int> rowid,
 });
 
@@ -10790,6 +10840,11 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<int> get gateAttempts => $composableBuilder(
     column: $table.gateAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10866,6 +10921,11 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -10929,6 +10989,9 @@ class $$SpecStepsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -10990,6 +11053,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> startStash = const Value.absent(),
                 Value<String?> gateReport = const Value.absent(),
                 Value<int> gateAttempts = const Value.absent(),
+                Value<String?> body = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion(
                 specId: specId,
@@ -11001,6 +11065,7 @@ class $$SpecStepsTableTableManager
                 startStash: startStash,
                 gateReport: gateReport,
                 gateAttempts: gateAttempts,
+                body: body,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11014,6 +11079,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> startStash = const Value.absent(),
                 Value<String?> gateReport = const Value.absent(),
                 Value<int> gateAttempts = const Value.absent(),
+                Value<String?> body = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion.insert(
                 specId: specId,
@@ -11025,6 +11091,7 @@ class $$SpecStepsTableTableManager
                 startStash: startStash,
                 gateReport: gateReport,
                 gateAttempts: gateAttempts,
+                body: body,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
