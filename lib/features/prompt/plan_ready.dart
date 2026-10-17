@@ -94,11 +94,18 @@ Future<String> savePlanFile(
   final t = now ?? DateTime.now();
   final day = t.toIso8601String().substring(0, 10);
   final slug = slugify(title, maxLength: 40);
-  final rel = '.promptorium/planos/$day-${slug.isEmpty ? 'plano' : slug}.md';
-  final f = File('$workspacePath/$rel');
-  await f.parent.create(recursive: true);
-  await f.writeAsString('# $title\n\n$plan\n');
-  return rel;
+  final base = '.promptorium/planos/$day-${slug.isEmpty ? 'plano' : slug}';
+  final text = '# $title\n\n$plan\n';
+  // Another plan of the same day and title gets `-2`, `-3`… (the same plan
+  // saved again reuses its file).
+  for (var n = 1; ; n++) {
+    final rel = n == 1 ? '$base.md' : '$base-$n.md';
+    final f = File('$workspacePath/$rel');
+    if (await f.exists() && await f.readAsString() != text) continue;
+    await f.parent.create(recursive: true);
+    await f.writeAsString(text);
+    return rel;
+  }
 }
 
 /// Prompt of the session that implements [plan].
@@ -169,14 +176,22 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
     final c = widget.conversation;
     final ws = await _workspace();
     await savePlanFile(ws.path, c.title, widget.plan);
-    await _deny(_denyForSession);
     if (!mounted) return;
-    ref.read(navigationProvider.notifier).go(AppSection.sessions);
-    await showNewSessionDialog(
+    // Read before the dialog: the card may be gone when it closes.
+    final conversations = ref.read(conversationManagerProvider.notifier);
+    final navigation = ref.read(navigationProvider.notifier);
+    final a = widget.approval;
+    final id = await showNewSessionDialog(
       context,
       title: c.title,
       prompt: implementPrompt(c.title, widget.plan),
     );
+    // Cancelled: the plan stays pending (nothing told to the model yet).
+    if (id == null) return;
+    if (a != null) {
+      await conversations.deny(c.id, a.requestId, message: _denyForSession);
+    }
+    navigation.go(AppSection.sessions);
   });
 
   Future<void> _asSpec() => _run(() async {

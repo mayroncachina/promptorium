@@ -49,6 +49,19 @@ void main() {
       File('${tmp.path}/$rel').readAsStringSync(),
       '# Thinking recolhido\n\n1. x\n',
     );
+    // Same plan again: same file; another plan of the same day and title: -2.
+    Future<String> save(String plan) => savePlanFile(
+      tmp.path,
+      'Thinking recolhido',
+      plan,
+      now: DateTime(2026, 10, 17),
+    );
+    expect(await save('1. x'), rel);
+    expect(
+      await save('1. y'),
+      '.promptorium/planos/2026-10-17-thinking-recolhido-2.md',
+    );
+    expect(File('${tmp.path}/$rel').readAsStringSync(), contains('1. x'));
     expect(implementPrompt('T', 'P'), contains('P'));
   });
 }
