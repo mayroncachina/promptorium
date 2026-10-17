@@ -607,7 +607,9 @@ class ReviewService {
     } on ProcessException catch (e) {
       throw ReviewException('Falha ao executar gh: ${e.message}');
     }
-    if (r.exitCode != 0) {
+    // gh exits 1 when only the local branch could not be deleted (it is
+    // still checked out in the session's worktree): merged all the same.
+    if (r.exitCode != 0 && !await _prMerged(url, c.workspace.path)) {
       throw ReviewException(
         'gh pr merge falhou: ${'${r.stderr}'.trim().isEmpty ? '${r.stdout}'.trim() : '${r.stderr}'.trim()}',
       );
@@ -619,6 +621,13 @@ class ReviewService {
     } on GitException catch (e) {
       debugPrint('worktree ${s.worktreePath} não removido — $e');
     }
+    if (r.exitCode != 0) {
+      try {
+        await _git(ws.path).deleteBranch(s.branch, force: true);
+      } on GitException catch (e) {
+        debugPrint('branch ${s.branch} não removida — $e');
+      }
+    }
     final sessions = _ref.read(sessionsRepoProvider);
     await sessions.setMerged(s.id, url);
     final spec = c.spec;
@@ -626,6 +635,24 @@ class ReviewService {
       await _closeSpec(ws, spec, url, await baseBranchOf(s, ws));
     } else if (c.task != null) {
       await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.done);
+    }
+  }
+
+  /// Whether `gh pr view` reports [url] as merged.
+  Future<bool> _prMerged(String url, String cwd) async {
+    try {
+      final r = await _run('gh', [
+        'pr',
+        'view',
+        url,
+        '--json',
+        'state',
+      ], workingDirectory: cwd);
+      if (r.exitCode != 0) return false;
+      final j = jsonDecode('${r.stdout}');
+      return j is Map && j['state'] == 'MERGED';
+    } on Object {
+      return false;
     }
   }
 

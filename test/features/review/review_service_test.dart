@@ -25,6 +25,9 @@ class FakeCommands {
   bool hasGh;
   bool authed;
 
+  /// `gh pr merge` merges but exits 1 (local branch still checked out).
+  bool mergeExitsWithError = false;
+
   /// Output of `gh pr view --json` (null = the default PR URL output).
   String? prView;
   final calls = <(String, List<String>, String?)>[];
@@ -45,7 +48,9 @@ class FakeCommands {
       return ProcessResult(1, 0, prView ?? '{}', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'pr merge') {
-      return ProcessResult(1, 0, 'merged\n', '');
+      return mergeExitsWithError
+          ? ProcessResult(1, 1, '', 'failed to delete local branch\n')
+          : ProcessResult(1, 0, 'merged\n', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'pr checks') {
       return ProcessResult(1, 0, 'build\tpass\t1m\nlint\tfail\t2s\n', '');
@@ -524,7 +529,16 @@ void main() {
       contains('git merge main'),
     );
 
+    // Merged on GitHub, but gh fails deleting the local branch: still closes.
+    cmds.mergeExitsWithError = true;
+    cmds.prView = jsonEncode({'state': 'MERGED'});
+    final branch = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!
+        .branch;
     await e.review.mergePr(e.sessionId, PrMergeMethod.squash);
+    expect(
+      (await gitIn(e.ws.path, ['branch', '--list', branch])).trim(),
+      isEmpty,
+    );
     final merge = cmds.calls.lastWhere(
       (c) => c.$2.take(2).join(' ') == 'pr merge',
     );
