@@ -153,6 +153,40 @@ void main() {
         ),
       );
       expect(cli.args.last, contains('--dangerously-skip-permissions'));
+      final isolated = (await c
+          .read(sessionsRepoProvider)
+          .getById(
+            (await m.create(
+              NewSessionRequest(
+                workspace: ws,
+                title: 'Isolada 2',
+                prompt: 'oi',
+                permissionMode: ClaudePermissionMode.skipPermissions,
+              ),
+            )),
+          ))!;
+
+      // Leaving "sem perguntar" on an idle process closes it (the flag
+      // cannot be undone live); the next message resumes in the new mode.
+      cli.last.emit(fixtureLines().firstWhere((l) => l.contains('"result"')));
+      await settle();
+      await m.setPermissionMode(isolated.id, ClaudePermissionMode.defaultMode);
+      await settle();
+      expect(m.isAlive(isolated.id), isFalse);
+
+      // A legacy root row in "sem perguntar" forks in the default mode.
+      await c
+          .read(sessionsRepoProvider)
+          .setPermissionMode(
+            root,
+            ClaudePermissionMode.skipPermissions.cliValue,
+          );
+      final fork = await m.fork(root, prompt: 'continua');
+      expect(cli.args.last, isNot(contains('--dangerously-skip-permissions')));
+      expect(
+        (await c.read(sessionsRepoProvider).getById(fork))!.permissionMode,
+        ClaudePermissionMode.defaultMode.cliValue,
+      );
     });
   });
 }

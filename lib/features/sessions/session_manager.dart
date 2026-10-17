@@ -185,10 +185,19 @@ class SessionException implements Exception {
 
 /// Mutable bookkeeping of one running process.
 class _Proc {
-  _Proc(this.process, this.title, this.lastCost);
+  _Proc(
+    this.process,
+    this.title,
+    this.lastCost, {
+    this.skipPermissions = false,
+  });
 
   final ClaudeProcess process;
   String title;
+
+  /// Started with `--dangerously-skip-permissions` (a start flag: a live
+  /// switch to another mode does not undo it).
+  final bool skipPermissions;
 
   /// Highest cumulative `total_cost_usd` seen (the session cost).
   double lastCost;
@@ -231,6 +240,10 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// In-flight [resume] calls (two quick sends must not start two processes).
   final Map<String, Future<void>> _resuming = {};
+
+  /// Removal of the hook files of a process that ended, by session id; a
+  /// quick resume waits for it before writing the new ones.
+  final Map<String, Future<void>> _hookCleanups = {};
 
   /// Notices of manual edits (Código, Fase 10) not delivered yet, by
   /// session id; mirrored in `pending_notices` (schema v9) so closing the
@@ -560,12 +573,31 @@ class SessionManager extends Notifier<SessionManagerState> {
             .addWorktree(sessionSlug(name, newId), baseBranch: parent.branch);
         path = wt.path;
         branch = wt.branch;
-        if (stash != null) await factory(path).stashApply(stash);
+        if (stash != null) {
+          try {
+            await factory(path).stashApply(stash);
+          } on GitException {
+            // No worktree / branch left behind without a session.
+            try {
+              await factory(ws.path).removeWorktree(path, force: true);
+              await factory(ws.path).deleteBranch(branch, force: true);
+            } on GitException catch (e) {
+              debugPrint('worktree $path não removido — $e');
+            }
+            rethrow;
+          }
+        }
         await _setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
     }
+    // "Sem perguntar" never in the workspace root (F12), as in create/resume.
+    final mode = skipOnlyInWorktree(
+      ClaudePermissionMode.fromCli(parent.permissionMode),
+      worktree: path,
+      root: ws.path,
+    );
     await _repo.insert(
       id: newId,
       workspaceId: ws.id,
@@ -575,7 +607,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       effort: parent.effort,
       agentName: parent.agentName,
       title: name,
-      permissionMode: parent.permissionMode,
+      permissionMode: mode?.cliValue ?? parent.permissionMode,
       taskId: parent.taskId,
       // Same merge target as the parent (its worktree came from there).
       baseBranch: parent.worktreePath != ws.path ? parent.baseBranch : null,
@@ -594,7 +626,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         model: _model(parent.model),
         effort: _effort(parent.effort),
         agent: parent.agentName,
-        permissionMode: ClaudePermissionMode.fromCli(parent.permissionMode),
+        permissionMode: mode,
         maxBudgetUsd: limits.budgetUsd,
         maxTurns: limits.maxTurns,
         allowedTools: mcp.allowed,
@@ -699,7 +731,26 @@ class SessionManager extends Notifier<SessionManagerState> {
     // A live process switches now (except to/from "sem perguntar", which is
     // a start flag of the CLI).
     final p = _procs[id];
-    if (p != null && mode != ClaudePermissionMode.skipPermissions) {
+    if (p == null) return;
+    if (p.skipPermissions && mode != ClaudePermissionMode.skipPermissions) {
+      // Leaving "sem perguntar": the process keeps skipping approvals, so an
+      // idle one closes and the next message resumes in [mode].
+      if (!p.busy && p.pending.isEmpty && p.subagents.isEmpty) {
+        await _note(
+          id,
+          'Modo de permissão: ${mode.cliValue} (processo reiniciado na '
+          'próxima mensagem)',
+        );
+        await release(id);
+      } else {
+        await _note(
+          id,
+          'Modo de permissão: ${mode.cliValue} — vale quando a sessão '
+          'reiniciar; este turno continua sem perguntar',
+          error: true,
+        );
+      }
+    } else if (mode != ClaudePermissionMode.skipPermissions) {
       await p.process.setPermissionMode(mode);
       await _note(id, 'Modo de permissão: ${mode.cliValue}');
     }
@@ -812,7 +863,13 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _repo.setStatus(id, SessionStatus.failed);
       throw SessionException('Falha ao iniciar o Claude Code: $e');
     }
-    final p = _Proc(process, title, baseCost);
+    final p = _Proc(
+      process,
+      title,
+      baseCost,
+      skipPermissions:
+          options.permissionMode == ClaudePermissionMode.skipPermissions,
+    );
     _procs[id] = p;
     try {
       await _repo.setPid(id, process.pid);
@@ -893,6 +950,7 @@ class SessionManager extends Notifier<SessionManagerState> {
   }) async {
     final hooks = ref.read(managedHooksProvider);
     if (hooks == null) return null;
+    await _hookCleanups[id];
     try {
       if (!await pythonAvailable()) return null;
       final settings = ref.read(appSettingsProvider.notifier);
@@ -1061,7 +1119,18 @@ class SessionManager extends Notifier<SessionManagerState> {
       }
     }
     if (ref.mounted && !_shuttingDown) await _readHooks(id, p);
-    if (ref.mounted) unawaited(ref.read(managedHooksProvider)?.cleanup(id));
+    final hooks = ref.mounted ? ref.read(managedHooksProvider) : null;
+    if (hooks != null) {
+      final done = hooks.cleanup(id).catchError((Object e) {
+        debugPrint('sessão $id: hooks não removidos — $e');
+      });
+      _hookCleanups[id] = done;
+      unawaited(
+        done.whenComplete(() {
+          if (_hookCleanups[id] == done) _hookCleanups.remove(id);
+        }),
+      );
+    }
     if (!ref.mounted || _shuttingDown) return;
     if (p.released) {
       _publish();
