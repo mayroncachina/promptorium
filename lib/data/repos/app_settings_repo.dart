@@ -42,6 +42,10 @@ abstract final class AppSettingKeys {
 
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
+
+  /// Labels of the last commands run from the palette, newest first, one
+  /// per line (UX v2, U2).
+  static const paletteRecent = 'ui.paletteRecent';
 }
 
 class AppSettingsRepo {

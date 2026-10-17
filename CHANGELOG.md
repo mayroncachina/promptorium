@@ -57,6 +57,7 @@ Todas as mudanças relevantes do Promptorium.
 - **quadro:** Agendamento do Autopilot (F17) (a5056ef)
 - **plataforma:** Cliente ACP (agentes no Prompt), Flatpak e aviso de versão nova (F18) (23a8f3e)
 - **início:** Tela Início "Para você" (aprovações, etapas sem resposta, review, PR com problema, sessões interrompidas) com painel Agora; contadores na barra lateral; Ctrl+1…9 na nova ordem (UX v2, U1)
+- **paleta:** Pendências (Aprovar / Negar / Responder / Abrir review / Retomar) na paleta, prefixos `>` `#` `:`, recentes e cabeçalhos por grupo; folha de atalhos Ctrl+/; Ctrl+Shift+A / Ctrl+Shift+D respondem a pendência mais antiga (UX v2, U2)
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)

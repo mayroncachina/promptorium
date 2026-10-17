@@ -31,6 +31,42 @@ void main() {
     expect(AppSection.skills.shortcutLabel, isNull);
   });
 
+  test('prefixes restrict the groups; recents come first (UX v2)', () {
+    PaletteCommand c(String l, [String g = 'Telas', String? d]) =>
+        PaletteCommand(label: l, group: g, detail: d, run: () {});
+    final all = [
+      c('Aprovar', 'Pendentes', 'SPEC-012 · R3 · Bash · git push'),
+      c('Nova sessão', 'Ações'),
+      c('Ir para Quadro'),
+      c('SPEC-003 · Agentes', 'Specs'),
+      c('Sessão de teste', 'Sessões', 'pr/x'),
+    ];
+    final (g1, t1) = parsePaletteQuery('>apr');
+    expect(g1, ['Pendentes', 'Ações']);
+    expect(t1, 'apr');
+    final (g2, t2) = parsePaletteQuery('  # 003');
+    expect(g2, ['Specs']);
+    expect(t2, '003');
+    final (g3, t3) = parsePaletteQuery('quadro');
+    expect(g3, isNull);
+    expect(t3, 'quadro');
+    expect(filterCommands(all, '>').map((x) => x.label), [
+      'Aprovar',
+      'Nova sessão',
+    ]);
+    expect(filterCommands(all, '#003').single.label, 'SPEC-003 · Agentes');
+    expect(filterCommands(all, ':').single.label, 'Sessão de teste');
+    // The detail is searched too.
+    expect(filterCommands(all, 'git push').single.label, 'Aprovar');
+
+    final withR = withRecents(all, ['Ir para Quadro', 'Sumiu', 'Aprovar']);
+    expect(withR.take(2).map((x) => '${x.group}:${x.label}'), [
+      'Recentes:Ir para Quadro',
+      'Recentes:Aprovar',
+    ]);
+    expect(withR.length, all.length + 2);
+  });
+
   testWidgets('Ctrl+K lists specs, actions and runs "Ir para"', (tester) async {
     final (c, db) = await pumpBoard(tester);
     await tester.runAsync(

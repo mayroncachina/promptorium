@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
+import '../../features/home/home_inbox.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/mcp_state.dart' show mcpListProvider;
@@ -16,6 +17,7 @@ import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
+import '../../features/sessions/session_manager.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/skills/skills_screen.dart';
@@ -32,6 +34,7 @@ import 'editor_zoom.dart';
 import 'global_approvals.dart';
 import 'navigation.dart';
 import 'shell_intents.dart';
+import 'shortcut_sheet.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
 import 'title_bar.dart';
@@ -148,6 +151,41 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  bool _sheetOpen = false;
+
+  Future<void> _openShortcuts() async {
+    if (_sheetOpen) return;
+    _sheetOpen = true;
+    try {
+      await showShortcutSheet(context);
+    } finally {
+      _sheetOpen = false;
+    }
+  }
+
+  /// Ctrl+Shift+A / D: the oldest approval of any session or conversation.
+  Future<void> _answerOldest({required bool approve}) async {
+    final items = [
+      for (final g in ref.read(inboxProvider))
+        if (g.kind == InboxKind.approval) ...g.items,
+    ]..sort((a, b) => a.at.compareTo(b.at));
+    final it = items.firstOrNull;
+    final a = it?.approval;
+    if (it == null || a == null) return;
+    final conv = it.conversationId;
+    if (conv != null) {
+      final m = ref.read(conversationManagerProvider.notifier);
+      await (approve
+          ? m.approve(conv, a.requestId)
+          : m.deny(conv, a.requestId));
+    } else {
+      final m = ref.read(sessionManagerProvider.notifier);
+      await (approve
+          ? m.approve(a.sessionId, a.requestId)
+          : m.deny(a.sessionId, a.requestId));
+    }
+  }
+
   void _zoom(ZoomOp op) {
     final key = ref.read(navigationProvider).editorKey;
     if (key == null) return; // no editor on this screen
@@ -255,6 +293,19 @@ class _AppShellState extends ConsumerState<AppShell> {
               return null;
             },
           ),
+          OpenShortcutsIntent: CallbackAction<OpenShortcutsIntent>(
+            onInvoke: (_) {
+              _openShortcuts();
+              return null;
+            },
+          ),
+          AnswerOldestApprovalIntent:
+              CallbackAction<AnswerOldestApprovalIntent>(
+                onInvoke: (i) {
+                  _answerOldest(approve: i.approve);
+                  return null;
+                },
+              ),
           GoToSectionIntent: CallbackAction<GoToSectionIntent>(
             onInvoke: (i) {
               _goNav(i.section);

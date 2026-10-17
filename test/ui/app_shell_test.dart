@@ -151,6 +151,37 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
   });
 
+  testWidgets('Ctrl+/ and the palette footer open the shortcut sheet', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+    await ctrl(tester, LogicalKeyboardKey.slash);
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsOneWidget);
+    expect(find.text('Paleta de comandos'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('shortcut-sheet-filter')),
+      'zoom',
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Paleta de comandos'), findsNothing);
+    expect(find.text('Zoom + / − / 100%'), findsOneWidget);
+    await tester.tap(find.byTooltip('Fechar'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsNothing);
+
+    await ctrl(tester, LogicalKeyboardKey.keyK);
+    // Group headers and the prefix chips (UX v2).
+    expect(find.byKey(const ValueKey('palette-group-Ações')), findsOneWidget);
+    expect(find.byKey(const ValueKey('palette-group-Telas')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('palette-chip->')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('palette-group-Telas')), findsNothing);
+    expect(find.text('Nova sessão'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('palette-shortcuts')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('shortcut-sheet')), findsOneWidget);
+  });
+
   testWidgets('Ctrl+K opens the palette and a command navigates', (
     tester,
   ) async {

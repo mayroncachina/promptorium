@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
@@ -160,5 +161,31 @@ void main() {
     expect(find.byKey(const ValueKey('global-approvals')), findsOneWidget);
     expect(find.byKey(const ValueKey('home-now')), findsOneWidget);
     expect(find.byKey(const ValueKey('home-running-s1')), findsOneWidget);
+
+    // Ctrl+K lists the approval under "Pendentes"; Ctrl+Shift+D denies the
+    // oldest one from anywhere (U2).
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpFor(tester, 3);
+    expect(
+      find.byKey(const ValueKey('palette-group-Pendentes')),
+      findsOneWidget,
+    );
+    expect(find.text('Aprovar'), findsWidgets);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await pumpFor(tester, 3);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('home-group-approval')), findsNothing);
+    expect(find.byKey(const ValueKey('nav-badge-sessions')), findsNothing);
+    expect(
+      cli.last.writtenJson.last['response']['response']['behavior'],
+      'deny',
+    );
   });
 }
