@@ -63,6 +63,7 @@ Todas as mudanças relevantes do Promptorium.
 - **specs:** Clicar numa etapa abre o painel de rastreabilidade (critérios com quem marcou, gate, design usado, commits da etapa, sessão, "Ver diff da etapa" já filtrado no Review, "Refazer a partir daqui") (UX v2, U5)
 - **projeto:** Aba Saúde (métricas das últimas specs, gate por spec, memória com origem e data, como o Promptorium trabalha aqui) e "Analisar repositório" (detecta Flutter/Dart, Node, Python, Rust, Go, Makefile; preenche só os campos vazios do config e anota a memória) (UX v2, U6)
 - **projeto:** Tela "Começar" no lugar do diálogo de Novo projeto: abrir pasta, criar (com modelos Flutter / Next.js / API Python / CLI Dart que preenchem config.yml, CLAUDE.md e fixam a stack para o planner; "Criar sem planejar") ou clonar; na Visão, "Gerar proposta completa" (visão, stack e roadmap de uma vez) (UX v2, U7)
+- **quadro:** Painel lateral no clique do cartão (no lugar do diálogo), cartões que pedem atenção no topo da coluna, Backlog em "Prontas · onda N" / "Bloqueadas", "Em execução N / limite" do Autopilot, barra de etapas segmentada, filtros Precisam de mim / fase / agente e faixa do Autopilot (paralelo, onda, gasto do dia) (UX v2, U8)
 - **sessoes:** Indicador de atividade e suspensão por inatividade (04c5235)
 - **rodape:** Uso do plano atualizado sem gastar tokens (a525a5b)
 - **menu:** Review e Código acima de Agentes (a7094ad)

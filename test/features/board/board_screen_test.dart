@@ -146,9 +146,11 @@ void main() {
     // Moved by hand with steps left: it can still run.
     expect(find.byKey(const ValueKey('board-run-SPEC-003')), findsOneWidget);
 
+    // Clicking the card opens the side panel (UX v2, U8).
     await tester.tap(find.byKey(const ValueKey('board-open-SPEC-002')));
     await pumpFor(tester);
-    expect(find.byKey(const ValueKey('spec-detail-dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey('board-side-panel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-detail-dialog')), findsNothing);
     expect(text(tester, 'steps-progress'), '1/3 etapas');
     expect(text(tester, 'step-status-R1'), 'concluída');
     expect(text(tester, 'step-status-R2'), 'aguardando você');
@@ -163,6 +165,39 @@ void main() {
     await pumpFor(tester);
     final spec = await c.read(specsRepoProvider).getByCode(1, 'SPEC-002');
     expect(spec!.autoAdvance, isFalse);
+    await tester.tap(find.byKey(const ValueKey('board-side-close')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-side-panel')), findsNothing);
+  });
+
+  testWidgets('filters, backlog groups, attention first and segments '
+      '(UX v2, U8)', (tester) async {
+    await pumpBoard(tester);
+    // Backlog: SPEC-003 is ready, SPEC-004 blocked by SPEC-002.
+    expect(
+      find.byKey(const ValueKey('board-group-Prontas · onda 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('board-group-Bloqueadas · onda 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('board-segments-SPEC-002')),
+      findsOneWidget,
+    );
+    expect(text(tester, 'board-strip'), '1 em execução · onda 1 de 2 · \$0.00 hoje');
+    // "Precisam de mim": only SPEC-002 (R2 waits for the user).
+    expect(find.text('Precisam de mim · 1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('board-filter-attention')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-card-SPEC-002')), findsOneWidget);
+    expect(find.byKey(const ValueKey('board-card-SPEC-003')), findsNothing);
+    expect(find.byKey(const ValueKey('board-card-SPEC-001')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('board-filter-attention')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-card-SPEC-003')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('dragging a card changes its stage; old tasks show a banner', (

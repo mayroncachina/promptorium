@@ -11,6 +11,7 @@ import '../specs/workspace_watcher.dart';
 import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
 import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
+import '../project/project_config.dart' show projectConfigProvider;
 import 'autopilot.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart' show specRunnerProvider, worktreePrepProvider;
@@ -78,6 +79,70 @@ class SpecCardData {
       steps.where((s) => !s.isDone).firstOrNull;
 }
 
+/// Card open in the side panel of the Quadro (UX v2, U8; null = none).
+class BoardSelectedSpec extends Notifier<int?> {
+  @override
+  int? build() => null;
+
+  void select(int? id) => state = id;
+}
+
+final boardSelectedSpecProvider = NotifierProvider<BoardSelectedSpec, int?>(
+  BoardSelectedSpec.new,
+);
+
+/// Filters of the Quadro (UX v2, U8): only cards that need the user, one
+/// phase, one agent (null = any).
+@immutable
+class BoardFilter {
+  const BoardFilter({this.attention = false, this.phase, this.agent});
+
+  final bool attention;
+  final String? phase;
+  final String? agent;
+
+  bool get isEmpty => !attention && phase == null && agent == null;
+
+  BoardFilter copyWith({
+    bool? attention,
+    String? Function()? phase,
+    String? Function()? agent,
+  }) => BoardFilter(
+    attention: attention ?? this.attention,
+    phase: phase == null ? this.phase : phase(),
+    agent: agent == null ? this.agent : agent(),
+  );
+}
+
+class BoardFilterController extends Notifier<BoardFilter> {
+  @override
+  BoardFilter build() => const BoardFilter();
+
+  void set(BoardFilter f) => state = f;
+}
+
+final boardFilterProvider =
+    NotifierProvider<BoardFilterController, BoardFilter>(
+      BoardFilterController.new,
+    );
+
+/// Whether the card waits for the user: a step in `needs_input`, a pending
+/// approval, a failed worktree preparation, the spec changed on disk or an
+/// A/B ready to compare.
+bool needsAttention(
+  SpecCardData d, {
+  required bool waitingApproval,
+  required bool prepFailed,
+  required bool changedOnDisk,
+  required bool duelReady,
+}) =>
+    d.spec.stage != SpecStage.done &&
+    (d.current?.status == StepStatus.needsInput ||
+        waitingApproval ||
+        prepFailed ||
+        changedOnDisk ||
+        duelReady);
+
 /// "Grafo" (dependency waves) instead of the columns.
 class BoardGraphView extends Notifier<bool> {
   @override
@@ -138,36 +203,130 @@ class BoardScreen extends ConsumerWidget {
     final drafts = specs
         .where((s) => s.status != SpecStatus.archived && !isOnBoard(s))
         .length;
+    final filter = ref.watch(boardFilterProvider);
+    final manager = ref.watch(sessionManagerProvider);
+    final preps = ref.watch(worktreePrepProvider);
+    final changed = ref.watch(workspaceWatcherProvider);
+    final duels = ref.watch(openDuelsProvider(ws.id)).value ?? const [];
+    bool attention(SpecCardData d) {
+      final last = d.lastSession;
+      return needsAttention(
+        d,
+        waitingApproval:
+            last != null &&
+            manager.isAlive(last.id) &&
+            last.status == SessionStatus.waitingApproval,
+        prepFailed: preps[d.spec.id]?.error != null,
+        changedOnDisk: changed.contains(d.spec.id),
+        duelReady: duels.any(
+          (x) => x.specId == d.spec.id && x.state == 'pronto',
+        ),
+      );
+    }
+
+    final attentionCount = cards.where(attention).length;
+    final visible = [
+      for (final d in cards)
+        if ((!filter.attention || attention(d)) &&
+            (filter.phase == null || d.spec.phase == filter.phase) &&
+            (filter.agent == null || d.spec.agentName == filter.agent))
+          d,
+    ];
+    final parallel = ref
+        .watch(projectConfigProvider(ws.path))
+        .value
+        ?.autopilot
+        .parallel;
+    final selectedId = ref.watch(boardSelectedSpecProvider);
+    final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
+    final body = cards.isEmpty
+        ? _Empty(
+            drafts == 0
+                ? 'Nenhuma spec ainda. Crie uma em Specs ou planeje '
+                      'o projeto em Projeto.'
+                : 'Nenhuma spec aprovada. Aprove uma spec na tela '
+                      'Specs para ela entrar no quadro.',
+          )
+        : visible.isEmpty
+        ? const _Empty('Nenhum cartão passa pelos filtros.')
+        : ref.watch(boardGraphViewProvider)
+        ? WaveGraph(
+            specs: [for (final d in visible) d.spec],
+            highlightNext: ref.watch(
+              autopilotProvider.select((s) => s.contains(ws.id)),
+            ),
+            cardBuilder: (spec) =>
+                SpecCard(data: visible.firstWhere((d) => d.spec == spec)),
+          )
+        : _Board(
+            cards: visible,
+            all: [for (final d in cards) d.spec],
+            attention: attention,
+            parallel: parallel,
+          );
     return ColoredBox(
       color: AppColors.background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _Header(workspaceId: ws.id, total: cards.length, drafts: drafts),
+          _Header(
+            workspaceId: ws.id,
+            workspacePath: ws.path,
+            total: cards.length,
+            drafts: drafts,
+            cards: cards,
+            attentionCount: attentionCount,
+            parallel: parallel,
+          ),
           if (legacy.isNotEmpty)
             _LegacyBanner(
               count: legacy.length,
               onOpen: () => showLegacyTasksDialog(context, ws, legacy),
             ),
           Expanded(
-            child: cards.isEmpty
-                ? _Empty(
-                    drafts == 0
-                        ? 'Nenhuma spec ainda. Crie uma em Specs ou planeje '
-                              'o projeto em Projeto.'
-                        : 'Nenhuma spec aprovada. Aprove uma spec na tela '
-                              'Specs para ela entrar no quadro.',
-                  )
-                : ref.watch(boardGraphViewProvider)
-                ? WaveGraph(
-                    specs: [for (final d in cards) d.spec],
-                    highlightNext: ref.watch(
-                      autopilotProvider.select((s) => s.contains(ws.id)),
-                    ),
-                    cardBuilder: (spec) =>
-                        SpecCard(data: cards.firstWhere((d) => d.spec == spec)),
-                  )
-                : _Board(cards: cards),
+            child: selected == null
+                ? body
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: body),
+                      Container(
+                        key: const ValueKey('board-side-panel'),
+                        width: 360,
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: AppColors.panel,
+                          border: Border(
+                            left: BorderSide(color: AppColors.border),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                key: const ValueKey('board-side-close'),
+                                tooltip: 'Fechar',
+                                iconSize: 16,
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: AppColors.textSecondary,
+                                ),
+                                onPressed: () => ref
+                                    .read(boardSelectedSpecProvider.notifier)
+                                    .select(null),
+                              ),
+                            ),
+                            Expanded(
+                              child: SpecStepsPanel(specId: selected.spec.id),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -196,13 +355,21 @@ class _Empty extends StatelessWidget {
 class _Header extends ConsumerWidget {
   const _Header({
     required this.workspaceId,
+    required this.workspacePath,
     required this.total,
     required this.drafts,
+    required this.cards,
+    required this.attentionCount,
+    required this.parallel,
   });
 
   final int workspaceId;
+  final String workspacePath;
   final int total;
   final int drafts;
+  final List<SpecCardData> cards;
+  final int attentionCount;
+  final int? parallel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -210,8 +377,117 @@ class _Header extends ConsumerWidget {
       autopilotProvider.select((s) => s.contains(workspaceId)),
     );
     final pilot = ref.read(autopilotProvider.notifier);
+    final filter = ref.watch(boardFilterProvider);
+    final filters = ref.read(boardFilterProvider.notifier);
+    final phases = {for (final d in cards) ?d.spec.phase}.toList()..sort();
+    final agents = {for (final d in cards) ?d.spec.agentName}.toList()..sort();
+    // Autopilot strip: running / limit, wave, spent today.
+    final specs = [for (final d in cards) d.spec];
+    final waves = dependencyWaves(specs);
+    final next = nextWave(specs, waves);
+    final waveCount = waves.isEmpty
+        ? 0
+        : waves.values.fold(0, (m, v) => v > m ? v : m) + 1;
+    final running = cards
+        .where((d) => d.spec.stage == SpecStage.running)
+        .length;
+    final now = DateTime.now();
+    final day = DateTime(now.year, now.month, now.day);
+    final spent = cards.fold<double>(
+      0,
+      (a, d) =>
+          a +
+          d.sessions
+              .where((s) => !s.startedAt.isBefore(day))
+              .fold(0.0, (x, s) => x + s.costUsd),
+    );
+    final budget = ref
+        .watch(projectConfigProvider(workspacePath))
+        .value
+        ?.autopilot
+        .dailyBudgetUsd;
+    final strip = [
+      parallel == null
+          ? '$running em execução'
+          : '$running de $parallel em paralelo',
+      if (next != null && waveCount > 1) 'onda ${next + 1} de $waveCount',
+      '${formatCost(spent)}${budget == null ? '' : ' / ${formatCost(budget)}'} hoje',
+    ].join(' · ');
+
+    Widget chip(String label, bool on, VoidCallback onTap, String keyName) =>
+        Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: Material(
+            key: ValueKey('board-filter-$keyName'),
+            color: on ? AppColors.amberTint : Colors.transparent,
+            shape: StadiumBorder(
+              side: BorderSide(color: on ? AppColors.amber : AppColors.border),
+            ),
+            child: InkWell(
+              customBorder: const StadiumBorder(),
+              onTap: onTap,
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: on ? AppColors.amber : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+    Widget menuChip<T>(
+      String label,
+      T? value,
+      List<T> options,
+      void Function(T?) onPick,
+      String keyName,
+    ) => PopupMenuButton<String>(
+      key: ValueKey('board-filter-$keyName'),
+      tooltip: label,
+      color: AppColors.panel,
+      onSelected: (v) =>
+          onPick(v == '' ? null : options.firstWhere((o) => '$o' == v)),
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: '',
+          child: Text('todas', style: TextStyle(fontSize: 12)),
+        ),
+        for (final o in options)
+          PopupMenuItem(
+            value: '$o',
+            child: Text('$o', style: const TextStyle(fontSize: 12)),
+          ),
+      ],
+      child: Container(
+        height: 26,
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: value == null ? Colors.transparent : AppColors.amberTint,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: value == null ? AppColors.border : AppColors.amber,
+          ),
+        ),
+        child: Text(
+          '$label: ${value ?? 'todas'}',
+          style: TextStyle(
+            fontSize: 11,
+            color: value == null ? AppColors.textSecondary : AppColors.amber,
+          ),
+        ),
+      ),
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -231,16 +507,45 @@ class _Header extends ConsumerWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const SizedBox(width: 12),
-          const Expanded(
+          const SizedBox(width: 14),
+          chip(
+            attentionCount == 0
+                ? 'Precisam de mim'
+                : 'Precisam de mim · $attentionCount',
+            filter.attention,
+            () => filters.set(filter.copyWith(attention: !filter.attention)),
+            'attention',
+          ),
+          if (phases.isNotEmpty)
+            menuChip(
+              'Fase',
+              filter.phase,
+              phases,
+              (v) => filters.set(filter.copyWith(phase: () => v)),
+              'phase',
+            ),
+          if (agents.isNotEmpty)
+            menuChip(
+              'Agente',
+              filter.agent,
+              agents,
+              (v) => filters.set(filter.copyWith(agent: () => v)),
+              'agent',
+            ),
+          Expanded(
             child: Text(
-              'Cada cartão é uma spec (uma branch, um PR); os requisitos são as '
-              'etapas, executadas uma por sessão.',
+              on ? 'Autopilot · $strip' : strip,
+              key: const ValueKey('board-strip'),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                color: on ? AppColors.teal : AppColors.textMuted,
+              ),
             ),
           ),
+          const SizedBox(width: 10),
           if (drafts > 0)
             Text(
               '$drafts em rascunho fora do quadro',
@@ -341,9 +646,19 @@ class _LegacyBanner extends StatelessWidget {
 }
 
 class _Board extends StatelessWidget {
-  const _Board({required this.cards});
+  const _Board({
+    required this.cards,
+    required this.all,
+    required this.attention,
+    required this.parallel,
+  });
 
   final List<SpecCardData> cards;
+
+  /// Every spec of the board (dependency waves of the Backlog groups).
+  final List<Spec> all;
+  final bool Function(SpecCardData) attention;
+  final int? parallel;
 
   static const _gap = 14.0;
   static const _pad = 20.0;
@@ -370,10 +685,15 @@ class _Board extends StatelessWidget {
                   child: _Column(
                     stage: s,
                     width: colW,
-                    cards: orderedCards([
-                      for (final d in cards)
-                        if (d.spec.stage == s) d,
-                    ]),
+                    cards: attentionFirst(
+                      orderedCards([
+                        for (final d in cards)
+                          if (d.spec.stage == s) d,
+                      ]),
+                      attention,
+                    ),
+                    waves: s == SpecStage.backlog ? dependencyWaves(all) : null,
+                    limit: s == SpecStage.running ? parallel : null,
                   ),
                 ),
               ],
@@ -390,16 +710,70 @@ class _Board extends StatelessWidget {
   );
 }
 
+/// Cards that wait for the user first, the rest in their saved order
+/// (UX v2, U8).
+List<SpecCardData> attentionFirst(
+  List<SpecCardData> cards,
+  bool Function(SpecCardData) attention,
+) => [
+  for (final d in cards)
+    if (attention(d)) d,
+  for (final d in cards)
+    if (!attention(d)) d,
+];
+
+/// Rows of a column: a group label ("Prontas · onda 2", "Bloqueadas") or a
+/// card. Only the Backlog is grouped.
+List<Object> columnRows(
+  SpecStage stage,
+  List<SpecCardData> cards,
+  Map<int, int>? waves,
+) {
+  if (stage != SpecStage.backlog || waves == null) return cards;
+  final ready = [
+    for (final d in cards)
+      if (d.blockers.isEmpty) d,
+  ];
+  final blocked = [
+    for (final d in cards)
+      if (d.blockers.isNotEmpty) d,
+  ];
+  String wave(List<SpecCardData> list) {
+    final ws = {for (final d in list) (waves[d.spec.id] ?? 0) + 1}.toList()
+      ..sort();
+    return ws.isEmpty
+        ? ''
+        : ws.length == 1
+        ? ' · onda ${ws.single}'
+        : ' · ondas ${ws.first}–${ws.last}';
+  }
+
+  return [
+    if (ready.isNotEmpty) 'Prontas${wave(ready)}',
+    ...ready,
+    if (blocked.isNotEmpty) 'Bloqueadas${wave(blocked)}',
+    ...blocked,
+  ];
+}
+
 class _Column extends ConsumerWidget {
   const _Column({
     required this.stage,
     required this.width,
     required this.cards,
+    this.waves,
+    this.limit,
   });
 
   final SpecStage stage;
   final double width;
   final List<SpecCardData> cards;
+
+  /// Dependency waves (Backlog only: "Prontas · onda N" / "Bloqueadas").
+  final Map<int, int>? waves;
+
+  /// `autopilot.paralelo` (Em execução only: "3 / 3").
+  final int? limit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => DragTarget<int>(
@@ -435,14 +809,25 @@ class _Column extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${cards.length}',
+                  limit == null
+                      ? '${cards.length}'
+                      : '${cards.length} / $limit',
                   key: ValueKey('board-column-count-${stage.name}'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppFonts.mono,
                     fontSize: 11,
-                    color: AppColors.textSecondary,
+                    color: limit != null && cards.length >= limit!
+                        ? AppColors.amber
+                        : AppColors.textSecondary,
                   ),
                 ),
+                if (limit != null) ...[
+                  const Spacer(),
+                  const Text(
+                    'limite do Autopilot',
+                    style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                  ),
+                ],
               ],
             ),
           ),
@@ -458,10 +843,25 @@ class _Column extends ConsumerWidget {
                     ),
                   )
                 : ListView.separated(
-                    itemCount: cards.length,
+                    itemCount: columnRows(stage, cards, waves).length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final d = cards[i];
+                    itemBuilder: (_, r) {
+                      final row = columnRows(stage, cards, waves)[r];
+                      if (row is String) {
+                        return Padding(
+                          key: ValueKey('board-group-$row'),
+                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                          child: Text(
+                            row,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        );
+                      }
+                      final d = row as SpecCardData;
+                      final i = cards.indexOf(d);
                       Future<void> move(int delta) async {
                         final ids = [for (final c in cards) c.spec.id];
                         final j = i + delta;
@@ -608,16 +1008,24 @@ class SpecCard extends ConsumerWidget {
         total > 0 &&
         done < total &&
         spec.stage != SpecStage.done;
+    final selected = ref.watch(boardSelectedSpecProvider) == spec.id;
     return InkWell(
       key: ValueKey('board-open-${spec.code}'),
       borderRadius: BorderRadius.circular(8),
-      onTap: () => showSpecDetailDialog(context, spec.id),
+      // The side panel (U8): same card again closes it.
+      onTap: () => ref
+          .read(boardSelectedSpecProvider.notifier)
+          .select(selected ? null : spec.id),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
+          color: selected ? SessionColors.selectedBg : AppColors.surfaceRaised,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: border),
+          border: Border.all(
+            color: selected && border == AppColors.border
+                ? SessionColors.selectedBorder
+                : border,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -664,7 +1072,12 @@ class SpecCard extends ConsumerWidget {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
-            _Progress(done: done, total: total, specCode: spec.code),
+            _Progress(
+              done: done,
+              total: total,
+              specCode: spec.code,
+              steps: data.steps,
+            ),
             Builder(
               builder: (context) {
                 final subs = watchSubagentStatuses(
@@ -859,30 +1272,58 @@ class _AgentAvatar extends StatelessWidget {
   );
 }
 
+/// Colour of one segment of the card's progress (UX v2, U8).
+Color stepSegmentColor(StepView s) => s.gateFailed
+    ? AppColors.red
+    : switch (s.status) {
+        StepStatus.done => AppColors.teal,
+        StepStatus.running || StepStatus.verifying => AppColors.amber,
+        StepStatus.needsInput => AppColors.red,
+        StepStatus.pending => AppColors.border,
+      };
+
 class _Progress extends StatelessWidget {
   const _Progress({
     required this.done,
     required this.total,
     required this.specCode,
+    required this.steps,
   });
 
   final int done;
   final int total;
   final String specCode;
+  final List<StepView> steps;
 
   @override
   Widget build(BuildContext context) => Row(
     children: [
       Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: total == 0 ? 0 : done / total,
-            minHeight: 5,
-            backgroundColor: AppColors.border,
-            color: done == total && total > 0 ? AppColors.blue : AppColors.teal,
-          ),
-        ),
+        child: steps.isEmpty
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: const LinearProgressIndicator(
+                  value: 0,
+                  minHeight: 5,
+                  backgroundColor: AppColors.border,
+                ),
+              )
+            : Row(
+                key: ValueKey('board-segments-$specCode'),
+                children: [
+                  for (final (i, s) in steps.indexed)
+                    Expanded(
+                      child: Container(
+                        height: 5,
+                        margin: EdgeInsets.only(left: i == 0 ? 0 : 3),
+                        decoration: BoxDecoration(
+                          color: stepSegmentColor(s),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
       ),
       const SizedBox(width: 8),
       Text(
@@ -952,7 +1393,7 @@ class _CardMenu extends ConsumerWidget {
             case 'auto':
               await repo.setAutoAdvance(spec.id, !spec.autoAdvance);
             case 'details':
-              if (context.mounted) await showSpecDetailDialog(context, spec.id);
+              ref.read(boardSelectedSpecProvider.notifier).select(spec.id);
             case 'duel':
               final messenger = ScaffoldMessenger.maybeOf(context);
               try {
