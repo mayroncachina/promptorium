@@ -332,7 +332,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             },
           ),
         },
-        child: Focus(
+        // A scope, not a plain Focus: when the focused widget goes away (a
+        // field of a screen left behind, a dialog closed) focus falls back to
+        // this scope, inside the Shortcuts above. Falling back to the route's
+        // scope (above them) left every global shortcut dead.
+        child: FocusScope(
           autofocus: true,
           child: Scaffold(
             backgroundColor: AppColors.background,
