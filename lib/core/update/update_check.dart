@@ -5,9 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../config/app_info.dart';
 
-/// Version of this build (keep in sync with `pubspec.yaml`).
-const appVersion = '0.2.0';
+/// Version of this build ([AppInfo.version], kept in sync with `pubspec.yaml`).
+const appVersion = AppInfo.version;
 
 /// Releases of the project on GitHub.
 const releasesApi =
