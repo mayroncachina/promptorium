@@ -51,6 +51,88 @@ class UpdateInstaller {
     }
   }
 
+  /// Installs the downloaded [file], closes the database through
+  /// [closeDatabase] and restarts the app, in that order. Throws (before
+  /// closing anything) when the installation fails.
+  Future<void> installAndRestart(
+    File file, {
+    required Future<void> Function() closeDatabase,
+  }) async {
+    await install(file);
+    await closeDatabase();
+    await restart();
+  }
+
+  /// `.deb`: `pkexec apt install`; `.tar.gz`: extracted over the executable's
+  /// directory when it is writable.
+  Future<void> install(File file) async {
+    final name = file.path.toLowerCase();
+    if (name.endsWith('.deb')) {
+      if (!await hasPkexec()) {
+        throw const FileSystemException(
+          'pkexec não encontrado; não dá para instalar o .deb.',
+        );
+      }
+      final r = await Process.run('pkexec', [
+        'apt',
+        'install',
+        '-y',
+        file.path,
+      ]);
+      if (r.exitCode != 0) {
+        throw ProcessException(
+          'pkexec',
+          ['apt', 'install'],
+          '${r.stderr}'.trim(),
+          r.exitCode,
+        );
+      }
+    } else if (name.endsWith('.tar.gz')) {
+      final dir = File(Platform.resolvedExecutable).parent;
+      if (!await _writable(dir)) {
+        throw FileSystemException('Sem permissão de escrita em ${dir.path}.');
+      }
+      // The archive has a single top-level directory (see scripts/package.sh).
+      final r = await Process.run('tar', [
+        '-xzf',
+        file.path,
+        '-C',
+        dir.path,
+        '--strip-components=1',
+      ]);
+      if (r.exitCode != 0) {
+        throw ProcessException(
+          'tar',
+          ['-xzf'],
+          '${r.stderr}'.trim(),
+          r.exitCode,
+        );
+      }
+    } else {
+      throw const FileSystemException('Formato de pacote não suportado.');
+    }
+  }
+
+  /// Starts a detached copy of the app and exits this one.
+  Future<void> restart() async {
+    await Process.start(
+      Platform.resolvedExecutable,
+      const [],
+      mode: ProcessStartMode.detached,
+    );
+    exit(0);
+  }
+
+  static Future<bool> _writable(Directory dir) async {
+    try {
+      final probe = await File('${dir.path}/.promptorium-write-test').create();
+      await probe.delete();
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  }
+
   /// Downloads [asset] into a new, empty temporary directory, emitting
   /// progress; the last event carries the file.
   Stream<DownloadProgress> download(ReleaseAsset asset) async* {

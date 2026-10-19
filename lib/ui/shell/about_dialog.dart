@@ -6,6 +6,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/update/installer.dart';
+import '../../data/providers.dart';
 import '../../core/update/update_check.dart';
 import '../theme/tokens.dart';
 
@@ -252,6 +253,7 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
   DownloadProgress? _progress;
   File? _file;
   String? _error;
+  bool _installing = false;
 
   @override
   void initState() {
@@ -278,9 +280,17 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
           _file = p.file;
         });
       }
+      final file = _file;
+      if (file == null || !mounted) return;
+      setState(() => _installing = true);
+      final db = ref.read(appDatabaseProvider);
+      await installer.installAndRestart(file, closeDatabase: db.close);
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e is FileSystemException ? e.message : '$e');
+        setState(() {
+          _installing = false;
+          _error = e is FileSystemException ? e.message : '$e';
+        });
       }
     }
   }
@@ -305,7 +315,9 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _file != null
+                  _installing
+                      ? 'Instalando e reiniciando…'
+                      : _file != null
                       ? 'Download concluído.'
                       : fraction == null
                       ? 'Baixando…'
@@ -316,7 +328,7 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
               ],
             ),
       actions: [
-        if (_error != null || _file != null)
+        if (_error != null)
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Fechar'),

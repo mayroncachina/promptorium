@@ -56,4 +56,51 @@ void main() {
     expect(file.parent.listSync().length, 1);
     expect(await file.readAsBytes(), data);
   });
+
+  test(
+    'installAndRestart installs, closes the database, then restarts',
+    () async {
+      final calls = <String>[];
+      await _Recording(calls).installAndRestart(
+        File('/tmp/p.deb'),
+        closeDatabase: () async => calls.add('close'),
+      );
+      expect(calls, ['install', 'close', 'restart']);
+    },
+  );
+
+  test('a failed install neither closes the database nor restarts', () async {
+    final calls = <String>[];
+    await expectLater(
+      _Recording(calls, fail: true).installAndRestart(
+        File('/tmp/p.deb'),
+        closeDatabase: () async => calls.add('close'),
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(calls, ['install']);
+  });
+
+  test('install rejects an unsupported package format', () async {
+    await expectLater(
+      const UpdateInstaller().install(File('/tmp/p.zip')),
+      throwsA(isA<FileSystemException>()),
+    );
+  });
+}
+
+class _Recording extends UpdateInstaller {
+  _Recording(this.calls, {this.fail = false});
+
+  final List<String> calls;
+  final bool fail;
+
+  @override
+  Future<void> install(File file) async {
+    calls.add('install');
+    if (fail) throw const FileSystemException('x');
+  }
+
+  @override
+  Future<void> restart() async => calls.add('restart');
 }

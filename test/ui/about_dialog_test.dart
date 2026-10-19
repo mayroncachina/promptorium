@@ -325,7 +325,8 @@ void main() {
     expect(find.text('50%'), findsOneWidget);
     gate.complete();
     await tester.pumpAndSettle();
-    expect(find.text('Download concluído.'), findsOneWidget);
+    expect(find.text('Instalando e reiniciando…'), findsOneWidget);
+    expect(fake.calls, ['install', 'closeDatabase', 'restart']);
   });
 
   testWidgets('without a compatible asset the download dialog shows an error', (
@@ -362,6 +363,24 @@ class _FakeInstaller extends UpdateInstaller {
 
   final Future<void> gate;
   final downloaded = <String>[];
+  final calls = <String>[];
+
+  @override
+  Future<void> install(File file) async => calls.add('install');
+
+  @override
+  Future<void> restart() async => calls.add('restart');
+
+  @override
+  Future<void> installAndRestart(
+    File file, {
+    required Future<void> Function() closeDatabase,
+  }) => super.installAndRestart(
+    file,
+    closeDatabase: () async {
+      calls.add('closeDatabase');
+    },
+  );
 
   @override
   Future<bool> hasPkexec() async => true;
