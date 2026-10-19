@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/update/update_check.dart';
+import 'package:promptorium/ui/shell/about_dialog.dart';
 import 'package:promptorium/ui/shell/shortcut_sheet.dart';
 
 import 'app_shell_test.dart' show pumpShell;
@@ -122,5 +127,38 @@ void main() {
     expect(find.byType(Dialog), findsOneWidget);
     await _f1(tester);
     expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('the changelog renders from the asset and scrolls with the '
+      'network failing', (tester) async {
+    var fetches = 0;
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          releaseFetcherProvider.overrideWithValue((_) async {
+            fetches++;
+            throw const SocketException('sem rede');
+          }),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: AboutPromptoriumDialog()),
+        ),
+      ),
+    );
+    await _expectAbout(tester);
+    expect(fetches, 0);
+
+    final scroll = find.byKey(const ValueKey('about-changelog'));
+    final view = tester.state<ScrollableState>(
+      find.descendant(of: scroll, matching: find.byType(Scrollable)),
+    );
+    expect(view.position.maxScrollExtent, greaterThan(0));
+    await tester.drag(scroll, const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(view.position.pixels, greaterThan(0));
   });
 }
