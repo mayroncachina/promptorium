@@ -6,6 +6,7 @@ import '../../core/claude/run_prefs.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../project/project_config.dart';
+import 'git_accounts_view.dart';
 
 /// Sections of Configurações (UX v2, U9; docs/mockups/v2/Configuracoes.dc.html):
 /// the App group and the Workspace group, each entry with the words that
@@ -57,6 +58,16 @@ enum SettingsSection {
     'atualização',
     'release',
     'github',
+  ]),
+  gitAccounts('GitHub e GitLab', SettingsGroup.app, [
+    'github',
+    'gitlab',
+    'token',
+    'conta',
+    'git',
+    'gh',
+    'glab',
+    'cli',
   ]),
   project('Configuração do projeto', SettingsGroup.workspace, [
     'specs',
@@ -123,6 +134,9 @@ bool sectionChanged(
       (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,
     SettingsSection.backups => false,
     SettingsSection.updates => settings[UpdateChecker.enabledKey] == '0',
+    SettingsSection.gitAccounts => GitProvider.values.any(
+      (p) => gitAccountLogin(settings, p) != null,
+    ),
     SettingsSection.project => config != null && !config.isDefault,
   };
 }

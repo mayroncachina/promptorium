@@ -10,6 +10,7 @@ import '../project/widgets/project_config_view.dart';
 import '../sessions/widgets/session_style.dart';
 import 'automations_view.dart';
 import 'backups_view.dart';
+import 'git_accounts_view.dart';
 import 'providers_view.dart';
 import 'settings_sections.dart';
 
@@ -187,6 +188,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       'Verificação de versão nova no GitHub Releases, uma vez '
                       'por dia, sem instalar nada sozinha.',
                   children: [UpdatesCard()],
+                ),
+                SettingsSection.gitAccounts => _Page(
+                  title: 'GitHub e GitLab',
+                  intro:
+                      'Contas conectadas por token de acesso pessoal; os dois '
+                      'provedores são independentes.',
+                  children: [
+                    for (final p in GitProvider.values)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GitAccountCard(provider: p),
+                      ),
+                  ],
                 ),
                 SettingsSection.project =>
                   ws == null
