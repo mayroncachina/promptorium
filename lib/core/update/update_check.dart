@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../data/providers.dart';
-import '../config/app_info.dart';
 
 /// Version of the installed app (`PackageInfo.version`); `0.0.0` when it
 /// can't be read.
