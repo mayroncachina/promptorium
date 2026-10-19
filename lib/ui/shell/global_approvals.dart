@@ -100,8 +100,12 @@ class GlobalApprovals extends ConsumerWidget {
         ref.read(selectedConversationProvider.notifier).select(conv);
         ref.read(navigationProvider.notifier).go(AppSection.prompt);
       },
-      onApprove: ({required bool always}) =>
-          manager.approve(conv, a.requestId, always: always),
+      onApprove: ({required bool always, input}) => manager.approve(
+        conv,
+        a.requestId,
+        always: always,
+        updatedInput: input,
+      ),
       onDeny: () => manager.deny(conv, a.requestId),
     );
   }

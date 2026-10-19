@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,5 +93,94 @@ void main() {
     expect(resp['response']['response']['behavior'], 'allow');
     expect(find.byKey(const ValueKey('global-approvals')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an AskUserQuestion shows its options and sends the answers '
+      'as the tool input', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = memoryDatabase();
+    final cli = FakeCli();
+    final ws = await db
+        .into(db.workspaces)
+        .insertReturning(
+          WorkspacesCompanion.insert(path: '/work/repo', name: 'repo'),
+        );
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: 's1',
+            workspaceId: ws.id,
+            worktreePath: '/work/repo',
+            branch: 'pr/x',
+            model: 'sonnet',
+            title: const Value.absentIfNull('Shell da IDE'),
+            status: const Value(SessionStatus.interrupted),
+          ),
+        );
+    final c = ProviderContainer(
+      overrides: sessionOverrides(db: db, cli: cli, notifier: FakeNotifier()),
+    );
+    await c.read(appSettingsProvider.notifier).load();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: GlobalApprovals()),
+        ),
+      ),
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      await tester.pump(Duration.zero);
+    });
+    c.read(navigationProvider.notifier).go(AppSection.specs);
+    await c.read(sessionManagerProvider.notifier).send('s1', 'continue');
+    cli.last.emit(
+      jsonEncode({
+        'type': 'control_request',
+        'request_id': 'req-q',
+        'request': {
+          'subtype': 'can_use_tool',
+          'tool_name': 'AskUserQuestion',
+          'input': {
+            'questions': [
+              {
+                'question': 'Qual banco?',
+                'header': 'Banco',
+                'multiSelect': false,
+                'options': [
+                  {'label': 'SQLite', 'description': 'Local'},
+                  {'label': 'Postgres', 'description': 'Servidor'},
+                ],
+              },
+            ],
+          },
+          'tool_use_id': 'toolu_q',
+        },
+      }),
+    );
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('question-card')), findsOneWidget);
+    // No generic "Aprovar": the user has to choose.
+    expect(find.byKey(const ValueKey('approve-req-q')), findsNothing);
+    expect(find.text('Postgres'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('question-0-option-1')));
+    await pumpFor(tester);
+    await tester.tap(find.byKey(const ValueKey('question-submit')));
+    await pumpFor(tester);
+    final resp = cli.last.writtenJson.last;
+    expect(resp['type'], 'control_response');
+    expect(resp['response']['request_id'], 'req-q');
+    final r = resp['response']['response'];
+    expect(r['behavior'], 'allow');
+    expect(r['updatedInput']['answers'], {'Qual banco?': 'Postgres'});
+    expect(r['updatedInput']['questions'], isNotEmpty);
+    expect(find.byKey(const ValueKey('global-approvals')), findsNothing);
   });
 }

@@ -468,8 +468,13 @@ class _Conversation extends ConsumerWidget {
                     child: ApprovalCard(
                       approval: a,
                       onOpen: () {},
-                      onApprove: ({required bool always}) =>
-                          manager.approve(c.id, a.requestId, always: always),
+                      onApprove: ({required bool always, input}) =>
+                          manager.approve(
+                            c.id,
+                            a.requestId,
+                            always: always,
+                            updatedInput: input,
+                          ),
                       onDeny: () => manager.deny(c.id, a.requestId),
                     ),
                   ),

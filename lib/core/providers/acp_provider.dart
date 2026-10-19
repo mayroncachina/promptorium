@@ -409,6 +409,7 @@ class AcpRun implements AgentRun {
   Future<void> approve(
     String requestId, {
     List<Object?>? updatedPermissions,
+    Map<String, dynamic>? updatedInput,
   }) async {
     final a = _asks.remove(requestId);
     if (a == null) return;

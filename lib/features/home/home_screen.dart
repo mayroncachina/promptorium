@@ -155,8 +155,12 @@ class _InboxRow extends ConsumerWidget {
         },
         onApprove: conv == null
             ? null
-            : ({required bool always}) =>
-                  manager.approve(conv, a.requestId, always: always),
+            : ({required bool always, input}) => manager.approve(
+                conv,
+                a.requestId,
+                always: always,
+                updatedInput: input,
+              ),
         onDeny: conv == null ? null : () => manager.deny(conv, a.requestId),
       );
     }

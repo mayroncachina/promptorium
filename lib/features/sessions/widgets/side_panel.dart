@@ -12,6 +12,7 @@ import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
+import 'question_card.dart';
 import 'session_style.dart';
 
 /// Right column: approvals of every session, details and changed files of the
@@ -110,7 +111,13 @@ class ApprovalCard extends ConsumerStatefulWidget {
   final PendingApproval approval;
 
   /// `always` = "Sempre permitir" (first permission suggestion).
-  final Future<void> Function({required bool always})? onApprove;
+  ///
+  /// [input] = replacement tool input (answers of an `AskUserQuestion`).
+  final Future<void> Function({
+    required bool always,
+    Map<String, dynamic>? input,
+  })?
+  onApprove;
   final Future<void> Function()? onDeny;
 
   /// Tap on the header (default: select the session).
@@ -133,13 +140,20 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
     }
   }
 
-  Future<void> _approve({required bool always}) {
+  Future<void> _approve({required bool always, Map<String, dynamic>? input}) {
     final custom = widget.onApprove;
     final a = widget.approval;
     if (custom == null) {
-      return _run((m) => m.approve(a.sessionId, a.requestId, always: always));
+      return _run(
+        (m) => m.approve(
+          a.sessionId,
+          a.requestId,
+          always: always,
+          updatedInput: input,
+        ),
+      );
     }
-    return _guard(() => custom(always: always));
+    return _guard(() => custom(always: always, input: input));
   }
 
   Future<void> _deny() {
@@ -165,6 +179,48 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
     final r = a.request;
     final stats = editStats(r.toolName, r.input);
     final always = alwaysAllowLabel(r.permissionSuggestions);
+    final questions = r.toolName == 'AskUserQuestion'
+        ? parseAskQuestions(r.input)
+        : null;
+    if (questions != null) {
+      return Container(
+        key: ValueKey('approval-${a.requestId}'),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: SessionColors.approvalBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: SessionColors.approvalBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap:
+                  widget.onOpen ??
+                  () => ref
+                      .read(selectedSessionProvider.notifier)
+                      .select(a.sessionId),
+              child: Text(
+                '${a.sessionTitle} · tem uma pergunta para você',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.amber),
+              ),
+            ),
+            const SizedBox(height: 8),
+            QuestionCard(
+              questions: questions,
+              busy: _busy,
+              onDecline: _deny,
+              onSubmit: (answers) => _approve(
+                always: false,
+                input: askAnswerInput(r.input, answers),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       key: ValueKey('approval-${a.requestId}'),
       padding: const EdgeInsets.all(10),

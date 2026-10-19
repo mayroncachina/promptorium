@@ -133,12 +133,31 @@ List<PaletteCommand> paletteCommands(
           final conv = it.conversationId;
           pending.add(
             PaletteCommand(
-              label: 'Aprovar',
+              label: a.request.toolName == 'AskUserQuestion'
+                  ? 'Responder'
+                  : 'Aprovar',
               detail: '${it.ref} · ${it.detail}',
               group: 'Pendentes',
-              run: () => conv != null
-                  ? conversations.approve(conv, a.requestId)
-                  : manager.approve(a.sessionId, a.requestId),
+              run: () {
+                // A question needs the user's choice: just go to it.
+                if (a.request.toolName == 'AskUserQuestion') {
+                  if (conv != null) {
+                    ref
+                        .read(selectedConversationProvider.notifier)
+                        .select(conv);
+                    onNavigate(AppSection.prompt);
+                  } else {
+                    ref
+                        .read(selectedSessionProvider.notifier)
+                        .select(a.sessionId);
+                    onNavigate(AppSection.sessions);
+                  }
+                  return;
+                }
+                conv != null
+                    ? conversations.approve(conv, a.requestId)
+                    : manager.approve(a.sessionId, a.requestId);
+              },
             ),
           );
           pending.add(
