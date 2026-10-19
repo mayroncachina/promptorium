@@ -217,10 +217,13 @@ void main() {
       expect(isNewer('v0.0.9', '0.1.0'), isFalse);
       expect(isNewer('nightly', '0.1.0'), isFalse);
       var calls = 0;
+      String? seen;
       final c = ProviderContainer(
         overrides: [
           databaseOverride(memoryDatabase()),
-          releaseFetcherProvider.overrideWithValue(() async {
+          appVersionProvider.overrideWith((ref) async => '1.0.0'),
+          releaseFetcherProvider.overrideWithValue((version) async {
+            seen = version;
             calls++;
             return {'tag_name': 'v9.0.0', 'html_url': 'https://x/r'};
           }),
@@ -230,6 +233,7 @@ void main() {
       await c.read(appSettingsProvider.notifier).load();
       final checker = c.read(updateCheckerProvider.notifier);
       final u = await checker.check(now: DateTime(2026, 10, 17, 9));
+      expect(seen, '1.0.0');
       expect(u!.version, '9.0.0');
       expect(u.url, 'https://x/r');
       await checker.check(now: DateTime(2026, 10, 17, 20));

@@ -98,8 +98,11 @@ class _UpdatesCardState extends ConsumerState<UpdatesCard> {
     final update = ref.watch(updateCheckerProvider);
     final settings = ref.watch(appSettingsProvider);
     final on = settings[UpdateChecker.enabledKey] != '0';
+    final version = ref.watch(appVersionProvider).value;
     return AgentCard(
-      title: 'Atualizações · versão $appVersion',
+      title: version == null
+          ? 'Atualizações'
+          : 'Atualizações · versão $version',
       children: [
         Material(
           color: Colors.transparent,

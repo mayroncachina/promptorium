@@ -3,11 +3,20 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../data/providers.dart';
 
-/// Version of this build (keep in sync with `pubspec.yaml`).
-const appVersion = '0.2.0';
+/// Version of the installed app (`PackageInfo.version`); `0.0.0` when it
+/// can't be read.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final v = (await PackageInfo.fromPlatform()).version;
+    return v.isEmpty ? '0.0.0' : v;
+  } catch (_) {
+    return '0.0.0';
+  }
+});
 
 /// Releases of the project on GitHub.
 const releasesApi =
@@ -34,7 +43,7 @@ bool isNewer(String latest, String current) {
   return false;
 }
 
-/// A release newer than [appVersion].
+/// A release newer than the running app version.
 @immutable
 class AvailableUpdate {
   const AvailableUpdate({required this.version, required this.url});
@@ -44,9 +53,11 @@ class AvailableUpdate {
 }
 
 /// Reads the latest release (null = none / offline / not a JSON).
-typedef ReleaseFetcher = Future<Map<String, dynamic>?> Function();
+typedef ReleaseFetcher = Future<Map<String, dynamic>?> Function(
+  String appVersion,
+);
 
-Future<Map<String, dynamic>?> fetchLatestRelease() async {
+Future<Map<String, dynamic>?> fetchLatestRelease(String appVersion) async {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
     final req = await client.getUrl(Uri.parse(releasesApi));
@@ -69,7 +80,7 @@ final releaseFetcherProvider = Provider<ReleaseFetcher>(
 );
 
 /// "Aviso de versão nova" (F18): once a day (Configurações can turn it off)
-/// the latest GitHub release is compared with [appVersion].
+/// the latest GitHub release is compared with [appVersionProvider].
 class UpdateChecker extends Notifier<AvailableUpdate?> {
   static const enabledKey = 'update.check';
   static const lastKey = 'update.lastCheck';
@@ -80,8 +91,13 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
   bool get enabled =>
       ref.read(appSettingsProvider.notifier).get(enabledKey) != '0';
 
-  /// Checks when due (or [force]); returns the update found.
-  Future<AvailableUpdate?> check({bool force = false, DateTime? now}) async {
+  /// Checks when due (or [force]); returns the update found. [version]
+  /// defaults to [appVersionProvider].
+  Future<AvailableUpdate?> check({
+    bool force = false,
+    DateTime? now,
+    String? version,
+  }) async {
     final settings = ref.read(appSettingsProvider.notifier);
     if (!force && !enabled) return null;
     final at = now ?? DateTime.now();
@@ -90,9 +106,10 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
       return state;
     }
     await settings.set(lastKey, at.toIso8601String());
-    final r = await ref.read(releaseFetcherProvider)();
+    final String current = version ?? await ref.read(appVersionProvider.future);
+    final r = await ref.read(releaseFetcherProvider)(current);
     final tag = '${r?['tag_name'] ?? ''}';
-    if (r == null || r['draft'] == true || !isNewer(tag, appVersion)) {
+    if (r == null || r['draft'] == true || !isNewer(tag, current)) {
       return state = null;
     }
     return state = AvailableUpdate(

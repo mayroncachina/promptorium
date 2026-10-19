@@ -50,6 +50,7 @@ dependencies:
   desktop_drop: ^0.8.4
   path: ^1.9.1
   sqlite3: ^3.7.1
+  package_info_plus: ^10.2.2
 
 dev_dependencies:
   flutter_test:
