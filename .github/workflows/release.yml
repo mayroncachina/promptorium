@@ -1,7 +1,8 @@
 name: Release
 
 # Criar uma release no GitHub (Releases → Draft a new release, com tag nova
-# vX.Y.Z) compila, testa, empacota (.deb + .tar.gz) e anexa os arquivos a ela.
+# vX.Y.Z) compila, testa, empacota (.deb + .tar.gz no Linux, .zip no Windows)
+# e anexa os arquivos a ela.
 on:
   release:
     types: [published]
@@ -49,3 +50,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versão a partir da tag
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)([.+~-][0-9A-Za-z.+~-]*)?$ ]]; then
+            echo "Tag '$tag' inválida: use vX.Y.Z (ex.: v0.1.0)." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "base=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/build-windows
+        with:
+          version: ${{ steps.version.outputs.version }}
+          build-name: ${{ steps.version.outputs.base }}
+          build-number: ${{ github.run_number }}
+
+      - name: Anexar à release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber

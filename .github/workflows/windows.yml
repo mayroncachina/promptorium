@@ -2,7 +2,8 @@ name: Windows
 
 # Manual (Actions → Windows → Run workflow): compila o Windows release da
 # branch escolhida em "Use workflow from" (ou do ref informado) e deixa um
-# .zip como artefato da execução por 14 dias. Por ora fora da release.
+# .zip como artefato da execução por 14 dias, para testar antes de publicar
+# uma release (a release gera e anexa o .zip sozinha).
 on:
   workflow_dispatch:
     inputs:
@@ -39,40 +40,18 @@ jobs:
           base="$(grep -m1 '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
           sha="$(git rev-parse --short=7 HEAD)"
           echo "base=$base" >> "$GITHUB_OUTPUT"
-          echo "name=promptorium-${base}-ci.${sha}-windows-x64" >> "$GITHUB_OUTPUT"
+          echo "version=${base}-ci.${sha}" >> "$GITHUB_OUTPUT"
 
-      - name: Flutter
-        run: |
-          git clone --depth 1 --branch "${{ inputs.flutter-version }}" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
-          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
-
-      - name: Projeto Windows
-        # O repositório ainda não versiona windows/: gera o runner padrão
-        # (não sobrescreve nada que já exista).
-        run: |
-          flutter --version
-          flutter config --enable-windows-desktop
-          if [ ! -d windows ]; then
-            flutter create --platforms=windows --project-name promptorium .
-          fi
-
-      - name: Compilar
-        run: |
-          flutter pub get
-          flutter build windows --release \
-            --build-name="${{ steps.version.outputs.base }}" \
-            --build-number="${{ github.run_number }}"
-
-      - name: Empacotar
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path build\windows\x64\runner\Release\* `
-            -DestinationPath "dist\${{ steps.version.outputs.name }}.zip"
+      - uses: ./.github/actions/build-windows
+        with:
+          version: ${{ steps.version.outputs.version }}
+          build-name: ${{ steps.version.outputs.base }}
+          build-number: ${{ github.run_number }}
+          flutter-version: ${{ inputs.flutter-version }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.version.outputs.name }}
+          name: promptorium-${{ steps.version.outputs.version }}-windows-x64
           path: dist/*.zip
           retention-days: 14
           if-no-files-found: error

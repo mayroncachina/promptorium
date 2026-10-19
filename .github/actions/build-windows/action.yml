@@ -1,0 +1,57 @@
+name: Compilar e empacotar (Windows)
+description: Compila o Windows release e gera dist/promptorium-<versão>-windows-x64.zip.
+
+inputs:
+  version:
+    description: Versão no nome do .zip (1.2.3, 0.1.0-ci.abc1234…)
+    required: true
+  build-name:
+    description: "Versão embutida no executável: só X.Y.Z (vazio = a do pubspec.yaml)"
+    default: ""
+  build-number:
+    description: Número do build embutido no executável
+    default: "1"
+  flutter-version:
+    description: Tag do Flutter
+    default: "3.47.7"
+
+runs:
+  using: composite
+  steps:
+    - name: Flutter
+      shell: bash
+      run: |
+        git clone --depth 1 --branch "${{ inputs.flutter-version }}" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+        echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+    - name: Projeto Windows
+      # O repositório ainda não versiona windows/: gera o runner padrão
+      # (não sobrescreve nada que já exista).
+      shell: bash
+      run: |
+        flutter --version
+        flutter config --enable-windows-desktop
+        if [ ! -d windows ]; then
+          flutter create --platforms=windows --project-name promptorium .
+        fi
+
+    - name: Compilar
+      # O runner do Windows só aceita X.Y.Z como versão do executável; o
+      # sufixo (~ci, -rc…) fica só no nome do .zip.
+      shell: bash
+      run: |
+        name="${{ inputs.build-name }}"
+        if [ -z "$name" ]; then
+          name="$(grep -m1 '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+        fi
+        flutter pub get
+        flutter build windows --release \
+          --build-name="$name" \
+          --build-number="${{ inputs.build-number }}"
+
+    - name: Empacotar
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force dist | Out-Null
+        Compress-Archive -Path build\windows\x64\runner\Release\* `
+          -DestinationPath "dist\promptorium-${{ inputs.version }}-windows-x64.zip"

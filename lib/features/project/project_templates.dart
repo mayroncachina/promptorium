@@ -40,6 +40,8 @@ class ProjectTemplate {
         ].join(' · ');
 }
 
+/// The `preparar:` of each template skips while the manifest does not exist:
+/// the project starts empty and its first spec usually creates it.
 const projectTemplates = [
   ProjectTemplate(id: 'empty', label: 'Vazio'),
   ProjectTemplate(
@@ -49,7 +51,9 @@ const projectTemplates = [
       testCommand: 'flutter test',
       lintCommand: 'flutter analyze',
       formatCommand: 'dart format {arquivo}',
-      worktree: WorktreeConfig(prepare: 'flutter pub get'),
+      worktree: WorktreeConfig(
+        prepare: 'test ! -f pubspec.yaml || flutter pub get',
+      ),
     ),
     decisions: [
       StackDecision(area: 'App', choice: 'Flutter', pinned: true),
@@ -70,7 +74,10 @@ const projectTemplates = [
       testCommand: 'npm test',
       lintCommand: 'npm run lint',
       formatCommand: 'npx prettier --write {arquivo}',
-      worktree: WorktreeConfig(prepare: 'npm install', basePort: 3000),
+      worktree: WorktreeConfig(
+        prepare: 'test ! -f package.json || npm install',
+        basePort: 3000,
+      ),
     ),
     decisions: [
       StackDecision(area: 'Web', choice: 'Next.js (App Router)', pinned: true),
@@ -90,7 +97,8 @@ const projectTemplates = [
       lintCommand: 'ruff check .',
       formatCommand: 'ruff format {arquivo}',
       worktree: WorktreeConfig(
-        prepare: 'pip install -r requirements.txt',
+        prepare:
+            'test ! -f requirements.txt || pip install -r requirements.txt',
         basePort: 8000,
       ),
     ),
@@ -111,7 +119,9 @@ const projectTemplates = [
       testCommand: 'dart test',
       lintCommand: 'dart analyze',
       formatCommand: 'dart format {arquivo}',
-      worktree: WorktreeConfig(prepare: 'dart pub get'),
+      worktree: WorktreeConfig(
+        prepare: 'test ! -f pubspec.yaml || dart pub get',
+      ),
     ),
     decisions: [
       StackDecision(area: 'Linguagem', choice: 'Dart', pinned: true),

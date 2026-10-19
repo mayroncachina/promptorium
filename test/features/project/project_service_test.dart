@@ -126,7 +126,10 @@ void main() {
     );
     final path = '${tmp.path}/app';
     expect(ProjectConfig.loadSync(path).testCommand, 'flutter test');
-    expect(ProjectConfig.loadSync(path).worktree.prepare, 'flutter pub get');
+    expect(
+      ProjectConfig.loadSync(path).worktree.prepare,
+      'test ! -f pubspec.yaml || flutter pub get',
+    );
     expect(File('$path/CLAUDE.md').readAsStringSync(), contains('Flutter'));
     // Both files are in the initial commit.
     expect(

@@ -206,6 +206,25 @@ void main() {
     expect(item(tester, AppSection.agents).active, isTrue);
   });
 
+  testWidgets(
+    'shortcuts still work after a click outside the focused field (desktop '
+    'unfocus)',
+    (tester) async {
+      await pumpShell(tester);
+      await tester.tap(find.byKey(const ValueKey('nav-settings')));
+      await tester.pumpAndSettle();
+      // On desktop a click outside a TextField / SelectionArea unfocuses it.
+      await tester.tap(find.byType(TextField).first);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(700, 600));
+      await tester.pumpAndSettle();
+
+      await ctrl(tester, LogicalKeyboardKey.keyK);
+      expect(find.text('Ir para Quadro'), findsOneWidget);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
+
   testWidgets('fits the minimum window size without overflow', (tester) async {
     await pumpShell(tester, size: const Size(1100, 700));
     expect(tester.takeException(), isNull);
