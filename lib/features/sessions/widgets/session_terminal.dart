@@ -10,6 +10,7 @@ import 'package:xterm/xterm.dart';
 import '../../../core/claude/claude_cli.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
+import '../../../ui/shell/shell_intents.dart';
 import '../../../ui/theme/tokens.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
@@ -281,11 +282,29 @@ class AppTerminalView extends StatelessWidget {
   final bool autofocus;
   final double fontSize;
 
+  /// F1 opens "Sobre" (R14): xterm would otherwise turn it into an escape
+  /// sequence for the PTY. Other function keys still go to the PTY.
+  static KeyEventResult _aboutKey(FocusNode node, KeyEvent event) {
+    if (event.logicalKey != LogicalKeyboardKey.f1 ||
+        HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isShiftPressed ||
+        HardwareKeyboard.instance.isAltPressed ||
+        HardwareKeyboard.instance.isMetaPressed) {
+      return KeyEventResult.ignored;
+    }
+    final context = node.context;
+    if (event is KeyDownEvent && context != null) {
+      Actions.maybeInvoke(context, const OpenAboutIntent());
+    }
+    return KeyEventResult.handled;
+  }
+
   @override
   Widget build(BuildContext context) => TerminalView(
     term.terminal,
     controller: term.controller,
     autofocus: autofocus,
+    onKeyEvent: _aboutKey,
     theme: _terminalTheme,
     textStyle: TerminalStyle(fontFamily: AppFonts.mono, fontSize: fontSize),
     onSecondaryTapDown: (details, offset) async {
