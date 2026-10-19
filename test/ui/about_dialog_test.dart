@@ -163,7 +163,7 @@ void main() {
   });
 
   testWidgets('a newer release shows "Novidades da X.Y.Z" above the changelog '
-      'and enables "Atualizar agora"', (tester) async {
+      'and shows "Atualizar agora" only then', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -201,10 +201,8 @@ void main() {
     const updateNow = ValueKey('about-update-now');
     await open(withUpdate: false);
     expect(find.textContaining('Novidades da'), findsNothing);
-    expect(
-      tester.widget<FilledButton>(find.byKey(updateNow)).onPressed,
-      isNull,
-    );
+    expect(find.byKey(updateNow), findsNothing);
+    expect(find.text('Atualizar agora'), findsNothing);
 
     // A fresh tree: ProviderScope overrides cannot change in place.
     await tester.pumpWidget(const SizedBox());

@@ -113,19 +113,20 @@ class AboutPromptoriumDialog extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton(
-                      key: const ValueKey('about-update-now'),
-                      // Enabled only with a newer release; the download and
-                      // install flow arrives in the next steps.
-                      onPressed: update == null ? null : () {},
-                      child: const Text('Atualizar agora'),
+                if (update != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton(
+                        key: const ValueKey('about-update-now'),
+                        // The download and install flow arrives in the next
+                        // steps.
+                        onPressed: () {},
+                        child: const Text('Atualizar agora'),
+                      ),
                     ),
                   ),
-                ),
                 const Divider(height: 1),
                 Flexible(
                   child: SingleChildScrollView(
