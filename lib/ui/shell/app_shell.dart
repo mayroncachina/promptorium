@@ -188,6 +188,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     final a = it?.approval;
     if (it == null || a == null) return;
     final conv = it.conversationId;
+    // A question needs the user's choice: open it instead of answering.
+    if (approve && a.request.toolName == 'AskUserQuestion') {
+      if (conv != null) {
+        ref.read(selectedConversationProvider.notifier).select(conv);
+        _go(AppSection.prompt);
+      } else {
+        ref.read(selectedSessionProvider.notifier).select(a.sessionId);
+        _go(AppSection.sessions);
+      }
+      return;
+    }
     if (conv != null) {
       final m = ref.read(conversationManagerProvider.notifier);
       await (approve

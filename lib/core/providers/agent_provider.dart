@@ -106,7 +106,13 @@ abstract interface class AgentRun {
   Future<void> send(String text, {List<ImagePart> images});
 
   /// Approves a permission request; [updatedPermissions] = "Sempre permitir".
-  Future<void> approve(String requestId, {List<Object?>? updatedPermissions});
+  ///
+  /// [updatedInput] replaces the tool input (answers of `AskUserQuestion`).
+  Future<void> approve(
+    String requestId, {
+    List<Object?>? updatedPermissions,
+    Map<String, dynamic>? updatedInput,
+  });
 
   Future<void> deny(String requestId, String message);
 
