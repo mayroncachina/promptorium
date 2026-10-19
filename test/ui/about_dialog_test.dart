@@ -226,6 +226,34 @@ void main() {
       isNotNull,
     );
   });
+
+  testWidgets('"Verificar agora" calls check(force: true) and shows the '
+      'result in the dialog', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+    _CheckingUpdateChecker.forces.clear();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateCheckerProvider.overrideWith(_CheckingUpdateChecker.new),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: AboutPromptoriumDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Atualizar agora'), findsNothing);
+    expect(find.textContaining('Novidades da'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('about-check-now')));
+    await tester.pumpAndSettle();
+    expect(_CheckingUpdateChecker.forces, [true]);
+    expect(find.text('Novidades da 9.1.0'), findsOneWidget);
+    expect(find.text('Atualizar agora'), findsOneWidget);
+  });
 }
 
 class _FakeUpdateChecker extends UpdateChecker {
@@ -235,4 +263,25 @@ class _FakeUpdateChecker extends UpdateChecker {
     url: 'https://x/r',
     notes: 'Corrige o bug X',
   );
+}
+
+class _CheckingUpdateChecker extends UpdateChecker {
+  static final forces = <bool>[];
+
+  @override
+  AvailableUpdate? build() => null;
+
+  @override
+  Future<AvailableUpdate?> check({
+    bool force = false,
+    DateTime? now,
+    String? version,
+  }) async {
+    forces.add(force);
+    return state = const AvailableUpdate(
+      version: '9.1.0',
+      url: 'https://x/r',
+      notes: 'Nova',
+    );
+  }
 }

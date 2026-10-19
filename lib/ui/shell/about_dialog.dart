@@ -113,20 +113,24 @@ class AboutPromptoriumDialog extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (update != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton(
-                        key: const ValueKey('about-update-now'),
-                        // The download and install flow arrives in the next
-                        // steps.
-                        onPressed: () {},
-                        child: const Text('Atualizar agora'),
-                      ),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: Row(
+                    children: [
+                      const _CheckNowButton(),
+                      if (update != null) ...[
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          key: const ValueKey('about-update-now'),
+                          // The download and install flow arrives in the next
+                          // steps.
+                          onPressed: () {},
+                          child: const Text('Atualizar agora'),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
                 const Divider(height: 1),
                 Flexible(
                   child: SingleChildScrollView(
@@ -180,6 +184,58 @@ class AboutPromptoriumDialog extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "Verificar agora": forces a lookup of the latest release; the dialog
+/// watches [updateCheckerProvider], so the result shows up by itself.
+class _CheckNowButton extends ConsumerStatefulWidget {
+  const _CheckNowButton();
+
+  @override
+  ConsumerState<_CheckNowButton> createState() => _CheckNowButtonState();
+}
+
+class _CheckNowButtonState extends ConsumerState<_CheckNowButton> {
+  bool _busy = false;
+  bool _checked = false;
+
+  Future<void> _check() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(updateCheckerProvider.notifier).check(force: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _checked = true;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final update = ref.watch(updateCheckerProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        OutlinedButton(
+          key: const ValueKey('about-check-now'),
+          onPressed: _busy ? null : _check,
+          child: Text(_busy ? 'Verificando…' : 'Verificar agora'),
+        ),
+        if (_checked && !_busy && update == null)
+          const Padding(
+            padding: EdgeInsets.only(left: 8),
+            key: ValueKey('about-up-to-date'),
+            child: Text(
+              'Você já está na versão mais recente.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+      ],
     );
   }
 }
