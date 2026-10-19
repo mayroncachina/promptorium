@@ -328,11 +328,19 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
               ],
             ),
       actions: [
-        if (_error != null)
+        if (_error != null) ...[
+          TextButton(
+            key: const ValueKey('about-open-release'),
+            onPressed: () => ref
+                .read(updateInstallerProvider)
+                .openReleasePage(widget.update.url),
+            child: const Text('Abrir página da release'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Fechar'),
           ),
+        ],
       ],
     );
   }

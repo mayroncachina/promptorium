@@ -354,8 +354,53 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('about-update-confirm-yes')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('about-download-error')), findsOneWidget);
+    expect(find.byKey(const ValueKey('about-open-release')), findsOneWidget);
     expect(fake.downloaded, isEmpty);
   });
+
+  final failures = <String, _FakeInstaller Function()>{
+    'network error': () => _FakeInstaller(Future.value())
+      ..downloadError = const SocketException('sem rede'),
+    'no pkexec': () => _FakeInstaller(Future.value())
+      ..installError = const FileSystemException('pkexec não encontrado'),
+    'no write permission': () => _FakeInstaller(Future.value())
+      ..installError = const FileSystemException('Sem permissão de escrita'),
+  };
+  for (final entry in failures.entries) {
+    testWidgets('${entry.key} shows the error and "Abrir página da release"', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await _preloadChangelog(tester);
+      final fake = entry.value();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            updateCheckerProvider.overrideWith(_AssetUpdateChecker.new),
+            updateInstallerProvider.overrideWithValue(fake),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: AboutPromptoriumDialog()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('about-update-now')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('about-update-confirm-yes')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('about-download-error')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('about-open-release')));
+      await tester.pump();
+      expect(fake.opened, ['https://x/r']);
+      expect(fake.calls, isNot(contains('restart')));
+    });
+  }
 }
 
 class _FakeInstaller extends UpdateInstaller {
@@ -364,9 +409,18 @@ class _FakeInstaller extends UpdateInstaller {
   final Future<void> gate;
   final downloaded = <String>[];
   final calls = <String>[];
+  final opened = <String>[];
+  Object? downloadError;
+  Object? installError;
 
   @override
-  Future<void> install(File file) async => calls.add('install');
+  Future<void> openReleasePage(String url) async => opened.add(url);
+
+  @override
+  Future<void> install(File file) async {
+    if (installError != null) throw installError!;
+    calls.add('install');
+  }
 
   @override
   Future<void> restart() async => calls.add('restart');
@@ -388,6 +442,7 @@ class _FakeInstaller extends UpdateInstaller {
   @override
   Stream<DownloadProgress> download(ReleaseAsset asset) async* {
     downloaded.add(asset.name);
+    if (downloadError != null) throw downloadError!;
     yield const DownloadProgress(received: 50, total: 100);
     await gate;
     yield DownloadProgress(received: 100, total: 100, file: File('/tmp/x'));

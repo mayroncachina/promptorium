@@ -113,6 +113,16 @@ class UpdateInstaller {
     }
   }
 
+  /// Opens the release page in the browser (fallback when the update fails).
+  /// Errors only log.
+  Future<void> openReleasePage(String url) async {
+    try {
+      await Process.run('xdg-open', [url]);
+    } catch (e) {
+      debugPrint('xdg-open $url: $e');
+    }
+  }
+
   /// Starts a detached copy of the app and exits this one.
   Future<void> restart() async {
     await Process.start(
