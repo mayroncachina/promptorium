@@ -648,6 +648,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     String id,
     String requestId, {
     bool always = false,
+    Map<String, dynamic>? updatedInput,
   }) async {
     final p = _procs[id];
     final req = _take(id, requestId);
@@ -658,6 +659,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.process.allow(
       requestId,
       updatedPermissions: always && suggestion != null ? [suggestion] : null,
+      updatedInput: updatedInput,
     );
     await _afterAnswer(id);
   }

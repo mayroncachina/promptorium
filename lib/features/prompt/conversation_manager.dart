@@ -190,7 +190,12 @@ class ConversationManager extends Notifier<ConversationManagerState> {
 
   Future<void> setModel(int id, String model) => _repo.setModel(id, model);
 
-  Future<void> approve(int id, String requestId, {bool always = false}) async {
+  Future<void> approve(
+    int id,
+    String requestId, {
+    bool always = false,
+    Map<String, dynamic>? updatedInput,
+  }) async {
     final r = _runs[id];
     final req = _take(id, requestId);
     if (r == null || req == null) return;
@@ -198,6 +203,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await r.run.approve(
       requestId,
       updatedPermissions: always && s.isNotEmpty ? [s.first] : null,
+      updatedInput: updatedInput,
     );
   }
 

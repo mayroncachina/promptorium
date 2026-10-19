@@ -37,7 +37,7 @@ protect_breaking_commits = false
 filter_commits = false
 topo_order = false
 sort_commits = "oldest"
-tag_pattern = "v[0-9].*"
+tag_pattern = "v?[0-9].*"
 
 # O corpo do commit não vai para o changelog; só a primeira linha.
 commit_preprocessors = [

@@ -20,6 +20,7 @@ class FakeRun implements AgentRun {
   final _exit = Completer<int>();
   final sent = <String>[];
   final sentImages = <List<ImagePart>>[];
+  final approvedInputs = <String, Map<String, dynamic>?>{};
   final approved = <(String, List<Object?>?)>[];
   final denied = <String>[];
   bool stopped = false;
@@ -62,7 +63,11 @@ class FakeRun implements AgentRun {
   Future<void> approve(
     String requestId, {
     List<Object?>? updatedPermissions,
-  }) async => approved.add((requestId, updatedPermissions));
+    Map<String, dynamic>? updatedInput,
+  }) async {
+    approved.add((requestId, updatedPermissions));
+    approvedInputs[requestId] = updatedInput;
+  }
 
   @override
   Future<void> deny(String requestId, String message) async =>

@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/core/update/update_check.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/settings/providers_view.dart';
 
 import '../helpers/test_db.dart';
 import 'claude/claude_process_test.dart' show FakeProcess;
@@ -217,12 +220,25 @@ void main() {
       expect(isNewer('v0.0.9', '0.1.0'), isFalse);
       expect(isNewer('nightly', '0.1.0'), isFalse);
       var calls = 0;
+      String? seen;
       final c = ProviderContainer(
         overrides: [
           databaseOverride(memoryDatabase()),
-          releaseFetcherProvider.overrideWithValue(() async {
+          appVersionProvider.overrideWith((ref) async => '1.0.0'),
+          releaseFetcherProvider.overrideWithValue((version) async {
+            seen = version;
             calls++;
-            return {'tag_name': 'v9.0.0', 'html_url': 'https://x/r'};
+            return {
+              'tag_name': 'v9.0.0',
+              'html_url': 'https://x/r',
+              'body': 'Notas',
+              'published_at': '2026-10-01T12:00:00Z',
+              'assets': [
+                {'name': 'a.deb', 'browser_download_url': 'https://x/a.deb'},
+                {'name': 'sem-url'},
+                'lixo',
+              ],
+            };
           }),
         ],
       );
@@ -230,8 +246,14 @@ void main() {
       await c.read(appSettingsProvider.notifier).load();
       final checker = c.read(updateCheckerProvider.notifier);
       final u = await checker.check(now: DateTime(2026, 10, 17, 9));
+      expect(seen, '1.0.0');
       expect(u!.version, '9.0.0');
       expect(u.url, 'https://x/r');
+      expect(u.notes, 'Notas');
+      expect(u.publishedAt, DateTime.utc(2026, 10, 1, 12));
+      expect(u.assets.map((a) => (a.name, a.url)), [
+        ('a.deb', 'https://x/a.deb'),
+      ]);
       await checker.check(now: DateTime(2026, 10, 17, 20));
       expect(calls, 1);
       await checker.check(now: DateTime(2026, 10, 18, 10));
@@ -244,4 +266,68 @@ void main() {
       expect(Platform.isLinux, isTrue);
     },
   );
+
+  test('update: campos ausentes da release são tolerados', () async {
+    final c = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        appVersionProvider.overrideWith((ref) async => '1.0.0'),
+        releaseFetcherProvider.overrideWithValue(
+          (_) async => {
+            'tag_name': 'v2.0.0',
+            'body': null,
+            'published_at': 'x',
+            'assets': 'nope',
+          },
+        ),
+      ],
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final u = await c.read(updateCheckerProvider.notifier).check(force: true);
+    expect(u!.version, '2.0.0');
+    expect(u.notes, '');
+    expect(u.publishedAt, isNull);
+    expect(u.assets, isEmpty);
+  });
+
+  group('PackageInfo falha', () {
+    setUp(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('dev.fluttercommunity.plus/package_info'),
+            (_) async => throw PlatformException(code: 'boom'),
+          );
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('dev.fluttercommunity.plus/package_info'),
+            null,
+          );
+    });
+
+    test('appVersionProvider devolve 0.0.0', () async {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      expect(await c.read(appVersionProvider.future), '0.0.0');
+    });
+
+    testWidgets('UpdatesCard renderiza sem exceção', (tester) async {
+      final c = ProviderContainer(
+        overrides: [databaseOverride(memoryDatabase())],
+      );
+      addTearDown(c.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const MaterialApp(home: Scaffold(body: UpdatesCard())),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('update-check-toggle')), findsOneWidget);
+    });
+  });
 }

@@ -36,6 +36,7 @@ import 'editor_zoom.dart';
 import 'global_approvals.dart';
 import 'navigation.dart';
 import 'shell_intents.dart';
+import 'about_dialog.dart';
 import 'shortcut_sheet.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
@@ -165,6 +166,18 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  bool _aboutOpen = false;
+
+  Future<void> _openAbout() async {
+    if (_aboutOpen) return;
+    _aboutOpen = true;
+    try {
+      await showAboutPromptorium(context);
+    } finally {
+      _aboutOpen = false;
+    }
+  }
+
   /// Ctrl+Shift+A / D: the oldest approval of any session or conversation.
   Future<void> _answerOldest({required bool approve}) async {
     final items = [
@@ -175,6 +188,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     final a = it?.approval;
     if (it == null || a == null) return;
     final conv = it.conversationId;
+    // A question needs the user's choice: open it instead of answering.
+    if (approve && a.request.toolName == 'AskUserQuestion') {
+      if (conv != null) {
+        ref.read(selectedConversationProvider.notifier).select(conv);
+        _go(AppSection.prompt);
+      } else {
+        ref.read(selectedSessionProvider.notifier).select(a.sessionId);
+        _go(AppSection.sessions);
+      }
+      return;
+    }
     if (conv != null) {
       final m = ref.read(conversationManagerProvider.notifier);
       await (approve
@@ -315,6 +339,12 @@ class _AppShellState extends ConsumerState<AppShell> {
           OpenShortcutsIntent: CallbackAction<OpenShortcutsIntent>(
             onInvoke: (_) {
               _openShortcuts();
+              return null;
+            },
+          ),
+          OpenAboutIntent: CallbackAction<OpenAboutIntent>(
+            onInvoke: (_) {
+              _openAbout();
               return null;
             },
           ),

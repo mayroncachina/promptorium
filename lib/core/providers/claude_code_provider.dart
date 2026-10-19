@@ -146,8 +146,15 @@ class _ClaudeRun implements AgentRun {
       _p.send(text, images: images);
 
   @override
-  Future<void> approve(String requestId, {List<Object?>? updatedPermissions}) =>
-      _p.allow(requestId, updatedPermissions: updatedPermissions);
+  Future<void> approve(
+    String requestId, {
+    List<Object?>? updatedPermissions,
+    Map<String, dynamic>? updatedInput,
+  }) => _p.allow(
+    requestId,
+    updatedPermissions: updatedPermissions,
+    updatedInput: updatedInput,
+  );
 
   @override
   Future<void> deny(String requestId, String message) =>

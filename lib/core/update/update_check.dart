@@ -3,12 +3,21 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../data/providers.dart';
 import '../config/app_info.dart';
 
-/// Version of this build ([AppInfo.version], kept in sync with `pubspec.yaml`).
-const appVersion = AppInfo.version;
+/// Version of the installed app (`PackageInfo.version`); `0.0.0` when it
+/// can't be read.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final v = (await PackageInfo.fromPlatform()).version;
+    return v.isEmpty ? '0.0.0' : v;
+  } catch (_) {
+    return '0.0.0';
+  }
+});
 
 /// Releases of the project on GitHub.
 const releasesApi =
@@ -35,19 +44,60 @@ bool isNewer(String latest, String current) {
   return false;
 }
 
-/// A release newer than [appVersion].
+/// A release newer than the running app version.
 @immutable
 class AvailableUpdate {
-  const AvailableUpdate({required this.version, required this.url});
+  const AvailableUpdate({
+    required this.version,
+    required this.url,
+    this.notes = '',
+    this.publishedAt,
+    this.assets = const [],
+  });
 
   final String version;
   final String url;
+
+  /// Release body (Markdown); empty when absent.
+  final String notes;
+  final DateTime? publishedAt;
+  final List<ReleaseAsset> assets;
+}
+
+/// A downloadable file of a release (`browser_download_url`).
+@immutable
+class ReleaseAsset {
+  const ReleaseAsset({required this.name, required this.url, this.size});
+
+  final String name;
+  final String url;
+
+  /// Size in bytes announced by the release; null when absent.
+  final int? size;
+}
+
+/// Tolerant of missing/mistyped fields: bad entries are skipped.
+List<ReleaseAsset> parseReleaseAssets(Object? raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final a in raw)
+      if (a is Map &&
+          a['name'] is String &&
+          a['browser_download_url'] is String)
+        ReleaseAsset(
+          name: a['name'] as String,
+          url: a['browser_download_url'] as String,
+          size: a['size'] is int ? a['size'] as int : null,
+        ),
+  ];
 }
 
 /// Reads the latest release (null = none / offline / not a JSON).
-typedef ReleaseFetcher = Future<Map<String, dynamic>?> Function();
+typedef ReleaseFetcher = Future<Map<String, dynamic>?> Function(
+  String appVersion,
+);
 
-Future<Map<String, dynamic>?> fetchLatestRelease() async {
+Future<Map<String, dynamic>?> fetchLatestRelease(String appVersion) async {
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
     final req = await client.getUrl(Uri.parse(releasesApi));
@@ -70,7 +120,7 @@ final releaseFetcherProvider = Provider<ReleaseFetcher>(
 );
 
 /// "Aviso de versão nova" (F18): once a day (Configurações can turn it off)
-/// the latest GitHub release is compared with [appVersion].
+/// the latest GitHub release is compared with [appVersionProvider].
 class UpdateChecker extends Notifier<AvailableUpdate?> {
   static const enabledKey = 'update.check';
   static const lastKey = 'update.lastCheck';
@@ -81,8 +131,13 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
   bool get enabled =>
       ref.read(appSettingsProvider.notifier).get(enabledKey) != '0';
 
-  /// Checks when due (or [force]); returns the update found.
-  Future<AvailableUpdate?> check({bool force = false, DateTime? now}) async {
+  /// Checks when due (or [force]); returns the update found. [version]
+  /// defaults to [appVersionProvider].
+  Future<AvailableUpdate?> check({
+    bool force = false,
+    DateTime? now,
+    String? version,
+  }) async {
     final settings = ref.read(appSettingsProvider.notifier);
     if (!force && !enabled) return null;
     final at = now ?? DateTime.now();
@@ -91,15 +146,19 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
       return state;
     }
     await settings.set(lastKey, at.toIso8601String());
-    final r = await ref.read(releaseFetcherProvider)();
+    final String current = version ?? await ref.read(appVersionProvider.future);
+    final r = await ref.read(releaseFetcherProvider)(current);
     final tag = '${r?['tag_name'] ?? ''}';
-    if (r == null || r['draft'] == true || !isNewer(tag, appVersion)) {
+    if (r == null || r['draft'] == true || !isNewer(tag, current)) {
       return state = null;
     }
     return state = AvailableUpdate(
       version: tag.replaceFirst(RegExp('^v'), ''),
       url:
           '${r['html_url'] ?? 'https://github.com/mayroncachina/promptorium/releases'}',
+      notes: r['body'] is String ? r['body'] as String : '',
+      publishedAt: DateTime.tryParse('${r['published_at'] ?? ''}'),
+      assets: parseReleaseAssets(r['assets']),
     );
   }
 }
