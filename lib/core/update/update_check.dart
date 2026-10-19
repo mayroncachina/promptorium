@@ -46,10 +46,45 @@ bool isNewer(String latest, String current) {
 /// A release newer than the running app version.
 @immutable
 class AvailableUpdate {
-  const AvailableUpdate({required this.version, required this.url});
+  const AvailableUpdate({
+    required this.version,
+    required this.url,
+    this.notes = '',
+    this.publishedAt,
+    this.assets = const [],
+  });
 
   final String version;
   final String url;
+
+  /// Release body (Markdown); empty when absent.
+  final String notes;
+  final DateTime? publishedAt;
+  final List<ReleaseAsset> assets;
+}
+
+/// A downloadable file of a release (`browser_download_url`).
+@immutable
+class ReleaseAsset {
+  const ReleaseAsset({required this.name, required this.url});
+
+  final String name;
+  final String url;
+}
+
+/// Tolerant of missing/mistyped fields: bad entries are skipped.
+List<ReleaseAsset> parseReleaseAssets(Object? raw) {
+  if (raw is! List) return const [];
+  return [
+    for (final a in raw)
+      if (a is Map &&
+          a['name'] is String &&
+          a['browser_download_url'] is String)
+        ReleaseAsset(
+          name: a['name'] as String,
+          url: a['browser_download_url'] as String,
+        ),
+  ];
 }
 
 /// Reads the latest release (null = none / offline / not a JSON).
@@ -116,6 +151,9 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
       version: tag.replaceFirst(RegExp('^v'), ''),
       url:
           '${r['html_url'] ?? 'https://github.com/mayroncachina/promptorium/releases'}',
+      notes: r['body'] is String ? r['body'] as String : '',
+      publishedAt: DateTime.tryParse('${r['published_at'] ?? ''}'),
+      assets: parseReleaseAssets(r['assets']),
     );
   }
 }

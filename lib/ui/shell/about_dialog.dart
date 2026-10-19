@@ -30,6 +30,7 @@ class AboutPromptoriumDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final version = ref.watch(appVersionProvider).value;
     final changelog = ref.watch(changelogProvider);
+    final update = ref.watch(updateCheckerProvider);
     final style = MarkdownStyleSheet.fromTheme(Theme.of(context))
         .copyWith(p: const TextStyle(fontSize: 12));
     // The dialog route is outside AppShell's shortcuts: F1 closes here.
@@ -112,21 +113,64 @@ class AboutPromptoriumDialog extends ConsumerWidget {
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton(
+                      key: const ValueKey('about-update-now'),
+                      // Enabled only with a newer release; the download and
+                      // install flow arrives in the next steps.
+                      onPressed: update == null ? null : () {},
+                      child: const Text('Atualizar agora'),
+                    ),
+                  ),
+                ),
                 const Divider(height: 1),
                 Flexible(
                   child: SingleChildScrollView(
                     key: const ValueKey('about-changelog'),
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                    child: changelog.when(
-                      data: (md) => MarkdownBody(data: md, styleSheet: style),
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const Text(
-                        'Changelog indisponível.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (update != null) ...[
+                          Text(
+                            'Novidades da ${update.version}',
+                            key: const ValueKey('about-update-notes-title'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          MarkdownBody(
+                            key: const ValueKey('about-update-notes'),
+                            data: update.notes.trim().isEmpty
+                                ? '_Sem notas nesta versão._'
+                                : update.notes,
+                            styleSheet: style,
+                          ),
+                          const SizedBox(height: 14),
+                          const Divider(height: 1),
+                          const SizedBox(height: 14),
+                        ],
+                        changelog.when(
+                          data: (md) => MarkdownBody(
+                            key: const ValueKey('about-changelog-body'),
+                            data: md,
+                            styleSheet: style,
+                          ),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const Text(
+                            'Changelog indisponível.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),

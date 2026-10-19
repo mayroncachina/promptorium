@@ -161,4 +161,80 @@ void main() {
     await tester.pumpAndSettle();
     expect(view.position.pixels, greaterThan(0));
   });
+
+  testWidgets('a newer release shows "Novidades da X.Y.Z" above the changelog '
+      'and enables "Atualizar agora"', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+
+    Future<void> open({required bool withUpdate}) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            if (withUpdate)
+              updateCheckerProvider.overrideWith(_FakeUpdateChecker.new),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: AboutPromptoriumDialog()),
+          ),
+        ),
+      );
+      for (
+        var i = 0;
+        i < 100 &&
+            find
+                .byKey(const ValueKey('about-changelog-body'))
+                .evaluate()
+                .isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+    }
+
+    const updateNow = ValueKey('about-update-now');
+    await open(withUpdate: false);
+    expect(find.textContaining('Novidades da'), findsNothing);
+    expect(
+      tester.widget<FilledButton>(find.byKey(updateNow)).onPressed,
+      isNull,
+    );
+
+    // A fresh tree: ProviderScope overrides cannot change in place.
+    await tester.pumpWidget(const SizedBox());
+    await open(withUpdate: true);
+    final title = find.text('Novidades da 9.0.0');
+    expect(title, findsOneWidget);
+    final notes = tester.widget<MarkdownBody>(
+      find.byKey(const ValueKey('about-update-notes')),
+    );
+    expect(notes.data, contains('Corrige o bug X'));
+    expect(
+      tester.getTopLeft(title).dy,
+      lessThan(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('about-changelog-body')))
+            .dy,
+      ),
+    );
+    expect(
+      tester.widget<FilledButton>(find.byKey(updateNow)).onPressed,
+      isNotNull,
+    );
+  });
+}
+
+class _FakeUpdateChecker extends UpdateChecker {
+  @override
+  AvailableUpdate? build() => const AvailableUpdate(
+    version: '9.0.0',
+    url: 'https://x/r',
+    notes: 'Corrige o bug X',
+  );
 }
