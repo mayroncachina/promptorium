@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/core/update/update_check.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/settings/providers_view.dart';
 
 import '../helpers/test_db.dart';
 import 'claude/claude_process_test.dart' show FakeProcess;
@@ -248,4 +251,44 @@ void main() {
       expect(Platform.isLinux, isTrue);
     },
   );
+
+  group('PackageInfo falha', () {
+    setUp(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('dev.fluttercommunity.plus/package_info'),
+            (_) async => throw PlatformException(code: 'boom'),
+          );
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('dev.fluttercommunity.plus/package_info'),
+            null,
+          );
+    });
+
+    test('appVersionProvider devolve 0.0.0', () async {
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      expect(await c.read(appVersionProvider.future), '0.0.0');
+    });
+
+    testWidgets('UpdatesCard renderiza sem exceção', (tester) async {
+      final c = ProviderContainer(
+        overrides: [databaseOverride(memoryDatabase())],
+      );
+      addTearDown(c.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const MaterialApp(home: Scaffold(body: UpdatesCard())),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('update-check-toggle')), findsOneWidget);
+    });
+  });
 }
