@@ -18,6 +18,7 @@ import '../../features/specs/spec_service.dart' show selectedSpecProvider;
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
+import 'about_dialog.dart';
 import 'shortcut_sheet.dart';
 
 /// A command shown in the palette.
@@ -229,6 +230,12 @@ List<PaletteCommand> paletteCommands(
       shortcut: 'Ctrl /',
       group: 'Ações',
       run: () => showShortcutSheet(context),
+    ),
+    PaletteCommand(
+      label: 'Sobre',
+      shortcut: 'F1',
+      group: 'Ações',
+      run: () => showAboutPromptorium(context),
     ),
     for (final s in specs)
       if (s.status != SpecStatus.archived &&

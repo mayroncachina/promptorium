@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/acp_provider.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
+import '../../ui/shell/about_dialog.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
 import '../sessions/widgets/session_style.dart';
@@ -142,6 +143,12 @@ class _UpdatesCardState extends ConsumerState<UpdatesCard> {
                 label: 'Abrir página',
                 onTap: () => Process.run('xdg-open', [update.url]),
               ),
+            const SizedBox(width: 6),
+            SmallButton(
+              key: const ValueKey('open-about'),
+              label: 'Sobre',
+              onTap: () => showAboutPromptorium(context),
+            ),
             const SizedBox(width: 6),
             SmallButton(
               key: const ValueKey('update-check-now'),

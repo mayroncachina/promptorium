@@ -25,6 +25,11 @@ class OpenShortcutsIntent extends Intent {
   const OpenShortcutsIntent();
 }
 
+/// F1: the "Sobre" dialog.
+class OpenAboutIntent extends Intent {
+  const OpenAboutIntent();
+}
+
 /// Ctrl+Shift+A / Ctrl+Shift+D: answer the oldest pending approval.
 class AnswerOldestApprovalIntent extends Intent {
   const AnswerOldestApprovalIntent({required this.approve});
@@ -63,6 +68,7 @@ final Map<ShortcutActivator, Intent> shellShortcuts = {
       const NewSessionIntent(),
   const SingleActivator(LogicalKeyboardKey.slash, control: true):
       const OpenShortcutsIntent(),
+  const SingleActivator(LogicalKeyboardKey.f1): const OpenAboutIntent(),
   const SingleActivator(LogicalKeyboardKey.backslash, control: true):
       const ToggleSplitIntent(),
   const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):

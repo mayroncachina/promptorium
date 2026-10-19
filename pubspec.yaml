@@ -74,6 +74,7 @@ flutter:
 
   assets:
     - assets/icon/
+    - CHANGELOG.md
 
   fonts:
     - family: IBM Plex Sans

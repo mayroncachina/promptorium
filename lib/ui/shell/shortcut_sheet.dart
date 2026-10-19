@@ -31,6 +31,7 @@ const shortcutGroups = [
     ShortcutEntry('Ir para arquivo (Código)', 'Ctrl+P'),
     ShortcutEntry('Busca global no worktree (Código)', 'Ctrl+Shift+F'),
     ShortcutEntry('Esta folha', 'Ctrl+/'),
+    ShortcutEntry('Sobre', 'F1'),
   ]),
   ShortcutGroup('Para você e aprovações', [
     ShortcutEntry('Aprovar a pendência mais antiga', 'Ctrl+Shift+A'),
