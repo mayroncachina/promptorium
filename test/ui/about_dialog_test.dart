@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/update/installer.dart';
 import 'package:promptorium/core/update/update_check.dart';
 import 'package:promptorium/ui/shell/about_dialog.dart';
 import 'package:promptorium/ui/shell/shortcut_sheet.dart';
@@ -264,7 +266,12 @@ void main() {
     await _preloadChangelog(tester);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [updateCheckerProvider.overrideWith(_FakeUpdateChecker.new)],
+        overrides: [
+          updateCheckerProvider.overrideWith(_FakeUpdateChecker.new),
+          updateInstallerProvider.overrideWithValue(
+            _FakeInstaller(Future.value()),
+          ),
+        ],
         child: const MaterialApp(
           home: Scaffold(body: AboutPromptoriumDialog()),
         ),
@@ -285,6 +292,99 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(confirm), findsNothing);
   });
+
+  testWidgets('confirming picks the asset and shows the download progress', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+    final gate = Completer<void>();
+    final fake = _FakeInstaller(gate.future);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateCheckerProvider.overrideWith(_AssetUpdateChecker.new),
+          updateInstallerProvider.overrideWithValue(fake),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: AboutPromptoriumDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('about-update-now')));
+    await tester.pumpAndSettle();
+    expect(fake.downloaded, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('about-update-confirm-yes')));
+    await tester.pump();
+    await tester.pump();
+    expect(fake.downloaded, ['p.deb']);
+    expect(find.byKey(const ValueKey('about-download')), findsOneWidget);
+    expect(find.text('50%'), findsOneWidget);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Download concluído.'), findsOneWidget);
+  });
+
+  testWidgets('without a compatible asset the download dialog shows an error', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+    final fake = _FakeInstaller(Future.value());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateCheckerProvider.overrideWith(_FakeUpdateChecker.new),
+          updateInstallerProvider.overrideWithValue(fake),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: AboutPromptoriumDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('about-update-now')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('about-update-confirm-yes')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('about-download-error')), findsOneWidget);
+    expect(fake.downloaded, isEmpty);
+  });
+}
+
+class _FakeInstaller extends UpdateInstaller {
+  _FakeInstaller(this.gate);
+
+  final Future<void> gate;
+  final downloaded = <String>[];
+
+  @override
+  Future<bool> hasPkexec() async => true;
+
+  @override
+  Stream<DownloadProgress> download(ReleaseAsset asset) async* {
+    downloaded.add(asset.name);
+    yield const DownloadProgress(received: 50, total: 100);
+    await gate;
+    yield DownloadProgress(received: 100, total: 100, file: File('/tmp/x'));
+  }
+}
+
+class _AssetUpdateChecker extends UpdateChecker {
+  @override
+  AvailableUpdate? build() => const AvailableUpdate(
+    version: '9.0.0',
+    url: 'https://x/r',
+    assets: [
+      ReleaseAsset(name: 'p.tar.gz', url: 'https://github.com/a/p.tar.gz'),
+      ReleaseAsset(name: 'p.deb', url: 'https://github.com/a/p.deb'),
+    ],
+  );
 }
 
 class _FakeUpdateChecker extends UpdateChecker {

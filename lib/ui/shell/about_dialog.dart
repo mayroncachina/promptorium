@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/update/installer.dart';
 import '../../core/update/update_check.dart';
 import '../theme/tokens.dart';
 
@@ -122,7 +123,12 @@ class AboutPromptoriumDialog extends ConsumerWidget {
                         const SizedBox(width: 8),
                         FilledButton(
                           key: const ValueKey('about-update-now'),
-                          onPressed: () => _confirmUpdate(context, update),
+                          onPressed: () async {
+                            if (await _confirmUpdate(context, update) &&
+                                context.mounted) {
+                              _startUpdate(context, ref, update);
+                            }
+                          },
                           child: const Text('Atualizar agora'),
                         ),
                       ],
@@ -220,6 +226,104 @@ Future<bool> _confirmUpdate(
     ),
   );
   return ok ?? false;
+}
+
+/// After the confirmation: picks the Linux asset and downloads it,
+/// showing the progress in a dialog.
+void _startUpdate(BuildContext context, WidgetRef ref, AvailableUpdate update) {
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: AppColors.scrim,
+    builder: (_) => _DownloadDialog(update: update),
+  );
+}
+
+class _DownloadDialog extends ConsumerStatefulWidget {
+  const _DownloadDialog({required this.update});
+
+  final AvailableUpdate update;
+
+  @override
+  ConsumerState<_DownloadDialog> createState() => _DownloadDialogState();
+}
+
+class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
+  DownloadProgress? _progress;
+  File? _file;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    final installer = ref.read(updateInstallerProvider);
+    try {
+      final asset = pickAsset(
+        widget.update.assets,
+        preferDeb: await installer.hasPkexec(),
+      );
+      if (asset == null) {
+        throw const FileSystemException(
+          'Nenhum pacote compatível com o Linux.',
+        );
+      }
+      await for (final p in installer.download(asset)) {
+        if (!mounted) return;
+        setState(() {
+          _progress = p;
+          _file = p.file;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e is FileSystemException ? e.message : '$e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _progress;
+    final fraction = p?.fraction;
+    return AlertDialog(
+      key: const ValueKey('about-download'),
+      backgroundColor: AppColors.panel,
+      title: Text('Baixando a ${widget.update.version}'),
+      content: _error != null
+          ? Text(_error!, key: const ValueKey('about-download-error'))
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(
+                  key: const ValueKey('about-download-progress'),
+                  value: _file != null ? 1 : fraction,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _file != null
+                      ? 'Download concluído.'
+                      : fraction == null
+                      ? 'Baixando…'
+                      : '${(fraction * 100).round()}%',
+                  key: const ValueKey('about-download-label'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+      actions: [
+        if (_error != null || _file != null)
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+      ],
+    );
+  }
 }
 
 class _CheckNowButton extends ConsumerStatefulWidget {
