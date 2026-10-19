@@ -194,7 +194,10 @@ void main() {
       find.byKey(const ValueKey('board-segments-SPEC-002')),
       findsOneWidget,
     );
-    expect(text(tester, 'board-strip'), '1 em execução · onda 1 de 2 · \$0.00 hoje');
+    expect(
+      text(tester, 'board-strip'),
+      '1 em execução · onda 1 de 2 · \$0.00 hoje',
+    );
     // "Precisam de mim": only SPEC-002 (R2 waits for the user).
     expect(find.text('Precisam de mim · 1'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('board-filter-attention')));

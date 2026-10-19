@@ -36,6 +36,7 @@ import 'editor_zoom.dart';
 import 'global_approvals.dart';
 import 'navigation.dart';
 import 'shell_intents.dart';
+import 'about_dialog.dart';
 import 'shortcut_sheet.dart';
 import 'side_bar.dart';
 import 'status_footer.dart';
@@ -162,6 +163,18 @@ class _AppShellState extends ConsumerState<AppShell> {
       await showShortcutSheet(context);
     } finally {
       _sheetOpen = false;
+    }
+  }
+
+  bool _aboutOpen = false;
+
+  Future<void> _openAbout() async {
+    if (_aboutOpen) return;
+    _aboutOpen = true;
+    try {
+      await showAboutPromptorium(context);
+    } finally {
+      _aboutOpen = false;
     }
   }
 
@@ -315,6 +328,12 @@ class _AppShellState extends ConsumerState<AppShell> {
           OpenShortcutsIntent: CallbackAction<OpenShortcutsIntent>(
             onInvoke: (_) {
               _openShortcuts();
+              return null;
+            },
+          ),
+          OpenAboutIntent: CallbackAction<OpenAboutIntent>(
+            onInvoke: (_) {
+              _openAbout();
               return null;
             },
           ),
