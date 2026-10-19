@@ -105,4 +105,22 @@ void main() {
     await _f1(tester);
     await _expectAbout(tester);
   });
+
+  testWidgets('F1 with the dialog open closes it and never stacks a second '
+      'one', (tester) async {
+    await pumpShell(tester);
+    await _preloadChangelog(tester);
+    await _f1(tester);
+    await _expectAbout(tester);
+    expect(find.byType(Dialog), findsOneWidget);
+    await _f1(tester);
+    expect(find.byKey(_about), findsNothing);
+    expect(find.byType(Dialog), findsNothing);
+    // Closed for real: the next F1 opens exactly one dialog again.
+    await _f1(tester);
+    expect(find.byKey(_about), findsOneWidget);
+    expect(find.byType(Dialog), findsOneWidget);
+    await _f1(tester);
+    expect(find.byType(Dialog), findsNothing);
+  });
 }
