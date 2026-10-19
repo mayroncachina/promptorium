@@ -273,7 +273,10 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
           'Nenhum pacote compatível com o Linux.',
         );
       }
-      await for (final p in installer.download(asset)) {
+      await for (final p in installer.download(
+        asset,
+        releaseAssets: widget.update.assets,
+      )) {
         if (!mounted) return;
         setState(() {
           _progress = p;

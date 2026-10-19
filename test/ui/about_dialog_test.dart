@@ -359,10 +359,12 @@ void main() {
   });
 
   final failures = <String, _FakeInstaller Function()>{
-    'network error': () => _FakeInstaller(Future.value())
-      ..downloadError = const SocketException('sem rede'),
-    'no pkexec': () => _FakeInstaller(Future.value())
-      ..installError = const FileSystemException('pkexec não encontrado'),
+    'network error': () =>
+        _FakeInstaller(Future.value())
+          ..downloadError = const SocketException('sem rede'),
+    'no pkexec': () =>
+        _FakeInstaller(Future.value())
+          ..installError = const FileSystemException('pkexec não encontrado'),
     'no write permission': () => _FakeInstaller(Future.value())
       ..installError = const FileSystemException('Sem permissão de escrita'),
   };
@@ -440,7 +442,10 @@ class _FakeInstaller extends UpdateInstaller {
   Future<bool> hasPkexec() async => true;
 
   @override
-  Stream<DownloadProgress> download(ReleaseAsset asset) async* {
+  Stream<DownloadProgress> download(
+    ReleaseAsset asset, {
+    List<ReleaseAsset> releaseAssets = const [],
+  }) async* {
     downloaded.add(asset.name);
     if (downloadError != null) throw downloadError!;
     yield const DownloadProgress(received: 50, total: 100);

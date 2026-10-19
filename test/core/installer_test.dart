@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/update/installer.dart';
 import 'package:promptorium/core/update/update_check.dart';
@@ -27,6 +29,123 @@ void main() {
     });
   });
 
+  group('R13 · validação do download', () {
+    const base = 'https://github.com/o/p/releases/download/v1';
+    ReleaseAsset ok([String n = 'promptorium_1.0.0_amd64.deb']) =>
+        ReleaseAsset(name: n, url: '$base/$n');
+
+    Future<Object?> abort(ReleaseAsset a, Directory root) async {
+      try {
+        await UpdateInstaller(tempRoot: root).download(a).toList();
+      } catch (e) {
+        return e;
+      }
+      return null;
+    }
+
+    late Directory root;
+    setUp(() async => root = await Directory.systemTemp.createTemp('r13-'));
+    tearDown(() => root.delete(recursive: true));
+
+    test('aceita os nomes e a URL esperados', () {
+      validateAsset(ok());
+      validateAsset(ok('promptorium-1.0.0-linux-x64.tar.gz'));
+    });
+
+    test('http://, host fora de github.com e URL fora do padrão abortam', () {
+      for (final url in [
+        'http://github.com/o/p/releases/download/v1/promptorium_1.0.0_amd64.deb',
+        'https://evil.com/o/p/releases/download/v1/promptorium_1.0.0_amd64.deb',
+        'https://github.com.evil.com/o/p/releases/download/v1/promptorium_1.0.0_amd64.deb',
+        'https://github.com/o/p/raw/v1/promptorium_1.0.0_amd64.deb',
+        'https://github.com/o/p/releases/download/v1/outro.deb',
+      ]) {
+        expect(
+          () => validateAsset(
+            ReleaseAsset(name: 'promptorium_1.0.0_amd64.deb', url: url),
+          ),
+          throwsA(isA<FileSystemException>()),
+          reason: url,
+        );
+      }
+    });
+
+    test('nome fora do padrão aborta antes de qualquer arquivo', () async {
+      for (final n in ['p.deb', 'promptorium.sh', '../x_1_amd64.deb']) {
+        expect(await abort(ok(n), root), isA<FileSystemException>(), reason: n);
+      }
+      expect(root.listSync(), isEmpty);
+    });
+
+    Future<HttpServer> serve(Map<String, List<int>> files) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((req) async {
+        final data = files[req.uri.path];
+        if (data == null) {
+          req.response.statusCode = 404;
+        } else {
+          req.response.add(data);
+        }
+        await req.response.close();
+      });
+      return server;
+    }
+
+    Future<Object?> run(
+      HttpServer s,
+      ReleaseAsset a, {
+      List<ReleaseAsset> siblings = const [],
+    }) async {
+      try {
+        await UpdateInstaller(
+          tempRoot: root,
+          skipUrlCheck: true,
+        ).download(a, releaseAssets: siblings).toList();
+      } catch (e) {
+        return e;
+      }
+      return null;
+    }
+
+    test('tamanho divergente aborta e apaga o download', () async {
+      final data = utf8.encode('conteudo');
+      final s = await serve({'/p.deb': data});
+      final a = ReleaseAsset(
+        name: 'p.deb',
+        url: 'http://127.0.0.1:${s.port}/p.deb',
+        size: data.length + 1,
+      );
+      expect(await run(s, a), isA<FileSystemException>());
+      expect(root.listSync(), isEmpty);
+    });
+
+    test('.sha256 divergente aborta; correto passa', () async {
+      final data = utf8.encode('conteudo');
+      final good = sha256.convert(data).toString();
+      final s = await serve({
+        '/p.deb': data,
+        '/bad': utf8.encode('${'0' * 64}  p.deb'),
+        '/good': utf8.encode('$good  p.deb\n'),
+      });
+      final a = ReleaseAsset(
+        name: 'p.deb',
+        url: 'http://127.0.0.1:${s.port}/p.deb',
+        size: data.length,
+      );
+      ReleaseAsset sum(String path) => ReleaseAsset(
+        name: 'p.deb.sha256',
+        url: 'http://127.0.0.1:${s.port}/$path',
+      );
+      expect(
+        await run(s, a, siblings: [sum('bad')]),
+        isA<FileSystemException>(),
+      );
+      expect(root.listSync(), isEmpty);
+      expect(await run(s, a, siblings: [sum('good')]), isNull);
+    });
+  });
+
   test('download writes to a new temp dir and emits progress 0..1', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));
@@ -43,9 +162,10 @@ void main() {
       name: 'p.deb',
       url: 'http://127.0.0.1:${server.port}/p.deb',
     );
-    final events = await UpdateInstaller(tempRoot: root)
-        .download(asset)
-        .toList();
+    final events = await UpdateInstaller(
+      tempRoot: root,
+      skipUrlCheck: true,
+    ).download(asset).toList();
 
     final fractions = events.map((e) => e.fraction!).toList();
     expect(fractions.first, 0);

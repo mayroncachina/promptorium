@@ -66,10 +66,13 @@ class AvailableUpdate {
 /// A downloadable file of a release (`browser_download_url`).
 @immutable
 class ReleaseAsset {
-  const ReleaseAsset({required this.name, required this.url});
+  const ReleaseAsset({required this.name, required this.url, this.size});
 
   final String name;
   final String url;
+
+  /// Size in bytes announced by the release; null when absent.
+  final int? size;
 }
 
 /// Tolerant of missing/mistyped fields: bad entries are skipped.
@@ -83,6 +86,7 @@ List<ReleaseAsset> parseReleaseAssets(Object? raw) {
         ReleaseAsset(
           name: a['name'] as String,
           url: a['browser_download_url'] as String,
+          size: a['size'] is int ? a['size'] as int : null,
         ),
   ];
 }
