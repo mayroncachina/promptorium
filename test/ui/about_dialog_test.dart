@@ -254,6 +254,37 @@ void main() {
     expect(find.text('Novidades da 9.1.0'), findsOneWidget);
     expect(find.text('Atualizar agora'), findsOneWidget);
   });
+
+  testWidgets('"Atualizar agora" asks for confirmation; cancel closes it', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _preloadChangelog(tester);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [updateCheckerProvider.overrideWith(_FakeUpdateChecker.new)],
+        child: const MaterialApp(
+          home: Scaffold(body: AboutPromptoriumDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    const confirm = ValueKey('about-update-confirm');
+    expect(find.byKey(confirm), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('about-update-now')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(confirm), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('about-update-cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(confirm), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('about-update-now')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('about-update-confirm-yes')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(confirm), findsNothing);
+  });
 }
 
 class _FakeUpdateChecker extends UpdateChecker {

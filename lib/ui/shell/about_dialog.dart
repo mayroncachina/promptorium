@@ -122,9 +122,7 @@ class AboutPromptoriumDialog extends ConsumerWidget {
                         const SizedBox(width: 8),
                         FilledButton(
                           key: const ValueKey('about-update-now'),
-                          // The download and install flow arrives in the next
-                          // steps.
-                          onPressed: () {},
+                          onPressed: () => _confirmUpdate(context, update),
                           child: const Text('Atualizar agora'),
                         ),
                       ],
@@ -190,6 +188,40 @@ class AboutPromptoriumDialog extends ConsumerWidget {
 
 /// "Verificar agora": forces a lookup of the latest release; the dialog
 /// watches [updateCheckerProvider], so the result shows up by itself.
+/// Explicit confirmation before anything is downloaded. Returns true only
+/// when the user confirms; the download itself arrives in the next steps.
+Future<bool> _confirmUpdate(
+  BuildContext context,
+  AvailableUpdate update,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    barrierColor: AppColors.scrim,
+    builder: (ctx) => AlertDialog(
+      key: const ValueKey('about-update-confirm'),
+      backgroundColor: AppColors.panel,
+      title: const Text('Atualizar o Promptorium?'),
+      content: Text(
+        'A versão ${update.version} será baixada e instalada, e o app '
+        'será reiniciado. Nada é baixado antes da sua confirmação.',
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('about-update-cancel'),
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('about-update-confirm-yes'),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Atualizar'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}
+
 class _CheckNowButton extends ConsumerStatefulWidget {
   const _CheckNowButton();
 
