@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -367,5 +368,30 @@ void main() {
     await pumpFor(tester, 2);
     expect(horizontal.pixels, horizontal.maxScrollExtent);
     expect(vertical.pixels, vertical.maxScrollExtent);
+  });
+
+  testWidgets('the mouse wheel over a spec card scrolls the Board', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    final scroll = find.byKey(const ValueKey('board-vertical-scroll'));
+    final pos = tester
+        .state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+        )
+        .position;
+    expect(pos.pixels, 0);
+    final card = find.byType(SpecCard).first;
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(pointer.hover(tester.getCenter(card)));
+    // The column under the card takes the wheel until its end, then the
+    // gesture reaches the Board.
+    for (var i = 0; i < 3; i++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+    }
+    await pumpFor(tester, 2);
+    expect(pos.pixels, greaterThan(0));
   });
 }
