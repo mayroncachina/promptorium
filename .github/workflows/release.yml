@@ -35,16 +35,19 @@ jobs:
         with:
           version: ${{ steps.version.outputs.version }}
 
-      - name: Notas da release (se estiver sem texto)
+      # As notas da release saem sempre do git-cliff (commits convencionais
+      # desde a tag anterior), no lugar do texto automático do GitHub.
+      - name: Notas da release (git-cliff)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          body="$(gh release view "$GITHUB_REF_NAME" --json body -q .body)"
-          if [ -z "$(echo "$body" | tr -d '[:space:]')" ]; then
-            sudo npm install -g git-cliff >/dev/null
-            git cliff --latest --strip header -o notes.md
-            gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
-          fi
+          sudo npm install -g git-cliff >/dev/null
+          git cliff --latest --strip header -o notes.md
+          printf '\n**Changelog completo**: %s/%s/compare/%s...%s\n' \
+            "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" \
+            "$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || echo "$GITHUB_REF_NAME")" \
+            "$GITHUB_REF_NAME" >> notes.md
+          gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
 
       - name: Anexar à release
         env:
