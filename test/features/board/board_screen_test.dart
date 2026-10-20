@@ -280,4 +280,26 @@ void main() {
     expect(db, isNotNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a Board shorter than its columns scrolls vertically to the '
+      'last spec', (tester) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final scroll = find.byKey(const ValueKey('board-vertical-scroll'));
+    expect(scroll, findsOneWidget);
+    final pos = tester
+        .state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+        )
+        .position;
+    expect(pos.maxScrollExtent, greaterThan(0));
+    pos.jumpTo(pos.maxScrollExtent);
+    await pumpFor(tester, 2);
+    final bottom = tester.getBottomLeft(
+      find.byKey(const ValueKey('board-column-done')),
+    );
+    expect(bottom.dy, lessThanOrEqualTo(300));
+  });
 }
