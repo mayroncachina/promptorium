@@ -304,6 +304,33 @@ void main() {
     expect(bottom.dy, lessThanOrEqualTo(300));
   });
 
+  testWidgets('a Board that fits shows no scroll bar and keeps its layout', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('board-vertical-scroll')), findsNothing);
+    expect(find.byType(Scrollbar), findsNothing);
+    final column = find.byKey(const ValueKey('board-column-done'));
+    final columnScrollable = find.descendant(
+      of: column,
+      matching: find.byType(Scrollable),
+    );
+    expect(
+      tester
+          .state<ScrollableState>(columnScrollable.first)
+          .position
+          .maxScrollExtent,
+      0,
+    );
+    // The Board fills the visible area exactly, as before.
+    final box = tester.getRect(
+      find.ancestor(of: column, matching: find.byType(SizedBox)).first,
+    );
+    expect(box.top, greaterThanOrEqualTo(0));
+    expect(box.bottom, lessThanOrEqualTo(900));
+  });
+
   testWidgets('Grafo view scrolls vertically to the last row of a tall wave '
       'and keeps scrolling horizontally', (tester) async {
     final (_, db) = await pumpBoard(tester);
