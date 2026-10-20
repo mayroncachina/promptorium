@@ -394,4 +394,55 @@ void main() {
     await pumpFor(tester, 2);
     expect(pos.pixels, greaterThan(0));
   });
+
+  testWidgets('a column with more cards than fit scrolls alone', (
+    tester,
+  ) async {
+    final (_, db) = await pumpBoard(tester);
+    for (final stage in [SpecStage.backlog, SpecStage.running]) {
+      for (var i = 0; i < 12; i++) {
+        await db
+            .into(db.specs)
+            .insert(
+              SpecsCompanion.insert(
+                workspaceId: 1,
+                code: 'SPEC-${stage.name}-$i',
+                title: 'Col ${stage.name} $i',
+                path: 'specs/${stage.name}$i.md',
+                stage: Value(stage),
+                status: const Value(SpecStatus.approved),
+              ),
+            );
+      }
+    }
+    await pumpFor(tester, 20);
+    ScrollPosition columnPos(String stage) => tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey('board-column-$stage')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    final backlog = columnPos('backlog');
+    final running = columnPos('running');
+    final done = columnPos('done');
+    expect(backlog.maxScrollExtent, greaterThan(0));
+    expect(running.maxScrollExtent, greaterThan(0));
+    final card = find.descendant(
+      of: find.byKey(const ValueKey('board-column-backlog')),
+      matching: find.byType(SpecCard),
+    );
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(
+      pointer.hover(tester.getCenter(card.first)),
+    );
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+    await pumpFor(tester, 2);
+    expect(backlog.pixels, greaterThan(0));
+    expect(running.pixels, 0);
+    expect(done.pixels, 0);
+  });
 }
