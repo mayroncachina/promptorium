@@ -302,4 +302,70 @@ void main() {
     );
     expect(bottom.dy, lessThanOrEqualTo(300));
   });
+
+  testWidgets('Grafo view scrolls vertically to the last row of a tall wave '
+      'and keeps scrolling horizontally', (tester) async {
+    final (_, db) = await pumpBoard(tester);
+    {
+      for (var i = 0; i < 10; i++) {
+        await db
+            .into(db.specs)
+            .insert(
+              SpecsCompanion.insert(
+                workspaceId: 1,
+                code: 'SPEC-1${i.toString().padLeft(2, '0')}',
+                title: 'Extra $i',
+                path: 'specs/extra$i.md',
+                dependsOn: const Value(['SPEC-004']),
+                status: const Value(SpecStatus.approved),
+              ),
+            );
+      }
+    }
+    for (final (code, dep) in [
+      ('SPEC-200', 'SPEC-100'),
+      ('SPEC-201', 'SPEC-200'),
+    ]) {
+      await db
+          .into(db.specs)
+          .insert(
+            SpecsCompanion.insert(
+              workspaceId: 1,
+              code: code,
+              title: code,
+              path: 'specs/$code.md',
+              dependsOn: Value([dep]),
+              status: const Value(SpecStatus.approved),
+            ),
+          );
+    }
+    await tester.tap(find.byKey(const ValueKey('board-view-graph')));
+    await pumpFor(tester, 20);
+    tester.view.physicalSize = const Size(1440, 500);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final scrollables = find.descendant(
+      of: find.byKey(const ValueKey('board-graph')),
+      matching: find.byType(Scrollable),
+    );
+    final horizontal = tester
+        .state<ScrollableState>(scrollables.first)
+        .position;
+    final vertical = tester.state<ScrollableState>(scrollables.at(1)).position;
+    expect(horizontal.axis, Axis.horizontal);
+    expect(vertical.axis, Axis.vertical);
+    expect(vertical.maxScrollExtent, greaterThan(0));
+    vertical.jumpTo(vertical.maxScrollExtent);
+    await pumpFor(tester, 2);
+    expect(find.text('Extra 9'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(find.text('Extra 9')).dy,
+      lessThanOrEqualTo(500),
+    );
+    expect(horizontal.maxScrollExtent, greaterThan(0));
+    horizontal.jumpTo(horizontal.maxScrollExtent);
+    await pumpFor(tester, 2);
+    expect(horizontal.pixels, horizontal.maxScrollExtent);
+    expect(vertical.pixels, vertical.maxScrollExtent);
+  });
 }
