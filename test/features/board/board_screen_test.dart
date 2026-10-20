@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -278,6 +279,231 @@ void main() {
       findsOneWidget,
     );
     expect(db, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a Board shorter than its columns scrolls vertically to the '
+      'last spec', (tester) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final scroll = find.byKey(const ValueKey('board-vertical-scroll'));
+    expect(scroll, findsOneWidget);
+    final pos = tester
+        .state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+        )
+        .position;
+    expect(pos.maxScrollExtent, greaterThan(0));
+    pos.jumpTo(pos.maxScrollExtent);
+    await pumpFor(tester, 2);
+    final bottom = tester.getBottomLeft(
+      find.byKey(const ValueKey('board-column-done')),
+    );
+    expect(bottom.dy, lessThanOrEqualTo(300));
+  });
+
+  testWidgets('a Board shorter than its columns shows a vertical scroll bar', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final bar = find.ancestor(
+      of: find.byKey(const ValueKey('board-vertical-scroll')),
+      matching: find.byType(Scrollbar),
+    );
+    expect(bar, findsOneWidget);
+    expect(tester.widget<Scrollbar>(bar).thumbVisibility, isTrue);
+  });
+
+  testWidgets('a Board that fits shows no scroll bar and keeps its layout', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('board-vertical-scroll')), findsNothing);
+    expect(find.byType(Scrollbar), findsNothing);
+    final column = find.byKey(const ValueKey('board-column-done'));
+    final columnScrollable = find.descendant(
+      of: column,
+      matching: find.byType(Scrollable),
+    );
+    expect(
+      tester
+          .state<ScrollableState>(columnScrollable.first)
+          .position
+          .maxScrollExtent,
+      0,
+    );
+    // The Board fills the visible area exactly, as before.
+    final box = tester.getRect(
+      find.ancestor(of: column, matching: find.byType(SizedBox)).first,
+    );
+    expect(box.top, greaterThanOrEqualTo(0));
+    expect(box.bottom, lessThanOrEqualTo(900));
+  });
+
+  testWidgets('Grafo view scrolls vertically to the last row of a tall wave '
+      'and keeps scrolling horizontally', (tester) async {
+    final (_, db) = await pumpBoard(tester);
+    {
+      for (var i = 0; i < 10; i++) {
+        await db
+            .into(db.specs)
+            .insert(
+              SpecsCompanion.insert(
+                workspaceId: 1,
+                code: 'SPEC-1${i.toString().padLeft(2, '0')}',
+                title: 'Extra $i',
+                path: 'specs/extra$i.md',
+                dependsOn: const Value(['SPEC-004']),
+                status: const Value(SpecStatus.approved),
+              ),
+            );
+      }
+    }
+    for (final (code, dep) in [
+      ('SPEC-200', 'SPEC-100'),
+      ('SPEC-201', 'SPEC-200'),
+    ]) {
+      await db
+          .into(db.specs)
+          .insert(
+            SpecsCompanion.insert(
+              workspaceId: 1,
+              code: code,
+              title: code,
+              path: 'specs/$code.md',
+              dependsOn: Value([dep]),
+              status: const Value(SpecStatus.approved),
+            ),
+          );
+    }
+    await tester.tap(find.byKey(const ValueKey('board-view-graph')));
+    await pumpFor(tester, 20);
+    tester.view.physicalSize = const Size(1440, 500);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final scrollables = find.descendant(
+      of: find.byKey(const ValueKey('board-graph')),
+      matching: find.byType(Scrollable),
+    );
+    final horizontal = tester
+        .state<ScrollableState>(scrollables.first)
+        .position;
+    final vertical = tester.state<ScrollableState>(scrollables.at(1)).position;
+    expect(horizontal.axis, Axis.horizontal);
+    expect(vertical.axis, Axis.vertical);
+    expect(vertical.maxScrollExtent, greaterThan(0));
+    vertical.jumpTo(vertical.maxScrollExtent);
+    await pumpFor(tester, 2);
+    expect(find.text('Extra 9'), findsOneWidget);
+    expect(
+      tester.getBottomLeft(find.text('Extra 9')).dy,
+      lessThanOrEqualTo(500),
+    );
+    expect(horizontal.maxScrollExtent, greaterThan(0));
+    horizontal.jumpTo(horizontal.maxScrollExtent);
+    await pumpFor(tester, 2);
+    expect(horizontal.pixels, horizontal.maxScrollExtent);
+    expect(vertical.pixels, vertical.maxScrollExtent);
+  });
+
+  testWidgets('the mouse wheel over a spec card scrolls the Board', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    final scroll = find.byKey(const ValueKey('board-vertical-scroll'));
+    final pos = tester
+        .state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+        )
+        .position;
+    expect(pos.pixels, 0);
+    final card = find.byType(SpecCard).first;
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(pointer.hover(tester.getCenter(card)));
+    // The column under the card takes the wheel until its end, then the
+    // gesture reaches the Board.
+    for (var i = 0; i < 3; i++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+    }
+    await pumpFor(tester, 2);
+    expect(pos.pixels, greaterThan(0));
+  });
+
+  testWidgets('a column with more cards than fit scrolls alone', (
+    tester,
+  ) async {
+    final (_, db) = await pumpBoard(tester);
+    for (final stage in [SpecStage.backlog, SpecStage.running]) {
+      for (var i = 0; i < 12; i++) {
+        await db
+            .into(db.specs)
+            .insert(
+              SpecsCompanion.insert(
+                workspaceId: 1,
+                code: 'SPEC-${stage.name}-$i',
+                title: 'Col ${stage.name} $i',
+                path: 'specs/${stage.name}$i.md',
+                stage: Value(stage),
+                status: const Value(SpecStatus.approved),
+              ),
+            );
+      }
+    }
+    await pumpFor(tester, 20);
+    ScrollPosition columnPos(String stage) => tester
+        .state<ScrollableState>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey('board-column-$stage')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        )
+        .position;
+    final backlog = columnPos('backlog');
+    final running = columnPos('running');
+    final done = columnPos('done');
+    expect(backlog.maxScrollExtent, greaterThan(0));
+    expect(running.maxScrollExtent, greaterThan(0));
+    final card = find.descendant(
+      of: find.byKey(const ValueKey('board-column-backlog')),
+      matching: find.byType(SpecCard),
+    );
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    await tester.sendEventToBinding(
+      pointer.hover(tester.getCenter(card.first)),
+    );
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, 120)));
+    await pumpFor(tester, 2);
+    expect(backlog.pixels, greaterThan(0));
+    expect(running.pixels, 0);
+    expect(done.pixels, 0);
+  });
+
+  testWidgets('dragging a card still changes its stage while the Board '
+      'scrolls vertically', (tester) async {
+    final (c, _) = await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(
+      find.byKey(const ValueKey('board-vertical-scroll')),
+      findsOneWidget,
+    );
+    final card = find.byKey(const ValueKey('board-card-SPEC-003'));
+    await tester.ensureVisible(card);
+    await pumpFor(tester);
+    await tester.drag(card, const Offset(700, 0));
+    await pumpFor(tester);
+    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-003');
+    expect(moved!.stage, isNot(SpecStage.backlog));
     expect(tester.takeException(), isNull);
   });
 }

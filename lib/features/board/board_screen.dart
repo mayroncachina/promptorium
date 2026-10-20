@@ -681,6 +681,10 @@ class _Board extends StatelessWidget {
   static const _pad = 20.0;
   static const _minCol = 240.0;
 
+  /// Below this height the columns no longer fit their header and a card:
+  /// the whole Board scrolls vertically instead of clipping.
+  static const _minHeight = 360.0;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, c) {
@@ -689,7 +693,7 @@ class _Board extends StatelessWidget {
       final width = colW * 4 + 3 * _gap + 2 * _pad;
       final board = SizedBox(
         width: width,
-        height: c.maxHeight,
+        height: math.max(c.maxHeight, _minHeight),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: _pad, vertical: 16),
           child: Row(
@@ -724,10 +728,19 @@ class _Board extends StatelessWidget {
           ),
         ),
       );
-      if (width <= c.maxWidth + 0.5) return board;
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: board,
+      final wide = width <= c.maxWidth + 0.5
+          ? board
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: board,
+            );
+      if (c.maxHeight >= _minHeight) return wide;
+      return Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          key: const ValueKey('board-vertical-scroll'),
+          child: wide,
+        ),
       );
     },
   );
