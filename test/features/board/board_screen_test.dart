@@ -304,6 +304,21 @@ void main() {
     expect(bottom.dy, lessThanOrEqualTo(300));
   });
 
+  testWidgets('a Board shorter than its columns shows a vertical scroll bar', (
+    tester,
+  ) async {
+    await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(tester.takeException(), isNull);
+    final bar = find.ancestor(
+      of: find.byKey(const ValueKey('board-vertical-scroll')),
+      matching: find.byType(Scrollbar),
+    );
+    expect(bar, findsOneWidget);
+    expect(tester.widget<Scrollbar>(bar).thumbVisibility, isTrue);
+  });
+
   testWidgets('a Board that fits shows no scroll bar and keeps its layout', (
     tester,
   ) async {

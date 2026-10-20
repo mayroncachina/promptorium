@@ -735,9 +735,12 @@ class _Board extends StatelessWidget {
               child: board,
             );
       if (c.maxHeight >= _minHeight) return wide;
-      return SingleChildScrollView(
-        key: const ValueKey('board-vertical-scroll'),
-        child: wide,
+      return Scrollbar(
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          key: const ValueKey('board-vertical-scroll'),
+          child: wide,
+        ),
       );
     },
   );
