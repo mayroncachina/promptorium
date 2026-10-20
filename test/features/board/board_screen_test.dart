@@ -472,4 +472,23 @@ void main() {
     expect(running.pixels, 0);
     expect(done.pixels, 0);
   });
+
+  testWidgets('dragging a card still changes its stage while the Board '
+      'scrolls vertically', (tester) async {
+    final (c, _) = await pumpBoard(tester);
+    tester.view.physicalSize = const Size(1440, 300);
+    await pumpFor(tester);
+    expect(
+      find.byKey(const ValueKey('board-vertical-scroll')),
+      findsOneWidget,
+    );
+    final card = find.byKey(const ValueKey('board-card-SPEC-003'));
+    await tester.ensureVisible(card);
+    await pumpFor(tester);
+    await tester.drag(card, const Offset(700, 0));
+    await pumpFor(tester);
+    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-003');
+    expect(moved!.stage, isNot(SpecStage.backlog));
+    expect(tester.takeException(), isNull);
+  });
 }
