@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
@@ -83,7 +84,7 @@ void main() {
     });
 
     test('registry: Claude Code, the ACP agents (default Gemini CLI, F18) '
-        'and Codex coming soon', () {
+        'and Codex', () {
       final c = ProviderContainer();
       addTearDown(c.dispose);
       final all = c.read(agentProvidersProvider);
@@ -92,13 +93,8 @@ void main() {
         'Gemini CLI',
         'Codex',
       ]);
-      expect(all.map((p) => p.enabled), [true, true, false]);
-      expect(
-        () => all[2].start(
-          const AgentStartOptions(workingDirectory: '/', mode: PromptMode.ask),
-        ),
-        throwsA(isA<AgentUnavailable>()),
-      );
+      expect(all.map((p) => p.enabled), [true, true, true]);
+      expect(all[2], isA<CodexProvider>());
     });
   });
 

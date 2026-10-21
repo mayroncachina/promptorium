@@ -4,11 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
+import '../../core/providers/permission_policy.dart';
+import '../../core/providers/provider_preferences.dart';
 import '../../ui/theme/tokens.dart';
 import 'agent_names.dart';
 import 'session_manager.dart';
-import 'widgets/composer.dart'
-    show lastPermissionModeKey, permissionLabel, uiPermissionModes;
+import 'widgets/composer.dart' show uiPermissionModes;
 import 'widgets/session_style.dart';
 
 /// "Nova sessão" (title bar button / Ctrl+N; "Testar em sessão" of the
@@ -67,15 +68,23 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   );
   late final _prompt = TextEditingController(text: widget.initialPrompt ?? '');
   late String? _agent = widget.initialAgent;
+  late String _provider =
+      widget.forkOf?.provider ?? ref.read(activeAgentProvider);
 
   /// Defaults of Configurações → Consumo (an agent may change them).
-  late String _model = ref.read(runPrefsProvider).model(RunKind.session);
-  late String _effort = ref.read(runPrefsProvider).effort(RunKind.session);
+  late String _model = _provider == 'claude'
+      ? ref.read(runPrefsProvider).model(RunKind.session)
+      : 'inherit';
+  late String _effort = _provider == 'claude'
+      ? ref.read(runPrefsProvider).effort(RunKind.session)
+      : 'default';
 
   /// Last mode chosen here (remembered), else `default`.
   late ClaudePermissionMode _mode = () {
     final saved = ClaudePermissionMode.fromCli(
-      ref.read(appSettingsProvider.notifier).get(lastPermissionModeKey),
+      ref
+          .read(appSettingsProvider.notifier)
+          .get(permissionModePreferenceKey(_provider)),
     );
     return saved != null && uiPermissionModes.contains(saved)
         ? saved
@@ -140,6 +149,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           : await manager.create(
               NewSessionRequest(
                 workspace: ws!,
+                provider: _provider,
                 title: _title.text,
                 prompt: _prompt.text,
                 agent: _agent,
@@ -152,7 +162,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (fork == null) {
         await ref
             .read(appSettingsProvider.notifier)
-            .set(lastPermissionModeKey, _mode.cliValue);
+            .set(permissionModePreferenceKey(_provider), _mode.cliValue);
       }
       ref.read(selectedSessionProvider.notifier).select(id);
       if (mounted) Navigator.of(context).pop(id);
@@ -315,6 +325,22 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            label('Provedor'),
+                            dropdown<String>(
+                              key: const ValueKey('new-session-provider'),
+                              value: _provider,
+                              items: const [
+                                ('claude', 'Claude Code'),
+                                ('codex', 'Codex'),
+                              ],
+                              onChanged: (v) => setState(() {
+                                _provider = v;
+                                _model = 'inherit';
+                                _effort = 'default';
+                                _agent = null;
+                                _mode = ClaudePermissionMode.defaultMode;
+                              }),
+                            ),
                             label('Modelo'),
                             // Rebuilt when an agent changes the value.
                             KeyedSubtree(
@@ -323,7 +349,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 key: const ValueKey('new-session-model'),
                                 value: _model,
                                 items: [
-                                  for (final m in {...sessionModels, _model})
+                                  for (final m in {
+                                    ...(_provider == 'codex'
+                                        ? const ['inherit']
+                                        : sessionModels),
+                                    _model,
+                                  })
                                     (
                                       m,
                                       m == 'inherit'
@@ -385,20 +416,17 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                         for (final m in uiPermissionModes)
                           if (_worktree ||
                               m != ClaudePermissionMode.skipPermissions)
-                            (m, '${m.cliValue} — ${permissionLabel(m)}'),
+                            (m, permissionModeOption(m, provider: _provider)),
                       ],
                       onChanged: (v) => setState(() => _mode = v),
                     ),
                   ),
                   if (_mode == ClaudePermissionMode.skipPermissions)
-                    const Padding(
+                    Padding(
                       key: ValueKey('new-session-skip-warning'),
                       padding: EdgeInsets.only(top: 6),
                       child: Text(
-                        '--dangerously-skip-permissions: o agente edita '
-                        'arquivos e roda qualquer comando sem pedir '
-                        'aprovação, inclusive fora do worktree. Use só em '
-                        'projetos e máquinas em que você confia.',
+                        bypassWarning(_provider),
                         style: TextStyle(fontSize: 11, color: AppColors.red),
                       ),
                     ),

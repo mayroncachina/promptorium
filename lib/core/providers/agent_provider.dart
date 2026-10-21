@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../ui/widgets/app_icon.dart';
+import '../claude/claude_args.dart';
 import '../claude/claude_event.dart';
 import '../claude/claude_process.dart' show ImagePart;
 
@@ -52,6 +53,17 @@ class AgentStartOptions {
     this.effort,
     this.autocompact,
     this.maxBudgetUsd,
+    this.maxTurns,
+    this.permissionMode,
+    this.agent,
+    this.appendSystemPrompt,
+    this.jsonSchema,
+    this.environment,
+    this.settingsFile,
+    this.tools = const [],
+    this.mcpConfigs = const [],
+    this.strictMcpConfig = false,
+    this.agentsJson,
     this.mcpAllowedTools = const [],
     this.mcpDisallowedTools = const [],
   });
@@ -75,6 +87,17 @@ class AgentStartOptions {
   /// `--autocompact` (null = provider default).
   final String? autocompact;
   final double? maxBudgetUsd;
+  final int? maxTurns;
+  final ClaudePermissionMode? permissionMode;
+  final String? agent;
+  final String? appendSystemPrompt;
+  final String? jsonSchema;
+  final Map<String, String>? environment;
+  final String? settingsFile;
+  final List<String> tools;
+  final List<String> mcpConfigs;
+  final bool strictMcpConfig;
+  final String? agentsJson;
 
   /// MCP tools marked "Permitido" (`mcp__srv__tool`, Fase 11). Ignored by
   /// the read-only modes ([PromptMode.ask], [PromptMode.refine]).
@@ -174,4 +197,11 @@ class ComingSoonProvider implements AgentProvider {
   @override
   Future<AgentRun> start(AgentStartOptions options) =>
       Future.error(AgentUnavailable('$displayName ainda não está disponível.'));
+}
+
+/// Optional lifecycle controls used by managed sessions.
+abstract interface class ManagedAgentRun implements AgentRun {
+  int get pid;
+  Future<void> interrupt();
+  Future<void> setPermissionMode(ClaudePermissionMode mode);
 }

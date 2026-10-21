@@ -180,6 +180,31 @@ void main() {
   });
 
   group('sessions and events', () {
+    test(
+      'Codex identity and configuration remain separate from local id',
+      () async {
+        final repo = SessionsRepo(db);
+        final w = await ws();
+        final s = await repo.insert(
+          id: 'local-session',
+          workspaceId: w.id,
+          worktreePath: '/w',
+          branch: 'main',
+          model: 'inherit',
+          provider: 'codex',
+          runConfig: '{"mode":"ask"}',
+        );
+        expect(s.externalId, isNull);
+        await repo.setExternalId(s.id, 'codex-thread');
+        await repo.setRunConfig(s.id, '{"mode":"edit"}');
+        final stored = (await repo.getById(s.id))!;
+        expect(stored.id, 'local-session');
+        expect(stored.provider, 'codex');
+        expect(stored.externalId, 'codex-thread');
+        expect(stored.runConfig, '{"mode":"edit"}');
+      },
+    );
+
     const id = '0b0f5c1e-1a2b-4c3d-8e9f-0123456789ab';
 
     Future<Session> session(SessionsRepo repo, Workspace w) => repo.insert(

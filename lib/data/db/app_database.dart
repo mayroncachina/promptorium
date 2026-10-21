@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 14;
+const appSchemaVersion = 15;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -384,6 +384,10 @@ class Tasks extends Table {
 
 /// A Claude Code session (`--session-id <uuid>`).
 class Sessions extends Table {
+  TextColumn get provider => text().withDefault(const Constant('claude'))();
+  TextColumn get externalId => text().nullable()();
+  TextColumn get runConfig => text().nullable()();
+
   /// UUID passed to `--session-id` / `--resume`.
   TextColumn get id => text()();
   IntColumn get workspaceId =>
@@ -469,6 +473,7 @@ class SessionEvents extends Table {
 
 /// Free conversation of the Prompt screen (Fase 6).
 class Conversations extends Table {
+  TextColumn get runConfig => text().nullable()();
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workspaceId =>
       integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
@@ -802,6 +807,19 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(v.sessions, v.sessions.pid);
             }
             await m.createTable(v.notifications);
+          },
+          from14To15: (m, v) async {
+            if (await _hasTable('sessions')) {
+              await m.addColumn(v.sessions, v.sessions.provider);
+              await m.addColumn(v.sessions, v.sessions.externalId);
+              await m.addColumn(v.sessions, v.sessions.runConfig);
+              await customStatement(
+                "UPDATE sessions SET external_id = id WHERE provider = 'claude'",
+              );
+            }
+            if (await _hasTable('conversations')) {
+              await m.addColumn(v.conversations, v.conversations.runConfig);
+            }
           },
           // v14: best-of-N attempts of a step.
           from13To14: (m, v) async {

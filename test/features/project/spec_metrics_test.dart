@@ -20,6 +20,7 @@ void main() {
       rejectedHunks: 3,
     );
     Session s(String id, String steps, int minutes, double cost) => Session(
+      provider: 'claude',
       id: id,
       workspaceId: 1,
       worktreePath: '/w',

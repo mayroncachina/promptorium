@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:promptorium/core/process/process_runner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +33,10 @@ Future<ProviderContainer> pumpLoadedShell(
   addTearDown(tester.view.reset);
   final c = ProviderContainer(
     overrides: [
+      processRunnerProvider.overrideWithValue(
+        (exe, args) async =>
+            ProcessResult(0, 1, '', 'not installed in widget fixture'),
+      ),
       // Not closed by the container: the same database is reopened later.
       appDatabaseProvider.overrideWithValue(db),
       if (resolver != null) gitRootResolverProvider.overrideWithValue(resolver),

@@ -82,6 +82,7 @@ class SpecDesigner {
   Future<String> generate(Workspace ws, String specText) async {
     final r = await runReadOnlyClaude(
       _ref,
+      workspaceId: ws.id,
       cwd: ws.path,
       options: ClaudeOptions(
         permissionMode: ClaudePermissionMode.defaultMode,

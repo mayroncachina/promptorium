@@ -9,6 +9,7 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
+import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
 import '../../data/repos/conversations_repo.dart';
 import '../mcp/mcp_rules.dart';
@@ -132,16 +133,18 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     required String text,
     PromptMode mode = PromptMode.ask,
     String? model,
-    String providerId = ClaudeCodeProvider.providerId,
+    String? providerId,
     List<ImagePart> images = const [],
   }) async {
     final msg = text.trim();
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
+    final selected =
+        providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
     final c = await _repo.insert(
       workspaceId: workspace.id,
       title: conversationTitle(msg),
-      model: model ?? ref.read(runPrefsProvider).model(RunKind.conversation),
-      provider: providerId,
+      model: model ?? providerModel(ref, selected, RunKind.conversation),
+      provider: selected,
       mode: mode.name,
     );
     await send(c.id, msg, images: images);
@@ -273,8 +276,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           sessionId: resume == null ? sid : null,
           resumeId: resume,
           model: conv.model,
-          effort: effortArg(prefs.effort(RunKind.conversation)),
-          autocompact: prefs.autocompact,
+          effort: effortArg(
+            providerEffort(ref, conv.provider, RunKind.conversation),
+          ),
+          autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
           mcpAllowedTools: mcp.allowed,
           mcpDisallowedTools: mcp.disallowed,
         ),
@@ -506,14 +511,28 @@ class PromptDraft {
 }
 
 class PromptDraftController extends Notifier<PromptDraft> {
+  PromptDraft? _chosen;
+  int? _workspace;
   @override
-  PromptDraft build() => PromptDraft(
-    model: ref.watch(
-      runPrefsProvider.select((p) => p.model(RunKind.conversation)),
-    ),
-  );
+  PromptDraft build() {
+    final ws = ref.watch(activeWorkspaceProvider)?.id;
+    if (_workspace != ws) {
+      _chosen = null;
+      _workspace = ws;
+    }
+    final provider = ref.watch(activeAgentProvider);
+    ref.watch(runPrefsProvider);
+    return _chosen ??
+        PromptDraft(
+          providerId: provider,
+          model: providerModel(ref, provider, RunKind.conversation),
+        );
+  }
 
-  void set(PromptDraft d) => state = d;
+  void set(PromptDraft d) {
+    _chosen = d;
+    state = d;
+  }
 }
 
 final promptDraftProvider =

@@ -368,6 +368,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   ) async {
     final r = await runReadOnlyClaude(
       ref,
+      workspaceId: ws.id,
       cwd: ws.path,
       options: options,
       prompt: prompt,

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert' show jsonEncode;
+import 'dart:convert' show jsonEncode, jsonDecode;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -13,6 +13,9 @@ import '../../core/claude/claude_process.dart';
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
+import '../../core/providers/agent_registry.dart';
+import '../../core/providers/permission_policy.dart';
+import '../../core/providers/provider_preferences.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
@@ -50,6 +53,7 @@ class NewSessionRequest {
     required this.prompt,
     this.agent,
     this.model = 'inherit',
+    this.provider,
     this.effort,
     this.permissionMode = ClaudePermissionMode.defaultMode,
     this.useWorktree = true,
@@ -73,6 +77,7 @@ class NewSessionRequest {
   /// Subagent name passed as `--agent` (null = none).
   final String? agent;
   final String model;
+  final String? provider;
 
   /// `--effort` (one of `effortChoices`); null = the session default of
   /// Configurações ([RunPrefs]).
@@ -192,7 +197,7 @@ class _Proc {
     this.skipPermissions = false,
   });
 
-  final ClaudeProcess process;
+  final ManagedAgentRun process;
   String title;
 
   /// Started with `--dangerously-skip-permissions` (a start flag: a live
@@ -279,6 +284,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Creates the worktree (optional), the `sessions` row and the process, then
   /// sends [NewSessionRequest.prompt]. Returns the session id.
   Future<String> create(NewSessionRequest r) async {
+    final provider =
+        r.provider ?? ref.read<String>(defaultAgentProvider(r.workspace.id));
     final title = r.title.trim();
     final prompt = r.prompt.trim();
     if (title.isEmpty) throw const SessionException('Informe um título.');
@@ -318,13 +325,18 @@ class SessionManager extends Notifier<SessionManagerState> {
       );
     }
     final effort =
-        r.effort ?? ref.read(runPrefsProvider).effort(RunKind.session);
+        r.effort ??
+        (provider == 'claude'
+            ? ref.read(runPrefsProvider).effort(RunKind.session)
+            : 'default');
     await _repo.insert(
       id: id,
       workspaceId: ws.id,
       worktreePath: path,
       branch: branch,
       model: r.model,
+      provider: provider,
+      externalId: provider == 'claude' ? id : null,
       effort: effort,
       agentName: r.agent,
       title: title,
@@ -511,6 +523,11 @@ class SessionManager extends Notifier<SessionManagerState> {
     }
     await _note(id, 'Sessão retomada (--resume)');
     final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    if (s.provider == 'codex' &&
+        s.permissionMode == 'bypassPermissions' &&
+        (ws == null || s.worktreePath == ws.path)) {
+      throw const SessionException('Codex YOLO exige um worktree isolado.');
+    }
     final limits = await _agentLimits(s.agentName, ws?.path);
     final mcp = await _mcpRules();
     await _start(
@@ -518,7 +535,9 @@ class SessionManager extends Notifier<SessionManagerState> {
       ClaudeOptions(
         resumeId: id,
         model: _model(s.model),
-        effort: _effort(s.effort),
+        effort: s.provider != 'claude'
+            ? effortArg(s.effort)
+            : _effort(s.effort),
         agent: s.agentName,
         permissionMode: skipOnlyInWorktree(
           ClaudePermissionMode.fromCli(s.permissionMode),
@@ -604,6 +623,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       worktreePath: path,
       branch: branch,
       model: parent.model,
+      provider: parent.provider,
+      runConfig: parent.runConfig,
       effort: parent.effort,
       agentName: parent.agentName,
       title: name,
@@ -624,7 +645,9 @@ class SessionManager extends Notifier<SessionManagerState> {
         resumeId: id,
         forkSession: true,
         model: _model(parent.model),
-        effort: _effort(parent.effort),
+        effort: parent.provider != 'claude'
+            ? effortArg(parent.effort)
+            : _effort(parent.effort),
         agent: parent.agentName,
         permissionMode: mode,
         maxBudgetUsd: limits.budgetUsd,
@@ -656,7 +679,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     final suggestion = req.permissionSuggestions.isEmpty
         ? null
         : req.permissionSuggestions.first;
-    await p.process.allow(
+    await p.process.approve(
       requestId,
       updatedPermissions: always && suggestion != null ? [suggestion] : null,
       updatedInput: updatedInput,
@@ -729,7 +752,33 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
       }
     }
+    final session = await _repo.getById(id);
+    final current = _procs[id];
+    if (session != null &&
+        session.provider != 'claude' &&
+        current != null &&
+        (current.busy ||
+            current.pending.isNotEmpty ||
+            current.subagents.isNotEmpty)) {
+      throw const SessionException(
+        'Pare o turno antes de alterar as permissões Codex.',
+      );
+    }
     await _repo.setPermissionMode(id, mode.cliValue);
+    if (session != null && session.provider != 'claude') {
+      if (session.runConfig != null) {
+        final config = jsonDecode(session.runConfig!) as Map<String, dynamic>;
+        config['permissionMode'] = mode.cliValue;
+        await _repo.setRunConfig(id, jsonEncode(config));
+      }
+      if (current != null) await release(id);
+      await _note(
+        id,
+        'Modo de permissão: ${permissionModeLabel(mode, provider: "codex")} (ao retomar)',
+      );
+      return;
+    }
+
     // A live process switches now (except to/from "sem perguntar", which is
     // a start flag of the CLI).
     final p = _procs[id];
@@ -847,23 +896,84 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (_shuttingDown) {
       throw const SessionException('O aplicativo está sendo encerrado.');
     }
-    final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
-    final ClaudeProcess process;
+    final session = (await _repo.getById(id))!;
+    final ManagedAgentRun process;
     try {
-      process = await ClaudeProcess.start(
-        options.copyWith(
-          autocompact: ref.read(runPrefsProvider).autocompact,
-          settingsFile: settingsFile,
-        ),
-        workingDirectory: cwd,
-        executable: ref.read(claudeExecutableProvider),
-        starter: ref.read(claudeProcessStarterProvider),
-        environment: environment,
-      );
+      if (session.provider != 'claude') {
+        final saved = session.runConfig == null
+            ? <String, dynamic>{}
+            : jsonDecode(session.runConfig!) as Map<String, dynamic>;
+        String? externalId;
+        if (options.resumeId != null) {
+          final source = await _repo.getById(options.resumeId!);
+          if (source != null && source.provider != session.provider) {
+            throw const AgentUnavailable(
+              'Não é possível retomar uma sessão Claude no Codex.',
+            );
+          }
+          externalId =
+              source?.externalId ?? (source == null ? options.resumeId : null);
+          if (externalId == null) {
+            throw const AgentUnavailable(
+              'A sessão Codex não tem thread externa para retomar.',
+            );
+          }
+        }
+        final effective = AgentStartOptions(
+          workingDirectory: cwd,
+          mode: PromptMode.edit,
+          resumeId: externalId,
+          forkSession: options.forkSession,
+          model: options.model,
+          effort: options.effort,
+          permissionMode: options.permissionMode,
+          environment: environment,
+          autocompact: saved['autocompact'] as String?,
+          agent: options.agent,
+          maxBudgetUsd: options.maxBudgetUsd,
+          maxTurns: options.maxTurns,
+          mcpAllowedTools: options.allowedTools,
+          mcpDisallowedTools: options.disallowedTools,
+        );
+        final run = await ref
+            .read(agentProviderByIdProvider(session.provider))
+            .start(effective);
+        process = run as ManagedAgentRun;
+        await _repo.setRunConfig(
+          id,
+          jsonEncode({
+            'provider': session.provider,
+            'mode': 'edit',
+            'permissionMode': options.permissionMode?.cliValue,
+            'model': session.model,
+            'effort': session.effort,
+            if (effective.autocompact != null)
+              'autocompact': effective.autocompact,
+          }),
+        );
+      } else if (session.provider == 'claude') {
+        final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
+        process = ClaudeRun(
+          await ClaudeProcess.start(
+            options.copyWith(
+              autocompact: ref.read(runPrefsProvider).autocompact,
+              settingsFile: settingsFile,
+            ),
+            workingDirectory: cwd,
+            executable: ref.read(claudeExecutableProvider),
+            starter: ref.read(claudeProcessStarterProvider),
+            environment: environment,
+          ),
+        );
+      } else {
+        throw AgentUnavailable(
+          'Provedor de sessão não suportado: ${session.provider}.',
+        );
+      }
     } catch (e) {
-      await _note(id, 'Falha ao iniciar o Claude Code: $e', error: true);
+      await _note(id, 'Falha ao iniciar ${session.provider}: $e', error: true);
       await _repo.setStatus(id, SessionStatus.failed);
-      throw SessionException('Falha ao iniciar o Claude Code: $e');
+      throw SessionException('Falha ao iniciar ${session.provider}: $e');
     }
     final p = _Proc(
       process,
@@ -882,7 +992,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       ref.read(worktreeEnvProvider.notifier).set(cwd, environment);
     }
     p.logSub = process.logs.listen(
-      (l) => debugPrint('claude[$id] $l'),
+      (l) => debugPrint('${session.provider}[$id] $l'),
       onError: (_) {},
     );
     p.sub = process.events.listen(
@@ -1028,6 +1138,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     // 2. Status / usage.
     switch (e) {
       case SystemInit():
+        if (e.sessionId != null) await _repo.setExternalId(id, e.sessionId!);
         state = SessionManagerState(live: state.live, lastInit: e);
       case PermissionRequest():
         p.pending.add(e);

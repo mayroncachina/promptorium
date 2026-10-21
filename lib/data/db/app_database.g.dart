@@ -2953,6 +2953,40 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $SessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _providerMeta = const VerificationMeta(
+    'provider',
+  );
+  @override
+  late final GeneratedColumn<String> provider = GeneratedColumn<String>(
+    'provider',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('claude'),
+  );
+  static const VerificationMeta _externalIdMeta = const VerificationMeta(
+    'externalId',
+  );
+  @override
+  late final GeneratedColumn<String> externalId = GeneratedColumn<String>(
+    'external_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _runConfigMeta = const VerificationMeta(
+    'runConfig',
+  );
+  @override
+  late final GeneratedColumn<String> runConfig = GeneratedColumn<String>(
+    'run_config',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -3198,6 +3232,9 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
   );
   @override
   List<GeneratedColumn> get $columns => [
+    provider,
+    externalId,
+    runConfig,
     id,
     workspaceId,
     taskId,
@@ -3234,6 +3271,24 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('provider')) {
+      context.handle(
+        _providerMeta,
+        provider.isAcceptableOrUnknown(data['provider']!, _providerMeta),
+      );
+    }
+    if (data.containsKey('external_id')) {
+      context.handle(
+        _externalIdMeta,
+        externalId.isAcceptableOrUnknown(data['external_id']!, _externalIdMeta),
+      );
+    }
+    if (data.containsKey('run_config')) {
+      context.handle(
+        _runConfigMeta,
+        runConfig.isAcceptableOrUnknown(data['run_config']!, _runConfigMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
@@ -3394,6 +3449,18 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
   Session map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Session(
+      provider: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider'],
+      )!,
+      externalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_id'],
+      ),
+      runConfig: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_config'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -3501,6 +3568,10 @@ class $SessionsTable extends Sessions with TableInfo<$SessionsTable, Session> {
 }
 
 class Session extends DataClass implements Insertable<Session> {
+  final String provider;
+  final String? externalId;
+  final String? runConfig;
+
   /// UUID passed to `--session-id` / `--resume`.
   final String id;
   final int workspaceId;
@@ -3549,6 +3620,9 @@ class Session extends DataClass implements Insertable<Session> {
   /// result does not move the spec's steps, the user picks a winner.
   final int? duelId;
   const Session({
+    required this.provider,
+    this.externalId,
+    this.runConfig,
     required this.id,
     required this.workspaceId,
     this.taskId,
@@ -3576,6 +3650,13 @@ class Session extends DataClass implements Insertable<Session> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['provider'] = Variable<String>(provider);
+    if (!nullToAbsent || externalId != null) {
+      map['external_id'] = Variable<String>(externalId);
+    }
+    if (!nullToAbsent || runConfig != null) {
+      map['run_config'] = Variable<String>(runConfig);
+    }
     map['id'] = Variable<String>(id);
     map['workspace_id'] = Variable<int>(workspaceId);
     if (!nullToAbsent || taskId != null) {
@@ -3634,6 +3715,13 @@ class Session extends DataClass implements Insertable<Session> {
 
   SessionsCompanion toCompanion(bool nullToAbsent) {
     return SessionsCompanion(
+      provider: Value(provider),
+      externalId: externalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalId),
+      runConfig: runConfig == null && nullToAbsent
+          ? const Value.absent()
+          : Value(runConfig),
       id: Value(id),
       workspaceId: Value(workspaceId),
       taskId: taskId == null && nullToAbsent
@@ -3690,6 +3778,9 @@ class Session extends DataClass implements Insertable<Session> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Session(
+      provider: serializer.fromJson<String>(json['provider']),
+      externalId: serializer.fromJson<String?>(json['externalId']),
+      runConfig: serializer.fromJson<String?>(json['runConfig']),
       id: serializer.fromJson<String>(json['id']),
       workspaceId: serializer.fromJson<int>(json['workspaceId']),
       taskId: serializer.fromJson<int?>(json['taskId']),
@@ -3721,6 +3812,9 @@ class Session extends DataClass implements Insertable<Session> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'provider': serializer.toJson<String>(provider),
+      'externalId': serializer.toJson<String?>(externalId),
+      'runConfig': serializer.toJson<String?>(runConfig),
       'id': serializer.toJson<String>(id),
       'workspaceId': serializer.toJson<int>(workspaceId),
       'taskId': serializer.toJson<int?>(taskId),
@@ -3750,6 +3844,9 @@ class Session extends DataClass implements Insertable<Session> {
   }
 
   Session copyWith({
+    String? provider,
+    Value<String?> externalId = const Value.absent(),
+    Value<String?> runConfig = const Value.absent(),
     String? id,
     int? workspaceId,
     Value<int?> taskId = const Value.absent(),
@@ -3774,6 +3871,9 @@ class Session extends DataClass implements Insertable<Session> {
     Value<int?> pid = const Value.absent(),
     Value<int?> duelId = const Value.absent(),
   }) => Session(
+    provider: provider ?? this.provider,
+    externalId: externalId.present ? externalId.value : this.externalId,
+    runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
     taskId: taskId.present ? taskId.value : this.taskId,
@@ -3802,6 +3902,11 @@ class Session extends DataClass implements Insertable<Session> {
   );
   Session copyWithCompanion(SessionsCompanion data) {
     return Session(
+      provider: data.provider.present ? data.provider.value : this.provider,
+      externalId: data.externalId.present
+          ? data.externalId.value
+          : this.externalId,
+      runConfig: data.runConfig.present ? data.runConfig.value : this.runConfig,
       id: data.id.present ? data.id.value : this.id,
       workspaceId: data.workspaceId.present
           ? data.workspaceId.value
@@ -3841,6 +3946,9 @@ class Session extends DataClass implements Insertable<Session> {
   @override
   String toString() {
     return (StringBuffer('Session(')
+          ..write('provider: $provider, ')
+          ..write('externalId: $externalId, ')
+          ..write('runConfig: $runConfig, ')
           ..write('id: $id, ')
           ..write('workspaceId: $workspaceId, ')
           ..write('taskId: $taskId, ')
@@ -3870,6 +3978,9 @@ class Session extends DataClass implements Insertable<Session> {
 
   @override
   int get hashCode => Object.hashAll([
+    provider,
+    externalId,
+    runConfig,
     id,
     workspaceId,
     taskId,
@@ -3898,6 +4009,9 @@ class Session extends DataClass implements Insertable<Session> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Session &&
+          other.provider == this.provider &&
+          other.externalId == this.externalId &&
+          other.runConfig == this.runConfig &&
           other.id == this.id &&
           other.workspaceId == this.workspaceId &&
           other.taskId == this.taskId &&
@@ -3924,6 +4038,9 @@ class Session extends DataClass implements Insertable<Session> {
 }
 
 class SessionsCompanion extends UpdateCompanion<Session> {
+  final Value<String> provider;
+  final Value<String?> externalId;
+  final Value<String?> runConfig;
   final Value<String> id;
   final Value<int> workspaceId;
   final Value<int?> taskId;
@@ -3949,6 +4066,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   final Value<int?> duelId;
   final Value<int> rowid;
   const SessionsCompanion({
+    this.provider = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
     this.taskId = const Value.absent(),
@@ -3975,6 +4095,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     this.rowid = const Value.absent(),
   });
   SessionsCompanion.insert({
+    this.provider = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.runConfig = const Value.absent(),
     required String id,
     required int workspaceId,
     this.taskId = const Value.absent(),
@@ -4005,6 +4128,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
        branch = Value(branch),
        model = Value(model);
   static Insertable<Session> custom({
+    Expression<String>? provider,
+    Expression<String>? externalId,
+    Expression<String>? runConfig,
     Expression<String>? id,
     Expression<int>? workspaceId,
     Expression<int>? taskId,
@@ -4031,6 +4157,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (provider != null) 'provider': provider,
+      if (externalId != null) 'external_id': externalId,
+      if (runConfig != null) 'run_config': runConfig,
       if (id != null) 'id': id,
       if (workspaceId != null) 'workspace_id': workspaceId,
       if (taskId != null) 'task_id': taskId,
@@ -4059,6 +4188,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   }
 
   SessionsCompanion copyWith({
+    Value<String>? provider,
+    Value<String?>? externalId,
+    Value<String?>? runConfig,
     Value<String>? id,
     Value<int>? workspaceId,
     Value<int?>? taskId,
@@ -4085,6 +4217,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
     Value<int>? rowid,
   }) {
     return SessionsCompanion(
+      provider: provider ?? this.provider,
+      externalId: externalId ?? this.externalId,
+      runConfig: runConfig ?? this.runConfig,
       id: id ?? this.id,
       workspaceId: workspaceId ?? this.workspaceId,
       taskId: taskId ?? this.taskId,
@@ -4115,6 +4250,15 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (provider.present) {
+      map['provider'] = Variable<String>(provider.value);
+    }
+    if (externalId.present) {
+      map['external_id'] = Variable<String>(externalId.value);
+    }
+    if (runConfig.present) {
+      map['run_config'] = Variable<String>(runConfig.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
@@ -4195,6 +4339,9 @@ class SessionsCompanion extends UpdateCompanion<Session> {
   @override
   String toString() {
     return (StringBuffer('SessionsCompanion(')
+          ..write('provider: $provider, ')
+          ..write('externalId: $externalId, ')
+          ..write('runConfig: $runConfig, ')
           ..write('id: $id, ')
           ..write('workspaceId: $workspaceId, ')
           ..write('taskId: $taskId, ')
@@ -4632,6 +4779,17 @@ class $ConversationsTable extends Conversations
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $ConversationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _runConfigMeta = const VerificationMeta(
+    'runConfig',
+  );
+  @override
+  late final GeneratedColumn<String> runConfig = GeneratedColumn<String>(
+    'run_config',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -4797,6 +4955,7 @@ class $ConversationsTable extends Conversations
   );
   @override
   List<GeneratedColumn> get $columns => [
+    runConfig,
     id,
     workspaceId,
     title,
@@ -4824,6 +4983,12 @@ class $ConversationsTable extends Conversations
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('run_config')) {
+      context.handle(
+        _runConfigMeta,
+        runConfig.isAcceptableOrUnknown(data['run_config']!, _runConfigMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -4929,6 +5094,10 @@ class $ConversationsTable extends Conversations
   Conversation map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Conversation(
+      runConfig: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}run_config'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -4995,6 +5164,7 @@ class $ConversationsTable extends Conversations
 }
 
 class Conversation extends DataClass implements Insertable<Conversation> {
+  final String? runConfig;
   final int id;
   final int workspaceId;
   final String title;
@@ -5023,6 +5193,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   /// Last activity (history order / grouping). Null = [createdAt].
   final DateTime? updatedAt;
   const Conversation({
+    this.runConfig,
     required this.id,
     required this.workspaceId,
     required this.title,
@@ -5041,6 +5212,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (!nullToAbsent || runConfig != null) {
+      map['run_config'] = Variable<String>(runConfig);
+    }
     map['id'] = Variable<int>(id);
     map['workspace_id'] = Variable<int>(workspaceId);
     map['title'] = Variable<String>(title);
@@ -5066,6 +5240,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 
   ConversationsCompanion toCompanion(bool nullToAbsent) {
     return ConversationsCompanion(
+      runConfig: runConfig == null && nullToAbsent
+          ? const Value.absent()
+          : Value(runConfig),
       id: Value(id),
       workspaceId: Value(workspaceId),
       title: Value(title),
@@ -5095,6 +5272,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Conversation(
+      runConfig: serializer.fromJson<String?>(json['runConfig']),
       id: serializer.fromJson<int>(json['id']),
       workspaceId: serializer.fromJson<int>(json['workspaceId']),
       title: serializer.fromJson<String>(json['title']),
@@ -5115,6 +5293,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'runConfig': serializer.toJson<String?>(runConfig),
       'id': serializer.toJson<int>(id),
       'workspaceId': serializer.toJson<int>(workspaceId),
       'title': serializer.toJson<String>(title),
@@ -5133,6 +5312,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   }
 
   Conversation copyWith({
+    Value<String?> runConfig = const Value.absent(),
     int? id,
     int? workspaceId,
     String? title,
@@ -5148,6 +5328,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     int? messageCount,
     Value<DateTime?> updatedAt = const Value.absent(),
   }) => Conversation(
+    runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
     title: title ?? this.title,
@@ -5167,6 +5348,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
+      runConfig: data.runConfig.present ? data.runConfig.value : this.runConfig,
       id: data.id.present ? data.id.value : this.id,
       workspaceId: data.workspaceId.present
           ? data.workspaceId.value
@@ -5193,6 +5375,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   @override
   String toString() {
     return (StringBuffer('Conversation(')
+          ..write('runConfig: $runConfig, ')
           ..write('id: $id, ')
           ..write('workspaceId: $workspaceId, ')
           ..write('title: $title, ')
@@ -5213,6 +5396,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 
   @override
   int get hashCode => Object.hash(
+    runConfig,
     id,
     workspaceId,
     title,
@@ -5232,6 +5416,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Conversation &&
+          other.runConfig == this.runConfig &&
           other.id == this.id &&
           other.workspaceId == this.workspaceId &&
           other.title == this.title &&
@@ -5249,6 +5434,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
+  final Value<String?> runConfig;
   final Value<int> id;
   final Value<int> workspaceId;
   final Value<String> title;
@@ -5264,6 +5450,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<int> messageCount;
   final Value<DateTime?> updatedAt;
   const ConversationsCompanion({
+    this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
     this.title = const Value.absent(),
@@ -5280,6 +5467,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.updatedAt = const Value.absent(),
   });
   ConversationsCompanion.insert({
+    this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
     required int workspaceId,
     required String title,
@@ -5298,6 +5486,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
        title = Value(title),
        model = Value(model);
   static Insertable<Conversation> custom({
+    Expression<String>? runConfig,
     Expression<int>? id,
     Expression<int>? workspaceId,
     Expression<String>? title,
@@ -5314,6 +5503,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<DateTime>? updatedAt,
   }) {
     return RawValuesInsertable({
+      if (runConfig != null) 'run_config': runConfig,
       if (id != null) 'id': id,
       if (workspaceId != null) 'workspace_id': workspaceId,
       if (title != null) 'title': title,
@@ -5332,6 +5522,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   }
 
   ConversationsCompanion copyWith({
+    Value<String?>? runConfig,
     Value<int>? id,
     Value<int>? workspaceId,
     Value<String>? title,
@@ -5348,6 +5539,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<DateTime?>? updatedAt,
   }) {
     return ConversationsCompanion(
+      runConfig: runConfig ?? this.runConfig,
       id: id ?? this.id,
       workspaceId: workspaceId ?? this.workspaceId,
       title: title ?? this.title,
@@ -5368,6 +5560,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (runConfig.present) {
+      map['run_config'] = Variable<String>(runConfig.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -5416,6 +5611,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   @override
   String toString() {
     return (StringBuffer('ConversationsCompanion(')
+          ..write('runConfig: $runConfig, ')
           ..write('id: $id, ')
           ..write('workspaceId: $workspaceId, ')
           ..write('title: $title, ')
@@ -14497,6 +14693,9 @@ typedef $$TasksTableProcessedTableManager =
       PrefetchHooks Function({bool specId, bool workspaceId, bool sessionsRefs})
     >;
 typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
+  Value<String> provider,
+  Value<String?> externalId,
+  Value<String?> runConfig,
   required String id,
   required int workspaceId,
   Value<int?> taskId,
@@ -14523,6 +14722,9 @@ typedef $$SessionsTableCreateCompanionBuilder = SessionsCompanion Function({
   Value<int> rowid,
 });
 typedef $$SessionsTableUpdateCompanionBuilder = SessionsCompanion Function({
+  Value<String> provider,
+  Value<String?> externalId,
+  Value<String?> runConfig,
   Value<String> id,
   Value<int> workspaceId,
   Value<int?> taskId,
@@ -14668,6 +14870,21 @@ class $$SessionsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get runConfig => $composableBuilder(
+    column: $table.runConfig,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -14923,6 +15140,21 @@ class $$SessionsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get provider => $composableBuilder(
+    column: $table.provider,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get runConfig => $composableBuilder(
+    column: $table.runConfig,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -15102,6 +15334,17 @@ class $$SessionsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get provider =>
+      $composableBuilder(column: $table.provider, builder: (column) => column);
+
+  GeneratedColumn<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get runConfig =>
+      $composableBuilder(column: $table.runConfig, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -15350,6 +15593,9 @@ class $$SessionsTableTableManager
               $$SessionsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String> provider = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<String?> runConfig = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<int> workspaceId = const Value.absent(),
                 Value<int?> taskId = const Value.absent(),
@@ -15375,6 +15621,9 @@ class $$SessionsTableTableManager
                 Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion(
+                provider: provider,
+                externalId: externalId,
+                runConfig: runConfig,
                 id: id,
                 workspaceId: workspaceId,
                 taskId: taskId,
@@ -15402,6 +15651,9 @@ class $$SessionsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String> provider = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<String?> runConfig = const Value.absent(),
                 required String id,
                 required int workspaceId,
                 Value<int?> taskId = const Value.absent(),
@@ -15427,6 +15679,9 @@ class $$SessionsTableTableManager
                 Value<int?> duelId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SessionsCompanion.insert(
+                provider: provider,
+                externalId: externalId,
+                runConfig: runConfig,
                 id: id,
                 workspaceId: workspaceId,
                 taskId: taskId,
@@ -15956,6 +16211,7 @@ typedef $$SessionEventsTableProcessedTableManager =
     >;
 typedef $$ConversationsTableCreateCompanionBuilder =
     ConversationsCompanion Function({
+      Value<String?> runConfig,
       Value<int> id,
       required int workspaceId,
       required String title,
@@ -15973,6 +16229,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
+      Value<String?> runConfig,
       Value<int> id,
       Value<int> workspaceId,
       Value<String> title,
@@ -16062,6 +16319,11 @@ class $$ConversationsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get runConfig => $composableBuilder(
+    column: $table.runConfig,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -16203,6 +16465,11 @@ class $$ConversationsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get runConfig => $composableBuilder(
+    column: $table.runConfig,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -16319,6 +16586,9 @@ class $$ConversationsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get runConfig =>
+      $composableBuilder(column: $table.runConfig, builder: (column) => column);
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -16464,6 +16734,7 @@ class $$ConversationsTableTableManager
               $$ConversationsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<String?> runConfig = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> workspaceId = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -16479,6 +16750,7 @@ class $$ConversationsTableTableManager
                 Value<int> messageCount = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
               }) => ConversationsCompanion(
+                runConfig: runConfig,
                 id: id,
                 workspaceId: workspaceId,
                 title: title,
@@ -16496,6 +16768,7 @@ class $$ConversationsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<String?> runConfig = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int workspaceId,
                 required String title,
@@ -16511,6 +16784,7 @@ class $$ConversationsTableTableManager
                 Value<int> messageCount = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
               }) => ConversationsCompanion.insert(
+                runConfig: runConfig,
                 id: id,
                 workspaceId: workspaceId,
                 title: title,

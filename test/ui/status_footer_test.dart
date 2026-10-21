@@ -5,22 +5,13 @@ import 'package:promptorium/ui/shell/footer_stats.dart';
 import 'package:promptorium/ui/shell/status_footer.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
-class _FixedFooter extends FooterStatsController {
-  _FixedFooter(this.stats);
-
-  final FooterStats stats;
-
-  @override
-  FooterStats build() => stats;
-}
-
 Future<void> _pump(WidgetTester tester, FooterStats stats) async {
   tester.view.physicalSize = const Size(1440, 200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [footerStatsProvider.overrideWith(() => _FixedFooter(stats))],
+      overrides: [footerDisplayStatsProvider.overrideWithValue(stats)],
       child: MaterialApp(
         theme: AppTheme.dark(),
         home: const Scaffold(

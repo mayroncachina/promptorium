@@ -40,34 +40,35 @@ ProviderContainer container(
 void main() {
   group('StartupController', () {
     test(
-      'missing executable reports a clear error on the first step',
+      'missing executable is reported without blocking provider selection',
       () async {
         final c = container(missing, ['/nonexistent/claude']);
         await c.read(startupControllerProvider.notifier).run();
 
         final s = c.read(startupControllerProvider);
-        expect(s.status, StartupStatus.failed);
-        expect(s.completed, 0);
-        expect(s.label, 'Claude Code CLI não encontrado');
-        expect(s.error?.hint, contains('PATH'));
-        expect(s.error?.details, contains('No such file'));
+        expect(s.status, StartupStatus.done);
+        expect(s.completed, s.total);
+        expect(s.error, isNull);
         expect(c.read(footerStatsProvider).cliStatus, CliStatus.notFound);
       },
     );
 
-    test('real Process.run on a nonexistent path also fails cleanly', () async {
-      final c = ProviderContainer(
-        overrides: [
-          databaseOverride(memoryDatabase()),
-          claudeExecutableCandidatesProvider.overrideWithValue([
-            '/nonexistent/promptorium-test/claude',
-          ]),
-        ],
-      );
-      addTearDown(c.dispose);
-      await c.read(startupControllerProvider.notifier).run();
-      expect(c.read(startupControllerProvider).status, StartupStatus.failed);
-    });
+    test(
+      'real Process.run on a nonexistent path keeps startup usable',
+      () async {
+        final c = ProviderContainer(
+          overrides: [
+            databaseOverride(memoryDatabase()),
+            claudeExecutableCandidatesProvider.overrideWithValue([
+              '/nonexistent/promptorium-test/claude',
+            ]),
+          ],
+        );
+        addTearDown(c.dispose);
+        await c.read(startupControllerProvider.notifier).run();
+        expect(c.read(startupControllerProvider).status, StartupStatus.done);
+      },
+    );
 
     test('non-zero exit code is treated as not found', () async {
       final c = container((e, a) async => ProcessResult(1, 127, '', 'boom'), [
@@ -75,8 +76,8 @@ void main() {
       ]);
       await c.read(startupControllerProvider.notifier).run();
       final s = c.read(startupControllerProvider);
-      expect(s.status, StartupStatus.failed);
-      expect(s.error?.details, contains('127'));
+      expect(s.status, StartupStatus.done);
+      expect(c.read(footerStatsProvider).cliStatus, CliStatus.notFound);
     });
 
     test('falls back to the next candidate and runs every step', () async {
@@ -89,7 +90,10 @@ void main() {
       await c.read(startupControllerProvider.notifier).run();
 
       final s = c.read(startupControllerProvider);
-      expect(tried, ['claude', '/home/x/.local/bin/claude']);
+      expect(
+        tried,
+        containsAllInOrder(['claude', '/home/x/.local/bin/claude']),
+      );
       expect(s.status, StartupStatus.done);
       expect(s.completed, s.total);
       expect(s.total, 6);
@@ -101,7 +105,7 @@ void main() {
       expect(footer.claudeVersion, '2.1.300');
     });
 
-    test('retry after failure succeeds once the CLI appears', () async {
+    test('rechecking after installation updates the CLI diagnostic', () async {
       var installed = false;
       final c = container(
         (e, a) => installed ? fakeClaude(e, a) : missing(e, a),
@@ -109,7 +113,7 @@ void main() {
       );
       final ctrl = c.read(startupControllerProvider.notifier);
       await ctrl.run();
-      expect(c.read(startupControllerProvider).status, StartupStatus.failed);
+      expect(c.read(startupControllerProvider).status, StartupStatus.done);
       installed = true;
       await ctrl.run();
       expect(c.read(startupControllerProvider).status, StartupStatus.done);
@@ -188,20 +192,20 @@ void main() {
       ),
     );
 
-    testWidgets('shows the error and a retry button when the CLI is missing', (
-      tester,
-    ) async {
-      var finished = false;
-      await tester.pumpWidget(app(missing, () => finished = true));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(seconds: 3));
+    testWidgets(
+      'finishes even when Claude is absent so another provider can be chosen',
+      (tester) async {
+        var finished = false;
+        await tester.pumpWidget(app(missing, () => finished = true));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(seconds: 3));
 
-      expect(find.text('Claude Code CLI não encontrado'), findsOneWidget);
-      expect(find.text('Tentar de novo'), findsOneWidget);
-      expect(finished, isFalse);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump(Duration.zero); // drift stream-cancel timer
-    });
+        expect(find.text('Tentar de novo'), findsNothing);
+        expect(finished, isTrue);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(Duration.zero); // drift stream-cancel timer
+      },
+    );
 
     testWidgets('finishes after the minimum duration when startup succeeds', (
       tester,

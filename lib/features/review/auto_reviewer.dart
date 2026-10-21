@@ -288,6 +288,7 @@ class AutoReviewer {
         .existsSync();
     final r = await runReadOnlyClaude(
       _ref,
+      workspaceId: ws.id,
       cwd: spec.worktreePath!,
       timeout: timeout,
       options: ClaudeOptions(
