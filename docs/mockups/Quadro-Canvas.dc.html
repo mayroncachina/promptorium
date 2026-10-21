@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Specs Canvas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #1d1b17;outline-offset:3px}
+.tip{display:none;position:absolute;left:0;top:48px;width:290px;box-sizing:border-box;padding:12px 14px;background:#1d1b17;color:#fffdf8;border-radius:10px;box-shadow:0 8px 24px rgba(29,27,23,0.25);font-family:Inter,system-ui,sans-serif;font-size:12px;line-height:1.5;text-align:left;white-space:normal}
+.sat:hover,.sat:focus-visible,.sat:focus-within{z-index:10}
+.sat:hover .tip,.sat:focus-visible .tip,.sat:focus-within .tip{display:block}
+.sat:focus-visible{outline:2px solid #1d1b17;outline-offset:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes attn{0%,100%{box-shadow:0 0 0 0 rgba(180,83,9,0.45)}50%{box-shadow:0 0 0 9px rgba(180,83,9,0)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(194,65,12,0.5)}50%{opacity:0.55;transform:scale(1.15);box-shadow:0 0 0 5px rgba(194,65,12,0)}}
+@media (prefers-reduced-motion: reduce){[style*="pulse"],[style*="attn"],[style*="spin"]{animation:none !important}}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;box-sizing:border-box;background-color:#f4f1ea;background-image:radial-gradient(#cdc6b5 1.2px, transparent 1.2px);background-size:24px 24px;color:#1d1b17;font-family:Inter,system-ui,sans-serif;font-size:14px">
+
+  <div style="{{ worldStyle }}">
+  <!-- ligações (atrás dos nós) -->
+  <sc-for list="{{ edges }}" as="e" hint-placeholder-count="6">
+    <svg style="{{ e.svgStyle }}" width="{{ e.w }}" height="{{ e.h }}" aria-hidden="true">
+      <path d="{{ e.d }}" style="{{ e.pathStyle }}"></path>
+      <circle cx="{{ e.ax }}" cy="{{ e.ay }}" r="4" style="{{ e.dotStyle }}"></circle>
+      <circle cx="{{ e.bx }}" cy="{{ e.by }}" r="4" style="{{ e.dotStyle }}"></circle>
+    </svg>
+  </sc-for>
+
+  <!-- rótulos das ondas -->
+  <sc-for list="{{ waveLabels }}" as="l" hint-placeholder-count="3">
+    <div style="{{ l.style }}">{{ l.text }}</div>
+  </sc-for>
+
+  <!-- specs -->
+  <sc-for list="{{ cards }}" as="s" hint-placeholder-count="5">
+    <button onClick="{{ s.pick }}" aria-pressed="{{ s.selected }}" style="{{ s.cardStyle }}">
+      <sc-if value="{{ s.attn }}" hint-placeholder-val="{{ false }}">
+        <span style="position:absolute;top:-11px;right:12px;padding:2px 9px;border-radius:10px;background:#b45309;color:#ffffff;font-size:11px;font-weight:600">Precisa de você</span>
+      </sc-if>
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5c574c">{{ s.id }}</span>
+        <span style="{{ s.pillStyle }}">{{ s.statusLabel }}</span>
+      </div>
+      <div style="font-weight:600;font-size:15px;line-height:1.3;text-align:left">{{ s.title }}</div>
+      <div style="display:flex;align-items:center;gap:6px;width:100%">
+        <sc-for list="{{ s.dots }}" as="d" hint-placeholder-count="4">
+          <div class="sat" style="position:relative;display:flex;align-items:center;height:18px;padding:0 1px">
+            <span style="{{ d.style }}"></span>
+            <div class="tip" role="tooltip" style="top:24px;left:-4px;width:250px">
+              <div style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px">{{ d.n }} · {{ d.t }}</div>
+              <div style="font-size:11px;color:#c9c2ae;margin-bottom:4px">{{ d.stLabel }}</div>
+              <div style="color:#e8e1cf">{{ d.text }}</div>
+            </div>
+          </div>
+        </sc-for>
+        <span style="flex:1"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5c574c">{{ s.progress }}</span>
+      </div>
+    </button>
+  </sc-for>
+
+  <!-- agentes e skills da spec selecionada -->
+  <sc-for list="{{ satNodes }}" as="n" hint-placeholder-count="4">
+    <div class="sat" tabindex="0" style="{{ n.style }}">
+      <span aria-hidden="true" style="{{ n.markStyle }}"></span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.name }}</span>
+      <span style="font-size:11px;opacity:0.8;white-space:nowrap">{{ n.uses }}</span>
+      <sc-if value="{{ n.hasTip }}" hint-placeholder-val="{{ false }}">
+        <div class="tip" role="tooltip">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px">{{ n.name }}</span>
+            <span style="font-size:11px;padding:1px 8px;border-radius:10px;background:#3a362d;color:#e8e1cf">{{ n.tip.kindLabel }} · {{ n.tip.scope }}</span>
+          </div>
+          <div style="color:#e8e1cf;margin-bottom:8px">{{ n.tip.desc }}</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px;color:#c9c2ae">
+            <span>{{ n.tip.l1 }}</span><span style="color:#fffdf8">{{ n.tip.v1 }}</span>
+            <span>{{ n.tip.l2 }}</span><span style="color:#fffdf8">{{ n.tip.v2 }}</span>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+
+  </div>
+
+  <sc-for list="{{ moreNodes }}" as="m" hint-placeholder-count="1">
+    <button onClick="{{ m.pick }}" aria-expanded="{{ m.expandedAttr }}" style="{{ m.style }}">{{ m.name }}</button>
+  </sc-for>
+
+  <!-- barra de ferramentas -->
+  <div style="position:absolute;left:24px;top:20px;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fffdf8;border:1px solid #d9d3c4;border-radius:12px;box-shadow:0 1px 2px rgba(29,27,23,0.06)">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <span style="font-weight:700;font-size:14px">Specs</span>
+      <span style="font-size:11px;color:#5c574c">promptorium · 5 specs</span>
+    </div>
+  </div>
+  <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px;background:#fffdf8;border:1px solid #d9d3c4;border-radius:12px;box-shadow:0 1px 2px rgba(29,27,23,0.06)">
+    <button onClick="{{ jumpAttn }}" aria-label="Ir para a próxima spec que precisa de você" style="{{ attnBtnStyle }}">Atenção · {{ attnCount }}</button>
+    <span style="width:1px;height:22px;background:#d9d3c4"></span>
+    <span style="font-size:11px;color:#5c574c;padding:0 6px 0 8px">Camadas</span>
+    <button onClick="{{ toggleAgents }}" aria-pressed="{{ agentsOn }}" style="{{ agentsBtnStyle }}">Agentes</button>
+    <button onClick="{{ toggleSkills }}" aria-pressed="{{ skillsOn }}" style="{{ skillsBtnStyle }}">Skills</button>
+    <span style="width:1px;height:22px;background:#d9d3c4"></span>
+    <button onClick="{{ toggleMenu }}" aria-haspopup="menu" aria-expanded="{{ menuExpanded }}" aria-label="Zoom" style="min-height:34px;padding:0 12px;border-radius:8px;border:1px solid #d9d3c4;background:#fffdf8;color:#1d1b17;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500">{{ zoomText }} ▾</button>
+    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+      <div role="menu" aria-label="Zoom" style="position:absolute;right:0;top:56px;width:250px;box-sizing:border-box;padding:6px;background:#fffdf8;border:1px solid #d9d3c4;border-radius:12px;box-shadow:0 8px 24px rgba(29,27,23,0.14);display:flex;flex-direction:column;gap:2px;z-index:20">
+        <button role="menuitem" onClick="{{ zoomIn }}" style="{{ itemStyle }}"><span>Aproximar</span><span style="{{ keyStyle }}">Ctrl +</span></button>
+        <button role="menuitem" onClick="{{ zoomOut }}" style="{{ itemStyle }}"><span>Afastar</span><span style="{{ keyStyle }}">Ctrl −</span></button>
+        <button role="menuitem" onClick="{{ zoom100 }}" style="{{ itemStyle }}"><span>Tamanho real (100%)</span><span style="{{ keyStyle }}">Ctrl 0</span></button>
+        <span style="height:1px;background:#e4dfd2;margin:4px 0"></span>
+        <button role="menuitem" onClick="{{ zoomFit }}" style="{{ itemStyle }}"><span>Ajustar à tela</span></button>
+        <button role="menuitem" onClick="{{ zoomSel }}" style="{{ itemStyle }}"><span>Ajustar à seleção</span></button>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- inspetor -->
+  <aside aria-label="Spec selecionada" style="position:absolute;right:24px;top:90px;width:290px;box-sizing:border-box;padding:18px;background:#fffdf8;border:1px solid #d9d3c4;border-radius:14px;box-shadow:0 6px 24px rgba(29,27,23,0.08);display:flex;flex-direction:column;gap:14px">
+    <sc-if value="{{ sel.attn }}" hint-placeholder-val="{{ false }}">
+      <div role="alert" style="padding:10px 12px;border-radius:10px;background:#fdf0dc;border:1.5px solid #b45309;display:flex;flex-direction:column;gap:3px">
+        <span style="font-weight:700;font-size:13px;color:#8a3a05">Precisa de você</span>
+        <span style="font-size:12px;line-height:1.45;color:#3d3a32">{{ sel.attnReason }}</span>
+      </div>
+    </sc-if>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5c574c">{{ sel.id }}</span>
+        <span style="{{ sel.pillStyle }}">{{ sel.statusLabel }}</span>
+      </div>
+      <h2 style="margin:0;font-size:17px;line-height:1.3">{{ sel.title }}</h2>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:#3d3a32">{{ sel.goal }}</p>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;color:#5c574c">
+      <span>depende de</span><span style="color:#1d1b17;font-family:'JetBrains Mono',monospace">{{ sel.depsText }}</span>
+      <span>desbloqueia</span><span style="color:#1d1b17;font-family:'JetBrains Mono',monospace">{{ sel.unlocksText }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#5c574c">Etapas</h3>
+      <sc-for list="{{ sel.etapas }}" as="e" hint-placeholder-count="4">
+        <div class="sat" tabindex="0" style="position:relative;display:flex;align-items:center;gap:9px;font-size:13px;padding:2px 0;border-radius:6px">
+          <span style="{{ e.dotStyle }}"></span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5c574c;width:22px">{{ e.n }}</span>
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.t }}</span>
+          <div class="tip" role="tooltip" style="top:28px;left:0;width:100%">
+            <div style="font-family:'JetBrains Mono',monospace;font-weight:600;font-size:12px">{{ e.n }} · {{ e.t }}</div>
+            <div style="font-size:11px;color:#c9c2ae;margin-bottom:4px">{{ e.stLabel }}</div>
+            <div style="color:#e8e1cf">{{ e.text }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h3 style="margin:0;font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#5c574c">Referencia</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <sc-for list="{{ sel.refs }}" as="r" hint-placeholder-count="4">
+          <span style="{{ r.style }}">{{ r.name }}</span>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <sc-if value="{{ sel.hasAction }}" hint-placeholder-val="{{ true }}">
+        <button disabled="{{ sel.actionDisabled }}" style="{{ sel.actionStyle }}">{{ sel.actionLabel }}</button>
+      </sc-if>
+      <div style="display:flex;gap:8px">
+        <button style="flex:1;min-height:44px;border-radius:10px;border:1px solid #bdb6a4;background:#fffdf8;color:#1d1b17;font-weight:500;font-size:13px">Abrir spec</button>
+        <button style="flex:1;min-height:44px;border-radius:10px;border:1px solid #bdb6a4;background:#fffdf8;color:#1d1b17;font-weight:500;font-size:13px">Ver nas colunas</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- legenda -->
+  <div style="position:absolute;left:24px;bottom:18px;display:flex;flex-direction:column;gap:8px">
+    <div role="group" aria-label="Legenda" style="display:flex;flex-wrap:wrap;max-width:1040px;align-items:center;gap:10px 18px;padding:9px 14px;background:#fffdf8;border:1px solid #d9d3c4;border-radius:10px;font-size:12px;color:#3d3a32">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.05em;color:#5c574c">ETAPAS</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#1b6e49"></span>feita</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#c2410c;animation:pulse 1.4s ease-in-out infinite"></span>em execução</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;box-sizing:border-box;border:1.5px solid #8d8778"></span>pendente</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:#b45309;transform:rotate(45deg)"></span>aguardando você</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;box-sizing:border-box;border-radius:50%;border:2px solid #b7ddd8;border-top-color:#0f766e;animation:spin 0.9s linear infinite"></span>verificando</span>
+      <span style="width:1px;height:16px;background:#d9d3c4"></span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2.5px solid #1d1b17"></span>dependência</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:14px;height:0;border-top:2px dashed #1a52ad"></span>referência</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#1a52ad"></span>agente</span>
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#7a35c4"></span>skill</span>
+    </div>
+    <div style="font-size:12px;color:#5c574c">Clique numa spec para ver o que ela referencia; o zoom fica no menu da barra. Dados de exemplo.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { selected: 'SPEC-002', agents: true, skills: true, zoom: 1, px: 0, py: 0, menu: false, expanded: { agents: false, skills: false } };
+  }
+
+  renderVals() {
+    const ST = {
+      done:    { label: 'Feito',       c: '#1b6e49', bg: '#dcf1e5' },
+      running: { label: 'Em execução', c: '#b83a0a', bg: '#fde3d2' },
+      review:  { label: 'Review',      c: '#a3236b', bg: '#fadcea' },
+      backlog: { label: 'Backlog',     c: '#4a505c', bg: '#e8e5dd' }
+    };
+    const ES = { done: '#1b6e49', running: '#c2410c', pending: '#8d8778', needsInput: '#b45309', verifying: '#0f766e' };
+    const SL = { done: 'feita', running: 'em execução', pending: 'pendente', needsInput: 'aguardando você', verifying: 'verificando' };
+    const PULSE = ';animation:pulse 1.4s ease-in-out infinite';
+    const dotCss = (st) => st === 'pending' ? 'border-radius:50%;border:1.5px solid #8d8778'
+      : st === 'needsInput' ? 'border-radius:2px;transform:rotate(45deg) scale(0.9);background:#b45309'
+      : st === 'verifying' ? 'border-radius:50%;border:2px solid #b7ddd8;border-top-color:#0f766e;animation:spin 0.9s linear infinite'
+      : 'border-radius:50%;background:' + ES[st] + (st === 'running' ? PULSE : '');
+
+    const SPECS = [
+      { id: 'SPEC-001', title: 'Tela de Sobre', status: 'done', deps: [], x: 60, y: 110,
+        goal: 'Tela com versão, licença e links do projeto, acessível pelo menu.',
+        etapas: [
+          { n: 'R1', t: 'Rota e item de menu', st: 'done', agent: 'implementador', skills: [] },
+          { n: 'R2', t: 'Conteúdo e versão', st: 'done', agent: 'implementador', skills: ['grill-me'] },
+          { n: 'R3', t: 'Testes de widget', st: 'done', agent: 'implementador', skills: [] }
+        ] },
+      { id: 'SPEC-002', title: 'Configuração do GitHub e GitLab', status: 'running', deps: [], x: 60, y: 400,
+        goal: 'Escolher o provedor padrão e validar credenciais nas configurações.',
+        etapas: [
+          { n: 'R1', t: 'Modelo de provedor', st: 'done', agent: 'implementador', skills: [] },
+          { n: 'R2', t: 'Tela de configuração', st: 'done', agent: 'implementador', skills: ['simplify'] },
+          { n: 'R3', t: 'Validação de credenciais', st: 'needsInput', agent: 'implementador', skills: ['code-review'] },
+          { n: 'R4', t: 'Rodapé e contadores', st: 'needsInput', agent: 'implementador', skills: [] },
+          { n: 'R5', t: 'Revisão independente', st: 'pending', agent: 'spec-reviewer', skills: ['code-review'] }
+        ] },
+      { id: 'SPEC-003', title: 'Catálogo de skills', status: 'review', deps: ['SPEC-001'], x: 440, y: 110,
+        goal: 'Listar repositórios de skills, instalar no projeto ou global e avisar de versão nova.',
+        etapas: [
+          { n: 'R1', t: 'Clonar catálogos', st: 'done', agent: 'implementador', skills: [] },
+          { n: 'R2', t: 'Instalar skill', st: 'done', agent: 'implementador', skills: ['simplify'] },
+          { n: 'R3', t: 'Aviso de versão', st: 'done', agent: 'implementador', skills: [] },
+          { n: 'R4', t: 'Revisão', st: 'done', agent: 'spec-reviewer', skills: ['code-review'] }
+        ] },
+      { id: 'SPEC-004', title: 'Paleta de comandos', status: 'running', deps: ['SPEC-001'], x: 440, y: 400,
+        goal: 'Implementar o Ctrl+K com busca de telas, specs e ações.',
+        etapas: [
+          { n: 'R1', t: 'Índice de comandos', st: 'done', agent: 'implementador', skills: [] },
+          { n: 'R2', t: 'Interface de busca', st: 'verifying', agent: 'implementador', skills: ['simplify'] },
+          { n: 'R3', t: 'Atalhos', st: 'pending', agent: 'implementador', skills: [] }
+        ] },
+      { id: 'SPEC-005', title: 'Visualizador de specs', status: 'backlog', deps: ['SPEC-003', 'SPEC-004'], x: 820, y: 255,
+        goal: 'Mostrar dependências e as skills e agentes de cada spec num canvas.',
+        etapas: [
+          { n: 'R1', t: 'Leitura das specs', st: 'pending', agent: 'implementador', skills: [] },
+          { n: 'R2', t: 'Grafo no canvas', st: 'pending', agent: 'implementador', skills: [] },
+          { n: 'R3', t: 'Painel de detalhes', st: 'pending', agent: 'implementador', skills: ['simplify'] },
+          { n: 'R4', t: 'Revisão', st: 'pending', agent: 'spec-reviewer', skills: ['code-review'] }
+        ] }
+    ];
+    const TEXTS = {
+      'SPEC-001:R1': 'O sistema deve exibir o item "Sobre" no menu e abrir a tela Sobre ao selecioná-lo.',
+      'SPEC-001:R2': 'A tela Sobre deve mostrar o nome do app, a versão instalada, a licença e os links do projeto.',
+      'SPEC-001:R3': 'Testes de widget devem cobrir a abertura da tela e o conteúdo exibido.',
+      'SPEC-002:R1': 'O sistema deve representar GitHub e GitLab como provedores, com o provedor padrão salvo nas configurações.',
+      'SPEC-002:R2': 'Configurações deve ter uma seção com um cartão por provedor, mostrando "Conectado como …" ou "Não conectado".',
+      'SPEC-002:R3': 'Ao conectar, o sistema deve validar o token na API do provedor e só salvá-lo se for aceito.',
+      'SPEC-002:R4': 'O rodapé deve mostrar o provedor padrão e os contadores sem sondar a CLI a cada atualização.',
+      'SPEC-002:R5': 'Um revisor independente deve reexecutar as validações e devolver APROVADO, REPROVADO ou PENDENTE.',
+      'SPEC-003:R1': 'O sistema deve clonar os repositórios de catálogo de skills e mantê-los sincronizados com git.',
+      'SPEC-003:R2': 'O usuário deve poder instalar uma skill do catálogo no projeto ou globalmente.',
+      'SPEC-003:R3': 'O sistema deve avisar quando houver versão nova de uma skill instalada.',
+      'SPEC-003:R4': 'Um revisor independente deve validar a spec antes do merge.',
+      'SPEC-004:R1': 'O sistema deve indexar telas, specs e ações como comandos pesquisáveis.',
+      'SPEC-004:R2': 'Ctrl+K deve abrir uma caixa de busca que filtra os comandos enquanto o usuário digita.',
+      'SPEC-004:R3': 'Os comandos devem mostrar seus atalhos e poder ser executados pelo teclado.',
+      'SPEC-005:R1': 'O sistema deve ler as specs do quadro com status, etapas e dependências.',
+      'SPEC-005:R2': 'O canvas deve posicionar cada spec na coluna da sua onda e desenhar as dependências.',
+      'SPEC-005:R3': 'O painel deve mostrar objetivo, etapas e as referências da spec selecionada.',
+      'SPEC-005:R4': 'Um revisor independente deve validar a implementação.'
+    };
+    const ATTN = {
+      'SPEC-002': 'As etapas R3 e R4 aguardam você: a sessão parou sem a linha ETAPA CONCLUÍDA e a verificação de R3 falhou.'
+    };
+    const CW = 250, CH = 116, CAP = 3;
+    const byId = {};
+    SPECS.forEach((s) => { byId[s.id] = s; });
+    const sel = byId[this.state.selected];
+    const unlocks = SPECS.filter((s) => s.deps.indexOf(sel.id) >= 0).map((s) => s.id);
+    const refsOf = (s) => {
+      const a = {}, k = {};
+      s.etapas.forEach((e) => { a[e.agent] = 1; e.skills.forEach((x) => { k[x] = 1; }); });
+      return { agents: Object.keys(a), skills: Object.keys(k) };
+    };
+    const selRefs = refsOf(sel);
+    const showA = this.state.agents, showK = this.state.skills;
+    const INFO = {
+      agents: {
+        'implementador': { desc: 'Implementa uma etapa da spec no worktree, seguindo o CLAUDE.md e pedindo commit ao final.', l1: 'Modelo', v1: 'sonnet · esforço médio', l2: 'Ferramentas', v2: 'Read, Edit, Write, Bash', scope: 'Projeto' },
+        'spec-reviewer': { desc: 'Revisor independente: reexecuta as validações, dá nota por rubrica e devolve APROVADO, REPROVADO ou PENDENTE.', l1: 'Modelo', v1: 'padrão do CLI', l2: 'Ferramentas', v2: 'Read, Bash, Glob, Grep', scope: 'Projeto' }
+      },
+      skills: {
+        'simplify': { desc: 'Revisa o código alterado em busca de reuso, simplificação e eficiência, e aplica as correções.', l1: 'Chamada', v1: '/simplify', l2: 'Origem', v2: 'embutida no Claude Code', scope: 'Embutida' },
+        'code-review': { desc: 'Revisa o diff ou um PR em busca de bugs de correção, em níveis de esforço de baixo a máximo.', l1: 'Chamada', v1: '/code-review', l2: 'Origem', v2: 'embutida no Claude Code', scope: 'Embutida' },
+        'grill-me': { desc: 'Questiona o plano, a decisão ou a ideia sem trégua, para testar o raciocínio.', l1: 'Chamada', v1: '/grill-me', l2: 'Origem', v2: '.claude/skills/grill-me', scope: 'Projeto' }
+      }
+    };
+    const usesOf = (kind, name) => SPECS.filter((s) => refsOf(s)[kind].indexOf(name) >= 0).length;
+
+    // ligações entre specs
+    const mk = (x1, y1, x2, y2, vertical, style) => {
+      const pad = 10;
+      const left = Math.min(x1, x2) - pad, top = Math.min(y1, y2) - pad;
+      const w = Math.abs(x2 - x1) + pad * 2, h = Math.abs(y2 - y1) + pad * 2;
+      const ax = x1 - left, ay = y1 - top, bx = x2 - left, by = y2 - top;
+      let d;
+      if (vertical) { const dy = (by - ay) / 2; d = 'M ' + ax + ' ' + ay + ' C ' + ax + ' ' + (ay + dy) + ', ' + bx + ' ' + (by - dy) + ', ' + bx + ' ' + by; }
+      else { const dx = (bx - ax) / 2; d = 'M ' + ax + ' ' + ay + ' C ' + (ax + dx) + ' ' + ay + ', ' + (bx - dx) + ' ' + by + ', ' + bx + ' ' + by; }
+      return { w, h, d, ax, ay, bx, by,
+        svgStyle: 'position:absolute;pointer-events:none;overflow:visible;left:' + left + 'px;top:' + top + 'px',
+        pathStyle: 'fill:none;stroke:' + style.c + ';stroke-width:' + style.sw + ';opacity:' + style.o + (style.dash ? ';stroke-dasharray:6 6' : ''),
+        dotStyle: 'fill:' + style.c + ';opacity:' + style.o };
+    };
+    const edges = [];
+    SPECS.forEach((s) => {
+      s.deps.forEach((dId) => {
+        const a = byId[dId];
+        const hot = s.id === sel.id || dId === sel.id;
+        edges.push(mk(a.x + CW, a.y + CH / 2, s.x, s.y + CH / 2, false,
+          hot ? { c: '#1d1b17', sw: 2.5, o: 1 } : { c: '#8d8778', sw: 1.5, o: 0.55 }));
+      });
+    });
+
+    // agentes e skills: só os da spec selecionada, em fileiras abaixo do cartão
+    const exp = this.state.expanded;
+    const place = (names, kind, row0) => {
+      const open = exp[kind];
+      const shown = open ? names : names.slice(0, CAP);
+      const extra = names.length - CAP;
+      const items = shown.map((n) => ({ name: n, more: false }));
+      if (extra > 0) items.push({ name: open ? 'recolher' : '+' + extra + ' mais', more: true });
+      const w = kind === 'agents' ? 168 : 150, gap = 10, perRow = 3;
+      const out = [];
+      for (let r = 0; r * perRow < items.length; r++) {
+        const rowItems = items.slice(r * perRow, (r + 1) * perRow);
+        const total = rowItems.length * w + (rowItems.length - 1) * gap;
+        const left = Math.max(16, Math.min(sel.x + CW / 2 - total / 2, 1100 - total));
+        rowItems.forEach((it, i) => out.push(Object.assign({}, it, { kind, w, x: left + i * (w + gap), y: sel.y + CH + 56 + (row0 + r) * 56 })));
+      }
+      return { nodes: out, rows: Math.ceil(items.length / perRow) };
+    };
+    const ag = showA ? place(selRefs.agents, 'agents', 0) : { nodes: [], rows: 0 };
+    const sk = showK ? place(selRefs.skills, 'skills', ag.rows) : { nodes: [], rows: 0 };
+    const sats = ag.nodes.concat(sk.nodes);
+    const fromX = sel.x + CW / 2, fromY = sel.y + CH;
+    const satNodes = sats.filter((n) => !n.more).map((n) => {
+      if (!n.more) {
+        edges.push(mk(fromX, fromY, n.x + n.w / 2, n.y, true,
+          { c: n.kind === 'agents' ? '#1a52ad' : '#7a35c4', sw: 2, o: 0.9, dash: true }));
+      }
+      const c = n.more ? { fg: '#3d3a32', bg: '#ece8de', bd: '#b9b2a1' }
+        : n.kind === 'agents' ? { fg: '#173f87', bg: '#dce8fb', bd: '#173f87' } : { fg: '#5a2596', bg: '#ecdffc', bd: '#5a2596' };
+      const u = n.more ? 0 : usesOf(n.kind, n.name);
+      const info = n.more ? null : INFO[n.kind][n.name];
+      return {
+        name: n.name,
+        hasTip: !!info,
+        tip: info ? { kindLabel: n.kind === 'agents' ? 'agente' : 'skill', scope: info.scope, desc: info.desc, l1: info.l1, v1: info.v1, l2: info.l2, v2: info.v2 } : {},
+        uses: n.more ? '' : u + (u === 1 ? ' spec' : ' specs'),
+        style: 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;height:40px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:' +
+          (n.kind === 'agents' ? '8px' : '20px') + ';color:' + c.fg + ';background:' + c.bg + ';border:1.5px ' + (n.more ? 'dashed ' : 'solid ') + c.bd,
+        markStyle: n.more ? 'display:none' : 'flex:none;width:8px;height:8px;background:' + (n.kind === 'agents' ? '#1a52ad;border-radius:2px' : '#7a35c4;border-radius:50%')
+      };
+    });
+
+    const moreNodes = sats.filter((n) => n.more).map((n) => ({
+      name: n.name,
+      expandedAttr: exp[n.kind] ? 'true' : 'false',
+      pick: () => { const e = Object.assign({}, exp); e[n.kind] = !e[n.kind]; this.setState({ expanded: e }); },
+      style: 'position:absolute;left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;height:40px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:' + (n.kind === 'agents' ? '8px' : '20px') + ';color:#3d3a32;background:#ece8de;border:1.5px dashed #8d8778;font-size:12px;font-weight:600'
+    }));
+
+    // cartões
+    const cards = SPECS.map((s) => {
+      const st = ST[s.status];
+      const isSel = s.id === sel.id;
+      const related = sel.deps.indexOf(s.id) >= 0 || unlocks.indexOf(s.id) >= 0;
+      const done = s.etapas.filter((e) => e.st === 'done').length;
+      const attn = !!ATTN[s.id];
+      return {
+        id: s.id, title: s.title, statusLabel: st.label, attn,
+        selected: isSel ? 'true' : 'false',
+        pick: () => this.setState({ selected: s.id }),
+        cardStyle: 'position:absolute;left:' + s.x + 'px;top:' + s.y + 'px;width:' + CW + 'px;height:' + CH + 'px;box-sizing:border-box;padding:14px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;color:#1d1b17;background:#fffdf8;border-radius:12px;' +
+          (isSel ? 'border:2px solid #1d1b17;box-shadow:0 8px 24px rgba(29,27,23,0.16)' : (attn ? 'border:2px solid #b45309' : 'border:1px solid #d9d3c4;box-shadow:0 1px 2px rgba(29,27,23,0.06)')) + (attn ? ';animation:attn 1.8s ease-in-out infinite' : '') + ';opacity:' + (isSel || related ? 1 : 0.7),
+        pillStyle: 'font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;color:' + st.c + ';background:' + st.bg,
+        progress: done + '/' + s.etapas.length,
+        dots: s.etapas.map((e) => ({ n: e.n, t: e.t, text: TEXTS[s.id + ':' + e.n] || '', style: 'width:10px;height:10px;box-sizing:border-box;' + dotCss(e.st), stLabel: SL[e.st] }))
+      };
+    });
+
+    const waveLabels = [
+      { text: 'ONDA 1 · FUNDAÇÃO', x: 60, y: 76 }, { text: 'ONDA 2', x: 440, y: 76 }, { text: 'ONDA 3 · MVP', x: 820, y: 221 }
+    ].map((l) => ({ text: l.text, style: 'position:absolute;left:' + l.x + 'px;top:' + l.y + 'px;font-size:11px;font-weight:600;letter-spacing:0.06em;color:#5c574c' }));
+
+    const chip = (name, kind) => ({ name,
+      style: kind === 'agents'
+        ? 'font-family:JetBrains Mono,monospace;font-size:12px;padding:3px 10px;border-radius:8px;color:#173f87;background:#dce8fb'
+        : 'font-family:JetBrains Mono,monospace;font-size:12px;padding:3px 10px;border-radius:12px;color:#5a2596;background:#ecdffc' });
+    const refs = selRefs.agents.map((n) => chip(n, 'agents')).concat(selRefs.skills.map((n) => chip(n, 'skills')));
+
+    // zoom
+    const z = this.state.zoom, px = this.state.px, py = this.state.py;
+    const clamp = (v) => Math.max(0.5, Math.min(1.5, Math.round(v * 100) / 100));
+    const step = (dz) => {
+      const z2 = clamp(z + dz), cx = 720, cy = 450;
+      this.setState({ zoom: z2, px: cx - (cx - px) * (z2 / z), py: cy - (cy - py) * (z2 / z), menu: false });
+    };
+    const fit = () => {
+      const bx0 = Math.min.apply(null, SPECS.map((s) => s.x)), bx1 = Math.max.apply(null, SPECS.map((s) => s.x + CW));
+      const by0 = Math.min.apply(null, SPECS.map((s) => s.y)) - 34, by1 = Math.max.apply(null, SPECS.map((s) => s.y + CH));
+      const aw = 1086, ah = 700;
+      const z2 = clamp(Math.min(aw / (bx1 - bx0), ah / (by1 - by0)));
+      this.setState({ zoom: z2, px: 24 + aw / 2 - z2 * (bx0 + bx1) / 2, py: 80 + ah / 2 - z2 * (by0 + by1) / 2, menu: false });
+    };
+    const toSel = () => {
+      const z2 = 1.3;
+      this.setState({ zoom: z2, px: 570 - z2 * (sel.x + CW / 2), py: 430 - z2 * (sel.y + CH / 2), menu: false });
+    };
+
+    // ação do momento (a mesma do cartão das Colunas)
+    const blockers = sel.deps.filter((d) => byId[d].status !== 'done');
+    const nextEtapa = sel.etapas.filter((e) => e.st === 'running').concat(sel.etapas.filter((e) => e.st === 'pending'))[0];
+    let actionLabel = '', actionDisabled = false;
+    if (ATTN[sel.id]) actionLabel = 'Responder na sessão';
+    else if (sel.etapas.some((e) => e.st === 'verifying')) actionLabel = '';
+    else if (sel.status === 'review') actionLabel = 'Ver review';
+    else if (sel.status === 'done') actionLabel = '';
+    else if (blockers.length) { actionLabel = 'Bloqueada por ' + blockers.join(', '); actionDisabled = true; }
+    else if (sel.etapas.some((e) => e.st !== 'pending')) actionLabel = 'Continuar · ' + (nextEtapa ? nextEtapa.n : '');
+    else actionLabel = 'Executar';
+    const actionStyle = 'min-height:44px;border-radius:10px;font-weight:600;font-size:13px;' + (actionDisabled
+      ? 'border:1px solid #cfc9bb;background:#e8e5dd;color:#5c574c;cursor:not-allowed'
+      : 'border:1px solid #1d1b17;background:#1d1b17;color:#fffdf8');
+
+    const tb = (on, fg, bg) => 'min-height:34px;padding:0 14px;border-radius:8px;font-size:12px;font-weight:600;' +
+      (on ? 'color:' + fg + ';background:' + bg + ';border:2px solid ' + fg : 'color:#4a505c;background:transparent;border:2px solid transparent');
+
+    return {
+      edges, cards, waveLabels, satNodes, moreNodes,
+      attnCount: Object.keys(ATTN).length,
+      attnBtnStyle: 'min-height:34px;padding:0 12px;border-radius:8px;font-size:12px;font-weight:600;color:#8a3a05;background:#fdf0dc;border:2px solid #b45309',
+      jumpAttn: () => { const ids = Object.keys(ATTN); this.setState({ selected: ids[(ids.indexOf(sel.id) + 1) % ids.length] }); },
+      worldStyle: 'position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0;transition:transform 0.25s ease;transform:translate(' + px + 'px,' + py + 'px) scale(' + z + ')',
+      zoomText: Math.round(z * 100) + '%',
+      menuOpen: this.state.menu, menuExpanded: this.state.menu ? 'true' : 'false',
+      toggleMenu: () => this.setState({ menu: !this.state.menu }),
+      zoomIn: () => step(0.1), zoomOut: () => step(-0.1),
+      zoom100: () => this.setState({ zoom: 1, px: 0, py: 0, menu: false }),
+      zoomFit: fit, zoomSel: toSel,
+      itemStyle: 'display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:38px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#1d1b17;font-size:13px;text-align:left',
+      keyStyle: 'font-family:JetBrains Mono,monospace;font-size:11px;color:#5c574c',
+      agentsOn: showA ? 'true' : 'false', skillsOn: showK ? 'true' : 'false',
+      agentsBtnStyle: tb(showA, '#173f87', '#dce8fb'), skillsBtnStyle: tb(showK, '#5a2596', '#ecdffc'),
+      toggleAgents: () => this.setState({ agents: !this.state.agents }),
+      toggleSkills: () => this.setState({ skills: !this.state.skills }),
+      sel: {
+        id: sel.id, title: sel.title, goal: sel.goal,
+        statusLabel: ST[sel.status].label,
+        pillStyle: 'font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;color:' + ST[sel.status].c + ';background:' + ST[sel.status].bg,
+        depsText: sel.deps.length ? sel.deps.join(', ') : 'nenhuma',
+        unlocksText: unlocks.length ? unlocks.join(', ') : 'nenhuma',
+        etapas: sel.etapas.map((e) => ({ n: e.n, t: e.t, text: TEXTS[sel.id + ':' + e.n] || '',
+          stLabel: SL[e.st], dotStyle: 'width:10px;height:10px;flex:none;box-sizing:border-box;' + dotCss(e.st) })),
+        refs, attn: !!ATTN[sel.id], attnReason: ATTN[sel.id] || '', hasAction: actionLabel !== '', actionLabel, actionDisabled, actionStyle
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
