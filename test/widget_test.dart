@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:promptorium/core/process/process_runner.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +21,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [databaseOverride(memoryDatabase())],
+        overrides: [
+          processRunnerProvider.overrideWithValue(
+            (exe, args) async =>
+                ProcessResult(0, 1, '', 'not installed in widget fixture'),
+          ),
+          databaseOverride(memoryDatabase()),
+        ],
         child: const PromptoriumApp(showSplash: false),
       ),
     );

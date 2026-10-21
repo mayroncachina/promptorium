@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/features/sessions/widgets/composer.dart'
     show lastPermissionModeKey;
 import 'package:promptorium/data/repos/app_settings_repo.dart';
@@ -26,7 +29,13 @@ Future<AppDatabase> pumpShell(
   final database = db ?? memoryDatabase();
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [databaseOverride(database)],
+      overrides: [
+        processRunnerProvider.overrideWithValue(
+          (exe, args) async =>
+              ProcessResult(0, 1, '', 'not installed in widget fixture'),
+        ),
+        databaseOverride(database),
+      ],
       child: MaterialApp(theme: AppTheme.dark(), home: const AppShell()),
     ),
   );
@@ -84,7 +93,7 @@ void main() {
     expect(item(tester, AppSection.home).active, isTrue);
     expect(find.byKey(const ValueKey('screen-home')), findsOneWidget);
     expect(find.byKey(const ValueKey('title-action')), findsNothing);
-    expect(find.text('Claude Code CLI —'), findsOneWidget);
+    expect(find.byKey(const ValueKey('footer-cli')), findsOneWidget);
   });
 
   testWidgets('clicking an item changes the screen and the active item', (

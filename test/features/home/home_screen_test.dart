@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:promptorium/core/process/process_runner.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -149,6 +152,10 @@ void main() {
         );
     final c = ProviderContainer(
       overrides: [
+        processRunnerProvider.overrideWithValue(
+          (exe, args) async =>
+              ProcessResult(0, 1, '', 'not installed in widget fixture'),
+        ),
         ...sessionOverrides(db: db, cli: cli, notifier: FakeNotifier()),
         // No git in this test.
         reviewQueueProvider.overrideWith((ref, id) async => const []),

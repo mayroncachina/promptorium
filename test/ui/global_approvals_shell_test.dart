@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:promptorium/core/process/process_runner.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,7 +55,12 @@ void main() {
             ),
           );
       final c = ProviderContainer(
-        overrides: sessionOverrides(db: db, cli: cli, notifier: FakeNotifier()),
+        overrides: [
+          ...sessionOverrides(db: db, cli: cli, notifier: FakeNotifier()),
+          processRunnerProvider.overrideWithValue(
+            (exe, args) async => ProcessResult(0, 1, '', 'fixture'),
+          ),
+        ],
       );
       await c.read(appSettingsProvider.notifier).load();
       await tester.pumpWidget(

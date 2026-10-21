@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
 import '../../data/providers.dart';
+import '../../core/providers/provider_preferences.dart';
+import '../../core/providers/provider_availability.dart';
+import '../../core/providers/agent_registry.dart';
 import '../../features/mcp/mcp_state.dart';
 import '../../features/sessions/session_manager.dart';
 
@@ -15,6 +18,9 @@ enum CliStatus { unknown, connected, notFound }
 class FooterStats {
   const FooterStats({
     this.cliStatus = CliStatus.unknown,
+    this.providerId = 'claude',
+    this.providerName = 'Claude Code',
+    this.providerStatus,
     this.claudeVersion,
     this.sessionsActive,
     this.sessionsTotal,
@@ -33,6 +39,9 @@ class FooterStats {
   });
 
   final CliStatus cliStatus;
+  final String providerId;
+  final String providerName;
+  final String? providerStatus;
   final String? claudeVersion;
   final int? sessionsActive;
   final int? sessionsTotal;
@@ -62,6 +71,9 @@ class FooterStats {
   FooterStats copyWith({CliStatus? cliStatus, String? claudeVersion}) =>
       FooterStats(
         cliStatus: cliStatus ?? this.cliStatus,
+        providerId: providerId,
+        providerName: providerName,
+        providerStatus: providerStatus,
         claudeVersion: claudeVersion ?? this.claudeVersion,
         sessionsActive: sessionsActive,
         sessionsTotal: sessionsTotal,
@@ -107,7 +119,18 @@ class FooterStatsController extends Notifier<FooterStats> {
     final sessions = ws == null
         ? null
         : ref.watch(sessionsProvider(ws.id)).value;
-    final rate = ref.watch(rateLimitProvider);
+    final providerId = ref.watch(activeAgentProvider);
+    final all = ref.watch(agentProvidersProvider);
+    final name =
+        all.where((p) => p.id == providerId).firstOrNull?.displayName ??
+        providerId;
+    final availability = ref.watch(providerAvailabilityProvider(providerId));
+    final label = availability.when(
+      data: (v) => v.label,
+      error: (_, _) => 'não verificado',
+      loading: () => 'verificando…',
+    );
+    final rate = providerId == 'claude' ? ref.watch(rateLimitProvider) : null;
     final mcp = ref.watch(mcpStatusBoardProvider);
 
     int? active;
@@ -123,6 +146,9 @@ class FooterStatsController extends Notifier<FooterStats> {
     }
     return FooterStats(
       cliStatus: cli,
+      providerId: providerId,
+      providerName: name,
+      providerStatus: label,
       claudeVersion: version,
       sessionsActive: active,
       sessionsTotal: sessions?.length,

@@ -69,15 +69,11 @@ class ClaudeCliStep extends StartupStep {
       ctx.claude = info;
       ctx.ref.read(resolvedClaudeCliProvider.notifier).set(info);
       footer.setCli(CliStatus.connected, version: info.version);
-    } on ClaudeCliNotFound catch (e) {
+    } on ClaudeCliNotFound {
+      ctx.ref.read(resolvedClaudeCliProvider.notifier).set(null);
       footer.setCli(CliStatus.notFound);
-      throw StartupException(
-        e.message,
-        details: e.details,
-        hint:
-            'Instale o Claude Code (curl -fsSL https://claude.ai/install.sh | '
-            'bash) e confira se `claude` está no PATH ou em ~/.local/bin.',
-      );
+      // Providers are optional. The footer offers diagnostics and selection;
+      // absence of Claude must not prevent choosing Codex or an ACP agent.
     }
   }
 }
