@@ -1,7 +1,7 @@
 ---
 id: SPEC-011
 status: rascunho
-depende-de: [SPEC-009]
+depende-de: [SPEC-009, SPEC-010]
 ---
 
 # Review: painel "Pronto para merge?"
@@ -71,6 +71,12 @@ Reunir num só lugar tudo que decide se uma spec (ou sessão) pode ser mergeada,
 - [ ] [R5] Uma fonte que falha aparece como "não verificado": em `raiz`, `empilhada` e `worktree` continua bloqueando; em `pr`, `verificacoes` e `comentarios` conta como aviso; nunca como "ok". verificar: `flutter test test/features/review/merge_readiness_test.dart` (a criar)
 - [ ] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2, R4] Numa spec real com revisor, critérios e PR, o painel reflete o estado e o merge segue o que ele diz. verificar: manual (`flutter run -d linux`, Review de uma spec com PR e um critério sem marcar)
+
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 3ª das 5 do Review.** Dependência real: SPEC-009 (item `comentarios`, coluna `resolved`). A SPEC-010 entra só pela ordem, para evitar conflitos em `review_screen.dart` (ver a SPEC-010). Vem antes da SPEC-012, que acrescenta itens a este painel.
 
 ## Perguntas em aberto
 

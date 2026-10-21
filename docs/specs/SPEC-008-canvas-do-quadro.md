@@ -126,6 +126,12 @@ Os testes marcados "(a criar)" fazem parte da implementação; usam banco em mem
 - [ ] [R7] Com uma sessão real parada pedindo aprovação, o canvas mostra o anel e o motivo e "Abrir aprovações" leva à fila certa. verificar: manual (`flutter run -d linux`, iniciar uma etapa que peça uma ferramenta, abrir Quadro → Canvas)
 - [ ] [R3, R4] Num workspace com sessões reais de specs que usaram skills, o canvas mostra as skills certas e o cartão traz a descrição do `SKILL.md`. verificar: manual (`flutter run -d linux`, Quadro → Canvas, selecionar uma spec com sessões)
 
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 6ª e última.** É independente das do Review (mexe no Quadro, não no Review) e não declara `depende-de`: pode ser implementada a qualquer momento sem conflito de código. A sugestão de deixá-la por último é só de ordem de trabalho. Reaproveita o widget de ação do momento e a regra `needsAttention` do Quadro, que as specs do Review não alteram.
+
 ## Perguntas em aberto
 
 - Specs empilhadas: com o autopilot, uma spec pode começar quando a dependência está em Review e sua branch nasce da branch da dependência (`SpecRunner.runNext`, `reviewUnblocks`). O Review já protege a ordem: `ReviewService.merge` recusa o merge da spec empilhada enquanto a dependência não foi mergeada ("faça o merge de SPEC-A primeiro") e, depois que a dependência é mergeada, `_closeSpec` religa a base das specs empilhadas para a branch principal. Não encontrei propagação automática de mudanças feitas na dependência durante o review para a spec empilhada. Esta spec **não** muda essa regra. Pergunta: o canvas deve mostrar a ligação empilhada de forma própria (tracejada) e avisar "faça o merge de SPEC-A antes" no painel, em vez de o usuário só descobrir ao tentar o merge?

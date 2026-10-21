@@ -1,7 +1,7 @@
 ---
 id: SPEC-013
 status: rascunho
-depende-de: [SPEC-009, SPEC-011]
+depende-de: [SPEC-009, SPEC-011, SPEC-012]
 ---
 
 # Review no GitLab
@@ -117,6 +117,12 @@ Dependendo da configuração do projeto e da versão, o `glab mr merge` pode **a
 - [ ] [R2] Existe `docs/pesquisa/glab-<versão>.md` com, para cada comando (`auth status`, `mr create`, `mr view --output json`, `api …/discussions`, `mr merge`), a versão, o comando, a saída e a confirmação de cada campo assumido (`detailed_merge_status`, status do pipeline, `position.new_line`, `--fill` e `--draft`). verificar: manual (abrir o arquivo e conferir a lista)
 - [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R3–R6] Num repositório real no GitLab, criar o MR, comentar em linha, acompanhar e mergear pelo app. verificar: manual (`flutter run -d linux`, Review de uma spec num repositório GitLab)
+
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 5ª das 5 do Review.** Dependências reais: SPEC-009 (comentários em linha e `externalId`) e SPEC-011 (painel e `PrStatus`). A SPEC-012 entra pela ordem, porque ambas tocam `ReviewService.merge`/`mergePr`. É a última do Review por ser a maior (abstrai o hospedeiro e exige a sondagem do `glab`).
 
 ## Perguntas em aberto
 

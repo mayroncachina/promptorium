@@ -1,14 +1,12 @@
 ---
 id: SPEC-010
 status: rascunho
-depende-de: []
+depende-de: [SPEC-009]
 ---
 
 # Review: diff desde a última rodada
 
 ## Objetivo
-
-> Dependência opcional da SPEC-009: o R5 só fica ativo quando ela estiver implementada (reutiliza `comment_anchor.dart`, que ela cria). Os outros requisitos não dependem de nada, por isso o `depende-de` é vazio.
 
 Permitir que o usuário veja **só o que mudou desde uma rodada de review**, para conferir se o agente corrigiu o que foi pedido sem reler a branch inteira. Cada rodada (do revisor automático, do usuário ou do PR) já guarda o commit que foi revisado; falta uma visão que use isso.
 
@@ -42,7 +40,7 @@ Permitir que o usuário veja **só o que mudou desde uma rodada de review**, par
 Comparar a lista de arquivos do diff desde a rodada com a do diff completo (`reviewDetailProvider`): arquivos só do segundo ficam com o selo "sem alterações" e esmaecidos na lista lateral; clicar neles mostra o diff completo daquele arquivo, rotulado "diff completo desde a base da branch" para não ser confundido com mudança nova desde a rodada. No cabeçalho, `n` é o número de arquivos do diff desde a rodada (não rastreados incluídos, renomeado contado uma vez) e `k` vem de `rev-list --count <sha>..HEAD`; `k` pode ser 0 com `n > 0` quando só há alterações não commitadas.
 
 ### R5 · Comentários sobre o diff desde a rodada
-Reutiliza a âncora de comentários da SPEC-009 (`comment_anchor.dart`), com a base trocada para `<sha>`. Sem a SPEC-009 implementada, esta spec funciona sem o R5, que fica desabilitado.
+Reutiliza a âncora de comentários da SPEC-009 (`comment_anchor.dart`), com a base trocada para `<sha>`. Depende da SPEC-009 (`depende-de`), que cria `comment_anchor.dart`.
 
 ### Riscos
 - Rodadas do usuário e do revisor gravam o HEAD do worktree no momento da rodada, mas o agente pode ter feito commits **depois** de o revisor ter lido o diff e **antes** de a rodada ser gravada (corrida pequena). O diff desde a rodada pode então omitir a última mudança que o revisor não viu. Aceitável; o rótulo diz "commit da rodada", não "o que o revisor viu".
@@ -62,6 +60,12 @@ Reutiliza a âncora de comentários da SPEC-009 (`comment_anchor.dart`), com a b
 - [ ] [R5] Os comentários da rodada escolhida aparecem sobre o diff desde a rodada, com o estado atual (aberto ou tratado). verificar: `flutter test test/features/review/review_since_test.dart` (a criar, depende da SPEC-009)
 - [ ] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2] Numa spec real que passou por uma rodada de correção do revisor, o diff desde a rodada mostra só a correção. verificar: manual (`flutter run -d linux`: 1) numa spec com revisor ligado, deixar o revisor pedir uma correção; 2) esperar a etapa `REVn` terminar; 3) abrir o Review e escolher Alterações desde… → Desde a última rodada)
+
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 2ª das 5 do Review.** Depende da SPEC-009: o R5 reutiliza `comment_anchor.dart`; os R1 a R4 não dependem dela, mas a ordem evita implementar dois modos de ancoragem. Vem antes da SPEC-011 porque as duas mexem em `review_screen.dart` (esta no filtro de etapa e rodada; a 011 em `canMerge` e na fila), e fazer o filtro primeiro reduz conflitos.
 
 ## Perguntas em aberto
 

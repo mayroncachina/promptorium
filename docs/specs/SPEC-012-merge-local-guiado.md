@@ -119,6 +119,12 @@ Os testes usam repositórios temporários reais, como os de `test/features/revie
 - [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R1–R3] Num repositório real, merge com troca de branch, stash e squash, conferindo `git log` e `git stash list`. verificar: manual (`flutter run -d linux`, Review → Fazer merge)
 
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 4ª das 5 do Review.** Depende da SPEC-011: acrescenta o item "Conflito previsto" ao painel dela e muda o merge que o painel descreve. Vem antes da SPEC-013 porque as duas alteram `ReviewService.merge`/`mergePr` e a SPEC-013 extrai a parte de PR para `ReviewHost`; mudar o merge local primeiro evita reescrever a extração.
+
 ## Perguntas em aberto
 
 - O método padrão por spec ou por projeto? A spec assume por projeto (`config.yml`); uma spec com `merge:` no frontmatter poderia sobrescrever.

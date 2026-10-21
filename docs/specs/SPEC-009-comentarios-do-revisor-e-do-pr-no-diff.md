@@ -86,6 +86,12 @@ Os testes marcados "(a criar)" fazem parte da implementação, com `gh` e git fa
 - [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2] Com um PR real no GitHub com comentários em linha, o app os mostra nas linhas certas. verificar: manual (`flutter run -d linux`, Review de uma spec com PR, comentar em linha no GitHub e atualizar)
 
+## Ordem de implementação
+
+Sequência de implementação das specs do Review e do canvas: SPEC-009 → SPEC-010 → SPEC-011 → SPEC-012 → SPEC-013, e a SPEC-008 (independente) por último.
+
+**Esta é a 1ª das 5 do Review.** Não depende de nenhuma outra. Entrega a base que as seguintes reutilizam: `comment_anchor.dart`, a coluna `externalId` e o estado "tratado" dos comentários (esquema v16). Deve ser a primeira para as outras não duplicarem a ancoragem.
+
 ## Perguntas em aberto
 
 - "Tratado" deveria também resolver a conversa no GitHub (`resolveReviewThread`, via GraphQL)? A spec assume que não.
