@@ -90,12 +90,21 @@ class ClaudeCodeProvider implements AgentProvider {
       effort: o.effort,
       autocompact: o.autocompact,
       maxBudgetUsd: o.maxBudgetUsd,
-      permissionMode: switch (o.mode) {
-        PromptMode.ask => ClaudePermissionMode.defaultMode,
-        PromptMode.plan => ClaudePermissionMode.plan,
-        PromptMode.edit => ClaudePermissionMode.acceptEdits,
-        PromptMode.refine => ClaudePermissionMode.defaultMode,
-      },
+      maxTurns: o.maxTurns,
+      agent: o.agent,
+      appendSystemPrompt: o.appendSystemPrompt,
+      jsonSchema: o.jsonSchema,
+      settingsFile: o.settingsFile,
+      mcpConfigs: o.mcpConfigs,
+      agentsJson: o.agentsJson,
+      permissionMode:
+          o.permissionMode ??
+          switch (o.mode) {
+            PromptMode.ask => ClaudePermissionMode.defaultMode,
+            PromptMode.plan => ClaudePermissionMode.plan,
+            PromptMode.edit => ClaudePermissionMode.acceptEdits,
+            PromptMode.refine => ClaudePermissionMode.defaultMode,
+          },
       // MCP rules (Fase 11): "Perguntar" / "Refinar" ignore "Permitido" (an
       // MCP tool may write; it keeps asking) and respect "Bloqueado".
       allowedTools: ignoresMcpAllow(o.mode) ? const [] : o.mcpAllowedTools,
@@ -104,8 +113,8 @@ class ClaudeCodeProvider implements AgentProvider {
         ...o.mcpDisallowedTools,
       ],
       // "Perguntar": an allow list and no MCP server (F12).
-      tools: o.mode == PromptMode.ask ? readOnlyTools : const [],
-      strictMcpConfig: o.mode == PromptMode.ask,
+      tools: o.mode == PromptMode.ask ? readOnlyTools : o.tools,
+      strictMcpConfig: o.mode == PromptMode.ask || o.strictMcpConfig,
     );
   }
 
@@ -116,15 +125,28 @@ class ClaudeCodeProvider implements AgentProvider {
       workingDirectory: options.workingDirectory,
       executable: executable,
       starter: starter,
+      environment: options.environment,
     );
-    return _ClaudeRun(p);
+    return ClaudeRun(p);
   }
 }
 
-class _ClaudeRun implements AgentRun {
-  _ClaudeRun(this._p);
+class ClaudeRun implements ManagedAgentRun {
+  ClaudeRun(this._p);
 
   final ClaudeProcess _p;
+
+  @override
+  int get pid => _p.pid;
+
+  @override
+  Future<void> interrupt() async {
+    await _p.stop();
+  }
+
+  @override
+  Future<void> setPermissionMode(ClaudePermissionMode mode) =>
+      _p.setPermissionMode(mode);
 
   @override
   Stream<ClaudeEvent> get events => _p.events;

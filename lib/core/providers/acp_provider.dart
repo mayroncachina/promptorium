@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../ui/widgets/app_icon.dart';
 import '../claude/claude_event.dart';
+import '../claude/claude_args.dart';
 import '../claude/claude_process.dart' show ProcessStarter;
 import 'agent_provider.dart';
 
@@ -40,6 +41,20 @@ class AcpProvider implements AgentProvider {
 
   @override
   Future<AgentRun> start(AgentStartOptions options) async {
+    if (options.forkSession ||
+        options.maxBudgetUsd != null ||
+        options.maxTurns != null ||
+        options.agent != null ||
+        options.settingsFile != null ||
+        options.mcpConfigs.isNotEmpty ||
+        options.mcpAllowedTools.isNotEmpty ||
+        options.mcpDisallowedTools.isNotEmpty ||
+        (options.permissionMode != null &&
+            options.permissionMode != ClaudePermissionMode.defaultMode)) {
+      throw AgentUnavailable(
+        '$displayName: opções sem equivalente ACP validado. Ajuste a configuração antes de executar.',
+      );
+    }
     if (command.isEmpty) {
       throw AgentUnavailable('$displayName: comando não configurado.');
     }
@@ -71,7 +86,7 @@ class AcpProvider implements AgentProvider {
 
 /// One ACP agent process: `initialize`, `session/new` (or `session/load`
 /// to continue), then one `session/prompt` per message.
-class AcpRun implements AgentRun {
+class AcpRun implements ManagedAgentRun {
   AcpRun(this._p, this._o, {required this.args}) {
     _p.stdout
         .transform(utf8.decoder)
@@ -85,6 +100,20 @@ class AcpRun implements AgentRun {
       _exited = true;
       return c;
     });
+  }
+
+  @override
+  int get pid => _p.pid;
+  @override
+  Future<void> interrupt() async {
+    await stop();
+  }
+
+  @override
+  Future<void> setPermissionMode(ClaudePermissionMode mode) async {
+    throw const AgentUnavailable(
+      'Reinicie a sessão ACP para aplicar as permissões suportadas.',
+    );
   }
 
   final Process _p;

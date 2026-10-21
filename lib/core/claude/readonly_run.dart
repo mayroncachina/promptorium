@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/claude_code_provider.dart';
+import '../providers/agent_registry.dart';
+import '../providers/provider_preferences.dart';
+import '../../data/providers.dart';
 import 'claude_args.dart';
 import 'claude_cli.dart';
 import 'claude_event.dart';
@@ -56,27 +58,78 @@ Future<Result> runReadOnlyClaude(
   required ClaudeOptions options,
   required String prompt,
   Duration timeout = plannerTimeout,
+  int? workspaceId,
+  String? providerId,
 }) async {
   final prefs = ref.read(runPrefsProvider);
-  final ClaudeProcess process;
+  final sourceId = options.resumeId;
+  final settings = ref.read(appSettingsProvider.notifier);
+  final chosen =
+      providerId ??
+      (sourceId == null
+          ? ref.read<String>(
+              defaultAgentProvider(
+                workspaceId ?? ref.read(activeWorkspaceProvider)?.id,
+              ),
+            )
+          : settings.get('agent.run.$sourceId.provider') ?? 'claude');
+  final AgentRun process;
+  if (options.sessionId != null) {
+    await settings.set('agent.run.${options.sessionId}.provider', chosen);
+  }
   try {
-    process = await ClaudeProcess.start(
-      options.copyWith(
-        // Read-only allow list, no MCP server (F12).
-        tools: options.tools.isEmpty
-            ? ClaudeCodeProvider.readOnlyTools
-            : options.tools,
-        strictMcpConfig: true,
-        model: options.model ?? prefs.modelArg(RunKind.planner),
-        effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
-        autocompact: options.autocompact ?? prefs.autocompact,
-      ),
-      workingDirectory: cwd,
-      executable: ref.read(claudeExecutableProvider),
-      starter: ref.read(claudeProcessStarterProvider),
-    );
+    if (chosen != 'claude') {
+      process = await ref
+          .read(agentProviderByIdProvider(chosen))
+          .start(
+            AgentStartOptions(
+              workingDirectory: cwd,
+              mode: PromptMode.ask,
+              model:
+                  options.model ?? providerModel(ref, chosen, RunKind.planner),
+              effort:
+                  options.effort ??
+                  effortArg(providerEffort(ref, chosen, RunKind.planner)),
+              resumeId: sourceId == null
+                  ? null
+                  : settings.get('agent.run.$sourceId.externalId') ?? sourceId,
+              forkSession: options.forkSession,
+              appendSystemPrompt: options.appendSystemPrompt,
+              jsonSchema: options.jsonSchema,
+              maxBudgetUsd: options.maxBudgetUsd,
+              maxTurns: options.maxTurns,
+              agent: options.agent,
+              mcpConfigs: options.mcpConfigs,
+              strictMcpConfig: true,
+              mcpDisallowedTools: options.disallowedTools
+                  .where(
+                    (t) =>
+                        !ClaudeCodeProvider.readOnlyDisallowedTools.contains(t),
+                  )
+                  .toList(),
+            ),
+          );
+    } else {
+      process = ClaudeRun(
+        await ClaudeProcess.start(
+          options.copyWith(
+            // Read-only allow list, no MCP server (F12).
+            tools: options.tools.isEmpty
+                ? ClaudeCodeProvider.readOnlyTools
+                : options.tools,
+            strictMcpConfig: true,
+            model: options.model ?? prefs.modelArg(RunKind.planner),
+            effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
+            autocompact: options.autocompact ?? prefs.autocompact,
+          ),
+          workingDirectory: cwd,
+          executable: ref.read(claudeExecutableProvider),
+          starter: ref.read(claudeProcessStarterProvider),
+        ),
+      );
+    }
   } catch (e) {
-    throw PlannerException('Falha ao iniciar o Claude Code: $e');
+    throw PlannerException('Falha ao iniciar $chosen: $e');
   }
   final done = Completer<Result>();
   final logSub = process.logs.listen(
@@ -86,6 +139,11 @@ Future<Result> runReadOnlyClaude(
   final sub = process.events.listen(
     (e) {
       switch (e) {
+        case SystemInit():
+          final key = options.sessionId ?? options.resumeId;
+          if (key != null && e.sessionId != null) {
+            unawaited(settings.set('agent.run.$key.externalId', e.sessionId!));
+          }
         case PermissionRequest():
           // Non-interactive and read-only: nothing to approve.
           process.deny(
@@ -95,7 +153,7 @@ Future<Result> runReadOnlyClaude(
         case Result():
           if (!done.isCompleted) done.complete(e);
         case RateLimit():
-          ref.read(usageTrackerProvider).handle(e);
+          if (chosen == 'claude') ref.read(usageTrackerProvider).handle(e);
         default:
           break;
       }
@@ -103,7 +161,7 @@ Future<Result> runReadOnlyClaude(
     onDone: () {
       if (!done.isCompleted) {
         done.completeError(
-          const PlannerException('O Claude Code encerrou antes de responder.'),
+          PlannerException('O provedor $chosen encerrou antes de responder.'),
         );
       }
     },
