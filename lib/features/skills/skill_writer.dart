@@ -183,6 +183,7 @@ class SkillWriter {
     }
     final r = await runReadOnlyClaude(
       _ref,
+      workspaceId: workspace?.id,
       cwd:
           workspace?.path ??
           _ref.read(skillRepositoryProvider(null)).home ??

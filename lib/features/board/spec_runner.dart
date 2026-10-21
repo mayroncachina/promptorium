@@ -7,6 +7,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
+import '../../core/providers/permission_policy.dart';
+import '../../core/providers/provider_preferences.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/git/git_service.dart';
@@ -15,7 +17,6 @@ import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
-import '../sessions/widgets/composer.dart' show lastPermissionModeKey;
 import '../project/project_config.dart';
 import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
@@ -444,6 +445,7 @@ class SpecRunner {
   Future<String> runNext(
     int specId, {
     ClaudePermissionMode? mode,
+    String? provider,
     String? model,
     String? effort,
     String? agent,
@@ -577,6 +579,8 @@ class SpecRunner {
       Map<String, String>? environment,
     }) => NewSessionRequest(
       workspace: ws,
+      provider:
+          last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id)),
       title: '${specSessionTitle(spec!, steps, todo)}$suffix',
       prompt: specStepPrompt(
         spec: spec,
@@ -592,12 +596,28 @@ class SpecRunner {
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
       agent: spec.agentName ?? config.agent,
-      model: model ?? last?.model ?? prefs.model(RunKind.session),
+      model:
+          model ??
+          last?.model ??
+          ((last?.provider ??
+                      provider ??
+                      _ref.read(defaultAgentProvider(ws.id))) !=
+                  'claude'
+              ? 'inherit'
+              : prefs.model(RunKind.session)),
       effort: effort ?? last?.effort,
       permissionMode:
           mode ??
           ClaudePermissionMode.fromCli(last?.permissionMode) ??
-          ClaudePermissionMode.fromCli(settings.get(lastPermissionModeKey)) ??
+          ClaudePermissionMode.fromCli(
+            settings.get(
+              permissionModePreferenceKey(
+                last?.provider ??
+                    provider ??
+                    _ref.read(defaultAgentProvider(ws.id)),
+              ),
+            ),
+          ) ??
           ClaudePermissionMode.defaultMode,
       specId: specId,
       steps: todo.join(','),

@@ -353,6 +353,7 @@ class _SessionMain extends ConsumerWidget {
           ),
           SessionComposer(
             sessionId: s.id,
+            provider: s.provider,
             permissionMode: s.permissionMode,
             root: s.worktreePath,
             canSend: () =>

@@ -19,6 +19,20 @@ Map<String, dynamic> delta(String text, {int index = 0}) => {
 };
 
 void main() {
+  test('Codex persisted bypass is displayed as YOLO in the timeline', () {
+    final t = Timeline();
+    t.apply(
+      ev({
+        'type': 'system',
+        'subtype': 'init',
+        'provider': 'codex',
+        'model': 'test-model',
+        'permissionMode': 'bypassPermissions',
+      }),
+    );
+    expect((t.items.single as NoticeItem).text, contains('YOLO'));
+  });
+
   test(
     'text deltas stream live and are consolidated by the assistant line',
     () {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/claude/claude_args.dart';
 import '../../../data/providers.dart';
+import '../../../core/providers/permission_policy.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../prompt/prompt_actions.dart'
     show
@@ -17,14 +18,8 @@ import '../../prompt/widgets/prompt_composer.dart'
 import '../session_manager.dart';
 import 'session_style.dart';
 
-String permissionLabel(ClaudePermissionMode? m) => switch (m) {
-  null || ClaudePermissionMode.defaultMode => 'perguntar',
-  ClaudePermissionMode.acceptEdits => 'aceitar edições',
-  ClaudePermissionMode.plan => 'planejar',
-  ClaudePermissionMode.auto => 'automático',
-  ClaudePermissionMode.dontAsk => 'não perguntar',
-  ClaudePermissionMode.skipPermissions => 'sem perguntar nada (perigoso)',
-};
+String permissionLabel(ClaudePermissionMode? m, {String provider = 'claude'}) =>
+    permissionModeLabel(m, provider: provider);
 
 /// Modes offered in the UI (plano, Fase 5: default / acceptEdits / plan; the
 /// user's opt-in skipPermissions).
@@ -46,10 +41,12 @@ class SessionComposer extends ConsumerStatefulWidget {
     required this.sessionId,
     required this.permissionMode,
     this.canSend,
+    this.provider = 'claude',
     this.root,
   });
 
   final String sessionId;
+  final String provider;
   final String? permissionMode;
 
   /// Returns an error message when sending is not allowed right now.
@@ -339,7 +336,9 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
               children: [
                 Flexible(
                   child: PopupMenuButton<ClaudePermissionMode>(
-                    tooltip: alive
+                    tooltip: widget.provider == 'codex'
+                        ? 'Aplica ao retomar a sessão'
+                        : alive
                         ? 'Muda já na sessão em andamento'
                         : 'Modo de permissão ao retomar',
                     color: AppColors.panel,
@@ -360,7 +359,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                         PopupMenuItem(
                           value: m,
                           child: Text(
-                            permissionLabel(m),
+                            permissionLabel(m, provider: widget.provider),
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
@@ -375,7 +374,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Text(
-                        'Permissão: ${permissionLabel(mode)}',
+                        'Permissão: ${permissionLabel(mode, provider: widget.provider)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

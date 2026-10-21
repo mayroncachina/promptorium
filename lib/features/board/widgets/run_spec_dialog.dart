@@ -4,18 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
+import '../../../core/providers/permission_policy.dart';
+import '../../../core/providers/provider_preferences.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../project/project_config.dart';
 import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
-import '../../sessions/widgets/composer.dart'
-    show lastPermissionModeKey, permissionLabel, uiPermissionModes;
+import '../../sessions/widgets/composer.dart' show uiPermissionModes;
 import '../../sessions/widgets/session_style.dart';
 import '../board_screen.dart';
 import '../spec_runner.dart';
 
 /// Options of a spec run chosen in [RunSpecDialog].
 typedef RunSpecOptions = ({
+  String provider,
   String? agent,
   String model,
   String effort,
@@ -39,7 +41,8 @@ Future<void> runSpec(
     o = await showDialog<RunSpecOptions>(
       context: context,
       barrierColor: AppColors.scrim,
-      builder: (_) => RunSpecDialog(spec: data.spec),
+      builder: (_) =>
+          RunSpecDialog(spec: data.spec, previous: data.sessions.lastOrNull),
     );
     if (o == null) return;
   }
@@ -52,11 +55,12 @@ Future<void> runSpec(
           model: o?.model,
           effort: o?.effort,
           mode: o?.mode,
+          provider: o?.provider,
         );
     if (o != null) {
       await ref
           .read(appSettingsProvider.notifier)
-          .set(lastPermissionModeKey, o.mode.cliValue);
+          .set(permissionModePreferenceKey(o.provider), o.mode.cliValue);
     }
     messenger
       ?..hideCurrentSnackBar()
@@ -88,24 +92,38 @@ Future<void> runSpec(
 
 /// Agent, model, effort and permission mode of the step sessions of a spec.
 class RunSpecDialog extends ConsumerStatefulWidget {
-  const RunSpecDialog({super.key, required this.spec});
+  const RunSpecDialog({super.key, required this.spec, this.previous});
 
   final Spec spec;
+  final Session? previous;
 
   @override
   ConsumerState<RunSpecDialog> createState() => _RunSpecDialogState();
 }
 
 class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
+  late String _provider =
+      widget.previous?.provider ?? ref.read(activeAgentProvider);
   late String? _agent =
       widget.spec.agentName ??
       ProjectConfig.loadSync(ref.read(activeWorkspaceProvider)?.path ?? '')
           .agent;
-  late String _model = ref.read(runPrefsProvider).model(RunKind.session);
-  late String _effort = ref.read(runPrefsProvider).effort(RunKind.session);
+  late String _model =
+      widget.previous?.model ??
+      (_provider == 'claude'
+          ? ref.read(runPrefsProvider).model(RunKind.session)
+          : 'inherit');
+  late String _effort =
+      widget.previous?.effort ??
+      (_provider == 'claude'
+          ? ref.read(runPrefsProvider).effort(RunKind.session)
+          : 'default');
   late ClaudePermissionMode _mode = () {
     final saved = ClaudePermissionMode.fromCli(
-      ref.read(appSettingsProvider.notifier).get(lastPermissionModeKey),
+      widget.previous?.permissionMode ??
+          ref
+              .read(appSettingsProvider.notifier)
+              .get(permissionModePreferenceKey(_provider)),
     );
     return saved != null && uiPermissionModes.contains(saved)
         ? saved
@@ -235,6 +253,24 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (widget.previous != null)
+                  Text(
+                    'Provedor: ${_provider == 'codex' ? 'Codex' : 'Claude Code'}',
+                  ),
+                if (widget.previous == null)
+                  field<String>(
+                    'Provedor',
+                    'run-spec-provider',
+                    _provider,
+                    const [('claude', 'Claude Code'), ('codex', 'Codex')],
+                    (v) {
+                      _provider = v;
+                      _model = 'inherit';
+                      _effort = 'default';
+                      _agent = null;
+                      _mode = ClaudePermissionMode.defaultMode;
+                    },
+                  ),
                 field<String?>('Agente (--agent)', 'run-spec-agent', _agent, [
                   (null, 'nenhum'),
                   for (final a in agents)
@@ -246,7 +282,12 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                   children: [
                     Expanded(
                       child: field<String>('Modelo', 'run-spec-model', _model, [
-                        for (final m in {...sessionModels, _model})
+                        for (final m in {
+                          ...(_provider == 'codex'
+                              ? const ['inherit']
+                              : sessionModels),
+                          _model,
+                        })
                           (m, m == 'inherit' ? 'inherit (padrão)' : m),
                       ], (v) => _model = v),
                     ),
@@ -271,16 +312,15 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                   _mode,
                   [
                     for (final m in uiPermissionModes)
-                      (m, '${m.cliValue} — ${permissionLabel(m)}'),
+                      (m, permissionModeOption(m, provider: _provider)),
                   ],
                   (v) => _mode = v,
                 ),
                 if (_mode == ClaudePermissionMode.skipPermissions)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      '--dangerously-skip-permissions: o agente edita '
-                      'arquivos e roda qualquer comando sem pedir aprovação.',
+                      bypassWarning(_provider),
                       style: TextStyle(fontSize: 11, color: AppColors.red),
                     ),
                   ),
@@ -297,6 +337,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                       key: const ValueKey('run-spec-submit'),
                       label: 'Executar',
                       onTap: () => Navigator.of(context).pop((
+                        provider: _provider,
                         agent: _agent ?? '',
                         model: _model,
                         effort: _effort,

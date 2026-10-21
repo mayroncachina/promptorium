@@ -305,6 +305,7 @@ class _ContinueSessionDialogState extends ConsumerState<ContinueSessionDialog> {
           .create(
             NewSessionRequest(
               workspace: ws,
+              provider: c.provider,
               title: _title.text,
               prompt: _prompt.text,
               model: c.model,

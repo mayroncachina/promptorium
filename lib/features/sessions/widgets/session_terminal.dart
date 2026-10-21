@@ -8,6 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../../core/claude/claude_cli.dart';
+import '../../../core/claude/claude_args.dart';
+import '../../../core/codex/codex_cli.dart';
+import '../../../core/codex/codex_command.dart';
+import '../../../core/process/process_runner.dart';
+import '../../../core/providers/agent_provider.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../ui/shell/shell_intents.dart';
@@ -88,28 +93,75 @@ class SessionTerminals extends Notifier<Map<String, SessionTerminal>> {
   bool isRunning(String id) => state[id]?.running ?? false;
 
   /// Starts `claude --resume <id>` interactively in the session worktree.
-  void open(Session s) {
+  Future<void> open(Session s) async {
     final existing = state[s.id];
     if (existing != null && existing.running) return;
     final t = SessionTerminal(s.id);
     final model = s.model == 'inherit' || s.model.isEmpty ? null : s.model;
     final prefs = ref.read(runPrefsProvider);
-    final effort = effortArg(s.effort ?? prefs.effort(RunKind.session));
+    final effort = effortArg(
+      s.effort ??
+          (s.provider == 'claude' ? prefs.effort(RunKind.session) : null),
+    );
+    if (s.provider != 'claude' && s.provider != 'codex') {
+      throw AgentUnavailable('Terminal não disponível para ${s.provider}.');
+    }
+    final codex = s.provider == 'codex';
+    if (codex && s.permissionMode == 'bypassPermissions') {
+      final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      if (ws == null || ws.path == s.worktreePath) {
+        throw const AgentUnavailable('Codex YOLO exige um worktree isolado.');
+      }
+    }
+
+    if (codex && (s.externalId == null || s.externalId!.isEmpty)) {
+      throw const AgentUnavailable(
+        'A sessão Codex não tem thread externa para retomar.',
+      );
+    }
+    final executable = codex
+        ? ref.read(codexExecutableProvider)
+        : ref.read(claudeExecutableProvider);
+    final args = codex
+        ? codexCommandArgs(
+            threadId: s.externalId,
+            model: model,
+            effort: effort,
+            permissionMode: ClaudePermissionMode.fromCli(s.permissionMode),
+          )
+        : <String>[
+            '--resume',
+            s.id,
+            if (model != null) ...['--model', model],
+            if (effort != null) ...['--effort', effort],
+            '--autocompact',
+            prefs.autocompact,
+            if (s.agentName != null) ...['--agent', s.agentName!],
+            if (ClaudePermissionMode.fromCli(s.permissionMode) ==
+                ClaudePermissionMode.skipPermissions)
+              '--dangerously-skip-permissions'
+            else if (s.permissionMode != null) ...[
+              '--permission-mode',
+              s.permissionMode!,
+            ],
+          ];
+    if (codex) {
+      await validateCodexCommand(
+        executable,
+        args,
+        ref.read(processRunnerProvider),
+      );
+      if (!ref.mounted) return;
+      if (state[s.id]?.running ?? false) return;
+    }
+    if (ref.read(sessionManagerProvider.notifier).isAlive(s.id)) {
+      throw const AgentUnavailable(
+        'Pare a sessão antes de abrir seu terminal interativo.',
+      );
+    }
     t.start(
-      executable: ref.read(claudeExecutableProvider),
-      args: [
-        '--resume',
-        s.id,
-        if (model != null) ...['--model', model],
-        if (effort != null) ...['--effort', effort],
-        '--autocompact',
-        prefs.autocompact,
-        if (s.agentName != null) ...['--agent', s.agentName!],
-        if (s.permissionMode != null) ...[
-          '--permission-mode',
-          s.permissionMode!,
-        ],
-      ],
+      executable: executable,
+      args: args,
       cwd: s.worktreePath,
       environment: switch (ref.read(worktreeEnvProvider)[s.worktreePath]) {
         final env? => {...Platform.environment, ...env},
@@ -188,10 +240,9 @@ class SessionTerminalView extends ConsumerWidget {
               Text(
                 alive
                     ? 'A sessão está rodando em modo headless. Para usá-la no '
-                          'terminal interativo (claude --resume), pare-a antes '
+                          'terminal interativo, pare-a antes '
                           '— dois processos na mesma sessão conflitam.'
-                    : 'Abre o Claude Code interativo nesta sessão '
-                          '(claude --resume) no worktree.',
+                    : 'Abre ${session.provider == 'codex' ? 'Codex' : 'Claude Code'} interativo nesta sessão no worktree.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 12,
@@ -208,7 +259,19 @@ class SessionTerminalView extends ConsumerWidget {
                         .read(sessionManagerProvider.notifier)
                         .stop(session.id);
                   }
-                  ref.read(sessionTerminalsProvider.notifier).open(session);
+                  try {
+                    final fresh = await ref
+                        .read(sessionsRepoProvider)
+                        .getById(session.id);
+                    await ref
+                        .read(sessionTerminalsProvider.notifier)
+                        .open(fresh ?? session);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('$e')));
+                    }
+                  }
                 },
               ),
             ],
@@ -227,7 +290,7 @@ class SessionTerminalView extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'claude --resume ${session.id} · ${session.worktreePath}',
+                  '${session.provider == 'codex' ? 'codex resume ${session.externalId}' : 'claude --resume ${session.id}'} · ${session.worktreePath}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -251,8 +314,21 @@ class SessionTerminalView extends ConsumerWidget {
                   label: 'Reabrir',
                   height: 24,
                   fontSize: 11,
-                  onTap: () =>
-                      ref.read(sessionTerminalsProvider.notifier).open(session),
+                  onTap: () async {
+                    try {
+                      final fresh = await ref
+                          .read(sessionsRepoProvider)
+                          .getById(session.id);
+                      await ref
+                          .read(sessionTerminalsProvider.notifier)
+                          .open(fresh ?? session);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    }
+                  },
                 ),
             ],
           ),

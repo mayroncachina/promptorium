@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../core/claude/claude_event.dart';
+import '../../core/claude/claude_args.dart';
+import '../../core/providers/permission_policy.dart';
 
 /// Event types written by the app itself into `session_events` (they never
 /// come from the CLI; `ClaudeEvent.fromJson` turns them into [UnknownEvent]).
@@ -184,7 +186,13 @@ class Timeline {
         model ??= e.model.isEmpty ? null : e.model;
         if (!_sawInit) {
           _sawInit = true;
-          final mode = e.permissionMode.isEmpty ? '' : ' · ${e.permissionMode}';
+          final label = e.json['provider'] == 'codex'
+              ? permissionModeLabel(
+                  ClaudePermissionMode.fromCli(e.permissionMode),
+                  provider: 'codex',
+                )
+              : e.permissionMode;
+          final mode = label.isEmpty ? '' : ' · $label';
           items.add(NoticeItem('Sessão iniciada · ${e.model}$mode', at: now));
         }
       case StreamDelta(kind: StreamDeltaKind.thinking):
