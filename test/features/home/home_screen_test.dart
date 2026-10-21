@@ -61,6 +61,7 @@ void main() {
   test('buildInbox groups by kind, urgency order, newest first', () {
     final now = DateTime(2026, 10, 17, 10);
     Session session(String id, SessionStatus st, {DateTime? ended}) => Session(
+      provider: 'claude',
       id: id,
       workspaceId: 1,
       worktreePath: '/w/$id',

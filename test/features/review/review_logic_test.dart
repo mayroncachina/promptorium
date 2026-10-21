@@ -27,6 +27,7 @@ Session session({
   String? mergeCommit,
   DateTime? startedAt,
 }) => Session(
+  provider: 'claude',
   id: id,
   workspaceId: 1,
   taskId: taskId,

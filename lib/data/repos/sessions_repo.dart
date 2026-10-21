@@ -36,6 +36,9 @@ class SessionsRepo {
     required String worktreePath,
     required String branch,
     required String model,
+    String provider = 'claude',
+    String? externalId,
+    String? runConfig,
     String? effort,
     int? taskId,
     int? specId,
@@ -56,6 +59,9 @@ class SessionsRepo {
           worktreePath: worktreePath,
           branch: branch,
           model: model,
+          provider: Value(provider),
+          externalId: Value(externalId),
+          runConfig: Value(runConfig),
           effort: Value(effort),
           taskId: Value(taskId),
           specId: Value(specId),
@@ -68,6 +74,16 @@ class SessionsRepo {
           status: Value(status),
           duelId: Value(duelId),
         ),
+      );
+
+  Future<int> setExternalId(String id, String externalId) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(externalId: Value(externalId)),
+      );
+
+  Future<int> setRunConfig(String id, String config) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(runConfig: Value(config)),
       );
 
   /// Sets [status]; terminal statuses also set `endedAt` (non-terminal clear it).
