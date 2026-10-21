@@ -53,7 +53,7 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
 
   @override
   Widget build(BuildContext context) {
-    final s = ref.watch(footerStatsProvider);
+    final s = ref.watch(footerDisplayStatsProvider);
     final now = DateTime.now();
 
     final (legacyColor, legacyText) = switch (s.cliStatus) {

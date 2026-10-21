@@ -5,7 +5,7 @@ import '../../core/claude/usage_tracker.dart';
 import '../../data/providers.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
-import '../../core/providers/agent_registry.dart';
+import '../../core/providers/acp_provider.dart';
 import '../../features/mcp/mcp_state.dart';
 import '../../features/sessions/session_manager.dart';
 
@@ -68,28 +68,31 @@ class FooterStats {
   final DateTime? limitResetsAt;
   final String? limitType;
 
-  FooterStats copyWith({CliStatus? cliStatus, String? claudeVersion}) =>
-      FooterStats(
-        cliStatus: cliStatus ?? this.cliStatus,
-        providerId: providerId,
-        providerName: providerName,
-        providerStatus: providerStatus,
-        claudeVersion: claudeVersion ?? this.claudeVersion,
-        sessionsActive: sessionsActive,
-        sessionsTotal: sessionsTotal,
-        sessionsWaiting: sessionsWaiting,
-        subagentsRunning: subagentsRunning,
-        mcpConnected: mcpConnected,
-        mcpTotal: mcpTotal,
-        mcpFailed: mcpFailed,
-        usage5h: usage5h,
-        usage5hResetsAt: usage5hResetsAt,
-        usageWeek: usageWeek,
-        usageWeekResetsAt: usageWeekResetsAt,
-        limitRejected: limitRejected,
-        limitResetsAt: limitResetsAt,
-        limitType: limitType,
-      );
+  FooterStats copyWith({
+    CliStatus? cliStatus,
+    String? claudeVersion,
+    String? providerStatus,
+  }) => FooterStats(
+    cliStatus: cliStatus ?? this.cliStatus,
+    providerId: providerId,
+    providerName: providerName,
+    providerStatus: providerStatus ?? this.providerStatus,
+    claudeVersion: claudeVersion ?? this.claudeVersion,
+    sessionsActive: sessionsActive,
+    sessionsTotal: sessionsTotal,
+    sessionsWaiting: sessionsWaiting,
+    subagentsRunning: subagentsRunning,
+    mcpConnected: mcpConnected,
+    mcpTotal: mcpTotal,
+    mcpFailed: mcpFailed,
+    usage5h: usage5h,
+    usage5hResetsAt: usage5hResetsAt,
+    usageWeek: usageWeek,
+    usageWeekResetsAt: usageWeekResetsAt,
+    limitRejected: limitRejected,
+    limitResetsAt: limitResetsAt,
+    limitType: limitType,
+  );
 }
 
 /// CLI status found by the startup check.
@@ -120,16 +123,16 @@ class FooterStatsController extends Notifier<FooterStats> {
         ? null
         : ref.watch(sessionsProvider(ws.id)).value;
     final providerId = ref.watch(activeAgentProvider);
-    final all = ref.watch(agentProvidersProvider);
-    final name =
-        all.where((p) => p.id == providerId).firstOrNull?.displayName ??
-        providerId;
-    final availability = ref.watch(providerAvailabilityProvider(providerId));
-    final label = availability.when(
-      data: (v) => v.label,
-      error: (_, _) => 'não verificado',
-      loading: () => 'verificando…',
-    );
+    final name = switch (providerId) {
+      'claude' => 'Claude Code',
+      'codex' => 'Codex',
+      _ =>
+        parseAcpAgents(
+              ref.watch(appSettingsProvider)[AppSettingKeys.acpAgents] ??
+                  defaultAcpAgents,
+            ).where((p) => p.id == providerId).firstOrNull?.name ??
+            providerId,
+    };
     final rate = providerId == 'claude' ? ref.watch(rateLimitProvider) : null;
     final mcp = ref.watch(mcpStatusBoardProvider);
 
@@ -148,7 +151,6 @@ class FooterStatsController extends Notifier<FooterStats> {
       cliStatus: cli,
       providerId: providerId,
       providerName: name,
-      providerStatus: label,
       claudeVersion: version,
       sessionsActive: active,
       sessionsTotal: sessions?.length,
@@ -175,6 +177,22 @@ final footerStatsProvider =
     NotifierProvider<FooterStatsController, FooterStats>(
       FooterStatsController.new,
     );
+
+/// CLI probes belong to the visible footer, not to consumers of MCP/session
+/// counters. Reading [footerStatsProvider] must never start a CLI process.
+final footerDisplayStatsProvider = Provider<FooterStats>((ref) {
+  final stats = ref.watch(footerStatsProvider);
+  final availability = ref.watch(
+    providerAvailabilityProvider(stats.providerId),
+  );
+  return stats.copyWith(
+    providerStatus: availability.when(
+      data: (value) => value.label,
+      error: (_, _) => 'não verificado',
+      loading: () => 'verificando…',
+    ),
+  );
+});
 
 /// Compact token count: 512k, 1.2M.
 String formatTokens(int? n) {

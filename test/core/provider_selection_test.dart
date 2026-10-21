@@ -13,7 +13,32 @@ import 'package:promptorium/features/prompt/conversation_manager.dart';
 
 import '../helpers/test_db.dart';
 
+import 'package:promptorium/ui/shell/footer_stats.dart';
+
 void main() {
+  test('reading footer counters does not probe agent executables', () async {
+    final calls = <String>[];
+    final c = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        processRunnerProvider.overrideWithValue((exe, args) async {
+          calls.add(exe);
+          throw StateError('Counters must not probe CLIs');
+        }),
+      ],
+    );
+    addTearDown(c.dispose);
+    expect(c.read(footerStatsProvider).providerId, 'claude');
+    await c.pump();
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(providerPreferenceKey(null), 'codex');
+    expect(c.read(footerStatsProvider).providerId, 'codex');
+    expect(c.read(footerStatsProvider).providerName, 'Codex');
+    await c.pump();
+    expect(calls, isEmpty);
+  });
+
   test('project override, global fallback and restart preserve independent choices', () async {
     final db = memoryDatabase();
     addTearDown(db.close);
