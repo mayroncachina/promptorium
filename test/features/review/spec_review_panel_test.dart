@@ -139,12 +139,37 @@ const _criteria =
 typedef _Panel = ({ProviderContainer c, int specId});
 
 void batchTests() {
-  Future<void> settle(WidgetTester tester) async {
-    for (var i = 0; i < 30; i++) {
+  /// Pumps 30 rounds; with [p], then until the panel shows the marks in
+  /// the database (at most ~3 s more, as in project_memory_test): a busy
+  /// machine (the whole suite in parallel) loads it slower.
+  Future<void> settle(WidgetTester tester, [_Panel? p]) async {
+    Future<void> round() async {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump();
+    }
+
+    for (var i = 0; i < 30; i++) {
+      await round();
+    }
+    if (p == null) return;
+    final rows = await tester.runAsync(
+      () => p.c.read(reviewCommentsRepoProvider).criteria(p.specId),
+    );
+    final want = {for (final m in rows!) m.criterion: m.checked};
+    bool synced() {
+      final list = p.c.read(criteriaProvider(p.specId)).value;
+      return list != null &&
+          find
+              .byKey(const ValueKey('spec-review-summary'))
+              .evaluate()
+              .isNotEmpty &&
+          list.every((c) => c.mark?.checked == want[c.criterion.text]);
+    }
+
+    for (var i = 0; i < 150 && !synced(); i++) {
+      await round();
     }
   }
 
@@ -203,8 +228,9 @@ void batchTests() {
         ),
       ),
     );
-    await settle(tester);
-    return (c: c, specId: id);
+    final panel = (c: c, specId: id);
+    await settle(tester, panel);
+    return panel;
   }
 
   final master = find.byKey(const ValueKey('review-criteria-master'));
@@ -239,15 +265,15 @@ void batchTests() {
           .read(reviewCommentsRepoProvider)
           .setCriterion(p.specId, text, checked: checked, by: by),
     );
-    await settle(tester);
+    await settle(tester, p);
   }
 
-  Future<void> markAll(WidgetTester tester) async {
+  Future<void> markAll(WidgetTester tester, _Panel p) async {
     await tester.tap(master);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const ValueKey('review-batch-confirm')));
-    await settle(tester);
+    await settle(tester, p);
   }
 
   testWidgets('R1 · the control with its counts and tri-state; none in a '
@@ -312,10 +338,10 @@ void batchTests() {
     expect(find.textContaining('2 ficam de fora'), findsOneWidget);
     expect(find.text('Marcar 2'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('review-batch-cancel')));
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'e [R1]': 'gate', 'f': 'revisor'});
 
-    await markAll(tester);
+    await markAll(tester, p);
     expect(await marksOf(tester, p), {
       'a': 'humano',
       'b': 'humano',
@@ -326,7 +352,7 @@ void batchTests() {
     // c and d stay out of the batch but can be checked one by one.
     expect(label(tester), 'Desmarcar os meus (2 · 2 aguardam a verificação)');
     await tester.tap(find.byKey(const ValueKey('review-criterion-3')));
-    await settle(tester);
+    await settle(tester, p);
     expect((await marksOf(tester, p))['d'], 'humano');
     expect(tester.takeException(), isNull);
   });
@@ -345,7 +371,7 @@ void batchTests() {
       ),
       hasLength(3),
     );
-    await markAll(tester);
+    await markAll(tester, p);
     expect(summary(tester), contains('3/3 critérios'));
     expect(
       await tester.runAsync(
@@ -358,7 +384,7 @@ void batchTests() {
     await setMark(tester, p, 'b', 'gate');
     await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Desfazer'));
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'b': 'gate'});
     expect(summary(tester), contains('1/3 critérios'));
     expect(
@@ -377,14 +403,14 @@ void batchTests() {
       criteria: '- [ ] a\n- [ ] b\n- [ ] c\n',
       marks: const {},
     );
-    await markAll(tester);
+    await markAll(tester, p);
     final undo = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
     await tester.tap(find.byKey(const ValueKey('review-criterion-0')));
-    await settle(tester);
+    await settle(tester, p);
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('3 critérios marcados por você'), findsNothing);
     undo.onPressed();
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'b': 'humano', 'c': 'humano'});
   });
 
@@ -396,7 +422,7 @@ void batchTests() {
       criteria: '- [ ] a\n- [ ] b\n',
       marks: const {},
     );
-    await markAll(tester);
+    await markAll(tester, p);
     final undo = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
     // The Review keys its main pane by session: the panel is rebuilt.
     await tester.pumpWidget(
@@ -410,7 +436,7 @@ void batchTests() {
     );
     await tester.pump(const Duration(seconds: 1));
     undo.onPressed();
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'a': 'humano', 'b': 'humano'});
   });
 
@@ -421,14 +447,14 @@ void batchTests() {
       criteria: '- [ ] a\n- [ ] b\n',
       marks: const {},
     );
-    await markAll(tester);
+    await markAll(tester, p);
     final undo = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(seconds: 1));
     }
     expect(find.text('2 critérios marcados por você'), findsNothing);
     undo.onPressed();
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'a': 'humano', 'b': 'humano'});
   });
 
@@ -445,7 +471,7 @@ void batchTests() {
     );
     expect(label(tester), 'Desmarcar os meus (2 · 2 aguardam a verificação)');
     await tester.tap(master);
-    await settle(tester);
+    await settle(tester, p);
     expect(find.byKey(const ValueKey('review-batch-dialog')), findsNothing);
     expect(await marksOf(tester, p), {'e [R1]': 'gate', 'f': 'revisor'});
     expect(
@@ -465,7 +491,7 @@ void batchTests() {
     expect(label(tester), 'Nada a marcar em lote · 1 aguarda a verificação');
     expect(enabled(tester), isFalse);
     await tester.tap(master);
-    await settle(tester);
+    await settle(tester, p);
     expect(find.byKey(const ValueKey('review-batch-dialog')), findsNothing);
     await setMark(tester, p, 'a [R1]', 'gate');
     expect(label(tester), 'Todos marcados · nada meu para desmarcar');
@@ -508,7 +534,7 @@ void batchTests() {
       findsOneWidget,
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await settle(tester);
+    await settle(tester, p);
     expect(await marksOf(tester, p), {'a': 'humano'});
   });
 
