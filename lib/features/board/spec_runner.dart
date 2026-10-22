@@ -61,6 +61,48 @@ List<String> parseSuggestions(String? text) => [
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
 /// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
 /// the whole spec goes.
+/// Commands that check only the steps in [todo] (SPEC-017 R1): the
+/// `verificar` of each in `## Etapas` and the `verificar:` of their
+/// acceptance criteria, in order, without repeats, without [suite] (the
+/// gate runs it) and without manual checks.
+List<String> focusedChecks(
+  String specText, {
+  required List<String> todo,
+  String? suite,
+}) {
+  final plans = SpecDocument.parse(specText).stepPlans;
+  final out = <String>[];
+  void add(String? cmd) {
+    final c = cmd?.trim();
+    if (c == null || c.isEmpty || c == suite?.trim()) return;
+    if (c.toLowerCase().startsWith('manual')) return;
+    if (!out.contains(c)) out.add(c);
+  }
+
+  for (final t in todo) {
+    add(plans[t]?.verify);
+  }
+  for (final c in parseCriteria(specText)) {
+    if (c.requirements.any(todo.contains)) add(c.verify);
+  }
+  return out;
+}
+
+/// Step 1 of "Ao terminar" (SPEC-017 R1): only the [checks] of the session
+/// (or the tests of the changed files), in the foreground; the whole suite
+/// is the gate's when it runs [testCommand], else once at the end.
+String focusedTestsStep(List<String> checks, String? testCommand) {
+  final run = checks.isEmpty
+      ? 'rode só os testes dos arquivos que você mudou ou criou'
+      : 'rode só os testes desta etapa: ${checks.map((c) => '`$c`').join('; ')}';
+  final suite = testCommand == null
+      ? 'depois, rode a suíte do projeto uma vez'
+      : 'não rode a suíte completa (`$testCommand`): o gate do Promptorium a '
+            'roda depois do commit';
+  return '1. $run, em primeiro plano (sem `sleep` nem espera em segundo '
+      'plano); $suite;';
+}
+
 String? focusedSpecText(
   String specText, {
   required List<StepView> steps,
@@ -283,9 +325,10 @@ String specStepPrompt({
     ..writeln()
     ..writeln('Ao terminar:')
     ..writeln(
-      testCommand == null
-          ? '1. rode os testes do projeto;'
-          : '1. rode os testes do projeto com `$testCommand`;',
+      focusedTestsStep(
+        focusedChecks(specText, todo: todo, suite: testCommand),
+        testCommand,
+      ),
     )
     ..writeln(
       '2. faça commit com a mensagem "${spec.code} $ids: <resumo do que '

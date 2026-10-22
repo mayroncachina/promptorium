@@ -8,6 +8,7 @@ import '../../core/claude/claude_event.dart' show PermissionRequest;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../project/project_config.dart';
 import '../sessions/new_session_dialog.dart';
 import '../sessions/session_manager.dart' show PendingApproval, slugify;
 import '../sessions/widgets/session_style.dart';
@@ -108,10 +109,15 @@ Future<String> savePlanFile(
   }
 }
 
-/// Prompt of the session that implements [plan].
-String implementPrompt(String title, String plan) =>
+/// Prompt of the session that implements [plan]. Tests: the ones tied to
+/// what changed while working, the suite ([testCommand]) once at the end,
+/// in the foreground (SPEC-017 R1).
+String implementPrompt(String title, String plan, {String? testCommand}) =>
     'Implemente o plano abaixo ("$title"), aprovado no Promptorium. Siga as '
-    'etapas na ordem, rode os testes do projeto e faça commit ao terminar.\n\n'
+    'etapas na ordem. Enquanto trabalha, rode só os testes ligados ao que '
+    'mudou; ao terminar, rode a suíte do projeto uma vez'
+    '${testCommand == null ? '' : ' (`$testCommand`)'}, em primeiro plano '
+    '(sem `sleep` nem espera em segundo plano), e faça commit.\n\n'
     '$plan';
 
 /// The card: the plan, its summary and the three ways out.
@@ -184,7 +190,11 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
     final id = await showNewSessionDialog(
       context,
       title: c.title,
-      prompt: implementPrompt(c.title, widget.plan),
+      prompt: implementPrompt(
+        c.title,
+        widget.plan,
+        testCommand: ProjectConfig.loadSync(ws.path).testCommand,
+      ),
     );
     // Cancelled: the plan stays pending (nothing told to the model yet).
     if (id == null) return;

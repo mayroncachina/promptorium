@@ -138,6 +138,9 @@ void main() {
       expect(p, contains('<spec>\n---\nid: SPEC-001'));
       expect(p, contains('"SPEC-001 R2: <resumo do que mudou>"'));
       expect(p, contains('linha exata: ETAPA CONCLUÍDA: R2'));
+      expect(p, isNot(contains('rode os testes do projeto')));
+      expect(p, contains('rode só os testes dos arquivos que você mudou'));
+      expect(p, contains('depois, rode a suíte do projeto uma vez'));
       expect(
         specSessionTitle(spec, steps, ['R2']),
         'SPEC-001 · R2 · Extrair índices',
@@ -147,6 +150,76 @@ void main() {
         'SPEC-001 · R1–R3 · Extração do schema',
       );
     });
+  });
+
+  test('focused tests (SPEC-017 R1): only the verificar of the steps and of '
+      'their criteria, the suite left to the gate', () {
+    const text = '''---
+id: SPEC-009
+---
+
+# Focado
+
+## Requisitos
+
+- R1 · Um
+- R2 · Dois
+
+## Etapas
+
+- R1 → lib/a.dart · verificar: flutter test test/a_test.dart
+- R2 → lib/b.dart
+
+## Critérios de aceite
+
+- [ ] a funciona [R1] · verificar: flutter test test/a_test.dart
+- [ ] a tem tela [R1] · verificar: flutter test test/a_screen_test.dart
+- [ ] a passa na suíte [R1] · verificar: flutter test
+- [ ] a confere à mão [R1] · verificar: manual (abrir o app)
+- [ ] b funciona [R2] · verificar: flutter test test/b_test.dart
+''';
+    expect(focusedChecks(text, todo: ['R1'], suite: 'flutter test'), [
+      'flutter test test/a_test.dart',
+      'flutter test test/a_screen_test.dart',
+    ]);
+    expect(focusedChecks(text, todo: ['R2']), [
+      'flutter test test/b_test.dart',
+    ]);
+    final spec = Spec(
+      id: 1,
+      workspaceId: 1,
+      code: 'SPEC-009',
+      title: 'Focado',
+      path: 'specs/SPEC-009.md',
+      status: SpecStatus.approved,
+      stage: SpecStage.backlog,
+      requirements: const [],
+      dependsOn: const [],
+      autoAdvance: true,
+      reviewRounds: 0,
+      gateResends: 0,
+      rejectedHunks: 0,
+    );
+    const steps = [
+      StepView(id: 'R1', text: 'Um'),
+      StepView(id: 'R2', text: 'Dois'),
+    ];
+    final p = specStepPrompt(
+      spec: spec,
+      specText: text,
+      steps: steps,
+      todo: ['R1'],
+      testCommand: 'flutter test',
+    );
+    expect(p, isNot(contains('rode os testes do projeto')));
+    expect(
+      p,
+      contains(
+        'rode só os testes desta etapa: `flutter test test/a_test.dart`; '
+        '`flutter test test/a_screen_test.dart`, em primeiro plano',
+      ),
+    );
+    expect(p, contains('não rode a suíte completa (`flutter test`): o gate'));
   });
 
   group('SpecRunner (temporary repo, fake CLI)', () {
