@@ -611,14 +611,15 @@ void main() {
       });
     });
 
-    test('gate runs the verificar: of the step criteria and checks them '
-        '(F7)', () async {
+    test('gate runs the verificar: of the step criteria and checks them; '
+        'one with no [Rn] is never checked (F7, SPEC-018 R3)', () async {
       File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
         specText.replaceFirst(
           '- R4 · Ligar na CLI\n',
           '- R4 · Ligar na CLI\n'
               '\n## Critérios de aceite\n\n'
-              '- [ ] r1.txt existe [R1] · verificar: test -f r1.txt\n',
+              '- [ ] r1.txt existe [R1] · verificar: test -f r1.txt\n'
+              '- [ ] sem etapa · verificar: true\n',
         ),
       );
       Directory('$repo/.promptorium').createSync();

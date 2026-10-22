@@ -121,4 +121,40 @@ class ReviewCommentsRepo {
           checkedAt: Value(checked ? DateTime.now() : null),
         ),
       );
+
+  /// Checks / unchecks [texts] by [by] in one transaction (all or none).
+  /// The marks are read again inside it: checking skips what is already
+  /// checked (the gate or the reviewer may have checked it meanwhile) and
+  /// unchecking skips what is not. Returns the texts actually changed.
+  Future<List<String>> setCriteria(
+    int specId,
+    List<String> texts, {
+    required bool checked,
+    required String by,
+  }) => _db.transaction(() async {
+    final marks = {for (final m in await criteria(specId)) m.criterion: m};
+    final changed = <String>[];
+    for (final t in texts) {
+      if ((marks[t]?.checked ?? false) == checked) continue;
+      await setCriterion(specId, t, checked: checked, by: by);
+      changed.add(t);
+    }
+    return changed;
+  });
+
+  /// Unchecks those of [texts] still checked by the user (`humano`), in one
+  /// transaction; a mark the gate or the reviewer made again is kept.
+  /// Returns the texts actually unchecked.
+  Future<List<String>> uncheckHumanOnly(int specId, List<String> texts) =>
+      _db.transaction(() async {
+        final marks = {for (final m in await criteria(specId)) m.criterion: m};
+        final changed = <String>[];
+        for (final t in texts) {
+          final m = marks[t];
+          if (m == null || !m.checked || m.checkedBy != 'humano') continue;
+          await setCriterion(specId, t, checked: false, by: 'humano');
+          changed.add(t);
+        }
+        return changed;
+      });
 }

@@ -1178,6 +1178,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             specId: widget.item.spec!.id,
             sessionId: _id,
             prUrl: s.prUrl,
+            merged: s.status == SessionStatus.merged,
           ),
         _toolbar(),
         Expanded(

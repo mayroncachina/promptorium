@@ -1952,6 +1952,69 @@ void specReviewTests() {
       isEmpty,
     );
   });
+
+  test('every criterion checked in batch: merge with no reason '
+      '(SPEC-018 R4)', () async {
+    File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
+      '---\nid: SPEC-001\nstatus: aprovada\n---\n\n# Extração\n\n'
+      '## Requisitos\n\n- R1 · Tabelas\n- R2 · Índices\n\n'
+      '## Critérios de aceite\n\n- [ ] r1.txt existe [R1]\n'
+      '- [x] já conferido\n- [ ] r2.txt existe [R2]\n',
+    );
+    await gitIn(repo, ['commit', '-q', '-am', 'criterios']);
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      commandRunnerProvider.overrideWithValue(FakeCommands().call),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    await c.read(specServiceProvider).sync(ws);
+    final spec = (await c
+        .read(specsRepoProvider)
+        .getByCode(ws.id, 'SPEC-001'))!;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.singleSessionSteps, '1');
+    await c.read(specRunnerProvider).runNext(spec.id);
+    await settle();
+    final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+        .worktreePath!;
+    File('$wt/r1.txt').writeAsStringSync('1\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
+    await settle();
+    await settle();
+    File('$wt/r2.txt').writeAsStringSync('2\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R2: índices']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
+    await settle();
+    await settle();
+    final review = c.read(reviewServiceProvider);
+    final row = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(row.stage, SpecStage.review);
+    final session = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+    final pending = await review.pendingCriteria(row, ws);
+    expect(
+      await c
+          .read(reviewCommentsRepoProvider)
+          .setCriteria(spec.id, pending, checked: true, by: 'humano'),
+      pending,
+    );
+    expect(await review.pendingCriteria(row, ws), isEmpty);
+    await review.merge(session.id);
+    final done = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(done.stage, SpecStage.done);
+    expect(done.mergeOverride, isNull);
+  });
 }
 
 /// A git without `merge-tree --write-tree` (older than 2.38).

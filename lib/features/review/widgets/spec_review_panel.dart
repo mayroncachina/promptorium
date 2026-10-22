@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -8,7 +9,11 @@ import '../../board/widgets/gate_report_view.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart';
 import '../auto_reviewer.dart';
+import '../criteria_batch.dart';
 import '../review_service.dart';
+import 'review_dialogs.dart';
+
+export '../criteria_batch.dart' show CriterionState, criterionChecked;
 
 final _specProvider = StreamProvider.family<Spec?, int>(
   (ref, id) => ref.watch(specsRepoProvider).watchById(id),
@@ -39,12 +44,6 @@ final _specTextProvider = FutureProvider.family<String?, int>((
   if (ws == null) return null;
   return ref.read(specServiceProvider).read(ws, spec);
 });
-
-/// A criterion of the spec with its mark (who checked it).
-typedef CriterionState = ({SpecCriterion criterion, SpecCriteriaData? mark});
-
-bool criterionChecked(CriterionState c) =>
-    c.mark?.checked ?? c.criterion.checkedInFile;
 
 final criteriaProvider = FutureProvider.family<List<CriterionState>, int>((
   ref,
@@ -82,11 +81,15 @@ class SpecReviewPanel extends ConsumerStatefulWidget {
     required this.specId,
     this.sessionId,
     this.prUrl,
+    this.merged = false,
   });
 
   final int specId;
   final String? sessionId;
   final String? prUrl;
+
+  /// The session was merged: "Marcar todos" is disabled.
+  final bool merged;
 
   @override
   ConsumerState<SpecReviewPanel> createState() => _SpecReviewPanelState();
@@ -94,6 +97,129 @@ class SpecReviewPanel extends ConsumerStatefulWidget {
 
 class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
   bool _open = true;
+
+  /// Texts of the last "Marcar todos" while its "Desfazer" is on screen.
+  List<String>? _batch;
+
+  ScaffoldMessengerState? _messenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+  }
+
+  @override
+  void didUpdateWidget(SpecReviewPanel old) {
+    super.didUpdateWidget(old);
+    if (old.specId != widget.specId) _dropBatch();
+  }
+
+  @override
+  void dispose() {
+    // Another item of the queue (the Review rebuilds the panel per session):
+    // the tree is locked now, so the notice is hidden after this frame.
+    if (_batch != null) {
+      _batch = null;
+      final messenger = _messenger, open = _toastOpen;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (open && _toastOpen && messenger != null && messenger.mounted) {
+          messenger.hideCurrentSnackBar();
+        }
+      });
+    }
+    super.dispose();
+  }
+
+  /// The notice of the last batch is still on screen.
+  bool _toastOpen = false;
+
+  /// Ends the undo window of the last batch (and hides its notice).
+  void _dropBatch() {
+    if (_batch == null) return;
+    _batch = null;
+    if (_toastOpen) _messenger?.hideCurrentSnackBar();
+  }
+
+  Future<void> _setOne(CriterionState c, bool checked) {
+    _dropBatch();
+    return ref
+        .read(reviewCommentsRepoProvider)
+        .setCriterion(
+          widget.specId,
+          c.criterion.text,
+          checked: checked,
+          by: 'humano',
+        );
+  }
+
+  Future<void> _runBatch(BatchControl control) async {
+    final specId = widget.specId;
+    final repo = ref.read(reviewCommentsRepoProvider);
+    if (control.action == BatchAction.unmarkMine) {
+      _dropBatch();
+      await repo.uncheckHumanOnly(specId, control.plan.mine);
+      return;
+    }
+    final plan = control.plan;
+    final ok = await showBatchCriteriaDialog(
+      context,
+      eligible: plan.eligible.length,
+      awaiting: plan.awaiting.length,
+    );
+    if (!ok || !mounted) return;
+    // Recomputed: the gate or the reviewer may have checked some meanwhile.
+    final now = batchPlan(await ref.read(criteriaProvider(specId).future));
+    final done = await repo.setCriteria(
+      specId,
+      now.eligible,
+      checked: true,
+      by: 'humano',
+    );
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    if (done.isEmpty) {
+      _batch = null;
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Nada mudou: os critérios já estavam marcados.'),
+          persist: false,
+          duration: Duration(seconds: 8),
+        ),
+      );
+      return;
+    }
+    _batch = done;
+    _toastOpen = true;
+    final n = done.length;
+    messenger
+        ?.showSnackBar(
+          SnackBar(
+            key: const ValueKey('review-batch-toast'),
+            content: Text(
+              '$n ${n == 1 ? 'critério marcado' : 'critérios marcados'} '
+              'por você',
+            ),
+            persist: false,
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              key: const ValueKey('review-batch-undo'),
+              label: 'Desfazer',
+              onPressed: () {
+                if (!identical(_batch, done)) return;
+                _batch = null;
+                repo.uncheckHumanOnly(specId, done);
+              },
+            ),
+          ),
+        )
+        .closed
+        .then((_) {
+          _toastOpen = false;
+          if (identical(_batch, done)) _batch = null;
+        });
+  }
 
   static const _title = TextStyle(
     fontSize: 11,
@@ -120,6 +246,7 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
               const <(String, String)>[];
     final auto = spec.reviewPhase == ReviewPhase.auto;
     final done = criteria.where(criterionChecked).length;
+    final batch = batchControl(criteria);
     final rounds = <int, List<ReviewCommentRow>>{};
     for (final c in comments) {
       rounds.putIfAbsent(c.round, () => []).add(c);
@@ -175,12 +302,16 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      reviewerLabel(spec, running: true) ?? '',
-                      key: const ValueKey('review-auto-label'),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.lilac,
+                    Flexible(
+                      child: Text(
+                        reviewerLabel(spec, running: true) ?? '',
+                        key: const ValueKey('review-auto-label'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.lilac,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -248,19 +379,32 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                     const SizedBox(height: 8),
                   ],
                   if (criteria.isNotEmpty) ...[
-                    const Text('CRITÉRIOS DE ACEITE', style: _title),
+                    Row(
+                      children: [
+                        const Text('CRITÉRIOS DE ACEITE', style: _title),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _BatchToggle(
+                              control: batch,
+                              onTap:
+                                  widget.merged ||
+                                      auto ||
+                                      batch.action == BatchAction.none
+                                  ? null
+                                  : () => _runBatch(batch),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
                     for (final (i, c) in criteria.indexed)
                       _CriterionTile(
                         index: i,
                         state: c,
-                        onChanged: (v) => ref
-                            .read(reviewCommentsRepoProvider)
-                            .setCriterion(
-                              specId,
-                              c.criterion.text,
-                              checked: v,
-                              by: 'humano',
-                            ),
+                        onChanged: (v) => _setOne(c, v),
                       ),
                     const SizedBox(height: 8),
                   ],
@@ -355,12 +499,122 @@ class _CriterionTile extends StatelessWidget {
                         text: '  · por $by',
                         style: const TextStyle(color: AppColors.textMuted),
                       ),
+                    if (awaitsVerification(state))
+                      state.criterion.requirements.isEmpty
+                          ? const TextSpan(
+                              text: '  · sem etapa: o gate não o marca',
+                              style: TextStyle(color: AppColors.textMuted),
+                            )
+                          : const TextSpan(
+                              text: '  · aguarda a verificação',
+                              style: TextStyle(color: AppColors.amber),
+                            ),
                   ],
                 ),
                 style: const TextStyle(fontSize: 12, color: AppColors.text),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Marcar todos" (SPEC-018): a tri-state checkbox and the label of its
+/// mode; one focus target (Space / Enter act), disabled when [onTap] is
+/// null.
+class _BatchToggle extends StatefulWidget {
+  const _BatchToggle({required this.control, required this.onTap});
+
+  final BatchControl control;
+  final VoidCallback? onTap;
+
+  @override
+  State<_BatchToggle> createState() => _BatchToggleState();
+}
+
+class _BatchToggleState extends State<_BatchToggle> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final onTap = widget.onTap;
+    final enabled = onTap != null;
+    final value = widget.control.value;
+    final radius = BorderRadius.circular(6);
+    return Focus(
+      key: const ValueKey('review-criteria-master'),
+      canRequestFocus: enabled,
+      onFocusChange: (f) => setState(() => _focused = f),
+      onKeyEvent: (_, e) {
+        if (!enabled || e is! KeyDownEvent) return KeyEventResult.ignored;
+        if (e.logicalKey == LogicalKeyboardKey.space ||
+            e.logicalKey == LogicalKeyboardKey.enter) {
+          onTap();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Semantics(
+        checked: value ?? false,
+        mixed: value == null,
+        enabled: enabled,
+        label: widget.control.label,
+        excludeSemantics: true,
+        onTap: onTap,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.5,
+          child: Material(
+            color: AppColors.panel,
+            shape: RoundedRectangleBorder(borderRadius: radius),
+            child: InkWell(
+              onTap: onTap,
+              canRequestFocus: false,
+              borderRadius: radius,
+              child: Container(
+                key: const ValueKey('review-criteria-master-box'),
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  border: Border.all(
+                    color: _focused ? AppColors.amber : AppColors.border,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      value == null
+                          ? Icons.indeterminate_check_box
+                          : value
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      key: ValueKey('review-criteria-master-$value'),
+                      size: 16,
+                      color: value == false
+                          ? AppColors.textSecondary
+                          : AppColors.teal,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        widget.control.label,
+                        key: const ValueKey('review-criteria-master-label'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

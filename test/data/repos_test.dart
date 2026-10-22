@@ -1,10 +1,13 @@
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart'
+    show ApplyInterceptor, QueryExecutor, QueryInterceptor, Value;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
 import 'package:promptorium/data/repos/agent_settings_repo.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/data/repos/conversations_repo.dart';
 import 'package:promptorium/data/repos/mcp_tool_rules_repo.dart';
+import 'package:promptorium/data/repos/review_comments_repo.dart';
 import 'package:promptorium/data/repos/saved_prompts_repo.dart';
 import 'package:promptorium/data/repos/sessions_repo.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
@@ -456,4 +459,95 @@ void main() {
       expect(await repo.getAll(), {'editor.zoom.specs': '130'});
     });
   });
+
+  group('spec criteria in batch (SPEC-018)', () {
+    Future<Spec> spec(AppDatabase d) async => SpecsRepo(d).insert(
+      workspaceId: (await WorkspacesRepo(d).add(path: '/r', name: 'r')).id,
+      code: 'SPEC-001',
+      title: 'A',
+      path: 'specs/SPEC-001.md',
+    );
+
+    Future<Map<String, (bool, String?)>> marks(
+      ReviewCommentsRepo r,
+      int id,
+    ) async => {
+      for (final m in await r.criteria(id))
+        m.criterion: (m.checked, m.checkedBy),
+    };
+
+    test('setCriteria is all or none: a failed second insert rolls back '
+        'the first', () async {
+      final failing = _FailSecondInsert();
+      final d = AppDatabase(NativeDatabase.memory().interceptWith(failing));
+      addTearDown(d.close);
+      final s = await spec(d);
+      final r = ReviewCommentsRepo(d);
+      failing.armed = true;
+      await expectLater(
+        r.setCriteria(s.id, ['a', 'b', 'c'], checked: true, by: 'humano'),
+        throwsA(isA<StateError>()),
+      );
+      failing.armed = false;
+      expect(await r.criteria(s.id), isEmpty);
+    });
+
+    test('setCriteria reads the marks again: what the gate checked '
+        'meanwhile is kept, the returned list is what changed', () async {
+      final s = await spec(db);
+      final r = ReviewCommentsRepo(db);
+      await r.setCriterion(s.id, 'b', checked: true, by: 'gate');
+      expect(
+        await r.setCriteria(s.id, ['a', 'b'], checked: true, by: 'humano'),
+        ['a'],
+      );
+      expect(await marks(r, s.id), {
+        'a': (true, 'humano'),
+        'b': (true, 'gate'),
+      });
+      expect(
+        await r.setCriteria(s.id, ['a', 'b'], checked: true, by: 'humano'),
+        isEmpty,
+      );
+    });
+
+    test(
+      'uncheckHumanOnly only unchecks the marks still by the user',
+      () async {
+        final s = await spec(db);
+        final r = ReviewCommentsRepo(db);
+        await r.setCriteria(s.id, ['a', 'b', 'c'], checked: true, by: 'humano');
+        await r.setCriterion(s.id, 'b', checked: true, by: 'gate');
+        await r.setCriterion(s.id, 'd', checked: true, by: 'revisor');
+        expect(await r.uncheckHumanOnly(s.id, ['a', 'b', 'c', 'd', 'e']), [
+          'a',
+          'c',
+        ]);
+        expect(await marks(r, s.id), {
+          'a': (false, null),
+          'b': (true, 'gate'),
+          'c': (false, null),
+          'd': (true, 'revisor'),
+        });
+      },
+    );
+  });
+}
+
+/// Fails the second insert into `spec_criteria` while [armed].
+class _FailSecondInsert extends QueryInterceptor {
+  bool armed = false;
+  int _inserts = 0;
+
+  @override
+  Future<int> runInsert(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) {
+    if (armed && statement.contains('spec_criteria') && ++_inserts == 2) {
+      throw StateError('falha de teste');
+    }
+    return executor.runInsert(statement, args);
+  }
 }

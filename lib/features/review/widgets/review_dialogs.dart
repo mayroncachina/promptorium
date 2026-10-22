@@ -544,3 +544,60 @@ class _OverrideDialogState extends State<_OverrideDialog> {
     ],
   );
 }
+
+/// "Marcar todos" the criteria (SPEC-018): [eligible] go to the batch,
+/// [awaiting] (with a `verificar:` not confirmed yet) stay out. Enter
+/// confirms, Esc cancels. Returns true when confirmed.
+Future<bool> showBatchCriteriaDialog(
+  BuildContext context, {
+  required int eligible,
+  required int awaiting,
+}) async =>
+    await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (ctx) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.enter): () =>
+              Navigator.of(ctx).pop(true),
+          const SingleActivator(LogicalKeyboardKey.numpadEnter): () =>
+              Navigator.of(ctx).pop(true),
+        },
+        child: Focus(
+          autofocus: true,
+          child: ReviewDialogFrame(
+            key: const ValueKey('review-batch-dialog'),
+            title:
+                'Marcar $eligible ${eligible == 1 ? 'critério' : 'critérios'} '
+                'como verificado${eligible == 1 ? '' : 's'} por você?',
+            content: [
+              Text(
+                [
+                  if (awaiting > 0)
+                    '$awaiting ${awaiting == 1 ? 'fica' : 'ficam'} de fora: '
+                        '${awaiting == 1 ? 'tem' : 'têm'} um comando '
+                        'verificar: que a verificação ainda não confirmou '
+                        '(dá para marcar um a um).',
+                  'O que a verificação e o revisor já marcaram não muda, e '
+                      'dá para desfazer logo depois.',
+                ].join(' '),
+                style: _body,
+              ),
+            ],
+            actions: [
+              SmallButton(
+                key: const ValueKey('review-batch-cancel'),
+                label: 'Cancelar',
+                onTap: () => Navigator.of(ctx).pop(false),
+              ),
+              AmberButton(
+                key: const ValueKey('review-batch-confirm'),
+                label: 'Marcar $eligible',
+                onTap: () => Navigator.of(ctx).pop(true),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ) ??
+    false;

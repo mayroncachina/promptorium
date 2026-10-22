@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Estados do controle</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+</style>
+</helmet>
+<div style="width:1440px;height:560px;box-sizing:border-box;padding:28px 32px;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));grid-template-rows:repeat(2, minmax(0, 1fr));gap:20px">
+
+  <!-- 1 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">1 · NENHUM MARCADO</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CRITÉRIOS DE ACEITE</span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid #3A4352;background:#1A1E26">
+        <span style="width:16px;height:16px;border-radius:4px;box-sizing:border-box;border:1.5px solid #5A6475"></span>
+        <span style="font-size:12px;font-weight:500">Marcar todos</span>
+        <span style="font-size:11px;color:#A0A8B6">(4 elegíveis · 2 aguardam a verificação)</span>
+      </span>
+    </div>
+    <div style="font-size:12px;color:#A0A8B6;line-height:1.5">Um clique abre a confirmação. Só entram no lote os critérios sem comando verificar:.</div>
+  </div>
+
+  <!-- 2 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">2 · PARCIAL</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CRITÉRIOS DE ACEITE</span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid #3A4352;background:#1A1E26">
+        <span style="width:16px;height:16px;border-radius:4px;box-sizing:border-box;background:#3DD6B5;border:1.5px solid #3DD6B5;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E1014" stroke-width="3.5" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></span>
+        <span style="font-size:12px;font-weight:500">Marcar todos</span>
+        <span style="font-size:11px;color:#A0A8B6">(1 elegível · 2 aguardam a verificação)</span>
+      </span>
+    </div>
+    <div style="font-size:12px;color:#A0A8B6;line-height:1.5">Traço no quadrado: parte já marcada pela verificação, pelo revisor ou por você. Entram no lote só os elegíveis.</div>
+  </div>
+
+  <!-- 3 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">3 · CONFIRMAÇÃO</div>
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;background:#1A1E26;border:1px solid #5A4720">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500">Marcar 1 critério como verificado por você?</div>
+        <div style="font-size:12px;color:#A0A8B6;margin-top:2px;line-height:1.45">2 ficam de fora: têm um comando verificar: que a verificação ainda não confirmou (dá para marcar um a um). O que a verificação e o revisor já marcaram não muda, e dá para desfazer logo depois.</div>
+      </div>
+      <span style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #252B35;display:flex;align-items:center;font-size:12px">Cancelar</span>
+      <span style="height:30px;padding:0 14px;border-radius:6px;background:#F2A541;color:#1A1206;display:flex;align-items:center;font-size:12px;font-weight:600">Marcar 1</span>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">4 · SÓ RESTAM OS QUE AGUARDAM A VERIFICAÇÃO</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CRITÉRIOS DE ACEITE</span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid #3A4352;background:#1A1E26">
+        <span style="width:16px;height:16px;border-radius:4px;box-sizing:border-box;background:#3DD6B5;border:1.5px solid #3DD6B5;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E1014" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 12h12"></path></svg></span>
+        <span style="font-size:12px;font-weight:500">Desmarcar os meus</span>
+        <span style="font-size:11px;color:#A0A8B6">(1 · 2 aguardam a verificação)</span>
+      </span>
+    </div>
+    <div style="font-size:12px;color:#A0A8B6;line-height:1.5">Sem nada elegível, o controle passa a desmarcar só o que eu marquei. Os que aguardam a verificação continuam marcáveis um a um.</div>
+  </div>
+
+  <!-- 5 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">5 · TODOS MARCADOS, NADA MEU</div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CRITÉRIOS DE ACEITE</span>
+      <span style="flex:1"></span>
+      <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid #252B35;background:#1A1E26;color:#A0A8B6">
+        <span style="width:16px;height:16px;border-radius:4px;box-sizing:border-box;background:#3DD6B5;border:1.5px solid #3DD6B5;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E1014" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span>
+        <span style="font-size:12px;font-weight:500">Todos marcados</span>
+        <span style="font-size:11px">nada meu para desmarcar</span>
+      </span>
+    </div>
+    <div style="font-size:12px;color:#A0A8B6;line-height:1.5">Controle desabilitado. O botão de merge volta a “Fazer merge”.</div>
+  </div>
+
+  <!-- 6 -->
+  <div style="background:#14171D;border:1px solid #252B35;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:14px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#A0A8B6;letter-spacing:0.04em">6 · DEPOIS DE MARCAR</div>
+    <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:8px;background:#1F242D;border:1px solid #3A4352;width:fit-content;font-size:13px">
+      <span>1 critério marcado por você</span>
+      <span style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #F2A541;color:#F2A541;display:flex;align-items:center;font-size:12px;font-weight:600">Desfazer</span>
+    </div>
+    <div style="font-size:12px;color:#A0A8B6;line-height:1.5">O critério mostra “por você”; o resumo da spec segue com os que aguardam a verificação.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
