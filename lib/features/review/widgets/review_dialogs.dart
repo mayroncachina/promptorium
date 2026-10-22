@@ -398,7 +398,7 @@ class _OverrideDialogState extends State<_OverrideDialog> {
   );
 }
 
-/// "Marcar todos" the criteria (SPEC-014): [eligible] go to the batch,
+/// "Marcar todos" the criteria (SPEC-018): [eligible] go to the batch,
 /// [awaiting] (with a `verificar:` not confirmed yet) stay out. Enter
 /// confirms, Esc cancels. Returns true when confirmed.
 Future<bool> showBatchCriteriaDialog(

@@ -612,7 +612,7 @@ void main() {
     });
 
     test('gate runs the verificar: of the step criteria and checks them; '
-        'one with no [Rn] is never checked (F7, SPEC-014 R3)', () async {
+        'one with no [Rn] is never checked (F7, SPEC-018 R3)', () async {
       File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
         specText.replaceFirst(
           '- R4 · Ligar na CLI\n',

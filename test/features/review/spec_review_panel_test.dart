@@ -122,7 +122,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  group('"Marcar todos" (SPEC-014)', batchTests);
+  group('"Marcar todos" (SPEC-018)', batchTests);
 }
 
 /// Criteria of the batch tests: a and b eligible, c awaits the gate

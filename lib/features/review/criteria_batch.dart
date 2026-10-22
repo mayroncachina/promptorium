@@ -7,11 +7,11 @@ typedef CriterionState = ({SpecCriterion criterion, SpecCriteriaData? mark});
 bool criterionChecked(CriterionState c) =>
     c.mark?.checked ?? c.criterion.checkedInFile;
 
-/// Unchecked criterion with a `verificar:`: left to the gate (SPEC-014 R3).
+/// Unchecked criterion with a `verificar:`: left to the gate (SPEC-018 R3).
 bool awaitsVerification(CriterionState c) =>
     !criterionChecked(c) && c.criterion.verify != null;
 
-/// Criteria split for "Marcar todos" (SPEC-014): [eligible] (unchecked,
+/// Criteria split for "Marcar todos" (SPEC-018): [eligible] (unchecked,
 /// no `verificar:`) is what the batch checks; [awaiting] (unchecked, with
 /// `verificar:`) stays out; [mine] are the user's own marks. A `- [x]` of
 /// the file with no mark is in none of them.
@@ -39,7 +39,7 @@ BatchPlan batchPlan(List<CriterionState> all) => (
 
 enum BatchAction { mark, unmarkMine, none }
 
-/// State of the "Marcar todos" control (the table of modes of SPEC-014).
+/// State of the "Marcar todos" control (the table of modes of SPEC-018).
 typedef BatchControl = ({
   BatchAction action,
   String label,

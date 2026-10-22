@@ -861,7 +861,7 @@ void specReviewTests() {
   });
 
   test('every criterion checked in batch: merge with no reason '
-      '(SPEC-014 R4)', () async {
+      '(SPEC-018 R4)', () async {
     File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
       '---\nid: SPEC-001\nstatus: aprovada\n---\n\n# Extração\n\n'
       '## Requisitos\n\n- R1 · Tabelas\n- R2 · Índices\n\n'

@@ -460,7 +460,7 @@ void main() {
     });
   });
 
-  group('spec criteria in batch (SPEC-014)', () {
+  group('spec criteria in batch (SPEC-018)', () {
     Future<Spec> spec(AppDatabase d) async => SpecsRepo(d).insert(
       workspaceId: (await WorkspacesRepo(d).add(path: '/r', name: 'r')).id,
       code: 'SPEC-001',

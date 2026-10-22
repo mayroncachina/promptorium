@@ -521,7 +521,7 @@ class _CriterionTile extends StatelessWidget {
   }
 }
 
-/// "Marcar todos" (SPEC-014): a tri-state checkbox and the label of its
+/// "Marcar todos" (SPEC-018): a tri-state checkbox and the label of its
 /// mode; one focus target (Space / Enter act), disabled when [onTap] is
 /// null.
 class _BatchToggle extends StatefulWidget {

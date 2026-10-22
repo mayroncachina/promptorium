@@ -1,5 +1,5 @@
 ---
-id: SPEC-014
+id: SPEC-018
 status: rascunho
 depende-de: []
 ---
@@ -16,7 +16,7 @@ Acrescentar ao painel da spec, no Review, um controle **"Marcar todos"** que mar
 - Não muda as regras de merge: com todos os critérios marcados, o merge passa sem motivo, como já acontece quando se marca um a um.
 - Fora do escopo: marcar em lote na tela Specs (`step_trace_panel.dart`, que também marca critérios), alterar o arquivo da spec (`- [ ]` para `- [x]`) e mudar o que o revisor automático marca.
 - Mockup de referência: [`docs/mockups/Review-Criterios.dc.html`](../mockups/Review-Criterios.dc.html) (tela interativa) e [`docs/mockups/Review-Criterios-Estados.dc.html`](../mockups/Review-Criterios-Estados.dc.html) (os estados do controle). Os dados do mockup são de exemplo.
-- Imagens: [tela inicial](../mockups/spec-014/1-inicial.png), [confirmação](../mockups/spec-014/2-confirmacao.png), [depois de marcar](../mockups/spec-014/3-depois-de-marcar.png) e [estados do controle](../mockups/spec-014/4-estados-do-controle.png).
+- Imagens: [tela inicial](../mockups/spec-018/1-inicial.png), [confirmação](../mockups/spec-018/2-confirmacao.png), [depois de marcar](../mockups/spec-018/3-depois-de-marcar.png) e [estados do controle](../mockups/spec-018/4-estados-do-controle.png).
 
 ## Requisitos
 
