@@ -1,6 +1,6 @@
 # Claude Code e Codex no Promptorium
 
-Proposta em rascunho para oferecer Codex em todos os fluxos que hoje usam Claude Code, com as mesmas possibilidades de uso e controles do produto. Segue o formato de [SPEC-001](../../specs/SPEC-001-scroll-vertical-no-quadro.md): frontmatter, objetivo, requisitos numerados, design e critérios de aceite vinculados aos requisitos.
+Proposta em rascunho para oferecer Codex em todos os fluxos que hoje usam Claude Code, com as mesmas possibilidades de uso e controles do produto. Segue o formato de [SPEC-001](SPEC-001-scroll-vertical-no-quadro.md): frontmatter, objetivo, requisitos numerados, design e critérios de aceite vinculados aos requisitos.
 
 ## Ordem de implementação
 
@@ -13,7 +13,7 @@ Proposta em rascunho para oferecer Codex em todos os fluxos que hoje usam Claude
 | [SPEC-006](SPEC-006-seletor-de-provedor-no-rodape.md) | Seleção de provedor pelo indicador de conexão do rodapé | SPEC-003 |
 | [SPEC-007](SPEC-007-modo-yolo-do-codex.md) | Modo YOLO do Codex no lugar do bypass Claude | SPEC-003, SPEC-004 |
 
-As SPEC-002 a SPEC-005 compõem a integração; a SPEC-006 complementa a seleção com o acesso pelo rodapé e a SPEC-007 detalha o modo YOLO do Codex. Habilitar apenas o seletor do Prompt não encerra a funcionalidade. Os IDs continuam a numeração encontrada no repositório; a SPEC-001 existente permanece em `specs/`.
+As SPEC-002 a SPEC-005 compõem a integração; a SPEC-006 complementa a seleção com o acesso pelo rodapé e a SPEC-007 detalha o modo YOLO do Codex. Habilitar apenas o seletor do Prompt não encerra a funcionalidade. Os IDs continuam a numeração encontrada no repositório; a SPEC-001 também fica em `docs/specs/`, a pasta configurada em `.promptorium/config.yml`.
 
 ## Base da proposta
 
@@ -39,4 +39,17 @@ Os detalhes de opções avançadas, autenticação, terminal, hooks e isolamento
 
 ## Local dos documentos
 
-Estes arquivos ficam em `docs/specs/`, conforme solicitado. O serviço de specs lê a pasta configurada em `ProjectConfig.specsDir` (padrão `specs/`). Portanto, criar estes documentos não os coloca automaticamente no Quadro de um workspace que ainda usa a pasta padrão. Esta entrega não muda a configuração do projeto nem move a SPEC-001.
+Estes arquivos ficam em `docs/specs/`. O serviço de specs lê a pasta configurada em `ProjectConfig.specsDir` (padrão `specs/`); este projeto define `specs: docs/specs` em `.promptorium/config.yml`, e a SPEC-001 foi movida para cá, então todas aparecem na aba Specs e no Quadro.
+
+
+## Hospedagem do projeto e Review
+
+- [SPEC-014 — Identificação da hospedagem e orientação de CLI](SPEC-014-deteccao-de-hospedagem-e-cli.md): próximo escopo para identificar GitHub/GitLab/outros, escolher a ferramenta correta e orientar instalação/login.
+- [SPEC-013 — Review no GitLab](SPEC-013-review-no-gitlab.md): proposta operacional adiada no [DT-55](../debito-tecnico.md#dt-55--integracao-completa-do-review-no-gitlab). Mantida como referência técnica.
+
+A sequência histórica SPEC-009 → SPEC-013 nos documentos originais fica atualizada por esta decisão: a integração completa da SPEC-013 sai do escopo ativo. A SPEC-014 pode ser entregue sem concluir o DT-55 e sem bloquear o Canvas da SPEC-008.
+
+
+## Descoberta de specs e estado no Quadro
+
+- [SPEC-015 — Descoberta de specs existentes e conclusão no Quadro](SPEC-015-descoberta-e-reconciliacao-de-specs.md): varrer a pasta configurada, importar sem duplicar, colocar specs declaradas concluídas em Concluído e verificar implementação de documentos ainda desatualizados com evidências por requisito.

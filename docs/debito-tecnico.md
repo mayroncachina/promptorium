@@ -117,3 +117,21 @@ Novos:
 | DT-52 | **Flatpak não testado** | Média | Manifesto e wrapper escritos sem `flatpak-builder` |
 | DT-53 | **`spec_runner.dart` grande** | Baixa | ~1500 linhas (gate, checkpoint, A/B). Separar em arquivos por assunto |
 | DT-54 | **Babysit de PR: comentários por linha** | Baixa | `gh pr view --json` não traz comentários de linha (precisa de `gh api …/pulls/N/comments`) |
+
+
+## DT-55 — Integração completa do Review no GitLab
+
+**Prioridade: média. Adiado em 21/10/2026 por decisão de escopo.**
+
+A detecção de GitHub, GitLab e outros hospedeiros, seleção da CLI correta e orientação de instalação/autenticação passam para a [SPEC-014](specs/SPEC-014-deteccao-de-hospedagem-e-cli.md). A [SPEC-013](specs/SPEC-013-review-no-gitlab.md) conserva o desenho técnico da integração de MR para retomada futura.
+
+Pendências transferidas:
+
+- Completar o contrato `ReviewHost` e extrair o comportamento GitHub para `GithubHost`, preservando os fluxos existentes.
+- Persistir `sessions.pr_host` com migração e compatibilidade das sessões antigas.
+- Implementar R3–R6 da SPEC-013: criar MR, acompanhar estado e comentários, mostrar discussões em linha, pipeline e bloqueios no painel, e mergear conforme os métodos permitidos pelo projeto.
+- Tratar merge agendado sem fechar sessão/spec/worktree antes de confirmar `MERGED`.
+- Validar comandos, campos, paginação e capacidades da versão instalada com um projeto/MR real no GitLab; considerar `glab api` quando não houver saída JSON no comando de alto nível.
+- Cobrir os contratos com testes e executar a validação manual completa em GitLab.com e a validação aplicável a instância própria.
+
+A sondagem de `glab` 1.36.0 registrou token inválido em gitlab.com e ausência de `mr view --output json`. São problemas distintos do remote deste repositório, que é GitHub. Não exigir acesso ao GitLab para validar fluxos GitHub ou entregar a SPEC-014. O aceite do DT-55 retoma os critérios operacionais da SPEC-013; instalar/autenticar `glab` isoladamente não conclui a integração.

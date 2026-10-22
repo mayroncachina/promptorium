@@ -6,6 +6,8 @@ depende-de: [SPEC-009, SPEC-011, SPEC-012]
 
 # Review no GitLab
 
+> **Escopo reorganizado em 21/10/2026.** Detecção do hospedeiro, escolha da CLI e orientação de instalação/login passam para a [SPEC-014](SPEC-014-deteccao-de-hospedagem-e-cli.md). O restante desta proposta foi adiado como [DT-55](../debito-tecnico.md#dt-55--integracao-completa-do-review-no-gitlab). Os requisitos e critérios abaixo são preservados como referência técnica, não como trabalho ativo nem como aceite concluído.
+
 ## Objetivo
 
 Fazer o Review funcionar com repositórios hospedados no **GitLab** (gitlab.com ou instância própria) do mesmo jeito que funciona com o GitHub: criar o merge request, acompanhá-lo, ler os checks e os comentários em linha e mergeá-lo. Hoje tudo isso é feito pelo `gh` e só existe para o GitHub; num repositório GitLab o botão "Criar PR" fica desabilitado com "GitHub CLI (gh) não encontrado" ou "o repositório não tem remote", e o app nunca olha o `glab`.
