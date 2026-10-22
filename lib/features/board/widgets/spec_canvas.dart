@@ -34,10 +34,14 @@ class SpecCanvas extends ConsumerStatefulWidget {
     required this.cards,
     required this.attention,
     required this.highlightNext,
+    this.attentionCount,
   });
   final List<SpecCardData> cards;
   final bool Function(SpecCardData) attention;
   final bool highlightNext;
+
+  /// Same N as the header of the Quadro (cards hidden by a filter count).
+  final int? attentionCount;
   @override
   ConsumerState<SpecCanvas> createState() => _SpecCanvasState();
 }
@@ -53,6 +57,23 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
   void dispose() {
     _view.dispose();
     super.dispose();
+  }
+
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScaleEvent) {
+      _view.zoomTo(_view.scale * event.scale);
+    } else if (event is PointerScrollEvent) {
+      if (HardwareKeyboard.instance.isControlPressed) {
+        if (event.scrollDelta.dy < 0) {
+          _view.zoomIn();
+        } else if (event.scrollDelta.dy > 0) {
+          _view.zoomOut();
+        }
+      } else if (event.kind != PointerDeviceKind.trackpad) {
+        // InteractiveViewer already pans on trackpad scroll.
+        _view.panBy(-event.scrollDelta);
+      }
+    }
   }
 
   /// Rows of [names] centered under [card], from row [row0].
@@ -194,9 +215,22 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
           bindings: {
             const SingleActivator(LogicalKeyboardKey.equal, control: true):
                 _view.zoomIn,
+            const SingleActivator(
+              LogicalKeyboardKey.equal,
+              control: true,
+              shift: true,
+            ): _view.zoomIn,
+            const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true):
+                _view.zoomIn,
             const SingleActivator(LogicalKeyboardKey.minus, control: true):
                 _view.zoomOut,
+            const SingleActivator(
+              LogicalKeyboardKey.numpadSubtract,
+              control: true,
+            ): _view.zoomOut,
             const SingleActivator(LogicalKeyboardKey.digit0, control: true):
+                _view.reset,
+            const SingleActivator(LogicalKeyboardKey.numpad0, control: true):
                 _view.reset,
           },
           child: Focus(
@@ -211,29 +245,20 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                     ),
                   ),
                   Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () => select(null),
-                      child: InteractiveViewer(
-                        key: const ValueKey('board-graph'),
-                        transformationController: _view,
-                        constrained: false,
-                        minScale: .5,
-                        maxScale: 1.5,
-                        boundaryMargin: const EdgeInsets.all(600),
-                        child: Listener(
-                          onPointerSignal: (event) {
-                            if (event is PointerScrollEvent &&
-                                HardwareKeyboard.instance.isControlPressed) {
-                              GestureBinding.instance.pointerSignalResolver
-                                  .register(event, (_) {
-                                    if (event.scrollDelta.dy < 0) {
-                                      _view.zoomIn();
-                                    } else {
-                                      _view.zoomOut();
-                                    }
-                                  });
-                            }
-                          },
+                    child: Listener(
+                      onPointerSignal: _onPointerSignal,
+                      child: GestureDetector(
+                        onTap: () => select(null),
+                        child: InteractiveViewer(
+                          key: const ValueKey('board-graph'),
+                          transformationController: _view,
+                          constrained: false,
+                          minScale: .5,
+                          maxScale: 1.5,
+                          // Wheel and pinch go through _onPointerSignal: the
+                          // plain wheel moves, Ctrl + wheel zooms.
+                          scaleEnabled: false,
+                          boundaryMargin: const EdgeInsets.all(600),
                           child: SizedBox(
                             width: world.right + 350,
                             height: world.bottom + 300,
@@ -271,6 +296,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                   Positioned.fromRect(
                                     rect: rects[d.spec.id]!,
                                     child: AnimatedOpacity(
+                                      key: ValueKey(
+                                        'canvas-node-${d.spec.code}',
+                                      ),
                                       duration: const Duration(
                                         milliseconds: 150,
                                       ),
@@ -298,10 +326,14 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                       left: rects[d.spec.id]!.left,
                                       top: rects[d.spec.id]!.top - 11,
                                       width: _cardSize.width - 12,
-                                      child: const IgnorePointer(
+                                      child: IgnorePointer(
                                         child: Align(
                                           alignment: Alignment.centerRight,
-                                          child: _AttentionBadge(),
+                                          child: _AttentionBadge(
+                                            key: ValueKey(
+                                              'canvas-attention-${d.spec.code}',
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -310,6 +342,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                     rect: s.rect,
                                     child: s.more
                                         ? _MoreNode(
+                                            key: ValueKey(
+                                              'canvas-more-${s.kind}',
+                                            ),
                                             label: s.name,
                                             kind: s.kind,
                                             expanded: _expanded.contains(
@@ -322,6 +357,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                             }),
                                           )
                                         : _RefNode(
+                                            key: ValueKey(
+                                              'canvas-ref-${s.kind}-${s.name}',
+                                            ),
                                             name: s.name,
                                             kind: s.kind,
                                             uses: uses(s.kind, s.name),
@@ -377,7 +415,10 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             _BarButton(
-                              label: 'Atenção · ${attention.length}',
+                              key: const ValueKey('canvas-attention-next'),
+                              label:
+                                  'Atenção · '
+                                  '${widget.attentionCount ?? attention.length}',
                               tooltip:
                                   'Ir para a próxima spec que precisa de você',
                               color: AppColors.amber,
@@ -408,6 +449,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                               ),
                             ),
                             _BarButton(
+                              key: const ValueKey('canvas-layer-agents'),
                               label: 'Agentes',
                               color: CanvasColors.agent,
                               active: _agents,
@@ -416,6 +458,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                             ),
                             const SizedBox(width: 8),
                             _BarButton(
+                              key: const ValueKey('canvas-layer-skills'),
                               label: 'Skills',
                               color: CanvasColors.skill,
                               active: _skills,
@@ -454,7 +497,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                               (selected == null ? 0 : _panelWidth + 24),
                         ),
                       ),
-                      child: const _Legend(),
+                      child: const _Legend(key: ValueKey('canvas-legend')),
                     ),
                   ),
                   if (selected != null)
@@ -467,6 +510,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                           maxHeight: math.max(120, box.maxHeight - 114),
                         ),
                         child: _Inspector(
+                          key: const ValueKey('canvas-panel'),
                           data: selected,
                           attention: widget.attention(selected)
                               ? _attentionReason(selected)
@@ -552,7 +596,7 @@ class _Pill extends StatelessWidget {
 }
 
 class _AttentionBadge extends StatelessWidget {
-  const _AttentionBadge();
+  const _AttentionBadge({super.key});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
@@ -687,7 +731,12 @@ class _SpecNode extends StatelessWidget {
                                       5,
                                       4,
                                     ),
-                                    child: _StepDot(status: step.status),
+                                    child: CanvasStepDot(
+                                      key: ValueKey(
+                                        'canvas-dot-${data.spec.code}-${step.id}',
+                                      ),
+                                      status: step.status,
+                                    ),
                                   ),
                                 ),
                               if (shown.length < data.steps.length)
@@ -760,7 +809,12 @@ BorderRadius _refRadius(String kind) =>
     BorderRadius.circular(kind == 'agent' ? 8 : 20);
 
 class _RefNode extends StatelessWidget {
-  const _RefNode({required this.name, required this.kind, required this.uses});
+  const _RefNode({
+    super.key,
+    required this.name,
+    required this.kind,
+    required this.uses,
+  });
   final String name, kind;
   final int uses;
   @override
@@ -819,6 +873,7 @@ class _RefNode extends StatelessWidget {
 
 class _MoreNode extends StatelessWidget {
   const _MoreNode({
+    super.key,
     required this.label,
     required this.kind,
     required this.expanded,
@@ -862,18 +917,18 @@ class _MoreNode extends StatelessWidget {
 
 /// One step: filled circle (feita), pulsing circle (em execução), outline
 /// (pendente), diamond (aguardando você) or spinning ring (verificando).
-class _StepDot extends StatefulWidget {
-  const _StepDot({required this.status, this.animate = true});
+class CanvasStepDot extends StatefulWidget {
+  const CanvasStepDot({super.key, required this.status, this.animate = true});
   final StepStatus status;
 
   /// False in the legend, which must not keep a ticker alive.
   final bool animate;
   @override
-  State<_StepDot> createState() => _StepDotState();
+  State<CanvasStepDot> createState() => _CanvasStepDotState();
 }
 
-class _StepDotState extends State<_StepDot>
-    with SingleTickerProviderStateMixin {
+class _CanvasStepDotState extends State<CanvasStepDot>
+    with TickerProviderStateMixin {
   AnimationController? _animation;
   StepStatus? _animated;
   void _sync() {
@@ -908,7 +963,7 @@ class _StepDotState extends State<_StepDot>
   }
 
   @override
-  void didUpdateWidget(covariant _StepDot old) {
+  void didUpdateWidget(covariant CanvasStepDot old) {
     super.didUpdateWidget(old);
     _sync();
   }
@@ -937,10 +992,10 @@ class _DotPainter extends CustomPainter {
     final t = animation?.value ?? 0;
     final c = size.center(Offset.zero);
     final r = size.shortestSide / 2;
-    switch (status) {
-      case StepStatus.done:
+    switch (stepDotShape(status)) {
+      case StepDotShape.filled:
         canvas.drawCircle(c, r, Paint()..color = CanvasColors.done);
-      case StepStatus.running:
+      case StepDotShape.pulsing:
         canvas.drawCircle(
           c,
           r + 5 * t,
@@ -951,7 +1006,7 @@ class _DotPainter extends CustomPainter {
           r * (1 + .15 * t),
           Paint()..color = CanvasColors.running.withValues(alpha: 1 - .45 * t),
         );
-      case StepStatus.pending:
+      case StepDotShape.outline:
         canvas.drawCircle(
           c,
           r - .75,
@@ -960,7 +1015,7 @@ class _DotPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );
-      case StepStatus.needsInput:
+      case StepDotShape.diamond:
         canvas
           ..save()
           ..translate(c.dx, c.dy)
@@ -973,7 +1028,7 @@ class _DotPainter extends CustomPainter {
           Paint()..color = CanvasColors.needsInput,
         );
         canvas.restore();
-      case StepStatus.verifying:
+      case StepDotShape.spinner:
         final ring = Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2;
@@ -1006,7 +1061,7 @@ class _AttentionHalo extends StatefulWidget {
 }
 
 class _AttentionHaloState extends State<_AttentionHalo>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AnimationController? _pulse;
   void _sync() {
     final active = widget.enabled && !MediaQuery.disableAnimationsOf(context);
@@ -1087,6 +1142,28 @@ class _DotGrid extends CustomPainter {
   bool shouldRepaint(covariant _DotGrid old) => old.view != view;
 }
 
+/// One (dependency, dependent) pair per `depends-on` between specs on the
+/// canvas; dependencies outside it are left out.
+List<(String, String)> dependencyLinks(List<Spec> specs) {
+  final codes = {for (final s in specs) s.code};
+  return [
+    for (final s in specs)
+      for (final dep in s.dependsOn)
+        if (codes.contains(dep)) (dep, s.code),
+  ];
+}
+
+/// Shape of each step state, so it differs also without colour.
+enum StepDotShape { filled, pulsing, outline, diamond, spinner }
+
+StepDotShape stepDotShape(StepStatus s) => switch (s) {
+  StepStatus.done => StepDotShape.filled,
+  StepStatus.running => StepDotShape.pulsing,
+  StepStatus.pending => StepDotShape.outline,
+  StepStatus.needsInput => StepDotShape.diamond,
+  StepStatus.verifying => StepDotShape.spinner,
+};
+
 class _CanvasEdges extends CustomPainter {
   _CanvasEdges({
     required this.specs,
@@ -1111,6 +1188,7 @@ class _CanvasEdges extends CustomPainter {
     required Color color,
     required double width,
     bool dashed = false,
+    bool arrow = false,
   }) {
     final path = Path()..moveTo(a.dx, a.dy);
     if (vertical) {
@@ -1126,30 +1204,37 @@ class _CanvasEdges extends CustomPainter {
       ..style = PaintingStyle.stroke;
     canvas.drawPath(dashed ? _dash(path) : path, stroke);
     final dot = Paint()..color = color;
-    canvas
-      ..drawCircle(a, 4, dot)
-      ..drawCircle(b, 4, dot);
+    canvas.drawCircle(a, 4, dot);
+    if (arrow) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(b.dx + 1, b.dy)
+          ..lineTo(b.dx - 8, b.dy - 5)
+          ..lineTo(b.dx - 8, b.dy + 5)
+          ..close(),
+        dot,
+      );
+    } else {
+      canvas.drawCircle(b, 4, dot);
+    }
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final s in specs) {
-      for (final dep in s.dependsOn) {
-        final d = byCode[dep];
-        if (d == null) continue;
-        final from = rects[d.id]!, to = rects[s.id]!;
-        final hot = selected == s.code || selected == d.code;
-        _link(
-          canvas,
-          from.centerRight,
-          to.centerLeft,
-          vertical: false,
-          color: hot
-              ? AppColors.text
-              : AppColors.textMuted.withValues(alpha: .55),
-          width: hot ? 2.5 : 1.5,
-        );
-      }
+    for (final (dep, code) in dependencyLinks(specs)) {
+      final from = rects[byCode[dep]!.id]!, to = rects[byCode[code]!.id]!;
+      final hot = selected == code || selected == dep;
+      _link(
+        canvas,
+        from.centerRight,
+        to.centerLeft,
+        vertical: false,
+        arrow: true,
+        color: hot
+            ? AppColors.text
+            : AppColors.textMuted.withValues(alpha: .55),
+        width: hot ? 2.5 : 1.5,
+      );
     }
     if (selectedRect case final card?) {
       for (final r in refs) {
@@ -1245,6 +1330,7 @@ class _BarDivider extends StatelessWidget {
 
 class _BarButton extends StatelessWidget {
   const _BarButton({
+    super.key,
     required this.label,
     required this.color,
     required this.active,
@@ -1388,7 +1474,7 @@ class _ZoomMenu extends StatelessWidget {
 }
 
 class _Legend extends StatelessWidget {
-  const _Legend();
+  const _Legend({super.key});
 
   static Widget _entry(Widget mark, String label) => Row(
     mainAxisSize: MainAxisSize.min,
@@ -1447,7 +1533,7 @@ class _Legend extends StatelessWidget {
                   (StepStatus.needsInput, 'aguardando você'),
                   (StepStatus.verifying, 'verificando'),
                 ])
-                  _entry(_StepDot(status: status, animate: false), label),
+                  _entry(CanvasStepDot(status: status, animate: false), label),
                 Container(width: 1, height: 16, color: AppColors.border),
                 _entry(_line(AppColors.text), 'dependência'),
                 _entry(_line(CanvasColors.agent, dashed: true), 'referência'),
@@ -1496,6 +1582,7 @@ class _LegendLine extends CustomPainter {
 
 class _Inspector extends ConsumerWidget {
   const _Inspector({
+    super.key,
     required this.data,
     required this.attention,
     required this.unlocks,
@@ -1644,7 +1731,8 @@ class _Inspector extends ConsumerWidget {
                 const SizedBox(height: 14),
                 const Text('ETAPAS', style: _heading),
                 const SizedBox(height: 6),
-                for (final step in data.steps) _StepRow(step: step),
+                for (final step in data.steps)
+                  _StepRow(key: ValueKey('canvas-step-${step.id}'), step: step),
                 const SizedBox(height: 14),
                 const Text('REFERÊNCIAS', style: _heading),
                 const SizedBox(height: 6),
@@ -1726,7 +1814,7 @@ class _Inspector extends ConsumerWidget {
 }
 
 class _StepRow extends StatelessWidget {
-  const _StepRow({required this.step});
+  const _StepRow({super.key, required this.step});
   final StepView step;
   @override
   Widget build(BuildContext context) {
@@ -1734,7 +1822,7 @@ class _StepRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          _StepDot(status: step.status),
+          CanvasStepDot(status: step.status),
           const SizedBox(width: 9),
           SizedBox(
             width: 32,

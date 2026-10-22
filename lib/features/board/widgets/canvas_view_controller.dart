@@ -24,6 +24,9 @@ class CanvasViewController extends TransformationController {
       ..scaleByDouble(next, next, next, 1);
   }
 
+  void panBy(Offset delta) =>
+      value = Matrix4.translationValues(delta.dx, delta.dy, 0)..multiply(value);
+
   void zoomIn() => zoomTo(scale + .1);
   void zoomOut() => zoomTo(scale - .1);
   void reset() => value = Matrix4.identity();

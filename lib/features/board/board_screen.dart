@@ -295,6 +295,7 @@ class BoardScreen extends ConsumerWidget {
             highlightNext: ref.watch(
               autopilotProvider.select((s) => s.contains(ws.id)),
             ),
+            attentionCount: attentionCount,
           )
         : _Board(
             cards: visible,
