@@ -119,6 +119,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _loading = false;
     });
     ref.read(specDirtyProvider.notifier).set(false);
+    if (text != null && ref.read(pendingDesignProvider) == spec.id) {
+      ref.read(pendingDesignProvider.notifier).select(null);
+      await _design(ws, spec);
+    }
   }
 
   String? _lastText;

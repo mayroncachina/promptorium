@@ -14,12 +14,15 @@ const designPrompt = '''
 Você é o planner do Promptorium. Leia a spec abaixo e o repositório (somente
 leitura) e escreva a seção Design: como implementar cada requisito neste código —
 componentes e arquivos que mudam ou nascem, decisões e alternativas descartadas,
-riscos. Cite os requisitos (R1, R2…) em cada parte. Organize em subseções
-"### R1 · …" quando houver mais de um requisito. Seja concreto e curto.
+riscos. Cite os requisitos (R1, R2…) em cada parte. Comece com a subseção
+"### O que já existe": os arquivos, classes e funções do repositório que a
+implementação reaproveita ou altera, com o caminho de cada um — as sessões de
+execução partem dela em vez de explorar o código de novo. Depois, organize em
+subseções "### R1 · …" quando houver mais de um requisito. Seja concreto e curto.
 
-Em "etapas", para cada requisito liste os arquivos que a etapa toca e, quando
-houver, um comando que verifica a etapa (ex.: um teste específico); deixe vazio
-quando não houver.''';
+Em "etapas", para cada requisito liste ao menos um arquivo que a etapa toca e,
+quando houver, um comando que verifica a etapa (ex.: um teste específico); deixe
+vazio quando não houver.''';
 
 final designSchema = {
   'type': 'object',
@@ -37,6 +40,7 @@ final designSchema = {
           'requisito': {'type': 'string'},
           'arquivos': {
             'type': 'array',
+            'minItems': 1,
             'items': {'type': 'string'},
           },
           'verificar': {'type': 'string'},

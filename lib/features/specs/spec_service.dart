@@ -474,6 +474,12 @@ final selectedSpecProvider = NotifierProvider<SelectedSpec, int?>(
   SelectedSpec.new,
 );
 
+/// Spec whose design the Specs screen generates as soon as it opens it
+/// ("Gerar design" of the Quadro's warning, SPEC-017 R3).
+final pendingDesignProvider = NotifierProvider<SelectedSpec, int?>(
+  SelectedSpec.new,
+);
+
 class SpecSyncIssues extends Notifier<Map<int, List<String>>> {
   @override
   Map<int, List<String>> build() => {};
