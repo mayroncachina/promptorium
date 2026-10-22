@@ -16,6 +16,8 @@ import 'attachments.dart';
 import 'conversation_manager.dart';
 import 'plan_ready.dart';
 import 'prompt_actions.dart';
+import 'spec_from_answer.dart';
+import 'widgets/answer_spec_bar.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
 import 'widgets/prompt_dialogs.dart';
@@ -278,6 +280,12 @@ class _Header extends ConsumerWidget {
 
   Future<void> _toSpec(BuildContext context, WidgetRef ref) async {
     final c = conversation!;
+    // SPEC-016 R5: a spec written by the agent wins over the transcript.
+    final written = lastAnswerSpec(items);
+    if (written != null) {
+      await primaryAnswerSpec(context, ref, c, written);
+      return;
+    }
     try {
       final ws = await ref.read(workspacesRepoProvider).getById(c.workspaceId);
       if (ws == null) throw StateError('Workspace não encontrado.');
@@ -530,6 +538,10 @@ class _Conversation extends ConsumerWidget {
       maxWidth: 760,
       assistantName: 'Claude Code · ${modelLabel(c.model)}',
       emptyText: 'Sem mensagens ainda.',
+      answerFooter: (item) {
+        final spec = detectAnswerSpec(item.text);
+        return spec == null ? null : AnswerSpecBar(conversation: c, spec: spec);
+      },
     );
   }
 }
