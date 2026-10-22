@@ -16,6 +16,30 @@ import 'package:promptorium/features/specs/spec_service.dart';
 import '../../helpers/test_db.dart';
 
 void main() {
+  test('merge and self-hosted GitLab configuration round trips', () {
+    const config = ProjectConfig(
+      mergeMethod: 'squash',
+      host: 'git.exemplo.com',
+      hostType: 'gitlab',
+      testCommand: 'flutter test',
+    );
+    final parsed = ProjectConfig.parse(config.toYaml());
+    expect(parsed.mergeMethod, 'squash');
+    expect(parsed.host, 'git.exemplo.com');
+    expect(parsed.hostType, 'gitlab');
+    expect(parsed.testCommand, 'flutter test');
+  });
+
+  test('without merge.metodo the default is merge (--no-ff) and it is not '
+      'written', () {
+    expect(ProjectConfig.parse('').mergeMethod, 'merge');
+    expect(const ProjectConfig().toYaml(), isNot(contains('metodo')));
+    expect(
+      ProjectConfig.parse('merge:\n  metodo: rebase\n').mergeMethod,
+      'rebase',
+    );
+  });
+
   test('validateSpecsDir', () {
     expect(ProjectConfig.validateSpecsDir('specs'), isNull);
     expect(ProjectConfig.validateSpecsDir('docs/specs'), isNull);
@@ -239,12 +263,21 @@ autopilot:
     await tester.pump();
     await tester.ensureVisible(find.byKey(const ValueKey('config-save')));
     await tester.tap(find.byKey(const ValueKey('config-save')));
-    // Real file IO (several awaits): alternate real time and the fake clock.
-    for (var i = 0; i < 12; i++) {
+    // Real file IO (several awaits): alternate real time and the fake clock
+    // until it is saved and shown (the suite may run under load).
+    for (var i = 0; i < 300; i++) {
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump();
+      if (i >= 12 &&
+          ProjectConfig.loadSync(tmp.path).specsDir == 'docs/specs' &&
+          find
+              .byKey(const ValueKey('config-specs-warning'))
+              .evaluate()
+              .isEmpty) {
+        break;
+      }
     }
     final saved = ProjectConfig.loadSync(tmp.path);
     expect(saved.specsDir, 'docs/specs');

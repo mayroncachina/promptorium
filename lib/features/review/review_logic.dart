@@ -248,10 +248,13 @@ String adjustmentMessage(List<ReviewComment> comments, {String note = ''}) {
   for (final c in comments) {
     b
       ..writeln()
-      ..writeln('${c.location} — ${c.text}')
-      ..writeln('```')
-      ..writeln(c.snippet.join('\n'))
-      ..writeln('```');
+      ..writeln('${c.location} — ${c.text}');
+    if (c.snippet.isNotEmpty) {
+      b
+        ..writeln('```')
+        ..writeln(c.snippet.join('\n'))
+        ..writeln('```');
+    }
   }
   b
     ..writeln()

@@ -34,12 +34,16 @@ class FakeCli {
 
   FakeProcess get last => processes.last;
 
+  /// Starting a process fails (CLI gone, spawn error).
+  bool failStart = false;
+
   Future<Process> start(
     String exe,
     List<String> arguments, {
     String? workingDirectory,
     Map<String, String>? environment,
   }) async {
+    if (failStart) throw ProcessException(exe, arguments, 'falha ao iniciar');
     final p = FakeProcess();
     processes.add(p);
     args.add(arguments);

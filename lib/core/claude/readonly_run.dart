@@ -60,6 +60,7 @@ Future<Result> runReadOnlyClaude(
   Duration timeout = plannerTimeout,
   int? workspaceId,
   String? providerId,
+  Future<void>? cancelled,
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -166,15 +167,32 @@ Future<Result> runReadOnlyClaude(
       }
     },
   );
+  final response = done.future.timeout(
+    timeout,
+    onTimeout: () => throw PlannerException(
+      'O planner não respondeu em ${timeout.inMinutes} minutos.',
+    ),
+  );
+  // Cancellation can arrive while send is still flushing. Attach an error
+  // listener now; awaiting response below still propagates the failure.
+  response.ignore();
+  var finished = false;
+  if (cancelled != null) {
+    unawaited(
+      cancelled.then((_) async {
+        if (finished) return;
+        if (!done.isCompleted) {
+          done.completeError(const PlannerException('Verificação cancelada.'));
+        }
+        await process.stop(timeout: const Duration(seconds: 2));
+      }),
+    );
+  }
   try {
     await process.send(prompt);
-    return await done.future.timeout(
-      timeout,
-      onTimeout: () => throw PlannerException(
-        'O planner não respondeu em ${timeout.inMinutes} minutos.',
-      ),
-    );
+    return await response;
   } finally {
+    finished = true;
     await process.stop(timeout: const Duration(seconds: 2));
     await sub.cancel();
     await logSub.cancel();

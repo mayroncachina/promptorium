@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 15;
+const appSchemaVersion = 16;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -253,6 +253,9 @@ class ReviewComments extends Table {
   /// the commit reviewed.
   TextColumn get verdict => text().nullable()();
   TextColumn get commitSha => text().nullable()();
+  BoolColumn get resolved => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  TextColumn get externalId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -733,9 +736,17 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
+  Future<void> _reviewExternalIndex() => customStatement(
+    'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external '
+    'ON review_comments(spec_id, external_id) WHERE external_id IS NOT NULL',
+  );
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) => m.createAll(),
+    onCreate: (m) async {
+      await m.createAll();
+      await _reviewExternalIndex();
+    },
     onUpgrade: (m, from, to) async {
       // v1 … v8: written by hand (the old tests start from partial schemas).
       if (from < 8) await _upgradeToV8(m, from);
@@ -807,6 +818,19 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(v.sessions, v.sessions.pid);
             }
             await m.createTable(v.notifications);
+          },
+          from15To16: (m, v) async {
+            if (!await _hasTable('review_comments')) return;
+            for (final c in [
+              v.reviewComments.resolved,
+              v.reviewComments.resolvedAt,
+              v.reviewComments.externalId,
+            ]) {
+              if (!await _hasColumn('review_comments', c.name)) {
+                await m.addColumn(v.reviewComments, c);
+              }
+            }
+            await _reviewExternalIndex();
           },
           from14To15: (m, v) async {
             if (await _hasTable('sessions')) {

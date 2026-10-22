@@ -1,13 +1,23 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
+import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
+import 'package:promptorium/features/review/merge_options.dart';
+import 'package:promptorium/features/review/review_screen.dart'
+    show sinceHeader;
+import 'package:promptorium/features/project/project_memory.dart';
+import 'package:promptorium/features/project/project_config.dart'
+    show projectConfigProvider;
+import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -30,6 +40,11 @@ class FakeCommands {
 
   /// Output of `gh pr view --json` (null = the default PR URL output).
   String? prView;
+  String inline = '[]';
+  bool apiError = false;
+
+  /// While set, `which` waits for it (a slow probe).
+  Completer<void>? gate;
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -39,10 +54,19 @@ class FakeCommands {
   }) async {
     calls.add((exe, args, workingDirectory));
     if (exe == 'which') {
+      await gate?.future;
       return ProcessResult(1, hasGh ? 0 : 1, hasGh ? '/usr/bin/gh\n' : '', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'auth status') {
       return ProcessResult(1, authed ? 0 : 1, '', '');
+    }
+    if (exe == 'gh' && args.first == 'api') {
+      return ProcessResult(
+        1,
+        apiError ? 1 : 0,
+        inline,
+        apiError ? 'offline' : '',
+      );
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'pr view') {
       return ProcessResult(1, 0, prView ?? '{}', '');
@@ -59,6 +83,31 @@ class FakeCommands {
       return ProcessResult(1, 0, 'https://github.com/o/r/pull/7\n', '');
     }
     return ProcessResult(1, 0, '', '');
+  }
+}
+
+/// Hosts the transport in a local bare repository while exposing a fake GitHub URL.
+class HostedTestGit extends GitService {
+  HostedTestGit(super.root, {super.worktreesBase});
+  @override
+  Future<String> git(List<String> args) async {
+    final result = await super.git(args);
+    if (args.take(2).join(' ') == 'remote get-url' &&
+        result.trim().startsWith('/')) {
+      return 'git@github.com:o/r.git';
+    }
+    return result;
+  }
+}
+
+/// Records every git call (root, args) of the services under test.
+class RecordingGit extends HostedTestGit {
+  RecordingGit(super.root, this.calls, {super.worktreesBase});
+  final List<(String, List<String>)> calls;
+  @override
+  Future<String> git(List<String> args) {
+    calls.add((repoRoot, args));
+    return super.git(args);
   }
 }
 
@@ -91,7 +140,10 @@ void main() {
   /// Session with a worktree and a task; the "agent" commits a change to
   /// `a.txt` (line 2) and leaves `b.txt` modified-uncommitted + `novo.txt`
   /// untracked. The session finishes (`result`) → task in Review.
-  Future<Env> setUpSession({FakeCommands? commands}) async {
+  Future<Env> setUpSession({
+    FakeCommands? commands,
+    List<(String, List<String>)>? gitLog,
+  }) async {
     final db = memoryDatabase();
     final cli = FakeCli();
     final c = sessionContainer([
@@ -100,9 +152,14 @@ void main() {
         cli: cli,
         notifier: FakeNotifier(),
         worktreesBase: '${tmp.path}/wt',
-      ),
+      ).where((o) => o.origin != gitServiceFactoryProvider),
       commandRunnerProvider.overrideWithValue(
         (commands ?? FakeCommands()).call,
+      ),
+      gitServiceFactoryProvider.overrideWithValue(
+        (root) => gitLog == null
+            ? HostedTestGit(root, worktreesBase: '${tmp.path}/wt')
+            : RecordingGit(root, gitLog, worktreesBase: '${tmp.path}/wt'),
       ),
     ]);
     addTearDown(c.dispose);
@@ -148,6 +205,632 @@ void main() {
     final t = (await c.read(tasksRepoProvider).getById(task.id))!;
     return Env(c, cli, ws, t, id, wt);
   }
+
+  test('since round includes new commits and working tree but excludes earlier work', () async {
+    final e = await setUpSession();
+    final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+    File('${e.worktree}/later.txt').writeAsStringSync('later\n');
+    await gitIn(e.worktree, ['add', 'later.txt']);
+    await gitIn(e.worktree, ['commit', '-qm', 'later']);
+    final detail = await e.review.loadSince(e.sessionId, sha);
+    expect(detail.error, isNull);
+    expect(detail.commitsAhead, 1);
+    expect(detail.files.map((f) => f.path).toSet(), {
+      'later.txt',
+      'b.txt',
+      'novo.txt',
+    });
+    expect(
+      await e.review.roundUnavailable(e.sessionId, null),
+      contains('não registrou'),
+    );
+    expect(
+      await e.review.roundUnavailable(e.sessionId, 'abc123'),
+      contains('não existe mais'),
+    );
+  });
+
+  test('since round counts a renamed and an untracked file once each; '
+      'with only an uncommitted change it is 0 commits · 1 arquivo', () async {
+    final e = await setUpSession();
+    await gitIn(e.worktree, ['add', '-A']);
+    await gitIn(e.worktree, ['commit', '-qm', 'tudo']);
+    final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+
+    File('${e.worktree}/b.txt').writeAsStringSync('mudou\n');
+    var detail = await e.review.loadSince(e.sessionId, sha);
+    expect(detail.commitsAhead, 0);
+    expect(detail.files.map((f) => f.path), ['b.txt']);
+    expect(
+      sinceHeader(detail.commitsAhead, detail.files.length, 3),
+      '0 commits · 1 arquivo desde a rodada 3',
+    );
+
+    await gitIn(e.worktree, ['checkout', '--', 'b.txt']);
+    await gitIn(e.worktree, ['mv', 'b.txt', 'renomeado.txt']);
+    await gitIn(e.worktree, ['commit', '-qm', 'renomeia']);
+    File('${e.worktree}/solto.txt').writeAsStringSync('solto\n');
+    detail = await e.review.loadSince(e.sessionId, sha);
+    expect(detail.commitsAhead, 1);
+    expect(detail.files.map((f) => f.path).toList(), [
+      'renomeado.txt',
+      'solto.txt',
+    ]);
+  });
+
+  test(
+    'comment anchors follow real history: shifted by lines added above, '
+    'outdated when their line changed, the file was removed or renamed',
+    () async {
+      final e = await setUpSession();
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-qm', 'rodada']);
+      final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+      ReviewCommentRow row(int id, String path, int line) => ReviewCommentRow(
+        id: id,
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'x',
+        path: path,
+        line: line,
+        commitSha: sha,
+        resolved: false,
+        createdAt: DateTime(2026),
+      );
+      final a = File('${e.worktree}/a.txt');
+      final lines = a.readAsLinesSync()
+        ..insertAll(0, ['nova 1', 'nova 2'])
+        ..[11] = 'linha 10 alterada';
+      a.writeAsStringSync('${lines.join('\n')}\n');
+      await gitIn(e.worktree, ['mv', 'b.txt', 'b2.txt']);
+      await gitIn(e.worktree, ['commit', '-qam', 'depois']);
+      File('${e.worktree}/novo.txt').deleteSync();
+      File('${e.worktree}/solto.txt').writeAsStringSync('solto\n');
+      final shifts = await e.review.anchorShifts(e.sessionId, [
+        row(1, 'a.txt', 20),
+        row(2, 'a.txt', 10),
+        row(3, 'novo.txt', 1),
+        row(4, 'b.txt', 1),
+        row(5, 'solto.txt', 1),
+      ]);
+      expect(shifts[1], (line: 22, reason: null));
+      expect(shifts[2]!.line, isNull);
+      expect(shifts[2]!.reason, isNotNull);
+      expect(shifts[3]!.reason, 'arquivo removido ou renomeado');
+      expect(shifts[4]!.reason, 'arquivo removido ou renomeado');
+      // A file not committed yet is not "out of the diff".
+      expect(shifts[5]?.reason, isNull);
+    },
+  );
+
+  test('a round whose commit left the branch is unavailable with its own '
+      'reason', () async {
+    final e = await setUpSession();
+    await gitIn(e.worktree, ['add', '-A']);
+    await gitIn(e.worktree, ['commit', '-qm', 'reescrito']);
+    final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+    await gitIn(e.worktree, ['reset', '-q', '--hard', 'HEAD~1']);
+    final reason = await e.review.roundUnavailable(e.sessionId, sha);
+    expect(reason, 'o commit da rodada não existe mais nesta branch');
+    expect(await e.review.roundUnavailable(e.sessionId, null), isNot(reason));
+    expect((await e.review.loadSince(e.sessionId, sha)).error, reason);
+  });
+
+  for (final method in MergeMethod.values) {
+    test(
+      'local ${method.name} integrates pending files and closes session',
+      () async {
+        final e = await setUpSession();
+        final result = await e.review.merge(
+          e.sessionId,
+          options: MergeOptions(method: method),
+        );
+        expect(result.commit, isNotEmpty);
+        expect(File('$repo/novo.txt').readAsStringSync(), 'olá\n');
+        expect(
+          (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!.status,
+          SessionStatus.merged,
+        );
+        final parents = (await gitIn(repo, [
+          'show',
+          '-s',
+          '--format=%P',
+          'HEAD',
+        ])).trim().split(' ');
+        expect(parents.length, method == MergeMethod.merge ? 2 : 1);
+      },
+    );
+  }
+
+  test(
+    'guided switch and stash restores the original staged change by sha',
+    () async {
+      final e = await setUpSession();
+      await gitIn(repo, ['switch', '-qc', 'other']);
+      File('$repo/local.txt').writeAsStringSync('keep\n');
+      await gitIn(repo, ['add', 'local.txt']);
+      final result = await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(switchBase: true, stash: true),
+      );
+      expect(result.warnings, isEmpty);
+      expect((await gitIn(repo, ['branch', '--show-current'])).trim(), 'other');
+      expect(File('$repo/local.txt').readAsStringSync(), 'keep\n');
+      expect(
+        (await gitIn(repo, ['diff', '--cached', '--name-only'])).trim(),
+        'local.txt',
+      );
+      expect((await gitIn(repo, ['stash', 'list'])).trim(), isEmpty);
+      expect((await gitIn(repo, ['show', 'main:novo.txt'])).trim(), 'olá');
+    },
+  );
+
+  for (final method in MergeMethod.values) {
+    test(
+      '${method.name} conflict preserves both repository heads and pending files',
+      () async {
+        final e = await setUpSession();
+        File('$repo/a.txt').writeAsStringSync('base conflicts\n');
+        await gitIn(repo, ['commit', '-qam', 'conflicting base']);
+        final rootHead = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+        final wtHead = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+        await expectLater(
+          e.review.merge(e.sessionId, options: MergeOptions(method: method)),
+          throwsA(
+            isA<MergeConflictException>().having(
+              (e) => e.files,
+              'files',
+              contains('a.txt'),
+            ),
+          ),
+        );
+        expect((await gitIn(repo, ['rev-parse', 'HEAD'])).trim(), rootHead);
+        expect((await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim(), wtHead);
+        expect((await gitIn(repo, ['status', '--porcelain'])).trim(), isEmpty);
+        expect(
+          File('${e.worktree}/b.txt').readAsStringSync(),
+          'um\nDOIS\ntrês\n',
+        );
+        expect(File('${e.worktree}/novo.txt').existsSync(), isTrue);
+      },
+    );
+  }
+
+  /// Git calls that change a repository (reads are left out).
+  List<String> writes(List<(String, List<String>)> calls, String worktree) => [
+    for (final (root, args) in calls)
+      if (const {
+            'add',
+            'commit',
+            'merge',
+            'worktree',
+            'branch',
+            'switch',
+            'stash',
+            'reset',
+            'update-ref',
+            'rebase',
+            'checkout',
+          }.contains(args.first) &&
+          !(args.first == 'stash' && args.length > 1 && args[1] == 'list') &&
+          !(args.first == 'worktree' && args.length > 1 && args[1] == 'list'))
+        '${root == worktree ? 'wt' : 'root'} ${args.first}'
+            '${args.length > 1 && !args[1].startsWith('-') ? ' ${args[1]}' : ''}',
+  ];
+
+  group('SPEC-012 · merge guiado', () {
+    test('default options with the root on the base run the same writing '
+        'git commands, in the same order, as before', () async {
+      final calls = <(String, List<String>)>[];
+      final e = await setUpSession(gitLog: calls);
+      calls.clear();
+      await e.review.merge(e.sessionId);
+      expect(writes(calls, e.worktree), [
+        'wt add',
+        'wt commit',
+        'root merge',
+        'root worktree remove',
+        'root branch',
+      ]);
+      expect(
+        calls.where((c) => c.$2.first == 'merge').single.$2,
+        contains('--no-ff'),
+      );
+    });
+
+    test('a failing switch changes nothing and shows the git error', () async {
+      final e = await setUpSession();
+      await gitIn(repo, ['switch', '-qc', 'outra']);
+      File('$repo/a.txt').writeAsStringSync('so na outra\n');
+      await gitIn(repo, ['commit', '-qam', 'outra']);
+      // A local edit that `git switch main` would overwrite.
+      File('$repo/a.txt').writeAsStringSync('edicao local\n');
+      final head = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(switchBase: true),
+        ),
+        throwsA(isA<GitException>()),
+      );
+      expect((await gitIn(repo, ['branch', '--show-current'])).trim(), 'outra');
+      expect((await gitIn(repo, ['rev-parse', 'HEAD'])).trim(), head);
+      expect(File('$repo/a.txt').readAsStringSync(), 'edicao local\n');
+      expect(
+        (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!.status,
+        isNot(SessionStatus.merged),
+      );
+    });
+
+    test('a stash that conflicts on restore is kept and the warning names '
+        'it', () async {
+      final e = await setUpSession();
+      // The session changes b.txt line 2 (uncommitted → pending commit).
+      File('$repo/b.txt').writeAsStringSync('um\ndois da raiz\ntrês\n');
+      final result = await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(stash: true),
+      );
+      final stashes = (await gitIn(repo, [
+        'stash',
+        'list',
+        '--format=%H',
+      ])).trim();
+      expect(stashes, isNotEmpty);
+      expect(result.warnings.join('\n'), contains(stashes.split('\n').first));
+    });
+
+    test('only the project memory changed: nothing is stashed and an old '
+        'user stash is untouched', () async {
+      final e = await setUpSession();
+      File('$repo/a.txt').writeAsStringSync('do usuario\n');
+      await gitIn(repo, ['stash', 'push', '-qm', 'do usuario']);
+      final userStash = (await gitIn(repo, ['rev-parse', 'refs/stash'])).trim();
+      Directory('$repo/.promptorium').createSync(recursive: true);
+      File('$repo/${ProjectMemory.filePath}').writeAsStringSync('nota\n');
+      await gitIn(repo, ['add', ProjectMemory.filePath]);
+      await gitIn(repo, ['commit', '-qm', 'memoria']);
+      File('$repo/${ProjectMemory.filePath}').writeAsStringSync('nota 2\n');
+      final result = await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(stash: true),
+      );
+      expect(result.warnings, isEmpty);
+      expect(
+        (await gitIn(repo, ['stash', 'list', '--format=%H'])).trim(),
+        userStash,
+      );
+      expect(
+        File('$repo/${ProjectMemory.filePath}').readAsStringSync(),
+        'nota 2\n',
+      );
+    });
+
+    test('a staged change whose index cannot be restored comes back without '
+        '--index, with a warning', () async {
+      final e = await setUpSession();
+      // The session changed line 2 of a.txt; the root stages line 4.
+      final lines = File('$repo/a.txt').readAsLinesSync()..[3] = 'LINHA 4 raiz';
+      File('$repo/a.txt').writeAsStringSync('${lines.join('\n')}\n');
+      await gitIn(repo, ['add', 'a.txt']);
+      final result = await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(stash: true),
+      );
+      final text = File('$repo/a.txt').readAsStringSync();
+      expect(text, contains('LINHA 2'));
+      expect(text, contains('LINHA 4 raiz'));
+      expect(
+        result.warnings.join('\n'),
+        contains('sem preservar a separação staged/não staged'),
+      );
+      expect((await gitIn(repo, ['stash', 'list'])).trim(), isEmpty);
+    });
+
+    test('with MERGE_HEAD in progress, switch and stash are refused with the '
+        'reason', () async {
+      final e = await setUpSession();
+      final head = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+      File('$repo/.git/MERGE_HEAD').writeAsStringSync('$head\n');
+      for (final options in const [
+        MergeOptions(switchBase: true),
+        MergeOptions(stash: true),
+      ]) {
+        await expectLater(
+          e.review.merge(e.sessionId, options: options),
+          throwsA(
+            isA<ReviewException>().having(
+              (x) => x.message,
+              'message',
+              contains('MERGE_HEAD'),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('squash makes one commit titled after the task and removes the '
+        'branch with -D', () async {
+      final calls = <(String, List<String>)>[];
+      final e = await setUpSession(gitLog: calls);
+      final branch =
+          (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!.branch;
+      final before = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+      await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(method: MergeMethod.squash),
+      );
+      expect(
+        (await gitIn(repo, ['rev-list', '--count', '$before..HEAD'])).trim(),
+        '1',
+      );
+      expect(
+        (await gitIn(repo, ['log', '-1', '--format=%s'])).trim(),
+        contains('Barra de status'),
+      );
+      expect((await gitIn(repo, ['branch', '--list', branch])).trim(), isEmpty);
+      expect(
+        calls.any((c) => c.$2.first == 'branch' && c.$2.contains('-D')),
+        isTrue,
+      );
+    });
+
+    test('squash with nothing to integrate says so and keeps the branch and '
+        'the worktree', () async {
+      final e = await setUpSession();
+      final branch =
+          (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!.branch;
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-qm', 'pendentes']);
+      await gitIn(repo, ['merge', '--squash', branch]);
+      await gitIn(repo, ['commit', '-qm', 'ja integrado']);
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(method: MergeMethod.squash),
+        ),
+        throwsA(
+          isA<ReviewException>().having(
+            (x) => x.message,
+            'message',
+            contains('nada a integrar'),
+          ),
+        ),
+      );
+      expect(
+        (await gitIn(repo, ['branch', '--list', branch])).trim(),
+        isNotEmpty,
+      );
+      expect(Directory(e.worktree).existsSync(), isTrue);
+      expect((await gitIn(repo, ['status', '--porcelain'])).trim(), isEmpty);
+    });
+
+    test('a commit hook failing on the squash commit is undone with reset '
+        '--merge', () async {
+      final e = await setUpSession();
+      final before = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+      final hook = File('$repo/.git/hooks/pre-commit')
+        ..writeAsStringSync('#!/bin/sh\nexit 1\n');
+      await Process.run('chmod', ['+x', hook.path]);
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(
+            method: MergeMethod.squash,
+            skipHooks: true,
+          ),
+        ),
+        throwsA(isA<ReviewException>()),
+      );
+      expect((await gitIn(repo, ['rev-parse', 'HEAD'])).trim(), before);
+      expect((await gitIn(repo, ['status', '--porcelain'])).trim(), isEmpty);
+    });
+
+    test('a failing ff-only after the rebase puts the branch tip back and '
+        'keeps the pre-rebase ref; rebase is unavailable with a PR', () async {
+      final e = await setUpSession();
+      // main moves, so the rebase rewrites the branch.
+      File('$repo/c.txt').writeAsStringSync('c\n');
+      await gitIn(repo, ['add', 'c.txt']);
+      await gitIn(repo, ['commit', '-qm', 'main: c']);
+      // An untracked root file the fast-forward would overwrite.
+      File('$repo/novo.txt').writeAsStringSync('da raiz\n');
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-qm', 'pendentes']);
+      final tip = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(method: MergeMethod.rebase),
+        ),
+        throwsA(isA<ReviewException>()),
+      );
+      expect((await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim(), tip);
+      final refs = await gitIn(repo, [
+        'for-each-ref',
+        '--format=%(objectname)',
+        'refs/promptorium/',
+      ]);
+      expect(refs.trim(), tip);
+
+      File('$repo/novo.txt').deleteSync();
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
+      expect((await e.review.mergeFacts(e.sessionId)).published, isTrue);
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(method: MergeMethod.rebase),
+        ),
+        throwsA(
+          isA<ReviewException>().having(
+            (x) => x.message,
+            'message',
+            contains('Rebase indisponível'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'if going back to the previous branch fails, the stash is not '
+      'restored and the warning has the current branch and the sha',
+      () async {
+        final e = await setUpSession();
+        await gitIn(repo, ['switch', '-qc', 'outra']);
+        File('$repo/local.txt').writeAsStringSync('keep\n');
+        await gitIn(repo, ['add', 'local.txt']);
+        // The merge deletes the previous branch (post-merge hook on the root).
+        final hook = File('$repo/.git/hooks/post-merge')
+          ..writeAsStringSync('#!/bin/sh\ngit branch -D outra\n');
+        await Process.run('chmod', ['+x', hook.path]);
+        final result = await e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(switchBase: true, stash: true),
+        );
+        final warning = result.warnings.join('\n');
+        expect(warning, contains('Não foi possível voltar à branch anterior'));
+        expect(warning, contains('Branch atual: main'));
+        final stash = (await gitIn(repo, ['rev-parse', 'refs/stash'])).trim();
+        expect(warning, contains(stash));
+        expect(File('$repo/local.txt').existsSync(), isFalse);
+      },
+    );
+
+    test('a conflict with switch and stash undoes everything in reverse '
+        'order: root back on its branch with its staged change', () async {
+      final e = await setUpSession();
+      File('$repo/a.txt').writeAsStringSync('base conflicts\n');
+      await gitIn(repo, ['commit', '-qam', 'conflicting base']);
+      await gitIn(repo, ['switch', '-qc', 'outra']);
+      File('$repo/local.txt').writeAsStringSync('keep\n');
+      await gitIn(repo, ['add', 'local.txt']);
+      await expectLater(
+        e.review.merge(
+          e.sessionId,
+          options: const MergeOptions(switchBase: true, stash: true),
+        ),
+        throwsA(isA<MergeConflictException>()),
+      );
+      expect((await gitIn(repo, ['branch', '--show-current'])).trim(), 'outra');
+      expect(
+        (await gitIn(repo, ['diff', '--cached', '--name-only'])).trim(),
+        'local.txt',
+      );
+      expect((await gitIn(repo, ['stash', 'list'])).trim(), isEmpty);
+    });
+
+    test('the prediction lists conflicting files without touching index or '
+        'tree, and says "não verificado" without merge-tree', () async {
+      final e = await setUpSession();
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-qm', 'pendentes']);
+      File('$repo/a.txt').writeAsStringSync('base conflicts\n');
+      await gitIn(repo, ['commit', '-qam', 'conflicting base']);
+      final head = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
+      final p = await e.review.predictConflict(e.sessionId);
+      expect(p.files, contains('a.txt'));
+      expect(p.error, isNull);
+      expect((await gitIn(repo, ['rev-parse', 'HEAD'])).trim(), head);
+      expect((await gitIn(repo, ['status', '--porcelain'])).trim(), isEmpty);
+
+      final old = e.c.read(gitServiceFactoryProvider);
+      final c2 = ProviderContainer(
+        parent: e.c,
+        overrides: [
+          gitServiceFactoryProvider.overrideWithValue(
+            (root) => _NoMergeTreeGit(root, old(root)),
+          ),
+          reviewServiceProvider.overrideWith(ReviewService.new),
+        ],
+      );
+      addTearDown(c2.dispose);
+      final unknown = await c2
+          .read(reviewServiceProvider)
+          .predictConflict(e.sessionId);
+      expect(unknown.error, isNotNull);
+      expect(unknown.files, isEmpty);
+    });
+  });
+
+  test(
+    'hooks run on pending commits by default and skipHooks is explicit',
+    () async {
+      final e = await setUpSession();
+      final hook = File('$repo/.git/hooks/pre-commit')
+        ..writeAsStringSync('#!/bin/sh\nexit 1\n');
+      await Process.run('chmod', ['+x', hook.path]);
+      await expectLater(
+        e.review.merge(e.sessionId),
+        throwsA(isA<ReviewException>()),
+      );
+      expect(File('${e.worktree}/novo.txt').existsSync(), isTrue);
+      final result = await e.review.merge(
+        e.sessionId,
+        options: const MergeOptions(skipHooks: true),
+      );
+      expect(result.commit, isNotEmpty);
+    },
+  );
+
+  test('inline PR read groups replies, deduplicates and retains stored rows offline', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    final db = e.c.read(appDatabaseProvider);
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement('UPDATE sessions SET spec_id=1 WHERE id=?', [
+      e.sessionId,
+    ]);
+    await e.c
+        .read(sessionsRepoProvider)
+        .setPrUrl(e.sessionId, 'https://github.com/base/repo/pull/7');
+    cmds.inline = jsonEncode([
+      [
+        {
+          'id': 21,
+          'path': 'a.txt',
+          'line': null,
+          'original_line': 2,
+          'commit_id': (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim(),
+          'body': 'ajustar',
+          'user': {'login': 'ana'},
+          'created_at': '2026-10-20T10:00:00Z',
+        },
+        {
+          'id': 22,
+          'in_reply_to_id': 21,
+          'body': 'concordo',
+          'user': {'login': 'bia'},
+          'created_at': '2026-10-20T11:00:00Z',
+        },
+      ],
+    ]);
+    final first = await e.review.prView(e.sessionId);
+    expect(first!.comments.single.line, 2);
+    expect(first.comments.single.body, contains('@bia: concordo'));
+    await e.review.prView(e.sessionId);
+    final repo = e.c.read(reviewCommentsRepoProvider);
+    expect(await repo.bySpec(1), hasLength(1));
+    expect((await repo.bySpec(1)).single.externalId, 'github:21');
+    cmds.apiError = true;
+    await expectLater(
+      e.review.prView(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+    expect(await repo.bySpec(1), hasLength(1));
+    expect(
+      cmds.calls.any(
+        (c) =>
+            c.$2.contains('repos/base/repo/pulls/7/comments') &&
+            c.$2.contains('--paginate'),
+      ),
+      isTrue,
+    );
+  });
 
   test('queue + changed files include committed, uncommitted and untracked '
       '(base...HEAD + working tree)', () async {
@@ -284,6 +967,151 @@ void main() {
     expect(events.any((r) => r.json.contains('Use maiúsculas')), isTrue);
   });
 
+  test('selected reviewer and PR comments go in the message as '
+      'arquivo:linha — texto with their line, and are marked treated; if '
+      'sending fails none is', () async {
+    final e = await setUpSession();
+    final db = e.c.read(appDatabaseProvider);
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement('UPDATE sessions SET spec_id=1 WHERE id=?', [
+      e.sessionId,
+    ]);
+    final repo = e.c.read(reviewCommentsRepoProvider);
+    await repo.insertAll([
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'Padronize a caixa.',
+        path: const Value('a.txt'),
+        line: const Value(2),
+      ),
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'pr',
+        body: '@ana: e esta linha?',
+        path: const Value('a.txt'),
+        line: const Value(3),
+      ),
+    ]);
+    var rows = await repo.bySpec(1);
+    await e.cli.last.finish();
+    await settle();
+
+    e.cli.failStart = true;
+    await expectLater(
+      e.review.requestChanges(e.sessionId, const [], selected: rows),
+      throwsA(anything),
+    );
+    expect((await repo.bySpec(1)).where((r) => r.resolved), isEmpty);
+
+    e.cli.failStart = false;
+    final msg = await e.review.requestChanges(
+      e.sessionId,
+      const [],
+      selected: rows,
+    );
+    expect(msg, contains('a.txt:2 — [revisor, rodada 1] Padronize a caixa.'));
+    expect(msg, contains('a.txt:3 — [pr, rodada 1] @ana: e esta linha?'));
+    expect(msg, contains('LINHA 2'));
+    rows = await repo.bySpec(1);
+    expect(
+      rows.where((r) => r.author != 'humano').every((r) => r.resolved),
+      isTrue,
+    );
+  });
+
+  test('panel and merge decide on the same facts: each service blocker '
+      'makes merge refuse; a warning does not', () async {
+    // Root on another branch: blocker, merge refuses.
+    var e = await setUpSession();
+    await gitIn(repo, ['switch', '-qc', 'outra']);
+    var ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('raiz'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+    await gitIn(repo, ['switch', '-q', 'main']);
+
+    // Root with a tracked change: blocker, merge refuses.
+    File('$repo/a.txt').writeAsStringSync('mudou na raiz\n');
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('raiz'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+    await gitIn(repo, ['checkout', '--', 'a.txt']);
+
+    // Only uncommitted work in the worktree: a warning, merge goes on.
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers, isEmpty);
+    expect(ready.warnings.map((i) => i.id), contains('worktree'));
+    await e.review.merge(e.sessionId);
+
+    // Already merged: blocker on the worktree item, merge refuses.
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('worktree'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+  });
+
+  test('the readiness provider recalculates when a comment changes, and the '
+      'repository watcher fires when the root switches branch', () async {
+    final e = await setUpSession();
+    final db = e.c.read(appDatabaseProvider);
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement('UPDATE sessions SET spec_id=1 WHERE id=?', [
+      e.sessionId,
+    ]);
+    final seen = <MergeReadiness>[];
+    final sub = e.c.listen(
+      mergeReadinessProvider(e.sessionId),
+      (_, next) => next.whenData(seen.add),
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    await e.c.read(mergeReadinessProvider(e.sessionId).future);
+    String? comments() =>
+        seen.last.items.where((i) => i.id == 'comentarios').firstOrNull?.detail;
+    expect(comments(), 'OK');
+    await e.c.read(reviewCommentsRepoProvider).insertAll([
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'falta teste',
+      ),
+    ]);
+    for (var i = 0; i < 50 && comments() == 'OK'; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(comments(), '1 comentários abertos');
+
+    var fired = 0;
+    final watcher = await e.review.watchRepositories(
+      e.sessionId,
+      () => fired++,
+    );
+    expect(watcher, isNotNull);
+    addTearDown(() => watcher!.close());
+    // Let the watches register before changing the repository.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await gitIn(repo, ['switch', '-qc', 'outra']);
+    for (var i = 0; i < 100 && fired == 0; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(fired, greaterThan(0));
+  });
+
   test('clean merge: commits pending, merges into main, removes worktree '
       'and branch, task Feito, returns the hash', () async {
     final e = await setUpSession();
@@ -407,7 +1235,8 @@ void main() {
     final e = await setUpSession(commands: cmds);
     var a = await e.review.prAvailability(e.sessionId);
     expect(a.available, isFalse);
-    expect(a.reason, contains('gh'));
+    expect(a.reason, contains('remote'));
+    expect(cmds.calls, isEmpty);
 
     cmds.hasGh = true;
     a = await e.review.prAvailability(e.sessionId);
@@ -417,6 +1246,160 @@ void main() {
       e.review.createPr(e.sessionId),
       throwsA(isA<ReviewException>()),
     );
+  });
+
+  test('host routing diagnoses only the required CLI and does not probe unknown providers', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@gitlab.com:o/r.git']);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.host, 'gitlab');
+    expect(a.available, isFalse);
+    expect(a.reason, contains('DT-55'));
+    expect(
+      cmds.calls.every(
+        (c) => c.$1 == 'which' && c.$2.single == 'glab' || c.$1 == 'glab',
+      ),
+      isTrue,
+    );
+    cmds.calls.clear();
+    await gitIn(repo, [
+      'remote',
+      'set-url',
+      'origin',
+      'git@github.com:o/r.git',
+    ]);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.host, 'github');
+    expect(a.available, isTrue);
+    expect(cmds.calls.any((c) => c.$1 == 'glab'), isFalse);
+    cmds.calls.clear();
+    await gitIn(repo, [
+      'remote',
+      'set-url',
+      'origin',
+      'git@bitbucket.org:o/r.git',
+    ]);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.available, isFalse);
+    expect(a.reason, contains('bitbucket.org'));
+    expect(cmds.calls, isEmpty);
+  });
+
+  test('a local path, an invalid URL and an invalid hospedagem.tipo have '
+      'their own diagnosis and probe no CLI', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', './outro-repo']);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('caminho local'));
+    await gitIn(repo, ['remote', 'set-url', 'origin', 'nao é uma url']);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('URL inválida'));
+    Directory('$repo/.promptorium').createSync(recursive: true);
+    File('$repo/.promptorium/config.yml').writeAsStringSync(
+      'hospedagem:\n  host: git.exemplo.com\n  tipo: bitbucket\n',
+    );
+    e.c.invalidate(projectConfigProvider(repo));
+    await gitIn(repo, [
+      'remote',
+      'set-url',
+      'origin',
+      'git@git.exemplo.com:o/r.git',
+    ]);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('hospedagem.tipo "bitbucket" inválido'));
+    expect(cmds.calls, isEmpty);
+  });
+
+  test('changing the remote while a probe is running discards the late '
+      'answer of the old remote', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@github.com:o/r.git']);
+    await gitIn(repo, ['remote', 'add', 'fork', 'git@gitlab.com:o/r.git']);
+    final settings = e.c.read(appSettingsProvider.notifier);
+    await settings.set('review.remote.${e.sessionId}', 'origin');
+    final seen = <PrAvailability>[];
+    final sub = e.c.listen(
+      prAvailabilityProvider(e.sessionId),
+      (_, next) => next.whenData(seen.add),
+    );
+    addTearDown(sub.close);
+    cmds.gate = Completer<void>();
+    e.c.invalidate(prAvailabilityProvider(e.sessionId));
+    e.c.read(prAvailabilityProvider(e.sessionId));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await settings.set('review.remote.${e.sessionId}', 'fork');
+    e.c.read(prAvailabilityProvider(e.sessionId));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    cmds.gate!.complete();
+    final a = await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    expect(a.remote, 'fork');
+    expect(a.host, 'gitlab');
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(seen.where((s) => s.remote == 'origin'), isEmpty);
+  });
+
+  test('switching the active project recomputes the diagnosis', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@github.com:o/r.git']);
+    var runs = 0;
+    final sub = e.c.listen(
+      prAvailabilityProvider(e.sessionId),
+      (_, next) => next.whenData((_) => runs++),
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    final before = runs;
+    final other = await e.c
+        .read(workspacesRepoProvider)
+        .add(path: '${tmp.path}/outro', name: 'outro');
+    await e.c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.activeWorkspace, '${other.id}');
+    await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    for (var i = 0; i < 200 && runs <= before; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(runs, greaterThan(before));
+  });
+
+  test('ambiguous remotes require selection, and a saved GitHub PR keeps its destination', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@github.com:o/r.git']);
+    await gitIn(repo, ['remote', 'add', 'fork', 'git@gitlab.com:o/r.git']);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.remotes, containsAll(['origin', 'fork']));
+    expect(cmds.calls, isEmpty);
+    a = await e.review.prAvailability(e.sessionId, remote: 'origin');
+    expect(a.available, isTrue);
+    expect(a.remote, 'origin');
+    await e.c
+        .read(sessionsRepoProvider)
+        .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
+    await gitIn(repo, [
+      'remote',
+      'set-url',
+      'origin',
+      'git@gitlab.com:o/r.git',
+    ]);
+    cmds.calls.clear();
+    await e.review.prView(e.sessionId);
+    expect(cmds.calls.first.$1, 'gh');
+    expect(cmds.calls.first.$2, contains('https://github.com/o/r/pull/7'));
+    await e.c
+        .read(sessionsRepoProvider)
+        .setPrUrl(e.sessionId, 'https://gitlab.com/o/r/-/merge_requests/7');
+    cmds.calls.clear();
+    await expectLater(
+      e.review.mergePr(e.sessionId, PrMergeMethod.squash),
+      throwsA(isA<ReviewException>()),
+    );
+    expect(cmds.calls, isEmpty);
   });
 
   test('Criar PR: commits pending, pushes the branch and calls gh', () async {
@@ -485,7 +1468,7 @@ void main() {
     final e = await setUpSession(commands: cmds);
     await e.c
         .read(sessionsRepoProvider)
-        .setPrUrl(e.sessionId, 'https://x/pr/7');
+        .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
     final sitter = e.c.read(prBabysitterProvider.notifier);
     await sitter.toggle(e.sessionId);
     expect(sitter.isWatching(e.sessionId), isTrue);
@@ -527,6 +1510,10 @@ void main() {
     expect(
       e.cli.last.writtenJson.last['message']['content'],
       contains('git merge main'),
+    );
+    expect(
+      (await e.c.read(tasksRepoProvider).getById(e.task.id))!.status,
+      TaskStatus.running,
     );
 
     // Merged on GitHub, but gh fails deleting the local branch: still closes.
@@ -771,6 +1758,112 @@ void specReviewTests() {
     );
   });
 
+  /// Runs SPEC-001 (R1 and R2, one session each) until it is in Review.
+  Future<(ProviderContainer, String)> specInReview() async {
+    final cli = FakeCli();
+    final c = sessionContainer([
+      ...sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+      commandRunnerProvider.overrideWithValue(FakeCommands().call),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'r');
+    await c.read(specServiceProvider).sync(ws);
+    final spec = (await c
+        .read(specsRepoProvider)
+        .getByCode(ws.id, 'SPEC-001'))!;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.singleSessionSteps, '1');
+    await c.read(specRunnerProvider).runNext(spec.id);
+    await settle();
+    final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+        .worktreePath!;
+    File('$wt/r1.txt').writeAsStringSync('1\n');
+    await gitIn(wt, ['add', '.']);
+    await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1']);
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
+    await settle();
+    await settle();
+    File('$wt/r2.txt').writeAsStringSync('2\n');
+    cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
+    await settle();
+    await settle();
+    final session = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+    return (c, session.id);
+  }
+
+  test('with switch and stash, "spec concluída" lands on the base and the '
+      'original branch comes back after it', () async {
+    final (c, id) = await specInReview();
+    await gitIn(repo, ['switch', '-qc', 'outra']);
+    File('$repo/local.txt').writeAsStringSync('keep\n');
+    await gitIn(repo, ['add', 'local.txt']);
+    final r = await c
+        .read(reviewServiceProvider)
+        .merge(id, options: const MergeOptions(switchBase: true, stash: true));
+    expect(r.warnings, isEmpty);
+    expect(
+      (await gitIn(repo, [
+        'log',
+        '--format=%s',
+        '--first-parent',
+        '-2',
+        'main',
+      ])).trim().split('\n').first,
+      'SPEC-001: spec concluída',
+    );
+    expect((await gitIn(repo, ['branch', '--show-current'])).trim(), 'outra');
+    expect(
+      (await gitIn(repo, ['diff', '--cached', '--name-only'])).trim(),
+      'local.txt',
+    );
+    expect((await gitIn(repo, ['stash', 'list'])).trim(), isEmpty);
+  });
+
+  test('with the spec file changed by the user, its status is written '
+      'without a commit and a warning says so', () async {
+    final (c, id) = await specInReview();
+    final path = '$repo/specs/SPEC-001-extracao.md';
+    File(
+      path,
+    ).writeAsStringSync('${File(path).readAsStringSync()}\nNota do usuário.\n');
+    // With "stash" the spec file stays out of it (and doesn't block).
+    final r = await c
+        .read(reviewServiceProvider)
+        .merge(id, options: const MergeOptions(stash: true));
+    expect(r.warnings.join('\n'), contains('status atualizado sem commit'));
+    final text = File(path).readAsStringSync();
+    expect(text, contains('status: concluida'));
+    expect(text, contains('Nota do usuário.'));
+    expect(
+      (await gitIn(repo, ['log', '-1', '--format=%s'])).trim(),
+      startsWith('Merge '),
+    );
+  });
+
+  test('a hook failing on the "spec concluída" commit is only a warning: '
+      'the merge stands', () async {
+    final (c, id) = await specInReview();
+    final hook = File('$repo/.git/hooks/pre-commit')
+      ..writeAsStringSync('#!/bin/sh\nexit 1\n');
+    await Process.run('chmod', ['+x', hook.path]);
+    final r = await c
+        .read(reviewServiceProvider)
+        .merge(id, options: const MergeOptions(skipHooks: true));
+    expect(r.warnings.join('\n'), contains('commit "spec concluída" falhou'));
+    expect(
+      (await c.read(sessionsRepoProvider).getById(id))!.status,
+      SessionStatus.merged,
+    );
+    expect(File('$repo/r1.txt').existsSync(), isTrue);
+  });
+
   test('criteria block the merge until checked or overridden; the Review '
       'filters the diff by step', () async {
     File('$repo/specs/SPEC-001-extracao.md').writeAsStringSync(
@@ -859,4 +1952,18 @@ void specReviewTests() {
       isEmpty,
     );
   });
+}
+
+/// A git without `merge-tree --write-tree` (older than 2.38).
+class _NoMergeTreeGit extends GitService {
+  _NoMergeTreeGit(super.root, this._inner)
+    : super(worktreesBase: _inner.worktreesBase);
+  final GitService _inner;
+  @override
+  Future<String> git(List<String> args) => args.first == 'merge-tree'
+      ? throw const GitException(
+          "error: unknown option `write-tree'",
+          exitCode: 129,
+        )
+      : _inner.git(args);
 }

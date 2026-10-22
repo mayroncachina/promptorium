@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/claude/claude_args.dart';
 import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
+import '../../../core/providers/agent_registry.dart' show codexEnabledProvider;
 import '../../../core/providers/permission_policy.dart';
 import '../../../core/providers/provider_preferences.dart';
 import '../../../ui/theme/tokens.dart';
@@ -262,7 +263,12 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                     'Provedor',
                     'run-spec-provider',
                     _provider,
-                    const [('claude', 'Claude Code'), ('codex', 'Codex')],
+                    [
+                      ('claude', 'Claude Code'),
+                      if (ref.watch(codexEnabledProvider) ||
+                          _provider == 'codex')
+                        ('codex', 'Codex'),
+                    ],
                     (v) {
                       _provider = v;
                       _model = 'inherit';

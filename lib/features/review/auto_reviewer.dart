@@ -41,7 +41,7 @@ importa: requisito faltando ou errado, bug, teste ausente para um requisito,
 quebra de algo que já existia, segredo no código. Não peça mudanças de estilo
 ou gosto pessoal.
 
-Cada comentário diz o arquivo e a linha (linha 0 = o arquivo todo; arquivo
+Cada comentário diz o arquivo e a linha do arquivo novo, como numerada no diff (linha 0 = o arquivo todo; arquivo
 vazio = a spec como um todo), o que está errado e o que fazer, com o requisito
 (R1, R2…) quando houver. Escreva em português, curto e direto.''';
 
@@ -230,7 +230,15 @@ String reviewerPrompt({
       b.writeln('- rodada ${c.round}: ${c.path ?? 'spec'} — ${c.body}');
     }
   }
+  // Also for a project's own reviewer agent, which skips the built-in
+  // system prompt: the Review anchors each comment on this line.
   b
+    ..writeln()
+    ..writeln(
+      'Em cada comentário, informe o arquivo e a linha do arquivo novo, como '
+      'numerada no diff (linha 0 = o arquivo todo; sem arquivo = comentário '
+      'geral).',
+    )
     ..writeln()
     ..writeln('Diff da branch contra a base:')
     ..writeln('```diff')
@@ -245,6 +253,9 @@ String reviewerPrompt({
 /// "aprovar" or no rounds left → the user's Review.
 class AutoReviewer {
   AutoReviewer(this._ref);
+
+  /// Start of the comment left when a round fails (the user's turn).
+  static const failurePrefix = 'O revisor automático falhou';
 
   final Ref _ref;
 
@@ -388,7 +399,7 @@ class AutoReviewer {
           specId: specId,
           round: spec.reviewRounds + 1,
           author: 'revisor',
-          body: 'O revisor automático falhou: $failure',
+          body: '${AutoReviewer.failurePrefix}: $failure',
         ),
       ]);
     }

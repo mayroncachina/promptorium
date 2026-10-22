@@ -6,6 +6,8 @@ depende-de: [SPEC-003, SPEC-004]
 
 # Modo YOLO do Codex no lugar do bypass Claude
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). A parte Codex desta spec fica inativa enquanto `codexEnabledProvider` estiver desligado; o comportamento com Claude Code e agentes ACP continua valendo.
+
 ## Objetivo
 
 Quando o provedor da execução for Codex e o usuário selecionar o modo de bypass de permissões, usar `codex --yolo` nos fluxos de CLI e a configuração equivalente no App Server. Substituir os rótulos e argumentos Claude desse modo pelos correspondentes do Codex, preservando o comportamento Claude quando ele for o provedor escolhido.

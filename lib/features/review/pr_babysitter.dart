@@ -19,8 +19,16 @@ class PrComment {
     required this.body,
     required this.at,
     this.kind = 'comentário',
+    this.externalId,
+    this.path,
+    this.line,
+    this.commitSha,
   });
 
+  final String? externalId;
+  final String? path;
+  final int? line;
+  final String? commitSha;
   final String author;
   final String body;
   final DateTime at;
@@ -28,6 +36,21 @@ class PrComment {
   /// `comentário` / `review: CHANGES_REQUESTED`…
   final String kind;
 }
+
+/// Row of a PR comment in the spec's review history: keyed by its id on the
+/// host, so reading the PR again never duplicates it.
+ReviewCommentsCompanion prCommentRow(int specId, int round, PrComment c) =>
+    ReviewCommentsCompanion.insert(
+      specId: specId,
+      round: round,
+      author: 'pr',
+      body: '@${c.author}: ${c.body}',
+      externalId: Value(c.externalId),
+      path: Value(c.path),
+      line: Value(c.line),
+      commitSha: Value(c.commitSha),
+      verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
+    );
 
 /// What `gh pr view --json …` says about a PR.
 @immutable
@@ -104,6 +127,7 @@ PrStatus? parsePrView(String text) {
     for (final c in (j['comments'] as List? ?? const []))
       if (c is Map && '${c['body'] ?? ''}'.trim().isNotEmpty)
         PrComment(
+          externalId: c['id'] == null ? null : 'github:${c['id']}',
           author: login(c['author']),
           body: '${c['body']}'.trim(),
           at: when(c['createdAt']),
@@ -111,6 +135,7 @@ PrStatus? parsePrView(String text) {
     for (final r in (j['reviews'] as List? ?? const []))
       if (r is Map && '${r['body'] ?? ''}'.trim().isNotEmpty)
         PrComment(
+          externalId: r['id'] == null ? null : 'github:${r['id']}',
           author: login(r['author']),
           body: '${r['body']}'.trim(),
           at: when(r['submittedAt']),
@@ -141,7 +166,9 @@ String prCommentsMessage(List<PrComment> comments) {
     b
       ..writeln()
       ..writeln('@${c.author} (${c.kind}):')
-      ..writeln(c.body);
+      ..writeln(
+        '${c.path == null ? '' : '${c.path}:${c.line ?? 0} — '}${c.body.substring(0, c.body.length.clamp(0, 4000))}',
+      );
   }
   b
     ..writeln()
@@ -216,7 +243,11 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     } catch (e) {
       state = {
         ...state,
-        sessionId: PrWatch(error: '$e', checkedAt: DateTime.now()),
+        sessionId: PrWatch(
+          status: state[sessionId]?.status,
+          error: '$e',
+          checkedAt: DateTime.now(),
+        ),
       };
       return;
     }
@@ -281,16 +312,9 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     final round = rounds.isEmpty
         ? 1
         : rounds.reduce((a, b) => a > b ? a : b) + 1;
-    await repo.insertAll([
-      for (final c in news)
-        ReviewCommentsCompanion.insert(
-          specId: specId,
-          round: round,
-          author: 'pr',
-          body: '@${c.author}: ${c.body}',
-          verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
-        ),
-    ]);
+    for (final c in news) {
+      await repo.insertExternal(prCommentRow(specId, round, c));
+    }
   }
 
   void _notify(String title, String body, String sessionId) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_registry.dart'
+    show codexEnabledProvider;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/features/sessions/new_session_dialog.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -17,7 +19,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [databaseOverride(memoryDatabase())],
+        overrides: [
+          codexEnabledProvider.overrideWithValue(true),
+          databaseOverride(memoryDatabase()),
+        ],
         child: MaterialApp(
           theme: AppTheme.dark(),
           home: const Scaffold(body: NewSessionDialog()),

@@ -1,6 +1,6 @@
 ---
 id: SPEC-008
-status: rascunho
+status: concluida
 ---
 
 # Canvas do Quadro: dependências, etapas e referências
@@ -95,33 +95,33 @@ Reaproveitar o `SpecCard` (descartado), arrastar nós (fora), o estado sem sele�
 
 Os testes marcados "(a criar)" fazem parte da implementação; usam banco em memória e arquivos falsos, sem rede.
 
-- [ ] [R1] A visão Canvas abre com 100%; arrastar o fundo move o conteúdo e Ctrl + roda altera o zoom, sem passar de 50% nem de 150%. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R1] O menu do zoom tem Aproximar, Afastar, Tamanho real, Ajustar à tela e Ajustar à seleção; Ajustar à tela deixa todos os nós visíveis e Ajustar à seleção centra o nó selecionado. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R1] Ctrl+=, Ctrl+- e Ctrl+0 mudam o zoom do canvas quando a visão Canvas está ativa e não fazem nada nas Colunas. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R2] Cada spec aparece na coluna da sua onda, com uma bolinha por etapa no estado correto, e cada dependência tem uma ligação até a spec que a aguarda. verificar: `flutter test test/features/board/wave_graph_test.dart` (a criar)
-- [ ] [R2] Passar o mouse numa bolinha de etapa do nó mostra id, título e texto do requisito daquela etapa. verificar: `flutter test test/features/board/wave_graph_test.dart` (a criar)
-- [ ] [R2] Uma etapa `needsInput` aparece como losango âmbar, uma `verifying` como anel teal girando, e os dois se distinguem da etapa pendente e da em execução também pela forma. verificar: `flutter test test/features/board/wave_graph_test.dart` (a criar)
-- [ ] [R2] Selecionar uma spec destaca as ligações dela e esmaece os nós que não são dela, das dependências nem das dependentes; clicar no fundo limpa a seleção. verificar: `flutter test test/features/board/wave_graph_test.dart` (a criar)
-- [ ] [R2] Os testes atuais do Quadro (chaves `board-graph`, `board-wave-N`, `board-view-graph`) continuam passando. verificar: `flutter test test/features/board/board_screen_test.dart`
-- [ ] [R3] Com uma spec selecionada, aparecem só os agentes e skills dela, ligados ao nó; sem seleção, nenhum aparece. verificar: `flutter test test/features/board/spec_references_test.dart` (a criar)
-- [ ] [R3] Uma spec com 5 skills mostra 3 e o nó "+2 mais"; clicar nele mostra as 5 e clicar de novo volta a 3. verificar: `flutter test test/features/board/spec_references_test.dart` (a criar)
-- [ ] [R3] As skills vêm só da ferramenta `Skill` nos eventos das sessões da spec; uma skill listada apenas no `system/init` não aparece. verificar: `flutter test test/features/board/spec_references_test.dart` (a criar)
-- [ ] [R3] Desligar a camada Agentes esconde só os agentes e as ligações deles; o mesmo vale para Skills. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R4] Passar o mouse num agente mostra nome, escopo, descrição, modelo e ferramentas; Tab no nó mostra o mesmo cartão e Esc o fecha. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R4] O cartão de uma skill embutida mostra "Embutida" e "sem descrição disponível", sem texto inventado. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R5] Numa spec aprovada sem execução o painel mostra "Executar", que abre o diálogo de opções; com sessões anteriores mostra "Continuar · Rn"; aguardando resposta mostra "Responder na sessão"; em review mostra "Ver review". Uma spec bloqueada por dependência não oferece Executar e mostra o motivo. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R5] Passar o mouse numa etapa do painel (ou focá-la com Tab) mostra o texto do requisito dela, com id e título no cabeçalho; Esc fecha; uma etapa sem texto não abre cartão. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R5] O cartão das Colunas e o painel do canvas oferecem a mesma ação para a mesma spec, e os testes atuais das ações do cartão continuam passando. verificar: `flutter test test/features/board/board_screen_test.dart`
-- [ ] [R5] O painel mostra objetivo, depende de, desbloqueia, etapas e referências da spec selecionada; "Abrir spec" leva à tela Specs e "Ver nas colunas" volta às Colunas com a mesma spec selecionada. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R6] Com uma etapa em execução a bolinha anima; sem etapa em execução, ou com `disableAnimations`, fica parada e nenhum `AnimationController` continua ativo. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R6] A legenda mostra os cinco estados de etapa, os dois tipos de ligação, agente e skill. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R7] Uma spec com etapa aguardando você, aprovação pendente, falha de preparo, alteração no disco ou duelo pronto mostra o anel âmbar e o selo "Precisa de você" no nó; uma spec concluída não mostra. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R7] Com duas etapas da mesma spec em `needsInput`, as duas bolinhas mostram o losango, o painel lista "R3 e R4" no motivo com um único botão "Responder na sessão", e o contador "Atenção" conta a spec uma vez. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R7] Ao enviar uma mensagem numa sessão parada em `needsInput`, o anel e o selo do nó somem; se a sessão parar de novo sem concluir, voltam. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar, com `SessionManager` e `SpecRunner` falsos)
-- [ ] [R7] Selecionar essa spec mostra no painel o motivo e a ação correta ("Responder na sessão", "Tentar de novo" ou "Abrir aprovações"), a mesma do cartão das Colunas. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R7] O botão "Atenção · N" mostra o mesmo N do cabeçalho das Colunas, cada clique seleciona a próxima spec com atenção, e com N = 0 fica desabilitado. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R7] O canvas não aprova nem nega nenhuma ferramenta: nenhum botão do canvas chama o aprovador de sessões. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar)
-- [ ] [R1–R7] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R1] A visão Canvas abre com 100%; arrastar o fundo move o conteúdo e Ctrl + roda altera o zoom, sem passar de 50% nem de 150%. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R1] O menu do zoom tem Aproximar, Afastar, Tamanho real, Ajustar à tela e Ajustar à seleção; Ajustar à tela deixa todos os nós visíveis e Ajustar à seleção centra o nó selecionado. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R1] Ctrl+=, Ctrl+- e Ctrl+0 mudam o zoom do canvas quando a visão Canvas está ativa e não fazem nada nas Colunas. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R2] Cada spec aparece na coluna da sua onda, com uma bolinha por etapa no estado correto, e cada dependência tem uma ligação até a spec que a aguarda. verificar: `flutter test test/features/board/wave_graph_test.dart`
+- [x] [R2] Passar o mouse numa bolinha de etapa do nó mostra id, título e texto do requisito daquela etapa. verificar: `flutter test test/features/board/wave_graph_test.dart`
+- [x] [R2] Uma etapa `needsInput` aparece como losango âmbar, uma `verifying` como anel teal girando, e os dois se distinguem da etapa pendente e da em execução também pela forma. verificar: `flutter test test/features/board/wave_graph_test.dart`
+- [x] [R2] Selecionar uma spec destaca as ligações dela e esmaece os nós que não são dela, das dependências nem das dependentes; clicar no fundo limpa a seleção. verificar: `flutter test test/features/board/wave_graph_test.dart`
+- [x] [R2] Os testes atuais do Quadro (chaves `board-graph`, `board-wave-N`, `board-view-graph`) continuam passando. verificar: `flutter test test/features/board/board_screen_test.dart`
+- [x] [R3] Com uma spec selecionada, aparecem só os agentes e skills dela, ligados ao nó; sem seleção, nenhum aparece. verificar: `flutter test test/features/board/spec_references_test.dart`
+- [x] [R3] Uma spec com 5 skills mostra 3 e o nó "+2 mais"; clicar nele mostra as 5 e clicar de novo volta a 3. verificar: `flutter test test/features/board/spec_references_test.dart`
+- [x] [R3] As skills vêm só da ferramenta `Skill` nos eventos das sessões da spec; uma skill listada apenas no `system/init` não aparece. verificar: `flutter test test/features/board/spec_references_test.dart`
+- [x] [R3] Desligar a camada Agentes esconde só os agentes e as ligações deles; o mesmo vale para Skills. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R4] Passar o mouse num agente mostra nome, escopo, descrição, modelo e ferramentas; Tab no nó mostra o mesmo cartão e Esc o fecha. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R4] O cartão de uma skill embutida mostra "Embutida" e "sem descrição disponível", sem texto inventado. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R5] Numa spec aprovada sem execução o painel mostra "Executar", que abre o diálogo de opções; com sessões anteriores mostra "Continuar · Rn"; aguardando resposta mostra "Responder na sessão"; em review mostra "Ver review". Uma spec bloqueada por dependência não oferece Executar e mostra o motivo. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R5] Passar o mouse numa etapa do painel (ou focá-la com Tab) mostra o texto do requisito dela, com id e título no cabeçalho; Esc fecha; uma etapa sem texto não abre cartão. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R5] O cartão das Colunas e o painel do canvas oferecem a mesma ação para a mesma spec, e os testes atuais das ações do cartão continuam passando. verificar: `flutter test test/features/board/board_screen_test.dart`
+- [x] [R5] O painel mostra objetivo, depende de, desbloqueia, etapas e referências da spec selecionada; "Abrir spec" leva à tela Specs e "Ver nas colunas" volta às Colunas com a mesma spec selecionada. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R6] Com uma etapa em execução a bolinha anima; sem etapa em execução, ou com `disableAnimations`, fica parada e nenhum `AnimationController` continua ativo. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R6] A legenda mostra os cinco estados de etapa, os dois tipos de ligação, agente e skill. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R7] Uma spec com etapa aguardando você, aprovação pendente, falha de preparo, alteração no disco ou duelo pronto mostra o anel âmbar e o selo "Precisa de você" no nó; uma spec concluída não mostra. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R7] Com duas etapas da mesma spec em `needsInput`, as duas bolinhas mostram o losango, o painel lista "R3 e R4" no motivo com um único botão "Responder na sessão", e o contador "Atenção" conta a spec uma vez. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R7] Ao enviar uma mensagem numa sessão parada em `needsInput`, o anel e o selo do nó somem; se a sessão parar de novo sem concluir, voltam. verificar: `flutter test test/features/board/canvas_view_test.dart` (a criar, com `SessionManager` e `SpecRunner` falsos)
+- [x] [R7] Selecionar essa spec mostra no painel o motivo e a ação correta ("Responder na sessão", "Tentar de novo" ou "Abrir aprovações"), a mesma do cartão das Colunas. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R7] O botão "Atenção · N" mostra o mesmo N do cabeçalho das Colunas, cada clique seleciona a próxima spec com atenção, e com N = 0 fica desabilitado. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R7] O canvas não aprova nem nega nenhuma ferramenta: nenhum botão do canvas chama o aprovador de sessões. verificar: `flutter test test/features/board/canvas_view_test.dart`
+- [x] [R1–R7] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R1, R2] Com 60 specs de exemplo, mover e dar zoom no canvas continua fluido, sem travar. verificar: manual (`flutter run -d linux`, Quadro → Canvas)
 - [ ] [R7] Com uma sessão real parada pedindo aprovação, o canvas mostra o anel e o motivo e "Abrir aprovações" leva à fila certa. verificar: manual (`flutter run -d linux`, iniciar uma etapa que peça uma ferramenta, abrir Quadro → Canvas)
 - [ ] [R3, R4] Num workspace com sessões reais de specs que usaram skills, o canvas mostra as skills certas e o cartão traz a descrição do `SKILL.md`. verificar: manual (`flutter run -d linux`, Quadro → Canvas, selecionar uma spec com sessões)

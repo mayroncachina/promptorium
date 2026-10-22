@@ -1,6 +1,6 @@
 ---
 id: SPEC-011
-status: rascunho
+status: concluida
 depende-de: [SPEC-009, SPEC-010]
 ---
 
@@ -61,15 +61,15 @@ Reunir num só lugar tudo que decide se uma spec (ou sessão) pode ser mergeada,
 
 ## Critérios de aceite
 
-- [ ] [R3] `evaluateReadiness` classifica como bloqueio cada condição que `ReviewService.merge` recusa e como aviso as demais, e o nível geral é o pior dos itens. verificar: `flutter test test/features/review/merge_readiness_test.dart` (a criar)
-- [ ] [R3] Para cada item de bloqueio de origem `servico`, `merge` de fato recusa, e para cada aviso `merge` não recusa (mesmos fatos, repositório temporário real); o bloqueio do revisor, de origem `tela`, desabilita o botão (`canMerge`). O `merge` não muda. verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R1] O cabeçalho mostra pronto, avisos ou bloqueado, com a contagem, e o item da fila mostra o ponto de estado correspondente. verificar: `flutter test test/features/review/review_screen_test.dart`
-- [ ] [R2] O painel lista as oito linhas (`revisor`, `criterios`, `verificacoes`, `pr`, `comentarios`, `empilhada`, `raiz`, `worktree`), cada uma com estado, motivo e ação; numa sessão sem spec, `revisor`, `criterios`, `verificacoes` e `comentarios` não aparecem. verificar: `flutter test test/features/review/merge_readiness_test.dart` (a criar)
-- [ ] [R4] Com bloqueio, "Fazer merge" fica desabilitado e o tooltip lista os bloqueios; com avisos, o diálogo lista os avisos antes de confirmar. verificar: `flutter test test/features/review/review_screen_test.dart`
-- [ ] [R4] Com os critérios como único bloqueio de origem `servico`, "Fazer merge" fica desabilitado e "Mergear mesmo assim…" fica habilitado e exige um motivo; com outro bloqueio, os dois ficam desabilitados. verificar: `flutter test test/features/review/review_screen_test.dart`
-- [ ] [R5] Mudar um critério, um comentário, o PR ou a branch da raiz recalcula o painel (a invalidação por streams e por `PrBabysitter.check`). verificar: `flutter test test/features/review/merge_readiness_provider_test.dart` (a criar)
-- [ ] [R5] Uma fonte que falha aparece como "não verificado": em `raiz`, `empilhada` e `worktree` continua bloqueando; em `pr`, `verificacoes` e `comentarios` conta como aviso; nunca como "ok". verificar: `flutter test test/features/review/merge_readiness_test.dart` (a criar)
-- [ ] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R3] `evaluateReadiness` classifica como bloqueio cada condição que `ReviewService.merge` recusa e como aviso as demais, e o nível geral é o pior dos itens. verificar: `flutter test test/features/review/merge_readiness_test.dart`
+- [x] [R3] Para cada item de bloqueio de origem `servico`, `merge` de fato recusa, e para cada aviso `merge` não recusa (mesmos fatos, repositório temporário real); o bloqueio do revisor, de origem `tela`, desabilita o botão (`canMerge`). O `merge` não muda. verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R1] O cabeçalho mostra pronto, avisos ou bloqueado, com a contagem, e o item da fila mostra o ponto de estado correspondente. verificar: `flutter test test/features/review/review_screen_test.dart`
+- [x] [R2] O painel lista as oito linhas (`revisor`, `criterios`, `verificacoes`, `pr`, `comentarios`, `empilhada`, `raiz`, `worktree`), cada uma com estado, motivo e ação; numa sessão sem spec, `revisor`, `criterios`, `verificacoes` e `comentarios` não aparecem. verificar: `flutter test test/features/review/merge_readiness_test.dart`
+- [x] [R4] Com bloqueio, "Fazer merge" fica desabilitado e o tooltip lista os bloqueios; com avisos, o diálogo lista os avisos antes de confirmar. verificar: `flutter test test/features/review/review_screen_test.dart`
+- [x] [R4] Com os critérios como único bloqueio de origem `servico`, "Fazer merge" fica desabilitado e "Mergear mesmo assim…" fica habilitado e exige um motivo; com outro bloqueio, os dois ficam desabilitados. verificar: `flutter test test/features/review/review_screen_test.dart`
+- [x] [R5] Mudar um critério, um comentário, o PR ou a branch da raiz recalcula o painel (a invalidação por streams e por `PrBabysitter.check`). verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R5] Uma fonte que falha aparece como "não verificado": em `raiz`, `empilhada` e `worktree` continua bloqueando; em `pr`, `verificacoes` e `comentarios` conta como aviso; nunca como "ok". verificar: `flutter test test/features/review/merge_readiness_test.dart`
+- [x] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2, R4] Numa spec real com revisor, critérios e PR, o painel reflete o estado e o merge segue o que ele diz. verificar: manual (`flutter run -d linux`, Review de uma spec com PR e um critério sem marcar)
 
 ## Ordem de implementação

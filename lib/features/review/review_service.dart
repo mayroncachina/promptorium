@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/git/diff_parser.dart';
+import '../../core/fs/dir_watcher.dart';
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
@@ -16,6 +17,14 @@ import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'pr_babysitter.dart';
 import 'review_logic.dart';
+import 'comment_anchor.dart';
+import 'merge_readiness.dart';
+import 'merge_options.dart';
+import 'review_host.dart';
+import '../project/project_config.dart';
+import 'auto_reviewer.dart' show AutoReviewer, ReviewPhase;
+import '../board/board_rules.dart';
+import 'widgets/spec_review_panel.dart';
 
 export 'review_logic.dart';
 
@@ -43,6 +52,11 @@ class ReviewException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class MergeConflictException extends ReviewException {
+  const MergeConflictException(super.message, this.files);
+  final List<String> files;
 }
 
 /// What the Review shows for one session.
@@ -85,13 +99,25 @@ class ReviewDetail {
 /// Whether "Criar PR" can run (`gh` in the PATH + a git remote).
 @immutable
 class PrAvailability {
-  const PrAvailability({required this.available, this.reason, this.remote});
+  const PrAvailability({
+    required this.available,
+    this.reason,
+    this.remote,
+    this.host = 'github',
+    this.hostname,
+    this.installUrl,
+    this.remotes = const [],
+  });
 
   final bool available;
 
   /// Tooltip when not [available].
   final String? reason;
   final String? remote;
+  final String host;
+  final String? hostname, installUrl;
+  final List<String> remotes;
+  String get requestLabel => host == 'gitlab' ? 'MR' : 'PR';
 }
 
 @immutable
@@ -282,6 +308,123 @@ class ReviewService {
     }
   }
 
+  Future<AnchorShifts> anchorShifts(
+    String sessionId,
+    List<ReviewCommentRow> comments,
+  ) async {
+    final c = await _context(sessionId);
+    final git = _git(c.session.worktreePath);
+    final result = <int, ({int? line, String? reason})>{};
+    final cache = <String, ({List<DiffHunk> hunks, String? reason})>{};
+    for (final row in comments) {
+      final sha = row.commitSha, path = row.path;
+      if (sha == null || path == null) continue;
+      final key = '$sha:$path';
+      if (!cache.containsKey(key)) {
+        try {
+          _safeRef(sha, 'Commit');
+          // The worktree, not HEAD: a file not committed yet still counts.
+          if (!await File('${c.session.worktreePath}/$path').exists()) {
+            cache[key] = (hunks: [], reason: 'arquivo removido ou renomeado');
+          } else {
+            final names = await git.git([
+              'diff',
+              '--name-status',
+              '-M',
+              '$sha..HEAD',
+              '--',
+              path,
+            ]);
+            final removed = names
+                .split('\n')
+                .any((l) => l.startsWith('D\t') || l.startsWith('R'));
+            final diff = await git.git([
+              'diff',
+              '--no-ext-diff',
+              '--no-color',
+              '-U0',
+              sha,
+              '--',
+              path,
+            ]);
+            cache[key] = (
+              hunks: DiffParser.parse(diff).expand((f) => f.hunks).toList(),
+              reason: removed ? 'arquivo removido ou renomeado' : null,
+            );
+          }
+        } on GitException {
+          cache[key] = (hunks: [], reason: 'commit ou arquivo indisponível');
+        }
+      }
+      final change = cache[key]!;
+      final line = row.line == null || row.line == 0
+          ? row.line
+          : shiftedLine(row.line!, change.hunks);
+      result[row.id] = (
+        line: line,
+        reason:
+            change.reason ??
+            (row.line != null && row.line! > 0 && line == null
+                ? 'linha alterada desde a rodada'
+                : null),
+      );
+    }
+    return result;
+  }
+
+  Future<String?> roundUnavailable(String sessionId, String? sha) async {
+    if (sha == null || sha.isEmpty) {
+      return 'esta rodada não registrou o commit revisado';
+    }
+    final c = await _context(sessionId);
+    try {
+      _safeRef(sha, 'Commit');
+      final git = _git(c.session.worktreePath);
+      await git.git(['cat-file', '-e', '$sha^{commit}']);
+      await git.git(['merge-base', '--is-ancestor', sha, 'HEAD']);
+      return null;
+    } on GitException {
+      return 'o commit da rodada não existe mais nesta branch';
+    }
+  }
+
+  Future<ReviewDetail> loadSince(String sessionId, String sha) async {
+    final c = await _context(sessionId);
+    final reason = await roundUnavailable(sessionId, sha);
+    if (reason != null) return ReviewDetail(session: c.session, error: reason);
+    final git = _git(c.session.worktreePath);
+    try {
+      final status = await git.status();
+      final files = DiffParser.parse(
+        await git.git([
+          'diff',
+          '--no-color',
+          '--no-ext-diff',
+          '--unified=3',
+          '-M',
+          sha,
+        ]),
+      );
+      for (final u in status.where((e) => e.isUntracked)) {
+        files.addAll(DiffParser.parse(await _untrackedDiff(git, u.path)));
+      }
+      files.sort((a, b) => a.path.compareTo(b.path));
+      return ReviewDetail(
+        session: c.session,
+        task: c.task,
+        mergeBase: sha,
+        baseBranch: await baseBranchOf(c.session, c.workspace),
+        files: files,
+        commitsAhead: int.parse(
+          (await git.git(['rev-list', '--count', '$sha..HEAD'])).trim(),
+        ),
+        uncommitted: status.length,
+      );
+    } on GitException catch (e) {
+      return ReviewDetail(session: c.session, error: '$e');
+    }
+  }
+
   /// `git diff --no-index` exits 1 when there are differences.
   static Future<String> _untrackedDiff(GitService git, String path) async {
     try {
@@ -339,15 +482,31 @@ class ReviewService {
     String sessionId,
     List<ReviewComment> comments, {
     String note = '',
+    List<ReviewCommentRow> selected = const [],
   }) async {
-    if (comments.isEmpty && note.trim().isEmpty) {
+    if (comments.isEmpty && selected.isEmpty && note.trim().isEmpty) {
       throw const ReviewException('Escreva um comentário antes de enviar.');
     }
     final c = await _context(sessionId);
     if (c.session.status == SessionStatus.merged) {
       throw const ReviewException('A sessão já foi integrada (merge).');
     }
-    final msg = adjustmentMessage(comments, note: note);
+    final selectedComments = [
+      for (final row in selected)
+        ReviewComment(
+          path: row.path ?? 'Geral',
+          line: row.line ?? 0,
+          snippet: await _lineOf(c.session.worktreePath, row.path, row.line),
+          anchor: '',
+          text:
+              '[${row.author}, rodada ${row.round}] '
+              '${row.body.substring(0, row.body.length.clamp(0, 4000))}',
+        ),
+    ];
+    final msg = adjustmentMessage([
+      ...comments,
+      ...selectedComments,
+    ], note: note);
     try {
       await _ref.read(sessionManagerProvider.notifier).send(sessionId, msg);
     } on SessionException catch (e) {
@@ -368,107 +527,203 @@ class ReviewService {
       } on GitException {
         head = null;
       }
-      await repo.insertAll([
-        ReviewCommentsCompanion.insert(
-          specId: spec.id,
-          round: round,
-          author: 'humano',
-          body: note.trim().isEmpty ? 'Ajustes pedidos.' : note.trim(),
-          verdict: const Value('corrigir'),
-          commitSha: Value(head),
-        ),
-        for (final x in comments)
+      await _ref.read(appDatabaseProvider).transaction(() async {
+        await repo.insertAll([
           ReviewCommentsCompanion.insert(
             specId: spec.id,
             round: round,
             author: 'humano',
-            path: Value(x.path),
-            line: Value(x.line),
-            body: x.text,
+            body: note.trim().isEmpty ? 'Ajustes pedidos.' : note.trim(),
+            verdict: const Value('corrigir'),
             commitSha: Value(head),
           ),
-      ]);
+          for (final x in comments)
+            ReviewCommentsCompanion.insert(
+              specId: spec.id,
+              round: round,
+              author: 'humano',
+              path: Value(x.path),
+              line: Value(x.line),
+              body: x.text,
+              commitSha: Value(head),
+            ),
+        ]);
+        for (final row in selected) {
+          if (row.specId != spec.id || row.resolved) continue;
+          await repo.setResolved(row.id, true);
+        }
+      });
     }
     return msg;
   }
 
-  /// `which gh` + a remote in the workspace (prefers `origin`).
-  Future<PrAvailability> prAvailability(String sessionId) async {
-    final c = await _context(sessionId);
+  /// The line a comment points at, as it reads now (empty when gone).
+  static Future<List<String>> _lineOf(
+    String root,
+    String? path,
+    int? line,
+  ) async {
+    if (path == null || line == null || line < 1) return const [];
     try {
-      final r = await _run('which', ['gh']);
-      if (r.exitCode != 0 || '${r.stdout}'.trim().isEmpty) {
-        return const PrAvailability(
-          available: false,
-          reason: 'GitHub CLI (gh) não encontrado no PATH.',
-        );
-      }
-    } on ProcessException {
-      return const PrAvailability(
+      final lines = await File('$root/$path').readAsLines();
+      return line <= lines.length ? [lines[line - 1]] : const [];
+    } on FileSystemException {
+      return const [];
+    }
+  }
+
+  /// Resolves the effective remote before inspecting the corresponding CLI.
+  Future<PrAvailability> prAvailability(
+    String sessionId, {
+    String? remote,
+  }) async {
+    final c = await _context(sessionId);
+    remote ??= _ref.read(appSettingsProvider)['review.remote.$sessionId'];
+    if (c.session.prUrl case final saved?) {
+      final uri = Uri.tryParse(saved);
+      return PrAvailability(
         available: false,
-        reason: 'GitHub CLI (gh) não encontrado no PATH.',
+        host: uri?.path.contains('/-/merge_requests/') == true
+            ? 'gitlab'
+            : 'github',
+        hostname: uri?.host,
+        reason: 'Request já criado: $saved',
       );
     }
-    final List<String> remotes;
     try {
-      remotes = [
-        for (final l in (await _git(
-          c.workspace.path,
-        ).git(['remote'])).split('\n'))
-          if (l.trim().isNotEmpty) l.trim(),
-      ];
+      final git = _git(c.workspace.path);
+      final names = (await git.git(['remote']))
+          .split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (names.isEmpty) {
+        return const PrAvailability(
+          available: false,
+          reason: 'O repositório não tem remote (git remote add origin …).',
+        );
+      }
+      String? upstream;
+      try {
+        upstream = (await _git(
+          c.session.worktreePath,
+        ).git(['config', '--get', 'branch.${c.session.branch}.remote'])).trim();
+      } on GitException {
+        /* no upstream */
+      }
+      final selected = chooseReviewRemote(
+        names,
+        explicit: remote,
+        upstream: upstream,
+      );
+      if (selected == null) {
+        return PrAvailability(
+          available: false,
+          host: 'unknown',
+          remotes: names,
+          reason: 'Escolha o remote de destino para as ações de PR/MR.',
+        );
+      }
+      final url = (await git.git(['remote', 'get-url', '--push', selected]))
+          .trim();
+      final config = await _ref.read(
+        projectConfigProvider(c.workspace.path).future,
+      );
+      final hostname = remoteHost(url);
+      final host = detectReviewHost(url, config);
+      if (host == null) {
+        return PrAvailability(
+          available: false,
+          remote: selected,
+          host: 'unknown',
+          hostname: hostname,
+          reason: switch (remoteKind(url)) {
+            RemoteKind.local =>
+              'O remote $selected aponta para um caminho local ($url); ações de PR/MR exigem um hospedeiro remoto.',
+            RemoteKind.invalid =>
+              'O remote $selected tem URL inválida ($url). Corrija com git remote set-url $selected <url>.',
+            RemoteKind.hosted
+                when hostname == config.host?.toLowerCase() &&
+                    config.hostType != null =>
+              'hospedagem.tipo "${config.hostType}" inválido no config.yml para $hostname: use github ou gitlab.',
+            RemoteKind.hosted =>
+              'Integração com $hostname ainda não disponível. Para instância própria de GitHub/GitLab, configure hospedagem: {host: $hostname, tipo: github|gitlab} no config.yml.',
+          },
+        );
+      }
+      if (!hasWorktree(c.session, c.workspace)) {
+        return PrAvailability(
+          available: false,
+          remote: selected,
+          host: host,
+          hostname: hostname,
+          reason: 'A sessão não tem worktree próprio.',
+        );
+      }
+      final cli = host == 'gitlab' ? GitlabHost(_run) : GithubHost(_run);
+      final a = await cli.availability(c.workspace.path, hostname!);
+      return PrAvailability(
+        available: a.available,
+        reason: a.reason,
+        remote: selected,
+        host: host,
+        hostname: hostname,
+        installUrl: a.installUrl,
+      );
     } on GitException catch (e) {
       return PrAvailability(available: false, reason: '$e');
     }
-    if (remotes.isEmpty) {
-      return const PrAvailability(
-        available: false,
-        reason: 'O repositório não tem remote (git remote add origin …).',
-      );
+  }
+
+  Future<void> _requireGithubRequest(String url, Workspace ws) async {
+    final uri = Uri.tryParse(url);
+    // A saved request belongs to its original host, regardless of the remote.
+    if (uri != null &&
+        uri.hasAuthority &&
+        uri.pathSegments.length == 4 &&
+        uri.pathSegments[2] == 'pull' &&
+        int.tryParse(uri.pathSegments[3]) != null &&
+        uri.host != 'gitlab.com') {
+      return;
     }
-    if (!hasWorktree(c.session, c.workspace)) {
-      return const PrAvailability(
-        available: false,
-        reason: 'A sessão não tem worktree próprio.',
-      );
-    }
-    try {
-      final auth = await _run('gh', [
-        'auth',
-        'status',
-      ], workingDirectory: c.workspace.path);
-      if (auth.exitCode != 0) {
-        return const PrAvailability(
-          available: false,
-          reason: 'gh não está autenticado: rode gh auth login no terminal.',
-        );
-      }
-    } on ProcessException {
-      return const PrAvailability(
-        available: false,
-        reason: 'GitHub CLI (gh) não encontrado no PATH.',
-      );
-    }
-    return PrAvailability(
-      available: true,
-      remote: remotes.contains('origin') ? 'origin' : remotes.first,
+    final gitlab =
+        uri != null &&
+        (uri.host == 'gitlab.com' || uri.path.contains('/-/merge_requests/'));
+    throw ReviewException(
+      gitlab
+          ? 'Integração do destino deste request indisponível (DT-55).'
+          : 'não foi possível ler a URL do PR',
     );
   }
 
   /// Commits everything pending in [git] (`add -A` + `commit`). Returns
   /// whether a commit was made.
-  static Future<bool> _commitPending(GitService git, String message) async {
+  static Future<bool> _commitPending(
+    GitService git,
+    String message, {
+    bool skipHooks = false,
+  }) async {
     if ((await git.status()).isEmpty) return false;
     await git.git(['add', '-A']);
-    await git.git(['commit', '-q', '-m', message]);
+    await git.git([
+      'commit',
+      if (skipHooks) '--no-verify',
+      '-q',
+      '-m',
+      message,
+    ]);
     return true;
   }
 
   /// "Criar PR": commit pending changes, `git push -u <remote> <branch>`,
   /// `gh pr create` (title/body from the task, `--fill` without one).
   /// Returns the PR URL (also stored in `sessions.pr_url`).
-  Future<String> createPr(String sessionId, {bool draft = false}) async {
-    final avail = await prAvailability(sessionId);
+  Future<String> createPr(
+    String sessionId, {
+    bool draft = false,
+    String? remote,
+  }) async {
+    final avail = await prAvailability(sessionId, remote: remote);
     if (!avail.available) {
       throw ReviewException(avail.reason ?? 'Indisponível.');
     }
@@ -503,6 +758,12 @@ class ReviewService {
     final args = [
       'pr',
       'create',
+      '--repo',
+      reviewRepositoryUrl(
+        (await _git(c.workspace.path)
+                .git(['remote', 'get-url', '--push', avail.remote!]))
+            .trim(),
+      )!,
       '--head',
       s.branch,
       '--base',
@@ -553,11 +814,24 @@ class ReviewService {
     return url;
   }
 
+  final _openedPr = <String, ({DateTime at, Future<PrStatus?> result})>{};
+  Future<PrStatus?> refreshPrComments(String sessionId) {
+    final cached = _openedPr[sessionId];
+    if (cached != null &&
+        DateTime.now().difference(cached.at) < const Duration(minutes: 1)) {
+      return cached.result;
+    }
+    final future = prView(sessionId);
+    _openedPr[sessionId] = (at: DateTime.now(), result: future);
+    return future;
+  }
+
   /// `gh pr view <url> --json …` of the session's PR (null = no PR).
   Future<PrStatus?> prView(String sessionId) async {
     final c = await _context(sessionId);
     final url = c.session.prUrl;
     if (url == null) return null;
+    await _requireGithubRequest(url, c.workspace);
     final ProcessResult r;
     try {
       r = await _run('gh', [
@@ -573,7 +847,97 @@ class ReviewService {
     if (r.exitCode != 0) {
       throw ReviewException('gh pr view falhou: ${'${r.stderr}'.trim()}');
     }
-    return parsePrView('${r.stdout}');
+    final status = parsePrView('${r.stdout}');
+    if (status == null) throw const ReviewException('Resposta inválida do PR.');
+    final inline = await inlineComments(sessionId);
+    final all = [...status.comments, ...inline]
+      ..sort((a, b) => a.at.compareTo(b.at));
+    if (c.spec case final spec?) {
+      final repo = _ref.read(reviewCommentsRepoProvider);
+      final rows = await repo.bySpec(spec.id);
+      final round = rows.isEmpty ? 1 : rows.map((r) => r.round).reduce(max) + 1;
+      for (final comment in all) {
+        if (comment.externalId == null) continue;
+        await repo.insertExternal(
+          ReviewCommentsCompanion.insert(
+            specId: spec.id,
+            round: round,
+            author: 'pr',
+            body: '@${comment.author}: ${comment.body}',
+            externalId: Value(comment.externalId),
+            path: Value(comment.path),
+            line: Value(comment.line),
+            commitSha: Value(comment.commitSha),
+            createdAt: Value(comment.at),
+          ),
+        );
+      }
+    }
+    return PrStatus(
+      state: status.state,
+      mergeable: status.mergeable,
+      reviewDecision: status.reviewDecision,
+      checks: status.checks,
+      comments: all,
+    );
+  }
+
+  Future<List<PrComment>> inlineComments(String sessionId) async {
+    final c = await _context(sessionId);
+    final uri = Uri.tryParse(c.session.prUrl ?? '');
+    final parts = uri?.pathSegments ?? [];
+    await _requireGithubRequest(c.session.prUrl ?? '', c.workspace);
+    if (uri == null ||
+        parts.length != 4 ||
+        parts[2] != 'pull' ||
+        int.tryParse(parts[3]) == null) {
+      throw const ReviewException('não foi possível ler a URL do PR');
+    }
+    final r = await _run('gh', [
+      'api',
+      '--hostname',
+      uri.host,
+      'repos/${parts[0]}/${parts[1]}/pulls/${parts[3]}/comments',
+      '--paginate',
+      '--slurp',
+    ], workingDirectory: c.workspace.path);
+    if (r.exitCode != 0) {
+      throw ReviewException('Comentários do PR: ${r.stderr}');
+    }
+    final decoded = jsonDecode('${r.stdout}');
+    if (decoded is! List) {
+      throw const ReviewException('Comentários do PR inválidos');
+    }
+    final rows = <Map>[
+      for (final page in decoded)
+        if (page is List) ...page.whereType<Map>() else if (page is Map) page,
+    ];
+    final replies = <String, List<Map>>{};
+    for (final row in rows) {
+      if (row['in_reply_to_id'] != null) {
+        replies.putIfAbsent('${row['in_reply_to_id']}', () => []).add(row);
+      }
+    }
+    String author(Map row) =>
+        row['user'] is Map ? '${row['user']['login'] ?? '?'}' : '?';
+    return [
+      for (final row in rows)
+        if (row['in_reply_to_id'] == null)
+          PrComment(
+            author: author(row),
+            externalId: 'github:${row['id']}',
+            path: row['path'] as String?,
+            line: (row['line'] as num? ?? row['original_line'] as num?)
+                ?.toInt(),
+            commitSha: row['commit_id'] as String?,
+            body: [
+              '${row['body'] ?? ''}',
+              for (final reply in replies['${row['id']}'] ?? <Map>[])
+                '@${author(reply)}: ${reply['body'] ?? ''}',
+            ].join('\n'),
+            at: DateTime.tryParse('${row['created_at']}') ?? DateTime(1970),
+          ),
+    ];
   }
 
   /// Pushes the session's branch when it has commits the PR does not.
@@ -584,6 +948,24 @@ class ReviewService {
     }
     final git = _git(c.session.worktreePath);
     if (!await aheadOfUpstream(git)) return false;
+    final remote = (await git.git([
+      'config',
+      '--get',
+      'branch.${c.session.branch}.remote',
+    ])).trim();
+    final destination = reviewRepositoryUrl(
+      (await git.git(['remote', 'get-url', '--push', remote])).trim(),
+    );
+    final saved = Uri.tryParse(c.session.prUrl!);
+    final dest = destination == null ? null : Uri.tryParse(destination);
+    final repository = saved?.pathSegments.take(2).join('/').toLowerCase();
+    if (dest == null ||
+        saved?.host != dest.host ||
+        dest.path.substring(1).toLowerCase() != repository) {
+      throw const ReviewException(
+        'O remote mudou e não corresponde ao destino do request salvo. Corrija o upstream antes de enviar commits.',
+      );
+    }
     await git.git(['push']);
     return true;
   }
@@ -595,6 +977,7 @@ class ReviewService {
     final c = await _context(sessionId);
     final url = c.session.prUrl;
     if (url == null) throw const ReviewException('A sessão não tem PR.');
+    await _requireGithubRequest(url, c.workspace);
     final ProcessResult r;
     try {
       r = await _run('gh', [
@@ -668,13 +1051,18 @@ class ReviewService {
     } on SessionException catch (e) {
       throw ReviewException('$e');
     }
+    if (c.task != null) {
+      await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.running);
+    }
   }
 
   /// Criteria of [spec] not checked yet (text). A criterion counts as
   /// checked when it is `- [x]` in the file or marked in the Review.
   Future<List<String>> pendingCriteria(Spec spec, Workspace ws) async {
     final text = await _ref.read(specServiceProvider).read(ws, spec);
-    if (text == null) return const [];
+    if (text == null) {
+      throw const ReviewException('Não foi possível ler os critérios da spec.');
+    }
     final marks = {
       for (final m
           in await _ref.read(reviewCommentsRepoProvider).criteria(spec.id))
@@ -763,6 +1151,7 @@ class ReviewService {
     final c = await _context(sessionId);
     final url = c.session.prUrl;
     if (url == null) return const [];
+    await _requireGithubRequest(url, c.workspace);
     try {
       final r = await _run('gh', [
         'pr',
@@ -775,6 +1164,183 @@ class ReviewService {
     }
   }
 
+  Future<Spec?> stackedOnOf(Workspace ws, String base, int? specId) async =>
+      (await _ref.read(specsRepoProvider).watchByWorkspace(ws.id).first)
+          .where(
+            (o) =>
+                o.id != specId && o.branch == base && o.stage != SpecStage.done,
+          )
+          .firstOrNull;
+
+  Future<String?> rootProblem(
+    GitService main,
+    String base, {
+    String? ignoredPath,
+  }) async {
+    final current = await main.currentBranch();
+    if (current != base) {
+      return 'O repositório principal está em '
+          '"${current ?? 'HEAD destacado'}", mas o merge vai para "$base". '
+          'Troque para "$base" (git switch $base) e tente de novo.';
+    }
+    final dirty = (await main.status())
+        .where(
+          (e) =>
+              !e.isUntracked &&
+              e.path != ProjectMemory.filePath &&
+              e.path != ignoredPath,
+        )
+        .toList();
+    if (dirty.isNotEmpty) {
+      return 'O repositório principal tem alterações não '
+          'commitadas (${dirty.length} arquivo(s): '
+          '${dirty.take(3).map((e) => e.path).join(', ')}'
+          '${dirty.length > 3 ? '…' : ''}). Faça commit ou stash antes do merge.';
+    }
+    return null;
+  }
+
+  /// Watches only tracked/untracked file parents and git refs of the selected
+  /// item. Object writes from merge-tree are intentionally outside this set.
+  Future<DirWatcher?> watchRepositories(
+    String sessionId,
+    VoidCallback changed,
+  ) async {
+    try {
+      final c = await _context(sessionId);
+      final dirs = <String>{};
+      for (final root in {c.workspace.path, c.session.worktreePath}) {
+        final git = _git(root);
+        dirs.addAll([root, '$root/.promptorium']);
+        final files = await git.git([
+          'ls-files',
+          '--cached',
+          '--others',
+          '--exclude-standard',
+          '-z',
+        ]);
+        for (final path in files.split('\x00').where((p) => p.isNotEmpty)) {
+          dirs.add(File('$root/$path').parent.path);
+        }
+        final gitDir = (await git.git(['rev-parse', '--absolute-git-dir']))
+            .trim();
+        dirs.addAll([gitDir, '$gitDir/refs', '$gitDir/refs/heads']);
+      }
+      return DirWatcher(
+        dirs,
+        onChange: (paths) {
+          if (paths.every((p) => p.endsWith('.lock'))) return;
+          changed();
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'Review $sessionId: observação do repositório indisponível — $e',
+      );
+      return null;
+    }
+  }
+
+  Future<ReadinessInputs> readinessInputs(String sessionId) async {
+    final c = await _context(sessionId);
+    final unknown = <String, String>{};
+    List<String> pending = [], failed = [];
+    var open = 0, uncommitted = 0;
+    var reviewerFailed = false;
+    String? root, stacked, worktree, pr;
+    final spec = c.spec;
+    if (spec != null) {
+      try {
+        pending = await pendingCriteria(spec, c.workspace);
+      } catch (e) {
+        unknown['criterios'] = '$e';
+      }
+      try {
+        final rows = await _ref
+            .read(reviewCommentsRepoProvider)
+            .bySpec(spec.id);
+        open = rows.where(isOpenReviewComment).length;
+        final last = rows.where((r) => r.author == 'revisor').lastOrNull;
+        reviewerFailed =
+            last != null &&
+            !last.resolved &&
+            last.body.startsWith(AutoReviewer.failurePrefix);
+      } catch (e) {
+        unknown['comentarios'] = '$e';
+      }
+      try {
+        final rows = await _ref
+            .read(specStepsRepoProvider)
+            .watchBySpec(spec.id)
+            .first;
+        failed = stepsOf(
+          spec,
+          rows,
+        ).where((s) => s.gate != null && !s.gate!.ok).map((s) => s.id).toList();
+      } catch (e) {
+        unknown['verificacoes'] = '$e';
+      }
+    }
+    try {
+      final base = await baseBranchOf(c.session, c.workspace);
+      stacked = (await stackedOnOf(c.workspace, base, spec?.id))?.code;
+      root = await rootProblem(_git(c.workspace.path), base);
+      if (!hasWorktree(c.session, c.workspace)) {
+        worktree = 'Sem worktree próprio';
+      } else {
+        worktree = mergeGuard(
+          branch: c.session.branch,
+          base: base,
+          worktreePath: c.session.worktreePath,
+          workspacePath: c.workspace.path,
+          worktreesBase: _git(c.workspace.path).worktreesBase,
+        );
+      }
+      if (c.session.status == SessionStatus.merged) {
+        worktree = 'Sessão já mergeada';
+      }
+      if (worktree == null) {
+        uncommitted = (await _git(c.session.worktreePath).status()).length;
+      }
+    } catch (e) {
+      for (final id in ['raiz', 'empilhada', 'worktree']) {
+        unknown[id] = '$e';
+      }
+    }
+    if (c.session.prUrl != null) {
+      try {
+        final status = await prView(sessionId);
+        if (status == null) {
+          unknown['pr'] = 'Não foi possível ler o PR';
+        } else if (status.conflicting ||
+            status.reviewDecision == 'CHANGES_REQUESTED' ||
+            status.checks.any(
+              (c) => !['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(c.$2),
+            )) {
+          pr = status.summary;
+        }
+      } catch (e) {
+        unknown['pr'] = '$e';
+      }
+    }
+    return ReadinessInputs(
+      hasSpec: spec != null,
+      reviewing:
+          spec?.reviewPhase == ReviewPhase.auto &&
+          spec?.stage == SpecStage.review,
+      reviewerFailed: reviewerFailed,
+      pendingCriteria: pending,
+      failedGates: failed,
+      openComments: open,
+      rootProblem: root,
+      stackedOn: stacked,
+      worktreeProblem: worktree,
+      uncommitted: uncommitted,
+      prProblem: pr,
+      unknown: unknown,
+    );
+  }
+
   /// "Fazer merge" (in the **workspace root**):
   /// 1. the root must be on the base branch with no tracked changes
   ///    (untracked files do not block);
@@ -785,10 +1351,207 @@ class ReviewService {
   ///    (`reset HEAD~1`) — everything stays as before;
   /// 5. removes the worktree, deletes the branch ([deleteBranch]), marks the
   ///    session `merged` (+ hash) and the task "Feito".
+  Future<ConflictPrediction> predictConflict(String sessionId) async {
+    final c = await _context(sessionId);
+    try {
+      await _git(c.workspace.path).git([
+        'merge-tree',
+        '--write-tree',
+        '--name-only',
+        await baseBranchOf(c.session, c.workspace),
+        c.session.branch,
+      ]);
+      return const ConflictPrediction();
+    } on GitException catch (e) {
+      if (e.exitCode == 1) {
+        return ConflictPrediction(
+          files: e.stdout
+              .split('\n')
+              .skip(1)
+              .takeWhile((l) => l.isNotEmpty)
+              .toList(),
+        );
+      }
+      return ConflictPrediction(error: '$e');
+    }
+  }
+
   Future<MergeResult> merge(
     String sessionId, {
     bool deleteBranch = true,
     String? override,
+    MergeOptions options = const MergeOptions(),
+  }) async {
+    final c = await _context(sessionId);
+    final main = _git(c.workspace.path);
+    final base = await baseBranchOf(c.session, c.workspace);
+    final previous = await main.currentBranch();
+    final previousSha = await main.headSha();
+    String? stash;
+    var switched = false;
+    final warnings = <String>[];
+    Future<String?> stashHead() async {
+      try {
+        return (await main.git(['rev-parse', '-q', '--verify', 'refs/stash']))
+            .trim();
+      } on GitException {
+        return null;
+      }
+    }
+
+    Future<void> restore() async {
+      if (switched && options.restoreBranch) {
+        try {
+          await main.git(
+            previous == null
+                ? ['switch', '--detach', previousSha!]
+                : ['switch', '--', previous],
+          );
+        } on GitException catch (e) {
+          warnings.add(
+            'Não foi possível voltar à branch anterior: $e. '
+            'Branch atual: ${await main.currentBranch()}; stash: ${stash ?? 'nenhum'}',
+          );
+          return;
+        }
+      }
+      if (stash != null) {
+        if (await main.currentBranch() != previous) {
+          warnings.add('Stash $stash mantido: a raiz está em outra branch');
+          return;
+        }
+        try {
+          try {
+            await main.git(['stash', 'apply', '--index', stash!]);
+          } on GitException {
+            await main.stashApply(stash!);
+            warnings.add(
+              'Stash restaurado sem preservar a separação staged/não staged',
+            );
+          }
+          final entries = (await main.git(['stash', 'list', '--format=%H']))
+              .split('\n');
+          final index = entries.indexOf(stash!);
+          if (index >= 0) await main.git(['stash', 'drop', 'stash@{$index}']);
+        } on GitException catch (e) {
+          warnings.add('Stash $stash mantido; restauração falhou: $e');
+        }
+      }
+    }
+
+    try {
+      if (options.switchBase || options.stash) {
+        for (final marker in [
+          'MERGE_HEAD',
+          'CHERRY_PICK_HEAD',
+          'REVERT_HEAD',
+          'rebase-merge',
+          'rebase-apply',
+        ]) {
+          final path = (await main.git(['rev-parse', '--git-path', marker]))
+              .trim();
+          final absolute = path.startsWith('/')
+              ? path
+              : '${c.workspace.path}/$path';
+          if (await FileSystemEntity.type(absolute) !=
+              FileSystemEntityType.notFound) {
+            throw ReviewException('Operação git em andamento: $marker');
+          }
+        }
+      }
+      if (options.method == MergeMethod.rebase) {
+        var published = c.session.prUrl != null;
+        try {
+          await _git(c.session.worktreePath)
+              .git(['rev-parse', '--verify', '@{u}']);
+          published = true;
+        } on GitException {
+          /* no upstream */
+        }
+        if (published) {
+          throw const ReviewException(
+            'Rebase indisponível: branch publicada (PR ou upstream).',
+          );
+        }
+      }
+      if (options.stash) {
+        final before = await stashHead();
+        await main.git([
+          'stash',
+          'push',
+          '-m',
+          'promptorium-merge-$sessionId',
+          '--',
+          '.',
+          ':(exclude)${ProjectMemory.filePath}',
+          if (c.spec != null) ':(exclude)${c.spec!.path}',
+        ]);
+        final after = await stashHead();
+        if (after != before) stash = after;
+      }
+      if (options.switchBase && previous != base) {
+        await main.git(['switch', '--', base]);
+        switched = true;
+      }
+      final result = await _mergeLocal(
+        sessionId,
+        deleteBranch: deleteBranch,
+        override: override,
+        options: options,
+      );
+      await restore();
+      return MergeResult(
+        commit: result.commit,
+        warnings: [...result.warnings, ...warnings],
+      );
+    } catch (e) {
+      await restore();
+      if (warnings.isNotEmpty) {
+        final message = '$e\n${warnings.join('\n')}';
+        // Still a conflict: the error keeps "Resolver com o agente".
+        if (e is MergeConflictException) {
+          throw MergeConflictException(message, e.files);
+        }
+        throw ReviewException(message);
+      }
+      rethrow;
+    }
+  }
+
+  /// What the merge dialog offers: the root's branch, its tracked changes
+  /// that "stash" would keep (not the project memory nor the spec file) and
+  /// whether the branch is published (PR or upstream: no rebase).
+  Future<MergeFacts> mergeFacts(String sessionId) async {
+    final c = await _context(sessionId);
+    final main = _git(c.workspace.path);
+    var published = c.session.prUrl != null;
+    if (!published) {
+      try {
+        await _git(c.session.worktreePath)
+            .git(['rev-parse', '--verify', '@{u}']);
+        published = true;
+      } on GitException {
+        /* no upstream */
+      }
+    }
+    return MergeFacts(
+      rootBranch: await main.currentBranch(),
+      rootChanges: [
+        for (final e in await main.status())
+          if (!e.isUntracked &&
+              e.path != ProjectMemory.filePath &&
+              e.path != c.spec?.path)
+            e.path,
+      ],
+      published: published,
+    );
+  }
+
+  Future<MergeResult> _mergeLocal(
+    String sessionId, {
+    bool deleteBranch = true,
+    String? override,
+    MergeOptions options = const MergeOptions(),
   }) async {
     final c = await _context(sessionId);
     final s = c.session, ws = c.workspace, task = c.task, spec = c.spec;
@@ -835,15 +1598,7 @@ class ReviewService {
     if (guard != null) throw ReviewException(guard);
     // A spec created on top of another one (dependency still in Review) has
     // that spec's branch as its base: the dependency goes first.
-    final stackedOn =
-        (await _ref.read(specsRepoProvider).watchByWorkspace(ws.id).first)
-            .where(
-              (o) =>
-                  o.id != spec?.id &&
-                  o.branch == base &&
-                  o.stage != SpecStage.done,
-            )
-            .firstOrNull;
+    final stackedOn = await stackedOnOf(ws, base, spec?.id);
     if (stackedOn != null) {
       throw ReviewException(
         '${spec?.code ?? 'Esta spec'} foi criada em cima de ${stackedOn.code} '
@@ -853,25 +1608,12 @@ class ReviewService {
       );
     }
     try {
-      final current = await main.currentBranch();
-      if (current != base) {
-        throw ReviewException(
-          'O repositório principal está em "${current ?? 'HEAD destacado'}", '
-          'mas o merge vai para "$base". Troque para "$base" '
-          '(git switch $base) e tente de novo.',
-        );
-      }
-      // The project memory is written by the app while specs run (F8).
-      final dirty = (await main.status())
-          .where((e) => !e.isUntracked && e.path != ProjectMemory.filePath)
-          .toList();
-      if (dirty.isNotEmpty) {
-        throw ReviewException(
-          'O repositório principal tem alterações não commitadas '
-          '(${dirty.length} arquivo(s): ${dirty.take(3).map((e) => e.path).join(', ')}'
-          '${dirty.length > 3 ? '…' : ''}). Faça commit ou stash antes do merge.',
-        );
-      }
+      final problem = await rootProblem(
+        main,
+        base,
+        ignoredPath: options.stash ? spec?.path : null,
+      );
+      if (problem != null) throw ReviewException(problem);
     } on GitException catch (e) {
       throw ReviewException('Falha ao ler o repositório principal: $e');
     }
@@ -893,37 +1635,84 @@ class ReviewService {
     String? headBefore;
     try {
       headBefore = (await wt.git(['rev-parse', 'HEAD'])).trim();
-      if (!await _commitPending(wt, pendingCommitMessage(s, task, spec))) {
+      if (!await _commitPending(
+        wt,
+        pendingCommitMessage(s, task, spec),
+        skipHooks: options.skipHooks,
+      )) {
         headBefore = null;
       }
     } on GitException catch (e) {
+      if (headBefore != null) {
+        try {
+          await wt.git(['reset', '-q', headBefore]);
+        } on GitException {
+          /* report original error */
+        }
+      }
       await markStoppedIfLive();
       throw ReviewException('Falha ao commitar as alterações do worktree: $e');
     }
 
     final title = reviewTitle(s, task, spec);
+    String? preRebase;
     try {
-      await main.git([
-        'merge',
-        '--no-ff',
-        '-m',
-        'Merge ${s.branch}: $title',
-        '--',
-        s.branch,
-      ]);
+      switch (options.method) {
+        case MergeMethod.merge:
+          await main.git([
+            'merge',
+            '--no-ff',
+            '-m',
+            'Merge ${s.branch}: $title',
+            '--',
+            s.branch,
+          ]);
+        case MergeMethod.squash:
+          final all = (await wt.git(['log', '--format=%s', '$base..HEAD']))
+              .trim()
+              .split('\n');
+          final subjects = [
+            ...all.take(50),
+            if (all.length > 50) '…',
+          ].join('\n');
+          await main.git(['merge', '--squash', '--', s.branch]);
+          final staged = await main.git(['diff', '--cached', '--name-only']);
+          if (staged.trim().isEmpty) {
+            throw const GitException('nada a integrar');
+          }
+          await main.git(['commit', '-m', title, '-m', subjects]);
+        case MergeMethod.rebase:
+          preRebase = await wt.headSha();
+          await wt.git([
+            'update-ref',
+            'refs/promptorium/${spec?.code ?? s.id}/pre-rebase',
+            preRebase!,
+          ]);
+          await wt.git(['rebase', base]);
+          await main.git(['merge', '--ff-only', '--', s.branch]);
+      }
     } on GitException catch (e) {
       var conflicted = <String>[];
       try {
-        conflicted = [
-          for (final l in (await main.git([
-            'diff',
-            '--name-only',
-            '--diff-filter=U',
-          ])).split('\n'))
-            if (l.trim().isNotEmpty) l.trim(),
-        ];
+        final source = options.method == MergeMethod.rebase ? wt : main;
+        conflicted = (await source.git([
+          'diff',
+          '--name-only',
+          '--diff-filter=U',
+        ])).split('\n').where((l) => l.trim().isNotEmpty).toList();
       } on GitException {
-        // not in a merge
+        /* best effort */
+      }
+      if (options.method == MergeMethod.squash) {
+        await main.git(['reset', '--merge']);
+      }
+      if (options.method == MergeMethod.rebase && preRebase != null) {
+        try {
+          await wt.git(['rebase', '--abort']);
+        } on GitException {
+          /* completed */
+        }
+        await wt.git(['reset', '-q', '--hard', preRebase]);
       }
       if (await _merging(main)) {
         try {
@@ -941,11 +1730,16 @@ class ReviewService {
       }
       await markStoppedIfLive();
       if (conflicted.isNotEmpty) {
-        throw ReviewException(
+        throw MergeConflictException(
           'Conflito ao fazer merge de ${s.branch} em $base '
           '(${conflicted.join(', ')}). O merge foi desfeito '
-          '(git merge --abort); nada foi alterado. Peça ajustes ao agente '
+          '(${switch (options.method) {
+            MergeMethod.merge => 'git merge --abort',
+            MergeMethod.squash => 'git reset --merge',
+            MergeMethod.rebase => 'git rebase --abort',
+          }}); nada foi alterado. Peça ajustes ao agente '
           '(ex.: integrar $base na branch) ou resolva manualmente.',
+          conflicted,
         );
       }
       throw ReviewException('O merge falhou e foi desfeito: $e');
@@ -966,7 +1760,10 @@ class ReviewService {
     }
     if (deleteBranch) {
       try {
-        await main.deleteBranch(s.branch);
+        await main.deleteBranch(
+          s.branch,
+          force: options.method == MergeMethod.squash,
+        );
       } on GitException catch (e) {
         warnings.add('branch não apagada: $e');
       }
@@ -975,6 +1772,16 @@ class ReviewService {
     if (task != null) await _ref.read(taskActionsProvider).markDone(task.id);
     if (spec != null) {
       warnings.addAll(await _closeSpec(ws, spec, commit, base));
+    } else if (options.method == MergeMethod.rebase) {
+      try {
+        await main.git([
+          'update-ref',
+          '-d',
+          'refs/promptorium/${s.id}/pre-rebase',
+        ]);
+      } on GitException catch (e) {
+        warnings.add('checkpoint pre-rebase mantido: $e');
+      }
     }
     try {
       await _ref.read(durableStateRepoProvider).setReviewDraft(sessionId, null);
@@ -1034,15 +1841,27 @@ class ReviewService {
         );
         if (clean) {
           // Its own commit: a dirty tracked file would block the next merge.
-          await main.git(['add', '--', spec.path]);
-          await main.git([
-            'commit',
-            '-q',
-            '-m',
-            '${spec.code}: spec concluída',
-            '--',
-            spec.path,
-          ]);
+          try {
+            await main.git(['add', '--', spec.path]);
+            await main.git([
+              'commit',
+              '-q',
+              '-m',
+              '${spec.code}: spec concluída',
+              '--',
+              spec.path,
+            ]);
+          } on GitException catch (e) {
+            // A user's hook refused it: the merge stands.
+            warnings.add(
+              'status gravado em ${spec.path}, mas o commit "spec concluída" '
+              'falhou: $e',
+            );
+          }
+        } else {
+          warnings.add(
+            'A spec tinha alterações locais; status atualizado sem commit: ${spec.path}',
+          );
         }
       }
     } catch (e) {
@@ -1135,9 +1954,15 @@ final reviewDetailProvider = FutureProvider.family<ReviewDetail, String>(
   (ref, sessionId) => ref.read(reviewServiceProvider).load(sessionId),
 );
 
-final prAvailabilityProvider = FutureProvider.family<PrAvailability, String>(
-  (ref, sessionId) => ref.read(reviewServiceProvider).prAvailability(sessionId),
-);
+final prAvailabilityProvider = FutureProvider.family<PrAvailability, String>((
+  ref,
+  sessionId,
+) async {
+  ref.watch(appSettingsProvider.select((s) => s['review.remote.$sessionId']));
+  final ws = ref.watch(activeWorkspaceProvider);
+  if (ws != null) ref.watch(projectConfigProvider(ws.path));
+  return ref.read(reviewServiceProvider).prAvailability(sessionId);
+});
 
 /// Step ("R2") the Review opens filtered on, set by "Ver diff da etapa" of
 /// the Specs screen and consumed once (UX v2, U5).
@@ -1276,3 +2101,63 @@ final reviewDraftProvider =
     NotifierProvider.family<ReviewDraftNotifier, ReviewDraft, String>(
       ReviewDraftNotifier.new,
     );
+
+final reviewSinceProvider =
+    FutureProvider.family<ReviewDetail, (String, String)>(
+      (ref, key) => ref.read(reviewServiceProvider).loadSince(key.$1, key.$2),
+    );
+final reviewRoundAvailabilityProvider =
+    FutureProvider.family<String?, (String, String?)>((ref, key) {
+      ref.watch(reviewDetailProvider(key.$1));
+      return ref.read(reviewServiceProvider).roundUnavailable(key.$1, key.$2);
+    });
+
+final mergeReadinessProvider = FutureProvider.family<MergeReadiness, String>((
+  ref,
+  sessionId,
+) async {
+  final detail = await ref.watch(reviewDetailProvider(sessionId).future);
+  final specId = detail.session.specId;
+  if (specId != null) {
+    ref.watch(reviewCommentsProvider(specId));
+    ref.watch(criteriaProvider(specId));
+    ref.watch(specsProvider(detail.session.workspaceId));
+    ref.watch(_readinessStepsProvider(specId));
+  }
+  ref.watch(sessionsProvider(detail.session.workspaceId));
+  ref.watch(prBabysitterProvider);
+  try {
+    final readiness = evaluateReadiness(
+      await ref.read(reviewServiceProvider).readinessInputs(sessionId),
+    );
+    final prediction = await ref
+        .read(reviewServiceProvider)
+        .predictConflict(sessionId);
+    return MergeReadiness([
+      ...readiness.items,
+      ReadinessItem(
+        'conflito',
+        'Conflito previsto',
+        prediction.error != null
+            ? ReadinessLevel.naoVerificado
+            : prediction.files.isNotEmpty
+            ? ReadinessLevel.aviso
+            : ReadinessLevel.ok,
+        prediction.error ??
+            (prediction.files.isEmpty
+                ? 'Sem conflito previsto nos commits; não inclui pendências'
+                : prediction.files.join(', ')),
+      ),
+    ]);
+  } catch (e) {
+    return evaluateReadiness(
+      ReadinessInputs(
+        unknown: {'raiz': '$e', 'empilhada': '$e', 'worktree': '$e'},
+      ),
+    );
+  }
+});
+
+final _readinessStepsProvider = StreamProvider.family<List<SpecStep>, int>(
+  (ref, id) => ref.watch(specStepsRepoProvider).watchBySpec(id),
+);

@@ -42,6 +42,7 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
     _watcher = null;
     if (ws == null) return;
     _watcher = DirWatcher(_dirs(ws), onChange: (p) => _changed(ws, p));
+    unawaited(Future.microtask(() => _sync(ws)));
   }
 
   static List<String> _dirs(Workspace ws) {
@@ -57,11 +58,33 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
       '$root/.promptorium',
       '$root/.claude',
       root,
+      ..._specParents(root),
     ];
   }
 
+  static Iterable<String> _specParents(String root) sync* {
+    var path = root;
+    for (final segment in ProjectConfig.loadSync(root).specsDir.split('/')) {
+      path = '$path/$segment';
+      yield path;
+    }
+  }
+
+  Future<void> _sync(Workspace ws) async {
+    if (!ref.mounted || _ws?.id != ws.id) return;
+    try {
+      await ref.read(specServiceProvider).sync(ws);
+    } catch (e) {
+      if (ref.mounted) {
+        ref.read(specSyncIssuesProvider.notifier).set(ws.id, [
+          'Falha ao sincronizar: $e',
+        ]);
+      }
+    }
+  }
+
   Future<void> _changed(Workspace ws, Set<String> paths) async {
-    if (!ref.mounted) return;
+    if (!ref.mounted || _ws?.id != ws.id) return;
     final root = ws.path;
     final specsDir = '$root/${ProjectConfig.loadSync(root).specsDir}';
     bool under(String dir) => paths.any((p) => p.startsWith('$dir/'));
@@ -80,10 +103,15 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
         ..invalidate(projectConfigProvider(root))
         ..invalidate(projectMemoryProvider(root));
     }
-    if (!under(specsDir)) return;
+    final configChanged = under('$root/.promptorium');
+    final specsChanged =
+        under(specsDir) ||
+        paths.contains(specsDir) ||
+        _specParents(root).any(paths.contains);
+    if (!configChanged && !specsChanged) return;
     try {
       await ref.read(specServiceProvider).sync(ws);
-      await _checkRunning(ws, paths);
+      if (ref.mounted && _ws?.id == ws.id) await _checkRunning(ws, paths);
     } catch (e) {
       debugPrint('watch de specs: $e');
     }

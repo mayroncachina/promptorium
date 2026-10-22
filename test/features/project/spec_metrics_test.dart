@@ -41,6 +41,7 @@ void main() {
       round: round,
       author: author,
       body: 'x',
+      resolved: false,
       createdAt: DateTime(2026),
     );
     final m = computeSpecMetrics(

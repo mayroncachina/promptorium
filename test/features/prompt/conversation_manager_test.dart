@@ -93,8 +93,16 @@ void main() {
         'Gemini CLI',
         'Codex',
       ]);
-      expect(all.map((p) => p.enabled), [true, true, true]);
-      expect(all[2], isA<CodexProvider>());
+      expect(all.map((p) => p.enabled), [true, true, false]);
+      expect(all[2], isA<ComingSoonProvider>());
+    });
+
+    test('Codex switched on uses the App Server adapter', () {
+      final c = ProviderContainer(
+        overrides: [codexEnabledProvider.overrideWithValue(true)],
+      );
+      addTearDown(c.dispose);
+      expect(c.read(agentProvidersProvider)[2], isA<CodexProvider>());
     });
   });
 

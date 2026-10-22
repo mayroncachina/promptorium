@@ -190,4 +190,30 @@ void main() {
     ]);
     expect(notifier.shown.last.$1, 'Pronta para review');
   });
+
+  test('the round prompt asks for the new file line, also for a project\'s '
+      'own reviewer agent', () {
+    final prompt = reviewerPrompt(
+      spec: Spec(
+        id: 1,
+        workspaceId: 1,
+        code: 'SPEC-001',
+        title: 'a',
+        status: SpecStatus.approved,
+        path: 'specs/a.md',
+        stage: SpecStage.review,
+        requirements: const [],
+        dependsOn: const [],
+        autoAdvance: false,
+        reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
+      ),
+      specText: '# a',
+      diff: '',
+      round: 1,
+    );
+    expect(prompt, contains('linha do arquivo novo, como numerada no diff'));
+    expect(builtinReviewerPrompt, contains('linha do arquivo novo'));
+  });
 }

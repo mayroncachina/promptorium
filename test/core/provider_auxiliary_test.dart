@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_registry.dart'
+    show codexEnabledProvider;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
@@ -26,6 +28,7 @@ void main() {
     final servers = <FakeCodex>[];
     final c = ProviderContainer(
       overrides: [
+        codexEnabledProvider.overrideWithValue(true),
         databaseOverride(memoryDatabase()),
         codexProcessStarterProvider.overrideWithValue((
           exe,

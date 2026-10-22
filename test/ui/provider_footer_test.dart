@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_registry.dart'
+    show codexEnabledProvider;
 import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
 import 'package:promptorium/data/providers.dart';
@@ -22,6 +24,7 @@ void main() {
       addTearDown(tester.view.reset);
       final c = ProviderContainer(
         overrides: [
+          codexEnabledProvider.overrideWithValue(true),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) async =>
@@ -103,6 +106,7 @@ void main() {
       addTearDown(tester.view.reset);
       final c = ProviderContainer(
         overrides: [
+          codexEnabledProvider.overrideWithValue(true),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) async => ProviderAvailability(
@@ -157,6 +161,7 @@ void main() {
       final delayed = Completer<ProviderAvailability>();
       final c = ProviderContainer(
         overrides: [
+          codexEnabledProvider.overrideWithValue(true),
           databaseOverride(memoryDatabase()),
           providerAvailabilityProvider.overrideWith(
             (ref, id) => id == 'claude'

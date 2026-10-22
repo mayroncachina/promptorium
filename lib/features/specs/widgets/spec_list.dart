@@ -36,11 +36,13 @@ class SpecList extends StatelessWidget {
     required this.stepRows,
     required this.onSelect,
     this.archived = 0,
+    this.folder = 'specs',
     this.showArchived = false,
     this.onToggleArchived,
   });
 
   /// Archived specs of the workspace and whether they are listed.
+  final String folder;
   final int archived;
   final bool showArchived;
   final VoidCallback? onToggleArchived;
@@ -88,10 +90,10 @@ class SpecList extends StatelessWidget {
           ),
           Expanded(
             child: specs.isEmpty
-                ? const Padding(
+                ? Padding(
                     padding: EdgeInsets.all(14),
                     child: Text(
-                      'Nenhuma spec em specs/. Use "Nova spec".',
+                      'Nenhuma spec em $folder/. Coloque arquivos nesta pasta ou use "Nova spec".',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,

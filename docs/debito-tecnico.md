@@ -15,7 +15,7 @@ Mockups: https://claude.ai/artifact/SjkEe4XHWMvccd1VaQGAua
 | DT-05 | **Central de notificações** e **folha de atalhos** | Média | Histórico de "sessão terminou", "aprovação pendente" |
 | DT-06 | **Checkpoints** — voltar o worktree para antes de uma alteração do agente | Média | |
 | ~~DT-07~~ | ~~Uso do plano (5h / semanal) no rodapé~~ | — | **Resolvido na pesquisa:** vem no evento `rate_limit_event` do stream-json. Entra na Fase 5 |
-| DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Fase 6: interface `AgentProvider` + registro com Codex/Gemini CLI como "em breve" (desabilitados); ícone do botão segue o provedor ativo. Falta a implementação: cada provedor precisa traduzir sua saída para `ClaudeEvent` (vocabulário da timeline) e ter sua própria noção de modo somente leitura |
+| DT-08 | **Múltiplos provedores** (Codex, Gemini CLI) | Baixa | Codex: ver [DT-56](#dt-56--integracao-codex). Fase 6: interface `AgentProvider` + registro com Codex/Gemini CLI como "em breve" (desabilitados); ícone do botão segue o provedor ativo. Falta a implementação: cada provedor precisa traduzir sua saída para `ClaudeEvent` (vocabulário da timeline) e ter sua própria noção de modo somente leitura |
 | DT-09 | **Ícone: arte vetorial / bordas** | Baixa | Fase 1 gerou os PNGs recortando `icon.webp` (1254px) com máscara de cantos arredondados aproximada via ffmpeg (raio ≈ 200px). Ideal: SVG de origem + ícone simbólico para o painel |
 | ~~DT-10~~ | ~~Instalação desktop (`.desktop` + ícones hicolor)~~ | — | **Resolvido na Fase 12:** `scripts/install.sh` (bundle em `~/.local/share/promptorium/app/`, link `~/.local/bin/promptorium`, `.desktop` com `Exec` absoluto, ícones hicolor 32–512, caches; idempotente, nunca toca o banco) e `scripts/uninstall.sh`. `desktop-file-validate` OK. Falta: pacote do sistema (deb/Flatpak/AppImage) e ícone simbólico (DT-09) |
 | DT-11 | **Splash em janela própria** (720×440, sem decoração) | Baixa | Fase 2 desenha o cartão 720×440 dentro da janela 1440×900. Redimensionar via `window_manager` (`setSize`/`setTitleBarStyle`) exige mexer também no runner GTK, que já abre em 1440×900 |
@@ -117,3 +117,38 @@ Novos:
 | DT-52 | **Flatpak não testado** | Média | Manifesto e wrapper escritos sem `flatpak-builder` |
 | DT-53 | **`spec_runner.dart` grande** | Baixa | ~1500 linhas (gate, checkpoint, A/B). Separar em arquivos por assunto |
 | DT-54 | **Babysit de PR: comentários por linha** | Baixa | `gh pr view --json` não traz comentários de linha (precisa de `gh api …/pulls/N/comments`) |
+
+
+## DT-55 — Integração completa do Review no GitLab
+
+**Prioridade: média. Adiado em 21/10/2026 por decisão de escopo.**
+
+A detecção de GitHub, GitLab e outros hospedeiros, seleção da CLI correta e orientação de instalação/autenticação passam para a [SPEC-014](specs/SPEC-014-deteccao-de-hospedagem-e-cli.md). A [SPEC-013](specs/SPEC-013-review-no-gitlab.md) conserva o desenho técnico da integração de MR para retomada futura.
+
+Pendências transferidas:
+
+- Completar o contrato `ReviewHost` e extrair o comportamento GitHub para `GithubHost`, preservando os fluxos existentes.
+- Persistir `sessions.pr_host` com migração e compatibilidade das sessões antigas.
+- Implementar R3–R6 da SPEC-013: criar MR, acompanhar estado e comentários, mostrar discussões em linha, pipeline e bloqueios no painel, e mergear conforme os métodos permitidos pelo projeto.
+- Tratar merge agendado sem fechar sessão/spec/worktree antes de confirmar `MERGED`.
+- Validar comandos, campos, paginação e capacidades da versão instalada com um projeto/MR real no GitLab; considerar `glab api` quando não houver saída JSON no comando de alto nível.
+- Cobrir os contratos com testes e executar a validação manual completa em GitLab.com e a validação aplicável a instância própria.
+
+A sondagem de `glab` 1.36.0 registrou token inválido em gitlab.com e ausência de `mr view --output json`. São problemas distintos do remote deste repositório, que é GitHub. Não exigir acesso ao GitLab para validar fluxos GitHub ou entregar a SPEC-014. O aceite do DT-55 retoma os critérios operacionais da SPEC-013; instalar/autenticar `glab` isoladamente não conclui a integração.
+
+## DT-56 — Integração Codex
+
+**Prioridade: baixa. Desligada em 22/10/2026 por decisão de escopo: foco no Claude Code.**
+
+O adaptador do Codex App Server (`lib/core/codex/`), o contrato `AgentProvider`/`AgentEvent`, as políticas de permissão e o YOLO continuam no código, mas `codexEnabledProvider` (`lib/core/providers/agent_registry.dart`) vale `false`. Com isso o registro lista Codex como “em breve” (`ComingSoonProvider`), os seletores de Nova sessão, Executar spec e rodapé mostram só Claude Code e os agentes ACP, a disponibilidade não sonda o CLI e um padrão `codex` salvo resolve para Claude. Sessões Codex já salvas não retomam e informam que o Codex está indisponível. Os testes do adaptador ligam o interruptor e continuam na suíte.
+
+As SPEC-002 a SPEC-005 ficam em `rascunho`. A SPEC-006 e a SPEC-007 permanecem concluídas, mas a parte Codex delas fica inativa enquanto o interruptor estiver desligado. A auditoria de 22/10/2026 encontrou o seguinte, a retomar antes de religar:
+
+- **Bloqueios práticos:** projeto, design, skills e review automático enviam `maxBudgetUsd` (e o revisor, `agent`/modelo Claude), que o Codex recusa ao iniciar; Nova sessão e Executar spec aplicam modelo/esforço Claude com Codex selecionado; imagens são recusadas com modelo `inherit`.
+- **Opções ignoradas ou enfraquecidas:** hooks gerenciados não rodam em sessões Codex; custo ausente vira US$ 0; `dontAsk` vira “executar sem perguntar”.
+- **SPEC-002:** interrupção do turno sem ligação na UI; cancelamento gravado como falha; processos filhos sem grupo de processos; fork sem vínculo estruturado com a sessão pai; “aprovar no escopo” ausente; testes de aprovação, deltas, erro JSON-RPC e fixtures Codex/ACP.
+- **SPEC-003:** padrão global em Configurações e override do projeto; preferências de modelo/esforço Codex; provedor nas listas, timeline e notificações; transferência explícita ao trocar de provedor; `runConfig` materializado para conversas e sessões Claude.
+- **SPEC-004:** orçamento, turnos, agentes, skills, MCP, ferramentas e modo auto sem equivalente comprovado; cada linha da matriz precisa de sondagem registrada em `docs/pesquisa/`.
+- **SPEC-005:** duelo com provedor por lado; provedor próprio do revisor; limpeza de `codex app-server` órfão; escritor único também no `SessionManager`.
+
+Para religar: corrigir os bloqueios práticos, trocar o valor de `codexEnabledProvider` e retomar as specs na ordem do [README](specs/README.md).

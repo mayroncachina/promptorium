@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/review/merge_options.dart';
+import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -26,6 +28,11 @@ index 0000000..3333333
 Future<ProviderContainer> pumpReview(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
+  PrAvailability pr = const PrAvailability(
+    available: false,
+    reason: 'GitHub CLI (gh) não encontrado no PATH.',
+  ),
+  MergeReadiness? readiness,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -72,12 +79,11 @@ Future<ProviderContainer> pumpReview(
           uncommitted: 1,
         ),
       ),
-      prAvailabilityProvider.overrideWith(
-        (ref, id) async => const PrAvailability(
-          available: false,
-          reason: 'GitHub CLI (gh) não encontrado no PATH.',
-        ),
-      ),
+      prAvailabilityProvider.overrideWith((ref, id) async => pr),
+      if (readiness != null) ...[
+        mergeReadinessProvider.overrideWith((ref, id) async => readiness),
+        reviewServiceProvider.overrideWith(_NoConflictReview.new),
+      ],
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
@@ -179,7 +185,15 @@ void main() {
     final draft = c.read(reviewDraftProvider('s1'));
     expect(draft.comments.single.location, 'lib/ui/status_bar.dart:8');
 
-    // Every file is on the page: the hunk of the first one.
+    // Opening the comment box scrolls its submit button into view. Scroll
+    // back to the hunk header before accepting it.
+    await tester.ensureVisible(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-diff-lib/ui/status_bar.dart')),
+        matching: find.byKey(const ValueKey('review-accept-0')),
+      ),
+    );
+    await tester.pump();
     await tester.tap(
       find.descendant(
         of: find.byKey(const ValueKey('review-diff-lib/ui/status_bar.dart')),
@@ -217,4 +231,251 @@ void main() {
     expect(find.byKey(const ValueKey('review-file-title')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('the host band names the provider and its state; GitLab says '
+      'MR and another host suggests no CLI', (tester) async {
+    await pumpReview(
+      tester,
+      pr: const PrAvailability(
+        available: false,
+        host: 'gitlab',
+        hostname: 'gitlab.com',
+        remote: 'origin',
+        reason: 'Integração de MR ainda indisponível (DT-55).',
+      ),
+    );
+    String band() =>
+        tester.widget<Text>(find.byKey(const ValueKey('review-host'))).data!;
+    expect(
+      band(),
+      'GitLab · glab · gitlab.com · origin · '
+      'Integração de MR ainda indisponível (DT-55).',
+    );
+    expect(find.text('Criar MR'), findsOneWidget);
+    expect(
+      tester
+          .widget<Tooltip>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('review-create-pr-draft')),
+              matching: find.byType(Tooltip),
+            ),
+          )
+          .message,
+      contains('glab mr create'),
+    );
+    await tester.pumpWidget(const SizedBox());
+
+    await pumpReview(
+      tester,
+      pr: const PrAvailability(
+        available: false,
+        host: 'unknown',
+        hostname: 'bitbucket.org',
+        remote: 'origin',
+        reason: 'Integração com bitbucket.org ainda não disponível.',
+      ),
+    );
+    expect(band(), startsWith('Hospedagem não identificada · bitbucket.org'));
+    expect(find.text('Criar PR'), findsOneWidget);
+    final draft = tester
+        .widget<Tooltip>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('review-create-pr-draft')),
+            matching: find.byType(Tooltip),
+          ),
+        )
+        .message!;
+    expect(draft.contains('gh ') || draft.contains('glab'), isFalse);
+    expect(band().contains('gh') || band().contains('glab'), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  group('SPEC-011 · pronto para merge', () {
+    String summary(WidgetTester t) => t
+        .widget<Text>(find.byKey(const ValueKey('review-readiness-summary')))
+        .data!;
+    bool enabled(WidgetTester t, String key) =>
+        t
+            .widget<InkWell>(
+              find.descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .onTap !=
+        null;
+
+    testWidgets('the header shows ready, warnings or blocked with the count; '
+        'the selected queue item shows the matching dot', (tester) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(const ReadinessInputs()),
+      );
+      expect(summary(tester), 'Pronto para merge');
+      final dot = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('review-item-s1')),
+          matching: find.byType(Icon),
+        ),
+      );
+      expect(dot.icon, Icons.circle);
+      final other = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('review-item-s2')),
+          matching: find.byType(Icon),
+        ),
+      );
+      expect(other.icon, Icons.circle_outlined); // partial, never green
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(prProblem: 'check pendente', uncommitted: 2),
+        ),
+      );
+      expect(summary(tester), 'Com avisos · 2');
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(rootProblem: 'raiz fora da main'),
+        ),
+      );
+      expect(summary(tester), 'Bloqueado · 1 bloqueios · 0 avisos');
+      await tester.tap(find.byKey(const ValueKey('review-readiness')));
+      await tester.pumpAndSettle();
+      for (final id in ['pr', 'empilhada', 'raiz', 'worktree']) {
+        expect(find.byKey(ValueKey('review-readiness-$id')), findsOneWidget);
+      }
+    });
+
+    testWidgets('with a blocker "Fazer merge" is disabled and its tooltip '
+        'lists the blockers; with warnings the dialog lists them', (
+      tester,
+    ) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(rootProblem: 'raiz fora da main'),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      final tip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('review-merge')),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(tip.message, contains('raiz fora da main'));
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(prProblem: 'check lint falhando'),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isTrue);
+      await tester.tap(find.byKey(const ValueKey('review-merge')));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+      // The merge dialog lists the warnings before confirming.
+      expect(find.textContaining('check lint falhando'), findsOneWidget);
+    });
+
+    testWidgets('criteria as the only service blocker enable "Mergear mesmo '
+        'assim…"; with another blocker both stay disabled', (tester) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(hasSpec: true, pendingCriteria: ['R1 ok']),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const ValueKey('review-merge-override')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(
+            hasSpec: true,
+            pendingCriteria: ['R1 ok'],
+            stackedOn: 'SPEC-001',
+          ),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const ValueKey('review-merge-override')),
+            )
+            .onPressed,
+        isNull,
+      );
+    });
+  });
+
+  testWidgets('SPEC-012 R5 · a merge conflict shows the files and offers '
+      '"Resolver com o agente", which sends the conflict instructions', (
+    tester,
+  ) async {
+    final c = await pumpReview(
+      tester,
+      readiness: evaluateReadiness(const ReadinessInputs()),
+    );
+    await tester.tap(find.byKey(const ValueKey('review-merge')));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('review-merge-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('review-error-dialog')), findsOneWidget);
+    expect(find.textContaining('(a.txt)'), findsOneWidget);
+    await tester.tap(find.text('Resolver com o agente'));
+    await tester.pumpAndSettle();
+    final service = c.read(reviewServiceProvider) as _NoConflictReview;
+    expect(service.resolved, ['s1']);
+  });
+}
+
+class _NoConflictReview extends ReviewService {
+  _NoConflictReview(super.ref);
+  final resolved = <String>[];
+  @override
+  Future<ConflictPrediction> predictConflict(String sessionId) async =>
+      const ConflictPrediction();
+  @override
+  Future<MergeFacts> mergeFacts(String sessionId) async =>
+      const MergeFacts(rootBranch: 'main');
+  @override
+  Future<MergeResult> merge(
+    String sessionId, {
+    bool deleteBranch = true,
+    String? override,
+    MergeOptions options = const MergeOptions(),
+  }) async => throw const MergeConflictException(
+    'Conflito ao fazer merge de pr/x em main (a.txt).',
+    ['a.txt'],
+  );
+  @override
+  Future<void> resolveConflict(String sessionId) async =>
+      resolved.add(sessionId);
 }

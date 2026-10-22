@@ -1,6 +1,6 @@
 ---
 id: SPEC-009
-status: rascunho
+status: concluida
 depende-de: []
 ---
 
@@ -71,19 +71,19 @@ Mostrar no diff do Review, sob a linha a que se referem, os comentários do **re
 
 Os testes marcados "(a criar)" fazem parte da implementação, com `gh` e git falsos ou repositório temporário real.
 
-- [ ] [R1] Um comentário do revisor na linha 12 de `a.dart` aparece sob a linha 12 do diff, com rodada, severidade e requisito; linha 0 vira faixa no topo do arquivo; sem arquivo aparece em "Geral". verificar: `flutter test test/features/review/review_inline_comments_test.dart` (a criar)
-- [ ] [R1] O comentário continua na linha certa quando o arquivo mudou depois da rodada em um trecho acima da linha (deslocamento) e vai para "Fora do diff atual" quando a própria linha foi alterada. verificar: `flutter test test/features/review/comment_anchor_test.dart` (a criar)
-- [ ] [R2] Comentários em linha do PR, devolvidos por um `gh api` falso, aparecem como "PR · @autor" nas linhas certas; comentários de conversa aparecem em "Geral"; ler duas vezes o mesmo PR não duplica nada. verificar: `flutter test test/features/review/pr_inline_comments_test.dart` (a criar)
-- [ ] [R2] Com `gh` falhando, os comentários já gravados continuam no diff e o painel do PR mostra o erro. verificar: `flutter test test/features/review/pr_inline_comments_test.dart` (a criar)
-- [ ] [R3] Marcar um comentário como tratado o recolhe, reduz a contagem do arquivo e do cabeçalho e persiste ao recriar o provider; reabrir desfaz. verificar: `flutter test test/features/review/review_inline_comments_test.dart` (a criar)
-- [ ] [R3] A migração v15→v16 acrescenta `resolved`, `resolvedAt` e `externalId` sem perder as linhas existentes. verificar: `flutter test test/data/migration_test.dart`
-- [ ] [R4] Comentário de um arquivo removido, de uma linha fora de qualquer hunk ou de um arquivo renomeado aparece em "Fora do diff atual", com rodada e commit. verificar: `flutter test test/features/review/comment_anchor_test.dart` (a criar)
-- [ ] [R5] Selecionar dois comentários abertos (um do revisor, um do PR) e pedir ajustes envia uma mensagem com os dois em `arquivo:linha — texto`, os marca como tratados e, se o envio falhar, não marca nenhum. verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R6] Os filtros "só abertos", "ocultos" e por origem mudam o que aparece no diff sem esconder o rascunho do usuário. verificar: `flutter test test/features/review/review_inline_comments_test.dart` (a criar)
-- [ ] [R1] O prompt do revisor exige a linha do arquivo novo, como numerada no diff. verificar: `flutter test test/features/review/auto_reviewer_test.dart`
-- [ ] [R2] `PrBabysitter._recordRound` grava com `externalId`; uma linha `author = pr` antiga, sem `externalId`, é ligada ao comentário de mesmo autor e texto na primeira leitura, sem duplicar. verificar: `flutter test test/features/review/pr_inline_comments_test.dart` (a criar)
-- [ ] [R3] O cabeçalho conta cada comentário aberto uma só vez (arquivos mais "Geral"), mesmo quando há comentários "fora do diff". verificar: `flutter test test/features/review/review_inline_comments_test.dart` (a criar)
-- [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R1] Um comentário do revisor na linha 12 de `a.dart` aparece sob a linha 12 do diff, com rodada, severidade e requisito; linha 0 vira faixa no topo do arquivo; sem arquivo aparece em "Geral". verificar: `flutter test test/features/review/review_inline_comments_test.dart`
+- [x] [R1] O comentário continua na linha certa quando o arquivo mudou depois da rodada em um trecho acima da linha (deslocamento) e vai para "Fora do diff atual" quando a própria linha foi alterada. verificar: `flutter test test/features/review/comment_anchor_test.dart test/features/review/review_service_test.dart`
+- [x] [R2] Comentários em linha do PR, devolvidos por um `gh api` falso, aparecem como "PR · @autor" nas linhas certas; comentários de conversa aparecem em "Geral"; ler duas vezes o mesmo PR não duplica nada. verificar: `flutter test test/features/review/pr_inline_comments_test.dart`
+- [x] [R2] Com `gh` falhando, os comentários já gravados continuam no diff e o painel do PR mostra o erro. verificar: `flutter test test/features/review/pr_inline_comments_test.dart`
+- [x] [R3] Marcar um comentário como tratado o recolhe, reduz a contagem do arquivo e do cabeçalho e persiste ao recriar o provider; reabrir desfaz. verificar: `flutter test test/features/review/review_inline_comments_test.dart`
+- [x] [R3] A migração v15→v16 acrescenta `resolved`, `resolvedAt` e `externalId` sem perder as linhas existentes. verificar: `flutter test test/data/migration_test.dart`
+- [x] [R4] Comentário de um arquivo removido, de uma linha fora de qualquer hunk ou de um arquivo renomeado aparece em "Fora do diff atual", com rodada e commit. verificar: `flutter test test/features/review/comment_anchor_test.dart test/features/review/review_service_test.dart`
+- [x] [R5] Selecionar dois comentários abertos (um do revisor, um do PR) e pedir ajustes envia uma mensagem com os dois em `arquivo:linha — texto`, os marca como tratados e, se o envio falhar, não marca nenhum. verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R6] Os filtros "só abertos", "ocultos" e por origem mudam o que aparece no diff sem esconder o rascunho do usuário. verificar: `flutter test test/features/review/review_inline_comments_test.dart`
+- [x] [R1] O prompt do revisor exige a linha do arquivo novo, como numerada no diff. verificar: `flutter test test/features/review/auto_reviewer_test.dart`
+- [x] [R2] `PrBabysitter._recordRound` grava com `externalId`; uma linha `author = pr` antiga, sem `externalId`, é ligada ao comentário de mesmo autor e texto na primeira leitura, sem duplicar. verificar: `flutter test test/features/review/pr_inline_comments_test.dart`
+- [x] [R3] O cabeçalho conta cada comentário aberto uma só vez (arquivos mais "Geral"), mesmo quando há comentários "fora do diff". verificar: `flutter test test/features/review/review_inline_comments_test.dart`
+- [x] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2] Com um PR real no GitHub com comentários em linha, o app os mostra nas linhas certas. verificar: manual (`flutter run -d linux`, Review de uma spec com PR, comentar em linha no GitHub e atualizar)
 
 ## Ordem de implementação

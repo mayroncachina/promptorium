@@ -6,6 +6,8 @@ depende-de: [SPEC-004]
 
 # Codex em todos os fluxos do Promptorium
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+
 ## Objetivo
 
 Completar a seleção entre Claude Code e Codex em todos os recursos que usam IA, mantendo worktrees, gates, recuperação e revisão humana. O usuário deve conseguir realizar o fluxo de projeto até review e merge usando exclusivamente Codex quando essa for sua escolha.

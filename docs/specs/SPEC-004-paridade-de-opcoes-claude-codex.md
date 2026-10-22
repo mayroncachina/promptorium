@@ -6,6 +6,8 @@ depende-de: [SPEC-003]
 
 # Paridade das opções de Claude Code e Codex
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+
 ## Objetivo
 
 Oferecer com Codex todos os controles e recursos que o Promptorium disponibiliza com Claude. A equivalência deve ser de comportamento observável, incluindo restrições, e não apenas de nomes ou campos visíveis.

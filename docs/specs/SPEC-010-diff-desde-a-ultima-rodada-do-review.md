@@ -1,6 +1,6 @@
 ---
 id: SPEC-010
-status: rascunho
+status: concluida
 depende-de: [SPEC-009]
 ---
 
@@ -48,17 +48,17 @@ Reutiliza a âncora de comentários da SPEC-009 (`comment_anchor.dart`), com a b
 
 ## Critérios de aceite
 
-- [ ] [R1] Com duas rodadas gravadas, o filtro lista as duas com autor, veredito e data, e "Desde a última rodada" escolhe a mais recente. verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R2] Num repositório temporário real com uma rodada no commit A, um commit B depois e uma alteração não commitada, o diff mostra B e a alteração e não mostra o que veio até A. verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R2] Os controles de visualização (um ou todos os arquivos, unificado ou lado a lado) valem no diff desde a rodada; rejeitar e aceitar hunk ficam desabilitados. verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R3] O cabeçalho mostra "k commits · n arquivos desde a rodada N" e os arquivos que não mudaram aparecem como "sem alterações". verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R3] Com 0 commits novos e apenas uma alteração não commitada, o cabeçalho mostra "0 commits · 1 arquivo desde a rodada N". verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R3] Um arquivo renomeado e um arquivo não rastreado entram no `n` do cabeçalho, cada um contado uma vez. verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R1] Uma rodada sem veredito (rodada do usuário ou do PR) aparece na lista como "sem veredito". verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R4] Uma rodada do PR (sem `commitSha`) e uma rodada cujo commit foi removido da branch aparecem desabilitadas, cada uma com o próprio motivo. verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R2] Sem nada novo desde a rodada, a tela mostra "Nada mudou desde a rodada N". verificar: `flutter test test/features/review/review_since_test.dart` (a criar)
-- [ ] [R5] Os comentários da rodada escolhida aparecem sobre o diff desde a rodada, com o estado atual (aberto ou tratado). verificar: `flutter test test/features/review/review_since_test.dart` (a criar, depende da SPEC-009)
-- [ ] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R1] Com duas rodadas gravadas, o filtro lista as duas com autor, veredito e data, e "Desde a última rodada" escolhe a mais recente. verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R2] Num repositório temporário real com uma rodada no commit A, um commit B depois e uma alteração não commitada, o diff mostra B e a alteração e não mostra o que veio até A. verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R2] Os controles de visualização (um ou todos os arquivos, unificado ou lado a lado) valem no diff desde a rodada; rejeitar e aceitar hunk ficam desabilitados. verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R3] O cabeçalho mostra "k commits · n arquivos desde a rodada N" e os arquivos que não mudaram aparecem como "sem alterações". verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R3] Com 0 commits novos e apenas uma alteração não commitada, o cabeçalho mostra "0 commits · 1 arquivo desde a rodada N". verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R3] Um arquivo renomeado e um arquivo não rastreado entram no `n` do cabeçalho, cada um contado uma vez. verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R1] Uma rodada sem veredito (rodada do usuário ou do PR) aparece na lista como "sem veredito". verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R4] Uma rodada do PR (sem `commitSha`) e uma rodada cujo commit foi removido da branch aparecem desabilitadas, cada uma com o próprio motivo. verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R2] Sem nada novo desde a rodada, a tela mostra "Nada mudou desde a rodada N". verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R5] Os comentários da rodada escolhida aparecem sobre o diff desde a rodada, com o estado atual (aberto ou tratado). verificar: `flutter test test/features/review/review_since_test.dart`
+- [x] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R2] Numa spec real que passou por uma rodada de correção do revisor, o diff desde a rodada mostra só a correção. verificar: manual (`flutter run -d linux`: 1) numa spec com revisor ligado, deixar o revisor pedir uma correção; 2) esperar a etapa `REVn` terminar; 3) abrir o Review e escolher Alterações desde… → Desde a última rodada)
 
 ## Ordem de implementação
