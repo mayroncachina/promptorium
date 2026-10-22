@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Review critérios</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+button:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;display:flex;flex-direction:column;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px">
+
+  <header style="height:44px;flex:none;display:flex;align-items:center;gap:12px;padding:0 12px;background:#14171D;border-bottom:1px solid #252B35;box-sizing:border-box">
+    <div style="width:26px;height:26px;border-radius:6px;background:#F2A541;color:#1A1206;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">P</div>
+    <span style="font-weight:600;font-size:14px">Promptorium</span>
+    <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;background:#1A1E26;border:1px solid #252B35;border-radius:6px;font-size:13px"><span style="color:#A0A8B6">Workspace</span><span style="font-weight:500">promptorium</span><span style="font-family:'JetBrains Mono',monospace;color:#A0A8B6">main</span></span>
+    <span style="flex:1"></span>
+    <span style="font-size:12px;color:#A0A8B6">Review · mockup de proposta</span>
+  </header>
+
+  <div style="flex:1;min-height:0;display:flex">
+
+    <!-- fila e arquivos -->
+    <aside aria-label="Fila de review" style="width:280px;flex:none;background:#14171D;border-right:1px solid #252B35;padding:14px 8px;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;overflow:hidden">
+      <div style="padding:0 6px 6px;font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">AGUARDANDO REVIEW · 2</div>
+      <div style="padding:10px;border-radius:8px;background:#2A2418;border:1px solid #5A4720">
+        <div style="font-size:13px;font-weight:500">Catálogo de skills</div>
+        <div style="font-size:11px;color:#A0A8B6;margin-top:2px">SPEC-003 · spec-reviewer</div>
+      </div>
+      <div style="padding:10px;border-radius:8px;border:1px solid transparent">
+        <div style="font-size:13px;font-weight:500">Tela de Sobre</div>
+        <div style="font-size:11px;color:#A0A8B6;margin-top:2px">SPEC-001 · implementador</div>
+      </div>
+      <div style="padding:16px 6px 6px;font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">ARQUIVOS · 5</div>
+      <sc-for list="{{ files }}" as="f" hint-placeholder-count="5">
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;background:{{ f.bg }}">
+          <span style="width:14px;color:{{ f.color }}">{{ f.letter }}</span>
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.name }}</span>
+          <span style="color:#3DD6B5">{{ f.add }}</span>
+          <span style="color:#F26D6D">{{ f.del }}</span>
+        </div>
+      </sc-for>
+    </aside>
+
+    <!-- conteúdo -->
+    <main style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid #252B35">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:16px;font-weight:600">Catálogo de skills</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#A0A8B6;margin-top:4px">pr/spec-003-catalogo → main · 5 arquivos · <span style="color:#3DD6B5">+205</span> <span style="color:#F26D6D">−25</span> · 4 commits</div>
+        </div>
+        <button type="button" style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #252B35;background:#1A1E26;color:#E7E9EE;font-size:12px">Pedir ajustes ao agente</button>
+        <button type="button" style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #252B35;background:#1A1E26;color:#E7E9EE;font-size:12px">Criar PR</button>
+        <button type="button" style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #252B35;background:#1A1E26;color:#E7E9EE;font-size:12px">Rascunho</button>
+        <button type="button" style="height:30px;padding:0 14px;border-radius:6px;border:1px solid #F2A541;background:#F2A541;color:#1A1206;font-size:12px;font-weight:600">{{ mergeLabel }}</button>
+      </div>
+
+      <!-- painel da spec -->
+      <section aria-label="Verificação e critérios" style="border-bottom:1px solid #252B35">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 20px">
+          <span style="font-size:12px;color:#A0A8B6" aria-hidden="true">▾</span>
+          <span style="font-size:12px;flex:1">SPEC-003 · verificação e critérios · {{ counter }} · 1 rodada(s)</span>
+          <span style="font-size:12px;{{ pendingStyle }}">{{ pendingText }}</span>
+        </div>
+        <div style="padding:0 20px 12px;display:flex;flex-direction:column;gap:6px">
+
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CHECKS</div>
+          <div style="display:flex;gap:16px;font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:6px">
+            <span style="color:#3DD6B5">R1 ✓ commit ✓ árvore ✓ testes</span>
+            <span style="color:#3DD6B5">R2 ✓ commit ✓ árvore ✓ testes</span>
+            <span style="color:#3DD6B5">R3 ✓ commit ✓ árvore ✓ testes</span>
+          </div>
+
+          <!-- cabeçalho dos critérios com o controle novo -->
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+            <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:#A0A8B6">CRITÉRIOS DE ACEITE</span>
+            <span style="flex:1"></span>
+            <button type="button" role="checkbox" aria-checked="{{ master.aria }}" aria-label="Marcar todos os critérios" disabled="{{ master.disabled }}" onClick="{{ master.click }}" style="{{ master.btnStyle }}">
+              <span style="{{ master.boxStyle }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E1014" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="{{ master.svgStyle }}"><path d="{{ master.path }}"></path></svg></span>
+              <span style="font-size:12px;font-weight:500">{{ master.label }}</span>
+              <span style="font-size:11px;color:#A0A8B6">{{ master.hint }}</span>
+            </button>
+          </div>
+
+          <sc-if value="{{ confirming }}" hint-placeholder-val="{{ false }}">
+            <div role="alertdialog" aria-label="Confirmar marcação em lote" style="display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:8px;background:#1A1E26;border:1px solid #5A4720">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500">{{ confirmTitle }}</div>
+                <div style="font-size:12px;color:#A0A8B6;margin-top:2px;line-height:1.45">{{ confirmText }}</div>
+              </div>
+              <button type="button" onClick="{{ confirmNo }}" style="height:30px;padding:0 12px;border-radius:6px;border:1px solid #252B35;background:transparent;color:#E7E9EE;font-size:12px">Cancelar</button>
+              <button type="button" onClick="{{ confirmYes }}" style="height:30px;padding:0 14px;border-radius:6px;border:1px solid #F2A541;background:#F2A541;color:#1A1206;font-size:12px;font-weight:600">{{ confirmBtn }}</button>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ criteria }}" as="c" hint-placeholder-count="6">
+            <button type="button" role="checkbox" aria-checked="{{ c.aria }}" onClick="{{ c.toggle }}" style="display:flex;align-items:flex-start;gap:8px;width:100%;padding:3px 0;border:0;background:transparent;color:#E7E9EE;text-align:left;font-size:12px;line-height:1.5">
+              <span style="{{ c.boxStyle }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E1014" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="{{ c.svgStyle }}"><path d="M5 12l5 5L20 7"></path></svg></span>
+              <span style="flex:1;min-width:0">
+                <span>{{ c.text }}</span>
+                <span style="font-family:'JetBrains Mono',monospace;color:#7C8596">{{ c.verify }}</span>
+                <span style="{{ c.byStyle }}">{{ c.by }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+
+      <!-- barra do diff -->
+      <div style="display:flex;gap:8px;padding:8px 20px 0;align-items:center">
+        <span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #252B35;background:#1A1E26;font-size:11px;display:flex;align-items:center;color:#F2A541">Todos os arquivos</span>
+        <span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #252B35;font-size:11px;display:flex;align-items:center;color:#A0A8B6">Unificado</span>
+        <span style="height:26px;padding:0 10px;border-radius:6px;border:1px solid #252B35;font-size:11px;display:flex;align-items:center;color:#A0A8B6">Todas as etapas</span>
+      </div>
+      <div style="flex:1;min-height:0;padding:8px 20px 14px;overflow:hidden">
+        <div style="border:1px solid #252B35;border-radius:8px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6">
+          <div style="padding:6px 12px;background:#1A1E26;border-bottom:1px solid #252B35;color:#A0A8B6">lib/features/skills/skill_installer.dart · A +74</div>
+          <div style="padding:0 12px;color:#A0A8B6">@@ -0,0 +1,9 @@</div>
+          <div style="padding:0 12px;background:rgba(61,214,181,0.10)">+Future&lt;void&gt; installSkill(Skill s, {required bool global}) async {</div>
+          <div style="padding:0 12px;background:rgba(61,214,181,0.10)">+  final dir = global ? globalSkillsDir : projectSkillsDir;</div>
+          <div style="padding:0 12px;background:rgba(61,214,181,0.10)">+  await copyTree(s.path, '$dir/${s.name}');</div>
+          <div style="padding:0 12px;background:rgba(61,214,181,0.10)">+  await writeOrigin(dir, s);</div>
+          <div style="padding:0 12px;background:rgba(61,214,181,0.10)">+}</div>
+        </div>
+      </div>
+
+      <!-- aviso com desfazer -->
+      <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+        <div role="status" style="position:absolute;left:20px;bottom:20px;display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:8px;background:#1F242D;border:1px solid #3A4352;box-shadow:0 8px 24px rgba(0,0,0,0.45);font-size:13px">
+          <span>{{ toastText }}</span>
+          <button type="button" onClick="{{ undo }}" style="height:28px;padding:0 10px;border-radius:6px;border:1px solid #F2A541;background:transparent;color:#F2A541;font-size:12px;font-weight:600">Desfazer</button>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"confirmar":{"editor":"boolean","default":true},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      marks: { 0: 'gate', 1: 'gate', 2: 'revisor' },
+      confirming: false,
+      lastBatch: null
+    };
+  }
+
+  renderVals() {
+    const CR = [
+      { text: 'Instalar uma skill do catálogo no projeto cria .claude/skills/<nome>/SKILL.md.', verify: 'verificar: flutter test test/features/skills/skill_catalog_test.dart' },
+      { text: 'Instalar globalmente grava em ~/.claude/skills.', verify: 'verificar: flutter test test/features/skills/skill_catalog_test.dart' },
+      { text: 'O aviso de versão nova aparece quando o hash do catálogo muda.', verify: '' },
+      { text: 'Reinstalar uma skill com mudança local pede confirmação.', verify: 'verificar: flutter test test/features/skills/skills_screen_test.dart' },
+      { text: 'Remover o catálogo apaga o clone em ~/.promptorium/catalogs/.', verify: '' },
+      { text: 'A análise estática e a suíte existente continuam passando.', verify: 'verificar: flutter analyze && flutter test' }
+    ];
+    const WHO = { gate: 'verificação', revisor: 'revisor automático', humano: 'você' };
+    const confirmar = this.props.confirmar ?? true;
+    const marks = this.state.marks;
+    const isOn = (i) => marks[i] !== undefined;
+    const pending = CR.map((c, i) => i).filter((i) => !isOn(i));
+    const eligible = pending.filter((i) => CR[i].verify === '');
+    const blocked = pending.filter((i) => CR[i].verify !== '');
+    const mine = CR.map((c, i) => i).filter((i) => marks[i] === 'humano');
+    const done = CR.length - pending.length;
+    const allOn = pending.length === 0;
+    const set = (patch) => this.setState(patch);
+
+    const apply = (ids) => {
+      const m = Object.assign({}, marks);
+      ids.forEach((i) => { m[i] = 'humano'; });
+      set({ marks: m, confirming: false, lastBatch: ids });
+    };
+
+    const box = (on, mixed) => 'flex:none;width:16px;height:16px;margin-top:1px;border-radius:4px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;' +
+      (on || mixed ? 'background:#3DD6B5;border:1.5px solid #3DD6B5' : 'background:transparent;border:1.5px solid #5A6475');
+
+    const mode = allOn ? 'todos' : eligible.length > 0 ? 'marcar' : mine.length > 0 ? 'desmarcar' : 'nada';
+    const masterDisabled = mode === 'nada' || (mode === 'todos' && mine.length === 0);
+    const masterClick = () => {
+      if (mode === 'marcar') {
+        if (confirmar) set({ confirming: true });
+        else apply(eligible);
+        return;
+      }
+      // sem nada elegível: desmarca só o que foi marcado por você
+      const m = Object.assign({}, marks);
+      mine.forEach((i) => { delete m[i]; });
+      set({ marks: m, confirming: false, lastBatch: null });
+    };
+
+    const n = eligible.length;
+    const b = blocked.length;
+    const waiting = b > 0 ? b + ' aguarda' + (b === 1 ? '' : 'm') + ' a verificação' : '';
+
+    return {
+      files: [
+        { letter: 'M', color: '#F2A541', name: 'lib/features/skills/skill_catalog.dart', add: '+88', del: '−12', bg: '#1E222B' },
+        { letter: 'A', color: '#3DD6B5', name: 'lib/features/skills/skill_installer.dart', add: '+74', del: '', bg: 'transparent' },
+        { letter: 'M', color: '#F2A541', name: 'lib/features/skills/widgets/catalog_view.dart', add: '+31', del: '−9', bg: 'transparent' },
+        { letter: 'M', color: '#F2A541', name: 'lib/features/skills/skills_state.dart', add: '+12', del: '−4', bg: 'transparent' },
+        { letter: 'A', color: '#3DD6B5', name: 'test/features/skills/skill_catalog_test.dart', add: '+0', del: '', bg: 'transparent' }
+      ],
+      counter: done + '/' + CR.length + ' critérios',
+      pendingText: allOn ? 'todos marcados' : pending.length + ' sem marcar',
+      pendingStyle: allOn ? 'color:#3DD6B5' : 'color:#F2A541',
+      mergeLabel: allOn ? 'Fazer merge' : 'Mergear mesmo assim…',
+      master: {
+        aria: allOn ? 'true' : (done === 0 ? 'false' : 'mixed'),
+        disabled: masterDisabled,
+        click: masterClick,
+        path: allOn ? 'M5 12l5 5L20 7' : 'M6 12h12',
+        svgStyle: (allOn || done > 0) ? 'display:block' : 'display:none',
+        boxStyle: box(allOn, !allOn && done > 0),
+        btnStyle: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid ' + (masterDisabled ? '#252B35' : '#3A4352') + ';background:#1A1E26;color:' + (masterDisabled ? '#A0A8B6' : '#E7E9EE'),
+        label: mode === 'todos' ? 'Todos marcados' : mode === 'desmarcar' ? 'Desmarcar os meus' : 'Nada a marcar em lote',
+        hint: mode === 'todos' ? (mine.length > 0 ? 'clique para desmarcar os meus (' + mine.length + ')' : 'nada meu para desmarcar')
+          : mode === 'marcar' ? '(' + n + ' elegível' + (n === 1 ? '' : 'is') + (b > 0 ? ' · ' + waiting : '') + ')'
+          : mode === 'desmarcar' ? '(' + mine.length + (b > 0 ? ' · ' + waiting : '') + ')'
+          : (b > 0 ? waiting : 'nada meu para desmarcar')
+      },
+      confirming: this.state.confirming && n > 0,
+      confirmTitle: 'Marcar ' + n + ' critério' + (n === 1 ? '' : 's') + ' como verificado' + (n === 1 ? '' : 's') + ' por você?',
+      confirmText: (b > 0
+        ? b + ' ' + (b === 1 ? 'fica' : 'ficam') + ' de fora: ' + (b === 1 ? 'tem' : 'têm') + ' um comando verificar: que a verificação ainda não confirmou (dá para marcar um a um). '
+        : '') + 'O que a verificação e o revisor já marcaram não muda, e dá para desfazer logo depois.',
+      confirmBtn: 'Marcar ' + n,
+      confirmNo: () => set({ confirming: false }),
+      confirmYes: () => apply(eligible),
+      criteria: CR.map((c, i) => ({
+        text: c.text,
+        verify: c.verify,
+        aria: isOn(i) ? 'true' : 'false',
+        boxStyle: box(isOn(i), false),
+        svgStyle: isOn(i) ? 'display:block' : 'display:none',
+        by: isOn(i) ? '· por ' + WHO[marks[i]] : (CR[i].verify !== '' ? '· aguarda a verificação' : ''),
+        byStyle: (!isOn(i) && CR[i].verify !== '') ? 'color:#F2A541' : 'color:#7C8596',
+        toggle: () => {
+          const m = Object.assign({}, marks);
+          if (isOn(i)) delete m[i]; else m[i] = 'humano';
+          set({ marks: m, confirming: false, lastBatch: null });
+        }
+      })),
+      toast: !!this.state.lastBatch,
+      toastText: (this.state.lastBatch ? this.state.lastBatch.length : 0) + ' critério' + ((this.state.lastBatch || []).length === 1 ? '' : 's') + ' marcado' + ((this.state.lastBatch || []).length === 1 ? '' : 's') + ' por você',
+      undo: () => {
+        const m = Object.assign({}, marks);
+        (this.state.lastBatch || []).forEach((i) => { delete m[i]; });
+        set({ marks: m, lastBatch: null });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
