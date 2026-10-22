@@ -88,6 +88,8 @@ class SpecService {
       await for (final f in dir.list(followLinks: false)) {
         if (f is! File || !f.path.toLowerCase().endsWith('.md')) continue;
         final name = f.uri.pathSegments.last;
+        // Editor and atomic-save leftovers (`.#x.md`, `~x.md`) are not specs.
+        if (name.startsWith('.') || name.startsWith('~')) continue;
         final rel = '$specsDir/$name';
         try {
           final text = await f.readAsString();

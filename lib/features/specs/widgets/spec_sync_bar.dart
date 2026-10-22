@@ -200,6 +200,24 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
     }
   }
 
+  /// Repository revision and local changes the analysis looked at.
+  static String _repositoryLine(Map<String, dynamic> report) {
+    final head = report['repositoryHead'];
+    if (head is! String || head.isEmpty) {
+      return 'Revisão do repositório: não registrada.';
+    }
+    String short(Object? hash) {
+      final text = '${hash ?? '?'}';
+      return text.length > 12 ? text.substring(0, 12) : text;
+    }
+
+    final files = report['localChangedFiles'];
+    final local = files == 0
+        ? 'nenhuma'
+        : '${files ?? '?'} arquivo(s) · ${short(report['localChanges'])}';
+    return 'Revisão: ${short(head)} · Alterações locais: $local';
+  }
+
   Future<void> _report() async {
     final spec = widget.selected;
     if (spec == null) return;
@@ -222,6 +240,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
             ? 'Conclusão verificada pelo agente.'
             : 'Relatório anterior; não comprova a conclusão atual.',
         'Provedor: ${report['provider']} · Data: ${report['createdAt']}',
+        _repositoryLine(report),
         for (final item in report['items'] as List? ?? []) ...[
           '',
           '${item['id']} · ${item['status'] == 'nao-verificavel' ? 'não verificável' : item['status']}',

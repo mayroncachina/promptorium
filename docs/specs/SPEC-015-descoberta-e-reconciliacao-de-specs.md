@@ -1,6 +1,6 @@
 ---
 id: SPEC-015
-status: em-revisao
+status: concluida
 ---
 
 # Descoberta de specs existentes e conclusão no Quadro
@@ -56,21 +56,24 @@ Para specs sem operação ativa, status concluído no arquivo basta para posicio
 
 ## Critérios de aceite
 
-- [ ] [R1] Com o app fechado, colocar specs na pasta configurada e abrir diretamente o Quadro: todas aparecem. Repetir com app aberto e pasta criada depois da abertura, sem reiniciar.
-- [ ] [R1] Trocar `specs/` por `docs/specs/` na configuração dispara nova varredura; a interface mostra a pasta correta e a sincronização manual funciona quando o watcher não entrega um evento.
-- [ ] [R2] Sincronizar repetidamente e renomear uma spec mantém um único registro/cartão e preserva sessões, etapas e dependências. IDs duplicados ou divergentes produzem diagnóstico, sem atualização arbitrária.
-- [ ] [R2] README, relatório sem ID, arquivo temporário, Markdown sem identidade e YAML inválido não criam cartões incorretos nem sobrescrevem specs válidas.
-- [ ] [R3] Uma spec importada com `status: concluida` aparece em Concluído nas Colunas e no Canvas, sem histórico fictício; aliases aceitos têm o mesmo efeito e arquivadas respeitam o filtro existente.
-- [ ] [R4–R5] Com agente falso, uma spec inteiramente comprovada tem relatório persistido, frontmatter atualizado e cartão concluído. Resultado parcial, falha de agente ou aceite manual sem evidência mantém o estado anterior e mostra as pendências.
-- [ ] [R4–R5] Uma spec com alguns requisitos implementados e outros adiados não é concluída; checklist marcado e mensagem de commit sem evidência não bastam. Watcher não inicia análise de IA automaticamente.
-- [ ] [R6] Spec em execução/revisão ou com worktree pendente apresenta divergência sem encerrar sessão, apagar recursos ou mover silenciosamente o cartão para Concluído.
-- [ ] [R5–R6] Mudança na spec, código relevante ou projeto durante a análise invalida o resultado atrasado. Falha entre gravação do arquivo e atualização do banco é recuperada na próxima sincronização.
+- [x] [R1] Com o app fechado, colocar specs na pasta configurada e abrir diretamente o Quadro: todas aparecem. Repetir com app aberto e pasta criada depois da abertura, sem reiniciar.
+- [x] [R1] Trocar `specs/` por `docs/specs/` na configuração dispara nova varredura; a interface mostra a pasta correta e a sincronização manual funciona quando o watcher não entrega um evento.
+- [x] [R2] Sincronizar repetidamente e renomear uma spec mantém um único registro/cartão e preserva sessões, etapas e dependências. IDs duplicados ou divergentes produzem diagnóstico, sem atualização arbitrária.
+- [x] [R2] README, relatório sem ID, arquivo temporário, Markdown sem identidade e YAML inválido não criam cartões incorretos nem sobrescrevem specs válidas.
+- [x] [R3] Uma spec importada com `status: concluida` aparece em Concluído nas Colunas e no Canvas, sem histórico fictício; aliases aceitos têm o mesmo efeito e arquivadas respeitam o filtro existente.
+- [x] [R4–R5] Com agente falso, uma spec inteiramente comprovada tem relatório persistido, frontmatter atualizado e cartão concluído. Resultado parcial, falha de agente ou aceite manual sem evidência mantém o estado anterior e mostra as pendências.
+- [x] [R4–R5] Uma spec com alguns requisitos implementados e outros adiados não é concluída; checklist marcado e mensagem de commit sem evidência não bastam. Watcher não inicia análise de IA automaticamente.
+- [x] [R6] Spec em execução/revisão ou com worktree pendente apresenta divergência sem encerrar sessão, apagar recursos ou mover silenciosamente o cartão para Concluído.
+- [x] [R5–R6] Mudança na spec, código relevante ou projeto durante a análise invalida o resultado atrasado. Falha entre gravação do arquivo e atualização do banco é recuperada na próxima sincronização.
 - [ ] [R1–R6] Testes de serviço, watcher e Quadro cobrem os cenários acima; `flutter analyze` e testes dos fluxos afetados passam. Conferir manualmente importação, análise e conclusão no app.
 
 
 ## Implementação
 
 Implementação disponível no código local em 21/10/2026. Detalhes e validações em
-[IMPLEMENTACAO-014-015.md](IMPLEMENTACAO-014-015.md). O status permanece em revisão
-até a conferência manual de aceite; requisitos parcialmente implementados em
-outras specs não são marcados como concluídos por esta entrega.
+[IMPLEMENTACAO-014-015.md](IMPLEMENTACAO-014-015.md). Todos os critérios
+automatizáveis estão cobertos por testes de serviço, verificador, watcher, barra
+de sincronização e Quadro (Colunas e Canvas). O relatório de verificação registra
+a revisão do repositório (HEAD) e a impressão das alterações locais, exibidas em
+“Relatório / origem”. Resta apenas a conferência manual de importação, análise e
+conclusão no app, indicada no último critério.

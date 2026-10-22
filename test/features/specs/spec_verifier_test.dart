@@ -44,6 +44,17 @@ Map<String, dynamic> answer({
   ],
 };
 
+/// Active project that a test can switch during an analysis.
+class _Active extends Notifier<Workspace?> {
+  _Active(this.initial);
+  final Workspace initial;
+
+  @override
+  Workspace? build() => initial;
+
+  void set(Workspace? ws) => state = ws;
+}
+
 void main() {
   late Directory tmp;
   late AppDatabase db;
@@ -94,6 +105,13 @@ void main() {
         .read(specVerifierProvider)
         .verify(ws, spec, VerificationCancellation());
     expect(report['complete'], isTrue);
+    final head = await Process.run('git', [
+      'rev-parse',
+      'HEAD',
+    ], workingDirectory: ws.path);
+    expect(report['repositoryHead'], '${head.stdout}'.trim());
+    expect(report['localChangedFiles'], 1);
+    expect(report['localChanges'], matches(RegExp(r'^[0-9a-f]{64}$')));
     final current = (await c.read(specsRepoProvider).getById(spec.id))!;
     expect(current.status, SpecStatus.done);
     expect(current.stage, SpecStage.done);
@@ -219,8 +237,13 @@ void main() {
       report.parent.createSync(recursive: true);
       report.writeAsStringSync('{}');
       expect(await repositoryFingerprint(ws), before);
+      final state = await repositoryState(ws);
       File('${ws.path}/new.txt').writeAsStringSync('new');
       expect(await repositoryFingerprint(ws), isNot(before));
+      final dirty = await repositoryState(ws);
+      expect(dirty.head, state.head);
+      expect(dirty.changedFiles, state.changedFiles + 1);
+      expect(dirty.localChanges, isNot(state.localChanges));
     },
   );
   test('real verification runner starts Codex read-only with structured output and supports cancellation', () async {
@@ -296,5 +319,120 @@ void main() {
     await started(1);
     token.cancel();
     await rejected;
+  });
+
+  test('agent failure keeps the previous state and records nothing', () async {
+    agent = (ws, prompt, provider, token) async =>
+        throw const SpecException('O agente falhou.');
+    await expectLater(
+      c.read(specVerifierProvider).verify(ws, spec, VerificationCancellation()),
+      throwsA(
+        isA<SpecException>().having(
+          (e) => e.message,
+          'message',
+          'O agente falhou.',
+        ),
+      ),
+    );
+    final current = (await c.read(specsRepoProvider).getById(spec.id))!;
+    expect(current.stage, SpecStage.backlog);
+    expect(current.status, SpecStatus.draft);
+    expect(await c.read(specServiceProvider).read(ws, spec), specText);
+    expect(await c.read(specVerifierProvider).report(ws, spec), isNull);
+  });
+
+  test(
+    'switching the active project during analysis discards the result',
+    () async {
+      final other = await db
+          .into(db.workspaces)
+          .insertReturning(
+            WorkspacesCompanion.insert(
+              path: '${tmp.path}/outro',
+              name: 'outro',
+            ),
+          );
+      final active = NotifierProvider<_Active, Workspace?>(() => _Active(ws));
+      late final ProviderContainer switching;
+      switching = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          activeWorkspaceProvider.overrideWith((ref) => ref.watch(active)),
+          verificationAgentProvider.overrideWithValue((
+            ws,
+            prompt,
+            provider,
+            token,
+          ) async {
+            switching.read(active.notifier).set(other);
+            return answer();
+          }),
+        ],
+      );
+      addTearDown(switching.dispose);
+      await expectLater(
+        switching
+            .read(specVerifierProvider)
+            .verify(ws, spec, VerificationCancellation()),
+        throwsA(
+          isA<SpecException>().having(
+            (e) => e.message,
+            'message',
+            contains('projeto ativo'),
+          ),
+        ),
+      );
+      expect(
+        (await c.read(specsRepoProvider).getById(spec.id))!.stage,
+        SpecStage.backlog,
+      );
+      expect(await c.read(specServiceProvider).read(ws, spec), specText);
+      expect(await c.read(specVerifierProvider).report(ws, spec), isNull);
+    },
+  );
+
+  test(
+    'deferred items, a ticked checklist and a commit message cannot conclude',
+    () async {
+      final ticked = specText.replaceFirst('- [ ]', '- [x]');
+      File('${ws.path}/${spec.path}').writeAsStringSync(ticked);
+      for (final data in [
+        {
+          'items': [
+            answer()['items'][0],
+            {...answer()['items'][1], 'status': 'pendente'},
+          ],
+        },
+        answer(path: '.git/COMMIT_EDITMSG', quote: 'inicial'),
+      ]) {
+        agent = (ws, prompt, provider, token) async => data;
+        final report = await c
+            .read(specVerifierProvider)
+            .verify(ws, spec, VerificationCancellation());
+        expect(report['complete'], isFalse);
+        expect(
+          (await c.read(specsRepoProvider).getById(spec.id))!.stage,
+          SpecStage.backlog,
+        );
+        expect(await c.read(specServiceProvider).read(ws, spec), ticked);
+      }
+    },
+  );
+
+  test('a spec edited during analysis invalidates the result', () async {
+    agent = (ws, prompt, provider, token) async {
+      File('${ws.path}/${spec.path}')
+          .writeAsStringSync('$specText- R2 · novo requisito\n');
+      return answer();
+    };
+    await expectLater(
+      c.read(specVerifierProvider).verify(ws, spec, VerificationCancellation()),
+      throwsA(isA<SpecException>()),
+    );
+    expect(await c.read(specVerifierProvider).report(ws, spec), isNull);
+    expect(
+      (await c.read(specsRepoProvider).getById(spec.id))!.stage,
+      SpecStage.backlog,
+    );
   });
 }

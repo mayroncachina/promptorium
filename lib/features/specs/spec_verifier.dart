@@ -126,8 +126,20 @@ final verificationAgentProvider = Provider<VerificationAgent>(
       ),
 );
 
+/// Repository state recorded in a report: HEAD, the fingerprint of the local
+/// changes (dirty and untracked files) and the combined fingerprint.
+typedef RepositoryState = ({
+  String head,
+  String localChanges,
+  int changedFiles,
+  String fingerprint,
+});
+
 /// Includes tracked and nonignored untracked content, so dirty edits invalidate a run.
-Future<String> repositoryFingerprint(Workspace ws) async {
+Future<String> repositoryFingerprint(Workspace ws) async =>
+    (await repositoryState(ws)).fingerprint;
+
+Future<RepositoryState> repositoryState(Workspace ws) async {
   Future<String> git(List<String> args) async {
     final r = await Process.run('git', args, workingDirectory: ws.path);
     if (r.exitCode != 0) {
@@ -138,40 +150,56 @@ Future<String> repositoryFingerprint(Workspace ws) async {
     return '${r.stdout}';
   }
 
+  List<String> paths(String out) => out
+      .split('\x00')
+      .where(
+        (p) => p.isNotEmpty && !p.startsWith('.promptorium/verifications/'),
+      )
+      .toSet()
+      .toList();
+
   final head = await git(['rev-parse', 'HEAD']);
-  final files =
-      (await git([
-            'ls-files',
-            '-z',
-            '--cached',
-            '--others',
-            '--exclude-standard',
-          ]))
-          .split('\x00')
-          .where(
-            (p) => p.isNotEmpty && !p.startsWith('.promptorium/verifications/'),
-          )
-          .toSet()
-          .toList()
-        ..sort();
-  final hashes = <String>[
-    head,
-    await git(['status', '--porcelain', '-z', '--untracked-files=no']),
-  ];
+  final untracked = paths(
+    await git(['ls-files', '-z', '--others', '--exclude-standard']),
+  );
+  final files = {
+    ...paths(await git(['ls-files', '-z', '--cached'])),
+    ...untracked,
+  }.toList()..sort();
+  final changed = {
+    ...paths(await git(['diff', 'HEAD', '--name-only', '-z'])),
+    ...untracked,
+  };
+  final status = await git([
+    'status',
+    '--porcelain',
+    '-z',
+    '--untracked-files=no',
+  ]);
+  final hashes = <String>[head, status];
+  final local = <String>[status];
   for (final path in files) {
     if (!safeEvidencePath(path)) {
       throw const SpecException('Caminho inválido no repositório.');
     }
     final f = File('${ws.path}/$path');
+    final String entry;
     if (await FileSystemEntity.isLink(f.path)) {
-      hashes.add('$path:link:${await Link(f.path).target()}');
+      entry = '$path:link:${await Link(f.path).target()}';
     } else if (await f.exists()) {
-      hashes.add('$path:${await sha256.bind(f.openRead()).first}');
+      entry = '$path:${await sha256.bind(f.openRead()).first}';
     } else {
-      hashes.add('$path:missing');
+      entry = '$path:missing';
     }
+    hashes.add(entry);
+    if (changed.contains(path)) local.add(entry);
   }
-  return specDigest(hashes.join('\n'));
+  return (
+    head: head.trim(),
+    localChanges: specDigest(local.join('\n')),
+    changedFiles: changed.length,
+    fingerprint: specDigest(hashes.join('\n')),
+  );
 }
 
 bool safeEvidencePath(String p) =>
@@ -237,7 +265,7 @@ class SpecVerifier {
         'A spec precisa de requisitos e critérios de aceite verificáveis.',
       );
     }
-    final baseline = await repositoryFingerprint(ws);
+    final baseline = await repositoryState(ws);
     final provider = ref.read(defaultAgentProvider(ws.id));
     cancellation.check();
     final data = await ref.read(verificationAgentProvider)(
@@ -328,7 +356,7 @@ class SpecVerifier {
       );
     }
     if (await service.read(ws, spec) != text ||
-        await repositoryFingerprint(ws) != baseline) {
+        await repositoryFingerprint(ws) != baseline.fingerprint) {
       throw const SpecException(
         'A spec ou o repositório mudou durante a análise. Verifique novamente.',
       );
@@ -360,7 +388,10 @@ class SpecVerifier {
       'provider': provider,
       'createdAt': DateTime.now().toUtc().toIso8601String(),
       'specHash': specDigest(text),
-      'repositoryFingerprint': baseline,
+      'repositoryHead': baseline.head,
+      'localChanges': baseline.localChanges,
+      'localChangedFiles': baseline.changedFiles,
+      'repositoryFingerprint': baseline.fingerprint,
       'complete': complete,
       'items': items,
       'completedSpecHash': complete ? specDigest(completedText) : null,
