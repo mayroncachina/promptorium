@@ -11,9 +11,11 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
+import '../project/project_config.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
 import 'spec_service.dart';
+import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_list.dart';
 import 'widgets/step_trace_panel.dart';
@@ -376,7 +378,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // clone ("Clonar para alterar").
     final locked = spec != null && spec.stage != SpecStage.backlog;
 
-    return LayoutBuilder(
+    final content = LayoutBuilder(
       builder: (context, c) {
         final listW = c.maxWidth < 1150 ? 220.0 : 260.0;
         final sideW = c.maxWidth < 1150 ? 280.0 : 320.0;
@@ -387,6 +389,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               width: listW,
               child: SpecList(
                 specs: specs,
+                folder: ProjectConfig.loadSync(ws.path).specsDir,
                 selectedId: spec?.id,
                 stepRows: stepRows,
                 onSelect: _select,
@@ -550,6 +553,21 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           ],
         );
       },
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SpecSyncBar(
+          workspace: ws,
+          specs: allSpecs,
+          selected: spec,
+          canVerify: !_dirty && !_busy,
+          onUpdated: () {
+            if (spec != null && !_dirty) _load(ws, spec);
+          },
+        ),
+        Expanded(child: content),
+      ],
     );
   }
 }

@@ -1,4 +1,7 @@
 import 'dart:io';
+
+import 'package:yaml/yaml.dart';
+
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
@@ -42,11 +45,23 @@ Future<String> nextSpecCode(SpecsRepo repo, Workspace workspace) async {
 
 /// Spec files of a workspace (`specs/SPEC-*.md`) ↔ `specs` table.
 class SpecService {
-  SpecService(this._repo, {SessionsRepo? sessions, TrashFolder? trash})
+  SpecService(
+    this._repo, {
+    SessionsRepo? sessions,
+    TrashFolder? trash,
+    this.onIssues,
+  })
     // ignore: prefer_initializing_formals
     : _sessions = sessions,
-      // ignore: prefer_initializing_formals
-      _trash = trash;
+       // ignore: prefer_initializing_formals
+       _trash = trash;
+
+  final void Function(int workspaceId, List<String> issues)? onIssues;
+  Future<void> _syncTail = Future<void>.value();
+  final Map<int, List<String>> issues = {};
+  List<String>? _collecting;
+
+  void _issue(String message) => _collecting?.add(message);
 
   final SpecsRepo _repo;
   final SessionsRepo? _sessions;
@@ -55,29 +70,92 @@ class SpecService {
   /// Reads `specs/SPEC-*.md`, inserts the files missing from the table and
   /// updates title / status / path of the others (the file is the source).
   /// Rows whose file disappeared are kept (shown as "arquivo ausente").
-  Future<void> sync(Workspace ws) async {
-    final specsDir = ProjectConfig.loadSync(ws.path).specsDir;
-    final dir = Directory('${ws.path}/$specsDir');
-    if (!await dir.exists()) return;
-    final files = <File>[];
-    await for (final f in dir.list()) {
-      if (f is File && f.path.toLowerCase().endsWith('.md')) files.add(f);
-    }
-    files.sort((a, b) => a.path.compareTo(b.path));
-    final seen = <String>{};
-    for (final f in files) {
-      final name = f.uri.pathSegments.last;
-      final String text;
-      try {
-        text = await f.readAsString();
-      } on FileSystemException {
-        continue;
+  Future<void> sync(Workspace ws) {
+    final previous = _syncTail;
+    final next = previous.catchError((Object _) {}).then((_) => _sync(ws));
+    _syncTail = next;
+    return next;
+  }
+
+  Future<void> _sync(Workspace ws) async {
+    final foundIssues = <String>[];
+    _collecting = foundIssues;
+    try {
+      final specsDir = ProjectConfig.loadSync(ws.path).specsDir;
+      final dir = Directory('${ws.path}/$specsDir');
+      if (!await dir.exists()) return;
+      final candidates = <String, List<({String rel, SpecDocument doc})>>{};
+      await for (final f in dir.list(followLinks: false)) {
+        if (f is! File || !f.path.toLowerCase().endsWith('.md')) continue;
+        final name = f.uri.pathSegments.last;
+        final rel = '$specsDir/$name';
+        try {
+          final text = await f.readAsString();
+          final doc = SpecDocument.parse(text);
+          final nameCode = specCodeFromFileName(name);
+          if (text.trimLeft().startsWith('---')) {
+            final match = RegExp(
+              r'^---\s*\r?\n([\s\S]*?)^---\s*$',
+              multiLine: true,
+            ).firstMatch(text);
+            if (match == null || loadYaml(match.group(1)!) is! YamlMap) {
+              if (nameCode != null) _issue('$rel: frontmatter inválido.');
+              continue;
+            }
+          }
+          final code = _codeOf(doc, name);
+          if (code == null) continue;
+          if (doc.id != null &&
+              (!RegExp(r'^SPEC-\d+$').hasMatch(doc.id!) ||
+                  (nameCode != null && doc.id != nameCode))) {
+            _issue('$rel: ID divergente ou inválido.');
+            continue;
+          }
+          if (doc.rawStatus != null && doc.status == null) {
+            _issue('$rel: status desconhecido (${doc.rawStatus}).');
+            continue;
+          }
+          candidates.putIfAbsent(code, () => []).add((rel: rel, doc: doc));
+        } on YamlException {
+          _issue('$rel: YAML inválido.');
+        } on FileSystemException {
+          _issue('$rel: não foi possível ler o arquivo.');
+        } on FormatException {
+          _issue('$rel: conteúdo inválido; use Markdown em UTF-8.');
+        }
       }
-      final doc = SpecDocument.parse(text);
-      final code = _codeOf(doc, name);
-      if (code == null || !seen.add(code)) continue;
-      await _upsert(ws, code: code, rel: '$specsDir/$name', doc: doc);
+      final codes = candidates.keys.toList()..sort();
+      for (final code in codes) {
+        final entry = MapEntry(code, candidates[code]!);
+        if (entry.value.length != 1) {
+          _issue(
+            '${entry.key}: código duplicado em ${entry.value.map((x) => x.rel).join(', ')}.',
+          );
+          continue;
+        }
+        final file = entry.value.single;
+        await _upsert(ws, code: entry.key, rel: file.rel, doc: file.doc);
+      }
+      for (final spec in await _repo.watchByWorkspace(ws.id).first) {
+        if (!await File('${ws.path}/${spec.path}').exists()) {
+          _issue('${spec.code}: arquivo ausente (${spec.path}).');
+        }
+      }
+    } finally {
+      issues[ws.id] = List.unmodifiable(foundIssues);
+      _collecting = null;
+      onIssues?.call(ws.id, issues[ws.id]!);
     }
+  }
+
+  Future<bool> hasOperation(Spec spec) async {
+    if (spec.stage == SpecStage.running ||
+        spec.stage == SpecStage.review ||
+        spec.worktreePath != null) {
+      return true;
+    }
+    final sessions = await _sessions?.bySpec(spec.id) ?? const <Session>[];
+    return sessions.any((s) => !s.status.isTerminal);
   }
 
   static String? _codeOf(SpecDocument doc, String fileName) {
@@ -107,13 +185,32 @@ class SpecService {
         phase: doc.phase,
       );
     }
-    final status = doc.status ?? existing.status;
+    var status = doc.status ?? existing.status;
+    var stage = existing.stage;
+    final finishing =
+        status == SpecStatus.done || status == SpecStatus.archived;
+    if (finishing && stage != SpecStage.done) {
+      if (await hasOperation(existing)) {
+        _issue(
+          '$code: conclusão declarada no arquivo conflita com execução, revisão ou worktree. Resolva a operação antes de concluir.',
+        );
+        status = existing.status;
+      } else {
+        stage = SpecStage.done;
+      }
+    } else if (!finishing && stage == SpecStage.done && doc.status != null) {
+      _issue(
+        '$code: documento não declara conclusão; use Reabrir para devolver ao backlog.',
+      );
+      status = existing.status;
+    }
     // `depende-de` absent from the file keeps the stored list (written by
     // the schema v8 migration or the Projeto screen until the next save).
     final deps = doc.hasDependsOn ? doc.dependsOn : existing.dependsOn;
     if (existing.title != title ||
         existing.path != rel ||
         existing.status != status ||
+        existing.stage != stage ||
         existing.phase != doc.phase ||
         !_sameReqs(existing.requirements, reqs) ||
         existing.dependsOn.join(',') != deps.join(',')) {
@@ -123,6 +220,7 @@ class SpecService {
           title: Value(title),
           path: Value(rel),
           status: Value(status),
+          stage: Value(stage),
           phase: Value(doc.phase),
           requirements: Value(reqs),
           dependsOn: Value(deps),
@@ -173,7 +271,17 @@ class SpecService {
 
   /// Writes [text] (temporary file + rename) and refreshes the row. Stored
   /// dependencies missing from the file are written to its frontmatter.
-  Future<Spec> save(Workspace ws, Spec spec, String text) async {
+  Future<Spec> save(
+    Workspace ws,
+    Spec spec,
+    String text, {
+    String? expectedText,
+  }) async {
+    if (expectedText != null && await read(ws, spec) != expectedText) {
+      throw const SpecException(
+        'O documento mudou antes da gravação. Verifique novamente.',
+      );
+    }
     final current = SpecDocument.parse(text);
     if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
       text = current.withMeta(dependsOn: spec.dependsOn);
@@ -226,6 +334,31 @@ class SpecService {
       dependsOn: doc.dependsOn,
       phase: doc.phase,
     );
+  }
+
+  Future<Spec> reopen(Workspace ws, Spec spec) async {
+    if (await hasOperation(spec)) {
+      throw const SpecException(
+        'Resolva a operação em andamento antes de reabrir.',
+      );
+    }
+    final text = await read(ws, spec);
+    if (text == null) throw const SpecException('Arquivo ausente.');
+    // Publish an explicit reopening only after the document has been saved.
+    await save(
+      ws,
+      spec,
+      SpecDocument.parse(text).withMeta(status: SpecStatus.approved),
+      expectedText: text,
+    );
+    await _repo.update(
+      spec.id,
+      const SpecsCompanion(
+        status: Value(SpecStatus.approved),
+        stage: Value(SpecStage.backlog),
+      ),
+    );
+    return (await _repo.getById(spec.id))!;
   }
 
   /// "Clonar para alterar": a new draft spec with the text of [spec] minus
@@ -307,6 +440,11 @@ final specServiceProvider = Provider(
     ref.watch(specsRepoProvider),
     sessions: ref.watch(sessionsRepoProvider),
     trash: ref.watch(trashFolderProvider),
+    onIssues: (id, issues) {
+      if (ref.mounted) {
+        ref.read(specSyncIssuesProvider.notifier).set(id, issues);
+      }
+    },
   ),
 );
 
@@ -333,3 +471,14 @@ class SelectedSpec extends Notifier<int?> {
 final selectedSpecProvider = NotifierProvider<SelectedSpec, int?>(
   SelectedSpec.new,
 );
+
+class SpecSyncIssues extends Notifier<Map<int, List<String>>> {
+  @override
+  Map<int, List<String>> build() => {};
+  void set(int id, List<String> issues) => state = {...state, id: issues};
+}
+
+final specSyncIssuesProvider =
+    NotifierProvider<SpecSyncIssues, Map<int, List<String>>>(
+      SpecSyncIssues.new,
+    );

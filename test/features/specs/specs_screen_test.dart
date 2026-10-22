@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
+import 'package:promptorium/features/specs/workspace_watcher.dart';
+import 'package:promptorium/features/board/widgets/spec_steps_panel.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:re_editor/re_editor.dart' show CodeEditor;
 
@@ -27,6 +29,12 @@ Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
 String readSpec(Directory tmp) =>
     File('${tmp.path}/specs/SPEC-002-sessoes.md').readAsStringSync();
 
+// Legacy editor tests isolate filesystem events; discovery is tested separately.
+class QuietWorkspaceWatcher extends WorkspaceWatcher {
+  @override
+  Set<int> build() => {};
+}
+
 void main() {
   late Directory tmp;
 
@@ -44,11 +52,10 @@ void main() {
     addTearDown(tester.view.reset);
     final db = memoryDatabase();
     final c = ProviderContainer(
-      overrides: sessionOverrides(
-        db: db,
-        cli: FakeCli(),
-        notifier: FakeNotifier(),
-      ),
+      overrides: [
+        ...sessionOverrides(db: db, cli: FakeCli(), notifier: FakeNotifier()),
+        workspaceWatcherProvider.overrideWith(QuietWorkspaceWatcher.new),
+      ],
     );
     await tester.runAsync(() async {
       final ws = await db
@@ -99,6 +106,16 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
     // The steps panel lists the requirements of the file.
     expect(find.byKey(const ValueKey('step-R1')), findsOneWidget);
+    await tester.drag(
+      find
+          .descendant(
+            of: find.byType(SpecStepsPanel),
+            matching: find.byType(ListView),
+          )
+          .first,
+      const Offset(0, -150),
+    );
+    await tester.pump();
     expect(find.byKey(const ValueKey('step-R3')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('spec-mode-preview')));

@@ -59,6 +59,11 @@ class SpecsRepo {
           title: title,
           path: path,
           status: Value(status),
+          stage: Value(
+            status == SpecStatus.done || status == SpecStatus.archived
+                ? SpecStage.done
+                : SpecStage.backlog,
+          ),
           requirements: Value(requirements),
           dependsOn: Value.absentIfNull(dependsOn),
           phase: Value(phase),
