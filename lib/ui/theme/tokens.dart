@@ -95,3 +95,26 @@ abstract final class ReviewColors {
   static const acceptBorder = Color(0xFF2F6B5E);
   static const acceptBg = Color(0xFF11201D);
 }
+
+/// Canvas of the Quadro (Quadro-Canvas.dc.html), translated to the dark
+/// theme. Each step state also differs by shape, not only by colour.
+abstract final class CanvasColors {
+  /// Dot grid of the background.
+  static const grid = Color(0xFF232833);
+
+  static const done = Color(0xFF5BC88A);
+  static const running = Color(0xFFF08A4B);
+  static const review = Color(0xFFE07AB0);
+  static const needsInput = AppColors.amber;
+  static const verifying = AppColors.teal;
+  static const pending = AppColors.textMuted;
+
+  /// Agent nodes and reference links (distinct from the running orange).
+  static const agent = Color(0xFF7FA6F2);
+
+  /// Skill nodes (distinct from the verifying teal).
+  static const skill = AppColors.lilac;
+
+  /// Tooltip cards over the canvas.
+  static const tooltip = Color(0xFF1F2430);
+}

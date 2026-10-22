@@ -387,29 +387,24 @@ void main() {
     tester.view.physicalSize = const Size(1440, 500);
     await pumpFor(tester);
     expect(tester.takeException(), isNull);
-    final scrollables = find.descendant(
-      of: find.byKey(const ValueKey('board-graph')),
-      matching: find.byType(Scrollable),
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byKey(const ValueKey('board-graph')),
     );
-    final horizontal = tester
-        .state<ScrollableState>(scrollables.first)
-        .position;
-    final vertical = tester.state<ScrollableState>(scrollables.at(1)).position;
-    expect(horizontal.axis, Axis.horizontal);
-    expect(vertical.axis, Axis.vertical);
-    expect(vertical.maxScrollExtent, greaterThan(0));
-    vertical.jumpTo(vertical.maxScrollExtent);
+    expect(viewer.minScale, .5);
+    expect(viewer.maxScale, 1.5);
+    final transform = viewer.transformationController!;
+    final before = transform.value.clone();
+    final topLeft = tester.getTopLeft(
+      find.byKey(const ValueKey('board-graph')),
+    );
+    await tester.dragFrom(
+      topLeft + const Offset(600, 180),
+      const Offset(-250, -400),
+    );
     await pumpFor(tester, 2);
+    expect(transform.value, isNot(before));
     expect(find.text('Extra 9'), findsOneWidget);
-    expect(
-      tester.getBottomLeft(find.text('Extra 9')).dy,
-      lessThanOrEqualTo(500),
-    );
-    expect(horizontal.maxScrollExtent, greaterThan(0));
-    horizontal.jumpTo(horizontal.maxScrollExtent);
-    await pumpFor(tester, 2);
-    expect(horizontal.pixels, horizontal.maxScrollExtent);
-    expect(vertical.pixels, vertical.maxScrollExtent);
+    expect(find.byKey(const ValueKey('board-wave-3')), findsOneWidget);
   });
 
   testWidgets('the mouse wheel over a spec card scrolls the Board', (
@@ -493,10 +488,7 @@ void main() {
     final (c, _) = await pumpBoard(tester);
     tester.view.physicalSize = const Size(1440, 300);
     await pumpFor(tester);
-    expect(
-      find.byKey(const ValueKey('board-vertical-scroll')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('board-vertical-scroll')), findsOneWidget);
     final card = find.byKey(const ValueKey('board-card-SPEC-003'));
     await tester.ensureVisible(card);
     await pumpFor(tester);

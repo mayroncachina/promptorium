@@ -8,6 +8,7 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/session_manager.dart';
 import '../specs/workspace_watcher.dart';
+import '../specs/widgets/spec_sync_bar.dart';
 import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
 import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
@@ -24,7 +25,8 @@ import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/subagent_status.dart';
-import 'widgets/wave_graph.dart';
+import 'widgets/spec_canvas.dart';
+import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
 /// Step rows of every spec of a workspace.
 final specStepsProvider = StreamProvider.family<List<SpecStep>, int>(
@@ -141,11 +143,32 @@ bool needsAttention(
   required bool duelReady,
 }) =>
     d.spec.stage != SpecStage.done &&
-    (d.current?.status == StepStatus.needsInput ||
+    (d.steps.any((s) => s.status == StepStatus.needsInput) ||
         waitingApproval ||
         prepFailed ||
         changedOnDisk ||
         duelReady);
+
+/// Shared attention text; all waiting steps belong to the same session.
+String boardAttentionReason(
+  SpecCardData d, {
+  bool waitingApproval = false,
+  bool prepFailed = false,
+  bool changedOnDisk = false,
+  bool duelReady = false,
+}) {
+  if (duelReady) return 'A/B prontas para comparar';
+  if (changedOnDisk) return 'spec alterada no disco';
+  if (prepFailed) return 'falha ao preparar o worktree';
+  if (waitingApproval) return 'aguardando aprovação';
+  final waiting = d.steps
+      .where((s) => s.status == StepStatus.needsInput)
+      .toList();
+  if (waiting.isEmpty) return 'Precisa de você';
+  final ids = waiting.map((s) => s.id).join(' e ');
+  if (waiting.any((s) => s.gateFailed)) return '$ids · verificação falhou';
+  return waiting.length == 1 ? '$ids aguardando você' : '$ids aguardam você';
+}
 
 /// "Grafo" (dependency waves) instead of the columns.
 class BoardGraphView extends Notifier<bool> {
@@ -266,13 +289,12 @@ class BoardScreen extends ConsumerWidget {
         : visible.isEmpty
         ? const _Empty('Nenhum cartão passa pelos filtros.')
         : ref.watch(boardGraphViewProvider)
-        ? WaveGraph(
-            specs: [for (final d in visible) d.spec],
+        ? SpecCanvas(
+            cards: visible,
+            attention: attention,
             highlightNext: ref.watch(
               autopilotProvider.select((s) => s.contains(ws.id)),
             ),
-            cardBuilder: (spec) =>
-                SpecCard(data: visible.firstWhere((d) => d.spec == spec)),
           )
         : _Board(
             cards: visible,
@@ -285,6 +307,7 @@ class BoardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          SpecSyncBar(workspace: ws, specs: specs, selected: selected?.spec),
           _Header(
             workspaceId: ws.id,
             workspacePath: ws.path,
@@ -300,7 +323,7 @@ class BoardScreen extends ConsumerWidget {
               onOpen: () => showLegacyTasksDialog(context, ws, legacy),
             ),
           Expanded(
-            child: selected == null
+            child: selected == null || ref.watch(boardGraphViewProvider)
                 ? body
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -569,7 +592,7 @@ class _Header extends ConsumerWidget {
               style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
           const SizedBox(width: 12),
-          for (final (graph, label) in [(false, 'Colunas'), (true, 'Grafo')])
+          for (final (graph, label) in [(false, 'Colunas'), (true, 'Canvas')])
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: ToggleBox(
@@ -1054,6 +1077,22 @@ class SpecCard extends ConsumerWidget {
       meta = done == 0 ? 'pronta' : 'próxima: ${current?.id ?? '—'}';
     }
 
+    if (needsAttention(
+      data,
+      waitingApproval: liveStatus == SessionStatus.waitingApproval,
+      prepFailed: prep?.error != null,
+      changedOnDisk: changedOnDisk,
+      duelReady: duel?.state == 'pronto',
+    )) {
+      meta = boardAttentionReason(
+        data,
+        waitingApproval: liveStatus == SessionStatus.waitingApproval,
+        prepFailed: prep?.error != null,
+        changedOnDisk: changedOnDisk,
+        duelReady: duel?.state == 'pronto',
+      );
+    }
+
     final canRun =
         !busy &&
         !blocked &&
@@ -1196,75 +1235,132 @@ class SpecCard extends ConsumerWidget {
                 ),
               ],
             ),
-            if (duel != null && duel.state == 'pronto') ...[
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: ValueKey('board-duel-${spec.code}'),
-                label: 'Comparar A/B',
-                onTap: () => showDuelDialog(context, duel),
-              ),
-            ] else if (changedOnDisk) ...[
-              const SizedBox(height: 6),
-              const Text(
-                'O arquivo da spec mudou enquanto ela rodava. Confirme para '
-                'as próximas etapas usarem o texto novo.',
-                style: TextStyle(fontSize: 11, color: AppColors.amber),
-              ),
-              const SizedBox(height: 6),
-              _ActionButton(
-                key: ValueKey('board-confirm-change-${spec.code}'),
-                label: 'Confirmar alteração',
-                onTap: () => ref
-                    .read(workspaceWatcherProvider.notifier)
-                    .confirm(spec.id),
-              ),
-            ] else if (prep?.error != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                tailLines(prep!.error!, 3),
-                key: ValueKey('board-prep-error-${spec.code}'),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontFamily: AppFonts.mono,
-                  fontSize: 10,
-                  color: AppColors.red,
-                ),
-              ),
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: ValueKey('board-prep-retry-${spec.code}'),
-                label: 'Tentar de novo',
-                onTap: () => runSpec(context, ref, data),
-              ),
-            ] else if (waitingUser && !busy && current!.sessionId != null) ...[
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: ValueKey('board-answer-${spec.code}'),
-                label: 'Responder na sessão',
-                onTap: () => openSession(ref, current.sessionId!),
-              ),
-            ] else if (canRun) ...[
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: ValueKey('board-run-${spec.code}'),
-                label: data.sessions.isEmpty
-                    ? 'Executar'
-                    : 'Continuar · ${current?.id ?? ''}',
-                onTap: () => runSpec(context, ref, data),
-              ),
-            ] else if (spec.stage == SpecStage.review) ...[
-              const SizedBox(height: 8),
-              _ActionButton(
-                key: ValueKey('board-review-${spec.code}'),
-                label: 'Ver review',
-                onTap: () =>
-                    ref.read(navigationProvider.notifier).go(AppSection.review),
-              ),
-            ],
+            BoardSpecAction(data: data),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Shared by columns and the canvas detail panel.
+class BoardSpecAction extends ConsumerWidget {
+  const BoardSpecAction({super.key, required this.data, this.height = 28});
+  final SpecCardData data;
+
+  /// Button height: 28 on the card, 44 in the canvas panel.
+  final double height;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final spec = data.spec, last = data.lastSession;
+    final alive =
+        last != null &&
+        ref.watch(sessionManagerProvider.select((m) => m.isAlive(last.id)));
+    final busy =
+        alive &&
+        (last.status == SessionStatus.running ||
+            last.status == SessionStatus.waitingApproval);
+    final current = data.current;
+    final waitingUser = current?.status == StepStatus.needsInput;
+    final prep = ref.watch(worktreePrepProvider.select((m) => m[spec.id]));
+    final changedOnDisk = ref.watch(
+      workspaceWatcherProvider.select((s) => s.contains(spec.id)),
+    );
+    final duel =
+        (ref.watch(openDuelsProvider(spec.workspaceId)).value ?? <SpecDuel>[])
+            .where((d) => d.specId == spec.id)
+            .firstOrNull;
+    final (done, total) = progressOf(data.steps);
+    final canRun =
+        !busy &&
+        data.blockers.isEmpty &&
+        total > 0 &&
+        done < total &&
+        spec.stage != SpecStage.done;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (alive && last.status == SessionStatus.waitingApproval)
+          _ActionButton(
+            height: height,
+            key: ValueKey('board-approvals-${spec.code}'),
+            label: 'Abrir aprovações',
+            onTap: () => openSession(ref, last.id),
+          )
+        else ...[
+          if (duel != null && duel.state == 'pronto') ...[
+            const SizedBox(height: 8),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-duel-${spec.code}'),
+              label: 'Comparar A/B',
+              onTap: () => showDuelDialog(context, duel),
+            ),
+          ] else if (changedOnDisk) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'O arquivo da spec mudou enquanto ela rodava. Confirme para '
+              'as próximas etapas usarem o texto novo.',
+              style: TextStyle(fontSize: 11, color: AppColors.amber),
+            ),
+            const SizedBox(height: 6),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-confirm-change-${spec.code}'),
+              label: 'Confirmar alteração',
+              onTap: () =>
+                  ref.read(workspaceWatcherProvider.notifier).confirm(spec.id),
+            ),
+          ] else if (prep?.error != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              tailLines(prep!.error!, 3),
+              key: ValueKey('board-prep-error-${spec.code}'),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 10,
+                color: AppColors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-prep-retry-${spec.code}'),
+              label: 'Tentar de novo',
+              onTap: () => runSpec(context, ref, data),
+            ),
+          ] else if (waitingUser && !busy && current!.sessionId != null) ...[
+            const SizedBox(height: 8),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-answer-${spec.code}'),
+              label: 'Responder na sessão',
+              onTap: () => openSession(ref, current.sessionId!),
+            ),
+          ] else if (canRun) ...[
+            const SizedBox(height: 8),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-run-${spec.code}'),
+              label: data.sessions.isEmpty
+                  ? 'Executar'
+                  : 'Continuar · ${current?.id ?? ''}',
+              onTap: () => runSpec(context, ref, data),
+            ),
+          ] else if (spec.stage == SpecStage.review) ...[
+            const SizedBox(height: 8),
+            _ActionButton(
+              height: height,
+              key: ValueKey('board-review-${spec.code}'),
+              label: 'Ver review',
+              onTap: () =>
+                  ref.read(navigationProvider.notifier).go(AppSection.review),
+            ),
+          ],
+        ],
+      ],
     );
   }
 }
@@ -1392,15 +1488,22 @@ class _Progress extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({super.key, required this.label, required this.onTap});
+  const _ActionButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.height = 28,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final double height;
 
   @override
   Widget build(BuildContext context) => SmallButton(
     label: label,
-    height: 28,
+    height: height,
+    fontSize: height > 30 ? 13 : 12,
     expand: true,
     color: AppColors.amber,
     border: SessionColors.approvalBorder,
