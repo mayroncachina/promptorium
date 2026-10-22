@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/managed_hooks.dart';
+import 'package:promptorium/core/claude/run_extensions.dart';
 import 'package:promptorium/core/claude/run_prefs.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/settings/settings_screen.dart';
@@ -137,5 +138,106 @@ void main() {
       findsNothing,
     );
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  });
+
+  testWidgets('Execução de specs (SPEC-017 R5): steps in one session, the '
+      'context limit and the plugins / MCP servers of the app runs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final c = ProviderContainer(
+      overrides: [databaseOverride(memoryDatabase())],
+    );
+    addTearDown(c.dispose);
+    final settings = c.read(appSettingsProvider.notifier);
+    await tester.runAsync(() => settings.load());
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SettingsScreen()),
+        ),
+      ),
+    );
+    Future<void> tap(String key) async {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pump();
+    }
+
+    await tap('settings-nav-specRuns');
+    expect(
+      find.byKey(const ValueKey('settings-plugins-empty')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('abaixo de 60 mil tokens'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-changed-specRuns')),
+      findsNothing,
+    );
+
+    await tap('settings-continue-context-80');
+    await tap('settings-single-steps-2');
+    expect(settings.get(AppSettingKeys.continueContextTokens), '80');
+    expect(settings.get(AppSettingKeys.singleSessionSteps), '2');
+    expect(c.read(runPrefsProvider).continueContextTokens, 80000);
+    expect(find.textContaining('Spec com até 2 requisitos'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-changed-specRuns')),
+      findsOneWidget,
+    );
+
+    // What the last system/init listed shows up with a switch each.
+    await tester.runAsync(
+      () => settings.set(
+        AppSettingKeys.knownExtensions,
+        encodeKnownExtensions((
+          plugins: const [
+            KnownPlugin(
+              id: 'claude-mem@thedotmack',
+              version: '13.9.2',
+              tools: 22,
+            ),
+          ],
+          servers: const [KnownMcpServer(name: 'youtrack', source: 'user')],
+        )),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('22 ferramentas MCP em toda chamada'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('settings-plugin-claude-mem@thedotmack')),
+        matching: find.byType(Switch),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('settings-mcp-youtrack')),
+        matching: find.byType(Switch),
+      ),
+    );
+    await tester.pump();
+    expect(c.read(runExtensionsProvider).plugins, {'claude-mem@thedotmack'});
+    expect(c.read(runExtensionsProvider).mcpServers, {'youtrack'});
+
+    // On again: out of the list.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('settings-mcp-youtrack')),
+        matching: find.byType(Switch),
+      ),
+    );
+    await tester.pump();
+    expect(c.read(runExtensionsProvider).mcpServers, isEmpty);
+
+    await tap('settings-reset-spec-runs');
+    await tester.pump();
+    expect(settings.get(AppSettingKeys.continueContextTokens), isNull);
+    expect(c.read(runExtensionsProvider).plugins, isEmpty);
+    expect(tester.takeException(), isNull);
   });
 }
