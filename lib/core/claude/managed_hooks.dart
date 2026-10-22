@@ -251,19 +251,27 @@ class ManagedHooks {
 
   /// Writes the session's files; returns the `--settings` path, or null
   /// when no hook applies.
+  /// [extra] goes into the same `settings.json` (the plugins and MCP
+  /// servers turned off, SPEC-017 R2).
   Future<String?> prepare(
     String sessionId, {
     required Set<ManagedHook> enabled,
     required List<BlockRule> rules,
     String? formatCommand,
+    Map<String, Object?> extra = const {},
   }) async {
     final on = {
       for (final h in enabled)
         if (h != ManagedHook.format || formatCommand != null) h,
     };
-    if (on.isEmpty) return null;
+    if (on.isEmpty && extra.isEmpty) return null;
     final dir = Directory(dirOf(sessionId));
     await dir.create(recursive: true);
+    if (on.isEmpty) {
+      final settings = File('${dir.path}/settings.json');
+      await settings.writeAsString(jsonEncode(extra));
+      return settings.path;
+    }
     final script = File('${dir.path}/promptorium_hook.py');
     await script.writeAsString(hookScript);
     await File('${dir.path}/hooks-config.json').writeAsString(
@@ -278,7 +286,10 @@ class ManagedHooks {
     );
     final settings = File('${dir.path}/settings.json');
     await settings.writeAsString(
-      jsonEncode(settingsJson('$python ${_quote(script.path)}', on)),
+      jsonEncode({
+        ...settingsJson('$python ${_quote(script.path)}', on),
+        ...extra,
+      }),
     );
     return settings.path;
   }

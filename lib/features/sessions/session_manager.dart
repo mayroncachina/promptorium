@@ -11,6 +11,7 @@ import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/claude/managed_hooks.dart';
+import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
@@ -1060,11 +1061,16 @@ class SessionManager extends Notifier<SessionManagerState> {
     required String cwd,
     String? root,
   }) async {
+    final extra = disabledExtensionsJson(ref.read(runExtensionsProvider));
     final hooks = ref.read(managedHooksProvider);
-    if (hooks == null) return null;
+    // No hooks of the app (tests, no python3): only the extensions turned
+    // off, if any (SPEC-017 R2).
+    Future<String?> plain() =>
+        writeRunSettings(ref.read(runSettingsDirProvider), extra);
+    if (hooks == null) return plain();
     await _hookCleanups[id];
     try {
-      if (!await pythonAvailable()) return null;
+      if (!await pythonAvailable()) return await plain();
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
         for (final h in ManagedHook.values)
@@ -1080,6 +1086,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           cwd: cwd,
         ),
         formatCommand: config?.formatCommand,
+        extra: extra,
       );
     } catch (e) {
       debugPrint('sessão $id: hooks do app não preparados — $e');
@@ -1139,6 +1146,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     switch (e) {
       case SystemInit():
         if (e.sessionId != null) await _repo.setExternalId(id, e.sessionId!);
+        await recordKnownExtensions(ref, e.json);
         state = SessionManagerState(live: state.live, lastInit: e);
       case PermissionRequest():
         p.pending.add(e);

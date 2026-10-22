@@ -24,6 +24,18 @@ abstract final class AppSettingKeys {
   /// Quadro: a spec with at most this many steps runs in one session.
   static const singleSessionSteps = 'board.singleSessionSteps';
 
+  /// After the gate, the next step goes to the same session while its
+  /// context is below this many thousand tokens (`0` = off; SPEC-017 R4).
+  static const continueContextTokens = 'board.continueContextTokens';
+
+  /// Plugins (`nome@marketplace`) and MCP servers (names) turned off in the
+  /// app's runs, as JSON lists (SPEC-017 R2).
+  static const disabledPlugins = 'agent.disabledPlugins';
+  static const disabledMcpServers = 'agent.disabledMcpServers';
+
+  /// Plugins and MCP servers seen in the last `system/init` (JSON).
+  static const knownExtensions = 'agent.knownExtensions';
+
   /// Minutes without activity before an idle session's process is closed
   /// (`0` = never). The session stays and "Retomar" starts it again.
   static const idleMinutes = 'claude.idleMinutes';
