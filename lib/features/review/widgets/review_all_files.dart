@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/git/diff_parser.dart';
 import '../review_service.dart';
 import 'review_diff_view.dart';
+import '../comment_anchor.dart';
+import 'persisted_comment.dart';
 
 /// File the Review's file list asked to show (the page with every file
 /// scrolls to it).
@@ -24,6 +26,9 @@ class ReviewAllFiles extends ConsumerStatefulWidget {
     super.key,
     required this.files,
     required this.draft,
+    this.persisted = const [],
+    this.selected = const {},
+    this.onSelectComment,
     this.sideBySide = false,
     this.readOnly = false,
     this.target,
@@ -37,6 +42,9 @@ class ReviewAllFiles extends ConsumerStatefulWidget {
     this.onToggleAccept,
   });
 
+  final List<AnchoredComment> persisted;
+  final Set<int> selected;
+  final void Function(int, bool)? onSelectComment;
   final List<DiffFile> files;
   final ReviewDraft draft;
   final bool sideBySide;
@@ -86,7 +94,7 @@ class _ReviewAllFilesState extends ConsumerState<ReviewAllFiles> {
   Widget build(BuildContext context) {
     ref.listen(reviewScrollTargetProvider, (_, path) => _scrollTo(path));
     final w = widget;
-    if (w.files.isEmpty) {
+    if (w.files.isEmpty && w.persisted.isEmpty) {
       return const Center(child: Text('Nenhuma alteração.'));
     }
     return SingleChildScrollView(
@@ -95,12 +103,33 @@ class _ReviewAllFilesState extends ConsumerState<ReviewAllFiles> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (w.persisted.any(
+            (c) =>
+                c.row.path == null || !w.files.any((f) => f.path == c.row.path),
+          ))
+            const Text('Geral'),
+          for (final c in w.persisted.where(
+            (c) =>
+                c.row.path == null || !w.files.any((f) => f.path == c.row.path),
+          ))
+            PersistedComment(
+              comment: c,
+              selected: w.selected.contains(c.row.id),
+              onSelected: w.onSelectComment == null
+                  ? null
+                  : (v) => w.onSelectComment!(c.row.id, v),
+            ),
           for (final (i, f) in w.files.indexed)
             Padding(
               key: _keyOf(i),
               padding: const EdgeInsets.only(bottom: 14),
               child: ReviewFileDiff(
                 embedded: true,
+                persisted: w.persisted
+                    .where((c) => c.row.path == f.path)
+                    .toList(),
+                selected: w.selected,
+                onSelectComment: w.onSelectComment,
                 readOnly: w.readOnly,
                 sideBySide: w.sideBySide,
                 file: f,

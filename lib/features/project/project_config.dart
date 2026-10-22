@@ -175,6 +175,9 @@ class ProjectConfig {
     this.worktree = const WorktreeConfig(),
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
+    this.mergeMethod = 'merge',
+    this.host,
+    this.hostType,
   });
 
   static const defaultSpecsDir = 'specs';
@@ -204,6 +207,8 @@ class ProjectConfig {
   final WorktreeConfig worktree;
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
+  final String mergeMethod;
+  final String? host, hostType;
 
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
@@ -234,6 +239,9 @@ class ProjectConfig {
     WorktreeConfig? worktree,
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
+    String? mergeMethod,
+    String? host,
+    String? hostType,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -248,6 +256,9 @@ class ProjectConfig {
     worktree: worktree ?? this.worktree,
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
+    mergeMethod: mergeMethod ?? this.mergeMethod,
+    host: host ?? this.host,
+    hostType: hostType ?? this.hostType,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -341,6 +352,12 @@ class ProjectConfig {
     final r = map('revisor');
     final a = map('autopilot');
     return ProjectConfig(
+      mergeMethod:
+          ['merge', 'squash', 'rebase'].contains(map('merge')['metodo'])
+          ? '${map('merge')['metodo']}'
+          : 'merge',
+      host: str(map('hospedagem')['host']),
+      hostType: str(map('hospedagem')['tipo']),
       specsDir: dir != null && validateSpecsDir(dir) == null
           ? dir
           : defaultSpecsDir,
@@ -436,6 +453,14 @@ class ProjectConfig {
       if (worktree.basePort != null) {
         b.writeln('  porta-base: ${worktree.basePort}');
       }
+    }
+    if (mergeMethod != 'merge') {
+      b.writeln('merge:\n  metodo: $mergeMethod');
+    }
+    if (host != null && hostType != null) {
+      b.writeln(
+        'hospedagem:\n  host: ${jsonEncode(host)}\n  tipo: ${jsonEncode(hostType)}',
+      );
     }
     if (!reviewer.isDefault) {
       b

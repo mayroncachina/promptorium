@@ -41,7 +41,7 @@ importa: requisito faltando ou errado, bug, teste ausente para um requisito,
 quebra de algo que já existia, segredo no código. Não peça mudanças de estilo
 ou gosto pessoal.
 
-Cada comentário diz o arquivo e a linha (linha 0 = o arquivo todo; arquivo
+Cada comentário diz o arquivo e a linha do arquivo novo, como numerada no diff (linha 0 = o arquivo todo; arquivo
 vazio = a spec como um todo), o que está errado e o que fazer, com o requisito
 (R1, R2…) quando houver. Escreva em português, curto e direto.''';
 

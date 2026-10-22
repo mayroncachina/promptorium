@@ -8715,6 +8715,43 @@ class $ReviewCommentsTable extends ReviewComments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _resolvedMeta = const VerificationMeta(
+    'resolved',
+  );
+  @override
+  late final GeneratedColumn<bool> resolved = GeneratedColumn<bool>(
+    'resolved',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("resolved" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _resolvedAtMeta = const VerificationMeta(
+    'resolvedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+    'resolved_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _externalIdMeta = const VerificationMeta(
+    'externalId',
+  );
+  @override
+  late final GeneratedColumn<String> externalId = GeneratedColumn<String>(
+    'external_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -8740,6 +8777,9 @@ class $ReviewCommentsTable extends ReviewComments
     requirement,
     verdict,
     commitSha,
+    resolved,
+    resolvedAt,
+    externalId,
     createdAt,
   ];
   @override
@@ -8828,6 +8868,24 @@ class $ReviewCommentsTable extends ReviewComments
         commitSha.isAcceptableOrUnknown(data['commit_sha']!, _commitShaMeta),
       );
     }
+    if (data.containsKey('resolved')) {
+      context.handle(
+        _resolvedMeta,
+        resolved.isAcceptableOrUnknown(data['resolved']!, _resolvedMeta),
+      );
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+        _resolvedAtMeta,
+        resolvedAt.isAcceptableOrUnknown(data['resolved_at']!, _resolvedAtMeta),
+      );
+    }
+    if (data.containsKey('external_id')) {
+      context.handle(
+        _externalIdMeta,
+        externalId.isAcceptableOrUnknown(data['external_id']!, _externalIdMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -8887,6 +8945,18 @@ class $ReviewCommentsTable extends ReviewComments
         DriftSqlType.string,
         data['${effectivePrefix}commit_sha'],
       ),
+      resolved: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}resolved'],
+      )!,
+      resolvedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}resolved_at'],
+      ),
+      externalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -8926,6 +8996,9 @@ class ReviewCommentRow extends DataClass
   /// the commit reviewed.
   final String? verdict;
   final String? commitSha;
+  final bool resolved;
+  final DateTime? resolvedAt;
+  final String? externalId;
   final DateTime createdAt;
   const ReviewCommentRow({
     required this.id,
@@ -8939,6 +9012,9 @@ class ReviewCommentRow extends DataClass
     this.requirement,
     this.verdict,
     this.commitSha,
+    required this.resolved,
+    this.resolvedAt,
+    this.externalId,
     required this.createdAt,
   });
   @override
@@ -8967,6 +9043,13 @@ class ReviewCommentRow extends DataClass
     if (!nullToAbsent || commitSha != null) {
       map['commit_sha'] = Variable<String>(commitSha);
     }
+    map['resolved'] = Variable<bool>(resolved);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    if (!nullToAbsent || externalId != null) {
+      map['external_id'] = Variable<String>(externalId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -8992,6 +9075,13 @@ class ReviewCommentRow extends DataClass
       commitSha: commitSha == null && nullToAbsent
           ? const Value.absent()
           : Value(commitSha),
+      resolved: Value(resolved),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      externalId: externalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalId),
       createdAt: Value(createdAt),
     );
   }
@@ -9013,6 +9103,9 @@ class ReviewCommentRow extends DataClass
       requirement: serializer.fromJson<String?>(json['requirement']),
       verdict: serializer.fromJson<String?>(json['verdict']),
       commitSha: serializer.fromJson<String?>(json['commitSha']),
+      resolved: serializer.fromJson<bool>(json['resolved']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      externalId: serializer.fromJson<String?>(json['externalId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -9031,6 +9124,9 @@ class ReviewCommentRow extends DataClass
       'requirement': serializer.toJson<String?>(requirement),
       'verdict': serializer.toJson<String?>(verdict),
       'commitSha': serializer.toJson<String?>(commitSha),
+      'resolved': serializer.toJson<bool>(resolved),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'externalId': serializer.toJson<String?>(externalId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -9047,6 +9143,9 @@ class ReviewCommentRow extends DataClass
     Value<String?> requirement = const Value.absent(),
     Value<String?> verdict = const Value.absent(),
     Value<String?> commitSha = const Value.absent(),
+    bool? resolved,
+    Value<DateTime?> resolvedAt = const Value.absent(),
+    Value<String?> externalId = const Value.absent(),
     DateTime? createdAt,
   }) => ReviewCommentRow(
     id: id ?? this.id,
@@ -9060,6 +9159,9 @@ class ReviewCommentRow extends DataClass
     requirement: requirement.present ? requirement.value : this.requirement,
     verdict: verdict.present ? verdict.value : this.verdict,
     commitSha: commitSha.present ? commitSha.value : this.commitSha,
+    resolved: resolved ?? this.resolved,
+    resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+    externalId: externalId.present ? externalId.value : this.externalId,
     createdAt: createdAt ?? this.createdAt,
   );
   ReviewCommentRow copyWithCompanion(ReviewCommentsCompanion data) {
@@ -9077,6 +9179,13 @@ class ReviewCommentRow extends DataClass
           : this.requirement,
       verdict: data.verdict.present ? data.verdict.value : this.verdict,
       commitSha: data.commitSha.present ? data.commitSha.value : this.commitSha,
+      resolved: data.resolved.present ? data.resolved.value : this.resolved,
+      resolvedAt: data.resolvedAt.present
+          ? data.resolvedAt.value
+          : this.resolvedAt,
+      externalId: data.externalId.present
+          ? data.externalId.value
+          : this.externalId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -9095,6 +9204,9 @@ class ReviewCommentRow extends DataClass
           ..write('requirement: $requirement, ')
           ..write('verdict: $verdict, ')
           ..write('commitSha: $commitSha, ')
+          ..write('resolved: $resolved, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('externalId: $externalId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -9113,6 +9225,9 @@ class ReviewCommentRow extends DataClass
     requirement,
     verdict,
     commitSha,
+    resolved,
+    resolvedAt,
+    externalId,
     createdAt,
   );
   @override
@@ -9130,6 +9245,9 @@ class ReviewCommentRow extends DataClass
           other.requirement == this.requirement &&
           other.verdict == this.verdict &&
           other.commitSha == this.commitSha &&
+          other.resolved == this.resolved &&
+          other.resolvedAt == this.resolvedAt &&
+          other.externalId == this.externalId &&
           other.createdAt == this.createdAt);
 }
 
@@ -9145,6 +9263,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<String?> requirement;
   final Value<String?> verdict;
   final Value<String?> commitSha;
+  final Value<bool> resolved;
+  final Value<DateTime?> resolvedAt;
+  final Value<String?> externalId;
   final Value<DateTime> createdAt;
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
@@ -9158,6 +9279,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.requirement = const Value.absent(),
     this.verdict = const Value.absent(),
     this.commitSha = const Value.absent(),
+    this.resolved = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   ReviewCommentsCompanion.insert({
@@ -9172,6 +9296,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.requirement = const Value.absent(),
     this.verdict = const Value.absent(),
     this.commitSha = const Value.absent(),
+    this.resolved = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
   }) : specId = Value(specId),
        round = Value(round),
@@ -9189,6 +9316,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Expression<String>? requirement,
     Expression<String>? verdict,
     Expression<String>? commitSha,
+    Expression<bool>? resolved,
+    Expression<DateTime>? resolvedAt,
+    Expression<String>? externalId,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -9203,6 +9333,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       if (requirement != null) 'requirement': requirement,
       if (verdict != null) 'verdict': verdict,
       if (commitSha != null) 'commit_sha': commitSha,
+      if (resolved != null) 'resolved': resolved,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (externalId != null) 'external_id': externalId,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -9219,6 +9352,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     Value<String?>? requirement,
     Value<String?>? verdict,
     Value<String?>? commitSha,
+    Value<bool>? resolved,
+    Value<DateTime?>? resolvedAt,
+    Value<String?>? externalId,
     Value<DateTime>? createdAt,
   }) {
     return ReviewCommentsCompanion(
@@ -9233,6 +9369,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
       requirement: requirement ?? this.requirement,
       verdict: verdict ?? this.verdict,
       commitSha: commitSha ?? this.commitSha,
+      resolved: resolved ?? this.resolved,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      externalId: externalId ?? this.externalId,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -9273,6 +9412,15 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     if (commitSha.present) {
       map['commit_sha'] = Variable<String>(commitSha.value);
     }
+    if (resolved.present) {
+      map['resolved'] = Variable<bool>(resolved.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (externalId.present) {
+      map['external_id'] = Variable<String>(externalId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -9293,6 +9441,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
           ..write('requirement: $requirement, ')
           ..write('verdict: $verdict, ')
           ..write('commitSha: $commitSha, ')
+          ..write('resolved: $resolved, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('externalId: $externalId, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -19122,6 +19273,9 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
       Value<String?> requirement,
       Value<String?> verdict,
       Value<String?> commitSha,
+      Value<bool> resolved,
+      Value<DateTime?> resolvedAt,
+      Value<String?> externalId,
       Value<DateTime> createdAt,
     });
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
@@ -19137,6 +19291,9 @@ typedef $$ReviewCommentsTableUpdateCompanionBuilder =
       Value<String?> requirement,
       Value<String?> verdict,
       Value<String?> commitSha,
+      Value<bool> resolved,
+      Value<DateTime?> resolvedAt,
+      Value<String?> externalId,
       Value<DateTime> createdAt,
     });
 
@@ -19223,6 +19380,21 @@ class $$ReviewCommentsTableFilterComposer
 
   ColumnFilters<String> get commitSha => $composableBuilder(
     column: $table.commitSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get resolved => $composableBuilder(
+    column: $table.resolved,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalId => $composableBuilder(
+    column: $table.externalId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19314,6 +19486,21 @@ class $$ReviewCommentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get resolved => $composableBuilder(
+    column: $table.resolved,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -19384,6 +19571,19 @@ class $$ReviewCommentsTableAnnotationComposer
   GeneratedColumn<String> get commitSha =>
       $composableBuilder(column: $table.commitSha, builder: (column) => column);
 
+  GeneratedColumn<bool> get resolved =>
+      $composableBuilder(column: $table.resolved, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+    column: $table.resolvedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -19452,6 +19652,9 @@ class $$ReviewCommentsTableTableManager
                 Value<String?> requirement = const Value.absent(),
                 Value<String?> verdict = const Value.absent(),
                 Value<String?> commitSha = const Value.absent(),
+                Value<bool> resolved = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => ReviewCommentsCompanion(
                 id: id,
@@ -19465,6 +19668,9 @@ class $$ReviewCommentsTableTableManager
                 requirement: requirement,
                 verdict: verdict,
                 commitSha: commitSha,
+                resolved: resolved,
+                resolvedAt: resolvedAt,
+                externalId: externalId,
                 createdAt: createdAt,
               ),
           createCompanionCallback:
@@ -19480,6 +19686,9 @@ class $$ReviewCommentsTableTableManager
                 Value<String?> requirement = const Value.absent(),
                 Value<String?> verdict = const Value.absent(),
                 Value<String?> commitSha = const Value.absent(),
+                Value<bool> resolved = const Value.absent(),
+                Value<DateTime?> resolvedAt = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => ReviewCommentsCompanion.insert(
                 id: id,
@@ -19493,6 +19702,9 @@ class $$ReviewCommentsTableTableManager
                 requirement: requirement,
                 verdict: verdict,
                 commitSha: commitSha,
+                resolved: resolved,
+                resolvedAt: resolvedAt,
+                externalId: externalId,
                 createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0

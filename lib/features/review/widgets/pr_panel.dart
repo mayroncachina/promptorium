@@ -23,6 +23,25 @@ class PrPanel extends ConsumerStatefulWidget {
 
 class _PrPanelState extends ConsumerState<PrPanel> {
   bool _busy = false;
+  PrStatus? _openedStatus;
+  String? _openedError;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.session.prUrl != null) {
+      Future<void>.microtask(() async {
+        try {
+          final status = await ref
+              .read(reviewServiceProvider)
+              .refreshPrComments(_id);
+          if (mounted) setState(() => _openedStatus = status);
+        } catch (e) {
+          if (mounted) setState(() => _openedError = '$e');
+        }
+      });
+    }
+  }
+
   String? _message;
 
   String get _id => widget.session.id;
@@ -48,7 +67,7 @@ class _PrPanelState extends ConsumerState<PrPanel> {
     if (!hasPr && !widget.localConflict) return const SizedBox.shrink();
     final watch = ref.watch(prBabysitterProvider)[_id];
     final sitter = ref.read(prBabysitterProvider.notifier);
-    final status = watch?.status;
+    final status = watch?.status ?? _openedStatus;
     final conflict = widget.localConflict || (status?.conflicting ?? false);
     return Container(
       key: const ValueKey('review-pr-panel'),
@@ -61,6 +80,8 @@ class _PrPanelState extends ConsumerState<PrPanel> {
         spacing: 10,
         runSpacing: 6,
         children: [
+          if (_openedError != null || watch?.error != null)
+            Text(_openedError ?? watch!.error!),
           if (hasPr)
             Text(
               status == null

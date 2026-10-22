@@ -1,3 +1,14 @@
+import 'dart:async';
+
+import '../../core/fs/dir_watcher.dart';
+
+import 'dart:io';
+
+import '../project/project_config.dart';
+import 'merge_options.dart';
+import 'merge_readiness.dart';
+import 'comment_anchor.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,12 +21,15 @@ import '../sessions/session_manager.dart';
 import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import 'auto_reviewer.dart';
+import 'pr_babysitter.dart';
+import '../specs/spec_service.dart';
 import 'review_service.dart';
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
 import 'widgets/pr_panel.dart';
 import 'widgets/review_all_files.dart';
 import 'widgets/review_dialogs.dart';
+import 'widgets/persisted_comment.dart';
 
 /// Review screen (docs/mockups/Review.dc.html, plano Fase 9): "Aguardando
 /// review" + changed files on the left; header with the actions and the
@@ -142,7 +156,28 @@ final _selectedFileProvider = NotifierProvider<_SelectedFile, String?>(
 /// How the diff is shown (kept while switching items).
 @immutable
 class ReviewView {
-  const ReviewView({this.allFiles = true, this.sideBySide = false});
+  const ReviewView({
+    this.allFiles = true,
+    this.sideBySide = false,
+    this.commentsVisible = true,
+    this.onlyOpen = true,
+    this.sources = const {'humano', 'revisor', 'pr'},
+  });
+  final bool commentsVisible, onlyOpen;
+  final Set<String> sources;
+  ReviewView copyWith({
+    bool? allFiles,
+    bool? sideBySide,
+    bool? commentsVisible,
+    bool? onlyOpen,
+    Set<String>? sources,
+  }) => ReviewView(
+    allFiles: allFiles ?? this.allFiles,
+    sideBySide: sideBySide ?? this.sideBySide,
+    commentsVisible: commentsVisible ?? this.commentsVisible,
+    onlyOpen: onlyOpen ?? this.onlyOpen,
+    sources: sources ?? this.sources,
+  );
 
   /// Every file in one page (the file list scrolls to the file).
   final bool allFiles;
@@ -185,6 +220,17 @@ DiffFile? _fileOf(ReviewDetail? d, String? path) {
   return d.files.first;
 }
 
+class _SinceSelection extends Notifier<(String, int, String)?> {
+  @override
+  (String, int, String)? build() => null;
+  void select((String, int, String)? value) => state = value;
+}
+
+final _sinceSelectionProvider =
+    NotifierProvider<_SinceSelection, (String, int, String)?>(
+      _SinceSelection.new,
+    );
+
 class _ReviewSidebar extends ConsumerWidget {
   const _ReviewSidebar({
     required this.queue,
@@ -202,6 +248,16 @@ class _ReviewSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final current = _fileOf(detail, ref.watch(_selectedFileProvider));
     final files = detail?.files ?? const <DiffFile>[];
+    final since = ref.watch(_sinceSelectionProvider);
+    final sinceDetail = since == null || since.$1 != selectedId
+        ? null
+        : ref.watch(reviewSinceProvider((since.$1, since.$3))).value;
+    final changedPaths = sinceDetail?.files.map((f) => f.path).toSet();
+    final specId = detail?.session.specId;
+    final rows = specId == null
+        ? <ReviewCommentRow>[]
+        : ref.watch(reviewCommentsProvider(specId)).value ??
+              <ReviewCommentRow>[];
     return ColoredBox(
       color: AppColors.panel,
       child: ListView(
@@ -255,6 +311,11 @@ class _ReviewSidebar extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
                 child: _FileTile(
                   file: f,
+                  unchanged:
+                      changedPaths != null && !changedPaths.contains(f.path),
+                  openComments: rows
+                      .where((c) => !c.resolved && c.path == f.path)
+                      .length,
                   selected: identical(f, current),
                   onTap: () {
                     ref.read(_selectedFileProvider.notifier).select(f.path);
@@ -271,7 +332,7 @@ class _ReviewSidebar extends ConsumerWidget {
   }
 }
 
-class _QueueTile extends StatelessWidget {
+class _QueueTile extends ConsumerWidget {
   const _QueueTile({
     required this.item,
     required this.selected,
@@ -283,8 +344,38 @@ class _QueueTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = item.session;
+    final complete = selected
+        ? ref.watch(mergeReadinessProvider(s.id)).value
+        : null;
+    final pending = item.spec == null
+        ? null
+        : ref.watch(pendingCriteriaProvider(item.spec!.id));
+    final peers = ref.watch(specsProvider(s.workspaceId)).value ?? <Spec>[];
+    final stacked = peers.any(
+      (p) =>
+          p.id != item.spec?.id &&
+          p.branch == s.baseBranch &&
+          p.branch != null &&
+          p.stage != SpecStage.done,
+    );
+    final workspace = ref.watch(activeWorkspaceProvider);
+    final blocked =
+        item.spec?.reviewPhase == ReviewPhase.auto ||
+        s.status == SessionStatus.merged ||
+        stacked ||
+        (pending?.hasError ?? false) ||
+        (pending?.value?.isNotEmpty ?? false) ||
+        s.worktreePath == workspace?.path ||
+        !Directory(s.worktreePath).existsSync();
+    final color = complete == null
+        ? (blocked ? AppColors.red : AppColors.amber)
+        : switch (complete.level) {
+            ReadinessLevel.ok => AppColors.teal,
+            ReadinessLevel.bloqueio => AppColors.red,
+            _ => AppColors.amber,
+          };
     final meta = [
       if (item.spec != null)
         item.spec!.code
@@ -310,6 +401,16 @@ class _QueueTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Tooltip(
+                message:
+                    complete?.summary ??
+                    'Estado parcial: não verificado por completo',
+                child: Icon(
+                  complete == null ? Icons.circle_outlined : Icons.circle,
+                  color: color,
+                  size: 9,
+                ),
+              ),
               Text(
                 sessionTitle(s),
                 maxLines: 2,
@@ -340,11 +441,15 @@ class _QueueTile extends StatelessWidget {
 
 class _FileTile extends StatelessWidget {
   const _FileTile({
+    this.openComments = 0,
+    this.unchanged = false,
     required this.file,
     required this.selected,
     required this.onTap,
   });
 
+  final bool unchanged;
+  final int openComments;
   final DiffFile file;
   final bool selected;
   final VoidCallback onTap;
@@ -385,6 +490,16 @@ class _FileTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (unchanged)
+                const Text(
+                  'sem alterações',
+                  style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                ),
+              if (openComments > 0)
+                Text(
+                  ' · $openComments abertos',
+                  style: mono.copyWith(color: AppColors.amber),
+                ),
               if (add > 0) ...[
                 const SizedBox(width: 6),
                 Text('+$add', style: mono.copyWith(color: AppColors.teal)),
@@ -414,9 +529,48 @@ class _ReviewMain extends ConsumerStatefulWidget {
 class _ReviewMainState extends ConsumerState<_ReviewMain> {
   CommentTarget? _target;
   String? _busy;
+  DirWatcher? _repositoryWatcher;
 
   /// Step whose commits are shown (null = the whole branch).
   String? _step;
+  ReviewCommentRow? _since;
+  final _selectedComments = <int>{};
+  bool get _commentsVisible => ref.read(reviewViewProvider).commentsVisible;
+  bool get _onlyOpen => ref.read(reviewViewProvider).onlyOpen;
+  Set<String> get _sources => ref.read(reviewViewProvider).sources;
+  void _filter({bool? visible, bool? onlyOpen, Set<String>? sources}) => ref
+      .read(reviewViewProvider.notifier)
+      .set(
+        ref
+            .read(reviewViewProvider)
+            .copyWith(
+              commentsVisible: visible,
+              onlyOpen: onlyOpen,
+              sources: sources,
+            ),
+      );
+
+  void _update(VoidCallback action) => setState(action);
+
+  void _selectComment(int id, bool value) => setState(() {
+    if (value) {
+      _selectedComments.add(id);
+    } else {
+      _selectedComments.remove(id);
+    }
+  });
+
+  List<AnchoredComment> _persisted(List<DiffFile> files) {
+    final spec = widget.item.spec;
+    if (spec == null || !_commentsVisible) return [];
+    final rows = ref.watch(reviewCommentsProvider(spec.id)).value ?? [];
+    final shifts = ref.watch(reviewAnchorProvider((_id, spec.id))).value ?? {};
+    return [
+      for (final c in rows)
+        if ((!_onlyOpen || !c.resolved) && _sources.contains(c.author))
+          anchorOf(c, files.where((f) => f.path == c.path).firstOrNull, shifts),
+    ];
+  }
 
   /// The last "Fazer merge" stopped on a conflict.
   bool _conflict = false;
@@ -428,6 +582,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   @override
   void initState() {
     super.initState();
+    unawaited(_observeRepository());
     // "Ver diff da etapa" (Specs, U5) opens the item on that step; the
     // provider is cleared after this frame (no writes during build).
     _step = ref.read(reviewInitialStepProvider);
@@ -436,6 +591,23 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         if (mounted) ref.read(reviewInitialStepProvider.notifier).set(null);
       });
     }
+  }
+
+  Future<void> _observeRepository() async {
+    final watcher = await _service.watchRepositories(_id, () {
+      if (mounted && _busy == null) _refresh();
+    });
+    if (!mounted) {
+      await watcher?.close();
+      return;
+    }
+    _repositoryWatcher = watcher;
+  }
+
+  @override
+  void dispose() {
+    unawaited(_repositoryWatcher?.close());
+    super.dispose();
   }
 
   void _toast(String msg, {SnackBarAction? action}) {
@@ -460,7 +632,16 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       if (e.message.startsWith('Conflito ao fazer merge')) {
         setState(() => _conflict = true);
       }
-      if (mounted) await showReviewError(context, label, e.message);
+      if (mounted) {
+        await showReviewError(
+          context,
+          label,
+          e.message,
+          onResolve: e is MergeConflictException
+              ? () => _service.resolveConflict(_id)
+              : null,
+        );
+      }
     } catch (e) {
       if (mounted) await showReviewError(context, label, '$e');
     } finally {
@@ -470,6 +651,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   void _selectStep(String? step) => setState(() {
     _step = step;
+    _since = null;
+    ref.read(_sinceSelectionProvider.notifier).select(null);
     _target = null;
   });
 
@@ -482,6 +665,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   });
 
   void _refresh() {
+    ref.invalidate(mergeReadinessProvider(_id));
+    ref.invalidate(reviewSinceProvider);
+    ref.invalidate(reviewRoundAvailabilityProvider);
     ref.invalidate(reviewDetailProvider(_id));
     ref.invalidate(reviewQueueProvider(widget.workspaceId));
     ref.invalidate(prAvailabilityProvider(_id));
@@ -499,13 +685,36 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   Future<void> _requestChanges() async {
     final comments = ref.read(reviewDraftProvider(_id)).comments;
-    final note = await showAdjustDialog(context, comments);
+    final selectedRows = widget.item.spec == null
+        ? <ReviewCommentRow>[]
+        : (ref.read(reviewCommentsProvider(widget.item.spec!.id)).value ??
+                  <ReviewCommentRow>[])
+              .where((c) => _selectedComments.contains(c.id) && !c.resolved)
+              .toList();
+    final preview = [
+      ...comments,
+      for (final c in selectedRows)
+        ReviewComment(
+          path: c.path ?? 'Geral',
+          line: c.line ?? 0,
+          text:
+              '[${c.author}, rodada ${c.round}] ${c.body.substring(0, c.body.length.clamp(0, 4000))}',
+          snippet: const [],
+        ),
+    ];
+    final note = await showAdjustDialog(context, preview);
     if (note == null || !mounted) return;
     final messenger = ScaffoldMessenger.maybeOf(context);
     final container = ProviderScope.containerOf(context, listen: false);
     final id = _id;
     await _run('Pedir ajustes ao agente', () async {
-      await _service.requestChanges(_id, comments, note: note);
+      await _service.requestChanges(
+        _id,
+        comments,
+        note: note,
+        selected: selectedRows,
+      );
+      _selectedComments.clear();
       ref.read(reviewDraftProvider(_id).notifier).clearComments();
       _refresh();
       _toast(
@@ -540,17 +749,47 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       override = await showMergeOverrideDialog(context, pending);
       if (override == null || !mounted) return;
     }
+    final ws = await ref
+        .read(workspacesRepoProvider)
+        .getById(widget.workspaceId);
+    final config = ws == null
+        ? const ProjectConfig()
+        : await ref.read(projectConfigProvider(ws.path).future);
+    final prediction = await _service.predictConflict(_id);
+    if (!mounted) return;
+    var options = const MergeOptions();
     final deleteBranch = await showMergeDialog(
       context,
       branch: d.session.branch,
       base: d.baseBranch,
       uncommitted: d.uncommitted,
+      published: d.session.prUrl != null,
+      initialMethod: MergeMethod.values.firstWhere(
+        (m) => m.name == config.mergeMethod,
+        orElse: () => MergeMethod.merge,
+      ),
+      onOptions: (v) => options = v,
+      warnings: [
+        if (prediction.error != null)
+          'Conflito previsto: não verificado · ${prediction.error}',
+        if (prediction.files.isNotEmpty)
+          'Conflito previsto: ${prediction.files.join(', ')}',
+        'A previsão não inclui pendências e é aproximada para rebase.',
+        ...ref
+                .read(mergeReadinessProvider(_id))
+                .value
+                ?.warnings
+                .map((i) => i.detail)
+                .toList() ??
+            [],
+      ],
     );
     if (deleteBranch == null || !mounted) return;
     await _run('Fazer merge', () async {
       final r = await _service.merge(
         _id,
         deleteBranch: deleteBranch,
+        options: options,
         override: override,
       );
       ref.read(selectedReviewProvider.notifier).select(null);
@@ -563,6 +802,42 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     });
   }
 
+  VoidCallback? _readinessAction(String id) => switch (id) {
+    'revisor' =>
+      widget.item.spec == null
+          ? null
+          : () => ref.read(autoReviewerProvider).skip(widget.item.spec!.id),
+    'pr' => () => _run(
+      'Verificar PR',
+      () => ref.read(prBabysitterProvider.notifier).check(_id),
+    ),
+    'comentarios' => () {
+      _filter(visible: true, onlyOpen: true);
+      ref
+          .read(reviewViewProvider.notifier)
+          .set(ref.read(reviewViewProvider).copyWith(allFiles: true));
+    },
+    'criterios' || 'verificacoes' => () {
+      if (widget.item.spec != null) {
+        ref.read(selectedSpecProvider.notifier).select(widget.item.spec!.id);
+        ref.read(navigationProvider.notifier).go(AppSection.specs);
+      }
+    },
+    'empilhada' => () async {
+      final items = await ref.read(
+        reviewQueueProvider(widget.workspaceId).future,
+      );
+      final base = ref.read(reviewDetailProvider(_id)).value?.baseBranch;
+      final dependency = items
+          .where((i) => i.session.branch == base)
+          .firstOrNull;
+      if (dependency != null) {
+        ref.read(selectedReviewProvider.notifier).select(dependency.session.id);
+      }
+    },
+    _ => null,
+  };
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(reviewDetailProvider(_id));
@@ -574,17 +849,27 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     final busy = _busy != null;
 
     final prReason = pr == null
-        ? 'Verificando gh e remote…'
+        ? 'Identificando hospedeiro e ferramenta…'
         : pr.available
         ? (s.prUrl != null
               ? 'PR já criado: ${s.prUrl}'
-              : 'Commita pendências, envia a branch e roda gh pr create')
+              : 'Destino: ${pr.hostname} · ${pr.remote}. Commita pendências e envia a branch para criar ${pr.requestLabel}.')
         : pr.reason ?? 'Indisponível';
     final canPr = !busy && d?.error == null && (pr?.available ?? false);
     final reviewing =
         widget.item.spec?.reviewPhase == ReviewPhase.auto &&
         widget.item.spec?.stage == SpecStage.review;
-    final canMerge = !busy && d != null && d.error == null && !reviewing;
+    final readiness = ref.watch(mergeReadinessProvider(_id));
+    final ready = readiness.value;
+    final canMerge =
+        !busy &&
+        d != null &&
+        d.error == null &&
+        !reviewing &&
+        ready != null &&
+        !readiness.isLoading &&
+        !readiness.hasError &&
+        ready.blockers.isEmpty;
     final pending = widget.item.spec == null
         ? const <String>[]
         : ref.watch(pendingCriteriaProvider(widget.item.spec!.id)).value ??
@@ -621,6 +906,14 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     ),
                     const SizedBox(height: 4),
                     _Subtitle(detail: d, branch: s.branch, busy: _busy),
+                    if (s.specId != null)
+                      Text(
+                        '${(ref.watch(reviewCommentsProvider(s.specId!)).value ?? <ReviewCommentRow>[]).where((c) => !c.resolved).length} comentários abertos',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.amber,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -642,7 +935,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                 message: prReason,
                 child: SmallButton(
                   key: const ValueKey('review-create-pr'),
-                  label: s.prUrl != null ? 'PR criado' : 'Criar PR',
+                  label: s.prUrl != null
+                      ? '${pr?.requestLabel ?? 'PR'} criado'
+                      : 'Criar ${pr?.requestLabel ?? 'PR'}',
                   onTap: canPr ? _createPr : null,
                 ),
               ),
@@ -659,18 +954,148 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
               ],
               const SizedBox(width: 8),
               Tooltip(
-                message: reviewing
+                message: ready?.blockers.isNotEmpty == true
+                    ? ready!.blockers.map((i) => i.detail).join('\n')
+                    : reviewing
                     ? 'O revisor automático ainda está revisando'
                     : pending.isEmpty
                     ? ''
                     : 'Critérios de aceite sem marcar: ${pending.length}',
                 child: AmberButton(
                   key: const ValueKey('review-merge'),
-                  label: pending.isEmpty
-                      ? 'Fazer merge'
-                      : 'Mergear mesmo assim…',
+                  label: 'Fazer merge',
                   onTap: canMerge ? () => _merge(d, pending: pending) : null,
                 ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Tooltip(
+                  message: prReason,
+                  child: Text(
+                    pr == null
+                        ? 'Verificando hospedagem…'
+                        : '${pr.host == 'github'
+                                  ? 'GitHub · gh'
+                                  : pr.host == 'gitlab'
+                                  ? 'GitLab · glab'
+                                  : 'Hospedagem não identificada'}'
+                              '${pr.hostname == null ? '' : ' · ${pr.hostname}'}'
+                              '${pr.remote == null ? '' : ' · ${pr.remote}'}'
+                              '${pr.available ? '' : ' · ${pr.reason ?? 'Não verificado'}'}',
+                    key: const ValueKey('review-host'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ),
+              if (pr?.installUrl != null)
+                TextButton(
+                  key: const ValueKey('review-install-cli'),
+                  onPressed: () => _service.openUrl(pr!.installUrl!),
+                  child: const Text('Instalar / atualizar CLI'),
+                ),
+              if (pr?.remotes.isNotEmpty == true)
+                DropdownButton<String>(
+                  hint: const Text('Escolher remote'),
+                  items: [
+                    for (final name in pr!.remotes)
+                      DropdownMenuItem(value: name, child: Text(name)),
+                  ],
+                  onChanged: busy
+                      ? null
+                      : (name) async {
+                          if (name != null) {
+                            await ref
+                                .read(appSettingsProvider.notifier)
+                                .set('review.remote.$_id', name);
+                          }
+                        },
+                ),
+              IconButton(
+                key: const ValueKey('review-host-details'),
+                tooltip: 'Ver diagnóstico da hospedagem',
+                iconSize: 16,
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Hospedagem do projeto'),
+                    content: SelectableText(prReason),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Fechar'),
+                      ),
+                    ],
+                  ),
+                ),
+                icon: const Icon(Icons.info_outline),
+              ),
+              IconButton(
+                key: const ValueKey('review-check-host'),
+                tooltip: 'Verificar novamente',
+                iconSize: 16,
+                onPressed: busy ? null : _refresh,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          ),
+        ),
+        if (!busy && ready?.canOverride == true && d != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => _merge(d, pending: pending),
+              child: const Text('Mergear mesmo assim…'),
+            ),
+          ),
+        if (!busy &&
+            d != null &&
+            ready != null &&
+            ready.blockers.isNotEmpty &&
+            ready.blockers.every(
+              (i) => i.id == 'raiz' && i.level != ReadinessLevel.naoVerificado,
+            ))
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => _merge(d),
+              child: const Text('Preparar merge local…'),
+            ),
+          ),
+        Material(
+          color: Colors.transparent,
+          child: ExpansionTile(
+            title: Text(
+              readiness.isLoading
+                  ? 'Verificando merge…'
+                  : ready?.summary ?? 'Não verificado',
+            ),
+            subtitle: const Text('Pronto para merge?'),
+            children: [
+              if (readiness.hasError)
+                Text('Não verificado: ${readiness.error}'),
+              for (final i in ready?.items ?? <ReadinessItem>[])
+                ListTile(
+                  dense: true,
+                  title: Text(i.label),
+                  subtitle: Text('${i.level.name} · ${i.detail}'),
+                  trailing: i.action == null
+                      ? null
+                      : TextButton(
+                          onPressed: _readinessAction(i.id),
+                          child: Text(i.action!),
+                        ),
+                ),
+              TextButton(
+                onPressed: _refresh,
+                child: const Text('Verificar de novo'),
               ),
             ],
           ),
@@ -686,7 +1111,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-            child: _step == null
+            child: _since != null
+                ? _sinceBody()
+                : _step == null
                 ? _body(async, d, file, draft, busy)
                 : _stepBody(),
           ),
@@ -720,6 +1147,16 @@ extension on _ReviewMainState {
     }
     if (d.error != null) return _message(d.error!, color: AppColors.red);
     if (file == null) {
+      final persisted = _persisted(d.files);
+      if (persisted.isNotEmpty) {
+        return ReviewAllFiles(
+          files: d.files,
+          draft: draft,
+          persisted: persisted,
+          selected: _selectedComments,
+          onSelectComment: _selectComment,
+        );
+      }
       return _message('Nenhuma alteração em relação à branch base.');
     }
     final notifier = ref.read(reviewDraftProvider(_id).notifier);
@@ -728,6 +1165,9 @@ extension on _ReviewMainState {
     if (view.allFiles && lines <= allFilesMaxLines) {
       return ReviewAllFiles(
         files: d.files,
+        persisted: _persisted(d.files),
+        selected: _selectedComments,
+        onSelectComment: _selectComment,
         sideBySide: view.sideBySide,
         draft: draft,
         target: _target,
@@ -744,8 +1184,13 @@ extension on _ReviewMainState {
         targetPath: _targetPath,
       );
     }
-    return ReviewFileDiff(
+    final diff = ReviewFileDiff(
       key: ValueKey('review-file-diff-${file.path}'),
+      persisted: _persisted(d.files)
+          .where((c) => c.row.path == file.path)
+          .toList(),
+      selected: _selectedComments,
+      onSelectComment: _selectComment,
       sideBySide: view.sideBySide,
       file: file,
       comments: [
@@ -764,6 +1209,34 @@ extension on _ReviewMainState {
       onRemoveComment: notifier.removeComment,
       onRejectHunk: (h) => _reject(file, h),
       onToggleAccept: (h) => notifier.toggleAccepted(hunkKey(file, h)),
+    );
+    final general = _persisted(d.files)
+        .where(
+          (c) =>
+              c.row.path == null || !d.files.any((f) => f.path == c.row.path),
+        )
+        .toList();
+    if (general.isEmpty) return diff;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Geral'),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 160),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final c in general)
+                PersistedComment(
+                  comment: c,
+                  selected: _selectedComments.contains(c.row.id),
+                  onSelected: (v) => _selectComment(c.row.id, v),
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: diff),
+      ],
     );
   }
 }
@@ -807,17 +1280,13 @@ extension on _ReviewMainState {
                 'review-view-one',
                 'Um arquivo',
                 !view.allFiles,
-                () => notifier.set(
-                  ReviewView(allFiles: false, sideBySide: view.sideBySide),
-                ),
+                () => notifier.set(view.copyWith(allFiles: false)),
               ),
               toggle(
                 'review-view-all',
                 'Todos os arquivos',
                 view.allFiles,
-                () => notifier.set(
-                  ReviewView(allFiles: true, sideBySide: view.sideBySide),
-                ),
+                () => notifier.set(view.copyWith(allFiles: true)),
               ),
             ],
           ),
@@ -828,18 +1297,37 @@ extension on _ReviewMainState {
                 'review-view-unified',
                 'Unificado',
                 !view.sideBySide,
-                () => notifier.set(ReviewView(allFiles: view.allFiles)),
+                () => notifier.set(view.copyWith(sideBySide: false)),
               ),
               toggle(
                 'review-view-split',
                 'Lado a lado',
                 view.sideBySide,
-                () => notifier.set(
-                  ReviewView(allFiles: view.allFiles, sideBySide: true),
-                ),
+                () => notifier.set(view.copyWith(sideBySide: true)),
               ),
             ],
           ),
+          FilterChip(
+            label: const Text('Comentários'),
+            selected: _commentsVisible,
+            onSelected: (v) => _filter(visible: v),
+          ),
+          FilterChip(
+            label: const Text('Só abertos'),
+            selected: _onlyOpen,
+            onSelected: (v) => _filter(onlyOpen: v),
+          ),
+          for (final source in ['humano', 'revisor', 'pr'])
+            FilterChip(
+              label: Text(source == 'humano' ? 'Você' : source),
+              selected: _sources.contains(source),
+              onSelected: (v) => _filter(
+                sources: v
+                    ? {..._sources, source}
+                    : ({..._sources}..remove(source)),
+              ),
+            ),
+          if (widget.item.spec != null) _roundFilter(),
           if (steps.isNotEmpty)
             DropdownButton<String?>(
               key: const ValueKey('review-step-filter'),
@@ -866,6 +1354,121 @@ extension on _ReviewMainState {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _roundFilter() {
+    final rows =
+        ref.watch(reviewCommentsProvider(widget.item.spec!.id)).value ?? [];
+    final rounds = <int, ReviewCommentRow>{};
+    for (final c in rows) {
+      rounds.putIfAbsent(c.round, () => c);
+    }
+    final sorted = rounds.values.toList()
+      ..sort((a, b) => b.round.compareTo(a.round));
+    if (sorted.isEmpty) return const SizedBox.shrink();
+    final reasons = {
+      for (final c in sorted)
+        c.round: ref.watch(reviewRoundAvailabilityProvider((_id, c.commitSha))),
+    };
+    final latest = sorted
+        .where(
+          (c) => reasons[c.round]!.hasValue && reasons[c.round]!.value == null,
+        )
+        .firstOrNull;
+    void choose(ReviewCommentRow? c) => _update(() {
+      _since = c;
+      ref
+          .read(_sinceSelectionProvider.notifier)
+          .select(c == null ? null : (_id, c.round, c.commitSha!));
+      _step = null;
+      _target = null;
+    });
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DropdownButton<int>(
+          key: const ValueKey('review-since-filter'),
+          hint: const Text('Alterações desde…'),
+          value: _since?.round,
+          items: [
+            for (final c in sorted)
+              DropdownMenuItem(
+                value: c.round,
+                enabled:
+                    reasons[c.round]!.hasValue &&
+                    reasons[c.round]!.value == null,
+                child: Tooltip(
+                  message: reasons[c.round]!.value ?? '',
+                  child: Text(
+                    'Rodada ${c.round} · ${c.author} · '
+                    '${c.verdict ?? 'sem veredito'} · ${c.createdAt}',
+                  ),
+                ),
+              ),
+          ],
+          onChanged: (n) => choose(rounds[n]),
+        ),
+        TextButton(
+          onPressed: latest == null ? null : () => choose(latest),
+          child: const Text('Desde a última rodada'),
+        ),
+        if (_since != null)
+          TextButton(
+            onPressed: () => choose(null),
+            child: const Text('Diff completo'),
+          ),
+      ],
+    );
+  }
+
+  Widget _sinceBody() {
+    final row = _since!;
+    final async = ref.watch(reviewSinceProvider((_id, row.commitSha!)));
+    final d = async.value;
+    if (d == null) {
+      return _message(async.hasError ? '${async.error}' : 'Carregando…');
+    }
+    if (d.error != null) return _message(d.error!);
+    if (d.files.isEmpty) {
+      return _message('Nada mudou desde a rodada ${row.round}');
+    }
+    final view = ref.watch(reviewViewProvider);
+    final selected = ref.watch(_selectedFileProvider);
+    final full = ref.watch(reviewDetailProvider(_id)).value;
+    final unchanged =
+        selected != null && !d.files.any((f) => f.path == selected);
+    final fallback = full?.files.where((f) => f.path == selected).firstOrNull;
+    final files = !view.allFiles && unchanged && fallback != null
+        ? [fallback]
+        : view.allFiles
+        ? d.files
+        : [
+            d.files.where((f) => f.path == selected).firstOrNull ??
+                d.files.first,
+          ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '${d.commitsAhead} commits · ${d.files.length} arquivos desde a rodada ${row.round}',
+        ),
+        if (!view.allFiles && unchanged && fallback != null)
+          const Text('diff completo desde a base da branch'),
+        Expanded(
+          child: ReviewAllFiles(
+            files: files,
+            draft: const ReviewDraft(),
+            readOnly: true,
+            sideBySide: view.sideBySide,
+            persisted: _persisted(d.files)
+                .where((c) => c.row.round == row.round)
+                .toList(),
+            selected: _selectedComments,
+            onSelectComment: _selectComment,
+          ),
+        ),
+      ],
     );
   }
 
@@ -949,3 +1552,11 @@ class _Subtitle extends StatelessWidget {
     );
   }
 }
+
+final reviewAnchorProvider = FutureProvider.family<AnchorShifts, (String, int)>(
+  (ref, key) async {
+    final rows = await ref.watch(reviewCommentsProvider(key.$2).future);
+    ref.watch(reviewDetailProvider(key.$1));
+    return ref.read(reviewServiceProvider).anchorShifts(key.$1, rows);
+  },
+);

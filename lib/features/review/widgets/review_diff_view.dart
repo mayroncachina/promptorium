@@ -5,6 +5,8 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../review_logic.dart';
 import 'diff_highlight.dart';
+import '../comment_anchor.dart';
+import 'persisted_comment.dart';
 
 const _mono = TextStyle(
   fontFamily: AppFonts.mono,
@@ -36,8 +38,14 @@ class ReviewFileDiff extends StatelessWidget {
     this.embedded = false,
     this.sideBySide = false,
     this.readOnly = false,
+    this.persisted = const [],
+    this.selected = const {},
+    this.onSelectComment,
   });
 
+  final List<AnchoredComment> persisted;
+  final Set<int> selected;
+  final void Function(int, bool)? onSelectComment;
   final DiffFile file;
 
   /// Pending comments of this file.
@@ -65,6 +73,16 @@ class ReviewFileDiff extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows = <Widget Function()>[];
     rows.add(() => _FileHeader(file: file));
+    Widget card(AnchoredComment c) => PersistedComment(
+      comment: c,
+      selected: selected.contains(c.row.id),
+      onSelected: onSelectComment == null
+          ? null
+          : (v) => onSelectComment!(c.row.id, v),
+    );
+    for (final c in persisted.where((c) => c.line == 0)) {
+      rows.add(() => card(c));
+    }
     if (file.isBinary) {
       rows.add(() => const _Note('Arquivo binário — sem diff de texto.'));
     } else if (file.hunks.isEmpty) {
@@ -94,6 +112,12 @@ class ReviewFileDiff extends StatelessWidget {
       void notes(Iterable<int> indices) {
         for (final li in indices) {
           final target = (hi, li);
+          final no = h.lines[li].newNo;
+          if (no != null) {
+            for (final c in persisted.where((c) => c.line == no)) {
+              rows.add(() => card(c));
+            }
+          }
           for (final c in comments) {
             if (c.anchor == '$key#$li') {
               rows.add(
@@ -143,6 +167,13 @@ class ReviewFileDiff extends StatelessWidget {
           ),
         );
         notes([li]);
+      }
+    }
+    final outdated = persisted.where((c) => c.outdatedReason != null);
+    if (outdated.isNotEmpty) {
+      rows.add(() => const _Note('Fora do diff atual'));
+      for (final c in outdated) {
+        rows.add(() => card(c));
       }
     }
     if (embedded) {
@@ -559,6 +590,14 @@ class _CommentBox extends StatefulWidget {
 
 class _CommentBoxState extends State<_CommentBox> {
   final _text = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Scrollable.ensureVisible(context, alignment: 1);
+    });
+  }
 
   @override
   void dispose() {

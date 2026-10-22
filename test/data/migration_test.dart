@@ -93,6 +93,48 @@ Future<void> downgrade(AppDatabase db, int version) async {
 }
 
 void main() {
+  test('v15 → v16 preserves comments and adds resolved state and partial external index', () async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig16-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces(path,name) VALUES('/r','r')",
+    );
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement(
+      "INSERT INTO review_comments(spec_id,round,author,body) VALUES(1,1,'revisor','preservar')",
+    );
+    await db.customStatement('DROP INDEX review_comments_external');
+    for (final column in ['resolved', 'resolved_at', 'external_id']) {
+      await db.customStatement(
+        'ALTER TABLE review_comments DROP COLUMN $column',
+      );
+    }
+    await db.customStatement('PRAGMA user_version = 15');
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final row = await db.select(db.reviewComments).getSingle();
+    expect(row.body, 'preservar');
+    expect(row.resolved, isFalse);
+    expect(row.resolvedAt, isNull);
+    expect(row.externalId, isNull);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name='review_comments_external'",
+        )
+        .getSingle();
+    expect(
+      index.read<String>('sql'),
+      contains('WHERE external_id IS NOT NULL'),
+    );
+  });
+
   test('v1 → v2 adds sessions.title and sessions.permission_mode', () async {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     final db = AppDatabase(

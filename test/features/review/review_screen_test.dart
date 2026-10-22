@@ -179,7 +179,15 @@ void main() {
     final draft = c.read(reviewDraftProvider('s1'));
     expect(draft.comments.single.location, 'lib/ui/status_bar.dart:8');
 
-    // Every file is on the page: the hunk of the first one.
+    // Opening the comment box scrolls its submit button into view. Scroll
+    // back to the hunk header before accepting it.
+    await tester.ensureVisible(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-diff-lib/ui/status_bar.dart')),
+        matching: find.byKey(const ValueKey('review-accept-0')),
+      ),
+    );
+    await tester.pump();
     await tester.tap(
       find.descendant(
         of: find.byKey(const ValueKey('review-diff-lib/ui/status_bar.dart')),

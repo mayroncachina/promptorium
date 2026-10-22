@@ -16,6 +16,20 @@ import 'package:promptorium/features/specs/spec_service.dart';
 import '../../helpers/test_db.dart';
 
 void main() {
+  test('merge and self-hosted GitLab configuration round trips', () {
+    const config = ProjectConfig(
+      mergeMethod: 'squash',
+      host: 'git.exemplo.com',
+      hostType: 'gitlab',
+      testCommand: 'flutter test',
+    );
+    final parsed = ProjectConfig.parse(config.toYaml());
+    expect(parsed.mergeMethod, 'squash');
+    expect(parsed.host, 'git.exemplo.com');
+    expect(parsed.hostType, 'gitlab');
+    expect(parsed.testCommand, 'flutter test');
+  });
+
   test('validateSpecsDir', () {
     expect(ProjectConfig.validateSpecsDir('specs'), isNull);
     expect(ProjectConfig.validateSpecsDir('docs/specs'), isNull);
