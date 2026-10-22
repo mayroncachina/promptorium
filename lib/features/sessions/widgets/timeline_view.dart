@@ -61,6 +61,7 @@ class TimelineListView extends StatelessWidget {
     this.maxWidth,
     this.assistantName = 'Claude',
     this.emptyText = 'Nenhum evento ainda.',
+    this.answerFooter,
   });
 
   final List<TimelineItem> items;
@@ -73,6 +74,10 @@ class TimelineListView extends StatelessWidget {
   final double? maxWidth;
   final String assistantName;
   final String emptyText;
+
+  /// Shown under each finished top-level answer when it returns a widget
+  /// (Prompt: "Spec detectada", SPEC-016).
+  final Widget? Function(AssistantTextItem item)? answerFooter;
 
   Widget _wrap(Widget child) => maxWidth == null
       ? child
@@ -114,15 +119,27 @@ class TimelineListView extends StatelessWidget {
         final gap = prev == null
             ? 0.0
             : (item is ToolItem && prev is ToolItem ? 4.0 : 14.0);
+        final view = TimelineItemView(
+          item: item,
+          root: root,
+          waitingTools: waitingTools,
+          assistantName: assistantName,
+        );
+        final extraBelow =
+            item is AssistantTextItem &&
+                item.parentToolUseId == null &&
+                !item.live
+            ? answerFooter?.call(item)
+            : null;
         return _wrap(
           Padding(
             padding: EdgeInsets.only(top: gap),
-            child: TimelineItemView(
-              item: item,
-              root: root,
-              waitingTools: waitingTools,
-              assistantName: assistantName,
-            ),
+            child: extraBelow == null
+                ? view
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [view, const SizedBox(height: 8), extraBelow],
+                  ),
           ),
         );
       },
