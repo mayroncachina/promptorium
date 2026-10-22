@@ -323,31 +323,35 @@ class ReviewService {
       if (!cache.containsKey(key)) {
         try {
           _safeRef(sha, 'Commit');
-          await git.git(['cat-file', '-e', 'HEAD:$path']);
-          final names = await git.git([
-            'diff',
-            '--name-status',
-            '-M',
-            '$sha..HEAD',
-            '--',
-            path,
-          ]);
-          final removed = names
-              .split('\n')
-              .any((l) => l.startsWith('D\t') || l.startsWith('R'));
-          final diff = await git.git([
-            'diff',
-            '--no-ext-diff',
-            '--no-color',
-            '-U0',
-            sha,
-            '--',
-            path,
-          ]);
-          cache[key] = (
-            hunks: DiffParser.parse(diff).expand((f) => f.hunks).toList(),
-            reason: removed ? 'arquivo removido ou renomeado' : null,
-          );
+          // The worktree, not HEAD: a file not committed yet still counts.
+          if (!await File('${c.session.worktreePath}/$path').exists()) {
+            cache[key] = (hunks: [], reason: 'arquivo removido ou renomeado');
+          } else {
+            final names = await git.git([
+              'diff',
+              '--name-status',
+              '-M',
+              '$sha..HEAD',
+              '--',
+              path,
+            ]);
+            final removed = names
+                .split('\n')
+                .any((l) => l.startsWith('D\t') || l.startsWith('R'));
+            final diff = await git.git([
+              'diff',
+              '--no-ext-diff',
+              '--no-color',
+              '-U0',
+              sha,
+              '--',
+              path,
+            ]);
+            cache[key] = (
+              hunks: DiffParser.parse(diff).expand((f) => f.hunks).toList(),
+              reason: removed ? 'arquivo removido ou renomeado' : null,
+            );
+          }
         } on GitException {
           cache[key] = (hunks: [], reason: 'commit ou arquivo indisponível');
         }
@@ -492,7 +496,7 @@ class ReviewService {
         ReviewComment(
           path: row.path ?? 'Geral',
           line: row.line ?? 0,
-          snippet: const [],
+          snippet: await _lineOf(c.session.worktreePath, row.path, row.line),
           anchor: '',
           text:
               '[${row.author}, rodada ${row.round}] '
@@ -551,6 +555,21 @@ class ReviewService {
       });
     }
     return msg;
+  }
+
+  /// The line a comment points at, as it reads now (empty when gone).
+  static Future<List<String>> _lineOf(
+    String root,
+    String? path,
+    int? line,
+  ) async {
+    if (path == null || line == null || line < 1) return const [];
+    try {
+      final lines = await File('$root/$path').readAsLines();
+      return line <= lines.length ? [lines[line - 1]] : const [];
+    } on FileSystemException {
+      return const [];
+    }
   }
 
   /// Resolves the effective remote before inspecting the corresponding CLI.
@@ -667,8 +686,13 @@ class ReviewService {
         uri.host != 'gitlab.com') {
       return;
     }
-    throw const ReviewException(
-      'Integração do destino deste request indisponível (DT-55).',
+    final gitlab =
+        uri != null &&
+        (uri.host == 'gitlab.com' || uri.path.contains('/-/merge_requests/'));
+    throw ReviewException(
+      gitlab
+          ? 'Integração do destino deste request indisponível (DT-55).'
+          : 'não foi possível ler a URL do PR',
     );
   }
 
@@ -1232,7 +1256,7 @@ class ReviewService {
       }
       try {
         open = (await _ref.read(reviewCommentsRepoProvider).bySpec(spec.id))
-            .where((c) => !c.resolved)
+            .where(isOpenReviewComment)
             .length;
       } catch (e) {
         unknown['comentarios'] = '$e';

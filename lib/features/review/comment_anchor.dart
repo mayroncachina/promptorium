@@ -4,6 +4,14 @@ import '../../data/db/app_database.dart';
 /// Git work is done once by ReviewService; rendering only consults this map.
 typedef AnchorShifts = Map<int, ({int? line, String? reason})>;
 
+/// A comment still waiting for the user: from the reviewer or the PR, not
+/// treated, and not the reviewer's verdict line (it summarises the round; a
+/// PR review asking for changes is a message to act on).
+bool isOpenReviewComment(ReviewCommentRow c) =>
+    !c.resolved &&
+    c.author != 'humano' &&
+    !(c.author == 'revisor' && c.verdict != null);
+
 class AnchoredComment {
   const AnchoredComment(this.row, {this.line, this.outdatedReason});
   final ReviewCommentRow row;

@@ -314,7 +314,7 @@ class _ReviewSidebar extends ConsumerWidget {
                   unchanged:
                       changedPaths != null && !changedPaths.contains(f.path),
                   openComments: rows
-                      .where((c) => !c.resolved && c.path == f.path)
+                      .where((c) => isOpenReviewComment(c) && c.path == f.path)
                       .length,
                   selected: identical(f, current),
                   onTap: () {
@@ -911,7 +911,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     _Subtitle(detail: d, branch: s.branch, busy: _busy),
                     if (s.specId != null)
                       Text(
-                        '${(ref.watch(reviewCommentsProvider(s.specId!)).value ?? <ReviewCommentRow>[]).where((c) => !c.resolved).length} comentários abertos',
+                        '${(ref.watch(reviewCommentsProvider(s.specId!)).value ?? <ReviewCommentRow>[]).where(isOpenReviewComment).length} comentários abertos',
+                        key: const ValueKey('review-open-comments'),
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.amber,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/core/git/git_service.dart';
@@ -238,6 +239,52 @@ void main() {
       'solto.txt',
     ]);
   });
+
+  test(
+    'comment anchors follow real history: shifted by lines added above, '
+    'outdated when their line changed, the file was removed or renamed',
+    () async {
+      final e = await setUpSession();
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-qm', 'rodada']);
+      final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+      ReviewCommentRow row(int id, String path, int line) => ReviewCommentRow(
+        id: id,
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'x',
+        path: path,
+        line: line,
+        commitSha: sha,
+        resolved: false,
+        createdAt: DateTime(2026),
+      );
+      final a = File('${e.worktree}/a.txt');
+      final lines = a.readAsLinesSync()
+        ..insertAll(0, ['nova 1', 'nova 2'])
+        ..[11] = 'linha 10 alterada';
+      a.writeAsStringSync('${lines.join('\n')}\n');
+      await gitIn(e.worktree, ['mv', 'b.txt', 'b2.txt']);
+      await gitIn(e.worktree, ['commit', '-qam', 'depois']);
+      File('${e.worktree}/novo.txt').deleteSync();
+      File('${e.worktree}/solto.txt').writeAsStringSync('solto\n');
+      final shifts = await e.review.anchorShifts(e.sessionId, [
+        row(1, 'a.txt', 20),
+        row(2, 'a.txt', 10),
+        row(3, 'novo.txt', 1),
+        row(4, 'b.txt', 1),
+        row(5, 'solto.txt', 1),
+      ]);
+      expect(shifts[1], (line: 22, reason: null));
+      expect(shifts[2]!.line, isNull);
+      expect(shifts[2]!.reason, isNotNull);
+      expect(shifts[3]!.reason, 'arquivo removido ou renomeado');
+      expect(shifts[4]!.reason, 'arquivo removido ou renomeado');
+      // A file not committed yet is not "out of the diff".
+      expect(shifts[5]?.reason, isNull);
+    },
+  );
 
   test('a round whose commit left the branch is unavailable with its own '
       'reason', () async {
@@ -542,6 +589,63 @@ void main() {
     // The message is in the session timeline (session_events).
     final events = await e.c.read(sessionsRepoProvider).events(e.sessionId);
     expect(events.any((r) => r.json.contains('Use maiúsculas')), isTrue);
+  });
+
+  test('selected reviewer and PR comments go in the message as '
+      'arquivo:linha — texto with their line, and are marked treated; if '
+      'sending fails none is', () async {
+    final e = await setUpSession();
+    final db = e.c.read(appDatabaseProvider);
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement('UPDATE sessions SET spec_id=1 WHERE id=?', [
+      e.sessionId,
+    ]);
+    final repo = e.c.read(reviewCommentsRepoProvider);
+    await repo.insertAll([
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'Padronize a caixa.',
+        path: const Value('a.txt'),
+        line: const Value(2),
+      ),
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'pr',
+        body: '@ana: e esta linha?',
+        path: const Value('a.txt'),
+        line: const Value(3),
+      ),
+    ]);
+    var rows = await repo.bySpec(1);
+    await e.cli.last.finish();
+    await settle();
+
+    e.cli.failStart = true;
+    await expectLater(
+      e.review.requestChanges(e.sessionId, const [], selected: rows),
+      throwsA(anything),
+    );
+    expect((await repo.bySpec(1)).where((r) => r.resolved), isEmpty);
+
+    e.cli.failStart = false;
+    final msg = await e.review.requestChanges(
+      e.sessionId,
+      const [],
+      selected: rows,
+    );
+    expect(msg, contains('a.txt:2 — [revisor, rodada 1] Padronize a caixa.'));
+    expect(msg, contains('a.txt:3 — [pr, rodada 1] @ana: e esta linha?'));
+    expect(msg, contains('LINHA 2'));
+    rows = await repo.bySpec(1);
+    expect(
+      rows.where((r) => r.author != 'humano').every((r) => r.resolved),
+      isTrue,
+    );
   });
 
   test('clean merge: commits pending, merges into main, removes worktree '

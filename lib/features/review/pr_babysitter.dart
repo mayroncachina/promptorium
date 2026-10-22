@@ -37,6 +37,21 @@ class PrComment {
   final String kind;
 }
 
+/// Row of a PR comment in the spec's review history: keyed by its id on the
+/// host, so reading the PR again never duplicates it.
+ReviewCommentsCompanion prCommentRow(int specId, int round, PrComment c) =>
+    ReviewCommentsCompanion.insert(
+      specId: specId,
+      round: round,
+      author: 'pr',
+      body: '@${c.author}: ${c.body}',
+      externalId: Value(c.externalId),
+      path: Value(c.path),
+      line: Value(c.line),
+      commitSha: Value(c.commitSha),
+      verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
+    );
+
 /// What `gh pr view --json …` says about a PR.
 @immutable
 class PrStatus {
@@ -298,19 +313,7 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
         ? 1
         : rounds.reduce((a, b) => a > b ? a : b) + 1;
     for (final c in news) {
-      await repo.insertExternal(
-        ReviewCommentsCompanion.insert(
-          specId: specId,
-          round: round,
-          author: 'pr',
-          body: '@${c.author}: ${c.body}',
-          externalId: Value(c.externalId),
-          path: Value(c.path),
-          line: Value(c.line),
-          commitSha: Value(c.commitSha),
-          verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
-        ),
-      );
+      await repo.insertExternal(prCommentRow(specId, round, c));
     }
   }
 

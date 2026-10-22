@@ -230,7 +230,15 @@ String reviewerPrompt({
       b.writeln('- rodada ${c.round}: ${c.path ?? 'spec'} — ${c.body}');
     }
   }
+  // Also for a project's own reviewer agent, which skips the built-in
+  // system prompt: the Review anchors each comment on this line.
   b
+    ..writeln()
+    ..writeln(
+      'Em cada comentário, informe o arquivo e a linha do arquivo novo, como '
+      'numerada no diff (linha 0 = o arquivo todo; sem arquivo = comentário '
+      'geral).',
+    )
     ..writeln()
     ..writeln('Diff da branch contra a base:')
     ..writeln('```diff')

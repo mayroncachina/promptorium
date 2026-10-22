@@ -80,11 +80,19 @@ void main() {
         ),
       ),
     );
-    for (var i = 0; i < 20; i++) {
+    // The spec file is read for real: wait for it, not a fixed time (the
+    // suite may run under load).
+    final summary = find.byKey(const ValueKey('spec-review-summary'));
+    for (var i = 0; i < 250; i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump();
+      if (i >= 20 &&
+          summary.evaluate().isNotEmpty &&
+          (tester.widget<Text>(summary).data ?? '').contains('critérios ·')) {
+        break;
+      }
     }
     expect(find.byKey(const ValueKey('review-gate-R1-testes')), findsOneWidget);
     expect(
