@@ -388,6 +388,32 @@ void batchTests() {
     expect(await marksOf(tester, p), {'b': 'humano', 'c': 'humano'});
   });
 
+  testWidgets('R4 · another item of the queue drops the undo of the batch', (
+    tester,
+  ) async {
+    final p = await pumpPanel(
+      tester,
+      criteria: '- [ ] a\n- [ ] b\n',
+      marks: const {},
+    );
+    await markAll(tester);
+    final undo = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
+    // The Review keys its main pane by session: the panel is rebuilt.
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: p.c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    undo.onPressed();
+    await settle(tester);
+    expect(await marksOf(tester, p), {'a': 'humano', 'b': 'humano'});
+  });
+
   testWidgets('R4 · the notice leaves after 8 s and "Desfazer" then does '
       'nothing', (tester) async {
     final p = await pumpPanel(

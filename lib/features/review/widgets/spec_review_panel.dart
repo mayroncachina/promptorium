@@ -101,17 +101,44 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
   /// Texts of the last "Marcar todos" while its "Desfazer" is on screen.
   List<String>? _batch;
 
+  ScaffoldMessengerState? _messenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+  }
+
   @override
   void didUpdateWidget(SpecReviewPanel old) {
     super.didUpdateWidget(old);
     if (old.specId != widget.specId) _dropBatch();
   }
 
+  @override
+  void dispose() {
+    // Another item of the queue (the Review rebuilds the panel per session):
+    // the tree is locked now, so the notice is hidden after this frame.
+    if (_batch != null) {
+      _batch = null;
+      final messenger = _messenger, open = _toastOpen;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (open && _toastOpen && messenger != null && messenger.mounted) {
+          messenger.hideCurrentSnackBar();
+        }
+      });
+    }
+    super.dispose();
+  }
+
+  /// The notice of the last batch is still on screen.
+  bool _toastOpen = false;
+
   /// Ends the undo window of the last batch (and hides its notice).
   void _dropBatch() {
     if (_batch == null) return;
     _batch = null;
-    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+    if (_toastOpen) _messenger?.hideCurrentSnackBar();
   }
 
   Future<void> _setOne(CriterionState c, bool checked) {
@@ -164,6 +191,7 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
       return;
     }
     _batch = done;
+    _toastOpen = true;
     final n = done.length;
     messenger
         ?.showSnackBar(
@@ -188,6 +216,7 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
         )
         .closed
         .then((_) {
+          _toastOpen = false;
           if (identical(_batch, done)) _batch = null;
         });
   }
@@ -354,15 +383,18 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                       children: [
                         const Text('CRITÉRIOS DE ACEITE', style: _title),
                         const SizedBox(width: 12),
-                        Flexible(
-                          child: _BatchToggle(
-                            control: batch,
-                            onTap:
-                                widget.merged ||
-                                    auto ||
-                                    batch.action == BatchAction.none
-                                ? null
-                                : () => _runBatch(batch),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: _BatchToggle(
+                              control: batch,
+                              onTap:
+                                  widget.merged ||
+                                      auto ||
+                                      batch.action == BatchAction.none
+                                  ? null
+                                  : () => _runBatch(batch),
+                            ),
                           ),
                         ),
                       ],
