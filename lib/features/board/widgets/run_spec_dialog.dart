@@ -49,8 +49,10 @@ Future<void> runSpec(
   // The card (and its `ref`) may be gone when the user taps the snackbar
   // action: it moves to another column as soon as the session starts.
   final container = ProviderScope.containerOf(context, listen: false);
-  if (data.sessions.isEmpty) {
-    final max = ref.read(runPrefsProvider).singleSessionMaxSteps;
+  final max = ref.read(runPrefsProvider).singleSessionMaxSteps;
+  // Only a spec with more steps than one session takes can need the
+  // warning (the stored requirements say it without reading the file).
+  if (data.sessions.isEmpty && data.spec.requirements.length > max) {
     final ws = await ref
         .read(workspacesRepoProvider)
         .getById(data.spec.workspaceId);

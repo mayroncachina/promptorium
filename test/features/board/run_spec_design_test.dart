@@ -70,6 +70,12 @@ void main() {
             code: 'SPEC-001',
             title: 'Grande',
             path: 'specs/SPEC-001.md',
+            requirements: const [
+              (id: 'R1', text: 'a'),
+              (id: 'R2', text: 'b'),
+              (id: 'R3', text: 'c'),
+              (id: 'R4', text: 'd'),
+            ],
           );
     });
     final data = SpecCardData(
