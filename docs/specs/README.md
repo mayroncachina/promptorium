@@ -55,3 +55,8 @@ A sequência histórica SPEC-009 → SPEC-013 nos documentos originais fica atua
 ## Descoberta de specs e estado no Quadro
 
 - [SPEC-015 — Descoberta de specs existentes e conclusão no Quadro](SPEC-015-descoberta-e-reconciliacao-de-specs.md): varrer a pasta configurada, importar sem duplicar, colocar specs declaradas concluídas em Concluído e verificar implementação de documentos ainda desatualizados com evidências por requisito.
+
+
+## Consumo de tokens
+
+- [SPEC-017 — Execução de specs: menos tokens por etapa](SPEC-017-consumo-de-tokens-nas-etapas.md): testes focados no prompt da etapa (a suíte fica com o gate), plugins do usuário desligáveis nas execuções do app, Design com "O que já existe" e aviso ao executar sem ele, e continuação automática da próxima etapa na mesma sessão enquanto o contexto estiver abaixo de um limite.
