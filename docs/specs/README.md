@@ -1,5 +1,7 @@
 # Claude Code e Codex no Promptorium
 
+> **Codex desligado em 22/10/2026.** O foco passa a ser o Claude Code; as SPEC-002 a SPEC-005 ficam adiadas e a parte Codex das SPEC-006 e SPEC-007 fica inativa. Auditoria e pendências para religar: [DT-56](../debito-tecnico.md#dt-56--integracao-codex).
+
 Proposta em rascunho para oferecer Codex em todos os fluxos que hoje usam Claude Code, com as mesmas possibilidades de uso e controles do produto. Segue o formato de [SPEC-001](SPEC-001-scroll-vertical-no-quadro.md): frontmatter, objetivo, requisitos numerados, design e critérios de aceite vinculados aos requisitos.
 
 ## Ordem de implementação

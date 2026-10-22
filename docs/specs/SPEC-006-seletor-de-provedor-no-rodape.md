@@ -6,6 +6,8 @@ depende-de: [SPEC-003]
 
 # Seleção de provedor pelo indicador de conexão do rodapé
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). A parte Codex desta spec fica inativa enquanto `codexEnabledProvider` estiver desligado; o comportamento com Claude Code e agentes ACP continua valendo.
+
 ## Objetivo
 
 Transformar o indicador “Claude Code CLI conectado”, no rodapé do app, em um seletor de provedor. Ao clicar nesse ponto, o usuário deve encontrar Claude Code, Codex e os agentes ACP configurados e escolher qual será usado nas próximas execuções. Hoje o indicador é apenas informativo e a seleção disponível no Prompt não fica evidente para quem procura trocar o CLI pelo rodapé.

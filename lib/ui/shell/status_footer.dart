@@ -380,7 +380,7 @@ class _ProviderSelector extends ConsumerWidget {
             enabled: false,
             child: Text('Aplicar às novas execuções'),
           ),
-          for (final p in all)
+          for (final p in all.where((p) => p.enabled))
             PopupMenuItem<String>(
               value: p.id,
               key: ValueKey('footer-provider-${p.id}'),

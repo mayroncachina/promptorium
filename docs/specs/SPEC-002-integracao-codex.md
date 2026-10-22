@@ -6,6 +6,8 @@ depende-de: []
 
 # Integração Codex e contrato compartilhado de execução
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+
 ## Objetivo
 
 Criar a base para executar Codex no Promptorium com streaming, ferramentas, aprovações e continuidade, preservando o comportamento atual do Claude e dos agentes ACP. Esta spec entrega o adaptador; a cobertura de produto depende das SPEC-003 a SPEC-005.

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_registry.dart'
+    show codexEnabledProvider;
 import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/codex/codex_cli.dart';
 import 'package:promptorium/core/providers/provider_preferences.dart';
@@ -25,6 +27,7 @@ void main() {
       final servers = <FakeCodex>[];
       final claude = FakeCli();
       final c = sessionContainer([
+        codexEnabledProvider.overrideWithValue(true),
         ...sessionOverrides(
           db: memoryDatabase(),
           cli: claude,
@@ -123,13 +126,14 @@ void main() {
     final tmp = Directory.systemTemp.createTempSync('codex-root-');
     addTearDown(() => tmp.deleteSync(recursive: true));
     final root = await createRepo(tmp);
-    final c = sessionContainer(
-      sessionOverrides(
+    final c = sessionContainer([
+      codexEnabledProvider.overrideWithValue(true),
+      ...sessionOverrides(
         db: memoryDatabase(),
         cli: FakeCli(),
         notifier: FakeNotifier(),
       ),
-    );
+    ]);
     addTearDown(c.dispose);
     await c.read(appSettingsProvider.notifier).load();
     final ws = await c.read(workspacesRepoProvider).add(path: root, name: 'r');
@@ -160,6 +164,7 @@ void main() {
     final claude = FakeCli();
     final servers = <FakeCodex>[];
     final c = sessionContainer([
+      codexEnabledProvider.overrideWithValue(true),
       ...sessionOverrides(
         db: memoryDatabase(),
         cli: claude,

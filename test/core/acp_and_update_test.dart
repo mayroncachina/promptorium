@@ -208,7 +208,7 @@ void main() {
     expect(c.read(agentProvidersProvider).map((p) => (p.id, p.enabled)), [
       ('claude', true),
       ('acp-meu', true),
-      ('codex', true),
+      ('codex', false),
     ]);
   });
 

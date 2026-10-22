@@ -145,7 +145,7 @@ final providerAvailabilityProvider =
         );
       }
       // Claude resolved during startup; Codex has its own candidate discovery.
-      if (id == 'codex') {
+      if (id == 'codex' && provider.enabled) {
         try {
           if (await ref.watch(codexCliInfoProvider.future) == null) {
             return const ProviderAvailability(

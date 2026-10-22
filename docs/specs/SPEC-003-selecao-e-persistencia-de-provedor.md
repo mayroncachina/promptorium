@@ -6,6 +6,8 @@ depende-de: [SPEC-002]
 
 # Seleção e persistência de Claude Code ou Codex
 
+> **Codex desligado em 22/10/2026** ([DT-56](../debito-tecnico.md#dt-56--integracao-codex)). Spec adiada: o foco é o Claude Code. A auditoria de requisitos e as pendências para religar estão no DT-56.
+
 ## Objetivo
 
 Permitir escolher Claude Code ou Codex para novas execuções e conservar essa escolha durante toda a vida de uma conversa, sessão ou execução de spec, incluindo recuperação após reiniciar o app.

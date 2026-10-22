@@ -20,6 +20,7 @@ void main() {
     final calls = <String>[];
     final c = ProviderContainer(
       overrides: [
+        codexEnabledProvider.overrideWithValue(true),
         databaseOverride(memoryDatabase()),
         processRunnerProvider.overrideWithValue((exe, args) async {
           calls.add(exe);
@@ -39,11 +40,40 @@ void main() {
     expect(calls, isEmpty);
   });
 
+  test('Codex switched off: a saved Codex default resolves to Claude and Codex is never started', () async {
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    final c = ProviderContainer(
+      overrides: [appDatabaseProvider.overrideWithValue(db)],
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(providerPreferenceKey(null), 'codex');
+    expect(c.read(defaultAgentProvider(1)), 'claude');
+    final codex = c.read(agentProviderByIdProvider('codex'));
+    expect(codex.enabled, isFalse);
+    await expectLater(
+      codex.start(
+        const AgentStartOptions(workingDirectory: '/w', mode: PromptMode.edit),
+      ),
+      throwsA(isA<AgentUnavailable>()),
+    );
+    final availability = await c.read(
+      providerAvailabilityProvider('codex').future,
+    );
+    expect(availability.available, isFalse);
+  });
+
   test('project override, global fallback and restart preserve independent choices', () async {
     final db = memoryDatabase();
     addTearDown(db.close);
     var c = ProviderContainer(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      overrides: [
+        codexEnabledProvider.overrideWithValue(true),
+        appDatabaseProvider.overrideWithValue(db),
+      ],
     );
     await c.read(appSettingsProvider.notifier).load();
     expect(c.read(defaultAgentProvider(1)), 'claude');
@@ -57,7 +87,10 @@ void main() {
     expect(c.read(defaultAgentProvider(2)), 'codex');
     c.dispose();
     c = ProviderContainer(
-      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      overrides: [
+        codexEnabledProvider.overrideWithValue(true),
+        appDatabaseProvider.overrideWithValue(db),
+      ],
     );
     addTearDown(c.dispose);
     await c.read(appSettingsProvider.notifier).load();
@@ -135,6 +168,7 @@ void main() {
     () async {
       final c = ProviderContainer(
         overrides: [
+          codexEnabledProvider.overrideWithValue(true),
           databaseOverride(memoryDatabase()),
           codexExecutableCandidatesProvider.overrideWithValue(['/mock/codex']),
           processRunnerProvider.overrideWithValue((exe, args) async {
