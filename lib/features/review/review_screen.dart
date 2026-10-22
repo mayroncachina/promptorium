@@ -947,7 +947,12 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
               if (s.prUrl == null) ...[
                 const SizedBox(width: 4),
                 Tooltip(
-                  message: 'Criar PR como rascunho (gh pr create --draft)',
+                  message: switch (pr?.host) {
+                    'github' => 'Criar PR como rascunho (gh pr create --draft)',
+                    'gitlab' =>
+                      'Criar MR como rascunho (glab mr create --draft)',
+                    _ => 'Criar como rascunho',
+                  },
                   child: SmallButton(
                     key: const ValueKey('review-create-pr-draft'),
                     label: 'Rascunho',

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -12,6 +13,8 @@ import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/review_screen.dart'
     show sinceHeader;
+import 'package:promptorium/features/project/project_config.dart'
+    show projectConfigProvider;
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -36,6 +39,9 @@ class FakeCommands {
   String? prView;
   String inline = '[]';
   bool apiError = false;
+
+  /// While set, `which` waits for it (a slow probe).
+  Completer<void>? gate;
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -45,6 +51,7 @@ class FakeCommands {
   }) async {
     calls.add((exe, args, workingDirectory));
     if (exe == 'which') {
+      await gate?.future;
       return ProcessResult(1, hasGh ? 0 : 1, hasGh ? '/usr/bin/gh\n' : '', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'auth status') {
@@ -709,6 +716,85 @@ void main() {
     expect(a.available, isFalse);
     expect(a.reason, contains('bitbucket.org'));
     expect(cmds.calls, isEmpty);
+  });
+
+  test('a local path, an invalid URL and an invalid hospedagem.tipo have '
+      'their own diagnosis and probe no CLI', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', './outro-repo']);
+    var a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('caminho local'));
+    await gitIn(repo, ['remote', 'set-url', 'origin', 'nao é uma url']);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('URL inválida'));
+    Directory('$repo/.promptorium').createSync(recursive: true);
+    File('$repo/.promptorium/config.yml').writeAsStringSync(
+      'hospedagem:\n  host: git.exemplo.com\n  tipo: bitbucket\n',
+    );
+    e.c.invalidate(projectConfigProvider(repo));
+    await gitIn(repo, [
+      'remote',
+      'set-url',
+      'origin',
+      'git@git.exemplo.com:o/r.git',
+    ]);
+    a = await e.review.prAvailability(e.sessionId);
+    expect(a.reason, contains('hospedagem.tipo "bitbucket" inválido'));
+    expect(cmds.calls, isEmpty);
+  });
+
+  test('changing the remote while a probe is running discards the late '
+      'answer of the old remote', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@github.com:o/r.git']);
+    await gitIn(repo, ['remote', 'add', 'fork', 'git@gitlab.com:o/r.git']);
+    final settings = e.c.read(appSettingsProvider.notifier);
+    await settings.set('review.remote.${e.sessionId}', 'origin');
+    final seen = <PrAvailability>[];
+    final sub = e.c.listen(
+      prAvailabilityProvider(e.sessionId),
+      (_, next) => next.whenData(seen.add),
+    );
+    addTearDown(sub.close);
+    cmds.gate = Completer<void>();
+    e.c.invalidate(prAvailabilityProvider(e.sessionId));
+    e.c.read(prAvailabilityProvider(e.sessionId));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await settings.set('review.remote.${e.sessionId}', 'fork');
+    e.c.read(prAvailabilityProvider(e.sessionId));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    cmds.gate!.complete();
+    final a = await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    expect(a.remote, 'fork');
+    expect(a.host, 'gitlab');
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(seen.where((s) => s.remote == 'origin'), isEmpty);
+  });
+
+  test('switching the active project recomputes the diagnosis', () async {
+    final cmds = FakeCommands();
+    final e = await setUpSession(commands: cmds);
+    await gitIn(repo, ['remote', 'add', 'origin', 'git@github.com:o/r.git']);
+    var runs = 0;
+    final sub = e.c.listen(
+      prAvailabilityProvider(e.sessionId),
+      (_, next) => next.whenData((_) => runs++),
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    final before = runs;
+    final other = await e.c
+        .read(workspacesRepoProvider)
+        .add(path: '${tmp.path}/outro', name: 'outro');
+    await e.c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.activeWorkspace, '${other.id}');
+    await e.c.read(prAvailabilityProvider(e.sessionId).future);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(runs, greaterThan(before));
   });
 
   test('ambiguous remotes require selection, and a saved GitHub PR keeps its destination', () async {

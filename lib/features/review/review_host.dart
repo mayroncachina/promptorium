@@ -9,13 +9,25 @@ typedef HostCommand = Future<ProcessResult> Function(
   String? workingDirectory,
 });
 
+/// What a remote URL points to: a host, a path on this machine or nothing
+/// usable.
+enum RemoteKind { hosted, local, invalid }
+
+RemoteKind remoteKind(String remote) {
+  if (_isLocal(remote)) return RemoteKind.local;
+  return remoteHost(remote) == null ? RemoteKind.invalid : RemoteKind.hosted;
+}
+
+bool _isLocal(String remote) =>
+    remote.startsWith('/') ||
+    remote.startsWith('./') ||
+    remote.startsWith('../') ||
+    remote.startsWith('~/') ||
+    remote.startsWith('file:') ||
+    RegExp(r'^[A-Za-z]:[\\/]').hasMatch(remote);
+
 String? remoteHost(String remote) {
-  if (remote.startsWith('/') ||
-      remote.startsWith('./') ||
-      remote.startsWith('../') ||
-      RegExp(r'^[A-Za-z]:[\\/]').hasMatch(remote)) {
-    return null;
-  }
+  if (_isLocal(remote)) return null;
   final uri = Uri.tryParse(remote);
   if (uri != null &&
       uri.hasAuthority &&
@@ -30,13 +42,15 @@ String? remoteHost(String remote) {
       ?.toLowerCase();
 }
 
+const reviewHostTypes = ['github', 'gitlab'];
+
 String? detectReviewHost(String remote, ProjectConfig config) {
   final host = remoteHost(remote);
   if (host == 'github.com') return 'github';
   if (host == 'gitlab.com') return 'gitlab';
   if (host != null &&
       host == config.host?.toLowerCase() &&
-      const ['github', 'gitlab'].contains(config.hostType)) {
+      reviewHostTypes.contains(config.hostType)) {
     return config.hostType;
   }
   return null;

@@ -126,4 +126,27 @@ void main() {
     expect(gitlab.problem, HostProblem.unsupported);
     expect(gitlab.reason, contains('DT-55'));
   });
+
+  test('remote kinds: hosted, local path and invalid URL are told apart', () {
+    for (final url in [
+      'https://github.com/o/r.git',
+      'ssh://git@gitlab.com/o/r.git',
+      'git@github.com:o/r.git',
+    ]) {
+      expect(remoteKind(url), RemoteKind.hosted, reason: url);
+    }
+    for (final url in [
+      '/srv/git/r.git',
+      './r',
+      '../r',
+      '~/r.git',
+      'file:///srv/r.git',
+      r'C:\repos\r',
+    ]) {
+      expect(remoteKind(url), RemoteKind.local, reason: url);
+    }
+    for (final url in ['nao é url', 'https://', 'github.com', '']) {
+      expect(remoteKind(url), RemoteKind.invalid, reason: url);
+    }
+  });
 }

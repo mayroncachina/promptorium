@@ -26,6 +26,10 @@ index 0000000..3333333
 Future<ProviderContainer> pumpReview(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
+  PrAvailability pr = const PrAvailability(
+    available: false,
+    reason: 'GitHub CLI (gh) não encontrado no PATH.',
+  ),
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -72,12 +76,7 @@ Future<ProviderContainer> pumpReview(
           uncommitted: 1,
         ),
       ),
-      prAvailabilityProvider.overrideWith(
-        (ref, id) async => const PrAvailability(
-          available: false,
-          reason: 'GitHub CLI (gh) não encontrado no PATH.',
-        ),
-      ),
+      prAvailabilityProvider.overrideWith((ref, id) async => pr),
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
@@ -223,6 +222,64 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('review-all-files')), findsNothing);
     expect(find.byKey(const ValueKey('review-file-title')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the host band names the provider and its state; GitLab says '
+      'MR and another host suggests no CLI', (tester) async {
+    await pumpReview(
+      tester,
+      pr: const PrAvailability(
+        available: false,
+        host: 'gitlab',
+        hostname: 'gitlab.com',
+        remote: 'origin',
+        reason: 'Integração de MR ainda indisponível (DT-55).',
+      ),
+    );
+    String band() =>
+        tester.widget<Text>(find.byKey(const ValueKey('review-host'))).data!;
+    expect(
+      band(),
+      'GitLab · glab · gitlab.com · origin · '
+      'Integração de MR ainda indisponível (DT-55).',
+    );
+    expect(find.text('Criar MR'), findsOneWidget);
+    expect(
+      tester
+          .widget<Tooltip>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('review-create-pr-draft')),
+              matching: find.byType(Tooltip),
+            ),
+          )
+          .message,
+      contains('glab mr create'),
+    );
+    await tester.pumpWidget(const SizedBox());
+
+    await pumpReview(
+      tester,
+      pr: const PrAvailability(
+        available: false,
+        host: 'unknown',
+        hostname: 'bitbucket.org',
+        remote: 'origin',
+        reason: 'Integração com bitbucket.org ainda não disponível.',
+      ),
+    );
+    expect(band(), startsWith('Hospedagem não identificada · bitbucket.org'));
+    expect(find.text('Criar PR'), findsOneWidget);
+    final draft = tester
+        .widget<Tooltip>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('review-create-pr-draft')),
+            matching: find.byType(Tooltip),
+          ),
+        )
+        .message!;
+    expect(draft.contains('gh ') || draft.contains('glab'), isFalse);
+    expect(band().contains('gh') || band().contains('glab'), isFalse);
     expect(tester.takeException(), isNull);
   });
 }

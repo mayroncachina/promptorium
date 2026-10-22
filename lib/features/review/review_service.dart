@@ -618,9 +618,18 @@ class ReviewService {
           remote: selected,
           host: 'unknown',
           hostname: hostname,
-          reason: hostname == null
-              ? 'O remote $selected é local ou tem URL inválida; ações de PR/MR exigem um hospedeiro remoto.'
-              : 'Integração com $hostname ainda não disponível. Para instância própria de GitHub/GitLab, configure hospedagem: {host: $hostname, tipo: github|gitlab} no config.yml.',
+          reason: switch (remoteKind(url)) {
+            RemoteKind.local =>
+              'O remote $selected aponta para um caminho local ($url); ações de PR/MR exigem um hospedeiro remoto.',
+            RemoteKind.invalid =>
+              'O remote $selected tem URL inválida ($url). Corrija com git remote set-url $selected <url>.',
+            RemoteKind.hosted
+                when hostname == config.host?.toLowerCase() &&
+                    config.hostType != null =>
+              'hospedagem.tipo "${config.hostType}" inválido no config.yml para $hostname: use github ou gitlab.',
+            RemoteKind.hosted =>
+              'Integração com $hostname ainda não disponível. Para instância própria de GitHub/GitLab, configure hospedagem: {host: $hostname, tipo: github|gitlab} no config.yml.',
+          },
         );
       }
       if (!hasWorktree(c.session, c.workspace)) {

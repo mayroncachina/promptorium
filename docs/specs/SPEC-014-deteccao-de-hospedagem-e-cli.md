@@ -1,6 +1,6 @@
 ---
 id: SPEC-014
-status: em-revisao
+status: concluida
 ---
 
 # Identificação da hospedagem e orientação de CLI
@@ -56,12 +56,12 @@ Resolver o destino da URL salva do PR/MR antes de considerar o remote atual. A p
 
 ## Critérios de aceite
 
-- [ ] [R1] URLs HTTPS, SSH e scp identificam GitHub/GitLab; instâncias próprias só recebem o tipo configurado quando o domínio coincide. Cobrir URL inválida, caminho local, sem remote e host desconhecido.
-- [ ] [R2] Projeto GitHub com `glab` ausente ou inválido continua usando apenas `gh`; projeto GitLab não executa `gh`. Runner falso registra os comandos para comprovar o isolamento.
-- [ ] [R3] CLI ausente oferece orientação oficial de instalação e nova verificação; login inválido orienta o host correto; falha de rede e incompatibilidade têm diagnósticos distintos.
-- [ ] [R4] PR/MR e provedor aparecem corretamente. CLI autenticada sem operação implementada mantém a ação indisponível com motivo; outro host não recebe sugestão de ferramenta incompatível.
-- [ ] [R5] Upstream e remote explícito são respeitados; múltiplos remotes ambíguos exigem seleção. Trocar de projeto ou remote invalida o diagnóstico anterior e respostas atrasadas são descartadas.
-- [ ] [R6] Sessão com PR salvo no GitHub continua consultando o GitHub após o remote passar a GitLab; destinos incompatíveis não executam a CLI errada.
+- [x] [R1] URLs HTTPS, SSH e scp identificam GitHub/GitLab; instâncias próprias só recebem o tipo configurado quando o domínio coincide. Cobrir URL inválida, caminho local, sem remote e host desconhecido.
+- [x] [R2] Projeto GitHub com `glab` ausente ou inválido continua usando apenas `gh`; projeto GitLab não executa `gh`. Runner falso registra os comandos para comprovar o isolamento.
+- [x] [R3] CLI ausente oferece orientação oficial de instalação e nova verificação; login inválido orienta o host correto; falha de rede e incompatibilidade têm diagnósticos distintos.
+- [x] [R4] PR/MR e provedor aparecem corretamente. CLI autenticada sem operação implementada mantém a ação indisponível com motivo; outro host não recebe sugestão de ferramenta incompatível.
+- [x] [R5] Upstream e remote explícito são respeitados; múltiplos remotes ambíguos exigem seleção. Trocar de projeto ou remote invalida o diagnóstico anterior e respostas atrasadas são descartadas.
+- [x] [R6] Sessão com PR salvo no GitHub continua consultando o GitHub após o remote passar a GitLab; destinos incompatíveis não executam a CLI errada.
 - [ ] [R1–R6] Testes de resolução/diagnóstico, widgets do Review e regressão GitHub passam; `flutter analyze` não introduz problemas. Validar manualmente as orientações com CLI ausente e autenticação inválida.
 
 ## Relação com a SPEC-013
