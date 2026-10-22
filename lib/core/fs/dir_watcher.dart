@@ -35,10 +35,13 @@ class DirWatcher {
       final dir = Directory(d);
       if (!dir.existsSync()) continue;
       try {
-        _subs[d] = dir.watch().listen(
-          (e) => _event(e.path),
-          onError: (_) => _subs.remove(d)?.cancel(),
-        );
+        _subs[d] = dir.watch().listen((e) {
+          _event(e.path);
+          // git writes HEAD and refs as `x.lock` renamed to `x`.
+          if (e is FileSystemMoveEvent && e.destination != null) {
+            _event(e.destination!);
+          }
+        }, onError: (_) => _subs.remove(d)?.cancel());
       } on FileSystemException {
         // too many watches / no permission: the folder is skipped
       }

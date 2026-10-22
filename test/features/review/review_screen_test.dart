@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/review/merge_options.dart'
+    show ConflictPrediction;
+import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -30,6 +33,7 @@ Future<ProviderContainer> pumpReview(
     available: false,
     reason: 'GitHub CLI (gh) não encontrado no PATH.',
   ),
+  MergeReadiness? readiness,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -77,6 +81,10 @@ Future<ProviderContainer> pumpReview(
         ),
       ),
       prAvailabilityProvider.overrideWith((ref, id) async => pr),
+      if (readiness != null) ...[
+        mergeReadinessProvider.overrideWith((ref, id) async => readiness),
+        reviewServiceProvider.overrideWith(_NoConflictReview.new),
+      ],
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
@@ -282,4 +290,151 @@ void main() {
     expect(band().contains('gh') || band().contains('glab'), isFalse);
     expect(tester.takeException(), isNull);
   });
+
+  group('SPEC-011 · pronto para merge', () {
+    String summary(WidgetTester t) => t
+        .widget<Text>(find.byKey(const ValueKey('review-readiness-summary')))
+        .data!;
+    bool enabled(WidgetTester t, String key) =>
+        t
+            .widget<InkWell>(
+              find.descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(InkWell),
+              ),
+            )
+            .onTap !=
+        null;
+
+    testWidgets('the header shows ready, warnings or blocked with the count; '
+        'the selected queue item shows the matching dot', (tester) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(const ReadinessInputs()),
+      );
+      expect(summary(tester), 'Pronto para merge');
+      final dot = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('review-item-s1')),
+          matching: find.byType(Icon),
+        ),
+      );
+      expect(dot.icon, Icons.circle);
+      final other = tester.widget<Icon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('review-item-s2')),
+          matching: find.byType(Icon),
+        ),
+      );
+      expect(other.icon, Icons.circle_outlined); // partial, never green
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(prProblem: 'check pendente', uncommitted: 2),
+        ),
+      );
+      expect(summary(tester), 'Com avisos · 2');
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(rootProblem: 'raiz fora da main'),
+        ),
+      );
+      expect(summary(tester), 'Bloqueado · 1 bloqueios · 0 avisos');
+      await tester.tap(find.byKey(const ValueKey('review-readiness')));
+      await tester.pumpAndSettle();
+      for (final id in ['pr', 'empilhada', 'raiz', 'worktree']) {
+        expect(find.byKey(ValueKey('review-readiness-$id')), findsOneWidget);
+      }
+    });
+
+    testWidgets('with a blocker "Fazer merge" is disabled and its tooltip '
+        'lists the blockers; with warnings the dialog lists them', (
+      tester,
+    ) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(rootProblem: 'raiz fora da main'),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      final tip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('review-merge')),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(tip.message, contains('raiz fora da main'));
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(prProblem: 'check lint falhando'),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isTrue);
+      await tester.tap(find.byKey(const ValueKey('review-merge')));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump();
+      }
+      // The merge dialog lists the warnings before confirming.
+      expect(find.textContaining('check lint falhando'), findsOneWidget);
+    });
+
+    testWidgets('criteria as the only service blocker enable "Mergear mesmo '
+        'assim…"; with another blocker both stay disabled', (tester) async {
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(hasSpec: true, pendingCriteria: ['R1 ok']),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const ValueKey('review-merge-override')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      await tester.pumpWidget(const SizedBox());
+
+      await pumpReview(
+        tester,
+        readiness: evaluateReadiness(
+          const ReadinessInputs(
+            hasSpec: true,
+            pendingCriteria: ['R1 ok'],
+            stackedOn: 'SPEC-001',
+          ),
+        ),
+      );
+      expect(enabled(tester, 'review-merge'), isFalse);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const ValueKey('review-merge-override')),
+            )
+            .onPressed,
+        isNull,
+      );
+    });
+  });
+}
+
+class _NoConflictReview extends ReviewService {
+  _NoConflictReview(super.ref);
+  @override
+  Future<ConflictPrediction> predictConflict(String sessionId) async =>
+      const ConflictPrediction();
 }

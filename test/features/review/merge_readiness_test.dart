@@ -63,4 +63,58 @@ void main() {
       expect(result.level, ReadinessLevel.ok);
     },
   );
+
+  test('a source that failed is "não verificado": blocking in raiz, '
+      'empilhada and worktree, a warning in pr, verificacoes and comentarios, '
+      'never ok', () {
+    final result = evaluateReadiness(
+      const ReadinessInputs(
+        hasSpec: true,
+        unknown: {
+          'empilhada': 'git falhou',
+          'worktree': 'git falhou',
+          'verificacoes': 'banco',
+          'comentarios': 'banco',
+        },
+      ),
+    );
+    ReadinessItem item(String id) => result.items.firstWhere((i) => i.id == id);
+    for (final id in ['empilhada', 'worktree', 'verificacoes', 'comentarios']) {
+      expect(item(id).level, ReadinessLevel.naoVerificado, reason: id);
+    }
+    expect(result.blockers.map((i) => i.id), ['empilhada', 'worktree']);
+    expect(result.warnings.map((i) => i.id), ['verificacoes', 'comentarios']);
+    expect(result.level, ReadinessLevel.bloqueio);
+  });
+
+  test('a failed reviewer is a warning with no blocker; the worst item sets '
+      'the level; failing steps are the action targets', () {
+    final failed = evaluateReadiness(
+      const ReadinessInputs(hasSpec: true, reviewerFailed: true),
+    );
+    expect(failed.level, ReadinessLevel.aviso);
+    expect(failed.warnings.single.id, 'revisor');
+    expect(failed.warnings.single.detail, contains('passou para você'));
+
+    final gates = evaluateReadiness(
+      const ReadinessInputs(hasSpec: true, failedGates: ['R2', 'R3']),
+    );
+    expect(gates.items.firstWhere((i) => i.id == 'verificacoes').targets, [
+      'R2',
+      'R3',
+    ]);
+    expect(gates.level, ReadinessLevel.aviso);
+
+    // Reviewing still blocks even if an older round failed.
+    expect(
+      evaluateReadiness(
+        const ReadinessInputs(
+          hasSpec: true,
+          reviewing: true,
+          reviewerFailed: true,
+        ),
+      ).blockers.single.id,
+      'revisor',
+    );
+  });
 }

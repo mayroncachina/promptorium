@@ -22,7 +22,7 @@ import 'merge_readiness.dart';
 import 'merge_options.dart';
 import 'review_host.dart';
 import '../project/project_config.dart';
-import 'auto_reviewer.dart' show ReviewPhase;
+import 'auto_reviewer.dart' show AutoReviewer, ReviewPhase;
 import '../board/board_rules.dart';
 import 'widgets/spec_review_panel.dart';
 
@@ -1246,6 +1246,7 @@ class ReviewService {
     final unknown = <String, String>{};
     List<String> pending = [], failed = [];
     var open = 0, uncommitted = 0;
+    var reviewerFailed = false;
     String? root, stacked, worktree, pr;
     final spec = c.spec;
     if (spec != null) {
@@ -1255,9 +1256,15 @@ class ReviewService {
         unknown['criterios'] = '$e';
       }
       try {
-        open = (await _ref.read(reviewCommentsRepoProvider).bySpec(spec.id))
-            .where(isOpenReviewComment)
-            .length;
+        final rows = await _ref
+            .read(reviewCommentsRepoProvider)
+            .bySpec(spec.id);
+        open = rows.where(isOpenReviewComment).length;
+        final last = rows.where((r) => r.author == 'revisor').lastOrNull;
+        reviewerFailed =
+            last != null &&
+            !last.resolved &&
+            last.body.startsWith(AutoReviewer.failurePrefix);
       } catch (e) {
         unknown['comentarios'] = '$e';
       }
@@ -1321,6 +1328,7 @@ class ReviewService {
       reviewing:
           spec?.reviewPhase == ReviewPhase.auto &&
           spec?.stage == SpecStage.review,
+      reviewerFailed: reviewerFailed,
       pendingCriteria: pending,
       failedGates: failed,
       openComments: open,

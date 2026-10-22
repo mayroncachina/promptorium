@@ -16,6 +16,7 @@ import 'package:promptorium/features/review/review_screen.dart'
     show sinceHeader;
 import 'package:promptorium/features/project/project_config.dart'
     show projectConfigProvider;
+import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -646,6 +647,94 @@ void main() {
       rows.where((r) => r.author != 'humano').every((r) => r.resolved),
       isTrue,
     );
+  });
+
+  test('panel and merge decide on the same facts: each service blocker '
+      'makes merge refuse; a warning does not', () async {
+    // Root on another branch: blocker, merge refuses.
+    var e = await setUpSession();
+    await gitIn(repo, ['switch', '-qc', 'outra']);
+    var ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('raiz'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+    await gitIn(repo, ['switch', '-q', 'main']);
+
+    // Root with a tracked change: blocker, merge refuses.
+    File('$repo/a.txt').writeAsStringSync('mudou na raiz\n');
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('raiz'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+    await gitIn(repo, ['checkout', '--', 'a.txt']);
+
+    // Only uncommitted work in the worktree: a warning, merge goes on.
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers, isEmpty);
+    expect(ready.warnings.map((i) => i.id), contains('worktree'));
+    await e.review.merge(e.sessionId);
+
+    // Already merged: blocker on the worktree item, merge refuses.
+    ready = evaluateReadiness(await e.review.readinessInputs(e.sessionId));
+    expect(ready.blockers.map((i) => i.id), contains('worktree'));
+    await expectLater(
+      e.review.merge(e.sessionId),
+      throwsA(isA<ReviewException>()),
+    );
+  });
+
+  test('the readiness provider recalculates when a comment changes, and the '
+      'repository watcher fires when the root switches branch', () async {
+    final e = await setUpSession();
+    final db = e.c.read(appDatabaseProvider);
+    await db.customStatement(
+      "INSERT INTO specs(workspace_id,code,title,path) VALUES(1,'SPEC-001','a','specs/a.md')",
+    );
+    await db.customStatement('UPDATE sessions SET spec_id=1 WHERE id=?', [
+      e.sessionId,
+    ]);
+    final seen = <MergeReadiness>[];
+    final sub = e.c.listen(
+      mergeReadinessProvider(e.sessionId),
+      (_, next) => next.whenData(seen.add),
+      fireImmediately: true,
+    );
+    addTearDown(sub.close);
+    await e.c.read(mergeReadinessProvider(e.sessionId).future);
+    String? comments() =>
+        seen.last.items.where((i) => i.id == 'comentarios').firstOrNull?.detail;
+    expect(comments(), 'OK');
+    await e.c.read(reviewCommentsRepoProvider).insertAll([
+      ReviewCommentsCompanion.insert(
+        specId: 1,
+        round: 1,
+        author: 'revisor',
+        body: 'falta teste',
+      ),
+    ]);
+    for (var i = 0; i < 50 && comments() == 'OK'; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(comments(), '1 comentários abertos');
+
+    var fired = 0;
+    final watcher = await e.review.watchRepositories(
+      e.sessionId,
+      () => fired++,
+    );
+    expect(watcher, isNotNull);
+    addTearDown(() => watcher!.close());
+    // Let the watches register before changing the repository.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await gitIn(repo, ['switch', '-qc', 'outra']);
+    for (var i = 0; i < 100 && fired == 0; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    expect(fired, greaterThan(0));
   });
 
   test('clean merge: commits pending, merges into main, removes worktree '

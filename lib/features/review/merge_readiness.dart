@@ -12,12 +12,16 @@ class ReadinessItem {
     this.blocking = false,
     this.origin = ReadinessOrigin.servico,
     this.action,
+    this.targets = const [],
   });
   final String id, label, detail;
   final ReadinessLevel level;
   final bool blocking;
   final ReadinessOrigin origin;
   final String? action;
+
+  /// What the action opens (the failing steps of `verificacoes`).
+  final List<String> targets;
   ReadinessLevel get effective => level == ReadinessLevel.naoVerificado
       ? (blocking ? ReadinessLevel.bloqueio : ReadinessLevel.aviso)
       : level;
@@ -51,6 +55,7 @@ class ReadinessInputs {
   const ReadinessInputs({
     this.hasSpec = false,
     this.reviewing = false,
+    this.reviewerFailed = false,
     this.pendingCriteria = const [],
     this.failedGates = const [],
     this.prProblem,
@@ -62,6 +67,9 @@ class ReadinessInputs {
     this.unknown = const {},
   });
   final bool hasSpec, reviewing;
+
+  /// The automatic reviewer failed and handed the spec to the user.
+  final bool reviewerFailed;
   final List<String> pendingCriteria, failedGates;
   final String? prProblem, stackedOn, rootProblem, worktreeProblem;
   final int openComments, uncommitted;
@@ -76,6 +84,7 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
     bool blocking = false,
     String? action,
     ReadinessOrigin origin = ReadinessOrigin.servico,
+    List<String> targets = const [],
   }) => ReadinessItem(
     id,
     label,
@@ -90,17 +99,29 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
     blocking: blocking,
     origin: origin,
     action: action,
+    targets: targets,
+  );
+  final reviewer = item(
+    'revisor',
+    'Revisor automático',
+    f.reviewing ? 'O revisor automático ainda está revisando' : null,
+    blocking: true,
+    origin: ReadinessOrigin.tela,
+    action: 'Pular revisor',
   );
   return MergeReadiness([
     if (f.hasSpec) ...[
-      item(
-        'revisor',
-        'Revisor automático',
-        f.reviewing ? 'O revisor automático ainda está revisando' : null,
-        blocking: true,
-        origin: ReadinessOrigin.tela,
-        action: 'Pular revisor',
-      ),
+      if (reviewer.level == ReadinessLevel.ok && f.reviewerFailed)
+        const ReadinessItem(
+          'revisor',
+          'Revisor automático',
+          ReadinessLevel.aviso,
+          'O revisor automático falhou e passou para você',
+          blocking: true,
+          origin: ReadinessOrigin.tela,
+        )
+      else
+        reviewer,
       item(
         'criterios',
         'Critérios de aceite',
@@ -115,6 +136,7 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
         'Verificações das etapas',
         f.failedGates.isEmpty ? null : 'Falharam: ${f.failedGates.join(', ')}',
         action: 'Abrir etapa',
+        targets: f.failedGates,
       ),
       item(
         'comentarios',

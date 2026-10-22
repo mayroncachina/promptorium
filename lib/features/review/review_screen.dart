@@ -7,6 +7,7 @@ import 'dart:io';
 import '../project/project_config.dart';
 import 'merge_options.dart';
 import 'merge_readiness.dart';
+import '../board/widgets/spec_steps_panel.dart' show selectedStepProvider;
 import 'comment_anchor.dart';
 
 import 'package:flutter/material.dart';
@@ -531,6 +532,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   String? _busy;
   DirWatcher? _repositoryWatcher;
 
+  /// "Pronto para merge?" panel, opened by the header indicator.
+  final _readinessPanel = ExpansibleController();
+  final _specPanelKey = GlobalKey();
+
   /// Step whose commits are shown (null = the whole branch).
   String? _step;
   ReviewCommentRow? _since;
@@ -610,6 +615,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   @override
   void dispose() {
     unawaited(_repositoryWatcher?.close());
+    _readinessPanel.dispose();
     super.dispose();
   }
 
@@ -819,12 +825,45 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       ref
           .read(reviewViewProvider.notifier)
           .set(ref.read(reviewViewProvider).copyWith(allFiles: true));
-    },
-    'criterios' || 'verificacoes' => () {
-      if (widget.item.spec != null) {
-        ref.read(selectedSpecProvider.notifier).select(widget.item.spec!.id);
-        ref.read(navigationProvider.notifier).go(AppSection.specs);
+      // To the first open comment that sits on a file of the diff.
+      final spec = widget.item.spec;
+      final files = ref.read(reviewDetailProvider(_id)).value?.files ?? [];
+      final first = spec == null
+          ? null
+          : (ref.read(reviewCommentsProvider(spec.id)).value ?? [])
+                .where(
+                  (c) =>
+                      isOpenReviewComment(c) &&
+                      files.any((f) => f.path == c.path),
+                )
+                .firstOrNull;
+      if (first != null) {
+        ref.read(_selectedFileProvider.notifier).select(first.path);
+        ref.read(reviewScrollTargetProvider.notifier)
+          ..go(null)
+          ..go(first.path);
       }
+    },
+    'criterios' => () {
+      final panel = _specPanelKey.currentContext;
+      if (panel != null) unawaited(Scrollable.ensureVisible(panel));
+    },
+    'verificacoes' => () {
+      final spec = widget.item.spec;
+      final step = ref
+          .read(mergeReadinessProvider(_id))
+          .value
+          ?.items
+          .where((i) => i.id == 'verificacoes')
+          .firstOrNull
+          ?.targets
+          .firstOrNull;
+      if (spec == null) return;
+      ref.read(selectedSpecProvider.notifier).select(spec.id);
+      if (step != null) {
+        ref.read(selectedStepProvider.notifier).select(spec.id, step);
+      }
+      ref.read(navigationProvider.notifier).go(AppSection.specs);
     },
     'empilhada' => () async {
       final items = await ref.read(
@@ -909,6 +948,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     ),
                     const SizedBox(height: 4),
                     _Subtitle(detail: d, branch: s.branch, busy: _busy),
+                    _ReadinessIndicator(
+                      readiness: readiness,
+                      onTap: _readinessPanel.expand,
+                    ),
                     if (s.specId != null)
                       Text(
                         '${(ref.watch(reviewCommentsProvider(s.specId!)).value ?? <ReviewCommentRow>[]).where(isOpenReviewComment).length} comentários abertos',
@@ -1056,11 +1099,18 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
-        if (!busy && ready?.canOverride == true && d != null)
+        // Criteria are the only blocker the user may override, with a
+        // reason; with any other blocker the button stays, disabled.
+        if (d != null &&
+            ready != null &&
+            ready.blockers.any((i) => i.id == 'criterios'))
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => _merge(d, pending: pending),
+              key: const ValueKey('review-merge-override'),
+              onPressed: !busy && ready.canOverride
+                  ? () => _merge(d, pending: pending)
+                  : null,
               child: const Text('Mergear mesmo assim…'),
             ),
           ),
@@ -1081,6 +1131,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         Material(
           color: Colors.transparent,
           child: ExpansionTile(
+            key: const ValueKey('review-readiness-panel'),
+            controller: _readinessPanel,
             title: Text(
               readiness.isLoading
                   ? 'Verificando merge…'
@@ -1092,9 +1144,17 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                 Text('Não verificado: ${readiness.error}'),
               for (final i in ready?.items ?? <ReadinessItem>[])
                 ListTile(
+                  key: ValueKey('review-readiness-${i.id}'),
                   dense: true,
                   title: Text(i.label),
-                  subtitle: Text('${i.level.name} · ${i.detail}'),
+                  subtitle: Text(
+                    '${switch (i.level) {
+                      ReadinessLevel.ok => 'OK',
+                      ReadinessLevel.aviso => 'Aviso',
+                      ReadinessLevel.bloqueio => 'Bloqueio',
+                      ReadinessLevel.naoVerificado => 'Não verificado',
+                    }} · ${i.detail}',
+                  ),
                   trailing: i.action == null
                       ? null
                       : TextButton(
@@ -1112,6 +1172,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         PrPanel(session: s, localConflict: _conflict),
         if (widget.item.spec != null)
           SpecReviewPanel(
+            key: _specPanelKey,
             specId: widget.item.spec!.id,
             sessionId: _id,
             prUrl: s.prUrl,
@@ -1505,6 +1566,56 @@ extension on _ReviewMainState {
       sideBySide: view.sideBySide,
       draft: const ReviewDraft(),
       readOnly: true,
+    );
+  }
+}
+
+/// Merge state in the item header: icon, colour and text (not colour
+/// alone); a tap opens the "Pronto para merge?" panel.
+class _ReadinessIndicator extends StatelessWidget {
+  const _ReadinessIndicator({required this.readiness, required this.onTap});
+
+  final AsyncValue<MergeReadiness> readiness;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = readiness.value;
+    final (icon, color, text) = readiness.isLoading && r == null
+        ? (Icons.hourglass_empty, AppColors.textMuted, 'Verificando merge…')
+        : r == null
+        ? (Icons.help_outline, AppColors.amber, 'Merge não verificado')
+        : switch (r.level) {
+            ReadinessLevel.ok => (
+              Icons.check_circle,
+              AppColors.teal,
+              r.summary,
+            ),
+            ReadinessLevel.bloqueio => (Icons.block, AppColors.red, r.summary),
+            _ => (Icons.warning_amber, AppColors.amber, r.summary),
+          };
+    return InkWell(
+      key: const ValueKey('review-readiness'),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                text,
+                key: const ValueKey('review-readiness-summary'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: color),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

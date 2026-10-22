@@ -254,6 +254,9 @@ String reviewerPrompt({
 class AutoReviewer {
   AutoReviewer(this._ref);
 
+  /// Start of the comment left when a round fails (the user's turn).
+  static const failurePrefix = 'O revisor automático falhou';
+
   final Ref _ref;
 
   static const maxDiff = 80000;
@@ -396,7 +399,7 @@ class AutoReviewer {
           specId: specId,
           round: spec.reviewRounds + 1,
           author: 'revisor',
-          body: 'O revisor automático falhou: $failure',
+          body: '${AutoReviewer.failurePrefix}: $failure',
         ),
       ]);
     }
