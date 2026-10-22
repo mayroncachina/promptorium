@@ -560,14 +560,17 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     }
   });
 
-  List<AnchoredComment> _persisted(List<DiffFile> files) {
+  /// [round]: only that round's comments, open or treated (SPEC-010 R5).
+  List<AnchoredComment> _persisted(List<DiffFile> files, {int? round}) {
     final spec = widget.item.spec;
     if (spec == null || !_commentsVisible) return [];
     final rows = ref.watch(reviewCommentsProvider(spec.id)).value ?? [];
     final shifts = ref.watch(reviewAnchorProvider((_id, spec.id))).value ?? {};
     return [
       for (final c in rows)
-        if ((!_onlyOpen || !c.resolved) && _sources.contains(c.author))
+        if (round == null
+            ? (!_onlyOpen || !c.resolved) && _sources.contains(c.author)
+            : c.round == round)
           anchorOf(c, files.where((f) => f.path == c.path).firstOrNull, shifts),
     ];
   }
@@ -1387,29 +1390,36 @@ extension on _ReviewMainState {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DropdownButton<int>(
-          key: const ValueKey('review-since-filter'),
-          hint: const Text('Alterações desde…'),
-          value: _since?.round,
-          items: [
-            for (final c in sorted)
-              DropdownMenuItem(
-                value: c.round,
-                enabled:
-                    reasons[c.round]!.hasValue &&
-                    reasons[c.round]!.value == null,
-                child: Tooltip(
-                  message: reasons[c.round]!.value ?? '',
-                  child: Text(
-                    'Rodada ${c.round} · ${c.author} · '
-                    '${c.verdict ?? 'sem veredito'} · ${c.createdAt}',
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 340),
+          child: DropdownButton<int>(
+            key: const ValueKey('review-since-filter'),
+            isExpanded: true,
+            hint: const Text('Alterações desde…'),
+            value: _since?.round,
+            items: [
+              for (final c in sorted)
+                DropdownMenuItem(
+                  value: c.round,
+                  enabled:
+                      reasons[c.round]!.hasValue &&
+                      reasons[c.round]!.value == null,
+                  child: Tooltip(
+                    message: reasons[c.round]!.value ?? '',
+                    child: Text(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      'Rodada ${c.round} · ${c.author} · '
+                      '${c.verdict ?? 'sem veredito'} · ${roundDate(c.createdAt)}',
+                    ),
                   ),
                 ),
-              ),
-          ],
-          onChanged: (n) => choose(rounds[n]),
+            ],
+            onChanged: (n) => choose(rounds[n]),
+          ),
         ),
         TextButton(
+          key: const ValueKey('review-since-latest'),
           onPressed: latest == null ? null : () => choose(latest),
           child: const Text('Desde a última rodada'),
         ),
@@ -1451,21 +1461,22 @@ extension on _ReviewMainState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          '${d.commitsAhead} commits · ${d.files.length} arquivos desde a rodada ${row.round}',
+          sinceHeader(d.commitsAhead, d.files.length, row.round),
+          key: const ValueKey('review-since-header'),
         ),
         if (!view.allFiles && unchanged && fallback != null)
           const Text('diff completo desde a base da branch'),
         Expanded(
-          child: ReviewAllFiles(
-            files: files,
-            draft: const ReviewDraft(),
-            readOnly: true,
-            sideBySide: view.sideBySide,
-            persisted: _persisted(d.files)
-                .where((c) => c.row.round == row.round)
-                .toList(),
-            selected: _selectedComments,
-            onSelectComment: _selectComment,
+          child: ResolvedCommentBodies(
+            child: ReviewAllFiles(
+              files: files,
+              draft: const ReviewDraft(),
+              readOnly: true,
+              sideBySide: view.sideBySide,
+              persisted: _persisted(d.files, round: row.round),
+              selected: _selectedComments,
+              onSelectComment: _selectComment,
+            ),
           ),
         ),
       ],
@@ -1490,6 +1501,17 @@ extension on _ReviewMainState {
       readOnly: true,
     );
   }
+}
+
+/// `k commits · n arquivos desde a rodada N`, singular when 1.
+String sinceHeader(int commits, int files, int round) =>
+    '$commits ${commits == 1 ? 'commit' : 'commits'} · '
+    '$files ${files == 1 ? 'arquivo' : 'arquivos'} desde a rodada $round';
+
+/// `21/10 14:05` for the round list.
+String roundDate(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.day)}/${two(d.month)} ${two(d.hour)}:${two(d.minute)}';
 }
 
 /// `pr/x → main · n arquivos · +x −y · k commits · m não commitados`.

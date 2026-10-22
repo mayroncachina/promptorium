@@ -4,6 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../comment_anchor.dart';
 
+/// Shows the body of treated comments below it (diff since a round, where
+/// the request is compared with its fix); elsewhere they collapse.
+class ResolvedCommentBodies extends InheritedWidget {
+  const ResolvedCommentBodies({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<ResolvedCommentBodies>() !=
+      null;
+
+  @override
+  bool updateShouldNotify(ResolvedCommentBodies oldWidget) => false;
+}
+
 /// Shared by inline, file-wide and outdated comments. Bodies are plain text.
 class PersistedComment extends ConsumerWidget {
   const PersistedComment({
@@ -56,7 +69,8 @@ class PersistedComment extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (!c.resolved) Text(c.body),
+              if (!c.resolved || ResolvedCommentBodies.of(context))
+                Text(c.body),
               if (comment.outdatedReason != null)
                 Text(
                   'Fora do diff atual · ${c.path ?? 'Geral'}:${c.line ?? 0} · ${comment.outdatedReason}'

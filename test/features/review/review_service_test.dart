@@ -10,6 +10,8 @@ import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/merge_options.dart';
+import 'package:promptorium/features/review/review_screen.dart'
+    show sinceHeader;
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -200,6 +202,47 @@ void main() {
       await e.review.roundUnavailable(e.sessionId, 'abc123'),
       contains('não existe mais'),
     );
+  });
+
+  test('since round counts a renamed and an untracked file once each; '
+      'with only an uncommitted change it is 0 commits · 1 arquivo', () async {
+    final e = await setUpSession();
+    await gitIn(e.worktree, ['add', '-A']);
+    await gitIn(e.worktree, ['commit', '-qm', 'tudo']);
+    final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+
+    File('${e.worktree}/b.txt').writeAsStringSync('mudou\n');
+    var detail = await e.review.loadSince(e.sessionId, sha);
+    expect(detail.commitsAhead, 0);
+    expect(detail.files.map((f) => f.path), ['b.txt']);
+    expect(
+      sinceHeader(detail.commitsAhead, detail.files.length, 3),
+      '0 commits · 1 arquivo desde a rodada 3',
+    );
+
+    await gitIn(e.worktree, ['checkout', '--', 'b.txt']);
+    await gitIn(e.worktree, ['mv', 'b.txt', 'renomeado.txt']);
+    await gitIn(e.worktree, ['commit', '-qm', 'renomeia']);
+    File('${e.worktree}/solto.txt').writeAsStringSync('solto\n');
+    detail = await e.review.loadSince(e.sessionId, sha);
+    expect(detail.commitsAhead, 1);
+    expect(detail.files.map((f) => f.path).toList(), [
+      'renomeado.txt',
+      'solto.txt',
+    ]);
+  });
+
+  test('a round whose commit left the branch is unavailable with its own '
+      'reason', () async {
+    final e = await setUpSession();
+    await gitIn(e.worktree, ['add', '-A']);
+    await gitIn(e.worktree, ['commit', '-qm', 'reescrito']);
+    final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
+    await gitIn(e.worktree, ['reset', '-q', '--hard', 'HEAD~1']);
+    final reason = await e.review.roundUnavailable(e.sessionId, sha);
+    expect(reason, 'o commit da rodada não existe mais nesta branch');
+    expect(await e.review.roundUnavailable(e.sessionId, null), isNot(reason));
+    expect((await e.review.loadSince(e.sessionId, sha)).error, reason);
   });
 
   for (final method in MergeMethod.values) {
