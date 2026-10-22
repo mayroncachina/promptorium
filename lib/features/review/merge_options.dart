@@ -12,6 +12,20 @@ class MergeOptions {
   final bool switchBase, restoreBranch, stash, skipHooks;
 }
 
+/// Facts of the main repository shown by the merge dialog.
+class MergeFacts {
+  const MergeFacts({
+    this.rootBranch,
+    this.rootChanges = const [],
+    this.published = false,
+  });
+
+  /// Null = detached HEAD.
+  final String? rootBranch;
+  final List<String> rootChanges;
+  final bool published;
+}
+
 class ConflictPrediction {
   const ConflictPrediction({this.files = const [], this.error});
   final List<String> files;

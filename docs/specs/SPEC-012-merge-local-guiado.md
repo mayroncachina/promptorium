@@ -1,6 +1,6 @@
 ---
 id: SPEC-012
-status: rascunho
+status: concluida
 depende-de: [SPEC-011]
 ---
 
@@ -97,26 +97,26 @@ Hoje o erro de conflito (`Conflito ao fazer merge de …`) tem texto fixo e o di
 
 Os testes usam repositórios temporários reais, como os de `test/features/review/review_service_test.dart`.
 
-- [ ] [R1–R6] Com as opções padrão e a raiz já na base, `merge` executa os mesmos comandos git que **alteram** o repositório, na mesma ordem, e produz o mesmo resultado de hoje (um `GitService` injetado grava as chamadas; consultas só de leitura, como `merge-tree`, `status` e `rev-parse refs/stash`, ficam fora da comparação). verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R1] Com a raiz em outra branch, "Trocar para a base e continuar" troca, faz o merge e volta à branch anterior; se a troca falhar, nada é alterado e o erro do git aparece. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R2] Com alterações rastreadas na raiz e o stash ligado, o merge guarda, integra e restaura as alterações; se restaurar conflitar, o stash permanece e o aviso o menciona. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] Cada método produz o histórico esperado: `--no-ff` com merge commit, squash com um único commit com o título da spec, rebase com histórico linear e sem merge commit. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] O squash apaga a branch com `-D` depois de confirmar o commit de squash; um squash sem diferença mostra "nada a integrar" e não altera a branch nem o worktree; um hook de commit que falha desfaz com `reset --merge`. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] Se o `merge --ff-only` do rebase falhar, a ponta da branch volta ao valor anterior ao rebase; o rebase fica indisponível quando a branch tem PR ou upstream. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R2] Com apenas o arquivo da memória do projeto alterado, o stash não guarda nada e a restauração não toca nenhum stash antigo do usuário; com alterações rastreadas, restaura pelo sha e só então remove aquele stash. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R1] Com `MERGE_HEAD`, rebase ou cherry-pick em andamento na raiz, a troca de branch e o stash são recusados com o motivo. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R1, R2] Uma falha em cada passo de 2 a 8 desfaz o que a tabela "Falhas e desfazer" manda; se voltar à branch falhar, o stash não é restaurado e o aviso traz a branch atual e o sha. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R2] Com o arquivo da spec alterado pelo usuário, `_closeSpec` grava o status sem commit e avisa; uma falha de hook no commit dele é só aviso e o merge não é desfeito. verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R2] `stash apply --index` restaura o que estava no índice; com conflito, restaura sem `--index` e avisa. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] Depois de um rebase interrompido entre o rebase e o `--ff-only`, a ref `pre-rebase` guarda a ponta anterior. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R5] `resolveConflict` move a tarefa para "Em execução". verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R1, R2] Com troca de branch e stash, o commit "spec concluída" cai na branch base e a branch original volta depois dele; uma falha no meio desfaz tudo em ordem inversa. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] Conflito em cada método desfaz tudo (raiz e worktree como antes) e devolve a mensagem de conflito com os arquivos. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R3] O padrão do `config.yml` (`merge.metodo`) pré-seleciona o método; sem a chave, o padrão é `--no-ff`. verificar: `flutter test test/features/project/project_config_test.dart`
-- [ ] [R4] A previsão lista os arquivos que conflitariam sem alterar índice nem árvore, e mostra "não verificado" quando `git merge-tree --write-tree` não existe. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R5] O erro de conflito oferece "Resolver com o agente", que envia a mensagem de `conflictMessage` à sessão. verificar: `flutter test test/features/review/review_screen_test.dart`
-- [ ] [R6] Com hooks que falham num repositório temporário, o commit de pendências falha por padrão e passa com `skipHooks`; o diálogo avisa dos hooks. verificar: `flutter test test/features/review/merge_options_test.dart` (a criar)
-- [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R1–R6] Com as opções padrão e a raiz já na base, `merge` executa os mesmos comandos git que **alteram** o repositório, na mesma ordem, e produz o mesmo resultado de hoje (um `GitService` injetado grava as chamadas; consultas só de leitura, como `merge-tree`, `status` e `rev-parse refs/stash`, ficam fora da comparação). verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R1] Com a raiz em outra branch, "Trocar para a base e continuar" troca, faz o merge e volta à branch anterior; se a troca falhar, nada é alterado e o erro do git aparece. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R2] Com alterações rastreadas na raiz e o stash ligado, o merge guarda, integra e restaura as alterações; se restaurar conflitar, o stash permanece e o aviso o menciona. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] Cada método produz o histórico esperado: `--no-ff` com merge commit, squash com um único commit com o título da spec, rebase com histórico linear e sem merge commit. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] O squash apaga a branch com `-D` depois de confirmar o commit de squash; um squash sem diferença mostra "nada a integrar" e não altera a branch nem o worktree; um hook de commit que falha desfaz com `reset --merge`. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] Se o `merge --ff-only` do rebase falhar, a ponta da branch volta ao valor anterior ao rebase; o rebase fica indisponível quando a branch tem PR ou upstream. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R2] Com apenas o arquivo da memória do projeto alterado, o stash não guarda nada e a restauração não toca nenhum stash antigo do usuário; com alterações rastreadas, restaura pelo sha e só então remove aquele stash. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R1] Com `MERGE_HEAD`, rebase ou cherry-pick em andamento na raiz, a troca de branch e o stash são recusados com o motivo. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R1, R2] Uma falha em cada passo de 2 a 8 desfaz o que a tabela "Falhas e desfazer" manda; se voltar à branch falhar, o stash não é restaurado e o aviso traz a branch atual e o sha. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R2] Com o arquivo da spec alterado pelo usuário, `_closeSpec` grava o status sem commit e avisa; uma falha de hook no commit dele é só aviso e o merge não é desfeito. verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R2] `stash apply --index` restaura o que estava no índice; com conflito, restaura sem `--index` e avisa. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] Depois de um rebase interrompido entre o rebase e o `--ff-only`, a ref `pre-rebase` guarda a ponta anterior. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R5] `resolveConflict` move a tarefa para "Em execução". verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R1, R2] Com troca de branch e stash, o commit "spec concluída" cai na branch base e a branch original volta depois dele; uma falha no meio desfaz tudo em ordem inversa. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] Conflito em cada método desfaz tudo (raiz e worktree como antes) e devolve a mensagem de conflito com os arquivos. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R3] O padrão do `config.yml` (`merge.metodo`) pré-seleciona o método; sem a chave, o padrão é `--no-ff`. verificar: `flutter test test/features/project/project_config_test.dart`
+- [x] [R4] A previsão lista os arquivos que conflitariam sem alterar índice nem árvore, e mostra "não verificado" quando `git merge-tree --write-tree` não existe. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R5] O erro de conflito oferece "Resolver com o agente", que envia a mensagem de `conflictMessage` à sessão. verificar: `flutter test test/features/review/review_screen_test.dart`
+- [x] [R6] Com hooks que falham num repositório temporário, o commit de pendências falha por padrão e passa com `skipHooks`; o diálogo avisa dos hooks. verificar: `flutter test test/features/review/merge_options_test.dart test/features/review/review_service_test.dart`
+- [x] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R1–R3] Num repositório real, merge com troca de branch, stash e squash, conferindo `git log` e `git stash list`. verificar: manual (`flutter run -d linux`, Review → Fazer merge)
 
 ## Ordem de implementação

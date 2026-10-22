@@ -765,6 +765,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         ? const ProjectConfig()
         : await ref.read(projectConfigProvider(ws.path).future);
     final prediction = await _service.predictConflict(_id);
+    final facts = await _service.mergeFacts(_id);
     if (!mounted) return;
     var options = const MergeOptions();
     final deleteBranch = await showMergeDialog(
@@ -778,6 +779,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         orElse: () => MergeMethod.merge,
       ),
       onOptions: (v) => options = v,
+      facts: facts,
       warnings: [
         if (prediction.error != null)
           'Conflito previsto: não verificado · ${prediction.error}',

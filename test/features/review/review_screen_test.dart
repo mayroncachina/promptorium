@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/data/providers.dart';
-import 'package:promptorium/features/review/merge_options.dart'
-    show ConflictPrediction;
+import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
@@ -430,11 +429,53 @@ void main() {
       );
     });
   });
+
+  testWidgets('SPEC-012 R5 · a merge conflict shows the files and offers '
+      '"Resolver com o agente", which sends the conflict instructions', (
+    tester,
+  ) async {
+    final c = await pumpReview(
+      tester,
+      readiness: evaluateReadiness(const ReadinessInputs()),
+    );
+    await tester.tap(find.byKey(const ValueKey('review-merge')));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('review-merge-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('review-error-dialog')), findsOneWidget);
+    expect(find.textContaining('(a.txt)'), findsOneWidget);
+    await tester.tap(find.text('Resolver com o agente'));
+    await tester.pumpAndSettle();
+    final service = c.read(reviewServiceProvider) as _NoConflictReview;
+    expect(service.resolved, ['s1']);
+  });
 }
 
 class _NoConflictReview extends ReviewService {
   _NoConflictReview(super.ref);
+  final resolved = <String>[];
   @override
   Future<ConflictPrediction> predictConflict(String sessionId) async =>
       const ConflictPrediction();
+  @override
+  Future<MergeFacts> mergeFacts(String sessionId) async =>
+      const MergeFacts(rootBranch: 'main');
+  @override
+  Future<MergeResult> merge(
+    String sessionId, {
+    bool deleteBranch = true,
+    String? override,
+    MergeOptions options = const MergeOptions(),
+  }) async => throw const MergeConflictException(
+    'Conflito ao fazer merge de pr/x em main (a.txt).',
+    ['a.txt'],
+  );
+  @override
+  Future<void> resolveConflict(String sessionId) async =>
+      resolved.add(sessionId);
 }

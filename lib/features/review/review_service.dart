@@ -1507,10 +1507,44 @@ class ReviewService {
     } catch (e) {
       await restore();
       if (warnings.isNotEmpty) {
-        throw ReviewException('$e\n${warnings.join('\n')}');
+        final message = '$e\n${warnings.join('\n')}';
+        // Still a conflict: the error keeps "Resolver com o agente".
+        if (e is MergeConflictException) {
+          throw MergeConflictException(message, e.files);
+        }
+        throw ReviewException(message);
       }
       rethrow;
     }
+  }
+
+  /// What the merge dialog offers: the root's branch, its tracked changes
+  /// that "stash" would keep (not the project memory nor the spec file) and
+  /// whether the branch is published (PR or upstream: no rebase).
+  Future<MergeFacts> mergeFacts(String sessionId) async {
+    final c = await _context(sessionId);
+    final main = _git(c.workspace.path);
+    var published = c.session.prUrl != null;
+    if (!published) {
+      try {
+        await _git(c.session.worktreePath)
+            .git(['rev-parse', '--verify', '@{u}']);
+        published = true;
+      } on GitException {
+        /* no upstream */
+      }
+    }
+    return MergeFacts(
+      rootBranch: await main.currentBranch(),
+      rootChanges: [
+        for (final e in await main.status())
+          if (!e.isUntracked &&
+              e.path != ProjectMemory.filePath &&
+              e.path != c.spec?.path)
+            e.path,
+      ],
+      published: published,
+    );
   }
 
   Future<MergeResult> _mergeLocal(
@@ -1634,10 +1668,13 @@ class ReviewService {
             s.branch,
           ]);
         case MergeMethod.squash:
-          final subjects = (await wt.git(['log', '--format=%s', '$base..HEAD']))
-              .split('\n')
-              .take(50)
-              .join('\n');
+          final all = (await wt.git(['log', '--format=%s', '$base..HEAD']))
+              .trim()
+              .split('\n');
+          final subjects = [
+            ...all.take(50),
+            if (all.length > 50) '…',
+          ].join('\n');
           await main.git(['merge', '--squash', '--', s.branch]);
           final staged = await main.git(['diff', '--cached', '--name-only']);
           if (staged.trim().isEmpty) {
@@ -1696,7 +1733,11 @@ class ReviewService {
         throw MergeConflictException(
           'Conflito ao fazer merge de ${s.branch} em $base '
           '(${conflicted.join(', ')}). O merge foi desfeito '
-          '(git merge --abort); nada foi alterado. Peça ajustes ao agente '
+          '(${switch (options.method) {
+            MergeMethod.merge => 'git merge --abort',
+            MergeMethod.squash => 'git reset --merge',
+            MergeMethod.rebase => 'git rebase --abort',
+          }}); nada foi alterado. Peça ajustes ao agente '
           '(ex.: integrar $base na branch) ou resolva manualmente.',
           conflicted,
         );
@@ -1800,15 +1841,23 @@ class ReviewService {
         );
         if (clean) {
           // Its own commit: a dirty tracked file would block the next merge.
-          await main.git(['add', '--', spec.path]);
-          await main.git([
-            'commit',
-            '-q',
-            '-m',
-            '${spec.code}: spec concluída',
-            '--',
-            spec.path,
-          ]);
+          try {
+            await main.git(['add', '--', spec.path]);
+            await main.git([
+              'commit',
+              '-q',
+              '-m',
+              '${spec.code}: spec concluída',
+              '--',
+              spec.path,
+            ]);
+          } on GitException catch (e) {
+            // A user's hook refused it: the merge stands.
+            warnings.add(
+              'status gravado em ${spec.path}, mas o commit "spec concluída" '
+              'falhou: $e',
+            );
+          }
         } else {
           warnings.add(
             'A spec tinha alterações locais; status atualizado sem commit: ${spec.path}',

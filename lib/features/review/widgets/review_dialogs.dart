@@ -190,6 +190,7 @@ Future<bool?> showMergeDialog(
   List<String> warnings = const [],
   bool published = false,
   MergeMethod initialMethod = MergeMethod.merge,
+  MergeFacts facts = const MergeFacts(),
 }) => showDialog<bool>(
   context: context,
   barrierColor: AppColors.scrim,
@@ -199,8 +200,9 @@ Future<bool?> showMergeDialog(
     uncommitted: uncommitted,
     onOptions: onOptions,
     warnings: warnings,
-    published: published,
+    published: published || facts.published,
     initialMethod: initialMethod,
+    facts: facts,
   ),
 );
 
@@ -213,6 +215,7 @@ class _MergeDialog extends StatefulWidget {
     this.warnings = const [],
     this.published = false,
     this.initialMethod = MergeMethod.merge,
+    this.facts = const MergeFacts(),
   });
 
   final String branch;
@@ -222,6 +225,7 @@ class _MergeDialog extends StatefulWidget {
   final List<String> warnings;
   final bool published;
   final MergeMethod initialMethod;
+  final MergeFacts facts;
 
   @override
   State<_MergeDialog> createState() => _MergeDialogState();
@@ -250,41 +254,72 @@ class _MergeDialogState extends State<_MergeDialog> {
           Text('Aviso: $warning', style: _body),
         DropdownButton<MergeMethod>(
           value: _method,
+          isExpanded: true,
           items: [
             for (final m in MergeMethod.values)
               DropdownMenuItem(
                 value: m,
                 enabled: m != MergeMethod.rebase || !widget.published,
-                child: Text(switch (m) {
-                  MergeMethod.merge => 'Merge commit — preserva os commits',
-                  MergeMethod.squash => 'Squash — junta os commits de etapa',
-                  MergeMethod.rebase =>
-                    widget.published
-                        ? 'Rebase indisponível: branch publicada'
-                        : 'Rebase — histórico linear',
-                }),
+                child: Text(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  switch (m) {
+                    MergeMethod.merge => 'Merge commit — preserva os commits',
+                    MergeMethod.squash => 'Squash — junta os commits de etapa',
+                    MergeMethod.rebase =>
+                      widget.published
+                          ? 'Rebase indisponível: branch publicada (PR ou '
+                                'upstream)'
+                          : 'Rebase — histórico linear',
+                  },
+                ),
               ),
           ],
           onChanged: (m) => setState(() => _method = m!),
         ),
-        CheckboxListTile(
-          value: _switch,
-          title: Text('Trocar para ${widget.base} e continuar'),
-          onChanged: (v) => setState(() => _switch = v!),
-        ),
-        if (_switch)
+        Text(switch (_method) {
+          MergeMethod.merge =>
+            'Mantém os commits de etapa e cria um commit de merge.',
+          MergeMethod.squash =>
+            'Junta todos os commits de etapa num único commit com o título '
+                'da spec; a branch é apagada depois (git branch -D).',
+          MergeMethod.rebase =>
+            'Reaplica os commits sobre a base e avança sem commit de merge '
+                '(histórico linear).',
+        }, style: _body),
+        if (widget.facts.rootBranch != widget.base) ...[
           CheckboxListTile(
-            value: _restore,
-            title: const Text('Voltar à branch anterior'),
-            onChanged: (v) => setState(() => _restore = v!),
+            key: const ValueKey('review-merge-switch'),
+            value: _switch,
+            title: Text(
+              'Trocar para ${widget.base} e continuar (a raiz está em '
+              '${widget.facts.rootBranch ?? 'HEAD destacado'})',
+            ),
+            onChanged: (v) => setState(() => _switch = v!),
           ),
-        CheckboxListTile(
-          value: _stash,
-          title: const Text(
-            'Guardar alterações rastreadas no stash e restaurar depois',
+          if (_switch)
+            CheckboxListTile(
+              value: _restore,
+              title: const Text('Voltar à branch anterior'),
+              onChanged: (v) => setState(() => _restore = v!),
+            ),
+        ],
+        if (widget.facts.rootChanges.isNotEmpty) ...[
+          Text(
+            'Alterações rastreadas no repositório principal: '
+            '${widget.facts.rootChanges.join(', ')}',
+            key: const ValueKey('review-merge-root-changes'),
+            style: mono,
           ),
-          onChanged: (v) => setState(() => _stash = v!),
-        ),
+          CheckboxListTile(
+            key: const ValueKey('review-merge-stash'),
+            value: _stash,
+            title: const Text(
+              'Guardar essas alterações no stash e restaurar depois',
+            ),
+            onChanged: (v) => setState(() => _stash = v!),
+          ),
+        ],
         const Text('O commit de pendências executa os hooks do projeto.'),
         CheckboxListTile(
           value: _skip,
@@ -302,8 +337,15 @@ class _MergeDialogState extends State<_MergeDialog> {
               TextSpan(text: widget.branch, style: mono),
               const TextSpan(text: ' em '),
               TextSpan(text: widget.base, style: mono),
-              const TextSpan(
-                text: ' no repositório principal (merge --no-ff).',
+              TextSpan(
+                text: switch (_method) {
+                  MergeMethod.merge =>
+                    ' no repositório principal (merge --no-ff).',
+                  MergeMethod.squash =>
+                    ' no repositório principal (merge --squash + commit).',
+                  MergeMethod.rebase =>
+                    ' no repositório principal (rebase + merge --ff-only).',
+                },
               ),
             ],
           ),
@@ -316,7 +358,12 @@ class _MergeDialogState extends State<_MergeDialog> {
                   'worktree serão commitadas antes.',
             '• O agente da sessão é encerrado e o worktree é removido.',
             '• A tarefa vai para Feito.',
-            '• Em conflito, o merge é desfeito (merge --abort) e nada muda.',
+            '• Em conflito, o merge é desfeito '
+                '(${switch (_method) {
+                  MergeMethod.merge => 'merge --abort',
+                  MergeMethod.squash => 'reset --merge',
+                  MergeMethod.rebase => 'rebase --abort',
+                }}) e nada muda.',
           ].join('\n'),
           style: _body,
         ),

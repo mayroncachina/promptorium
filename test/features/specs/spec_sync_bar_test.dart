@@ -165,10 +165,12 @@ void main() {
         await until(
           () => find.text('Resultado da verificação').evaluate().isNotEmpty,
         );
-        expect(find.text('SPEC-001: concluída'), findsOneWidget);
+        await until(
+          () => find.text('SPEC-001: concluída').evaluate().isNotEmpty,
+        );
         await tester.tap(find.text('Fechar'));
         await tester.pumpAndSettle();
-        expect(find.text('Reabrir'), findsOneWidget);
+        await until(() => find.text('Reabrir').evaluate().isNotEmpty);
         await tester.tap(find.text('Relatório / origem'));
         await until(
           () => find

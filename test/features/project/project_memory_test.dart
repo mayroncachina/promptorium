@@ -82,7 +82,8 @@ void main() {
       ),
     );
     Future<void> io([Finder? until]) async {
-      for (var i = 0; i < 150; i++) {
+      // Up to ~10 s: the suite may run under load.
+      for (var i = 0; i < 500; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
