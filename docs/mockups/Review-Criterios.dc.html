@@ -223,7 +223,7 @@ class Component extends DCLogic {
         svgStyle: (allOn || done > 0) ? 'display:block' : 'display:none',
         boxStyle: box(allOn, !allOn && done > 0),
         btnStyle: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:6px;border:1px solid ' + (masterDisabled ? '#252B35' : '#3A4352') + ';background:#1A1E26;color:' + (masterDisabled ? '#A0A8B6' : '#E7E9EE'),
-        label: mode === 'todos' ? 'Todos marcados' : mode === 'desmarcar' ? 'Desmarcar os meus' : 'Nada a marcar em lote',
+        label: mode === 'todos' ? 'Todos marcados' : mode === 'marcar' ? 'Marcar todos' : mode === 'desmarcar' ? 'Desmarcar os meus' : 'Nada a marcar em lote',
         hint: mode === 'todos' ? (mine.length > 0 ? 'clique para desmarcar os meus (' + mine.length + ')' : 'nada meu para desmarcar')
           : mode === 'marcar' ? '(' + n + ' elegível' + (n === 1 ? '' : 'is') + (b > 0 ? ' · ' + waiting : '') + ')'
           : mode === 'desmarcar' ? '(' + mine.length + (b > 0 ? ' · ' + waiting : '') + ')'
