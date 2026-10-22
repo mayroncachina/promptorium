@@ -78,6 +78,14 @@ class RunPrefs {
       defaultSingleSessionSteps;
   static const defaultSingleSessionSteps = 3;
 
+  /// After the gate, the next step goes to the same session while its
+  /// context is below this many tokens (0 = off; SPEC-017 R4).
+  int get continueContextTokens =>
+      (int.tryParse(_settings[AppSettingKeys.continueContextTokens] ?? '') ??
+          defaultContinueContextK) *
+      1000;
+  static const defaultContinueContextK = 60;
+
   /// One of [autocompactChoices].
   String get autocompact =>
       _settings[AppSettingKeys.autocompact] ?? defaultAutocompact;

@@ -25,6 +25,16 @@ enum SettingsSection {
     'haiku',
     'custo',
   ]),
+  specRuns('Execução de specs', SettingsGroup.app, [
+    'etapas',
+    'sessão',
+    'contexto',
+    'tokens',
+    'plugins',
+    'mcp',
+    'claude-mem',
+    'consumo',
+  ]),
   sessions('Sessões', SettingsGroup.app, [
     'suspender',
     'inatividade',
@@ -115,6 +125,11 @@ bool sectionChanged(
                 now.effort(k) != defaults.effort(k),
           ) ||
           now.autocompact != defaults.autocompact,
+    SettingsSection.specRuns =>
+      now.singleSessionMaxSteps != defaults.singleSessionMaxSteps ||
+          now.continueContextTokens != defaults.continueContextTokens ||
+          (settings[AppSettingKeys.disabledPlugins] ?? '[]') != '[]' ||
+          (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]',
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
     SettingsSection.automations => ManagedHook.values.any(
       (h) => settings[h.settingKey] == '0',

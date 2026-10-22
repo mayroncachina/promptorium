@@ -63,5 +63,11 @@ void main() {
     );
     expect(File('${tmp.path}/$rel').readAsStringSync(), contains('1. x'));
     expect(implementPrompt('T', 'P'), contains('P'));
+    // SPEC-017 R1: tests tied to the change, the suite once at the end.
+    final prompt = implementPrompt('T', 'P', testCommand: 'flutter test');
+    expect(prompt, isNot(contains('rode os testes do projeto')));
+    expect(prompt, contains('rode só os testes ligados ao que mudou'));
+    expect(prompt, contains('a suíte do projeto uma vez (`flutter test`)'));
+    expect(implementPrompt('T', 'P'), isNot(contains('(`')));
   });
 }

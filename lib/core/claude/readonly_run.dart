@@ -10,6 +10,7 @@ import '../../data/providers.dart';
 import 'claude_args.dart';
 import 'claude_cli.dart';
 import 'claude_event.dart';
+import 'run_extensions.dart';
 import 'claude_process.dart';
 import 'run_prefs.dart';
 import 'usage_tracker.dart';
@@ -119,6 +120,7 @@ Future<Result> runReadOnlyClaude(
                 ? ClaudeCodeProvider.readOnlyTools
                 : options.tools,
             strictMcpConfig: true,
+            settingsFile: options.settingsFile ?? await runSettingsFile(ref),
             model: options.model ?? prefs.modelArg(RunKind.planner),
             effort: options.effort ?? effortArg(prefs.effort(RunKind.planner)),
             autocompact: options.autocompact ?? prefs.autocompact,

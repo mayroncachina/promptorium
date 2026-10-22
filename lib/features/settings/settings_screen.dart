@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
@@ -157,6 +160,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               key: ValueKey('settings-section-${selected.name}'),
               child: switch (selected) {
                 SettingsSection.consumption => const _ConsumptionSection(),
+                SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
                 SettingsSection.automations => const _Page(
                   title: 'Automações',
@@ -497,6 +501,198 @@ class _SessionsSection extends ConsumerWidget {
               'para liberar memória. A sessão continua na lista.',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
             ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// How many sessions a spec opens and what the app's Claude runs load
+/// (SPEC-017 R2, R4, R5).
+class _SpecRunsSection extends ConsumerWidget {
+  const _SpecRunsSection();
+
+  static const _steps = [1, 2, 3, 4, 6];
+  static const _contexts = [0, 40, 60, 80, 120];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(runPrefsProvider);
+    final off = ref.watch(runExtensionsProvider);
+    final known = decodeKnownExtensions(
+      ref.watch(appSettingsProvider)[AppSettingKeys.knownExtensions],
+    );
+    final settings = ref.read(appSettingsProvider.notifier);
+    final limitK = prefs.continueContextTokens ~/ 1000;
+    Future<void> toggle(String key, Set<String> now, String id, bool on) =>
+        settings.set(
+          key,
+          jsonEncode(
+            on ? (now.toSet()..remove(id)).toList() : [...now, id]
+              ..sort(),
+          ),
+        );
+    TextStyle sub = const TextStyle(
+      fontSize: 11,
+      color: AppColors.textSecondary,
+    );
+    return _Page(
+      title: 'Execução de specs',
+      intro:
+          'Quantas sessões uma spec abre e o que cada execução do app '
+          'carrega. Valem para as próximas sessões.',
+      trailing: SmallButton(
+        key: const ValueKey('settings-reset-spec-runs'),
+        label: 'Restaurar padrões da seção',
+        onTap: () async {
+          for (final k in [
+            AppSettingKeys.singleSessionSteps,
+            AppSettingKeys.continueContextTokens,
+            AppSettingKeys.disabledPlugins,
+            AppSettingKeys.disabledMcpServers,
+          ]) {
+            await settings.remove(k);
+          }
+        },
+      ),
+      effect: _Effect(
+        key: const ValueKey('settings-spec-runs-effect'),
+        'Spec com até ${prefs.singleSessionMaxSteps} '
+        '${prefs.singleSessionMaxSteps == 1 ? 'requisito roda' : 'requisitos roda'} '
+        'numa sessão só; acima disso, uma por etapa'
+        '${limitK == 0 ? '.' : ', e a próxima continua na mesma sessão enquanto '
+                  'o contexto dela estiver abaixo de $limitK mil tokens.'}',
+      ),
+      children: [
+        AgentCard(
+          title: 'Etapas numa sessão só',
+          children: [
+            choices(
+              keyPrefix: 'settings-single-steps',
+              values: [for (final n in _steps) ('$n', '$n')],
+              selected: '${prefs.singleSessionMaxSteps}',
+              onTap: (v) => settings.set(AppSettingKeys.singleSessionSteps, v),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Spec com até este número de requisitos roda inteira numa '
+              'sessão. Acima disso, cada etapa começa numa sessão própria.',
+              style: sub,
+            ),
+          ],
+        ),
+        AgentCard(
+          title: 'Continuar na mesma sessão até',
+          children: [
+            choices(
+              keyPrefix: 'settings-continue-context',
+              values: [
+                for (final k in _contexts)
+                  ('$k', k == 0 ? 'Desligado' : '$k mil tokens'),
+              ],
+              selected: '$limitK',
+              onTap: (v) =>
+                  settings.set(AppSettingKeys.continueContextTokens, v),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Depois que o gate aprova uma etapa de primeira, a próxima vai '
+              'na mesma sessão enquanto o contexto medido dela estiver abaixo '
+              'disto. Uma sessão que precisou de reenvio do gate não '
+              'continua.',
+              style: sub,
+            ),
+          ],
+        ),
+        AgentCard(
+          title: 'Plugins nas execuções do app',
+          children: [
+            Text(
+              'Desligado aqui, o plugin não carrega quando o Promptorium abre '
+              'o Claude Code (sessões, conversas, "Gerar design" e revisor). '
+              'O Claude Code no seu terminal não muda.',
+              style: sub,
+            ),
+            if (known.plugins.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  'Nenhum plugin visto ainda: a lista vem da última vez que '
+                  'o app abriu o Claude Code. Rode uma sessão ou uma conversa '
+                  'e volte aqui.',
+                  key: const ValueKey('settings-plugins-empty'),
+                  style: sub,
+                ),
+              ),
+            for (final p in known.plugins)
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  key: ValueKey('settings-plugin-${p.id}'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: !off.plugins.contains(p.id),
+                  onChanged: (on) => toggle(
+                    AppSettingKeys.disabledPlugins,
+                    off.plugins,
+                    p.id,
+                    on,
+                  ),
+                  title: Text(
+                    '${p.name}  ${p.id.substring(p.name.length)}'
+                    '${p.version == null ? '' : ' · ${p.version}'}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    p.tools == 0
+                        ? 'sem ferramentas MCP'
+                        : '${p.tools} ferramentas MCP em toda chamada',
+                    style: sub,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        AgentCard(
+          title: 'Servidores MCP nas execuções do app',
+          children: [
+            Text(
+              'Os do usuário, do projeto (.mcp.json) e os conectores do '
+              'claude.ai. Os de plugin seguem o plugin.',
+              style: sub,
+            ),
+            if (known.servers.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  'Nenhum servidor visto ainda.',
+                  key: const ValueKey('settings-mcp-empty'),
+                  style: sub,
+                ),
+              ),
+            for (final s in known.servers)
+              Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  key: ValueKey('settings-mcp-${s.name}'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: !off.mcpServers.contains(s.name),
+                  onChanged: (on) => toggle(
+                    AppSettingKeys.disabledMcpServers,
+                    off.mcpServers,
+                    s.name,
+                    on,
+                  ),
+                  title: Text(s.name, style: const TextStyle(fontSize: 13)),
+                  subtitle: Text(switch (s.source) {
+                    'user' => 'usuário',
+                    'project' => 'projeto (.mcp.json)',
+                    _ => 'conector do claude.ai',
+                  }, style: sub),
+                ),
+              ),
           ],
         ),
       ],

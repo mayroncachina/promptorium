@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_event.dart';
+import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
@@ -282,6 +283,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
           mcpAllowedTools: mcp.allowed,
           mcpDisallowedTools: mcp.disallowed,
+          // Other providers refuse Claude's --settings.
+          settingsFile: conv.provider == 'claude'
+              ? await runSettingsFile(ref)
+              : null,
         ),
       );
     } catch (e) {
@@ -351,6 +356,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       case SystemInit():
         if (!r.sawInit) {
           r.sawInit = true;
+          await recordKnownExtensions(ref, e.json);
           // The session exists in the CLI now: later starts use --resume.
           await _repo.setClaudeSession(id, e.sessionId ?? r.sid);
         }

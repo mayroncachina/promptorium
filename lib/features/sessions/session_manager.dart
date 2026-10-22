@@ -11,6 +11,7 @@ import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
 import '../../core/claude/managed_hooks.dart';
+import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
@@ -214,6 +215,10 @@ class _Proc {
 
   /// Last CLI event or message sent (idle sessions are closed).
   DateTime lastActivity = DateTime.now();
+
+  /// Context of the last top-level answer (input + cache read + cache
+  /// write): what the next call sends again (SPEC-017 R4).
+  int? contextTokens;
 
   /// A message was sent and its `result` has not arrived yet (turn running).
   bool busy = false;
@@ -810,6 +815,16 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
 
+  /// Context of the session's last answer (null: no process or no usage).
+  int? contextTokens(String id) => _procs[id]?.contextTokens;
+
+  /// A spec session that goes on to more steps (SPEC-017 R4).
+  Future<void> setSteps(String id, String steps, String title) async {
+    await _repo.setSteps(id, steps, title);
+    _procs[id]?.title = title;
+    _publish();
+  }
+
   /// Closes the process of every session idle for the configured time (no
   /// turn running, no approval or sub-agent pending). The session stays as
   /// it was and "Retomar" / sending a message resumes it (`--resume`).
@@ -1060,11 +1075,16 @@ class SessionManager extends Notifier<SessionManagerState> {
     required String cwd,
     String? root,
   }) async {
+    final extra = disabledExtensionsJson(ref.read(runExtensionsProvider));
     final hooks = ref.read(managedHooksProvider);
-    if (hooks == null) return null;
+    // No hooks of the app (tests, no python3): only the extensions turned
+    // off, if any (SPEC-017 R2).
+    Future<String?> plain() =>
+        writeRunSettings(ref.read(runSettingsDirProvider), extra);
+    if (hooks == null) return plain();
     await _hookCleanups[id];
     try {
-      if (!await pythonAvailable()) return null;
+      if (!await pythonAvailable()) return await plain();
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
         for (final h in ManagedHook.values)
@@ -1080,6 +1100,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           cwd: cwd,
         ),
         formatCommand: config?.formatCommand,
+        extra: extra,
       );
     } catch (e) {
       debugPrint('sessão $id: hooks do app não preparados — $e');
@@ -1139,6 +1160,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     switch (e) {
       case SystemInit():
         if (e.sessionId != null) await _repo.setExternalId(id, e.sessionId!);
+        await recordKnownExtensions(ref, e.json);
         state = SessionManagerState(live: state.live, lastInit: e);
       case PermissionRequest():
         p.pending.add(e);
@@ -1156,6 +1178,15 @@ class SessionManager extends Notifier<SessionManagerState> {
       case ControlCancel():
         if (_take(id, e.requestId) != null) await _afterAnswer(id);
       case AssistantMessage():
+        if (e.json['message'] case {'usage': final Map<String, dynamic> u}
+            when e.parentToolUseId == null) {
+          final usage = Usage.fromJson(u);
+          final ctx =
+              usage.inputTokens +
+              usage.cacheReadInputTokens +
+              usage.cacheCreationInputTokens;
+          if (ctx > 0) p.contextTokens = ctx;
+        }
         for (final b in e.blocks) {
           if (b is ToolUseBlock && ToolItem.isSubagentTool(b.name)) {
             p.subagents.add(b.id);

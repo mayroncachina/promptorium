@@ -61,6 +61,48 @@ List<String> parseSuggestions(String? text) => [
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
 /// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
 /// the whole spec goes.
+/// Commands that check only the steps in [todo] (SPEC-017 R1): the
+/// `verificar` of each in `## Etapas` and the `verificar:` of their
+/// acceptance criteria, in order, without repeats, without [suite] (the
+/// gate runs it) and without manual checks.
+List<String> focusedChecks(
+  String specText, {
+  required List<String> todo,
+  String? suite,
+}) {
+  final plans = SpecDocument.parse(specText).stepPlans;
+  final out = <String>[];
+  void add(String? cmd) {
+    final c = cmd?.trim();
+    if (c == null || c.isEmpty || c == suite?.trim()) return;
+    if (c.toLowerCase().startsWith('manual')) return;
+    if (!out.contains(c)) out.add(c);
+  }
+
+  for (final t in todo) {
+    add(plans[t]?.verify);
+  }
+  for (final c in parseCriteria(specText)) {
+    if (c.requirements.any(todo.contains)) add(c.verify);
+  }
+  return out;
+}
+
+/// Step 1 of "Ao terminar" (SPEC-017 R1): only the [checks] of the session
+/// (or the tests of the changed files), in the foreground; the whole suite
+/// is the gate's when it runs [testCommand], else once at the end.
+String focusedTestsStep(List<String> checks, String? testCommand) {
+  final run = checks.isEmpty
+      ? 'rode só os testes dos arquivos que você mudou ou criou'
+      : 'rode só os testes desta etapa: ${checks.map((c) => '`$c`').join('; ')}';
+  final suite = testCommand == null
+      ? 'depois, rode a suíte do projeto uma vez'
+      : 'não rode a suíte completa (`$testCommand`): o gate do Promptorium a '
+            'roda depois do commit';
+  return '1. $run, em primeiro plano (sem `sleep` nem espera em segundo '
+      'plano); $suite;';
+}
+
 String? focusedSpecText(
   String specText, {
   required List<StepView> steps,
@@ -280,12 +322,28 @@ String specStepPrompt({
     ..writeln('<spec>')
     ..writeln((focused ?? specText).trimRight())
     ..writeln('</spec>')
-    ..writeln()
+    ..writeln();
+  _writeFinish(b, spec, specText, todo, testCommand);
+  return b.toString().trimRight();
+}
+
+/// "Ao terminar" of a step prompt: focused tests, commit, learning,
+/// suggestion and the step marker.
+void _writeFinish(
+  StringBuffer b,
+  Spec spec,
+  String specText,
+  List<String> todo,
+  String? testCommand,
+) {
+  final ids = todo.join(', ');
+  b
     ..writeln('Ao terminar:')
     ..writeln(
-      testCommand == null
-          ? '1. rode os testes do projeto;'
-          : '1. rode os testes do projeto com `$testCommand`;',
+      focusedTestsStep(
+        focusedChecks(specText, todo: todo, suite: testCommand),
+        testCommand,
+      ),
     )
     ..writeln(
       '2. faça commit com a mensagem "${spec.code} $ids: <resumo do que '
@@ -306,6 +364,50 @@ String specStepPrompt({
       'Se faltar informação ou algo impedir a etapa, explique e pergunte, '
       'sem escrever essa linha.',
     );
+}
+
+/// Next step sent to the session that just finished one (SPEC-017 R4):
+/// only the step, its excerpt of the spec and "Ao terminar" — the rest of
+/// the spec is already in the session's context.
+String specContinuePrompt({
+  required Spec spec,
+  required String specText,
+  required List<StepView> steps,
+  required List<String> todo,
+  String? testCommand,
+}) {
+  final ids = todo.join(', ');
+  final later = [
+    for (final s in steps)
+      if (!s.isDone && !todo.contains(s.id)) s.id,
+  ];
+  final b = StringBuffer()
+    ..writeln(
+      'Etapa concluída e verificada. Continue nesta sessão com a '
+      '${todo.length == 1 ? 'etapa' : 'etapas'} $ids da spec ${spec.code}.',
+    )
+    ..writeln();
+  for (final s in steps) {
+    if (todo.contains(s.id)) b.writeln('- ${s.id} · ${s.text}');
+  }
+  if (later.isNotEmpty) {
+    b.writeln('Ficam para depois (não implemente agora): ${later.join(', ')}.');
+  }
+  final focused = focusedSpecText(specText, steps: steps, todo: todo);
+  if (focused != null) {
+    b
+      ..writeln()
+      ..writeln('Trecho da spec ligado a $ids:')
+      ..writeln('<spec>')
+      ..writeln(focused.trimRight())
+      ..writeln('</spec>');
+  } else {
+    b
+      ..writeln()
+      ..writeln('A spec é a mesma do início desta sessão (${spec.path}).');
+  }
+  b.writeln();
+  _writeFinish(b, spec, specText, todo, testCommand);
   return b.toString().trimRight();
 }
 
@@ -1329,10 +1431,90 @@ class SpecRunner {
     final mineDone = parseSessionSteps(s.steps)
         .every((step) => steps.any((x) => x.id == step && x.isDone));
     if (mineDone && spec.autoAdvance) {
-      // Outside the session's event queue: releasing its process waits
-      // for that queue.
-      unawaited(Future<void>.microtask(() => _advance(s)));
+      // Outside the session's event queue: releasing its process (or
+      // sending to it) waits for that queue.
+      unawaited(
+        Future<void>.microtask(() async {
+          if (!await _continueHere(s, spec, steps)) await _advance(s);
+        }),
+      );
     }
+  }
+
+  /// Sends the next step to [s] itself when its context is below the
+  /// limit, it is alive, it is Claude and its gate passed at the first try
+  /// (SPEC-017 R4); the decision goes to its timeline. False = a new
+  /// session (as before).
+  Future<bool> _continueHere(Session s, Spec spec, List<StepView> steps) async {
+    final prefs = _ref.read(runPrefsProvider);
+    final todo = nextSteps(
+      steps,
+      singleSessionMax: prefs.singleSessionMaxSteps,
+    );
+    if (todo.isEmpty) return false;
+    final ids = todo.join(', ');
+    final limit = prefs.continueContextTokens;
+    final context = _manager.contextTokens(s.id);
+    final rows = {
+      for (final x in await _ref.read(specStepsRepoProvider).bySpec(spec.id))
+        x.step: x,
+    };
+    String k(int tokens) => '${(tokens / 1000).round()} mil';
+    final why = limit <= 0
+        ? 'continuar na mesma sessão está desligado'
+        : s.provider != 'claude'
+        ? 'só sessões do Claude continuam'
+        : !_manager.isAlive(s.id)
+        ? 'a sessão foi encerrada'
+        : parseSessionSteps(s.steps)
+              .any((step) => (rows[step]?.gateAttempts ?? 0) > 0)
+        ? 'a verificação precisou de reenvio'
+        : context == null
+        ? 'sem medição do contexto'
+        : context >= limit
+        ? 'contexto ${k(context)} passou do limite de ${k(limit)}'
+        : null;
+    if (why != null) {
+      await _manager.note(s.id, '$ids vai para uma sessão nova: $why.');
+      return false;
+    }
+    if (await _ref
+        .read(autopilotProvider.notifier)
+        .checkBudget(s.workspaceId)) {
+      return true;
+    }
+    final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    final text = ws == null
+        ? null
+        : await _ref.read(specServiceProvider).read(ws, spec);
+    if (ws == null || text == null) return false;
+    await _manager.note(
+      s.id,
+      '$ids continua nesta sessão (contexto ${k(context!)} de ${k(limit)}).',
+    );
+    await _markStart(spec, s.worktreePath, todo);
+    final all = [...parseSessionSteps(s.steps), ...todo];
+    await _manager.setSteps(
+      s.id,
+      all.join(','),
+      specSessionTitle(spec, steps, all),
+    );
+    for (final step in todo) {
+      await _ref
+          .read(specStepsRepoProvider)
+          .set(spec.id, step, StepStatus.running, sessionId: s.id);
+    }
+    await _manager.send(
+      s.id,
+      specContinuePrompt(
+        spec: spec,
+        specText: text,
+        steps: steps,
+        todo: todo,
+        testCommand: ProjectConfig.loadSync(ws.path).testCommand,
+      ),
+    );
+    return true;
   }
 
   /// Specs whose gate is running (one at a time per spec).

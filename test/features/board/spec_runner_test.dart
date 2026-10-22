@@ -12,6 +12,7 @@ import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/project/project_memory.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/features/sessions/timeline.dart' show AppEventTypes;
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/workspace_watcher.dart';
 
@@ -138,6 +139,9 @@ void main() {
       expect(p, contains('<spec>\n---\nid: SPEC-001'));
       expect(p, contains('"SPEC-001 R2: <resumo do que mudou>"'));
       expect(p, contains('linha exata: ETAPA CONCLUÍDA: R2'));
+      expect(p, isNot(contains('rode os testes do projeto')));
+      expect(p, contains('rode só os testes dos arquivos que você mudou'));
+      expect(p, contains('depois, rode a suíte do projeto uma vez'));
       expect(
         specSessionTitle(spec, steps, ['R2']),
         'SPEC-001 · R2 · Extrair índices',
@@ -147,6 +151,76 @@ void main() {
         'SPEC-001 · R1–R3 · Extração do schema',
       );
     });
+  });
+
+  test('focused tests (SPEC-017 R1): only the verificar of the steps and of '
+      'their criteria, the suite left to the gate', () {
+    const text = '''---
+id: SPEC-009
+---
+
+# Focado
+
+## Requisitos
+
+- R1 · Um
+- R2 · Dois
+
+## Etapas
+
+- R1 → lib/a.dart · verificar: flutter test test/a_test.dart
+- R2 → lib/b.dart
+
+## Critérios de aceite
+
+- [ ] a funciona [R1] · verificar: flutter test test/a_test.dart
+- [ ] a tem tela [R1] · verificar: flutter test test/a_screen_test.dart
+- [ ] a passa na suíte [R1] · verificar: flutter test
+- [ ] a confere à mão [R1] · verificar: manual (abrir o app)
+- [ ] b funciona [R2] · verificar: flutter test test/b_test.dart
+''';
+    expect(focusedChecks(text, todo: ['R1'], suite: 'flutter test'), [
+      'flutter test test/a_test.dart',
+      'flutter test test/a_screen_test.dart',
+    ]);
+    expect(focusedChecks(text, todo: ['R2']), [
+      'flutter test test/b_test.dart',
+    ]);
+    final spec = Spec(
+      id: 1,
+      workspaceId: 1,
+      code: 'SPEC-009',
+      title: 'Focado',
+      path: 'specs/SPEC-009.md',
+      status: SpecStatus.approved,
+      stage: SpecStage.backlog,
+      requirements: const [],
+      dependsOn: const [],
+      autoAdvance: true,
+      reviewRounds: 0,
+      gateResends: 0,
+      rejectedHunks: 0,
+    );
+    const steps = [
+      StepView(id: 'R1', text: 'Um'),
+      StepView(id: 'R2', text: 'Dois'),
+    ];
+    final p = specStepPrompt(
+      spec: spec,
+      specText: text,
+      steps: steps,
+      todo: ['R1'],
+      testCommand: 'flutter test',
+    );
+    expect(p, isNot(contains('rode os testes do projeto')));
+    expect(
+      p,
+      contains(
+        'rode só os testes desta etapa: `flutter test test/a_test.dart`; '
+        '`flutter test test/a_screen_test.dart`, em primeiro plano',
+      ),
+    );
+    expect(p, contains('não rode a suíte completa (`flutter test`): o gate'));
   });
 
   group('SpecRunner (temporary repo, fake CLI)', () {
@@ -286,6 +360,153 @@ void main() {
         (await c.read(sessionsRepoProvider).bySpec(spec.id))
             .map((s) => s.worktreePath),
         everyElement(row.worktreePath),
+      );
+    });
+
+    /// Top-level answer whose context (input + cache) is [context] tokens.
+    String answer(int context) => jsonEncode({
+      'type': 'assistant',
+      'message': {
+        'id': 'msg-$context',
+        'role': 'assistant',
+        'content': [
+          {'type': 'text', 'text': 'Feito.'},
+        ],
+        'usage': {
+          'input_tokens': 2,
+          'cache_read_input_tokens': context - 1002,
+          'cache_creation_input_tokens': 1000,
+          'output_tokens': 50,
+        },
+      },
+    });
+
+    Future<List<String>> notes(String sessionId) async => [
+      for (final e in await c.read(sessionsRepoProvider).events(sessionId))
+        if (e.type == AppEventTypes.note)
+          (jsonDecode(e.json) as Map)['text'] as String,
+    ];
+
+    test('below the context limit the next step goes to the same session '
+        '(SPEC-017 R4); above it, a new one', () async {
+      final runner = c.read(specRunnerProvider);
+      final id = await runner.runNext(spec.id);
+      await settle();
+      cli.last.emit(answer(41000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R2'] == StepStatus.running);
+      expect(cli.processes, hasLength(1));
+      final s1 = (await c.read(sessionsRepoProvider).getById(id))!;
+      expect(s1.steps, 'R1,R2');
+      expect(s1.title, 'SPEC-001 · R1–R2 · Extração do schema');
+      final next = cli.last.writtenJson.last['message']['content'] as String;
+      expect(
+        next,
+        startsWith(
+          'Etapa concluída e verificada. Continue nesta '
+          'sessão com a etapa R2 da spec SPEC-001.',
+        ),
+      );
+      expect(next, contains('- R2 · Extrair índices'));
+      expect(next, isNot(contains('<spec>')));
+      expect(next, contains('linha exata: ETAPA CONCLUÍDA: R2'));
+      expect(
+        await notes(id),
+        contains('R2 continua nesta sessão (contexto 41 mil de 60 mil).'),
+      );
+
+      // R2 left the context at 72k: R3 gets a new session.
+      cli.last.emit(answer(72000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => cli.processes.length == 2);
+      expect((await states())['R2'], StepStatus.done);
+      expect(
+        await notes(id),
+        contains(
+          'R3 vai para uma sessão nova: contexto 72 mil passou do limite '
+          'de 60 mil.',
+        ),
+      );
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      expect(sessions.map((s) => s.steps), ['R1,R2', 'R3']);
+    });
+
+    test('with the gate: a continued step has its own gate and commit; a '
+        'step that needed a resend does not continue (SPEC-017 R4)', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('testes: "true"\nverificacao:\n  tentativas: 1\n');
+      final runner = c.read(specRunnerProvider);
+      final id = await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      Future<void> commit(String step) async {
+        File('$wt/${step.toLowerCase()}.txt').writeAsStringSync(step);
+        await gitIn(wt, ['add', '.']);
+        await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 $step: feito']);
+      }
+
+      // R1 passes the gate at the first try: R2 goes to the same session.
+      await commit('R1');
+      cli.last.emit(answer(30000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R2'] == StepStatus.running);
+      expect(cli.processes, hasLength(1));
+      expect((await stepRow('R2')).startSha, isNotNull);
+
+      // R2 without a commit: its own gate resends to the same session.
+      cli.last.emit(answer(35000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => (await stepRow('R2')).gateAttempts == 1);
+      expect(
+        cli.last.writtenJson.last['message']['content'],
+        contains('A verificação do Promptorium falhou: commit'),
+      );
+
+      // Fixed: R2 is done with its commit, and R3 opens a new session.
+      await commit('R2');
+      cli.last.emit(answer(36000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => cli.processes.length == 2);
+      expect((await states())['R2'], StepStatus.done);
+      expect(
+        await notes(id),
+        contains(
+          'R3 vai para uma sessão nova: a verificação precisou de '
+          'reenvio.',
+        ),
+      );
+      final log = await gitIn(wt, ['log', '--format=%s', '-2']);
+      expect(log.trim().split('\n'), [
+        'SPEC-001 R2: feito',
+        'SPEC-001 R1: feito',
+      ]);
+    });
+
+    test('limit 0 or no usage measured: a new session, as before', () async {
+      final runner = c.read(specRunnerProvider);
+      final id = await runner.runNext(spec.id);
+      await settle();
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => cli.processes.length == 2);
+      expect(
+        await notes(id),
+        contains('R2 vai para uma sessão nova: sem medição do contexto.'),
+      );
+      await c
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.continueContextTokens, '0');
+      final second = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
+      cli.last.emit(answer(10000));
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R2'));
+      await until(() async => cli.processes.length == 3);
+      expect(
+        await notes(second.id),
+        contains(
+          'R3 vai para uma sessão nova: continuar na mesma sessão está '
+          'desligado.',
+        ),
       );
     });
 

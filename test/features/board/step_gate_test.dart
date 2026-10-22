@@ -152,4 +152,14 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'this repository runs analyze and the suite in the gate (SPEC-017 R1)',
+    () {
+      expect(
+        ProjectConfig.loadSync(Directory.current.path).testCommand,
+        'flutter analyze && flutter test',
+      );
+    },
+  );
 }

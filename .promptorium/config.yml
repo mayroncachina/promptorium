@@ -1,2 +1,3 @@
 # Configuração do projeto no Promptorium (versionada com o repositório).
 specs: docs/specs
+testes: flutter analyze && flutter test

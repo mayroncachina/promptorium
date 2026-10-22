@@ -81,6 +81,12 @@ class SessionsRepo {
         SessionsCompanion(externalId: Value(externalId)),
       );
 
+  /// Steps of a session that went on to the next step (SPEC-017 R4).
+  Future<int> setSteps(String id, String steps, String title) =>
+      (_db.update(_t)..where((s) => s.id.equals(id))).write(
+        SessionsCompanion(steps: Value(steps), title: Value(title)),
+      );
+
   Future<int> setRunConfig(String id, String config) =>
       (_db.update(_t)..where((s) => s.id.equals(id))).write(
         SessionsCompanion(runConfig: Value(config)),
