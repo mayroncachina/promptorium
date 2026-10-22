@@ -8,7 +8,9 @@ depende-de: []
 
 ## Objetivo
 
-Quando o agente entrega uma spec numa resposta do Prompt, o usuário deve poder salvá-la com um clique. Hoje o agente, sem ferramenta de escrita no modo da conversa, pede que o usuário copie o texto para a pasta de specs; e "Transformar em spec", no topo, compila a conversa inteira num modelo em vez de usar a spec pronta. Mockup aprovado: https://claude.ai/artifact/TWQB4uuSqgL6LdWW46DVUU
+Quando o agente entrega uma spec numa resposta do Prompt, o usuário deve poder salvá-la com um clique. Hoje o agente, sem ferramenta de escrita no modo da conversa, pede que o usuário copie o texto para a pasta de specs; e "Transformar em spec", no topo, compila a conversa inteira num modelo em vez de usar a spec pronta.
+
+Mockups aprovados: [spec detectada](../mockups/spec-016/1-spec-detectada.png), [prévia](../mockups/spec-016/2-previa.png) e [aplicar em spec existente](../mockups/spec-016/3-aplicar-em-spec-existente.png).
 
 - Fora do escopo: dar ferramenta de escrita ao agente nos modos Perguntar/Planejar e mudar o fluxo do "Plano pronto".
 
