@@ -15,6 +15,8 @@ Reduzir o consumo de tokens na produção e na execução de specs sem perder a 
 - **Spec sem Design.** A SPEC-001 foi aprovada com `design: dispensado`; sem Design, `focusedSpecText` devolve null e cada etapa recebe a spec inteira e explora o código do zero.
 - **Etapas pequenas em sessões separadas.** Com mais de `singleSessionMaxSteps` (padrão 3) requisitos, cada etapa ganha uma sessão; R5 e R7 eram mudanças de poucas linhas e cada uma pagou a base inteira.
 
+Mockups: [Configurações › Execução de specs](../mockups/spec-017/1-configuracoes-execucao.png), [plugins: nenhum visto ainda](../mockups/spec-017/2-plugins-nenhum-visto.png) e [executar sem Design](../mockups/spec-017/3-executar-sem-design.png) (canvas: https://claude.ai/artifact/KvDHT5qfnGC63Z2GzUFwNx). Dados de exemplo; os do claude-mem são os medidos na SPEC-001.
+
 - Fora do escopo: trocar o modelo padrão, mudar o gate (o que ele verifica), o revisor automático e o "Plano pronto" (`plan_ready.dart`, que também diz "rode os testes do projeto").
 
 ## Requisitos
