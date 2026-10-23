@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/update/update_check.dart';
 import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:drift/native.dart';
 import 'package:promptorium/core/process/process_runner.dart';
@@ -185,12 +186,27 @@ void main() {
         databaseOverride(memoryDatabase()),
         processRunnerProvider.overrideWithValue(runner),
         claudeExecutableCandidatesProvider.overrideWithValue(['claude']),
+        appVersionProvider.overrideWith((ref) async => '0.5.0'),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
         home: SplashScreen(onFinished: onFinished),
       ),
     );
+
+    testWidgets('shows the version of the installed package', (tester) async {
+      await tester.pumpWidget(app(missing, () {}));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('splash-app-version')))
+            .data,
+        startsWith('v0.5.0 · '),
+      );
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(Duration.zero); // drift stream-cancel timer
+    });
 
     testWidgets(
       'finishes even when Claude is absent so another provider can be chosen',

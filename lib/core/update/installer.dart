@@ -76,7 +76,11 @@ class DownloadProgress {
 }
 
 class UpdateInstaller {
-  const UpdateInstaller({this.tempRoot, this.skipUrlCheck = false});
+  const UpdateInstaller({
+    this.tempRoot,
+    this.skipUrlCheck = false,
+    this.executable,
+  });
 
   /// Tests only: lets the download talk to a local http server.
   @visibleForTesting
@@ -84,6 +88,19 @@ class UpdateInstaller {
 
   /// Where the fresh download directory is created (default: system temp).
   final Directory? tempRoot;
+
+  /// The running executable (default: [Platform.resolvedExecutable]).
+  final String? executable;
+
+  String get _executable => executable ?? Platform.resolvedExecutable;
+
+  /// Whether the update should be the `.deb`: only when this copy is the
+  /// one the `.deb` installs (`/opt/promptorium`) and `pkexec` exists. A
+  /// copy extracted elsewhere (`~/.local/share/promptorium/app`) gets the
+  /// `.tar.gz` over itself: the `.deb` would install a second copy in /opt
+  /// and the restart would open this old one again.
+  Future<bool> prefersDeb() async =>
+      _executable.startsWith('/opt/promptorium/') && await hasPkexec();
 
   /// Whether `pkexec` is on the PATH (needed to install a `.deb`).
   Future<bool> hasPkexec() async {
@@ -131,7 +148,7 @@ class UpdateInstaller {
         );
       }
     } else if (name.endsWith('.tar.gz')) {
-      final dir = File(Platform.resolvedExecutable).parent;
+      final dir = File(_executable).parent;
       if (!await _writable(dir)) {
         throw FileSystemException('Sem permissão de escrita em ${dir.path}.');
       }
@@ -168,11 +185,7 @@ class UpdateInstaller {
 
   /// Starts a detached copy of the app and exits this one.
   Future<void> restart() async {
-    await Process.start(
-      Platform.resolvedExecutable,
-      const [],
-      mode: ProcessStartMode.detached,
-    );
+    await Process.start(_executable, const [], mode: ProcessStartMode.detached);
     exit(0);
   }
 

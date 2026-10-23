@@ -29,6 +29,27 @@ void main() {
     });
   });
 
+  group('prefersDeb: the package of the running copy', () {
+    test('.deb only for the copy in /opt/promptorium with pkexec', () async {
+      expect(
+        await _Pkexec(true, '/opt/promptorium/promptorium').prefersDeb(),
+        isTrue,
+      );
+      expect(
+        await _Pkexec(false, '/opt/promptorium/promptorium').prefersDeb(),
+        isFalse,
+      );
+      // Extracted from the .tar.gz: the update goes over this copy.
+      expect(
+        await _Pkexec(
+          true,
+          '/home/u/.local/share/promptorium/app/promptorium',
+        ).prefersDeb(),
+        isFalse,
+      );
+    });
+  });
+
   group('R13 · validação do download', () {
     const base = 'https://github.com/o/p/releases/download/v1';
     ReleaseAsset ok([String n = 'promptorium_1.0.0_amd64.deb']) =>
@@ -223,4 +244,13 @@ class _Recording extends UpdateInstaller {
 
   @override
   Future<void> restart() async => calls.add('restart');
+}
+
+class _Pkexec extends UpdateInstaller {
+  const _Pkexec(this.pkexec, String exe) : super(executable: exe);
+
+  final bool pkexec;
+
+  @override
+  Future<bool> hasPkexec() async => pkexec;
 }
