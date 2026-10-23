@@ -9,6 +9,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
+import '../../ui/shell/editor_zoom.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
 import '../project/project_config.dart';
@@ -884,7 +885,14 @@ class _EditorBody extends StatelessWidget {
       readOnly: readOnly,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
-    final preview = SpecPreview(text: text);
+    // The same zoom as the editor ("− 100% +", Ctrl -/=): reading the
+    // rendered spec is where small text hurts most.
+    final preview = Consumer(
+      builder: (context, ref, _) => SpecPreview(
+        text: text,
+        scale: ref.watch(editorZoomProvider(SpecsScreen.editorKey)) / 100,
+      ),
+    );
     final body = switch (mode) {
       SpecViewMode.edit => editor,
       SpecViewMode.preview => preview,
@@ -918,9 +926,12 @@ class _EditorBody extends StatelessWidget {
 
 /// Rendered spec (frontmatter shown as a status line, like the mockup).
 class SpecPreview extends StatelessWidget {
-  const SpecPreview({super.key, required this.text});
+  const SpecPreview({super.key, required this.text, this.scale = 1});
 
   final String text;
+
+  /// Text scale (editor zoom / 100).
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -954,6 +965,7 @@ class SpecPreview extends StatelessWidget {
         border: Border(left: BorderSide(color: AppColors.border, width: 3)),
       ),
       a: const TextStyle(color: AppColors.amber),
+      textScaler: TextScaler.linear(scale),
     );
     final status = doc.status;
     return ColoredBox(
@@ -970,6 +982,7 @@ class SpecPreview extends StatelessWidget {
                   if (doc.id != null) doc.id!,
                   'Status: ${status == null ? (doc.rawStatus ?? '—') : specStatusLabel(status)}',
                 ].join(' · '),
+                textScaler: TextScaler.linear(scale),
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
