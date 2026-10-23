@@ -390,7 +390,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
     }
-    var p = _procs[id];
+    var p = await _liveProc(id);
     if (p == null) {
       await resume(id);
       p = _procs[id];
@@ -510,8 +510,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   /// Starts `claude --resume <id>` in the session's worktree (no message).
-  Future<void> resume(String id) {
-    if (_procs.containsKey(id)) return Future.value();
+  Future<void> resume(String id) async {
+    if (await _liveProc(id) != null) return;
     return _resuming[id] ??= _resume(id).whenComplete(() {
       // Block body: returning the removed Future would await itself.
       _resuming.remove(id);
@@ -814,6 +814,21 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Whether the session has a running `claude -p` process.
   bool isAlive(String id) => _procs.containsKey(id);
+
+  /// The process of [id], or null. One that already exited but whose end
+  /// is not processed yet (suspended, killed) is waited for, up to 5 s, and
+  /// then dropped: "Retomar" and a new message must start a new one, not
+  /// write to a dead process.
+  Future<_Proc?> _liveProc(String id) async {
+    final p = _procs[id];
+    if (p == null || p.process.isRunning) return p;
+    await p.exited.future.timeout(const Duration(seconds: 5), onTimeout: () {});
+    if (identical(_procs[id], p)) {
+      _procs.remove(id);
+      _publish();
+    }
+    return _procs[id];
+  }
 
   /// Context of the session's last answer (null: no process or no usage).
   int? contextTokens(String id) => _procs[id]?.contextTokens;
@@ -1254,7 +1269,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> _recordExit(String id, _Proc p) async {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
-    _procs.remove(id);
+    // Only this process: a resume may already have started the next one.
+    if (identical(_procs[id], p)) _procs.remove(id);
     if (ref.mounted) {
       try {
         await _repo.setPid(id, null);

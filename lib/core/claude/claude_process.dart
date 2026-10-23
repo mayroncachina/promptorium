@@ -45,8 +45,18 @@ class ImagePart {
 /// stdout is parsed line by line into [events]; stderr goes to [logs]. The
 /// stdin stays open until [stop] (closing it early makes the CLI abort
 /// pending permission prompts).
+///
+/// [events] closes when stdout ends or, at the latest, [stdoutGrace] after
+/// the process exits: a child left behind (MCP server, hook, background
+/// shell) inherits the pipes and would keep them open forever, and the
+/// session would look alive with a dead process.
 class ClaudeProcess {
-  ClaudeProcess._(this._process, this.executable, this.args) {
+  ClaudeProcess._(
+    this._process,
+    this.executable,
+    this.args, {
+    Duration stdoutGrace = const Duration(seconds: 2),
+  }) {
     _events = StreamController<ClaudeEvent>.broadcast(onListen: _flush);
     _logs = StreamController<String>.broadcast();
     _stdoutSub = _process.stdout
@@ -65,6 +75,18 @@ class ClaudeProcess {
       _exited = true;
       return code;
     });
+    unawaited(
+      _exitCode.then((_) async {
+        try {
+          await _outputDone.future.timeout(stdoutGrace);
+        } on TimeoutException {
+          _log('stdout ainda aberto após a saída do claude; encerrando');
+          await _stdoutSub.cancel();
+          await _stderrSub.cancel();
+          await _finish();
+        }
+      }),
+    );
   }
 
   /// Starts `executable ...options.toArgs()` in [workingDirectory].
@@ -77,6 +99,7 @@ class ClaudeProcess {
     String executable = 'claude',
     Map<String, String>? environment,
     ProcessStarter? starter,
+    Duration stdoutGrace = const Duration(seconds: 2),
   }) async {
     final args = options.toArgs();
     final process = await (starter ?? _defaultStarter)(
@@ -85,7 +108,7 @@ class ClaudeProcess {
       workingDirectory: workingDirectory,
       environment: environment,
     );
-    return ClaudeProcess._(process, executable, args);
+    return ClaudeProcess._(process, executable, args, stdoutGrace: stdoutGrace);
   }
 
   final Process _process;
@@ -99,6 +122,7 @@ class ClaudeProcess {
   late final Future<int> _exitCode;
   bool _exited = false;
   bool _stdinClosed = false;
+  final _outputDone = Completer<void>();
   Future<void> _writes = Future.value();
 
   /// Events received before the first listener (delivered on listen).
@@ -284,6 +308,13 @@ class ClaudeProcess {
   Future<void> _onStdoutDone() async {
     await _stderrSub.asFuture<void>().catchError((_) {});
     await _stdoutSub.cancel();
+    await _finish();
+  }
+
+  /// Closes [events] (once): stdout ended, or the grace after exit ran out.
+  Future<void> _finish() async {
+    if (_outputDone.isCompleted) return;
+    _outputDone.complete();
     await _events.close();
     await _exitCode;
     await _closeStdin();
