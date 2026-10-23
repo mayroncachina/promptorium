@@ -5,7 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
+import 'package:promptorium/features/board/spec_runner.dart'
+    show gateRunningProvider;
 import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/sessions/session_manager.dart'
+    show selectedSessionProvider;
+import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -260,6 +265,32 @@ void main() {
     await pumpFor(tester);
     expect(text(tester, 'board-meta-SPEC-002'), 'R2 · verificação falhou');
     expect(
+      find.byKey(const ValueKey('board-gate-fix-SPEC-002')),
+      findsOneWidget,
+    );
+    final semantics = tester.ensureSemantics();
+    expect(find.bySemanticsLabel('Corrigir R2 e verificar de novo'), findsOne);
+    semantics.dispose();
+    expect(find.byKey(const ValueKey('board-run-SPEC-003')), findsOneWidget);
+    // While a gate runs the card offers neither the fix nor a new session.
+    c.read(gateRunningProvider.notifier)
+      ..add(2)
+      ..add(3);
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('board-gate-fix-SPEC-002')), findsNothing);
+    expect(find.byKey(const ValueKey('board-run-SPEC-003')), findsNothing);
+    c.read(gateRunningProvider.notifier)
+      ..remove(2)
+      ..remove(3);
+    await pumpFor(tester);
+    await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R2')));
+    await pumpFor(tester);
+    expect(text(tester, 'step-live-status'), 'verificação falhou');
+    expect(find.byKey(const ValueKey('step-live-fix')), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-live-gate-arvore')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('step-live-close')));
+    await pumpFor(tester);
+    expect(
       find.byKey(const ValueKey('board-gate-SPEC-002-arvore')),
       findsOneWidget,
     );
@@ -274,11 +305,43 @@ void main() {
     await pumpFor(tester);
     expect(find.byKey(const ValueKey('step-gate-R2-commit')), findsOneWidget);
     expect(find.byKey(const ValueKey('steps-recheck')), findsOneWidget);
+    expect(find.byKey(const ValueKey('steps-gate-fix')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('steps-commit-leftovers')),
       findsOneWidget,
     );
     expect(db, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a segment of the bar opens the step followed live; "Abrir '
+      'sessão" goes to its session; a step without session says so', (
+    tester,
+  ) async {
+    final (c, _) = await pumpBoard(tester);
+    await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R2')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-live-dialog')), findsOneWidget);
+    expect(text(tester, 'step-live-status'), 'aguardando você');
+    expect(find.byKey(const ValueKey('timeline-s-old')), findsOneWidget);
+    // No live process: no message field, only the way to the session.
+    expect(find.byKey(const ValueKey('step-live-input')), findsNothing);
+    expect(find.byKey(const ValueKey('step-live-fix')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('step-live-open')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-live-dialog')), findsNothing);
+    expect(c.read(selectedSessionProvider), 's-old');
+    expect(c.read(navigationProvider), AppSection.sessions);
+    c.read(navigationProvider.notifier).go(AppSection.tasks);
+    await pumpFor(tester);
+
+    await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R3')));
+    await pumpFor(tester);
+    expect(find.text('Esta etapa ainda não teve sessão.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-live-open')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('step-live-close')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-live-dialog')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

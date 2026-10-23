@@ -491,6 +491,26 @@ class WorktreePreps extends Notifier<Map<int, WorktreePrep>> {
 final worktreePrepProvider =
     NotifierProvider<WorktreePreps, Map<int, WorktreePrep>>(WorktreePreps.new);
 
+/// Specs whose gate is running now (one at a time per spec). In memory: a
+/// step left `verifying` by a closed app is not in it, so it can run again.
+class GatesRunning extends Notifier<Set<int>> {
+  @override
+  Set<int> build() => const {};
+
+  /// False when [specId] already has a gate running.
+  bool add(int specId) {
+    if (state.contains(specId)) return false;
+    state = {...state, specId};
+    return true;
+  }
+
+  void remove(int specId) => state = {...state}..remove(specId);
+}
+
+final gateRunningProvider = NotifierProvider<GatesRunning, Set<int>>(
+  GatesRunning.new,
+);
+
 /// Ref of the checkpoint of [step] (`refs/promptorium/SPEC-003/R2-inicio`).
 String checkpointRef(String specCode, String step) =>
     'refs/promptorium/$specCode/$step-inicio';
@@ -630,6 +650,13 @@ class SpecRunner {
     if (live.isNotEmpty) {
       throw SpecRunException(
         '${spec.code} já tem uma sessão rodando (${live.first.title}).',
+      );
+    }
+    // The session ended its turn but its steps are still in the gate: a new
+    // session would redo them and run tests beside the gate's.
+    if (_ref.read(gateRunningProvider).contains(specId)) {
+      throw SpecRunException(
+        '${spec.code} está em verificação: espere o resultado.',
       );
     }
 
@@ -1517,8 +1544,7 @@ class SpecRunner {
     return true;
   }
 
-  /// Specs whose gate is running (one at a time per spec).
-  final Set<int> _verifying = {};
+  GatesRunning get _gates => _ref.read(gateRunningProvider.notifier);
 
   /// Runs the gate of [steps] (marked by the agent) in the spec's worktree:
   /// passed → done; failed with attempts left → the failure goes back to
@@ -1529,7 +1555,7 @@ class SpecRunner {
     ProjectConfig config,
   ) async {
     final specId = s.specId!;
-    if (!_verifying.add(specId)) return;
+    if (!_gates.add(specId)) return;
     try {
       final spec = await _ref.read(specsRepoProvider).getById(specId);
       if (spec == null) return;
@@ -1623,7 +1649,7 @@ class SpecRunner {
             .set(specId, step, StepStatus.needsInput);
       }
     } finally {
-      _verifying.remove(specId);
+      _gates.remove(specId);
     }
   }
 
@@ -1669,6 +1695,35 @@ class SpecRunner {
       await repo.set(specId, step, StepStatus.verifying);
     }
     await _verify(s, steps, config);
+  }
+
+  /// "Corrigir e verificar": the steps the last gate refused go back to
+  /// their session (resumed when it has no process) with the failure; its
+  /// `ETAPA CONCLUÍDA` runs the gate again, with the attempts restarted, and
+  /// a pass goes on as usual (next step, Review, autopilot).
+  Future<void> fixGate(int specId) async {
+    if (_ref.read(gateRunningProvider).contains(specId)) {
+      throw const SpecRunException('A verificação ainda está rodando.');
+    }
+    final found = await _gatedSteps(specId);
+    if (found == null) {
+      throw const SpecRunException('Nenhuma etapa aguardando verificação.');
+    }
+    final (s, steps) = found;
+    if (_manager.isAlive(s.id) &&
+        (s.status == SessionStatus.running ||
+            s.status == SessionStatus.waitingApproval)) {
+      throw SpecRunException('A sessão ${s.title} ainda está rodando.');
+    }
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+    final raw = rows[steps.first]?.gateReport;
+    final report = GateReport.decode(raw);
+    if (report == null || report.ok) {
+      throw const SpecRunException('Nenhuma etapa aguardando verificação.');
+    }
+    await repo.setGate(specId, steps, report: raw, attempts: 0);
+    await _manager.send(s.id, gateRetryMessage(report, steps));
   }
 
   /// "Commitar o que sobrou": commits every uncommitted file of the spec's

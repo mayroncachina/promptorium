@@ -42,9 +42,11 @@ Future<void> wheel(
   await pumpFor(tester, 5);
 }
 
-/// Lets the real file reads of the details providers finish.
-Future<void> settleFiles(WidgetTester tester) async {
-  for (var i = 0; i < 6; i++) {
+/// Lets the real file reads of the details providers finish: until [shows]
+/// appears (up to ~6 s of real time, for a loaded machine), or six rounds.
+Future<void> settleFiles(WidgetTester tester, {Finder? shows}) async {
+  for (var i = 0; i < (shows == null ? 6 : 300); i++) {
+    if (shows != null && shows.evaluate().isNotEmpty) return;
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
@@ -230,7 +232,7 @@ void main() {
       await selectSpec(tester, 'SPEC-001');
       final node = byKey('canvas-ref-agent-implementador');
       final mouse = await hover(tester, node);
-      await settleFiles(tester);
+      await settleFiles(tester, shows: find.text('Read, Edit'));
       expect(find.text('agente · Projeto'), findsOneWidget);
       expect(find.text('Implementa uma etapa.'), findsOneWidget);
       expect(find.text('sonnet'), findsOneWidget);
@@ -245,7 +247,7 @@ void main() {
           find.descendant(of: node, matching: find.text('implementador')),
         ),
       ).requestFocus();
-      await settleFiles(tester);
+      await settleFiles(tester, shows: find.text('agente · Projeto'));
       expect(find.text('agente · Projeto'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await pumpFor(tester);
@@ -262,7 +264,7 @@ void main() {
       ], path: root.path);
       await selectSpec(tester, 'SPEC-001');
       await hover(tester, byKey('canvas-ref-skill-simplify-x'));
-      await settleFiles(tester);
+      await settleFiles(tester, shows: find.text('embutida no Claude Code'));
       expect(find.text('skill · Embutida'), findsOneWidget);
       expect(find.text('sem descrição disponível'), findsOneWidget);
       expect(find.text('embutida no Claude Code'), findsOneWidget);
@@ -327,6 +329,26 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await pumpFor(tester);
       expect(find.text(stepText('SPEC-002', 'R2')), findsOneWidget);
+    });
+
+    testWidgets('a tap on a step dot opens the step followed live', (
+      tester,
+    ) async {
+      await pumpCanvas(tester, specs);
+      await tester.tap(byKey('canvas-step-SPEC-002-R2'));
+      await pumpFor(tester);
+      expect(byKey('step-live-dialog'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: byKey('step-live-dialog'),
+          matching: find.text(stepText('SPEC-002', 'R2')),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(byKey('step-live-close'));
+      await pumpFor(tester);
+      expect(byKey('step-live-dialog'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('the panel shows depends on and unlocks; "Abrir spec" goes '
