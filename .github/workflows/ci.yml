@@ -1,8 +1,7 @@
 name: CI
 
-# Em todo PR: só analisa e testa. Ao mergear na main (push): também compila e
-# gera o .deb, que fica como artefato da execução (aba Actions → a execução →
-# Artifacts) por 14 dias, para testar antes de publicar uma release.
+# Em todo PR e ao mergear na main (push): só analisa e testa. O .deb é gerado
+# apenas ao publicar uma release (release.yml).
 on:
   push:
     branches: [main]
@@ -21,22 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Versão de desenvolvimento
-        id: version
-        if: github.event_name == 'push'
-        run: |
-          base="$(grep -m1 '^version:' pubspec.yaml | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
-          echo "version=${base}~ci.${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
       - uses: ./.github/actions/build-deb
         with:
-          version: ${{ steps.version.outputs.version || '0.0.0' }}
-          build: ${{ github.event_name == 'push' }}
-
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'push'
-        with:
-          name: promptorium-${{ steps.version.outputs.version }}
-          path: dist/*
-          retention-days: 14
-          if-no-files-found: error
+          version: 0.0.0
+          build: false
