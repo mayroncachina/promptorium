@@ -1,6 +1,6 @@
 ---
 id: SPEC-017
-status: rascunho
+status: concluida
 depende-de: []
 ---
 
@@ -80,21 +80,21 @@ Em Configurações (`settings_screen.dart`), na seção de modelo e esforço por
 
 Os testes marcados "(a criar)" fazem parte da implementação.
 
-- [ ] [R1] Com `testes:` configurado e `verificar` nas etapas, o prompt manda rodar só esses comandos, diz que a suíte fica com o gate e não contém "rode os testes do projeto". verificar: `flutter test test/features/board/spec_runner_test.dart`
-- [ ] [R1] Sem `testes:` e sem `verificar`, o prompt manda rodar os testes dos arquivos mudados e a suíte uma vez, ao final; um `verificar:` igual ao `testCommand` não entra na lista focada. verificar: `flutter test test/features/board/spec_runner_test.dart`
-- [ ] [R1] O prompt do "Plano pronto" não contém "rode os testes do projeto", manda rodar os testes ligados ao que mudou e a suíte uma vez, ao final, e cita o `testCommand` quando houver. verificar: `flutter test test/features/prompt/plan_ready_test.dart`
-- [ ] [R1] Este repositório define `testes: flutter analyze && flutter test` e o gate de uma etapa roda esse comando. verificar: `flutter test test/features/board/step_gate_test.dart`
+- [x] [R1] Com `testes:` configurado e `verificar` nas etapas, o prompt manda rodar só esses comandos, diz que a suíte fica com o gate e não contém "rode os testes do projeto". verificar: `flutter test test/features/board/spec_runner_test.dart`
+- [x] [R1] Sem `testes:` e sem `verificar`, o prompt manda rodar os testes dos arquivos mudados e a suíte uma vez, ao final; um `verificar:` igual ao `testCommand` não entra na lista focada. verificar: `flutter test test/features/board/spec_runner_test.dart`
+- [x] [R1] O prompt do "Plano pronto" não contém "rode os testes do projeto", manda rodar os testes ligados ao que mudou e a suíte uma vez, ao final, e cita o `testCommand` quando houver. verificar: `flutter test test/features/prompt/plan_ready_test.dart`
+- [x] [R1] Este repositório define `testes: flutter analyze && flutter test` e o gate de uma etapa roda esse comando. verificar: `flutter test test/features/board/step_gate_test.dart`
 - [x] [R2] A sonda está registrada em `docs/pesquisa/plugins-mcp-desligados.md` com a versão do CLI e o resultado de `enabledPlugins: false` e `deniedMcpServers` via `--settings` (plugins, ferramentas MCP e hooks do plugin).
-- [ ] [R2] Com um plugin desligado, o arquivo de settings tem `enabledPlugins: {id: false}` e é passado em sessões, conversas e execuções somente leitura; sem plugin desligado e sem hooks, nenhum `--settings` é passado. verificar: `flutter test test/core/claude/run_extensions_test.dart`
-- [ ] [R2] Com um servidor MCP desligado, o arquivo de settings tem `deniedMcpServers: [{serverName: nome}]` e é passado em sessões, conversas e execuções somente leitura. verificar: `flutter test test/core/claude/run_extensions_test.dart`
-- [ ] [R2] Os plugins e os servidores MCP conhecidos vêm do último `system/init`, sem os plugins `@builtin` e sem os servidores de plugin e do app. verificar: `flutter test test/core/claude/run_extensions_test.dart`
-- [ ] [R3] `designPrompt` pede "O que já existe" e `designSchema` exige ao menos um arquivo por etapa. verificar: `flutter test test/features/specs/spec_design_test.dart`
-- [ ] [R3] Executar uma spec sem Design e com mais etapas que `singleSessionMaxSteps` mostra o aviso; "Executar mesmo assim" executa e "Gerar design" abre o design; com Design, ou com poucas etapas, não há aviso. verificar: `flutter test test/features/board/run_spec_design_test.dart`
-- [ ] [R4] Com o contexto abaixo do limite, gate aprovado na primeira tentativa e sessão viva, a próxima etapa vai por `send` na mesma sessão, com `specContinuePrompt` (sem a spec inteira), e `sessions.steps` passa a ter as duas etapas. verificar: `flutter test test/features/board/spec_runner_test.dart`
-- [ ] [R4] Acima do limite, com reenvio do gate, com a sessão encerrada, com limite 0 ou sem `usage`, a próxima etapa abre uma sessão nova, como hoje. verificar: `flutter test test/features/board/spec_runner_test.dart`
-- [ ] [R4] Cada etapa continuada passa pelo seu gate e tem o seu commit `SPEC-NNN Rn:`. verificar: `flutter test test/features/board/spec_runner_test.dart`
-- [ ] [R5] Configurações grava o limite (`board.continueContextTokens`) e os plugins desligados (`agent.disabledPlugins`); a timeline registra cada decisão com o contexto medido e o limite. verificar: `flutter test test/features/settings/settings_screen_test.dart`
-- [ ] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R2] Com um plugin desligado, o arquivo de settings tem `enabledPlugins: {id: false}` e é passado em sessões, conversas e execuções somente leitura; sem plugin desligado e sem hooks, nenhum `--settings` é passado. verificar: `flutter test test/core/claude/run_extensions_test.dart`
+- [x] [R2] Com um servidor MCP desligado, o arquivo de settings tem `deniedMcpServers: [{serverName: nome}]` e é passado em sessões, conversas e execuções somente leitura. verificar: `flutter test test/core/claude/run_extensions_test.dart`
+- [x] [R2] Os plugins e os servidores MCP conhecidos vêm do último `system/init`, sem os plugins `@builtin` e sem os servidores de plugin e do app. verificar: `flutter test test/core/claude/run_extensions_test.dart`
+- [x] [R3] `designPrompt` pede "O que já existe" e `designSchema` exige ao menos um arquivo por etapa. verificar: `flutter test test/features/specs/spec_design_test.dart`
+- [x] [R3] Executar uma spec sem Design e com mais etapas que `singleSessionMaxSteps` mostra o aviso; "Executar mesmo assim" executa e "Gerar design" abre o design; com Design, ou com poucas etapas, não há aviso. verificar: `flutter test test/features/board/run_spec_design_test.dart`
+- [x] [R4] Com o contexto abaixo do limite, gate aprovado na primeira tentativa e sessão viva, a próxima etapa vai por `send` na mesma sessão, com `specContinuePrompt` (sem a spec inteira), e `sessions.steps` passa a ter as duas etapas. verificar: `flutter test test/features/board/spec_runner_test.dart`
+- [x] [R4] Acima do limite, com reenvio do gate, com a sessão encerrada, com limite 0 ou sem `usage`, a próxima etapa abre uma sessão nova, como hoje. verificar: `flutter test test/features/board/spec_runner_test.dart`
+- [x] [R4] Cada etapa continuada passa pelo seu gate e tem o seu commit `SPEC-NNN Rn:`. verificar: `flutter test test/features/board/spec_runner_test.dart`
+- [x] [R5] Configurações grava o limite (`board.continueContextTokens`) e os plugins desligados (`agent.disabledPlugins`); a timeline registra cada decisão com o contexto medido e o limite. verificar: `flutter test test/features/settings/settings_screen_test.dart`
+- [x] [R1–R5] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R1–R5] Executar no app uma spec de 5 a 7 etapas com Design, claude-mem desligado e o limite padrão relê do cache bem menos que a linha de base da SPEC-001 (3,2 milhões de tokens em 7 etapas), medido pelo `usage` gravado em `session_events`. verificar: manual (executar e somar o `usage` das mensagens do assistente)
 
 ## Decisões
