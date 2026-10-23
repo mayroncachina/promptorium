@@ -11,6 +11,7 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
+import '../prompt/refine_origin.dart';
 import '../project/project_config.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
@@ -311,6 +312,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             workspace: ws,
             text: refineSpecPrompt(spec),
             mode: PromptMode.refine,
+            origin: (specCode: spec.code, source: RefineSource.specs),
           );
       ref.read(selectedConversationProvider.notifier).select(id);
       ref.read(navigationProvider.notifier).go(AppSection.prompt);

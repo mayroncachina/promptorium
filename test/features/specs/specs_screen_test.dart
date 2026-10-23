@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/core/providers/agent_provider.dart' show PromptMode;
+import 'package:promptorium/features/prompt/conversation_manager.dart';
+import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
 import 'package:promptorium/features/specs/workspace_watcher.dart';
 import 'package:promptorium/features/board/widgets/spec_steps_panel.dart';
@@ -11,6 +15,7 @@ import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:re_editor/re_editor.dart' show CodeEditor;
 
 import '../../helpers/test_db.dart';
+import '../prompt/prompt_test_utils.dart' show SilentConversationManager;
 import '../sessions/session_test_utils.dart';
 import 'spec_file_test.dart' show sample;
 
@@ -46,7 +51,11 @@ void main() {
 
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  Future<void> pump(WidgetTester tester, Size size) async {
+  Future<ProviderContainer> pump(
+    WidgetTester tester,
+    Size size, {
+    List<Override> overrides = const [],
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -55,6 +64,7 @@ void main() {
       overrides: [
         ...sessionOverrides(db: db, cli: FakeCli(), notifier: FakeNotifier()),
         workspaceWatcherProvider.overrideWith(QuietWorkspaceWatcher.new),
+        ...overrides,
       ],
     );
     await tester.runAsync(() async {
@@ -93,6 +103,7 @@ void main() {
           find.byType(CodeEditor).evaluate().isNotEmpty ||
           find.byKey(const ValueKey('spec-preview')).evaluate().isNotEmpty,
     );
+    return c;
   }
 
   testWidgets('lists specs/, opens the file in the editor and renders the '
@@ -209,5 +220,24 @@ void main() {
       contains('# Sessões revisadas'),
     );
     expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+  });
+
+  testWidgets('"Refinar com IA" stores the spec code and the Specs origin in '
+      'the refine conversation (SPEC-021 R1)', (tester) async {
+    final manager = SilentConversationManager();
+    final c = await pump(
+      tester,
+      const Size(1440, 900),
+      overrides: [conversationManagerProvider.overrideWith(() => manager)],
+    );
+    await tester.tap(find.byKey(const ValueKey('spec-refine')));
+    await settleIo(tester, until: () => manager.sent.isNotEmpty);
+    final conv = await tester.runAsync(
+      () => c.read(conversationsRepoProvider).getById(manager.sent.single.$1),
+    );
+    expect(conv!.mode, PromptMode.refine.name);
+    expect(conv.refineSpecCode, 'SPEC-002');
+    expect(conv.refineOrigin, RefineSource.specs.name);
+    expect(c.read(selectedConversationProvider), conv.id);
   });
 }
