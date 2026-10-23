@@ -406,7 +406,8 @@ void main() {
 }
 
 class _FakeInstaller extends UpdateInstaller {
-  _FakeInstaller(this.gate);
+  // The copy the .deb installs: the update downloads the .deb.
+  _FakeInstaller(this.gate) : super(executable: '/opt/promptorium/promptorium');
 
   final Future<void> gate;
   final downloaded = <String>[];

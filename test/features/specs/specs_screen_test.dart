@@ -15,9 +15,11 @@ import '../sessions/session_test_utils.dart';
 import 'spec_file_test.dart' show sample;
 
 /// Real file IO does not run under FakeAsync: let it run, then pump, until
-/// [until] holds (bounded; the full suite runs files in parallel).
+/// [until] holds (up to 15 s of real time: the full suite runs files in
+/// parallel).
 Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
-  for (var i = 0; i < 300; i++) {
+  final end = DateTime.now().add(const Duration(seconds: 15));
+  for (var i = 0; DateTime.now().isBefore(end); i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
