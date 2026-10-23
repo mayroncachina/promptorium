@@ -701,6 +701,82 @@ id: SPEC-009
       expect(log.trim(), 'SPEC-001 R2: arquivos restantes da etapa');
     });
 
+    test('while the gate runs, runNext and fixGate refuse: no second '
+        'session runs the step beside the gate', () async {
+      final release = File('$repo.libera');
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: while [ ! -f ${release.path} ]; do sleep 0.05; done\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      File('$wt/r1.txt').writeAsStringSync('ok');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => c.read(gateRunningProvider).contains(spec.id));
+      expect((await states())['R1'], StepStatus.verifying);
+
+      await expectLater(
+        runner.runNext(spec.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains('está em verificação'),
+          ),
+        ),
+      );
+      await expectLater(
+        runner.fixGate(spec.id),
+        throwsA(isA<SpecRunException>()),
+      );
+      expect(cli.processes, hasLength(1));
+
+      release.writeAsStringSync('');
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      expect(c.read(gateRunningProvider), isEmpty);
+    });
+
+    test('Corrigir e verificar: the refused step goes back to its session '
+        'with the failure and attempts restarted; fixed → done', () async {
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: test ! -f quebrado.txt\nverificacao:\n  tentativas: 0\n',
+      );
+      final runner = c.read(specRunnerProvider);
+      await expectLater(
+        runner.fixGate(spec.id),
+        throwsA(isA<SpecRunException>()),
+      );
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      File('$wt/quebrado.txt').writeAsStringSync('x');
+      await gitIn(wt, ['add', '.']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: tabelas']);
+      cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.needsInput);
+      expect(cli.last.writtenJson, hasLength(1));
+
+      await runner.fixGate(spec.id);
+      await until(() async => cli.last.writtenJson.length == 2);
+      expect(cli.processes, hasLength(1));
+      final fix = cli.last.writtenJson.last['message']['content'] as String;
+      expect(fix, contains('A verificação do Promptorium falhou: testes'));
+      expect(fix, endsWith('ETAPA CONCLUÍDA: R1'));
+      expect((await stepRow('R1')).gateAttempts, 0);
+
+      await gitIn(wt, ['rm', '-q', 'quebrado.txt']);
+      await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1: conserta']);
+      cli.last.emit(resultLine('Corrigido.\nETAPA CONCLUÍDA: R1'));
+      await until(() async => (await states())['R1'] == StepStatus.done);
+    });
+
     test('no config: the marker alone finishes the step (as before)', () async {
       await c.read(specRunnerProvider).runNext(spec.id);
       await settle();

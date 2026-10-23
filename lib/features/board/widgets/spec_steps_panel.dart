@@ -384,6 +384,17 @@ class SpecStepsPanel extends ConsumerWidget {
                     ),
                   ),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: SmallButton(
+                  key: const ValueKey('steps-gate-fix'),
+                  label: 'Corrigir e verificar',
+                  onTap: () => _gateAction(
+                    context,
+                    () => ref.read(specRunnerProvider).fixGate(spec.id),
+                  ),
+                ),
+              ),
               SmallButton(
                 key: const ValueKey('steps-recheck'),
                 label: 'Verificar de novo',

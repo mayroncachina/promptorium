@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:flutter_test/flutter_test.dart' show fail;
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/sessions/app_notifier.dart';
@@ -90,6 +91,18 @@ Future<void> settle() async {
   for (var i = 0; i < 30; i++) {
     await Future<void>.delayed(const Duration(milliseconds: 2));
   }
+}
+
+/// Waits (up to 15 s) for [cond], then [settle]s: what follows a turn (the
+/// next session, a stage) runs off the manager's queue, and a fixed wait
+/// is too short on a busy machine.
+Future<void> until(Future<bool> Function() cond) async {
+  final end = DateTime.now().add(const Duration(seconds: 15));
+  while (!await cond()) {
+    if (DateTime.now().isAfter(end)) fail('condição não atingida');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  await settle();
 }
 
 ProviderContainer sessionContainer(List<Override> overrides) {

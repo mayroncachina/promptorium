@@ -1689,13 +1689,15 @@ void specReviewTests() {
     await gitIn(wt, ['add', '.']);
     await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1']);
     cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
-    await settle();
-    await settle();
+    await until(() async => cli.processes.length == 2);
     // R2 runs next (auto-advance) in the same worktree.
     File('$wt/r2.txt').writeAsStringSync('2\n');
     cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
-    await settle();
-    await settle();
+    await until(
+      () async =>
+          (await c.read(specsRepoProvider).getById(spec.id))!.stage ==
+          SpecStage.review,
+    );
 
     expect(
       (await c.read(specsRepoProvider).getById(spec.id))!.stage,
@@ -1788,12 +1790,14 @@ void specReviewTests() {
     await gitIn(wt, ['add', '.']);
     await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 R1']);
     cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R1'));
-    await settle();
-    await settle();
+    await until(() async => cli.processes.length == 2);
     File('$wt/r2.txt').writeAsStringSync('2\n');
     cli.last.emit(steps_test.resultLine('ETAPA CONCLUÍDA: R2'));
-    await settle();
-    await settle();
+    await until(
+      () async =>
+          (await c.read(specsRepoProvider).getById(spec.id))!.stage ==
+          SpecStage.review,
+    );
     final session = (await c.read(sessionsRepoProvider).bySpec(spec.id)).last;
     return (c, session.id);
   }
