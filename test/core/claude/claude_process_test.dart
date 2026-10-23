@@ -17,6 +17,10 @@ class FakeProcess implements Process {
   final _exit = Completer<int>();
   final signals = <ProcessSignal>[];
   bool exitOnSigterm = true;
+
+  /// A child left behind holds stdout / stderr: the process exits but its
+  /// pipes never close.
+  bool pipesHeld = false;
   late final IOSink _stdin = IOSink(_Capture(stdinBytes));
 
   void emit(String line) => stdoutCtl.add(utf8.encode('$line\n'));
@@ -29,6 +33,10 @@ class FakeProcess implements Process {
   ];
 
   Future<void> finish([int code = 0]) async {
+    if (pipesHeld) {
+      if (!_exit.isCompleted) _exit.complete(code);
+      return;
+    }
     await stdoutCtl.close();
     await stderrCtl.close();
     if (!_exit.isCompleted) _exit.complete(code);
@@ -235,4 +243,21 @@ void main() {
     await p.send('tarde demais');
     expect(fake.stdinBytes, isEmpty);
   });
+
+  test(
+    'events close after the exit even when a child holds the pipes',
+    () async {
+      fake.pipesHeld = true;
+      final p = await ClaudeProcess.start(
+        const ClaudeOptions(),
+        workingDirectory: '/tmp/ws',
+        starter: (exe, args, {workingDirectory, environment}) async => fake,
+        stdoutGrace: const Duration(milliseconds: 50),
+      );
+      final done = p.events.drain<void>();
+      await p.stop();
+      expect(p.isRunning, isFalse);
+      await done.timeout(const Duration(seconds: 2));
+    },
+  );
 }

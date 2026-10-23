@@ -344,6 +344,50 @@ void main() {
     expect(cli.args.last, containsAllInOrder(['--resume', id]));
   });
 
+  test('suspended while a child holds the pipes: Retomar and a message start '
+      'a new process', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Ociosa', prompt: 'Oi'),
+    );
+    for (final l in fixtureLines()) {
+      cli.last.emit(l);
+    }
+    await settle();
+    // An MCP server / background shell inherited stdout and stderr.
+    cli.last.pipesHeld = true;
+    final later = DateTime.now().add(const Duration(minutes: 16));
+    expect(await m.closeIdle(now: later), [id]);
+    expect(c.read(sessionManagerProvider).isAlive(id), isFalse);
+
+    await m.resume(id);
+    expect(cli.processes, hasLength(2));
+    expect(cli.args.last, containsAllInOrder(['--resume', id]));
+    expect(m.isAlive(id), isTrue);
+    expect(c.read(sessionManagerProvider).isAlive(id), isTrue);
+
+    // The same again, now through a message: it reaches the new process.
+    cli.last.pipesHeld = true;
+    expect(await m.closeIdle(now: later), [id]);
+    await m.send(id, 'Continue');
+    expect(cli.processes, hasLength(3));
+    expect(cli.last.writtenJson.last['message'], isNotNull);
+  });
+
   test('create → events persisted → approval → result: done/idle', () async {
     final db = memoryDatabase();
     final cli = FakeCli();
