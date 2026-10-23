@@ -55,9 +55,10 @@ class Harness {
   File file(String rel) => File('${tmp.path}/$rel');
 }
 
-/// Real file I/O runs outside the fake clock; waits until [cond] holds.
+/// Real file I/O runs outside the fake clock; waits until [cond] holds
+/// (bounded; the full suite runs files in parallel, so allow ~6 s).
 Future<void> until(WidgetTester tester, bool Function() cond) async {
-  for (var i = 0; i < 100 && !cond(); i++) {
+  for (var i = 0; i < 300 && !cond(); i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
