@@ -148,8 +148,8 @@ typedef _Panel = ({ProviderContainer c, int specId});
 
 void batchTests() {
   /// Pumps 30 rounds; with [p], then until the panel shows the marks in
-  /// the database (at most ~6 s more): a busy machine (the whole suite in
-  /// parallel) loads it slower.
+  /// the database (up to 15 s of real time): a busy machine (the whole
+  /// suite in parallel) loads it slower.
   Future<void> settle(WidgetTester tester, [_Panel? p]) async {
     Future<void> round() async {
       await tester.runAsync(
@@ -176,7 +176,8 @@ void batchTests() {
           list.every((c) => c.mark?.checked == want[c.criterion.text]);
     }
 
-    for (var i = 0; i < 300 && !synced(); i++) {
+    final end = DateTime.now().add(const Duration(seconds: 15));
+    while (!synced() && DateTime.now().isBefore(end)) {
       await round();
     }
   }
