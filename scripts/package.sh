@@ -62,7 +62,7 @@ Architecture: $ARCH
 Installed-Size: $SIZE_KB
 Maintainer: Mayron Cachina <mayroncachina@users.noreply.github.com>
 Homepage: https://github.com/mayroncachina/promptorium
-Depends: libc6 (>= 2.35), libstdc++6, libgtk-3-0 (>= 3.22), libnotify4, git
+Depends: libc6 (>= 2.35), libstdc++6, libgtk-3-0 (>= 3.22), libnotify4, libx11-6, libxi6, git
 Recommends: gh
 Description: IDE para o Claude Code CLI
  Gerencia sessões, specs, agentes, skills e servidores MCP do Claude Code,
