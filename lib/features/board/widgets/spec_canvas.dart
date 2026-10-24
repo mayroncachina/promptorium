@@ -125,6 +125,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
   Widget build(BuildContext context) {
     final cards = widget.cards;
     final selectedId = ref.watch(boardSelectedSpecProvider);
+    final hideDone = ref.watch(boardHideDoneProvider);
     final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
     final specs = cards.map((d) => d.spec).toList();
     final waves = dependencyWaves(specs);
@@ -466,6 +467,25 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                               active: _skills,
                               toggle: true,
                               onTap: () => setState(() => _skills = !_skills),
+                            ),
+                            const SizedBox(width: 8),
+                            // Same state as the header chip (SPEC-019 R7):
+                            // on = concluded specs shown.
+                            _BarButton(
+                              key: const ValueKey('canvas-hide-done'),
+                              label: 'Concluídas',
+                              icon: hideDone
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              tooltip: hideDone
+                                  ? 'Mostrar specs concluídas'
+                                  : 'Ocultar specs concluídas',
+                              color: specStageColor(SpecStage.done),
+                              active: !hideDone,
+                              toggle: true,
+                              onTap: () => ref
+                                  .read(boardHideDoneProvider.notifier)
+                                  .toggle(),
                             ),
                             const _BarDivider(),
                             _ZoomMenu(
@@ -1355,8 +1375,10 @@ class _BarButton extends StatelessWidget {
     required this.onTap,
     this.toggle = false,
     this.tooltip,
+    this.icon,
   });
   final String label;
+  final IconData? icon;
   final Color color;
   final bool active, toggle;
   final VoidCallback? onTap;
@@ -1386,13 +1408,26 @@ class _BarButton extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 34),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: active ? color : AppColors.textSecondary,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 14,
+                  color: active ? color : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: active ? color : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
