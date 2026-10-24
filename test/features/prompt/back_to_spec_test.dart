@@ -4,11 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
-import 'package:promptorium/data/repos/specs_repo.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/prompt/prompt_actions.dart';
 import 'package:promptorium/features/prompt/prompt_screen.dart';
-import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -20,16 +18,22 @@ import 'prompt_test_utils.dart';
 /// [SpecService] over an in-memory map of files (no real IO under
 /// FakeAsync); counts the syncs.
 class MemorySpecService extends SpecService {
-  MemorySpecService(SpecsRepo repo, this.files) : super(repo);
+  MemorySpecService(super.repo, this.files, {this.onSync});
 
   final Map<String, String> files;
+
+  /// Stands for what the real sync reads from disk.
+  final Future<void> Function()? onSync;
   int syncs = 0;
 
   @override
   Future<String?> read(Workspace ws, Spec spec) async => files[spec.path];
 
   @override
-  Future<void> sync(Workspace ws) async => syncs++;
+  Future<void> sync(Workspace ws) async {
+    syncs++;
+    await onSync?.call();
+  }
 }
 
 /// Shows the Prompt screen while it is the current section, otherwise the

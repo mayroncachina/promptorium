@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
@@ -847,139 +848,154 @@ class _Column extends ConsumerWidget {
   final int? limit;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => DragTarget<int>(
-    key: ValueKey('board-column-${stage.name}'),
-    onWillAcceptWithDetails: (d) => !cards.any((c) => c.spec.id == d.data),
-    onAcceptWithDetails: (d) =>
-        ref.read(specsRepoProvider).setStage(d.data, stage),
-    builder: (context, candidate, _) => Container(
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: candidate.isNotEmpty ? AppColors.amber : AppColors.border,
-        ),
-      ),
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
-            child: Row(
-              children: [
-                Dot(specStageColor(stage)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    specStageLabel(stage).toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: sectionTitleStyle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  limit == null
-                      ? '${cards.length}'
-                      : '${cards.length} / $limit',
-                  key: ValueKey('board-column-count-${stage.name}'),
-                  style: TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: limit != null && cards.length >= limit!
-                        ? AppColors.amber
-                        : AppColors.textSecondary,
-                  ),
-                ),
-                if (limit != null) ...[
-                  const Spacer(),
-                  const Text(
-                    'limite do Autopilot',
-                    style: TextStyle(fontSize: 10, color: AppColors.textMuted),
-                  ),
-                ],
-              ],
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final focus = ref.watch(boardFocusSpecProvider);
+    final focusHere = focus != null && cards.any((c) => c.spec.id == focus);
+    return DragTarget<int>(
+      key: ValueKey('board-column-${stage.name}'),
+      onWillAcceptWithDetails: (d) => !cards.any((c) => c.spec.id == d.data),
+      onAcceptWithDetails: (d) =>
+          ref.read(specsRepoProvider).setStage(d.data, stage),
+      builder: (context, candidate, _) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: candidate.isNotEmpty ? AppColors.amber : AppColors.border,
           ),
-          Expanded(
-            child: cards.isEmpty
-                ? const Center(
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+              child: Row(
+                children: [
+                  Dot(specStageColor(stage)),
+                  const SizedBox(width: 8),
+                  Flexible(
                     child: Text(
-                      'Arraste specs para cá',
+                      specStageLabel(stage).toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: sectionTitleStyle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    limit == null
+                        ? '${cards.length}'
+                        : '${cards.length} / $limit',
+                    key: ValueKey('board-column-count-${stage.name}'),
+                    style: TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: limit != null && cards.length >= limit!
+                          ? AppColors.amber
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                  if (limit != null) ...[
+                    const Spacer(),
+                    const Text(
+                      'limite do Autopilot',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: AppColors.textMuted,
                       ),
                     ),
-                  )
-                : ListView.separated(
-                    itemCount: columnRows(stage, cards, waves).length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (_, r) {
-                      final row = columnRows(stage, cards, waves)[r];
-                      if (row is String) {
-                        return Padding(
-                          key: ValueKey('board-group-$row'),
-                          padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
-                          child: Text(
-                            row,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: cards.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Arraste specs para cá',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      // "Voltar à spec" (SPEC-021 R4): build the whole column
+                      // while a card of it waits to be scrolled into view.
+                      scrollCacheExtent: focusHere
+                          ? const ScrollCacheExtent.pixels(1e6)
+                          : null,
+                      itemCount: columnRows(stage, cards, waves).length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (_, r) {
+                        final row = columnRows(stage, cards, waves)[r];
+                        if (row is String) {
+                          return Padding(
+                            key: ValueKey('board-group-$row'),
+                            padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+                            child: Text(
+                              row,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          );
+                        }
+                        final d = row as SpecCardData;
+                        // Neighbours as shown (attention first, Prontas /
+                        // Bloqueadas), saved into the full column order.
+                        final shown = [
+                          for (final x in columnRows(stage, cards, waves))
+                            if (x is SpecCardData) x,
+                        ];
+                        final i = shown.indexOf(d);
+                        Future<void> move(int delta) async {
+                          final j = i + delta;
+                          if (j < 0 || j >= shown.length) return;
+                          await ref
+                              .read(specsRepoProvider)
+                              .setBoardOrder(
+                                moveInColumn(
+                                  order,
+                                  d.spec.id,
+                                  shown[j].spec.id,
+                                  delta,
+                                ),
+                              );
+                        }
+
+                        final card = SpecCard(
+                          data: d,
+                          onMove: shown.length > 1 ? move : null,
+                          isFirst: i == 0,
+                          isLast: i == shown.length - 1,
+                        );
+                        return Draggable<int>(
+                          key: ValueKey('board-card-${d.spec.code}'),
+                          data: d.spec.id,
+                          feedback: Material(
+                            color: Colors.transparent,
+                            child: SizedBox(
+                              width: width - 20,
+                              child: Opacity(opacity: 0.9, child: card),
                             ),
                           ),
-                        );
-                      }
-                      final d = row as SpecCardData;
-                      // Neighbours as shown (attention first, Prontas /
-                      // Bloqueadas), saved into the full column order.
-                      final shown = [
-                        for (final x in columnRows(stage, cards, waves))
-                          if (x is SpecCardData) x,
-                      ];
-                      final i = shown.indexOf(d);
-                      Future<void> move(int delta) async {
-                        final j = i + delta;
-                        if (j < 0 || j >= shown.length) return;
-                        await ref
-                            .read(specsRepoProvider)
-                            .setBoardOrder(
-                              moveInColumn(
-                                order,
-                                d.spec.id,
-                                shown[j].spec.id,
-                                delta,
-                              ),
-                            );
-                      }
-
-                      final card = SpecCard(
-                        data: d,
-                        onMove: shown.length > 1 ? move : null,
-                        isFirst: i == 0,
-                        isLast: i == shown.length - 1,
-                      );
-                      return Draggable<int>(
-                        key: ValueKey('board-card-${d.spec.code}'),
-                        data: d.spec.id,
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: SizedBox(
-                            width: width - 20,
-                            child: Opacity(opacity: 0.9, child: card),
+                          childWhenDragging: Opacity(
+                            opacity: 0.35,
+                            child: card,
                           ),
-                        ),
-                        childWhenDragging: Opacity(opacity: 0.35, child: card),
-                        child: card,
-                      );
-                    },
-                  ),
-          ),
-        ],
+                          child: card,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Card of a spec: code, phase, title, progress, current step, blockers,
