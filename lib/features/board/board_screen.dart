@@ -666,6 +666,7 @@ class _Header extends ConsumerWidget {
               'agent',
             ),
           Expanded(
+            flex: 3,
             child: Text(
               on ? 'Autopilot · $strip' : strip,
               key: const ValueKey('board-strip'),
@@ -679,10 +680,21 @@ class _Header extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 10),
+          // Shrinks with the strip when the filter chips need the room.
           if (drafts > 0)
-            Text(
-              '$drafts em rascunho fora do quadro',
-              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            Flexible(
+              child: Tooltip(
+                message: '$drafts em rascunho fora do quadro',
+                child: Text(
+                  '$drafts em rascunho fora do quadro',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
             ),
           const SizedBox(width: 12),
           for (final (graph, label) in [(false, 'Colunas'), (true, 'Canvas')])
