@@ -1,6 +1,6 @@
 ---
 id: SPEC-022
-status: rascunho
+status: aprovada
 ---
 
 # Protótipo de telas da spec
@@ -116,19 +116,19 @@ Arquivos novos ficam em `lib/features/specs/prototype/`: `prototype_files.dart` 
 
 ## Critérios de aceite
 
-- [ ] [R1] A tela Specs mostra o modo "Protótipo" e alternar para ele exibe o canvas e o painel. verificar: `flutter test test/features/specs`
-- [ ] [R2] "Gerar telas da spec" roda o agente com um prompt que pede um HTML por requisito em `docs/mockups/<código>/` e restringe a escrita a essa pasta. verificar: `flutter test test/features/specs`
-- [ ] [R3] Com arquivos em `docs/mockups/<código>/`, o canvas mostra uma tela por arquivo rotulada pelo requisito, e a tela em geração aparece marcada. verificar: `flutter test test/features/specs`
-- [ ] [R4] Criar ou alterar um HTML dispara a geração da miniatura com o comando headless esperado e o canvas passa a mostrá-la. verificar: `flutter test test/features/specs`
-- [ ] [R5] Sem navegador headless, aparece o cartão com "Abrir no navegador" e o aviso só uma vez. verificar: `flutter test test/features/specs`
+- [x] [R1] A tela Specs mostra o modo "Protótipo" e alternar para ele exibe o canvas e o painel. verificar: `flutter test test/features/specs`
+- [x] [R2] "Gerar telas da spec" roda o agente com um prompt que pede um HTML por requisito em `docs/mockups/<código>/` e restringe a escrita a essa pasta. verificar: `flutter test test/features/specs`
+- [x] [R3] Com arquivos em `docs/mockups/<código>/`, o canvas mostra uma tela por arquivo rotulada pelo requisito, e a tela em geração aparece marcada. verificar: `flutter test test/features/specs`
+- [x] [R4] Criar ou alterar um HTML dispara a geração da miniatura com o comando headless esperado e o canvas passa a mostrá-la. verificar: `flutter test test/features/specs`
+- [x] [R5] Sem navegador headless, aparece o cartão com "Abrir no navegador" e o aviso só uma vez. verificar: `flutter test test/features/specs`
 - [ ] [R6] Clicar duas vezes numa tela abre o arquivo no navegador padrão (verificação manual).
-- [ ] [R7] Enviar um pedido com R1 selecionada cria `R1-<slug>.b.html` e mantém o arquivo original. verificar: `flutter test test/features/specs`
-- [ ] [R8] Com duas variações de R1, "Comparar variações" mostra as duas lado a lado. Com uma só, a ação fica desabilitada. verificar: `flutter test test/features/specs`
-- [ ] [R9] Aprovar uma variação grava a linha em `## Protótipo`, aprovar outra do mesmo requisito substitui a linha e o status da spec não muda. verificar: `flutter test test/features/specs`
-- [ ] [R10] O prompt da etapa de um requisito com tela aprovada cita o caminho do HTML, e o de um requisito sem tela não cita nada. verificar: `flutter test test/features/board`
-- [ ] [R11] A aba "Versões" lista as variações, marca a aprovada e remove uma não aprovada. verificar: `flutter test test/features/specs`
-- [ ] [R12] Os controles recebem foco por Tab, acionam com Enter/Espaço e têm rótulo acessível. verificar: `flutter test test/features/specs`
-- [ ] [R1–R12] A análise estática e a suíte passam. verificar: `flutter analyze && flutter test`
+- [x] [R7] Enviar um pedido com R1 selecionada cria `R1-<slug>.b.html` e mantém o arquivo original. verificar: `flutter test test/features/specs`
+- [x] [R8] Com duas variações de R1, "Comparar variações" mostra as duas lado a lado. Com uma só, a ação fica desabilitada. verificar: `flutter test test/features/specs`
+- [x] [R9] Aprovar uma variação grava a linha em `## Protótipo`, aprovar outra do mesmo requisito substitui a linha e o status da spec não muda. verificar: `flutter test test/features/specs`
+- [x] [R10] O prompt da etapa de um requisito com tela aprovada cita o caminho do HTML, e o de um requisito sem tela não cita nada. verificar: `flutter test test/features/board`
+- [x] [R11] A aba "Versões" lista as variações, marca a aprovada e remove uma não aprovada. verificar: `flutter test test/features/specs`
+- [x] [R12] Os controles recebem foco por Tab, acionam com Enter/Espaço e têm rótulo acessível. verificar: `flutter test test/features/specs`
+- [x] [R1–R12] A análise estática e a suíte passam. verificar: `flutter analyze && flutter test`
 
 ## Decisões
 
