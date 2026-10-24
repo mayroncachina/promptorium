@@ -1,6 +1,6 @@
 ---
 id: SPEC-020
-status: rascunho
+status: aprovada
 ---
 
 # Ícone na bandeja do sistema (Linux)
@@ -27,7 +27,38 @@ Nesta primeira versão o ícone faz só isso: clicar mostra a janela (ou a escon
 
 ## Design
 
-<!-- Como implementar: componentes, arquivos e decisões. Use "Gerar design". -->
+### O que já existe
+- `lib/main.dart`: `windowManager` (window_manager 0.5.2) com `setPreventClose(true)` e o `_CloseHandler`, que no `onWindowClose` mata os PTYs (`sessionTerminalsProvider`, `worktreeTerminalsProvider`), para as sessões e as conversas (`shutdown()`, até 4 s) e chama `windowManager.destroy()`.
+- `tray_manager` 0.8.0 no `pubspec.yaml`. A 0.8 é construída sobre o `nativeapi` (FFI, biblioteca `libcnativeapi.so` compilada pelo *build hook* do `cnativeapi`): no Linux o ícone é um StatusNotifierItem publicado direto no D-Bus, **sem** `libayatana-appindicator3`. O build precisa de GTK 3, X11 e Xi (`libgtk-3-dev`, `libx11-dev`, `libxi-dev`).
+
+### Componentes
+- `lib/core/tray_service.dart` — `TrayService`, sem dependência nativa, testável:
+  - recebe `isLinux`, uma fábrica de `TrayBackend`, uma `TrayWindow` e `onQuit` (e um `log`, `debugPrint` por padrão);
+  - `start()`: fora do Linux não chama a fábrica (R8); no Linux cria o ícone (`assets/icon/icon-64.png`, tooltip "Promptorium", menu "Abrir" e "Sair") (R1, R4). Qualquer exceção da fábrica ou do backend vira um aviso "bandeja indisponível, seguindo sem o ícone" no log e `false`; nunca lança (R7);
+  - `toggle()` (clique no ícone): visível, não minimizada e em foco → `hide()` (R3); senão `show()`, `restore()` se minimizada, `focus()` (R2). Esconder não toca em sessões nem processos (R5);
+  - `open()` ("Abrir"): sempre traz a janela para a frente (R2, R4);
+  - `quit()` ("Sair"): remove o ícone e chama `onQuit` uma única vez (R6).
+- `lib/core/tray_backend_native.dart`:
+  - `NativeTrayBackend`: API nativa do `tray_manager` (`TrayIcon.create()`, `ImageAsset.fromAsset`, `setTooltip`, `Menu`/`MenuItem` com `MenuItemClickedEvent`). `setContextMenuTrigger(rightClicked)` expõe o menu ao painel; `TrayIconClickedEvent` (clique no KDE) e `TrayIconDoubleClickedEvent` (o GNOME/AppIndicator só chama `Activate` no duplo clique; o clique simples abre o menu) chamam `toggle`. Lança se `TrayManager.isSupported()` for falso (sem barramento de sessão) ou se o ícone/menu não puder ser criado;
+  - `WindowManagerTrayWindow`: `TrayWindow` sobre o `windowManager`.
+- `lib/main.dart`: o `_CloseHandler` ganhou `close()` público, usado pelo `onWindowClose` e pelo `onQuit` do `TrayService` — "Sair" é exatamente o mesmo caminho do botão de fechar (R6). O `TrayService` fica numa variável de topo durante toda a vida do app (um wrapper coletado remove o ícone).
+
+### Empacotamento
+- `.deb` (`scripts/package.sh`): `Depends` ganhou `libx11-6` e `libxi6`, ligadas diretamente pela `libcnativeapi.so` (o GTK já as puxa; ficam explícitas). Nada de AppIndicator.
+- CI (`.github/actions/build-deb/action.yml`) e README: `libayatana-appindicator3-dev` trocada por `libx11-dev libxi-dev`.
+- Flatpak (`linux/flatpak/dev.promptorium.promptorium.yml`): já tinha `--talk-name=org.kde.StatusNotifierWatcher`; GTK 3/X11/Xi estão no `org.freedesktop.Platform` 24.08, então não há módulo extra (anotado em `docs/flatpak.md`).
+- CMake/runner Linux: sem mudança — a biblioteca nativa entra pelo *build hook* (native assets) em `bundle/lib/libcnativeapi.so`.
+
+### Testes
+`test/core/tray_service_test.dart` com backend e janela falsos: ícone/tooltip/menu (R1, R4), falha do backend ou da fábrica → aviso sem exceção (R7), nada criado fora do Linux (R8), lógica do clique (R2, R3), "Abrir" e "Sair" (R4, R6).
+
+## Decisões
+
+- O botão de fechar da janela continua encerrando o app, como hoje. Esconder só pelo ícone da bandeja.
+- O app não inicia escondido.
+- GNOME sem a extensão AppIndicator: basta o fallback de R7 (aviso no log, sem ícone, sem travar); não há aviso ao usuário.
+- Flatpak: a permissão `--talk-name=org.kde.StatusNotifierWatcher` já estava no manifesto; o `tray_manager` 0.8 não usa `libayatana-appindicator3`, então o runtime não precisa dela.
+- Ícone: o do app (`assets/icon/icon-64.png`); sem variante monocromática nesta versão.
 
 ## Critérios de aceite
 
@@ -37,14 +68,6 @@ Nesta primeira versão o ícone faz só isso: clicar mostra a janela (ou a escon
 - [ ] [R4] O menu do ícone tem "Abrir" e "Sair", e "Abrir" traz a janela de volta (verificação manual).
 - [ ] [R5] Com uma sessão em execução, esconder a janela pelo ícone e reabri-la mantém a sessão rodando e o `claude` vivo (verificação manual: `pgrep -a claude` antes e depois).
 - [ ] [R6] "Sair" encerra o app sem processos `claude` restantes (verificação manual: `pgrep -a claude` vazio).
-- [ ] [R7] Sem a biblioteca de bandeja, o app inicia, mostra o aviso no log e não exibe o ícone. verificar: `flutter test test/core/tray_service_test.dart`
-- [ ] [R8] A lógica do ícone só é ativada no Linux. verificar: `flutter test test/core/tray_service_test.dart`
-- [ ] [R1–R8] O projeto compila e a análise estática passa. verificar: `flutter analyze`
-
-## Perguntas em aberto
-
-- O botão de fechar da janela deve esconder o app na bandeja (mantendo as sessões) ou continuar encerrando, como hoje? Isso muda R5 e R6.
-- O app deve poder iniciar já escondido na bandeja?
-- No GNOME a bandeja só aparece com a extensão AppIndicator. Basta o fallback de R7 ou o app deve avisar o usuário?
-- O Flatpak precisa da permissão de StatusNotifier (`--talk-name=org.kde.StatusNotifierWatcher`) e da `libayatana-appindicator3` no runtime. Já está disponível no manifesto?
-- O ícone deve ter variante monocromática para temas escuros e claros?
+- [x] [R7] Sem a biblioteca de bandeja, o app inicia, mostra o aviso no log e não exibe o ícone. verificar: `flutter test test/core/tray_service_test.dart`
+- [x] [R8] A lógica do ícone só é ativada no Linux. verificar: `flutter test test/core/tray_service_test.dart`
+- [x] [R1–R8] O projeto compila e a análise estática passa. verificar: `flutter analyze`
