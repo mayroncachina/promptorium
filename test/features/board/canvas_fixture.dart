@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
@@ -54,6 +55,7 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
   List<CanvasSpec> specs, {
   String path = '/work/repo',
   Size size = const Size(1440, 900),
+  List<Override> Function(AppDatabase db)? overrides,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -143,7 +145,9 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
           );
     }
   }
-  final c = ProviderContainer(overrides: [databaseOverride(db)]);
+  final c = ProviderContainer(
+    overrides: [databaseOverride(db), ...?overrides?.call(db)],
+  );
   addTearDown(c.dispose);
   await c.read(appSettingsProvider.notifier).load();
   c.read(boardGraphViewProvider.notifier).set(true);

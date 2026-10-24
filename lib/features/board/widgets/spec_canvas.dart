@@ -10,6 +10,8 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../specs/spec_service.dart';
+import '../../review/widgets/spec_review_panel.dart'
+    show pendingCriteriaProvider;
 import '../../agents/agent_file.dart';
 import '../board_rules.dart' show StepView;
 import '../board_screen.dart';
@@ -125,6 +127,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
   Widget build(BuildContext context) {
     final cards = widget.cards;
     final selectedId = ref.watch(boardSelectedSpecProvider);
+    final hideDone = ref.watch(boardHideDoneProvider);
     final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
     final specs = cards.map((d) => d.spec).toList();
     final waves = dependencyWaves(specs);
@@ -466,6 +469,25 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                               active: _skills,
                               toggle: true,
                               onTap: () => setState(() => _skills = !_skills),
+                            ),
+                            const SizedBox(width: 8),
+                            // Same state as the header chip (SPEC-019 R7):
+                            // on = concluded specs shown.
+                            _BarButton(
+                              key: const ValueKey('canvas-hide-done'),
+                              label: 'Concluídas',
+                              icon: hideDone
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              tooltip: hideDone
+                                  ? 'Mostrar specs concluídas'
+                                  : 'Ocultar specs concluídas',
+                              color: specStageColor(SpecStage.done),
+                              active: !hideDone,
+                              toggle: true,
+                              onTap: () => ref
+                                  .read(boardHideDoneProvider.notifier)
+                                  .toggle(),
                             ),
                             const _BarDivider(),
                             _ZoomMenu(
@@ -1355,8 +1377,10 @@ class _BarButton extends StatelessWidget {
     required this.onTap,
     this.toggle = false,
     this.tooltip,
+    this.icon,
   });
   final String label;
+  final IconData? icon;
   final Color color;
   final bool active, toggle;
   final VoidCallback? onTap;
@@ -1386,13 +1410,26 @@ class _BarButton extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 34),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: active ? color : AppColors.textSecondary,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: 14,
+                  color: active ? color : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: active ? color : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1796,6 +1833,7 @@ class _Inspector extends ConsumerWidget {
                   ),
                 BoardSpecAction(data: data, height: 44),
                 const SizedBox(height: 8),
+                _FinishAction(spec: spec),
                 Row(
                   children: [
                     Expanded(
@@ -1893,10 +1931,102 @@ class _RefChip extends StatelessWidget {
   }
 }
 
+/// "Marcar como finalizada" / "Reabrir" of the inspector (SPEC-019 R8, R9).
+/// Finishing with acceptance criteria unchecked asks first.
+class _FinishAction extends ConsumerStatefulWidget {
+  const _FinishAction({required this.spec});
+  final Spec spec;
+  @override
+  ConsumerState<_FinishAction> createState() => _FinishActionState();
+}
+
+class _FinishActionState extends ConsumerState<_FinishAction> {
+  bool _busy = false;
+
+  Future<bool> _confirm(int pending) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (ctx) => AlertDialog(
+        key: const ValueKey('inspector-mark-done-confirm'),
+        backgroundColor: AppColors.panel,
+        title: const Text('Finalizar a spec?'),
+        content: Text(
+          pending == 1
+              ? '1 critério de aceite sem marcar. Finalizar mesmo assim?'
+              : '$pending critérios de aceite sem marcar. Finalizar mesmo '
+                    'assim?',
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('inspector-mark-done-cancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const ValueKey('inspector-mark-done-yes'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Finalizar'),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _run(bool finish) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null || _busy) return;
+    final spec = widget.spec;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    setState(() => _busy = true);
+    try {
+      final service = ref.read(specServiceProvider);
+      if (finish) {
+        List<String> pending;
+        try {
+          pending = await ref.refresh(pendingCriteriaProvider(spec.id).future);
+        } catch (_) {
+          pending = const []; // unreadable criteria: the service decides
+        }
+        if (pending.isNotEmpty &&
+            !(mounted && await _confirm(pending.length))) {
+          return;
+        }
+        await service.markDone(ws, spec);
+      } else {
+        await service.reopen(ws, spec);
+      }
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stage = widget.spec.stage;
+    // A spec running or in review finishes through its own flow.
+    if (stage != SpecStage.backlog && stage != SpecStage.done) {
+      return const SizedBox.shrink();
+    }
+    final done = stage == SpecStage.done;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _PanelButton(
+        key: ValueKey(done ? 'inspector-reopen' : 'inspector-mark-done'),
+        label: done ? 'Reabrir' : 'Marcar como finalizada',
+        onTap: _busy ? null : () => _run(!done),
+      ),
+    );
+  }
+}
+
 class _PanelButton extends StatelessWidget {
-  const _PanelButton({required this.label, required this.onTap});
+  const _PanelButton({super.key, required this.label, required this.onTap});
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Material(
     color: Colors.transparent,
