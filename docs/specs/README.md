@@ -55,6 +55,7 @@ A sequência histórica SPEC-009 → SPEC-013 nos documentos originais fica atua
 ## Descoberta de specs e estado no Quadro
 
 - [SPEC-015 — Descoberta de specs existentes e conclusão no Quadro](SPEC-015-descoberta-e-reconciliacao-de-specs.md): varrer a pasta configurada, importar sem duplicar, colocar specs declaradas concluídas em Concluído e verificar implementação de documentos ainda desatualizados com evidências por requisito.
+- [SPEC-019 — Ocultar specs concluídas e marcar spec como finalizada](SPEC-019-vamos-trabalhar-em-uma-spec-no-quadro-de.md): filtro "Ocultar concluídas" por projeto nas views Colunas e Canvas e ação no inspetor do Canvas para finalizar e reabrir uma spec, com o arquivo como fonte da verdade.
 
 
 ## Consumo de tokens
