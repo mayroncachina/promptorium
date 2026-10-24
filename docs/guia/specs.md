@@ -43,6 +43,19 @@ Ações da spec:
 
 O frontmatter também aceita subagentes por etapa, editados num painel próprio.
 
+## Protótipo de telas
+
+O quarto modo do editor, **Protótipo**, mostra as telas da spec num canvas com zoom, uma por requisito.
+
+- **Gerar telas da spec**: o agente cria um HTML autocontido por requisito com interface, em `docs/mockups/<spec>/R<n>-<slug>.html`, no visual do Promptorium. Ele só pode escrever nessa pasta; qualquer escrita fora dela é negada.
+- **Miniaturas**: o app gera um PNG de 1440×900 com o Chrome ou Chromium headless e guarda em `~/.cache/promptorium/mockups/`. Sem navegador headless, cada tela aparece como cartão com "Abrir no navegador".
+- Clique duplo numa tela abre o HTML no navegador padrão.
+- **Pedir ao Claude**: selecione uma ou mais telas e descreva o que mudar; o agente cria uma variação nova de cada uma (`R<n>-<slug>.b.html`…), sem sobrescrever as anteriores.
+- **Comparar variações**: as variações de um requisito lado a lado, com descrição e horário. **Aprovar e anexar à spec** grava a tela escolhida na seção `## Protótipo` (`- R1 → docs/mockups/…`), sem mudar o status da spec.
+- **Versões**: lista as variações de cada requisito, marca a aprovada e remove as outras.
+
+Na execução, a etapa de um requisito com tela aprovada recebe o caminho do HTML como referência visual. O histórico de pedidos e as descrições ficam em `docs/mockups/<spec>/index.json`, versionado junto com a spec.
+
 ## Sincronizar e verificar
 
 A barra de sincronização (em Specs e no Quadro) mantém o banco igual aos arquivos:

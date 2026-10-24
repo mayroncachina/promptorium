@@ -28,6 +28,7 @@ As specs do próprio Promptorium ficam em [`specs/`](specs/), a pasta configurad
 | [SPEC-019](specs/SPEC-019-vamos-trabalhar-em-uma-spec-no-quadro-de.md) | Ocultar concluídas e finalizar spec | concluída |
 | [SPEC-020](specs/SPEC-020-icone-na-bandeja.md) | Ícone na bandeja | aprovada (verificação manual pendente) |
 | [SPEC-021](specs/SPEC-021-voltar-a-spec-ao-refinar.md) | Voltar à spec ao refinar | concluída |
+| [SPEC-022](specs/SPEC-022-prototipo-de-telas-da-spec.md) | Protótipo de telas da spec | aprovada (verificação manual pendente) |
 
 Também em `specs/`: [README](specs/README.md) (Claude Code e Codex, ordem das SPEC-002 a 007) e as notas de implementação [008–013](specs/IMPLEMENTACAO-008-013.md) e [014–015](specs/IMPLEMENTACAO-014-015.md).
 

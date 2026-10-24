@@ -9,7 +9,7 @@ O Promptorium não fala com a API diretamente. Cada sessão é um processo `clau
 ## O que dá para fazer
 
 - **Planejar um projeto**: visão, stack e roadmap de specs com o planner, a partir de uma pasta existente, de um modelo ou de um clone.
-- **Escrever specs** em Markdown com requisitos, design, etapas e critérios de aceite; refinar com IA, gerar o design e aprovar.
+- **Escrever specs** em Markdown com requisitos, design, etapas e critérios de aceite; refinar com IA, gerar o design, prototipar as telas e aprovar.
 - **Executar specs no Quadro**: uma sessão por etapa (ou várias etapas numa sessão), com gate de testes, lint e critérios antes de seguir; Autopilot com limite de paralelismo, orçamento diário e agendamento.
 - **Acompanhar sessões ao vivo**: timeline, aprovações, perguntas do agente, terminal, diff, fork e lado a lado.
 - **Revisar e fazer o merge**: diff por rodada e por etapa, comentários enviados ao agente, painel "Pronto para merge?", merge local guiado ou PR no GitHub.
