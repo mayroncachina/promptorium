@@ -1,6 +1,6 @@
 ---
 id: SPEC-019
-status: rascunho
+status: concluida
 depende-de: [SPEC-015]
 ---
 
@@ -60,18 +60,21 @@ Trabalhar na branch `teste` (nunca na main); commits sem Co-Authored-By.
 - **N do chip:** conta as concluídas ocultas depois dos demais filtros.
 - **Escopo da ação:** finalizar/reabrir só no inspetor do canvas nesta versão (o "Reabrir" da tela Specs passa a usar o mesmo estágio guardado).
 - **Botão do Canvas:** rótulo "Concluídas", ícone de olho (`visibility` quando visíveis, `visibility_off` quando ocultas), no estilo de `_BarButton` como as camadas: ativo = concluídas visíveis.
-- `dependencyWaves` e `isOnBoard` não mudam: as ondas do cabeçalho continuam calculadas com todos os cartões.
+- `dependencyWaves` e `isOnBoard` não mudam: as ondas do cabeçalho continuam calculadas com todos os cartões. No Canvas, com as concluídas ocultas, as colunas de onda se reorganizam só com os cartões visíveis.
+- O chip mostra "· N" só com o filtro ativo (desativado, nada está oculto).
+- "Marcar como finalizada" aparece em specs no Backlog; "Reabrir" em specs em Feito. Specs rodando ou em Review não mostram nenhuma das duas (terminam pelo próprio fluxo).
+- Com o chip novo, o texto "N em rascunho fora do quadro" do cabeçalho encolhe com reticências (tooltip com o texto completo) quando falta espaço.
 
 ## Critérios de aceite
 
-- [ ] [R1] Com o filtro ativo e uma spec em Feito, ela não aparece nem em Colunas nem no Canvas. verificar: `flutter test test/features/board`
-- [ ] [R2] Com o filtro desativado, a mesma spec volta a aparecer nas duas views. verificar: `flutter test test/features/board`
-- [ ] [R3] Alternar o filtro grava `board.hideDone.<workspaceId>` com o valor esperado. verificar: `flutter test test/data`
-- [ ] [R4] Ativar o filtro no projeto A e abrir o projeto B mostra B sem filtro; voltar para A restaura o filtro ativo. verificar: `flutter test test/features/board`
-- [ ] [R5] O chip exibe "Ocultar concluídas · N" com N igual ao número de concluídas ocultas, e N muda quando uma spec é finalizada ou reaberta. verificar: `flutter test test/features/board`
-- [ ] [R6] Com o filtro ativo e só concluídas no projeto, aparece a mensagem própria e "Mostrar concluídas" desativa o filtro. Sem concluídas ocultas, a mensagem continua "Nenhum cartão passa pelos filtros.". verificar: `flutter test test/features/board`
-- [ ] [R7] O botão da barra flutuante do Canvas e o chip do cabeçalho refletem o mesmo estado: alternar um atualiza o outro. verificar: `flutter test test/features/board`
-- [ ] [R8] "Marcar como finalizada" no inspetor grava `status: concluida`, `estagio-anterior` e `status-anterior` no arquivo, leva a spec a `done` no banco e ela aparece em Feito; com critérios pendentes, pede confirmação e cancelar não altera nada. verificar: `flutter test test/features/board test/features/specs`
-- [ ] [R9] "Reabrir" numa spec finalizada a devolve ao estágio e status guardados (ou `backlog`/`aprovada` sem nada guardado) e remove os campos do arquivo; a ação não aparece em specs não finalizadas. verificar: `flutter test test/features/board test/features/specs`
-- [ ] [R10] Rodar o `sync` após finalizar ou reabrir manualmente não altera o estágio/status escolhido e não gera aviso. verificar: `flutter test test/features/specs`
-- [ ] [R1–R10] A suíte completa passa e `flutter analyze` não reporta problemas novos. verificar: `flutter analyze && flutter test`
+- [x] [R1] Com o filtro ativo e uma spec em Feito, ela não aparece nem em Colunas nem no Canvas. verificar: `flutter test test/features/board`
+- [x] [R2] Com o filtro desativado, a mesma spec volta a aparecer nas duas views. verificar: `flutter test test/features/board`
+- [x] [R3] Alternar o filtro grava `board.hideDone.<workspaceId>` com o valor esperado. verificar: `flutter test test/data`
+- [x] [R4] Ativar o filtro no projeto A e abrir o projeto B mostra B sem filtro; voltar para A restaura o filtro ativo. verificar: `flutter test test/features/board`
+- [x] [R5] O chip exibe "Ocultar concluídas · N" com N igual ao número de concluídas ocultas, e N muda quando uma spec é finalizada ou reaberta. verificar: `flutter test test/features/board`
+- [x] [R6] Com o filtro ativo e só concluídas no projeto, aparece a mensagem própria e "Mostrar concluídas" desativa o filtro. Sem concluídas ocultas, a mensagem continua "Nenhum cartão passa pelos filtros.". verificar: `flutter test test/features/board`
+- [x] [R7] O botão da barra flutuante do Canvas e o chip do cabeçalho refletem o mesmo estado: alternar um atualiza o outro. verificar: `flutter test test/features/board`
+- [x] [R8] "Marcar como finalizada" no inspetor grava `status: concluida`, `estagio-anterior` e `status-anterior` no arquivo, leva a spec a `done` no banco e ela aparece em Feito; com critérios pendentes, pede confirmação e cancelar não altera nada. verificar: `flutter test test/features/board test/features/specs`
+- [x] [R9] "Reabrir" numa spec finalizada a devolve ao estágio e status guardados (ou `backlog`/`aprovada` sem nada guardado) e remove os campos do arquivo; a ação não aparece em specs não finalizadas. verificar: `flutter test test/features/board test/features/specs`
+- [x] [R10] Rodar o `sync` após finalizar ou reabrir manualmente não altera o estágio/status escolhido e não gera aviso. verificar: `flutter test test/features/specs`
+- [x] [R1–R10] A suíte completa passa e `flutter analyze` não reporta problemas novos. verificar: `flutter analyze && flutter test`
