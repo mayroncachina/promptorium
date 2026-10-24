@@ -20,6 +20,14 @@ O Promptorium roda `claude`, `git`, `gh`, `rg`, `bash` e os comandos do projeto 
 `--talk-name=org.freedesktop.Flatpak`, e o app tem acesso à home (`--filesystem=home`), porque precisa
 dos repositórios, dos worktrees em `~/.promptorium` e do `~/.claude`.
 
+## Ícone na bandeja (SPEC-020)
+
+O `tray_manager` 0.8 publica o ícone como StatusNotifierItem direto pelo D-Bus (biblioteca
+`libcnativeapi.so` do bundle, ligada a GTK 3, X11 e Xi, que já estão no `org.freedesktop.Platform`);
+não usa `libayatana-appindicator3`, então o runtime não precisa de módulo extra. Basta
+`--talk-name=org.kde.StatusNotifierWatcher`, que o manifesto já tem. Sem bandeja (GNOME sem a
+extensão AppIndicator), o app só registra o aviso e segue sem ícone.
+
 ## Estado
 
 O manifesto e o wrapper foram escritos, mas **não foram testados**: esta máquina não tem

@@ -4953,6 +4953,28 @@ class $ConversationsTable extends Conversations
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _refineSpecCodeMeta = const VerificationMeta(
+    'refineSpecCode',
+  );
+  @override
+  late final GeneratedColumn<String> refineSpecCode = GeneratedColumn<String>(
+    'refine_spec_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _refineOriginMeta = const VerificationMeta(
+    'refineOrigin',
+  );
+  @override
+  late final GeneratedColumn<String> refineOrigin = GeneratedColumn<String>(
+    'refine_origin',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -4970,6 +4992,8 @@ class $ConversationsTable extends Conversations
     costUsd,
     messageCount,
     updatedAt,
+    refineSpecCode,
+    refineOrigin,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5085,6 +5109,24 @@ class $ConversationsTable extends Conversations
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('refine_spec_code')) {
+      context.handle(
+        _refineSpecCodeMeta,
+        refineSpecCode.isAcceptableOrUnknown(
+          data['refine_spec_code']!,
+          _refineSpecCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('refine_origin')) {
+      context.handle(
+        _refineOriginMeta,
+        refineOrigin.isAcceptableOrUnknown(
+          data['refine_origin']!,
+          _refineOriginMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5154,6 +5196,14 @@ class $ConversationsTable extends Conversations
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       ),
+      refineSpecCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}refine_spec_code'],
+      ),
+      refineOrigin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}refine_origin'],
+      ),
     );
   }
 
@@ -5192,6 +5242,12 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 
   /// Last activity (history order / grouping). Null = [createdAt].
   final DateTime? updatedAt;
+
+  /// Spec a refine conversation came from (SPEC-021, schema v17).
+  final String? refineSpecCode;
+
+  /// `RefineSource.name` (`specs` | `board`) of that refine conversation.
+  final String? refineOrigin;
   const Conversation({
     this.runConfig,
     required this.id,
@@ -5208,6 +5264,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     required this.costUsd,
     required this.messageCount,
     this.updatedAt,
+    this.refineSpecCode,
+    this.refineOrigin,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5234,6 +5292,12 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     map['message_count'] = Variable<int>(messageCount);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || refineSpecCode != null) {
+      map['refine_spec_code'] = Variable<String>(refineSpecCode);
+    }
+    if (!nullToAbsent || refineOrigin != null) {
+      map['refine_origin'] = Variable<String>(refineOrigin);
     }
     return map;
   }
@@ -5263,6 +5327,12 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
+      refineSpecCode: refineSpecCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(refineSpecCode),
+      refineOrigin: refineOrigin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(refineOrigin),
     );
   }
 
@@ -5287,6 +5357,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       costUsd: serializer.fromJson<double>(json['costUsd']),
       messageCount: serializer.fromJson<int>(json['messageCount']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      refineSpecCode: serializer.fromJson<String?>(json['refineSpecCode']),
+      refineOrigin: serializer.fromJson<String?>(json['refineOrigin']),
     );
   }
   @override
@@ -5308,6 +5380,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       'costUsd': serializer.toJson<double>(costUsd),
       'messageCount': serializer.toJson<int>(messageCount),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'refineSpecCode': serializer.toJson<String?>(refineSpecCode),
+      'refineOrigin': serializer.toJson<String?>(refineOrigin),
     };
   }
 
@@ -5327,6 +5401,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     double? costUsd,
     int? messageCount,
     Value<DateTime?> updatedAt = const Value.absent(),
+    Value<String?> refineSpecCode = const Value.absent(),
+    Value<String?> refineOrigin = const Value.absent(),
   }) => Conversation(
     runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
@@ -5345,6 +5421,10 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     costUsd: costUsd ?? this.costUsd,
     messageCount: messageCount ?? this.messageCount,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    refineSpecCode: refineSpecCode.present
+        ? refineSpecCode.value
+        : this.refineSpecCode,
+    refineOrigin: refineOrigin.present ? refineOrigin.value : this.refineOrigin,
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
@@ -5369,6 +5449,12 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ? data.messageCount.value
           : this.messageCount,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      refineSpecCode: data.refineSpecCode.present
+          ? data.refineSpecCode.value
+          : this.refineSpecCode,
+      refineOrigin: data.refineOrigin.present
+          ? data.refineOrigin.value
+          : this.refineOrigin,
     );
   }
 
@@ -5389,7 +5475,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ..write('tokensOut: $tokensOut, ')
           ..write('costUsd: $costUsd, ')
           ..write('messageCount: $messageCount, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('refineSpecCode: $refineSpecCode, ')
+          ..write('refineOrigin: $refineOrigin')
           ..write(')'))
         .toString();
   }
@@ -5411,6 +5499,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     costUsd,
     messageCount,
     updatedAt,
+    refineSpecCode,
+    refineOrigin,
   );
   @override
   bool operator ==(Object other) =>
@@ -5430,7 +5520,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           other.tokensOut == this.tokensOut &&
           other.costUsd == this.costUsd &&
           other.messageCount == this.messageCount &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.refineSpecCode == this.refineSpecCode &&
+          other.refineOrigin == this.refineOrigin);
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
@@ -5449,6 +5541,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<double> costUsd;
   final Value<int> messageCount;
   final Value<DateTime?> updatedAt;
+  final Value<String?> refineSpecCode;
+  final Value<String?> refineOrigin;
   const ConversationsCompanion({
     this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
@@ -5465,6 +5559,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.costUsd = const Value.absent(),
     this.messageCount = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.refineSpecCode = const Value.absent(),
+    this.refineOrigin = const Value.absent(),
   });
   ConversationsCompanion.insert({
     this.runConfig = const Value.absent(),
@@ -5482,6 +5578,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.costUsd = const Value.absent(),
     this.messageCount = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.refineSpecCode = const Value.absent(),
+    this.refineOrigin = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        title = Value(title),
        model = Value(model);
@@ -5501,6 +5599,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<double>? costUsd,
     Expression<int>? messageCount,
     Expression<DateTime>? updatedAt,
+    Expression<String>? refineSpecCode,
+    Expression<String>? refineOrigin,
   }) {
     return RawValuesInsertable({
       if (runConfig != null) 'run_config': runConfig,
@@ -5518,6 +5618,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       if (costUsd != null) 'cost_usd': costUsd,
       if (messageCount != null) 'message_count': messageCount,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (refineSpecCode != null) 'refine_spec_code': refineSpecCode,
+      if (refineOrigin != null) 'refine_origin': refineOrigin,
     });
   }
 
@@ -5537,6 +5639,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<double>? costUsd,
     Value<int>? messageCount,
     Value<DateTime?>? updatedAt,
+    Value<String?>? refineSpecCode,
+    Value<String?>? refineOrigin,
   }) {
     return ConversationsCompanion(
       runConfig: runConfig ?? this.runConfig,
@@ -5554,6 +5658,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       costUsd: costUsd ?? this.costUsd,
       messageCount: messageCount ?? this.messageCount,
       updatedAt: updatedAt ?? this.updatedAt,
+      refineSpecCode: refineSpecCode ?? this.refineSpecCode,
+      refineOrigin: refineOrigin ?? this.refineOrigin,
     );
   }
 
@@ -5605,6 +5711,12 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (refineSpecCode.present) {
+      map['refine_spec_code'] = Variable<String>(refineSpecCode.value);
+    }
+    if (refineOrigin.present) {
+      map['refine_origin'] = Variable<String>(refineOrigin.value);
+    }
     return map;
   }
 
@@ -5625,7 +5737,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
           ..write('tokensOut: $tokensOut, ')
           ..write('costUsd: $costUsd, ')
           ..write('messageCount: $messageCount, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('refineSpecCode: $refineSpecCode, ')
+          ..write('refineOrigin: $refineOrigin')
           ..write(')'))
         .toString();
   }
@@ -16377,6 +16491,8 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<double> costUsd,
       Value<int> messageCount,
       Value<DateTime?> updatedAt,
+      Value<String?> refineSpecCode,
+      Value<String?> refineOrigin,
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
@@ -16395,6 +16511,8 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<double> costUsd,
       Value<int> messageCount,
       Value<DateTime?> updatedAt,
+      Value<String?> refineSpecCode,
+      Value<String?> refineOrigin,
     });
 
 final class $$ConversationsTableReferences
@@ -16532,6 +16650,16 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refineSpecCode => $composableBuilder(
+    column: $table.refineSpecCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refineOrigin => $composableBuilder(
+    column: $table.refineOrigin,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16681,6 +16809,16 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get refineSpecCode => $composableBuilder(
+    column: $table.refineSpecCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get refineOrigin => $composableBuilder(
+    column: $table.refineOrigin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16779,6 +16917,16 @@ class $$ConversationsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get refineSpecCode => $composableBuilder(
+    column: $table.refineSpecCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get refineOrigin => $composableBuilder(
+    column: $table.refineOrigin,
+    builder: (column) => column,
+  );
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -16900,6 +17048,8 @@ class $$ConversationsTableTableManager
                 Value<double> costUsd = const Value.absent(),
                 Value<int> messageCount = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
+                Value<String?> refineSpecCode = const Value.absent(),
+                Value<String?> refineOrigin = const Value.absent(),
               }) => ConversationsCompanion(
                 runConfig: runConfig,
                 id: id,
@@ -16916,6 +17066,8 @@ class $$ConversationsTableTableManager
                 costUsd: costUsd,
                 messageCount: messageCount,
                 updatedAt: updatedAt,
+                refineSpecCode: refineSpecCode,
+                refineOrigin: refineOrigin,
               ),
           createCompanionCallback:
               ({
@@ -16934,6 +17086,8 @@ class $$ConversationsTableTableManager
                 Value<double> costUsd = const Value.absent(),
                 Value<int> messageCount = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
+                Value<String?> refineSpecCode = const Value.absent(),
+                Value<String?> refineOrigin = const Value.absent(),
               }) => ConversationsCompanion.insert(
                 runConfig: runConfig,
                 id: id,
@@ -16950,6 +17104,8 @@ class $$ConversationsTableTableManager
                 costUsd: costUsd,
                 messageCount: messageCount,
                 updatedAt: updatedAt,
+                refineSpecCode: refineSpecCode,
+                refineOrigin: refineOrigin,
               ),
           withReferenceMapper: (p0) => p0
               .map(

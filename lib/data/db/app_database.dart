@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 16;
+const appSchemaVersion = 17;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -509,6 +509,12 @@ class Conversations extends Table {
 
   /// Last activity (history order / grouping). Null = [createdAt].
   DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  /// Spec a refine conversation came from (SPEC-021, schema v17).
+  TextColumn get refineSpecCode => text().nullable()();
+
+  /// `RefineSource.name` (`specs` | `board`) of that refine conversation.
+  TextColumn get refineOrigin => text().nullable()();
 }
 
 /// Raw stream-json lines of a conversation (same format as [SessionEvents]).
@@ -831,6 +837,18 @@ class AppDatabase extends _$AppDatabase {
               }
             }
             await _reviewExternalIndex();
+          },
+          // v17: origin of a refine conversation (SPEC-021).
+          from16To17: (m, v) async {
+            if (!await _hasTable('conversations')) return;
+            for (final c in [
+              v.conversations.refineSpecCode,
+              v.conversations.refineOrigin,
+            ]) {
+              if (!await _hasColumn('conversations', c.name)) {
+                await m.addColumn(v.conversations, c);
+              }
+            }
           },
           from14To15: (m, v) async {
             if (await _hasTable('sessions')) {

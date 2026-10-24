@@ -338,30 +338,93 @@ class SpecService {
     );
   }
 
-  Future<Spec> reopen(Workspace ws, Spec spec) async {
-    if (await hasOperation(spec)) {
+  /// Runs [action] after the queued syncs, so a sync never sees the file
+  /// and the row halfway through a manual change.
+  Future<T> _serial<T>(Future<T> Function() action) {
+    final next = _syncTail.catchError((Object _) {}).then((_) => action());
+    _syncTail = next.then((_) {}, onError: (Object _) {});
+    return next;
+  }
+
+  /// "Marcar como finalizada" (SPEC-019 R8): `status: concluida` in the
+  /// frontmatter, with the stage and status [reopen] restores, then
+  /// `done` / `done` in the table. The file is the source: the next sync
+  /// reads the same conclusion and changes nothing.
+  Future<Spec> markDone(Workspace ws, Spec spec) => _serial(() async {
+    final current = await _repo.getById(spec.id) ?? spec;
+    if (current.stage == SpecStage.done) {
+      throw SpecException('${spec.code} já está concluída.');
+    }
+    if (await hasOperation(current)) {
+      throw const SpecException(
+        'Resolva a operação em andamento antes de finalizar.',
+      );
+    }
+    final text = await read(ws, current);
+    if (text == null) throw const SpecException('Arquivo ausente.');
+    final previousStatus =
+        current.status == SpecStatus.done ||
+            current.status == SpecStatus.archived
+        ? SpecStatus.approved
+        : current.status;
+    final saved = await save(
+      ws,
+      current,
+      SpecDocument.parse(text).withMeta(
+        status: SpecStatus.done,
+        fields: {
+          SpecDocument.previousStageKey: current.stage.name,
+          SpecDocument.previousStatusKey: specStatusValue(previousStatus),
+        },
+      ),
+      expectedText: text,
+    );
+    if (saved.stage != SpecStage.done || saved.status != SpecStatus.done) {
+      await _repo.update(
+        spec.id,
+        const SpecsCompanion(
+          status: Value(SpecStatus.done),
+          stage: Value(SpecStage.done),
+        ),
+      );
+    }
+    return (await _repo.getById(spec.id))!;
+  });
+
+  /// "Reabrir" (SPEC-019 R9): back to the stage and status saved by
+  /// [markDone] (none saved: `backlog` / `aprovada`), written to the
+  /// frontmatter first.
+  Future<Spec> reopen(Workspace ws, Spec spec) => _serial(() async {
+    final current = await _repo.getById(spec.id) ?? spec;
+    if (await hasOperation(current)) {
       throw const SpecException(
         'Resolva a operação em andamento antes de reabrir.',
       );
     }
-    final text = await read(ws, spec);
+    final text = await read(ws, current);
     if (text == null) throw const SpecException('Arquivo ausente.');
+    final doc = SpecDocument.parse(text);
+    final stage = doc.previousStage ?? SpecStage.backlog;
+    final status = doc.previousStatus ?? SpecStatus.approved;
     // Publish an explicit reopening only after the document has been saved.
     await save(
       ws,
-      spec,
-      SpecDocument.parse(text).withMeta(status: SpecStatus.approved),
+      current,
+      doc.withMeta(
+        status: status,
+        fields: const {
+          SpecDocument.previousStageKey: null,
+          SpecDocument.previousStatusKey: null,
+        },
+      ),
       expectedText: text,
     );
     await _repo.update(
       spec.id,
-      const SpecsCompanion(
-        status: Value(SpecStatus.approved),
-        stage: Value(SpecStage.backlog),
-      ),
+      SpecsCompanion(status: Value(status), stage: Value(stage)),
     );
     return (await _repo.getById(spec.id))!;
-  }
+  });
 
   /// "Clonar para alterar": a new draft spec with the text of [spec] minus
   /// the requirements in [doneIds], depending on [spec].

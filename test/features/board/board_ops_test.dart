@@ -4,18 +4,22 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_provider.dart' show PromptMode;
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/widgets/card_extras.dart';
 import 'package:promptorium/features/board/widgets/wave_graph.dart';
+import 'package:promptorium/features/prompt/conversation_manager.dart';
+import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
+import '../prompt/prompt_test_utils.dart' show SilentConversationManager;
 import '../sessions/session_test_utils.dart';
 import 'board_screen_test.dart' show pumpBoard, pumpFor, text;
 import 'spec_runner_test.dart' show resultLine;
@@ -272,5 +276,28 @@ void main() {
     expect(p, contains('das etapas R2'));
     expect(p, contains('"dividir R3"'));
     expect(AppTheme.dark(), isNotNull);
+  });
+
+  testWidgets('"Aplicar" on a card suggestion stores the spec code and the '
+      'board origin in the refine conversation (SPEC-021 R1)', (tester) async {
+    final manager = SilentConversationManager();
+    final (c, _) = await pumpBoard(
+      tester,
+      overrides: [conversationManagerProvider.overrideWith(() => manager)],
+    );
+    await c
+        .read(specSuggestionsRepoProvider)
+        .add(specId: 2, body: 'dividir R3', steps: 'R2');
+    await pumpFor(tester, 20);
+    await tester.tap(
+      find.byKey(const ValueKey('board-suggestion-apply-SPEC-002')),
+    );
+    await pumpFor(tester, 20);
+    final conv = await c
+        .read(conversationsRepoProvider)
+        .getById(manager.sent.single.$1);
+    expect(conv!.mode, PromptMode.refine.name);
+    expect(conv.refineSpecCode, 'SPEC-002');
+    expect(conv.refineOrigin, RefineSource.board.name);
   });
 }

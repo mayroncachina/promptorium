@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/claude/usage_poller.dart';
+import 'core/tray_backend_native.dart';
+import 'core/tray_service.dart';
 import 'features/board/autopilot.dart';
 import 'features/code/worktree_terminal.dart';
 import 'features/prompt/conversation_manager.dart';
@@ -14,6 +17,9 @@ import 'features/review/pr_babysitter.dart';
 import 'features/sessions/session_manager.dart';
 import 'features/sessions/widgets/session_terminal.dart';
 import 'ui/theme/tokens.dart';
+
+/// Kept for the app's lifetime: the native icon goes away with its wrapper.
+TrayService? _tray;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +52,17 @@ Future<void> main() async {
   // session process / PTY, then destroy the window.
   final container = ProviderContainer();
   await windowManager.setPreventClose(true);
-  windowManager.addListener(_CloseHandler(container));
+  final closeHandler = _CloseHandler(container);
+  windowManager.addListener(closeHandler);
+  // Tray icon on Linux (SPEC-020): show/hide the window; "Sair" takes the
+  // same path as closing it. Without a tray it only logs (R7).
+  _tray = TrayService(
+    isLinux: Platform.isLinux,
+    backend: NativeTrayBackend.new,
+    window: const WindowManagerTrayWindow(),
+    onQuit: closeHandler.close,
+  );
+  unawaited(_tray!.start());
   // Plan usage in the footer: `claude -p /usage` costs no tokens.
   final usage = container.read(usagePollerProvider);
   unawaited(usage.refresh());
@@ -78,9 +94,11 @@ class _CloseHandler with WindowListener {
   bool _closing = false;
 
   @override
-  void onWindowClose() => _close();
+  void onWindowClose() => close();
 
-  Future<void> _close() async {
+  /// Stops sessions, PTYs and conversations, then destroys the window. Used
+  /// by the window's close button and by the tray's "Sair" (SPEC-020 R6).
+  Future<void> close() async {
     if (_closing) return;
     _closing = true;
     try {

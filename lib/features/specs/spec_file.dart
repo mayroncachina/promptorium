@@ -341,22 +341,52 @@ class SpecDocument {
     return out;
   }
 
+  /// Frontmatter keys written by "Marcar como finalizada" (SPEC-019): the
+  /// stage and status "Reabrir" restores.
+  static const previousStageKey = 'estagio-anterior';
+  static const previousStatusKey = 'status-anterior';
+
+  /// Stage saved by "Marcar como finalizada" (null = none / not a working
+  /// stage).
+  SpecStage? get previousStage {
+    final v = '${frontmatter[previousStageKey] ?? ''}'.trim();
+    final stage = SpecStage.values.where((s) => s.name == v).firstOrNull;
+    return stage == SpecStage.done ? null : stage;
+  }
+
+  /// Status saved by "Marcar como finalizada" (null = none / a finished
+  /// status).
+  SpecStatus? get previousStatus {
+    final s = specStatusFromValue('${frontmatter[previousStatusKey] ?? ''}');
+    return s == SpecStatus.done || s == SpecStatus.archived ? null : s;
+  }
+
   /// Text with `id` / `status` / `depende-de` set in the frontmatter
-  /// (created when absent). Other lines (unknown keys, comments) are kept
-  /// byte for byte.
+  /// (created when absent). [fields] sets other single-line keys; a null
+  /// value removes the key's line. Other lines (unknown keys, comments) are
+  /// kept byte for byte.
   String withMeta({
     String? id,
     SpecStatus? status,
     List<String>? dependsOn,
     bool? designWaived,
+    Map<String, String?> fields = const {},
   }) {
     final updates = <String, String>{
       'id': ?id,
       if (status != null) 'status': specStatusValue(status),
       if (dependsOn != null) dependsOnKey: '[${dependsOn.join(', ')}]',
       if (designWaived == true) 'design': 'dispensado',
+      for (final e in fields.entries)
+        if (e.value != null) e.key: e.value!,
     };
-    if (updates.isEmpty) return text;
+    final removals = {
+      for (final e in fields.entries)
+        if (e.value == null) e.key,
+    };
+    if (updates.isEmpty && removals.every((k) => !frontmatter.containsKey(k))) {
+      return text;
+    }
     if (!hasFrontmatter) {
       final b = StringBuffer('---\n');
       updates.forEach((k, v) => b.writeln('$k: $v'));
@@ -372,6 +402,10 @@ class SpecDocument {
     final trailing = lines.isNotEmpty && lines.last.isEmpty;
     if (trailing) lines.removeLast();
     final pending = Map.of(updates);
+    lines.removeWhere((l) {
+      final m = RegExp(r'^([A-Za-z_][\w-]*)\s*:').firstMatch(l);
+      return m != null && removals.contains(m.group(1));
+    });
     for (var i = 0; i < lines.length; i++) {
       final m = RegExp(r'^([A-Za-z_][\w-]*)\s*:').firstMatch(lines[i]);
       if (m == null) continue;

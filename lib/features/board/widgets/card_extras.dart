@@ -6,6 +6,7 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../prompt/conversation_manager.dart';
+import '../../prompt/refine_origin.dart';
 import '../../sessions/timeline.dart';
 import '../../sessions/timeline_provider.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -129,6 +130,10 @@ class SuggestionBanner extends ConsumerWidget {
                         workspace: ws,
                         text: applySuggestionPrompt(spec, s),
                         mode: PromptMode.refine,
+                        origin: (
+                          specCode: spec.code,
+                          source: RefineSource.board,
+                        ),
                       );
                   await repo.setState(s.id, 'aplicada');
                   ref.read(selectedConversationProvider.notifier).select(id);

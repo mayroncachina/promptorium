@@ -43,6 +43,9 @@ abstract final class AppSettingKeys {
   /// `--autocompact` of every run (`auto` or `100k`–`1M`).
   static const autocompact = 'claude.autocompact';
 
+  /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
+  static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';
+
   /// Worktree selected in the Code screen for a workspace (path).
   static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';
 

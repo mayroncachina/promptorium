@@ -69,14 +69,14 @@ sondagens nunca usam. O app nunca escreve `~/.claude.json` ou `.mcp.json` direta
 | `libgtk-3-dev` | — | Janela (Flutter Linux) |
 | `libsqlite3-dev` | — | Banco local |
 | `libnotify-dev` | — | Notificações nativas (`local_notifier`) |
-| `libayatana-appindicator3-dev` | — | Ícone na bandeja (`tray_manager`; build exige o pacote, bandeja ainda não usada) |
+| `libx11-dev`, `libxi-dev` | — | Ícone na bandeja (`tray_manager` 0.8 / nativeapi; StatusNotifierItem por D-Bus, sem AppIndicator) |
 | `gh` (GitHub CLI) | opcional | Botão "Criar PR" no Review |
 
 Instalação no Ubuntu/Debian:
 
 ```bash
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev \
-  libsqlite3-dev libnotify-dev libayatana-appindicator3-dev
+  libsqlite3-dev libnotify-dev libx11-dev libxi-dev
 ```
 
 ### Pacotes Flutter
@@ -96,7 +96,7 @@ Versões **instaladas** (conferidas com o `pubspec.lock`):
 | `flutter_pty` | ^0.4.2 | 0.4.2 | Terminal embutido (PTY) |
 | `window_manager` | ^0.5.2 | 0.5.2 | Tamanho, título e fundo da janela |
 | `local_notifier` | ^0.1.6 | 0.1.6 | Notificações nativas |
-| `tray_manager` | ^0.8.0 | 0.8.0 | Bandeja (opcional; ainda sem uso — DT-49) |
+| `tray_manager` | ^0.8.0 | 0.8.0 | Ícone na bandeja no Linux (SPEC-020) |
 | `file_selector` | ^1.1.0 | 1.1.0 | Seletor de pastas nativo (adicionar workspace) |
 | `path_provider` | ^2.1.6 | 2.1.6 | Diretórios do sistema |
 | `uuid` | ^4.6.0 | 4.6.0 | IDs de sessão |
@@ -175,7 +175,7 @@ Pacotes Linux x64 (Ubuntu/Debian 22.04 ou mais novo) nas **Releases** do GitHub:
 
 | Arquivo | Uso |
 |---|---|
-| `promptorium_<versão>_amd64.deb` | `sudo apt install ./promptorium_<versão>_amd64.deb` — instala em `/opt/promptorium`, comando `promptorium`, atalho no menu e ícones; o apt instala `git` e as bibliotecas (GTK, libnotify); `gh` é recomendado |
+| `promptorium_<versão>_amd64.deb` | `sudo apt install ./promptorium_<versão>_amd64.deb` — instala em `/opt/promptorium`, comando `promptorium`, atalho no menu e ícones; o apt instala `git` e as bibliotecas (GTK, libnotify, X11); `gh` é recomendado |
 | `promptorium-<versão>-linux-x64.tar.gz` | portátil: extrair e rodar `./promptorium` (sem atalho) |
 
 O **Claude Code CLI** não vem em pacote .deb. O `.deb` avisa no fim da instalação quando o
