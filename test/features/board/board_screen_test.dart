@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
@@ -21,7 +22,10 @@ Future<void> pumpFor(WidgetTester tester, [int times = 10]) async {
   }
 }
 
-Future<(ProviderContainer, AppDatabase)> pumpBoard(WidgetTester tester) async {
+Future<(ProviderContainer, AppDatabase)> pumpBoard(
+  WidgetTester tester, {
+  List<Override> overrides = const [],
+}) async {
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -97,7 +101,7 @@ Future<(ProviderContainer, AppDatabase)> pumpBoard(WidgetTester tester) async {
           sessionId: const Value('s-old'),
         ),
       );
-  final c = ProviderContainer(overrides: [databaseOverride(db)]);
+  final c = ProviderContainer(overrides: [databaseOverride(db), ...overrides]);
   addTearDown(c.dispose);
   await c.read(appSettingsProvider.notifier).load();
   await tester.pumpWidget(

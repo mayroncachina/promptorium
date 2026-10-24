@@ -7,6 +7,7 @@ import 'package:promptorium/core/codex/codex_provider.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
+import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 
@@ -228,6 +229,30 @@ void main() {
       expect(provider.last.options.effort, isNull); // CLI default
       expect(provider.last.options.autocompact, 'auto');
       expect(c.read(promptDraftProvider).model, 'opus');
+    });
+
+    test('the refine origin is stored only for refine conversations '
+        '(SPEC-021 R1)', () async {
+      final m = c.read(conversationManagerProvider.notifier);
+      const origin = (specCode: 'SPEC-021', source: RefineSource.board);
+      final repo = c.read(conversationsRepoProvider);
+      final refine = await repo.getById(
+        await m.create(
+          workspace: ws,
+          text: 'refine',
+          mode: PromptMode.refine,
+          origin: origin,
+        ),
+      );
+      expect(refine!.refineSpecCode, 'SPEC-021');
+      expect(refine.refineOrigin, 'board');
+      final ask = await repo.getById(
+        await m.create(workspace: ws, text: 'ask', origin: origin),
+      );
+      expect(ask!.refineSpecCode, isNull);
+      expect(ask.refineOrigin, isNull);
+      expect(RefineSource.fromName(refine.refineOrigin), RefineSource.board);
+      expect(RefineSource.fromName(null), isNull);
     });
 
     test('deny and stop', () async {

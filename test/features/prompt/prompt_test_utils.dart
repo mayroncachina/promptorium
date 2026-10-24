@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/providers/agent_registry.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/ui/widgets/app_icon.dart';
 
@@ -169,3 +170,16 @@ Future<Workspace> addWorkspace(AppDatabase db, String path) async {
 
 ProviderContainer promptContainer(List<Override> overrides) =>
     ProviderContainer(overrides: overrides);
+
+/// Real [ConversationManager.create] (rows written as in the app) without
+/// starting an agent: [send] only records the message.
+class SilentConversationManager extends ConversationManager {
+  final sent = <(int, String)>[];
+
+  @override
+  Future<void> send(
+    int id,
+    String text, {
+    List<ImagePart> images = const [],
+  }) async => sent.add((id, text));
+}

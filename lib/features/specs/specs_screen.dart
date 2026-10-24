@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +13,8 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
+import '../prompt/refine_origin.dart';
+import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
@@ -60,6 +64,110 @@ class SpecDirty extends Notifier<bool> {
 
 final specDirtyProvider = NotifierProvider<SpecDirty, bool>(SpecDirty.new);
 
+/// Unsaved editor text per spec id, kept when the Specs screen is left with
+/// changes (the screen is rebuilt on every visit) and offered back by
+/// `_load` (SPEC-021 R9).
+class SpecUnsaved extends Notifier<Map<int, String>> {
+  @override
+  Map<int, String> build() => const {};
+
+  void keep(int specId, String text) => state = {...state, specId: text};
+
+  /// Removes and returns the draft of [specId].
+  String? take(int specId) {
+    final text = state[specId];
+    if (text != null) state = {...state}..remove(specId);
+    return text;
+  }
+}
+
+final specUnsavedProvider = NotifierProvider<SpecUnsaved, Map<int, String>>(
+  SpecUnsaved.new,
+);
+
+/// "Alterações não salvas" (R9): diff disk → [draft]; true keeps the draft,
+/// false loads the file. Closing the dialog keeps the draft.
+Future<bool> showSpecConflictDialog(
+  BuildContext context, {
+  required String code,
+  required String disk,
+  required String draft,
+}) async {
+  final lines = lineDiff(disk, draft);
+  final keep = await showDialog<bool>(
+    context: context,
+    barrierColor: AppColors.scrim,
+    builder: (ctx) => AlertDialog(
+      key: const ValueKey('specs-unsaved-dialog'),
+      backgroundColor: AppColors.panel,
+      title: Text(
+        '$code tem alterações não salvas',
+        style: const TextStyle(fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 640,
+        height: 360,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'O arquivo no disco mudou enquanto você tinha edições no '
+              'editor. Linhas com + são suas; com −, as do disco.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: ListView(
+                  key: const ValueKey('specs-unsaved-diff'),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  children: [
+                    for (final l in lines)
+                      if (l.op != DiffOp.same)
+                        Container(
+                          color: l.op == DiffOp.add
+                              ? SessionColors.addBg
+                              : SessionColors.delBg,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            '${l.op == DiffOp.add ? '+' : '−'} ${l.text}',
+                            style: TextStyle(
+                              fontFamily: AppFonts.mono,
+                              fontSize: 12,
+                              color: l.op == DiffOp.add
+                                  ? AppColors.teal
+                                  : AppColors.red,
+                            ),
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('specs-unsaved-disk'),
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Carregar do disco'),
+        ),
+        TextButton(
+          key: const ValueKey('specs-unsaved-keep'),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Manter minhas alterações'),
+        ),
+      ],
+    ),
+  );
+  return keep ?? true;
+}
+
 /// Specs screen (plano, Fase 8; docs/mockups/Specs.dc.html): list of
 /// `specs/SPEC-*.md`, re_editor with modes, generated tasks + traceability.
 class SpecsScreen extends ConsumerStatefulWidget {
@@ -81,8 +189,29 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   bool _loading = false;
   bool _busy = false;
 
+  late final SpecUnsaved _unsaved;
+
+  @override
+  void initState() {
+    super.initState();
+    _unsaved = ref.read(specUnsavedProvider.notifier);
+  }
+
   @override
   void dispose() {
+    // R9: the screen is rebuilt on every visit; keep what was not saved.
+    final id = _loadedSpecId, text = _controller?.text;
+    if (id != null && text != null && _dirty && !_missing) {
+      // Providers cannot change while the tree is being finalized.
+      final unsaved = _unsaved;
+      scheduleMicrotask(() {
+        try {
+          unsaved.keep(id, text);
+        } catch (_) {
+          // The container went away with the app.
+        }
+      });
+    }
     _controller?.removeListener(_onText);
     _controller?.dispose();
     super.dispose();
@@ -108,17 +237,31 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _snack('Falha ao abrir ${spec.path}: $e');
     }
     if (!mounted || _loadedSpecId != spec.id) return;
+    // R9: unsaved text left in the editor differs from the file: show the
+    // diff and ask (never overwritten without confirmation).
+    var shown = text ?? '';
+    final draft = ref.read(specUnsavedProvider.notifier).take(spec.id);
+    if (text != null && draft != null && draft != text) {
+      final keep = await showSpecConflictDialog(
+        context,
+        code: spec.code,
+        disk: text,
+        draft: draft,
+      );
+      if (!mounted || _loadedSpecId != spec.id) return;
+      if (keep) shown = draft;
+    }
     _controller?.removeListener(_onText);
     _controller?.dispose();
-    _lastText = text ?? '';
-    _controller = CodeLineEditingController.fromText(text ?? '')
+    _lastText = shown;
+    _controller = CodeLineEditingController.fromText(shown)
       ..addListener(_onText);
     setState(() {
       _saved = text ?? '';
       _missing = text == null;
       _loading = false;
     });
-    ref.read(specDirtyProvider.notifier).set(false);
+    ref.read(specDirtyProvider.notifier).set(_dirty);
     if (text != null && ref.read(pendingDesignProvider) == spec.id) {
       ref.read(pendingDesignProvider.notifier).select(null);
       await _design(ws, spec);
@@ -311,6 +454,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             workspace: ws,
             text: refineSpecPrompt(spec),
             mode: PromptMode.refine,
+            origin: (specCode: spec.code, source: RefineSource.specs),
           );
       ref.read(selectedConversationProvider.notifier).select(id);
       ref.read(navigationProvider.notifier).go(AppSection.prompt);

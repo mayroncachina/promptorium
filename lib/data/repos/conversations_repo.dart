@@ -35,6 +35,8 @@ class ConversationsRepo {
     String? sessionId,
     String? claudeSessionId,
     String mode = 'ask',
+    String? refineSpecCode,
+    String? refineOrigin,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -47,6 +49,8 @@ class ConversationsRepo {
           claudeSessionId: Value(claudeSessionId),
           mode: Value(mode),
           updatedAt: Value(DateTime.now()),
+          refineSpecCode: Value(refineSpecCode),
+          refineOrigin: Value(refineOrigin),
         ),
       );
 

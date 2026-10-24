@@ -16,6 +16,7 @@ import 'attachments.dart';
 import 'conversation_manager.dart';
 import 'plan_ready.dart';
 import 'prompt_actions.dart';
+import 'refine_origin.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/conversation_list.dart';
@@ -307,6 +308,10 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = conversation;
     final hasAnswer = lastAnswer(items) != null;
+    final origin = c == null ? null : refineOriginOf(c);
+    final backLabel = origin == null
+        ? null
+        : 'Voltar à spec ${origin.specCode}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
@@ -328,6 +333,21 @@ class _Header extends ConsumerWidget {
               ),
             ),
           ),
+          // SPEC-021 R2 / R6 / R11: only refine conversations with a stored
+          // origin; keyboard focusable, with an accessible label.
+          if (backLabel != null) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              flex: 2,
+              child: SmallButton(
+                key: const ValueKey('prompt-back-to-spec'),
+                label: backLabel,
+                semanticLabel: backLabel,
+                focusColor: AppColors.amber.withValues(alpha: 0.25),
+                onTap: () => backToSpec(context, ref, c!),
+              ),
+            ),
+          ],
           const SizedBox(width: 8),
           Flexible(
             flex: 2,

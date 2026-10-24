@@ -18,6 +18,7 @@ import '../sessions/session_manager.dart'
     show PendingApproval, sessionIdGeneratorProvider;
 import '../sessions/timeline.dart';
 import '../sessions/timeline_provider.dart';
+import 'refine_origin.dart';
 
 /// Runtime state of a conversation with a live agent process.
 @immutable
@@ -129,6 +130,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
 
   /// Creates a conversation in [workspace] and sends [text]. Returns its id.
   /// [model] null = the conversation default of Configurações ([RunPrefs]).
+  /// [origin] is stored only when [mode] is [PromptMode.refine] (SPEC-021).
   Future<int> create({
     required Workspace workspace,
     required String text,
@@ -136,17 +138,21 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     String? model,
     String? providerId,
     List<ImagePart> images = const [],
+    RefineOrigin? origin,
   }) async {
     final msg = text.trim();
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
     final selected =
         providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
+    final refine = mode == PromptMode.refine;
     final c = await _repo.insert(
       workspaceId: workspace.id,
       title: conversationTitle(msg),
       model: model ?? providerModel(ref, selected, RunKind.conversation),
       provider: selected,
       mode: mode.name,
+      refineSpecCode: refine ? origin?.specCode : null,
+      refineOrigin: refine ? origin?.source.name : null,
     );
     await send(c.id, msg, images: images);
     return c.id;

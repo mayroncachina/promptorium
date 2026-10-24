@@ -114,6 +114,9 @@ void main() {
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
             activeWorkspaceProvider.overrideWithValue(ws),
+            // The real watcher reacts to the verifier rewriting the spec and
+            // races the UI under the full suite.
+            workspaceWatcherProvider.overrideWith(_SilentWatcher.new),
             verificationAgentProvider.overrideWithValue(
               (ws, prompt, provider, token) async => answer(),
             ),
