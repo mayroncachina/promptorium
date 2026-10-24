@@ -135,6 +135,39 @@ final boardFilterProvider =
       BoardFilterController.new,
     );
 
+/// "Ocultar concluídas" of the active workspace (SPEC-019): hides the
+/// cards in Feito from Colunas and Canvas. Saved per workspace in
+/// `app_settings` (`board.hideDone.<id>`); off when nothing was saved.
+class BoardHideDone extends Notifier<bool> {
+  int? _workspaceId;
+
+  @override
+  bool build() {
+    _workspaceId = ref.watch(activeWorkspaceProvider.select((w) => w?.id));
+    final id = _workspaceId;
+    if (id == null) return false;
+    return ref
+            .read(appSettingsProvider.notifier)
+            .get(AppSettingKeys.boardHideDone(id)) ==
+        '1';
+  }
+
+  Future<void> set(bool hide) async {
+    state = hide;
+    final id = _workspaceId;
+    if (id == null) return;
+    await ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.boardHideDone(id), hide ? '1' : '0');
+  }
+
+  Future<void> toggle() => set(!state);
+}
+
+final boardHideDoneProvider = NotifierProvider<BoardHideDone, bool>(
+  BoardHideDone.new,
+);
+
 /// Whether the card waits for the user: a step in `needs_input`, a pending
 /// approval, a failed worktree preparation, the spec changed on disk or an
 /// A/B ready to compare.
@@ -267,13 +300,24 @@ class BoardScreen extends ConsumerWidget {
     }
 
     final attentionCount = cards.where(attention).length;
-    final visible = [
+    final hideDone = ref.watch(boardHideDoneProvider);
+    final filtered = [
       for (final d in cards)
         if ((!filter.attention || attention(d)) &&
             (filter.phase == null || d.spec.phase == filter.phase) &&
             (filter.agent == null || d.spec.agentName == filter.agent))
           d,
     ];
+    // N of the chip: concluded cards hidden after the other filters.
+    final hiddenDone = hideDone
+        ? filtered.where((d) => d.spec.stage == SpecStage.done).length
+        : 0;
+    final visible = hideDone
+        ? [
+            for (final d in filtered)
+              if (d.spec.stage != SpecStage.done) d,
+          ]
+        : filtered;
     final parallel = ref
         .watch(projectConfigProvider(ws.path))
         .value
@@ -288,6 +332,18 @@ class BoardScreen extends ConsumerWidget {
                       'o projeto em Projeto.'
                 : 'Nenhuma spec aprovada. Aprove uma spec na tela '
                       'Specs para ela entrar no quadro.',
+          )
+        : visible.isEmpty && hiddenDone > 0
+        ? _Empty(
+            hiddenDone == 1
+                ? 'Nenhum cartão em andamento. 1 spec concluída está oculta.'
+                : 'Nenhum cartão em andamento. $hiddenDone specs concluídas '
+                      'estão ocultas.',
+            action: (
+              key: 'board-show-done',
+              label: 'Mostrar concluídas',
+              onTap: () => ref.read(boardHideDoneProvider.notifier).set(false),
+            ),
           )
         : visible.isEmpty
         ? const _Empty('Nenhum cartão passa pelos filtros.')
@@ -319,6 +375,7 @@ class BoardScreen extends ConsumerWidget {
             drafts: drafts,
             cards: cards,
             attentionCount: attentionCount,
+            hiddenDone: hiddenDone,
             parallel: parallel,
           ),
           if (legacy.isNotEmpty)
@@ -378,21 +435,41 @@ class BoardScreen extends ConsumerWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty(this.text);
+  const _Empty(this.text, {this.action});
 
   final String text;
+  final ({String key, String label, VoidCallback onTap})? action;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: AppColors.background,
-    child: Center(
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+  Widget build(BuildContext context) {
+    final a = action;
+    return ColoredBox(
+      color: AppColors.background,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (a != null) ...[
+              const SizedBox(height: 10),
+              TextButton(
+                key: ValueKey(a.key),
+                onPressed: a.onTap,
+                child: Text(a.label),
+              ),
+            ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Header extends ConsumerWidget {
@@ -403,6 +480,7 @@ class _Header extends ConsumerWidget {
     required this.drafts,
     required this.cards,
     required this.attentionCount,
+    required this.hiddenDone,
     required this.parallel,
   });
 
@@ -412,6 +490,9 @@ class _Header extends ConsumerWidget {
   final int drafts;
   final List<SpecCardData> cards;
   final int attentionCount;
+
+  /// Concluded cards hidden by "Ocultar concluídas" (SPEC-019 R5).
+  final int hiddenDone;
   final int? parallel;
 
   @override
@@ -558,6 +639,14 @@ class _Header extends ConsumerWidget {
             filter.attention,
             () => filters.set(filter.copyWith(attention: !filter.attention)),
             'attention',
+          ),
+          chip(
+            ref.watch(boardHideDoneProvider)
+                ? 'Ocultar concluídas · $hiddenDone'
+                : 'Ocultar concluídas',
+            ref.watch(boardHideDoneProvider),
+            () => ref.read(boardHideDoneProvider.notifier).toggle(),
+            'hide-done',
           ),
           // A value set stays visible so it can be cleared.
           if (phases.isNotEmpty || filter.phase != null)
