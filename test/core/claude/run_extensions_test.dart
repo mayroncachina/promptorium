@@ -253,7 +253,7 @@ void main() {
             ),
       );
       final done = c.read(run)();
-      await settle();
+      await until(() async => cli.args.isNotEmpty);
       final args = cli.args.single;
       final path = args[args.indexOf('--settings') + 1];
       expect(jsonDecode(File(path).readAsStringSync()), {

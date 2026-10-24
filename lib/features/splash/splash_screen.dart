@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_info.dart';
+import '../../core/update/update_check.dart';
 import '../../ui/theme/tokens.dart';
 import 'splash_painter.dart';
 import 'startup_controller.dart';
@@ -79,6 +80,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // The version of the installed package (`--build-name` of the release),
+    // as in "Sobre": never a constant to keep in sync by hand.
+    final version = ref.watch(appVersionProvider).value;
     _reducedMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final startup = ref.watch(startupControllerProvider);
     return Scaffold(
@@ -125,7 +129,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ),
                   child: Row(
                     children: [
-                      Text('v${AppInfo.version} · ${AppInfo.platformName}'),
+                      Text(
+                        version == null
+                            ? AppInfo.platformName
+                            : 'v$version · ${AppInfo.platformName}',
+                        key: const ValueKey('splash-app-version'),
+                      ),
                       const Spacer(),
                       Text(
                         'Claude Code ${startup.claude?.version ?? '—'}',

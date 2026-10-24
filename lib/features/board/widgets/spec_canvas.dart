@@ -19,6 +19,8 @@ import '../../specs/workspace_watcher.dart';
 import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
+import 'gate_fix_badge.dart';
+import 'step_live_dialog.dart';
 import 'wave_graph.dart';
 import 'duel_dialog.dart' show openDuelsProvider;
 
@@ -694,6 +696,8 @@ class _SpecNode extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
+                    GateFixBadge(data: data, fontSize: 11),
+                    const SizedBox(width: 6),
                     _Pill(data.spec.stage),
                   ],
                 ),
@@ -724,18 +728,32 @@ class _SpecNode extends StatelessWidget {
                                   focusable: false,
                                   width: 250,
                                   details: _StepDetails(step: step),
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      1,
-                                      4,
-                                      5,
-                                      4,
-                                    ),
-                                    child: CanvasStepDot(
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: GestureDetector(
                                       key: ValueKey(
-                                        'canvas-dot-${data.spec.code}-${step.id}',
+                                        'canvas-step-${data.spec.code}-${step.id}',
                                       ),
-                                      status: step.status,
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: () => showStepLiveDialog(
+                                        context,
+                                        spec: data.spec,
+                                        step: step.id,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          1,
+                                          4,
+                                          5,
+                                          4,
+                                        ),
+                                        child: CanvasStepDot(
+                                          key: ValueKey(
+                                            'canvas-dot-${data.spec.code}-${step.id}',
+                                          ),
+                                          status: step.status,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

@@ -1,6 +1,6 @@
 ---
 id: SPEC-018
-status: rascunho
+status: concluida
 depende-de: []
 ---
 
@@ -81,26 +81,26 @@ Depois do lote, `SpecReviewPanel` guarda em estado de tela (efêmero) a lista de
 
 Os testes marcados "(a criar)" fazem parte da implementação.
 
-- [ ] [R1] O painel mostra o controle "Marcar todos" no cabeçalho dos critérios, com o texto "(E elegíveis · B aguardam a verificação)", e nenhum controle numa spec sem critérios. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R1] O quadrado mostra vazio com nenhum marcado, traço com parcial e marcado com todos, e expõe o estado misto à acessibilidade. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R2] Acionar o controle abre a confirmação com a contagem de elegíveis e a de critérios que ficam de fora; confirmar marca só os elegíveis como `humano`; cancelar não altera nada. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R2] Um critério `- [x]` no arquivo da spec, sem marca no banco, não é elegível, nem aguardando, nem `mine`. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
-- [ ] [R2] `batchPlan` separa elegíveis (sem marca e sem `verificar:`), aguardando (sem marca e com `verificar:`) e as marcas do usuário; critérios marcados no arquivo da spec não entram em nenhum grupo. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
-- [ ] [R2] `setCriteria` é tudo ou nada: com uma `QueryExecutor` de teste que falha na segunda inserção, a primeira é revertida e nenhum critério muda. verificar: `flutter test test/data/repos_test.dart`
-- [ ] [R2] `setCriteria` relê as marcas dentro da transação: um critério que o gate marcou depois de aberto o diálogo não é sobrescrito, e o N devolvido é o efetivo (0 mostra "nada mudou"). verificar: `flutter test test/data/repos_test.dart`
-- [ ] [R4] `uncheckHumanOnly` lê e escreve na mesma transação e só desmarca linhas `humano`. verificar: `flutter test test/data/repos_test.dart`
-- [ ] [R3] Um critério com `[Rn]` e `verificar:` ainda sem marca aparece como "aguarda a verificação"; um critério com `verificar:` e sem `[Rn]` aparece como "sem etapa: o gate não o marca"; nenhum dos dois entra no lote e os dois podem ser marcados individualmente. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R3] Um critério com `verificar:` e sem `[Rn]` não é marcado pelo gate nem com o relatório da verificação ok, e continua fora do lote. verificar: `flutter test test/features/board/spec_runner_test.dart` (a criar o caso)
-- [ ] [R3] Um critério com `verificar:` ainda sem marca não entra no lote. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R4] Depois do lote aparece "N critérios marcados por você" com "Desfazer"; desfazer desmarca só o lote e só o que ainda é `humano` (uma marca que o gate refez fica); o resumo e o botão de merge mudam em cada passo. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R4] Marcar ou desmarcar um critério individualmente descarta o "Desfazer" do lote. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R5] Sem elegíveis e com marcas do usuário, o controle vira "Desmarcar os meus (N)" e remove só as marcas `humano`; as marcas `gate` e `revisor` permanecem. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R5] Cada linha da tabela de modos produz o rótulo e o estado (habilitado ou não) descritos, e com elegíveis e marcas do usuário ao mesmo tempo o controle marca e não desmarca. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
-- [ ] [R5] Sem nada a marcar nem a desmarcar, o controle fica desabilitado e mostra o motivo. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R6] O controle é alcançável pelo teclado, mostra a decoração de foco quando `hasFocus` e é acionado por Espaço; fica desabilitado com a sessão mergeada ou com o revisor automático trabalhando. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R4] O aviso com "Desfazer" some após 8 segundos e a lista guardada é descartada; "Desfazer" depois disso não faz nada. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
-- [ ] [R4] Com todos os critérios marcados pelo lote, `ReviewService.merge` não exige motivo (nenhuma regra de merge muda). verificar: `flutter test test/features/review/review_service_test.dart`
-- [ ] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
+- [x] [R1] O painel mostra o controle "Marcar todos" no cabeçalho dos critérios, com o texto "(E elegíveis · B aguardam a verificação)", e nenhum controle numa spec sem critérios. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R1] O quadrado mostra vazio com nenhum marcado, traço com parcial e marcado com todos, e expõe o estado misto à acessibilidade. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R2] Acionar o controle abre a confirmação com a contagem de elegíveis e a de critérios que ficam de fora; confirmar marca só os elegíveis como `humano`; cancelar não altera nada. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R2] Um critério `- [x]` no arquivo da spec, sem marca no banco, não é elegível, nem aguardando, nem `mine`. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
+- [x] [R2] `batchPlan` separa elegíveis (sem marca e sem `verificar:`), aguardando (sem marca e com `verificar:`) e as marcas do usuário; critérios marcados no arquivo da spec não entram em nenhum grupo. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
+- [x] [R2] `setCriteria` é tudo ou nada: com uma `QueryExecutor` de teste que falha na segunda inserção, a primeira é revertida e nenhum critério muda. verificar: `flutter test test/data/repos_test.dart`
+- [x] [R2] `setCriteria` relê as marcas dentro da transação: um critério que o gate marcou depois de aberto o diálogo não é sobrescrito, e o N devolvido é o efetivo (0 mostra "nada mudou"). verificar: `flutter test test/data/repos_test.dart`
+- [x] [R4] `uncheckHumanOnly` lê e escreve na mesma transação e só desmarca linhas `humano`. verificar: `flutter test test/data/repos_test.dart`
+- [x] [R3] Um critério com `[Rn]` e `verificar:` ainda sem marca aparece como "aguarda a verificação"; um critério com `verificar:` e sem `[Rn]` aparece como "sem etapa: o gate não o marca"; nenhum dos dois entra no lote e os dois podem ser marcados individualmente. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R3] Um critério com `verificar:` e sem `[Rn]` não é marcado pelo gate nem com o relatório da verificação ok, e continua fora do lote. verificar: `flutter test test/features/board/spec_runner_test.dart` (a criar o caso)
+- [x] [R3] Um critério com `verificar:` ainda sem marca não entra no lote. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R4] Depois do lote aparece "N critérios marcados por você" com "Desfazer"; desfazer desmarca só o lote e só o que ainda é `humano` (uma marca que o gate refez fica); o resumo e o botão de merge mudam em cada passo. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R4] Marcar ou desmarcar um critério individualmente descarta o "Desfazer" do lote. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R5] Sem elegíveis e com marcas do usuário, o controle vira "Desmarcar os meus (N)" e remove só as marcas `humano`; as marcas `gate` e `revisor` permanecem. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R5] Cada linha da tabela de modos produz o rótulo e o estado (habilitado ou não) descritos, e com elegíveis e marcas do usuário ao mesmo tempo o controle marca e não desmarca. verificar: `flutter test test/features/review/batch_plan_test.dart` (a criar)
+- [x] [R5] Sem nada a marcar nem a desmarcar, o controle fica desabilitado e mostra o motivo. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R6] O controle é alcançável pelo teclado, mostra a decoração de foco quando `hasFocus` e é acionado por Espaço; fica desabilitado com a sessão mergeada ou com o revisor automático trabalhando. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R4] O aviso com "Desfazer" some após 8 segundos e a lista guardada é descartada; "Desfazer" depois disso não faz nada. verificar: `flutter test test/features/review/spec_review_panel_test.dart`
+- [x] [R4] Com todos os critérios marcados pelo lote, `ReviewService.merge` não exige motivo (nenhuma regra de merge muda). verificar: `flutter test test/features/review/review_service_test.dart`
+- [x] [R1–R6] O código novo passa na análise estática e a suíte existente continua passando. verificar: `flutter analyze && flutter test`
 - [ ] [R1–R5] Numa spec real com critérios marcados pelo gate, pelo revisor e por você, marcar em lote, desfazer e desmarcar se comportam como no mockup. verificar: manual (`flutter run -d linux`, Review de uma spec com critérios, conferir contra `docs/mockups/Review-Criterios.dc.html`)
 
 ## Ordem de implementação

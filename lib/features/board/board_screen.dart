@@ -16,15 +16,18 @@ import '../sessions/widgets/session_style.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'autopilot.dart';
 import 'board_rules.dart';
-import 'spec_runner.dart' show specRunnerProvider, worktreePrepProvider;
+import 'spec_runner.dart'
+    show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
+import 'widgets/gate_fix_badge.dart';
 import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
+import 'widgets/step_live_dialog.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
@@ -1116,8 +1119,12 @@ class SpecCard extends ConsumerWidget {
       );
     }
 
+    final gate = ref.watch(
+      gateRunningProvider.select((g) => g.contains(spec.id)),
+    );
     final canRun =
         !busy &&
+        !gate &&
         !blocked &&
         total > 0 &&
         done < total &&
@@ -1170,6 +1177,8 @@ class SpecCard extends ConsumerWidget {
                   const SizedBox(width: 6),
                   _Chip(spec.phase!),
                 ],
+                const SizedBox(width: 6),
+                GateFixBadge(data: data, compact: true),
                 const Spacer(),
                 if (data.cost > 0)
                   Text(
@@ -1202,6 +1211,8 @@ class SpecCard extends ConsumerWidget {
               total: total,
               specCode: spec.code,
               steps: data.steps,
+              onStep: (s) =>
+                  showStepLiveDialog(context, spec: spec, step: s.id),
             ),
             Builder(
               builder: (context) {
@@ -1305,8 +1316,12 @@ class BoardSpecAction extends ConsumerWidget {
             .where((d) => d.specId == spec.id)
             .firstOrNull;
     final (done, total) = progressOf(data.steps);
+    final gate = ref.watch(
+      gateRunningProvider.select((g) => g.contains(spec.id)),
+    );
     final canRun =
         !busy &&
+        !gate &&
         data.blockers.isEmpty &&
         total > 0 &&
         done < total &&
@@ -1470,12 +1485,16 @@ class _Progress extends StatelessWidget {
     required this.total,
     required this.specCode,
     required this.steps,
+    this.onStep,
   });
 
   final int done;
   final int total;
   final String specCode;
   final List<StepView> steps;
+
+  /// Tap on a segment (opens the step followed live).
+  final void Function(StepView step)? onStep;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1495,12 +1514,27 @@ class _Progress extends StatelessWidget {
                 children: [
                   for (final (i, s) in steps.indexed)
                     Expanded(
-                      child: Container(
-                        height: 5,
-                        margin: EdgeInsets.only(left: i == 0 ? 0 : 3),
-                        decoration: BoxDecoration(
-                          color: stepSegmentColor(s),
-                          borderRadius: BorderRadius.circular(3),
+                      child: Tooltip(
+                        message: '${s.id} · ${stepStatusLabel(s.status)}',
+                        child: InkWell(
+                          key: ValueKey('board-step-$specCode-${s.id}'),
+                          onTap: onStep == null ? null : () => onStep!(s),
+                          child: Padding(
+                            // Taller than the 5 px bar, so it is easy to hit.
+                            padding: EdgeInsets.fromLTRB(
+                              i == 0 ? 0 : 3,
+                              4,
+                              0,
+                              4,
+                            ),
+                            child: Container(
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: stepSegmentColor(s),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),

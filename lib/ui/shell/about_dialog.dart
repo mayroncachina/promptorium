@@ -266,7 +266,7 @@ class _DownloadDialogState extends ConsumerState<_DownloadDialog> {
     try {
       final asset = pickAsset(
         widget.update.assets,
-        preferDeb: await installer.hasPkexec(),
+        preferDeb: await installer.prefersDeb(),
       );
       if (asset == null) {
         throw const FileSystemException(
