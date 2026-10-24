@@ -50,7 +50,10 @@ void main() {
     final at = DateTime(2026, 10, 24, 10, 41);
     final i = PrototypeIndex(
       screens: {
-        'R1-lista.html': ScreenMeta(description: 'busca e filtros', createdAt: at),
+        'R1-lista.html': ScreenMeta(
+          description: 'busca e filtros',
+          createdAt: at,
+        ),
       },
       history: [
         PrototypeRequest(
@@ -71,24 +74,25 @@ void main() {
 
   test('R9: approving writes "## Protótipo", another variation of the same '
       'requirement replaces the line, the status does not change', () {
-    final once = SpecDocument.parse(
-      spec,
-    ).withPrototype('R1', 'docs/mockups/spec-022/R1-lista.html');
+    final once = SpecDocument.parse(spec)
+        .withPrototype('R1', 'docs/mockups/spec-022/R1-lista.html');
     expect(
       once,
       contains('## Protótipo\n\n- R1 → docs/mockups/spec-022/R1-lista.html\n'),
     );
     // After "## Etapas", before the criteria.
-    expect(once.indexOf('## Protótipo'), greaterThan(once.indexOf('## Etapas')));
+    expect(
+      once.indexOf('## Protótipo'),
+      greaterThan(once.indexOf('## Etapas')),
+    );
     expect(
       once.indexOf('## Protótipo'),
       lessThan(once.indexOf('## Critérios')),
     );
     final twice = SpecDocument.parse(once)
         .withPrototype('R2', 'docs/mockups/spec-022/R2-detalhe.html');
-    final replaced = SpecDocument.parse(
-      twice,
-    ).withPrototype('R1', 'docs/mockups/spec-022/R1-lista.b.html');
+    final replaced = SpecDocument.parse(twice)
+        .withPrototype('R1', 'docs/mockups/spec-022/R1-lista.b.html');
     final doc = SpecDocument.parse(replaced);
     expect(doc.prototypes, {
       'R1': 'docs/mockups/spec-022/R1-lista.b.html',
