@@ -93,6 +93,12 @@ final boardSelectedSpecProvider = NotifierProvider<BoardSelectedSpec, int?>(
   BoardSelectedSpec.new,
 );
 
+/// Card to scroll into view once the Quadro builds it ("Voltar à spec",
+/// SPEC-021 R4); cleared by the card.
+final boardFocusSpecProvider = NotifierProvider<BoardSelectedSpec, int?>(
+  BoardSelectedSpec.new,
+);
+
 /// Filters of the Quadro (UX v2, U8): only cards that need the user, one
 /// phase, one agent (null = any).
 @immutable
@@ -1101,6 +1107,17 @@ class SpecCard extends ConsumerWidget {
         done < total &&
         spec.stage != SpecStage.done;
     final selected = ref.watch(boardSelectedSpecProvider) == spec.id;
+    if (ref.watch(boardFocusSpecProvider) == spec.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ref.read(boardFocusSpecProvider.notifier).select(null);
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 200),
+        );
+      });
+    }
     return InkWell(
       key: ValueKey('board-open-${spec.code}'),
       borderRadius: BorderRadius.circular(8),

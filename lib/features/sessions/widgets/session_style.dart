@@ -91,10 +91,18 @@ class SmallButton extends StatelessWidget {
     this.height = 30,
     this.fontSize = 12,
     this.expand = false,
+    this.semanticLabel,
+    this.focusColor,
   });
 
   final String label;
   final VoidCallback? onTap;
+
+  /// Accessible label (SPEC-021 R11); null keeps the visible [label].
+  final String? semanticLabel;
+
+  /// Highlight while focused by keyboard (null = theme default).
+  final Color? focusColor;
   final Color color;
   final Color border;
   final Color background;
@@ -106,7 +114,13 @@ class SmallButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(6);
     final enabled = onTap != null;
-    return Opacity(
+    final text = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: fontSize, color: color),
+    );
+    final button = Opacity(
       opacity: enabled ? 1 : 0.5,
       child: Material(
         color: background,
@@ -117,19 +131,24 @@ class SmallButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
+          focusColor: focusColor,
           child: Container(
             height: height,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             alignment: Alignment.center,
             width: expand ? double.infinity : null,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: fontSize, color: color),
-            ),
+            child: semanticLabel == null ? text : ExcludeSemantics(child: text),
           ),
         ),
+      ),
+    );
+    if (semanticLabel == null) return button;
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        label: semanticLabel,
+        child: button,
       ),
     );
   }
