@@ -302,6 +302,75 @@ id: SPEC-009
     expect(p, contains('não rode a suíte completa (`flutter test`): o gate'));
   });
 
+  test('SPEC-022 R10: the step prompt cites the approved screen of its '
+      'requirement only', () {
+    const text = '''---
+id: SPEC-009
+status: aprovada
+---
+
+# Telas
+
+## Requisitos
+
+- R1 · Lista
+- R2 · Sem tela
+
+## Protótipo
+
+- R1 → docs/mockups/spec-009/R1-lista.b.html
+''';
+    final spec = Spec(
+      id: 1,
+      workspaceId: 1,
+      code: 'SPEC-009',
+      title: 'Telas',
+      path: 'specs/SPEC-009.md',
+      status: SpecStatus.approved,
+      stage: SpecStage.backlog,
+      requirements: const [],
+      dependsOn: const [],
+      autoAdvance: true,
+      reviewRounds: 0,
+      gateResends: 0,
+      rejectedHunks: 0,
+    );
+    const steps = [
+      StepView(id: 'R1', text: 'Lista'),
+      StepView(id: 'R2', text: 'Sem tela'),
+    ];
+    String prompt(String step) =>
+        specStepPrompt(spec: spec, specText: text, steps: steps, todo: [step]);
+    expect(prototypeReferences(text, ['R1']), [
+      'R1: docs/mockups/spec-009/R1-lista.b.html',
+    ]);
+    expect(prompt('R1'), contains('Telas aprovadas no protótipo'));
+    expect(
+      prompt('R1'),
+      contains('- R1: docs/mockups/spec-009/R1-lista.b.html'),
+    );
+    // The "## Protótipo" section of the spec text itself is not a reference.
+    expect(prompt('R2'), isNot(contains('Telas aprovadas no protótipo')));
+    expect(
+      specContinuePrompt(
+        spec: spec,
+        specText: text,
+        steps: steps,
+        todo: ['R1'],
+      ),
+      contains('- R1: docs/mockups/spec-009/R1-lista.b.html'),
+    );
+    expect(
+      specContinuePrompt(
+        spec: spec,
+        specText: text,
+        steps: steps,
+        todo: ['R2'],
+      ),
+      isNot(contains('Telas aprovadas')),
+    );
+  });
+
   group('SpecRunner (temporary repo, fake CLI)', () {
     late Directory tmp;
     late String repo;

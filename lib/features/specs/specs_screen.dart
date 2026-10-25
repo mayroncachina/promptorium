@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
+import '../../ui/shell/editor_zoom.dart';
 import '../../ui/widgets/zoom_control.dart';
 import '../prompt/conversation_manager.dart';
 import '../prompt/refine_origin.dart';
@@ -18,6 +19,9 @@ import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
+import 'prototype/prototype_files.dart';
+import 'prototype/prototype_service.dart';
+import 'prototype/prototype_view.dart';
 import 'spec_lint.dart';
 import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
@@ -32,11 +36,13 @@ import '../board/board_rules.dart'
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
 
-/// Editor modes of the mockup (Editar / Dividido / Visualizar).
+/// Editor modes of the mockup (Editar / Dividido / Visualizar) and the
+/// prototype of the screens (SPEC-022 R1).
 enum SpecViewMode {
   edit('Editar'),
   split('Dividido'),
-  preview('Visualizar');
+  preview('Visualizar'),
+  prototype('Protótipo');
 
   const SpecViewMode(this.label);
 
@@ -647,6 +653,79 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
+  // --- protótipo (SPEC-022) -------------------------------------------------------
+
+  PrototypeKey _protoKey(Workspace ws, Spec spec) =>
+      (root: ws.path, code: spec.code);
+
+  /// "Gerar telas da spec" (R2).
+  Future<void> _generateScreens(Workspace ws, Spec spec) async {
+    final c = _controller;
+    if (c == null) return;
+    _snack('Gerando as telas de ${spec.code}…');
+    try {
+      final r = await ref
+          .read(prototypeServiceProvider)
+          .generate(ws, spec, c.text);
+      _snack(_outcomeText(r, 'Nenhuma tela nova.'));
+    } catch (e) {
+      _snack('Falha ao gerar as telas: $e');
+    }
+  }
+
+  /// "Enviar" of "Pedir ao Claude" (R7).
+  Future<bool> _sendRequest(Workspace ws, Spec spec, String request) async {
+    final c = _controller;
+    if (c == null) return false;
+    final s = ref.read(prototypeScreensProvider(_protoKey(ws, spec)));
+    final ui = ref.read(prototypeUiProvider(spec.id));
+    final selected = [
+      for (final x in s.screens)
+        if (ui.selected.contains(x.file)) x,
+    ];
+    try {
+      final run = ref
+          .read(prototypeServiceProvider)
+          .vary(ws, spec, c.text, selected: selected, request: request);
+      final r = await run;
+      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      return true;
+    } catch (e) {
+      _snack('Falha no pedido: $e');
+      return false;
+    }
+  }
+
+  String _outcomeText(PrototypeOutcome r, String none) => [
+    r.created.isEmpty ? none : 'Criadas: ${r.created.join(', ')}.',
+    if (r.restored.isNotEmpty)
+      'Restauradas (o agente alterou): ${r.restored.join(', ')}.',
+  ].join(' ');
+
+  /// "Aprovar e anexar à spec" (R9): `## Protótipo` gets the line of the
+  /// requirement; the status does not change.
+  Future<void> _approveScreen(Workspace ws, Spec spec, MockupScreen x) async {
+    final c = _controller;
+    if (c == null) return;
+    final path = '${mockupDir(spec.code)}/${x.file}';
+    try {
+      final disk = await ref.read(specServiceProvider).read(ws, spec) ?? _saved;
+      final next = SpecDocument.parse(disk).withPrototype(x.requirement, path);
+      await ref.read(specServiceProvider).save(ws, spec, next);
+      if (!mounted) return;
+      final dirty = _dirty;
+      _saved = next;
+      c.text = dirty
+          ? SpecDocument.parse(c.text).withPrototype(x.requirement, path)
+          : next;
+      ref.read(specDirtyProvider.notifier).set(_dirty);
+      setState(() {});
+      _snack('${x.requirement} → $path anexada à spec.');
+    } catch (e) {
+      _snack('Falha ao aprovar a tela: $e');
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
@@ -707,6 +786,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // Started specs are a record of what was delivered: changes go to a
     // clone ("Clonar para alterar").
     final locked = spec != null && spec.stage != SpecStage.backlog;
+    final proto = _mode == SpecViewMode.prototype && spec != null;
+    final protoState = proto
+        ? ref.watch(prototypeScreensProvider(_protoKey(ws, spec)))
+        : null;
+    final protoUi = proto ? ref.watch(prototypeUiProvider(spec.id)) : null;
+    final protoBusy =
+        proto && ref.watch(prototypeJobsProvider).containsKey(spec.id);
+    final approvedScreens = doc.prototypes;
+    final compareReq = proto ? compareTarget(protoState!, protoUi!) : null;
 
     final content = LayoutBuilder(
       builder: (context, c) {
@@ -774,6 +862,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                       ? () => _approve(ws, spec)
                       : null,
                   approved: doc.status == SpecStatus.approved,
+                  prototype: proto,
+                  onCompare: proto && compareReq != null
+                      ? () => ref
+                            .read(prototypeUiProvider(spec.id).notifier)
+                            .compare(
+                              compareReq,
+                              chosen: protoState!.screens
+                                  .where(
+                                    (x) =>
+                                        x.requirement == compareReq &&
+                                        protoUi!.selected.contains(x.file),
+                                  )
+                                  .firstOrNull
+                                  ?.file,
+                            )
+                      : null,
+                  onGenerate: proto && ready && !protoBusy
+                      ? () => _generateScreens(ws, spec)
+                      : null,
                 ),
                 body: spec == null
                     ? const Center(
@@ -789,6 +896,26 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                     ? const Center(
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
+                    : proto
+                    ? (protoUi!.comparing != null &&
+                              protoState!
+                                  .variationsOf(protoUi.comparing!)
+                                  .isNotEmpty
+                          ? PrototypeCompare(
+                              ws: ws,
+                              spec: spec,
+                              approved: approvedScreens,
+                              onApprove: locked
+                                  ? null
+                                  : (x) => _approveScreen(ws, spec, x),
+                              onViewSpec: () {
+                                ref
+                                    .read(prototypeUiProvider(spec.id).notifier)
+                                    .compare(null);
+                                setState(() => _mode = SpecViewMode.preview);
+                              },
+                            )
+                          : PrototypeCanvas(ws: ws, spec: spec))
                     : CallbackShortcuts(
                         bindings: {
                           const SingleActivator(
@@ -823,6 +950,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               width: sideW,
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
+                  : proto
+                  ? PrototypePanel(
+                      ws: ws,
+                      spec: spec,
+                      approved: approvedScreens,
+                      onSend: ready
+                          ? (request) => _sendRequest(ws, spec, request)
+                          : null,
+                    )
                   : Container(
                       padding: const EdgeInsets.all(16),
                       decoration: const BoxDecoration(
@@ -944,7 +1080,16 @@ class _Header extends StatelessWidget {
     this.onArchive,
     this.onDelete,
     this.archiveLabel = 'Arquivar',
+    this.prototype = false,
+    this.onCompare,
+    this.onGenerate,
   });
+
+  /// Protótipo mode: "Comparar variações" / "Gerar telas da spec" replace
+  /// the editor actions (SPEC-022 R1).
+  final bool prototype;
+  final VoidCallback? onCompare;
+  final VoidCallback? onGenerate;
 
   final String? path;
   final String title;
@@ -1004,79 +1149,99 @@ class _Header extends StatelessWidget {
       ],
     );
     final hasActions =
+        prototype ||
         onSave != null ||
         onRefine != null ||
         onApprove != null ||
         locked ||
         onDelete != null;
-    final actions = <Widget>[
-      if (locked)
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-clone'),
-            label: 'Clonar para alterar',
-            color: AppColors.amber,
-            onTap: onClone,
-          ),
-        ),
-      if (locked && onArchive != null) ...[
-        const SizedBox(width: 8),
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-archive'),
-            label: archiveLabel,
-            onTap: onArchive,
-          ),
-        ),
-      ],
-      if (!locked) ...[
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-save'),
-            label: 'Salvar',
-            onTap: dirty ? onSave : null,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-refine'),
-            label: 'Refinar com IA',
-            onTap: onRefine,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-design'),
-            label: 'Gerar design',
-            onTap: onDesign,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-approve'),
-            label: approved ? 'Aprovada' : 'Aprovar spec',
-            color: AppColors.teal,
-            border: SessionColors.runningToolBorder,
-            background: SessionColors.runningToolBg,
-            onTap: onApprove,
-          ),
-        ),
-      ],
-      if (onDelete != null) ...[
-        const SizedBox(width: 8),
-        Flexible(
-          child: SmallButton(
-            key: const ValueKey('spec-delete'),
-            label: 'Excluir',
-            color: AppColors.red,
-            onTap: onDelete,
-          ),
-        ),
-      ],
-    ];
+    final actions = prototype
+        ? <Widget>[
+            Flexible(
+              child: ProtoButton(
+                key: const ValueKey('proto-compare'),
+                label: 'Comparar variações',
+                onTap: onCompare,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: ProtoButton(
+                key: const ValueKey('proto-generate'),
+                label: 'Gerar telas da spec',
+                primary: true,
+                onTap: onGenerate,
+              ),
+            ),
+          ]
+        : <Widget>[
+            if (locked)
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-clone'),
+                  label: 'Clonar para alterar',
+                  color: AppColors.amber,
+                  onTap: onClone,
+                ),
+              ),
+            if (locked && onArchive != null) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-archive'),
+                  label: archiveLabel,
+                  onTap: onArchive,
+                ),
+              ),
+            ],
+            if (!locked) ...[
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-save'),
+                  label: 'Salvar',
+                  onTap: dirty ? onSave : null,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-refine'),
+                  label: 'Refinar com IA',
+                  onTap: onRefine,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-design'),
+                  label: 'Gerar design',
+                  onTap: onDesign,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-approve'),
+                  label: approved ? 'Aprovada' : 'Aprovar spec',
+                  color: AppColors.teal,
+                  border: SessionColors.runningToolBorder,
+                  background: SessionColors.runningToolBg,
+                  onTap: onApprove,
+                ),
+              ),
+            ],
+            if (onDelete != null) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: SmallButton(
+                  key: const ValueKey('spec-delete'),
+                  label: 'Excluir',
+                  color: AppColors.red,
+                  onTap: onDelete,
+                ),
+              ),
+            ],
+          ];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
@@ -1121,7 +1286,7 @@ class _Header extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  _ModeSwitch(mode: mode!, onMode: onMode!),
+                  _ModeSwitch(mode: mode!, onMode: onMode!, compact: true),
                   if (hasActions) ...[
                     const SizedBox(width: 10),
                     Expanded(
@@ -1142,8 +1307,14 @@ class _Header extends StatelessWidget {
 }
 
 class _ModeSwitch extends StatelessWidget {
-  const _ModeSwitch({required this.mode, required this.onMode});
+  const _ModeSwitch({
+    required this.mode,
+    required this.onMode,
+    this.compact = false,
+  });
 
+  /// Narrow header (1100×700): less padding per mode.
+  final bool compact;
   final SpecViewMode mode;
   final ValueChanged<SpecViewMode> onMode;
 
@@ -1159,23 +1330,33 @@ class _ModeSwitch extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (final m in SpecViewMode.values)
-          InkWell(
-            key: ValueKey('spec-mode-${m.name}'),
-            onTap: () => onMode(m),
-            borderRadius: BorderRadius.circular(4),
-            child: Container(
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: m == mode ? AppColors.amberTint : null,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                m.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: m == mode ? AppColors.amber : AppColors.textSecondary,
+          Semantics(
+            button: true,
+            selected: m == mode,
+            label: 'Modo ${m.label}',
+            child: InkWell(
+              key: ValueKey('spec-mode-${m.name}'),
+              onTap: () => onMode(m),
+              borderRadius: BorderRadius.circular(4),
+              focusColor: AppColors.amber.withValues(alpha: .25),
+              child: Container(
+                height: 26,
+                padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: m == mode ? AppColors.amberTint : null,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: ExcludeSemantics(
+                  child: Text(
+                    m.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: m == mode
+                          ? AppColors.amber
+                          : AppColors.textSecondary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1230,10 +1411,17 @@ class _EditorBody extends StatelessWidget {
       focusNode: focusNode,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
-    final preview = SpecPreview(text: text);
+    // The same zoom as the editor ("− 100% +", Ctrl -/=): reading the
+    // rendered spec is where small text hurts most.
+    final preview = Consumer(
+      builder: (context, ref, _) => SpecPreview(
+        text: text,
+        scale: ref.watch(editorZoomProvider(SpecsScreen.editorKey)) / 100,
+      ),
+    );
     final view = switch (mode) {
       SpecViewMode.edit => editor,
-      SpecViewMode.preview => preview,
+      SpecViewMode.preview || SpecViewMode.prototype => preview,
       SpecViewMode.split => Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1291,9 +1479,12 @@ class _EditorBody extends StatelessWidget {
 
 /// Rendered spec (frontmatter shown as a status line, like the mockup).
 class SpecPreview extends StatelessWidget {
-  const SpecPreview({super.key, required this.text});
+  const SpecPreview({super.key, required this.text, this.scale = 1});
 
   final String text;
+
+  /// Text scale (editor zoom / 100).
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
@@ -1327,6 +1518,7 @@ class SpecPreview extends StatelessWidget {
         border: Border(left: BorderSide(color: AppColors.border, width: 3)),
       ),
       a: const TextStyle(color: AppColors.amber),
+      textScaler: TextScaler.linear(scale),
     );
     final status = doc.status;
     return ColoredBox(
@@ -1343,6 +1535,7 @@ class SpecPreview extends StatelessWidget {
                   if (doc.id != null) doc.id!,
                   'Status: ${status == null ? (doc.rawStatus ?? '—') : specStatusLabel(status)}',
                 ].join(' · '),
+                textScaler: TextScaler.linear(scale),
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
