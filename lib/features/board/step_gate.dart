@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../core/git/git_service.dart';
 import '../../core/process/shell_runner.dart';
 import '../project/project_config.dart';
+import 'test_count.dart';
 
 /// One item of the step gate: the commit, the clean tree or a command.
 @immutable
@@ -15,9 +16,11 @@ class GateCheck {
     this.output = '',
     this.duration = Duration.zero,
     this.command,
+    this.count,
   });
 
-  /// `commit`, `arvore`, `testes`, `lint`, `build` or `verificar` (criteria).
+  /// `commit`, `arvore`, `testes`, `contagem` (SPEC-023 R2), `lint`, `build`
+  /// or `verificar` (criteria).
   final String name;
   final bool ok;
   final String output;
@@ -26,11 +29,24 @@ class GateCheck {
   /// Shell command, for the command checks.
   final String? command;
 
+  /// Passed / skipped tests of the `testes` check (null = no summary).
+  final TestCount? count;
+
   String get label => switch (name) {
     'commit' => 'commit',
     'arvore' => 'árvore limpa',
+    'contagem' => 'contagem de testes',
     _ => name,
   };
+
+  GateCheck copyWith({bool? ok, String? output}) => GateCheck(
+    name: name,
+    ok: ok ?? this.ok,
+    output: output ?? this.output,
+    duration: duration,
+    command: command,
+    count: count,
+  );
 
   Map<String, Object?> toJson() => {
     'nome': name,
@@ -38,6 +54,7 @@ class GateCheck {
     'saida': output,
     'ms': duration.inMilliseconds,
     if (command != null) 'comando': command,
+    if (count != null) 'contagem': count!.toJson(),
   };
 
   static GateCheck fromJson(Map<String, Object?> j) => GateCheck(
@@ -46,6 +63,7 @@ class GateCheck {
     output: '${j['saida'] ?? ''}',
     duration: Duration(milliseconds: (j['ms'] as num?)?.toInt() ?? 0),
     command: j['comando'] as String?,
+    count: TestCount.fromJson(j['contagem']),
   );
 }
 
@@ -70,6 +88,15 @@ class GateReport {
   /// The only problem is uncommitted files ("Commitar o que sobrou").
   bool get onlyDirtyTree =>
       failures.isNotEmpty && failures.every((c) => c.name == 'arvore');
+
+  /// The only problem is fewer tests than before ("Aceitar a redução",
+  /// SPEC-023 R3).
+  bool get onlyTestCount =>
+      failures.isNotEmpty && failures.every((c) => c.name == 'contagem');
+
+  /// Count of the `testes` check (null = not run or no summary).
+  TestCount? get testCount =>
+      checks.where((c) => c.name == 'testes').firstOrNull?.count;
 
   /// `testes, lint` / `ok`.
   String get summary => ok ? 'ok' : failures.map((c) => c.label).join(', ');
@@ -138,6 +165,9 @@ String gateRetryMessage(GateReport report, List<String> steps) {
 /// agent: commit of the step since [run]'s `startSha`, clean tree, then the
 /// project's `testes:` / `lint:` / `build:` and the criteria's `verificar:`.
 /// Commands stop at the first failure (the rest would only add noise).
+/// With `contar-testes` on, the count of `testes:` is compared with
+/// [run]'s `baseline` (SPEC-023 R2): a drop fails the `contagem` item, but
+/// the other commands still run, so accepting the drop accepts nothing else.
 class StepGate {
   StepGate({required this.git, required this.shell});
 
@@ -152,6 +182,7 @@ class StepGate {
     List<String> extraCommands = const [],
     Map<String, String>? environment,
     int attempt = 0,
+    TestCount? baseline,
   }) async {
     final gate = config.gate;
     final checks = <GateCheck>[];
@@ -172,6 +203,8 @@ class StepGate {
         timeout: gate.timeout,
         environment: environment,
       );
+      // The summary is parsed before the output is cut to its tail.
+      final count = name == 'testes' && r.ok ? parseTestCount(r.output) : null;
       checks.add(
         GateCheck(
           name: name,
@@ -179,11 +212,47 @@ class StepGate {
           output: r.ok ? tailLines(r.output, 20) : r.output,
           duration: r.duration,
           command: cmd,
+          count: count,
         ),
       );
       if (!r.ok) break;
+      if (name == 'testes' && gate.countTests) {
+        checks.add(countCheck(baseline, count, cmd));
+      }
     }
     return GateReport(checks: checks, at: DateTime.now(), attempt: attempt);
+  }
+
+  /// `contagem` item: [after] against [before] (SPEC-023 R2); without one
+  /// of them it passes, saying why it was not compared (R4).
+  static GateCheck countCheck(
+    TestCount? before,
+    TestCount? after,
+    String command,
+  ) {
+    if (after == null) {
+      return GateCheck(
+        name: 'contagem',
+        ok: true,
+        output:
+            'contagem não conferida: a saída de `$command` não tem um '
+            'resumo reconhecido.',
+      );
+    }
+    if (before == null) {
+      return GateCheck(
+        name: 'contagem',
+        ok: true,
+        output:
+            'contagem não conferida: a spec não tem gate aprovado anterior '
+            'com contagem (agora: $after).',
+      );
+    }
+    return GateCheck(
+      name: 'contagem',
+      ok: !after.droppedFrom(before),
+      output: 'antes: $before · depois: $after',
+    );
   }
 
   Future<GateCheck> _commit(

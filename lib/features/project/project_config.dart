@@ -26,6 +26,7 @@ import '../specs/spec_file.dart';
 ///   timeout: 600
 ///   exigir-commit: true
 ///   exigir-arvore-limpa: true
+///   contar-testes: sim       # fewer / more skipped tests fail the gate
 /// bloquear-comandos:         # Bash commands refused by the managed hook
 ///   - "git push --force*"
 /// worktree:
@@ -51,6 +52,7 @@ class VerificationConfig {
     this.timeoutSeconds = 600,
     this.requireCommit = true,
     this.requireCleanTree = true,
+    this.countTests = true,
   });
 
   /// Automatic resends to the agent before asking the user.
@@ -60,6 +62,10 @@ class VerificationConfig {
   final int timeoutSeconds;
   final bool requireCommit;
   final bool requireCleanTree;
+
+  /// `contar-testes`: the gate compares the count of `testes:` with the
+  /// spec's last approved gate (SPEC-023 R2, R5).
+  final bool countTests;
 
   bool get isDefault => this == const VerificationConfig();
 
@@ -71,11 +77,17 @@ class VerificationConfig {
       other.attempts == attempts &&
       other.timeoutSeconds == timeoutSeconds &&
       other.requireCommit == requireCommit &&
-      other.requireCleanTree == requireCleanTree;
+      other.requireCleanTree == requireCleanTree &&
+      other.countTests == countTests;
 
   @override
-  int get hashCode =>
-      Object.hash(attempts, timeoutSeconds, requireCommit, requireCleanTree);
+  int get hashCode => Object.hash(
+    attempts,
+    timeoutSeconds,
+    requireCommit,
+    requireCleanTree,
+    countTests,
+  );
 }
 
 /// `worktree:` of the config: what a new worktree needs to run.
@@ -376,6 +388,7 @@ class ProjectConfig {
               requireCommit: boolean(v['exigir-commit']) ?? dv.requireCommit,
               requireCleanTree:
                   boolean(v['exigir-arvore-limpa']) ?? dv.requireCleanTree,
+              countTests: boolean(v['contar-testes']) ?? dv.countTests,
             )
           : null,
       blockedCommands: strings(root['bloquear-comandos']),
@@ -435,6 +448,7 @@ class ProjectConfig {
         ..writeln('  timeout: ${v.timeoutSeconds}')
         ..writeln('  exigir-commit: ${v.requireCommit}')
         ..writeln('  exigir-arvore-limpa: ${v.requireCleanTree}');
+      if (!v.countTests) b.writeln('  contar-testes: nao');
     }
     if (blockedCommands.isNotEmpty) {
       b.writeln('bloquear-comandos:');

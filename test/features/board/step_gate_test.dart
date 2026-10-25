@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/process/shell_runner.dart';
 import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/board/test_count.dart';
 import 'package:promptorium/features/project/project_config.dart';
 
 import '../../core/git/git_test_utils.dart';
@@ -28,12 +29,28 @@ void main() {
     List<String> steps = const ['R2'],
     String? from,
     bool noStart = false,
+    TestCount? baseline,
   }) => StepGate(git: git, shell: runShell).run(
     specCode: 'SPEC-003',
     steps: steps,
     startSha: noStart ? null : (from ?? start),
     config: config,
+    baseline: baseline,
   );
+
+  /// `testes:` that prints [output] (a file, so quotes need no escaping).
+  ProjectConfig printing(String output, {String? lint, bool count = true}) {
+    final f = File('${tmp.path}/saida-${output.hashCode}.txt')
+      ..writeAsStringSync(output);
+    return ProjectConfig(
+      testCommand: 'cat ${f.path}',
+      lintCommand: lint,
+      verification: VerificationConfig(countTests: count),
+    );
+  }
+
+  GateCheck check(GateReport r, String name) =>
+      r.checks.firstWhere((c) => c.name == name);
 
   Future<void> commit(String file, String message) async {
     File('$repo/$file').writeAsStringSync('x\n');
@@ -46,7 +63,12 @@ void main() {
     expect(r.ok, isFalse);
     expect(r.failures.single.name, 'commit');
     expect(r.failures.single.output, contains('Nenhum commit'));
-    expect(r.checks.map((c) => c.name), ['commit', 'arvore', 'testes']);
+    expect(r.checks.map((c) => c.name), [
+      'commit',
+      'arvore',
+      'testes',
+      'contagem',
+    ]);
   });
 
   test('commit with another prefix / step does not count', () async {
@@ -66,7 +88,13 @@ void main() {
       steps: ['R2', 'R3'],
     );
     expect(r.ok, isTrue, reason: r.summary);
-    expect(r.checks.map((c) => c.name), ['commit', 'arvore', 'testes', 'lint']);
+    expect(r.checks.map((c) => c.name), [
+      'commit',
+      'arvore',
+      'testes',
+      'contagem',
+      'lint',
+    ]);
     expect(r.checks[2].output, contains('3 testes ok'));
     final back = GateReport.decode(r.encode())!;
     expect(back.ok, isTrue);
@@ -74,8 +102,113 @@ void main() {
       null,
       null,
       'echo 3 testes ok',
+      null,
       'true',
     ]);
+  });
+
+  group('test count (SPEC-023)', () {
+    // A long run: the summary is past the 20 lines the report keeps.
+    final flutterRun = [
+      for (var i = 1; i <= 40; i++)
+        '00:${i.toString().padLeft(2, '0')} +$i: t$i',
+      '00:45 +9: All tests passed!',
+    ].join('\n');
+
+    test('R1: the count of the testes check is parsed from the whole output '
+        'and survives encode / decode', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      final r = await gate(printing(flutterRun));
+      expect(r.ok, isTrue, reason: r.summary);
+      final t = check(r, 'testes');
+      expect(t.output, startsWith('…'));
+      expect(t.count, const TestCount(passed: 9));
+      final back = GateReport.decode(r.encode())!;
+      expect(back.testCount, const TestCount(passed: 9));
+      expect(check(back, 'contagem').label, 'contagem de testes');
+    });
+
+    test('R2: fewer passing than the baseline fails "contagem de testes" '
+        'with before and after; the next commands still run', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      final r = await gate(
+        printing(flutterRun, lint: 'echo lint ok'),
+        baseline: const TestCount(passed: 10),
+      );
+      expect(r.ok, isFalse);
+      expect(r.summary, 'contagem de testes');
+      expect(r.onlyTestCount, isTrue);
+      expect(
+        r.failures.single.output,
+        'antes: 10 passaram, 0 pulados · depois: 9 passaram, 0 pulados',
+      );
+      expect(r.checks.last.name, 'lint');
+      expect(r.checks.last.ok, isTrue);
+      expect(gateRetryMessage(r, ['R2']), contains('antes: 10 passaram'));
+    });
+
+    test('R2: one more skipped than the baseline fails; same or more passing '
+        'passes', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      const pytest = '==== 12 passed, 1 skipped in 0.30s ====';
+      final skipped = await gate(
+        printing(pytest),
+        baseline: const TestCount(passed: 12),
+      );
+      expect(skipped.onlyTestCount, isTrue);
+      expect(
+        skipped.failures.single.output,
+        contains('depois: 12 passaram, 1 pulados'),
+      );
+      final more = await gate(
+        printing('test result: ok. 13 passed; 0 failed; 0 ignored;'),
+        baseline: const TestCount(passed: 12),
+      );
+      expect(more.ok, isTrue, reason: more.summary);
+    });
+
+    test('R3: another failure with the count → not only the count', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      final r = await gate(
+        printing(flutterRun, lint: 'echo erro; exit 1'),
+        baseline: const TestCount(passed: 10),
+      );
+      expect(r.failures.map((c) => c.name), ['contagem', 'lint']);
+      expect(r.onlyTestCount, isFalse);
+      expect(r.onlyDirtyTree, isFalse);
+    });
+
+    test('R4: no baseline, or no summary → passes, "contagem não conferida" '
+        'with the reason', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      final first = await gate(printing(flutterRun));
+      expect(first.ok, isTrue);
+      expect(
+        check(first, 'contagem').output,
+        startsWith('contagem não conferida: a spec não tem gate aprovado'),
+      );
+      expect(check(first, 'contagem').output, contains('9 passaram'));
+      final none = await gate(
+        printing('tudo certo'),
+        baseline: const TestCount(passed: 10),
+      );
+      expect(none.ok, isTrue);
+      expect(none.testCount, isNull);
+      expect(
+        check(none, 'contagem').output,
+        contains('não tem um resumo reconhecido'),
+      );
+    });
+
+    test('R5: contar-testes: nao → no count item at all', () async {
+      await commit('b.txt', 'SPEC-003 R2: feito');
+      final r = await gate(
+        printing(flutterRun, count: false),
+        baseline: const TestCount(passed: 100),
+      );
+      expect(r.ok, isTrue);
+      expect(r.checks.map((c) => c.name), ['commit', 'arvore', 'testes']);
+    });
   });
 
   test('dirty tree → only that fails (Commitar o que sobrou)', () async {

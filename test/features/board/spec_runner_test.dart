@@ -10,6 +10,7 @@ import 'package:promptorium/features/board/autopilot.dart';
 import 'package:promptorium/features/board/board_rules.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/board/test_count.dart';
 import 'package:promptorium/features/project/project_memory.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart' show AppEventTypes;
@@ -700,6 +701,131 @@ id: SPEC-009
       final log = await gitIn(wt, ['log', '--format=%s', '-1']);
       expect(log.trim(), 'SPEC-001 R2: arquivos restantes da etapa');
     });
+
+    test('test count (SPEC-023 R2, R3): the baseline is the last approved '
+        'gate of the same spec; a drop waits for the user; "Aceitar a '
+        'redução" approves it and notes it in the timeline', () async {
+      // Another spec with a bigger approved count is never the baseline.
+      File('$repo/specs/SPEC-002-outra.md')
+          .writeAsStringSync(specText.replaceFirst('SPEC-001', 'SPEC-002'));
+      await c.read(specServiceProvider).sync(ws);
+      final other = (await c
+          .read(specsRepoProvider)
+          .getByCode(ws.id, 'SPEC-002'))!;
+      final steps = c.read(specStepsRepoProvider);
+      GateReport approved(int passed, DateTime at) => GateReport(
+        at: at,
+        checks: [
+          GateCheck(
+            name: 'testes',
+            ok: true,
+            count: TestCount(passed: passed),
+          ),
+        ],
+      );
+      await steps.set(other.id, 'R1', StepStatus.done);
+      await steps.setGate(other.id, [
+        'R1',
+      ], report: approved(500, DateTime(2030)).encode());
+      final runner = c.read(specRunnerProvider);
+      expect(await runner.testBaseline(spec.id), isNull);
+      expect(await runner.testBaseline(other.id), const TestCount(passed: 500));
+
+      final out = File('${tmp.path}/saida.txt')
+        ..writeAsStringSync('00:45 +10: All tests passed!\n');
+      Directory('$repo/.promptorium').createSync();
+      File('$repo/.promptorium/config.yml').writeAsStringSync(
+        'testes: cat ${out.path}\nverificacao:\n  tentativas: 0\n',
+      );
+      await runner.runNext(spec.id);
+      await settle();
+      final wt = (await c.read(specsRepoProvider).getById(spec.id))!
+          .worktreePath!;
+      Future<void> finish(String step) async {
+        File('$wt/$step.txt').writeAsStringSync('ok');
+        await gitIn(wt, ['add', '.']);
+        await gitIn(wt, ['commit', '-q', '-m', 'SPEC-001 $step: feito']);
+        cli.last.emit(resultLine('ETAPA CONCLUÍDA: $step'));
+      }
+
+      // First gate of the spec: only records the count.
+      await finish('R1');
+      await until(() async => (await states())['R1'] == StepStatus.done);
+      final first = GateReport.decode((await stepRow('R1')).gateReport)!;
+      expect(first.testCount, const TestCount(passed: 10));
+      expect(
+        first.checks.firstWhere((x) => x.name == 'contagem').output,
+        startsWith('contagem não conferida'),
+      );
+      expect(await runner.testBaseline(spec.id), const TestCount(passed: 10));
+
+      // R2 drops a test: refused, only by the count.
+      await until(() async => (await states())['R2'] == StepStatus.running);
+      out.writeAsStringSync('00:44 +9 ~1: All tests passed!\n');
+      await finish('R2');
+      await until(() async => (await states())['R2'] == StepStatus.needsInput);
+      final refused = GateReport.decode((await stepRow('R2')).gateReport)!;
+      expect(refused.onlyTestCount, isTrue);
+      expect(
+        refused.failures.single.output,
+        'antes: 10 passaram, 0 pulados · depois: 9 passaram, 1 pulados',
+      );
+
+      final sessions = await c.read(sessionsRepoProvider).bySpec(spec.id);
+      await runner.acceptTestDrop(spec.id);
+      await until(() async => (await states())['R2'] == StepStatus.done);
+      final accepted = GateReport.decode((await stepRow('R2')).gateReport)!;
+      expect(accepted.ok, isTrue);
+      expect(
+        accepted.checks.firstWhere((x) => x.name == 'contagem').output,
+        endsWith('redução aceita'),
+      );
+      // The accepted count is the next baseline.
+      expect(
+        await runner.testBaseline(spec.id),
+        const TestCount(passed: 9, skipped: 1),
+      );
+      expect(
+        await notes(sessions.last.id),
+        contains(
+          'Contagem de testes de R2 (antes: 10 passaram, 0 pulados · '
+          'depois: 9 passaram, 1 pulados): redução aceita pelo usuário.',
+        ),
+      );
+      // Nothing waits any more.
+      await expectLater(
+        runner.acceptTestDrop(spec.id),
+        throwsA(isA<SpecRunException>()),
+      );
+    });
+
+    test(
+      '"Aceitar a redução" refuses a gate that failed for something else',
+      () async {
+        Directory('$repo/.promptorium').createSync();
+        File(
+          '$repo/.promptorium/config.yml',
+        ).writeAsStringSync('testes: "false"\nverificacao:\n  tentativas: 0\n');
+        final runner = c.read(specRunnerProvider);
+        await runner.runNext(spec.id);
+        await settle();
+        cli.last.emit(resultLine('ETAPA CONCLUÍDA: R1'));
+        await until(
+          () async => (await states())['R1'] == StepStatus.needsInput,
+        );
+        await expectLater(
+          runner.acceptTestDrop(spec.id),
+          throwsA(
+            isA<SpecRunException>().having(
+              (e) => e.message,
+              'message',
+              contains('não falhou só pela contagem'),
+            ),
+          ),
+        );
+        expect((await states())['R1'], StepStatus.needsInput);
+      },
+    );
 
     test('while the gate runs, runNext and fixGate refuse: no second '
         'session runs the step beside the gate', () async {

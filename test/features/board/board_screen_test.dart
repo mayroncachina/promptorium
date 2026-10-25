@@ -1,13 +1,14 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/spec_runner.dart'
-    show gateRunningProvider;
+    show SpecRunner, gateRunningProvider, specRunnerProvider;
 import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/sessions/session_manager.dart'
     show selectedSessionProvider;
@@ -119,6 +120,32 @@ Future<(ProviderContainer, AppDatabase)> pumpBoard(
 
 String text(WidgetTester t, String key) =>
     t.widget<Text>(find.byKey(ValueKey(key))).data!;
+
+/// Records "Aceitar a redução" instead of running it.
+class _AcceptRecorder extends SpecRunner {
+  _AcceptRecorder(super.ref);
+
+  final accepted = <int>[];
+
+  @override
+  Future<void> acceptTestDrop(int specId) async => accepted.add(specId);
+}
+
+/// Presses Tab until the focus is inside [target] (false = never reached).
+Future<bool> tabTo(WidgetTester tester, Finder target) async {
+  for (var i = 0; i < 60; i++) {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final ctx = FocusManager.instance.primaryFocus?.context;
+    if (ctx == null) continue;
+    final inside = find.descendant(
+      of: target,
+      matching: find.byWidgetPredicate((w) => identical(w, ctx.widget)),
+    );
+    if (inside.evaluate().isNotEmpty) return true;
+  }
+  return false;
+}
 
 void main() {
   test('moveInColumn saves the move against the shown neighbour, keeping '
@@ -315,6 +342,61 @@ void main() {
       findsOneWidget,
     );
     expect(db, isNotNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('only the test count failed: the details offer "Aceitar a '
+      'redução", reachable by Tab and Enter; with another failure they do not '
+      '(SPEC-023 R3, R14)', (tester) async {
+    late _AcceptRecorder runner;
+    final (c, _) = await pumpBoard(
+      tester,
+      overrides: [
+        specRunnerProvider.overrideWith((ref) => runner = _AcceptRecorder(ref)),
+      ],
+    );
+    GateReport report({bool lint = true}) => GateReport(
+      at: DateTime(2026, 10, 24, 9),
+      checks: [
+        const GateCheck(name: 'commit', ok: true),
+        const GateCheck(name: 'testes', ok: true),
+        const GateCheck(
+          name: 'contagem',
+          ok: false,
+          output:
+              'antes: 10 passaram, 0 pulados · depois: 9 passaram, 0 pulados',
+        ),
+        GateCheck(name: 'lint', ok: lint, output: lint ? '' : 'erro'),
+      ],
+    );
+    await c.read(specStepsRepoProvider).setGate(2, [
+      'R2',
+    ], report: report().encode());
+    c.read(boardSelectedSpecProvider.notifier).select(2);
+    await pumpFor(tester);
+    final accept = find.byKey(const ValueKey('steps-accept-test-drop'));
+    expect(accept, findsOneWidget);
+    expect(find.text('Aceitar a redução'), findsOneWidget);
+    expect(find.byKey(const ValueKey('steps-commit-leftovers')), findsNothing);
+    final semantics = tester.ensureSemantics();
+    expect(
+      find.bySemanticsLabel(
+        'Aceitar a redução da contagem de testes e aprovar a etapa',
+      ),
+      findsOneWidget,
+    );
+    semantics.dispose();
+    expect(await tabTo(tester, accept), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await pumpFor(tester);
+    expect(runner.accepted, [2]);
+
+    await c.read(specStepsRepoProvider).setGate(2, [
+      'R2',
+    ], report: report(lint: false).encode());
+    await pumpFor(tester);
+    expect(accept, findsNothing);
+    expect(find.byKey(const ValueKey('steps-recheck')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

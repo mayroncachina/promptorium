@@ -148,6 +148,27 @@ autopilot:
     expect(const ProjectConfig(specsDir: 'docs').isDefault, isFalse);
   });
 
+  test('contar-testes (SPEC-023 R5): on by default, "nao" turns it off and '
+      'toYaml keeps it', () {
+    expect(const ProjectConfig().gate.countTests, isTrue);
+    expect(
+      ProjectConfig.parse('verificacao:\n  tentativas: 2\n').gate.countTests,
+      isTrue,
+    );
+    final off = ProjectConfig.parse(
+      'testes: flutter test\nverificacao:\n  contar-testes: nao\n',
+    );
+    expect(off.gate.countTests, isFalse);
+    expect(off.gate.attempts, 1);
+    expect(off.toYaml(), contains('  contar-testes: nao'));
+    expect(ProjectConfig.parse(off.toYaml()), off);
+    expect(
+      const ProjectConfig(verification: VerificationConfig(attempts: 2))
+          .toYaml(),
+      isNot(contains('contar-testes')),
+    );
+  });
+
   test('save / load / remove when back to the defaults', () async {
     final tmp = Directory.systemTemp.createTempSync('promptorium-config-');
     addTearDown(() => tmp.deleteSync(recursive: true));
