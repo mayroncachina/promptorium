@@ -203,14 +203,15 @@ String? focusedSpecText(
 }
 
 /// Commands the gate adds for [steps] (F7): the `verificar:` of their lines
-/// in `## Etapas` and of the acceptance criteria tied to them.
+/// in `## Etapas` and of the acceptance criteria tied to them, without the
+/// manual checks (`verificar: manual …`), which are not shell commands.
 List<String> stepVerifyCommands(String specText, List<String> steps) {
   final doc = SpecDocument.parse(specText);
   return {
     for (final s in steps) ?doc.stepPlans[s]?.verify,
     for (final c in parseCriteria(specText))
       if (c.verify != null && c.requirements.any(steps.contains)) c.verify!,
-  }.toList();
+  }.where((c) => !c.trim().toLowerCase().startsWith('manual')).toList();
 }
 
 /// Steps listed in the **last** `ETAPA CONCLUÍDA: R1, R2` line of [text]
