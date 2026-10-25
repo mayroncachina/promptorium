@@ -121,7 +121,7 @@ Arquivos novos ficam em `lib/features/specs/prototype/`: `prototype_files.dart` 
 - [x] [R3] Com arquivos em `docs/mockups/<código>/`, o canvas mostra uma tela por arquivo rotulada pelo requisito, e a tela em geração aparece marcada. verificar: `flutter test test/features/specs`
 - [x] [R4] Criar ou alterar um HTML dispara a geração da miniatura com o comando headless esperado e o canvas passa a mostrá-la. verificar: `flutter test test/features/specs`
 - [x] [R5] Sem navegador headless, aparece o cartão com "Abrir no navegador" e o aviso só uma vez. verificar: `flutter test test/features/specs`
-- [ ] [R6] Clicar duas vezes numa tela abre o arquivo no navegador padrão (verificação manual).
+- [ ] [R6] Clicar duas vezes numa tela abre o arquivo no navegador padrão. verificar: manual (clique duplo numa miniatura no modo Protótipo)
 - [x] [R7] Enviar um pedido com R1 selecionada cria `R1-<slug>.b.html` e mantém o arquivo original. verificar: `flutter test test/features/specs`
 - [x] [R8] Com duas variações de R1, "Comparar variações" mostra as duas lado a lado. Com uma só, a ação fica desabilitada. verificar: `flutter test test/features/specs`
 - [x] [R9] Aprovar uma variação grava a linha em `## Protótipo`, aprovar outra do mesmo requisito substitui a linha e o status da spec não muda. verificar: `flutter test test/features/specs`
