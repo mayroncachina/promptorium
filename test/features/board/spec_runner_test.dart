@@ -154,6 +154,84 @@ void main() {
     });
   });
 
+  test(
+    'focused spec text carries "Fora do escopo" and "Premissas" right '
+    'after the objective; without them it does not change (SPEC-023 R13)',
+    () {
+      const base = '''---
+id: SPEC-009
+---
+
+# Focado
+
+## Objetivo
+
+Ler o schema.
+
+## Requisitos
+
+- R1 · Quando conectar, o sistema deve listar as tabelas
+
+## Fora do escopo
+
+<!-- O que esta spec não faz. -->
+
+## Design
+
+### R1 · Tabelas
+
+Em lib/a.dart.
+
+## Critérios de aceite
+
+- [ ] Lista [R1] · verificar: true
+''';
+      const steps = [StepView(id: 'R1', text: 'Listar')];
+      final plain = focusedSpecText(base, steps: steps, todo: ['R1'])!;
+      // Only the template's hint: absent, the text is as before.
+      expect(plain, isNot(contains('Fora do escopo')));
+      expect(
+        plain,
+        startsWith(
+          '# Focado\n\n## Objetivo\n\nLer o schema.\n\n'
+          '## Requisitos desta sessão\n',
+        ),
+      );
+      final full = focusedSpecText(
+        base
+            .replaceFirst(
+              '<!-- O que esta spec não faz. -->',
+              '- Índices ficam para depois.',
+            )
+            .replaceFirst(
+              '## Design',
+              '## Premissas\n\n'
+                  '- (sem resposta, aceita em 2026-10-24) Só Firebird 3?\n\n'
+                  '## Design',
+            ),
+        steps: steps,
+        todo: ['R1'],
+      )!;
+      expect(
+        full,
+        contains(
+          'Ler o schema.\n\n'
+          '## Fora do escopo\n\n- Índices ficam para depois.\n\n'
+          '## Premissas\n\n- (sem resposta, aceita em 2026-10-24) Só '
+          'Firebird 3?\n\n'
+          '## Requisitos desta sessão',
+        ),
+      );
+      expect(
+        full.replaceAll(
+          RegExp(r'## Fora do escopo[\s\S]*?(?=## Requisitos)'),
+          '',
+        ),
+        plain,
+      );
+    },
+  );
+
   test('focused tests (SPEC-017 R1): only the verificar of the steps and of '
       'their criteria, the suite left to the gate', () {
     const text = '''---

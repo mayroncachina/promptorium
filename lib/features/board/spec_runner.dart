@@ -58,7 +58,8 @@ List<String> parseSuggestions(String? text) => [
 ];
 
 /// The part of the spec a session needs (F7): objective, its requirements,
-/// the blocks of `## Design` that mention its steps (or the files of its
+/// its `## Fora do escopo` and `## Premissas` (SPEC-023 R13), the blocks of
+/// `## Design` that mention its steps (or the files of its
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
 /// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
 /// the whole spec goes.
@@ -141,7 +142,25 @@ String? focusedSpecText(
     ..writeln('## Objetivo')
     ..writeln()
     ..writeln(objective)
-    ..writeln()
+    ..writeln();
+  // What the spec does not do and what it assumes hold for every step
+  // (SPEC-023 R13); a section with only the template's hint is absent.
+  for (final name in [
+    SpecDocument.outOfScopeSection,
+    SpecDocument.assumptionsSection,
+  ]) {
+    final text = doc
+        .section(name)
+        ?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '')
+        .trim();
+    if (text == null || text.isEmpty) continue;
+    b
+      ..writeln('## $name')
+      ..writeln()
+      ..writeln(text)
+      ..writeln();
+  }
+  b
     ..writeln('## Requisitos desta sessão')
     ..writeln();
   for (final s in steps) {

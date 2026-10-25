@@ -232,6 +232,10 @@ class SpecDocument {
     return null;
   }
 
+  static const openQuestionsSection = 'Perguntas em aberto';
+  static const assumptionsSection = 'Premissas';
+  static const outOfScopeSection = 'Fora do escopo';
+
   /// `## Objetivo`.
   String? get objective => section('Objetivo');
 
@@ -500,6 +504,10 @@ Descreva o problema e o resultado esperado.
 
 - R1 ·
 
+## Fora do escopo
+
+<!-- O que esta spec não faz (as sessões de etapa recebem esta lista). -->
+
 ## Design
 
 <!-- Como implementar: componentes, arquivos e decisões. Use "Gerar design". -->
@@ -507,6 +515,10 @@ Descreva o problema e o resultado esperado.
 ## Critérios de aceite
 
 - [ ]
+
+## Perguntas em aberto
+
+<!-- Dúvidas sem resposta, uma por item. Responda antes de aprovar. -->
 ''';
 
 final _requirementLine = RegExp(

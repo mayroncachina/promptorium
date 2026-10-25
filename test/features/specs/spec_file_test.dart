@@ -120,6 +120,25 @@ void main() {
       expect(d.status, SpecStatus.draft);
       expect(d.title, 'Kanban');
     });
+
+    test('new spec template: the six sections in order; its hints are not '
+        'questions nor scope (SPEC-023 R11)', () {
+      final text = newSpecMarkdown(code: 'SPEC-004', title: 'Kanban');
+      final headings = [
+        for (final m in RegExp(r'^## (.+)$', multiLine: true).allMatches(text))
+          m.group(1),
+      ];
+      expect(headings, [
+        'Objetivo',
+        'Requisitos',
+        'Fora do escopo',
+        'Design',
+        'Critérios de aceite',
+        'Perguntas em aberto',
+      ]);
+      final d = SpecDocument.parse(text);
+      expect(d.section('Fora do escopo'), startsWith('<!--'));
+    });
   });
 
   group('SpecService (temporary workspace)', () {
@@ -316,6 +335,15 @@ void main() {
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
+    // SPEC-023 R12: scope and unanswered questions have their own sections.
+    expect(p, contains('"Fora do escopo"'));
+    expect(
+      p,
+      contains(
+        '"Perguntas em aberto", em vez de transformá-las em '
+        'requisitos',
+      ),
+    );
   });
 
   test('spec paths stay inside the workspace (no traversal)', () {

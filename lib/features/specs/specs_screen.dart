@@ -49,8 +49,11 @@ String refineSpecPrompt(Spec spec) =>
     '"- R1 · texto", de preferência no estilo EARS: "Quando <gatilho>, o '
     'sistema deve <resposta>"), complete os critérios de aceite (marque o '
     'requisito de cada um, ex.: [R2], e um "verificar: <comando>" quando '
-    'houver) e liste as perguntas em aberto. Edite somente esse arquivo e mantenha o frontmatter '
-    '(id, status). Antes de editar, resuma o que pretende mudar.';
+    'houver), escreva a seção "Fora do escopo" com o que a spec não faz e '
+    'deixe as dúvidas sem resposta como itens de "Perguntas em aberto", em '
+    'vez de transformá-las em requisitos. Edite somente esse arquivo e '
+    'mantenha o frontmatter (id, status). Antes de editar, resuma o que '
+    'pretende mudar.';
 
 /// Whether the open spec has unsaved changes (asked before switching).
 class SpecDirty extends Notifier<bool> {
