@@ -51,6 +51,10 @@ Object? structuredOutput(Result r) {
 /// to the usage tracker and the process is stopped afterwards. Throws
 /// [PlannerException] when the CLI cannot start, exits early or times out.
 ///
+/// Runs given their own [ClaudeOptions.tools] and `allowedTools` (the
+/// prototype screens, SPEC-022 R2) may write where those rules allow; any
+/// other permission request is denied with [denyMessage].
+///
 /// Model, effort and auto-compact not set in [options] come from the planner
 /// defaults of Configurações ([RunPrefs]).
 Future<Result> runReadOnlyClaude(
@@ -62,6 +66,7 @@ Future<Result> runReadOnlyClaude(
   int? workspaceId,
   String? providerId,
   Future<void>? cancelled,
+  String denyMessage = 'O planner do Promptorium é somente leitura.',
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -149,10 +154,7 @@ Future<Result> runReadOnlyClaude(
           }
         case PermissionRequest():
           // Non-interactive and read-only: nothing to approve.
-          process.deny(
-            e.requestId,
-            'O planner do Promptorium é somente leitura.',
-          );
+          process.deny(e.requestId, denyMessage);
         case Result():
           if (!done.isCompleted) done.complete(e);
         case RateLimit():

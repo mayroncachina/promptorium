@@ -218,6 +218,31 @@ List<String> parseSessionSteps(String? steps) => [
     if (s.trim().isNotEmpty) s.trim(),
 ];
 
+/// Approved screens (`## Protótipo`, SPEC-022 R10) of the requirements in
+/// [todo]: `R1: docs/mockups/spec-022/R1-lista.html`.
+List<String> prototypeReferences(String specText, List<String> todo) {
+  final approved = SpecDocument.parse(specText).prototypes;
+  return [
+    for (final t in todo)
+      if (approved[t] case final path?) '$t: $path',
+  ];
+}
+
+void _writePrototypes(StringBuffer b, String specText, List<String> todo) {
+  final refs = prototypeReferences(specText, todo);
+  if (refs.isEmpty) return;
+  b
+    ..writeln()
+    ..writeln(
+      'Telas aprovadas no protótipo (referência visual a seguir: abra o '
+      'HTML e reproduza layout, textos e estados com os componentes do '
+      'projeto):',
+    );
+  for (final r in refs) {
+    b.writeln('- $r');
+  }
+}
+
 /// First message of a step session: the spec itself (the file may not be
 /// committed, so it is not read from the worktree), what is done, what to do
 /// now and how to finish.
@@ -310,6 +335,7 @@ String specStepPrompt({
       )
       ..writeln(memory.trim());
   }
+  _writePrototypes(b, specText, todo);
   final focused = focusedSpecText(specText, steps: steps, todo: todo);
   b
     ..writeln()
@@ -393,6 +419,7 @@ String specContinuePrompt({
   if (later.isNotEmpty) {
     b.writeln('Ficam para depois (não implemente agora): ${later.join(', ')}.');
   }
+  _writePrototypes(b, specText, todo);
   final focused = focusedSpecText(specText, steps: steps, todo: todo);
   if (focused != null) {
     b

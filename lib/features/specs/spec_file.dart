@@ -292,6 +292,44 @@ class SpecDocument {
     return out;
   }
 
+  /// `## Protótipo` (SPEC-022 R9): `- R1 → docs/mockups/spec-022/R1-x.html`,
+  /// one approved screen per requirement.
+  Map<String, String> get prototypes {
+    final text = section('Protótipo');
+    if (text == null) return const {};
+    final out = <String, String>{};
+    for (final line in text.split('\n')) {
+      final m = RegExp(
+        r'^\s*[-*+]\s+\**(R\d+)\**\s*(?:→|->|:|·)\s*`?([^`\s]+)`?',
+      ).firstMatch(line);
+      if (m != null) out[m.group(1)!] = m.group(2)!;
+    }
+    return out;
+  }
+
+  /// Text with [path] as the approved screen of [requirement] in
+  /// `## Protótipo` (a previous one of the same requirement is replaced;
+  /// null removes it). Only the body changes: the status stays.
+  String withPrototype(String requirement, String? path) {
+    final all = {...prototypes};
+    if (path == null) {
+      all.remove(requirement);
+    } else {
+      all[requirement] = path;
+    }
+    int n(String r) => int.tryParse(r.substring(1)) ?? 0;
+    final keys = all.keys.toList()..sort((a, b) => n(a).compareTo(n(b)));
+    final content = keys.isEmpty
+        ? '<!-- Telas aprovadas no modo Protótipo. -->'
+        : keys.map((k) => '- $k → ${all[k]}').join('\n');
+    final after = section('Etapas') != null
+        ? 'Etapas'
+        : section('Design') != null
+        ? 'Design'
+        : 'Requisitos';
+    return _withSection(text, 'Protótipo', content, after: after);
+  }
+
   static String _withSection(
     String text,
     String name,
