@@ -18,8 +18,10 @@ import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
+import 'spec_lint.dart';
 import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
+import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_list.dart';
 import 'widgets/step_trace_panel.dart';
@@ -171,6 +173,118 @@ Future<bool> showSpecConflictDialog(
   return keep ?? true;
 }
 
+/// Choice of [showApproveChecksDialog].
+enum ApproveCheck { cancel, refine, assume, showWarnings, approve }
+
+/// "Aprovar spec" with open questions (SPEC-023 R6) or structure warnings
+/// (R10): the questions and the count, before the Design dialog. Null =
+/// closed (same as cancel).
+Future<ApproveCheck?> showApproveChecksDialog(
+  BuildContext context, {
+  required List<String> questions,
+  required int warnings,
+}) => showDialog<ApproveCheck>(
+  context: context,
+  barrierColor: AppColors.scrim,
+  builder: (ctx) {
+    void pick(ApproveCheck c) => Navigator.of(ctx).pop(c);
+    final hasQuestions = questions.isNotEmpty;
+    return AlertDialog(
+      key: const ValueKey('spec-approve-checks-dialog'),
+      backgroundColor: AppColors.panel,
+      title: Text(
+        hasQuestions
+            ? (questions.length == 1
+                  ? 'A spec tem 1 pergunta em aberto'
+                  : 'A spec tem ${questions.length} perguntas em aberto')
+            : 'A spec tem ${SpecWarningsBar.countLabel(warnings)}',
+        style: const TextStyle(fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 520,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (hasQuestions) ...[
+              const Text(
+                'Responda antes de aprovar, ou aprove assumindo cada uma '
+                'como premissa (elas vão para "Premissas", com a data).',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: SingleChildScrollView(
+                  child: Column(
+                    key: const ValueKey('spec-approve-questions'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final (i, q) in questions.indexed)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            '${i + 1}. $q',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (warnings > 0) ...[
+              if (hasQuestions) const SizedBox(height: 8),
+              Text(
+                hasQuestions
+                    ? 'Há também ${SpecWarningsBar.countLabel(warnings)}.'
+                    : 'Os avisos não impedem a aprovação. Veja a lista ou '
+                          'aprove mesmo assim.',
+                key: const ValueKey('spec-approve-warnings'),
+                style: const TextStyle(fontSize: 13, color: AppColors.amber),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const ValueKey('spec-approve-checks-cancel'),
+          autofocus: true,
+          onPressed: () => pick(ApproveCheck.cancel),
+          child: const Text('Cancelar'),
+        ),
+        if (warnings > 0)
+          TextButton(
+            key: const ValueKey('spec-approve-show-warnings'),
+            onPressed: () => pick(ApproveCheck.showWarnings),
+            child: const Text('Ver avisos'),
+          ),
+        if (hasQuestions) ...[
+          TextButton(
+            key: const ValueKey('spec-approve-refine'),
+            onPressed: () => pick(ApproveCheck.refine),
+            child: const Text('Refinar com IA'),
+          ),
+          TextButton(
+            key: const ValueKey('spec-approve-assume'),
+            onPressed: () => pick(ApproveCheck.assume),
+            child: const Text('Aprovar assumindo premissas'),
+          ),
+        ] else
+          TextButton(
+            key: const ValueKey('spec-approve-anyway'),
+            onPressed: () => pick(ApproveCheck.approve),
+            child: const Text('Aprovar mesmo assim'),
+          ),
+      ],
+    );
+  },
+);
+
 /// Specs screen (plano, Fase 8; docs/mockups/Specs.dc.html): list of
 /// `specs/SPEC-*.md`, re_editor with modes, generated tasks + traceability.
 class SpecsScreen extends ConsumerStatefulWidget {
@@ -191,6 +305,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   bool _missing = false;
   bool _loading = false;
   bool _busy = false;
+
+  /// Structure warnings of the editor text (SPEC-023 R8), recomputed
+  /// [_lintDelay] after the last edit.
+  List<SpecWarning> _warnings = const [];
+  bool _warningsOpen = false;
+  Timer? _lintTimer;
+  static const _lintDelay = Duration(milliseconds: 300);
+  final _editorFocus = FocusNode(debugLabel: 'spec-editor');
 
   late final SpecUnsaved _unsaved;
 
@@ -215,8 +337,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         }
       });
     }
+    _lintTimer?.cancel();
     _controller?.removeListener(_onText);
     _controller?.dispose();
+    _editorFocus.dispose();
     super.dispose();
   }
 
@@ -259,7 +383,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _lastText = shown;
     _controller = CodeLineEditingController.fromText(shown)
       ..addListener(_onText);
+    _lintTimer?.cancel();
     setState(() {
+      _warnings = lintSpec(shown);
       _saved = text ?? '';
       _missing = text == null;
       _loading = false;
@@ -279,6 +405,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final text = _controller?.text;
     if (text == _lastText) return;
     _lastText = text;
+    _lintTimer?.cancel();
+    _lintTimer = Timer(_lintDelay, () {
+      if (!mounted) return;
+      setState(() => _warnings = lintSpec(_controller?.text ?? ''));
+    });
     void apply() {
       if (!mounted) return;
       ref.read(specDirtyProvider.notifier).set(_dirty);
@@ -346,11 +477,59 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   // --- actions -------------------------------------------------------------------
 
-  /// Approving needs a `## Design` or "sem design (spec trivial)" (F7).
+  /// R9: the warning's line in the editor, with the cursor and the focus
+  /// there (the preview alone goes to the split view first).
+  void _goToLine(SpecWarning w) {
+    final c = _controller;
+    if (c == null) return;
+    if (_mode == SpecViewMode.preview) {
+      setState(() => _mode = SpecViewMode.split);
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _controller != c) return;
+      final i = (w.line - 1).clamp(0, c.lineCount - 1);
+      try {
+        c.selection = CodeLineSelection.collapsed(index: i, offset: 0);
+        c.makeCursorVisible();
+      } catch (_) {
+        // Not laid out yet: the cursor is still set.
+      }
+      _editorFocus.requestFocus();
+    });
+  }
+
+  /// Approving with open questions or structure warnings asks first
+  /// (SPEC-023 R6, R10); approving needs a `## Design` or "sem design (spec
+  /// trivial)" (F7).
   Future<void> _approve(Workspace ws, Spec spec) async {
     final c = _controller;
     if (c == null || _busy) return;
-    final doc = SpecDocument.parse(c.text);
+    var doc = SpecDocument.parse(c.text);
+    final questions = doc.openQuestions;
+    final warnings = lintSpec(c.text);
+    if (questions.isNotEmpty || warnings.isNotEmpty) {
+      final choice = await showApproveChecksDialog(
+        context,
+        questions: questions,
+        warnings: warnings.length,
+      );
+      if (choice == null || choice == ApproveCheck.cancel || !mounted) return;
+      switch (choice) {
+        case ApproveCheck.refine:
+          return _refine(ws, spec);
+        case ApproveCheck.showWarnings:
+          setState(() {
+            _warnings = warnings;
+            _warningsOpen = true;
+          });
+          return;
+        case ApproveCheck.assume:
+          c.text = doc.withAssumptions(questions, DateTime.now());
+          doc = SpecDocument.parse(c.text);
+        case ApproveCheck.approve || ApproveCheck.cancel:
+          break;
+      }
+    }
     if (doc.design == null && !doc.designWaived) {
       final choice = await showDialog<String>(
         context: context,
@@ -625,6 +804,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           missing: _missing,
                           onSave: () => _save(ws, spec),
                           readOnly: locked,
+                          focusNode: _editorFocus,
+                          warnings: locked ? const [] : _warnings,
+                          warningsOpen: _warningsOpen,
+                          onToggleWarnings: () =>
+                              setState(() => _warningsOpen = !_warningsOpen),
+                          onWarning: _goToLine,
                           lockedBanner: locked
                               ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
                                     'não é editável. Use "Clonar para alterar" '
@@ -1009,8 +1194,21 @@ class _EditorBody extends StatelessWidget {
     required this.onSave,
     this.readOnly = false,
     this.lockedBanner,
+    this.focusNode,
+    this.warnings = const [],
+    this.warningsOpen = false,
+    this.onToggleWarnings,
+    this.onWarning,
   });
 
+  final FocusNode? focusNode;
+
+  /// Structure warnings (SPEC-023 R8): the strip below the editor, hidden
+  /// when there are none.
+  final List<SpecWarning> warnings;
+  final bool warningsOpen;
+  final VoidCallback? onToggleWarnings;
+  final ValueChanged<SpecWarning>? onWarning;
   final bool readOnly;
   final String? lockedBanner;
   final SpecViewMode mode;
@@ -1029,10 +1227,11 @@ class _EditorBody extends StatelessWidget {
       wordWrap: true,
       onSave: onSave,
       readOnly: readOnly,
+      focusNode: focusNode,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
     final preview = SpecPreview(text: text);
-    final body = switch (mode) {
+    final view = switch (mode) {
       SpecViewMode.edit => editor,
       SpecViewMode.preview => preview,
       SpecViewMode.split => Row(
@@ -1044,6 +1243,33 @@ class _EditorBody extends StatelessWidget {
         ],
       ),
     };
+    // The strip is below the editor but comes first for Tab (SPEC-023 R14):
+    // the editor keeps Tab for indenting. Same tree with or without
+    // warnings, so the editor is not rebuilt (and keeps the focus).
+    final body = FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: FocusTraversalOrder(
+              order: const NumericFocusOrder(2),
+              child: view,
+            ),
+          ),
+          if (warnings.isNotEmpty)
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(1),
+              child: SpecWarningsBar(
+                warnings: warnings,
+                open: warningsOpen,
+                onToggle: onToggleWarnings ?? () {},
+                onSelect: onWarning ?? (_) {},
+              ),
+            ),
+        ],
+      ),
+    );
     if (lockedBanner == null) return body;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

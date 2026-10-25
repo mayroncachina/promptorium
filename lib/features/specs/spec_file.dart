@@ -52,6 +52,16 @@ String specStatusLabel(SpecStatus s) => switch (s) {
   SpecStatus.archived => 'Arquivada',
 };
 
+/// Lower case without accents (section names).
+String _fold(String s) => s
+    .toLowerCase()
+    .replaceAll(RegExp('[áàâã]'), 'a')
+    .replaceAll(RegExp('[éê]'), 'e')
+    .replaceAll('í', 'i')
+    .replaceAll(RegExp('[óôõ]'), 'o')
+    .replaceAll('ú', 'u')
+    .replaceAll('ç', 'c');
+
 final _frontmatterStart = RegExp(r'^﻿?---[ \t]*\r?\n');
 final _fence = RegExp(r'^---[ \t]*$', multiLine: true);
 
@@ -208,28 +218,97 @@ class SpecDocument {
   /// Text of the `## <name>` section (accents / case tolerated; up to the
   /// next `##`), or null when the spec has none.
   String? section(String name) {
-    String fold(String s) => s
-        .toLowerCase()
-        .replaceAll(RegExp('[áàâã]'), 'a')
-        .replaceAll(RegExp('[éê]'), 'e')
-        .replaceAll('í', 'i')
-        .replaceAll(RegExp('[óôõ]'), 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ç', 'c');
-    final want = fold(name);
-    final lines = body.split('\n');
-    for (var i = 0; i < lines.length; i++) {
+    final r = _sectionRange(text, name, from: _bodyLine);
+    if (r == null) return null;
+    final lines = text.split('\n');
+    return lines.sublist(r.start + 1, r.end).join('\n').trim();
+  }
+
+  /// 0-based line where the body starts.
+  int get _bodyLine => '\n'.allMatches(text.substring(0, bodyStart)).length;
+
+  /// Heading line and end (exclusive: the next `##` or the end) of the
+  /// `## <name>` section of [text], searched from line [from].
+  static ({int start, int end})? _sectionRange(
+    String text,
+    String name, {
+    int from = 0,
+  }) {
+    final want = _fold(name);
+    final lines = text.split('\n');
+    for (var i = from; i < lines.length; i++) {
       final h = RegExp(r'^##\s+(.+?)\s*#*\s*$')
           .firstMatch(lines[i].trimRight());
-      if (h == null || !fold(h.group(1)!).startsWith(want)) continue;
-      final out = <String>[];
-      for (var j = i + 1; j < lines.length; j++) {
-        if (RegExp(r'^##\s').hasMatch(lines[j])) break;
-        out.add(lines[j]);
+      if (h == null || !_fold(h.group(1)!).startsWith(want)) continue;
+      var j = i + 1;
+      while (j < lines.length && !RegExp(r'^##\s').hasMatch(lines[j])) {
+        j++;
       }
-      return out.join('\n').trim();
+      return (start: i, end: j);
     }
     return null;
+  }
+
+  /// Items (`-` or numbered) of `## Perguntas em aberto` (SPEC-023 R6);
+  /// HTML comments (the template's hint) are not questions.
+  List<String> get openQuestions {
+    final text = section(openQuestionsSection)
+        ?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
+    if (text == null) return const [];
+    final out = <String>[];
+    for (final line in text.split('\n')) {
+      final m = RegExp(r'^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$').firstMatch(line);
+      if (m != null) {
+        out.add(m.group(1)!);
+      } else if (out.isNotEmpty && line.trim().isNotEmpty) {
+        // A wrapped item goes on in the next lines.
+        out[out.length - 1] = '${out.last} ${line.trim()}';
+      }
+    }
+    return out;
+  }
+
+  /// "Aprovar assumindo premissas" (SPEC-023 R7): `## Perguntas em aberto`
+  /// left empty and each of [questions] added to `## Premissas` as
+  /// `- (sem resposta, aceita em 2026-10-24) <pergunta>` (the section is
+  /// created before `## Critérios de aceite` when absent).
+  String withAssumptions(List<String> questions, DateTime at) {
+    final lines = text.split('\n');
+    final open = _sectionRange(text, openQuestionsSection, from: _bodyLine);
+    if (open != null) {
+      lines.replaceRange(open.start + 1, open.end, ['']);
+    }
+    if (questions.isEmpty) return lines.join('\n');
+    final day =
+        '${at.year}-${'${at.month}'.padLeft(2, '0')}-'
+        '${'${at.day}'.padLeft(2, '0')}';
+    final items = [
+      for (final q in questions) '- (sem resposta, aceita em $day) $q',
+    ];
+    final joined = lines.join('\n');
+    final from = _bodyLine;
+    final premises = _sectionRange(joined, assumptionsSection, from: from);
+    if (premises != null) {
+      var j = premises.end;
+      while (j > premises.start + 1 && lines[j - 1].trim().isEmpty) {
+        j--;
+      }
+      lines.insertAll(j, [
+        if (j == premises.start + 1) '',
+        ...items,
+        if (j == premises.end && j < lines.length) '',
+      ]);
+      return lines.join('\n');
+    }
+    final anchor =
+        _sectionRange(joined, 'Critérios', from: from) ??
+        _sectionRange(joined, openQuestionsSection, from: from);
+    final block = ['## $assumptionsSection', '', ...items, ''];
+    if (anchor == null) {
+      return '${joined.trimRight()}\n\n${block.join('\n')}';
+    }
+    lines.insertAll(anchor.start, block);
+    return lines.join('\n');
   }
 
   static const openQuestionsSection = 'Perguntas em aberto';
@@ -331,9 +410,7 @@ class SpecDocument {
   /// Requirement lines (`- R1 · texto`, `- [ ] R2: texto`, `1. R3 - texto`)
   /// of the `## Requisitos` section (the whole body when there is none).
   List<SpecRequirement> get requirements {
-    final re = RegExp(
-      r'^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\**(R\d+)\**\b\s*[·:.\-–—]?\s*(.*)$',
-    );
+    final re = _requirementRe;
     final out = <SpecRequirement>[];
     final seen = <String>{};
     for (final line in (section('Requisitos') ?? body).split('\n')) {
@@ -344,6 +421,25 @@ class SpecDocument {
     }
     return out;
   }
+
+  /// Every requirement line with its 1-based line in [text], repeats
+  /// included (the structure warnings, SPEC-023 R8).
+  List<({String id, String text, int line})> get requirementLines {
+    final lines = text.split('\n');
+    final r = _sectionRange(text, 'Requisitos', from: _bodyLine);
+    final (from, to) = r == null
+        ? (_bodyLine, lines.length)
+        : (r.start + 1, r.end);
+    return [
+      for (var i = from; i < to; i++)
+        if (_requirementRe.firstMatch(lines[i]) case final m?)
+          (id: m.group(1)!, text: m.group(2)!.trim(), line: i + 1),
+    ];
+  }
+
+  static final _requirementRe = RegExp(
+    r'^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\**(R\d+)\**\b\s*[·:.\-–—]?\s*(.*)$',
+  );
 
   /// Frontmatter keys written by "Marcar como finalizada" (SPEC-019): the
   /// stage and status "Reabrir" restores.
@@ -591,7 +687,11 @@ class SpecCriterion {
     this.requirements = const [],
     this.verify,
     this.checkedInFile = false,
+    this.line = 0,
   });
+
+  /// 1-based line in the text given to [parseCriteria].
+  final int line;
 
   /// The line without the checkbox and the `verificar:` part (also the key
   /// of its state in `spec_criteria`).
@@ -612,7 +712,9 @@ class SpecCriterion {
 List<SpecCriterion> parseCriteria(String text) {
   final out = <SpecCriterion>[];
   var inSection = false;
-  for (final line in text.split('\n')) {
+  final lines = text.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
     final h = RegExp(r'^#{2,}\s*(.+?)\s*$').firstMatch(line.trim());
     if (h != null) {
       inSection = RegExp(
@@ -646,6 +748,7 @@ List<SpecCriterion> parseCriteria(String text) {
         requirements: reqs,
         verify: verify == null || verify.isEmpty ? null : verify,
         checkedInFile: m.group(1) != ' ',
+        line: i + 1,
       ),
     );
   }
