@@ -94,10 +94,17 @@ Instalação local a partir do código: [Instalação](instalacao.md#a-partir-do
 ## CI e release
 
 - `.github/workflows/ci.yml`: `flutter analyze` e `flutter test` em todo PR e push na `main`.
-- `.github/workflows/release.yml`: ao publicar uma release com tag `vX.Y.Z`, roda analyze e testes, compila com a versão da tag, empacota com `scripts/package.sh` e anexa `.deb` e `.tar.gz` (e um `.zip` do Windows, experimental). As notas saem do `git cliff`.
+- `.github/workflows/prepare-release.yml` (manual): atualiza o `version:` do `pubspec.yaml` (número de build + 1) e o `CHANGELOG.md` (`git cliff`) e abre o PR `chore(release): vX.Y.Z`. Sem versão informada, calcula a próxima pelos commits (`feat` sobe a versão menor, `fix` o patch).
+- `.github/workflows/release.yml`: ao publicar uma release com tag `vX.Y.Z`, confere se o `pubspec.yaml` está na mesma versão, roda analyze e testes, compila com a versão da tag, empacota com `scripts/package.sh` e anexa `.deb` e `.tar.gz` (e um `.zip` do Windows, experimental). As notas saem do `git cliff`.
 - `.github/workflows/windows.yml`: build manual do Windows. O repositório não tem a pasta `windows/`; o build a cria com `flutter create --platforms=windows`. Não há suporte oficial a Windows nem macOS.
 
-Para publicar: no GitHub, **Releases → Draft a new release**, crie a tag `vX.Y.Z` na `main` e publique.
+Para publicar:
+
+1. **Actions → Preparar release → Run workflow**, com a versão ou em branco.
+2. Mescle o PR `chore(release): vX.Y.Z`. Se o Actions não puder abrir PRs no repositório, o resumo do workflow traz o link para abri-lo.
+3. **Releases → Draft a new release**: crie a tag `vX.Y.Z` no commit do merge e publique.
+
+Os commits de etapa (`SPEC-023 R1-R5: texto`) entram no changelog como funcionalidades da spec, e os da própria spec (`SPEC-023: texto`) como documentação.
 
 ## Estrutura
 

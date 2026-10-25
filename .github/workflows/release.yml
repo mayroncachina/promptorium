@@ -31,6 +31,19 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # A tag precisa estar num commit com a mesma versão no pubspec.yaml
+      # (o PR do "Preparar release"), senão o repositório fica para trás.
+      - name: Versão do pubspec.yaml confere com a tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          pubspec="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#+]+).*/\1/p' pubspec.yaml)"
+          if [ "$pubspec" != "$VERSION" ]; then
+            echo "O pubspec.yaml está na versão '$pubspec', mas a tag é v$VERSION." >&2
+            echo "Rode Actions → Preparar release, mescle o PR e crie a tag no commit do merge." >&2
+            exit 1
+          fi
+
       - uses: ./.github/actions/build-deb
         with:
           version: ${{ steps.version.outputs.version }}
