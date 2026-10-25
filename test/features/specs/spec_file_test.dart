@@ -120,6 +120,128 @@ void main() {
       expect(d.status, SpecStatus.draft);
       expect(d.title, 'Kanban');
     });
+
+    test('new spec template: the six sections in order; its hints are not '
+        'questions nor scope (SPEC-023 R11)', () {
+      final text = newSpecMarkdown(code: 'SPEC-004', title: 'Kanban');
+      final headings = [
+        for (final m in RegExp(r'^## (.+)$', multiLine: true).allMatches(text))
+          m.group(1),
+      ];
+      expect(headings, [
+        'Objetivo',
+        'Requisitos',
+        'Fora do escopo',
+        'Design',
+        'Critérios de aceite',
+        'Perguntas em aberto',
+      ]);
+      final d = SpecDocument.parse(text);
+      expect(d.openQuestions, isEmpty);
+      expect(d.section('Fora do escopo'), startsWith('<!--'));
+    });
+
+    test('open questions: dash or numbered items, wrapped lines joined, '
+        'accents and case of the heading tolerated (SPEC-023 R6)', () {
+      const text = '''---
+id: SPEC-009
+---
+
+# X
+
+## Requisitos
+
+- R1 · Quando algo, o sistema deve agir
+
+## perguntas em ABERTO
+
+1. A primeira
+   continua aqui?
+2) A segunda?
+- A terceira?
+<!-- - não é pergunta -->
+''';
+      expect(SpecDocument.parse(text).openQuestions, [
+        'A primeira continua aqui?',
+        'A segunda?',
+        'A terceira?',
+      ]);
+      expect(SpecDocument.parse(sample).openQuestions, isEmpty);
+    });
+
+    test('withAssumptions: questions go to Premissas (created before the '
+        'criteria) with the date; the questions section is left empty '
+        '(SPEC-023 R7)', () {
+      const text = '''---
+id: SPEC-009
+---
+
+# X
+
+## Requisitos
+
+- R1 · Quando algo, o sistema deve agir
+
+## Critérios de aceite
+
+- [ ] Age [R1] verificar: true
+
+## Perguntas em aberto
+
+1. Vale para o quadro?
+2. E no grafo?
+''';
+      final d = SpecDocument.parse(text);
+      final out = d.withAssumptions(d.openQuestions, DateTime(2026, 10, 4));
+      expect(
+        out,
+        text
+            .replaceFirst(
+              '## Critérios de aceite',
+              '## Premissas\n\n'
+                  '- (sem resposta, aceita em 2026-10-04) Vale para o quadro?\n'
+                  '- (sem resposta, aceita em 2026-10-04) E no grafo?\n\n'
+                  '## Critérios de aceite',
+            )
+            .replaceFirst(
+              '## Perguntas em aberto\n\n1. Vale para o quadro?\n2. E no grafo?\n',
+              '## Perguntas em aberto\n',
+            ),
+      );
+      final back = SpecDocument.parse(out);
+      expect(back.openQuestions, isEmpty);
+      expect(back.section('Perguntas em aberto'), '');
+      expect(back.id, 'SPEC-009');
+      // An existing Premissas section gets the new items at its end.
+      final again = SpecDocument.parse(
+        out.replaceFirst(
+          '## Perguntas em aberto\n',
+          '## Perguntas em aberto\n\n- Mais uma?\n',
+        ),
+      );
+      final twice = again.withAssumptions(
+        again.openQuestions,
+        DateTime(2026, 10, 5),
+      );
+      expect(SpecDocument.parse(twice).section('Premissas')!.split('\n'), [
+        '- (sem resposta, aceita em 2026-10-04) Vale para o quadro?',
+        '- (sem resposta, aceita em 2026-10-04) E no grafo?',
+        '- (sem resposta, aceita em 2026-10-05) Mais uma?',
+      ]);
+      expect(twice, contains('Mais uma?\n\n## Critérios de aceite'));
+    });
+
+    test('requirement and criterion lines carry their line in the file', () {
+      final d = SpecDocument.parse(sample);
+      expect(d.requirementLines.map((r) => (r.id, r.line)), [
+        ('R1', 11),
+        ('R2', 12),
+        ('R3', 13),
+      ]);
+      const crit =
+          '# X\n\n## Critérios de aceite\n\n- [ ] Um [R1]\n- [ ]\n- [x] Dois [R2]\n';
+      expect(parseCriteria(crit).map((c) => c.line), [5, 7]);
+    });
   });
 
   group('SpecService (temporary workspace)', () {
@@ -316,6 +438,15 @@ void main() {
       ),
     );
     expect(p, contains('@specs/SPEC-002-sessoes.md'));
+    // SPEC-023 R12: scope and unanswered questions have their own sections.
+    expect(p, contains('"Fora do escopo"'));
+    expect(
+      p,
+      contains(
+        '"Perguntas em aberto", em vez de transformá-las em '
+        'requisitos',
+      ),
+    );
   });
 
   test('spec paths stay inside the workspace (no traversal)', () {

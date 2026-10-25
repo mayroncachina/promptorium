@@ -128,6 +128,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       timeoutSeconds: int.tryParse(_timeout.text.trim()) ?? d.timeoutSeconds,
       requireCommit: _requireCommit,
       requireCleanTree: _requireClean,
+      // Not edited here (SPEC-023 R5): kept as the file has it.
+      countTests: _saved.gate.countTests,
     );
     return v.isDefault && _saved.verification == null ? null : v;
   }

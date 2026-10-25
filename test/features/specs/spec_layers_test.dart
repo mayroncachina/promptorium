@@ -99,6 +99,16 @@ void main() {
       'true',
     ]);
     expect(stepVerifyCommands(layered, ['R2']), isEmpty);
+    // Manual checks are not shell commands: the gate skips them.
+    expect(
+      stepVerifyCommands(
+        '# A\n\n## Requisitos\n\n- R1 · x\n\n## Critérios de aceite\n\n'
+        '- [ ] abre [R1] verificar: manual abrir o app\n'
+        '- [ ] roda [R1] verificar: dart test\n',
+        ['R1'],
+      ),
+      ['dart test'],
+    );
   });
 
   test('withDesign replaces or inserts Design and Etapas; the generator '

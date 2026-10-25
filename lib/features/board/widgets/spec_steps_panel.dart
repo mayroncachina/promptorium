@@ -384,6 +384,28 @@ class SpecStepsPanel extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // Only the test count failed: the user may accept the drop
+              // (SPEC-023 R3).
+              if (steps
+                  .where((s) => s.gateFailed)
+                  .every((s) => s.gate!.onlyTestCount))
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SmallButton(
+                    key: const ValueKey('steps-accept-test-drop'),
+                    label: 'Aceitar a redução',
+                    semanticLabel:
+                        'Aceitar a redução da contagem de testes e aprovar '
+                        'a etapa',
+                    color: AppColors.amber,
+                    focusColor: AppColors.amberTint,
+                    onTap: () => _gateAction(
+                      context,
+                      () =>
+                          ref.read(specRunnerProvider).acceptTestDrop(spec.id),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: SmallButton(

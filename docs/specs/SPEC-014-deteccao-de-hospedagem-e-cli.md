@@ -13,11 +13,11 @@ O Promptorium está hospedado no GitHub (`git@github.com:mayroncachina/promptori
 
 ## Requisitos
 
-- R1 · Resolver o remote usado pela ação e identificar seu host em URLs HTTPS, SSH e scp (`git@host:grupo/projeto.git`). `github.com` identifica GitHub e `gitlab.com` identifica GitLab. Instâncias próprias usam o mapeamento explícito de `hospedagem` no config.yml. Hosts não reconhecidos ficam como outro/desconhecido, preservando o domínio para diagnóstico; ausência de remote, caminho local e URL inválida têm estados próprios.
-- R2 · Encaminhar ações remotas pelo adaptador do hospedeiro identificado: GitHub → `gh`, GitLab → `glab`. Consultar instalação e autenticação apenas da ferramenta necessária, usando o host efetivo. Nunca tentar outra CLI como fallback. Operações locais de git continuam disponíveis independentemente dessas CLIs.
-- R3 · Se a CLI estiver ausente, mostrar o nome, a ação afetada e a sugestão de instalação, com acesso à documentação oficial. Oferecer “Verificar novamente”. Se estiver instalada mas sem autenticação válida, orientar o login no host efetivo. Distinguir executável ausente, login inválido, incompatibilidade, falha de rede e integração ainda não implementada.
+- R1 · O sistema deve resolver o remote usado pela ação e identificar seu host em URLs HTTPS, SSH e scp (`git@host:grupo/projeto.git`). `github.com` identifica GitHub e `gitlab.com` identifica GitLab. Instâncias próprias usam o mapeamento explícito de `hospedagem` no config.yml. Hosts não reconhecidos ficam como outro/desconhecido, preservando o domínio para diagnóstico; ausência de remote, caminho local e URL inválida têm estados próprios.
+- R2 · O sistema deve encaminhar ações remotas pelo adaptador do hospedeiro identificado: GitHub → `gh`, GitLab → `glab`. Consultar instalação e autenticação apenas da ferramenta necessária, usando o host efetivo. Nunca tentar outra CLI como fallback. Operações locais de git continuam disponíveis independentemente dessas CLIs.
+- R3 · Se a CLI estiver ausente, o sistema deve mostrar o nome, a ação afetada e a sugestão de instalação, com acesso à documentação oficial. Oferecer “Verificar novamente”. Se estiver instalada mas sem autenticação válida, orientar o login no host efetivo. Distinguir executável ausente, login inválido, incompatibilidade, falha de rede e integração ainda não implementada.
 - R4 · Exibir o provedor e o estado junto às ações do Review, com PR para GitHub e MR para GitLab. Outro provedor sem adaptador deve informar que a integração não está disponível, sem sugerir `gh` ou `glab`. Não oferecer uma ação como disponível apenas porque a CLI está instalada e autenticada.
-- R5 · Recalcular o diagnóstico ao trocar de projeto, mudar o remote/configuração ou pedir nova verificação. Descartar respostas atrasadas de outro projeto ou remote. Em projetos com vários remotes, usar o remote efetivo da ação e exibi-lo; se não houver seleção inequívoca, pedir a escolha entre os remotes existentes antes de executar.
+- R5 · Quando o usuário trocar de projeto, mudar o remote/configuração ou pedir nova verificação, o sistema deve recalcular o diagnóstico. Descartar respostas atrasadas de outro projeto ou remote. Em projetos com vários remotes, usar o remote efetivo da ação e exibi-lo; se não houver seleção inequívoca, pedir a escolha entre os remotes existentes antes de executar.
 - R6 · Requests já vinculados a uma sessão mantêm o hospedeiro e o destino originais, mesmo após mudança de remote. Usar a URL salva para identificar o destino quando possível; preservar o comportamento GitHub das sessões antigas. Uma incompatibilidade entre destino e configuração deve ter diagnóstico explícito, sem encaminhar a operação ao provedor errado.
 
 ## Design
@@ -56,13 +56,13 @@ Resolver o destino da URL salva do PR/MR antes de considerar o remote atual. A p
 
 ## Critérios de aceite
 
-- [x] [R1] URLs HTTPS, SSH e scp identificam GitHub/GitLab; instâncias próprias só recebem o tipo configurado quando o domínio coincide. Cobrir URL inválida, caminho local, sem remote e host desconhecido.
-- [x] [R2] Projeto GitHub com `glab` ausente ou inválido continua usando apenas `gh`; projeto GitLab não executa `gh`. Runner falso registra os comandos para comprovar o isolamento.
-- [x] [R3] CLI ausente oferece orientação oficial de instalação e nova verificação; login inválido orienta o host correto; falha de rede e incompatibilidade têm diagnósticos distintos.
-- [x] [R4] PR/MR e provedor aparecem corretamente. CLI autenticada sem operação implementada mantém a ação indisponível com motivo; outro host não recebe sugestão de ferramenta incompatível.
-- [x] [R5] Upstream e remote explícito são respeitados; múltiplos remotes ambíguos exigem seleção. Trocar de projeto ou remote invalida o diagnóstico anterior e respostas atrasadas são descartadas.
-- [x] [R6] Sessão com PR salvo no GitHub continua consultando o GitHub após o remote passar a GitLab; destinos incompatíveis não executam a CLI errada.
-- [ ] [R1–R6] Testes de resolução/diagnóstico, widgets do Review e regressão GitHub passam; `flutter analyze` não introduz problemas. Validar manualmente as orientações com CLI ausente e autenticação inválida.
+- [x] [R1] URLs HTTPS, SSH e scp identificam GitHub/GitLab; instâncias próprias só recebem o tipo configurado quando o domínio coincide. Cobrir URL inválida, caminho local, sem remote e host desconhecido. verificar: flutter test test/features/review/review_host_test.dart
+- [x] [R2] Projeto GitHub com `glab` ausente ou inválido continua usando apenas `gh`; projeto GitLab não executa `gh`. Runner falso registra os comandos para comprovar o isolamento. verificar: flutter test test/features/review/review_host_test.dart test/features/review/review_service_test.dart
+- [x] [R3] CLI ausente oferece orientação oficial de instalação e nova verificação; login inválido orienta o host correto; falha de rede e incompatibilidade têm diagnósticos distintos. verificar: flutter test test/features/review/review_host_test.dart
+- [x] [R4] PR/MR e provedor aparecem corretamente. CLI autenticada sem operação implementada mantém a ação indisponível com motivo; outro host não recebe sugestão de ferramenta incompatível. verificar: flutter test test/features/review/review_screen_test.dart
+- [x] [R5] Upstream e remote explícito são respeitados; múltiplos remotes ambíguos exigem seleção. Trocar de projeto ou remote invalida o diagnóstico anterior e respostas atrasadas são descartadas. verificar: flutter test test/features/review/review_host_test.dart test/features/review/review_service_test.dart
+- [x] [R6] Sessão com PR salvo no GitHub continua consultando o GitHub após o remote passar a GitLab; destinos incompatíveis não executam a CLI errada. verificar: flutter test test/features/review/review_service_test.dart
+- [ ] [R1–R6] Testes de resolução/diagnóstico, widgets do Review e regressão GitHub passam; `flutter analyze` não introduz problemas. Validar manualmente as orientações com CLI ausente e autenticação inválida. verificar: manual (orientações com CLI ausente e autenticação inválida no app, análise e testes passando)
 
 ## Relação com a SPEC-013
 

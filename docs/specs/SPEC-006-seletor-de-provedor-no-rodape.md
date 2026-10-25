@@ -51,12 +51,12 @@ Testes específicos: `test/core/provider_selection_test.dart`, `test/core/provid
 
 ## Critérios de aceite
 
-- [x] [R1] Clicar em “Claude Code CLI conectado” abre um menu com Claude Code, Codex e ACP configurados; o mesmo menu abre quando o provedor atual não é encontrado.
-- [x] [R2] Fixtures de CLI ausente, login pendente e versão incompatível mostram diagnósticos distintos e orientação; nenhuma delas é apresentada como conectada ou inicia outro provedor silenciosamente.
-- [x] [R3] Selecionar Codex atualiza o rodapé; reabrir o app preserva a escolha. Alterar o padrão de um projeto não muda outro projeto; sem projeto, a alteração fica no padrão global indicado no menu.
-- [x] [R4] Após selecionar Codex, os formulários novos e ações auxiliares resolvem Codex como padrão; uma escolha explícita Claude prevalece. Uma conversa existente e uma execução de spec em andamento mantêm seu provedor e suas aprovações.
-- [x] [R5] O indicador passa a mostrar “Codex CLI conectado” somente com diagnóstico correspondente; um formulário novo não herda modelo Claude e métricas Claude não aparecem como consumo Codex. Sondagem Claude atrasada não sobrescreve o estado Codex.
-- [x] [R6] Teclado permite abrir, navegar, selecionar e fechar com Escape; cancelar preserva a preferência. Em janela estreita, o seletor permanece acessível e não causa overflow.
-- [x] Testes do rodapé, resolução de preferências e formulários afetados passam; `flutter analyze` não apresenta novos avisos.
+- [x] [R1] Clicar em “Claude Code CLI conectado” abre um menu com Claude Code, Codex e ACP configurados; o mesmo menu abre quando o provedor atual não é encontrado. verificar: flutter test test/ui/provider_footer_test.dart
+- [x] [R2] Fixtures de CLI ausente, login pendente e versão incompatível mostram diagnósticos distintos e orientação; nenhuma delas é apresentada como conectada ou inicia outro provedor silenciosamente. verificar: flutter test test/core/provider_selection_test.dart test/ui/provider_footer_test.dart
+- [x] [R3] Selecionar Codex atualiza o rodapé; reabrir o app preserva a escolha. Alterar o padrão de um projeto não muda outro projeto; sem projeto, a alteração fica no padrão global indicado no menu. verificar: flutter test test/ui/provider_footer_test.dart test/core/provider_selection_test.dart
+- [x] [R4] Após selecionar Codex, os formulários novos e ações auxiliares resolvem Codex como padrão; uma escolha explícita Claude prevalece. Uma conversa existente e uma execução de spec em andamento mantêm seu provedor e suas aprovações. verificar: flutter test test/core/provider_auxiliary_test.dart test/features/sessions/codex_session_test.dart
+- [x] [R5] O indicador passa a mostrar “Codex CLI conectado” somente com diagnóstico correspondente; um formulário novo não herda modelo Claude e métricas Claude não aparecem como consumo Codex. Sondagem Claude atrasada não sobrescreve o estado Codex. verificar: flutter test test/ui/provider_footer_test.dart
+- [x] [R6] Teclado permite abrir, navegar, selecionar e fechar com Escape; cancelar preserva a preferência. Em janela estreita, o seletor permanece acessível e não causa overflow. verificar: flutter test test/ui/provider_footer_test.dart
+- [x] [R1] [R2] [R3] [R4] [R5] [R6] Testes do rodapé, resolução de preferências e formulários afetados passam; `flutter analyze` não apresenta novos avisos. verificar: flutter analyze && flutter test
 
 Validação: 187 testes dos fluxos afetados passaram; a descoberta independente de CLIs também passou em teste específico. Compilação Linux de debug concluída.

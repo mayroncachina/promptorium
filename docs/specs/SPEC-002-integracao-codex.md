@@ -43,13 +43,13 @@ Confirmar autenticação pelo mecanismo oficial do CLI e apresentar orientação
 
 ## Critérios de aceite
 
-- [ ] [R1] Com apenas Claude instalado, apenas Codex instalado ou nenhum instalado, o app abre e mostra diagnóstico independente; falta de login é diferenciada de executável ausente.
-- [ ] [R2] Um servidor falso cobre handshake, texto fragmentado, imagem suportada, erro JSON-RPC, timeout, interrupção, retomada e fork; encerramento de turno mantém a conversa utilizável.
-- [ ] [R3] Reproduzir fixtures Claude, ACP e Codex gera mensagens e ferramentas na ordem correta, sem duplicar deltas e itens finais; evento desconhecido e linha inválida não derrubam a UI.
-- [ ] [R4] Duas sessões aguardando aprovação recebem respostas corretas; negar, cancelar e resolver externamente removem apenas o pedido correspondente; pergunta estruturada devolve as respostas selecionadas.
-- [ ] [R5] Reiniciar o app retoma a thread original e preserva histórico; tentativa de dois escritores é impedida; fork recebe identidade externa própria e mantém vínculo com o pai.
-- [ ] [R6] Parar durante comando ou timeout não deixa processos filhos; diretório e ambiente são os esperados; fixture com segredo não o expõe em logs persistidos.
-- [ ] Testes de adaptadores e timeline passam, sem regressões nos testes existentes de Claude e ACP; `flutter analyze` não apresenta novos avisos.
+- [ ] [R1] Com apenas Claude instalado, apenas Codex instalado ou nenhum instalado, o app abre e mostra diagnóstico independente; falta de login é diferenciada de executável ausente. verificar: flutter test test/core/provider_selection_test.dart
+- [ ] [R2] Um servidor falso cobre handshake, texto fragmentado, imagem suportada, erro JSON-RPC, timeout, interrupção, retomada e fork; encerramento de turno mantém a conversa utilizável. verificar: manual (servidor falso com handshake, texto fragmentado, imagem, interrupção, retomada e fork)
+- [ ] [R3] Reproduzir fixtures Claude, ACP e Codex gera mensagens e ferramentas na ordem correta, sem duplicar deltas e itens finais; evento desconhecido e linha inválida não derrubam a UI. verificar: manual (fixtures Claude, ACP e Codex na timeline, sem deltas duplicados)
+- [ ] [R4] Duas sessões aguardando aprovação recebem respostas corretas; negar, cancelar e resolver externamente removem apenas o pedido correspondente; pergunta estruturada devolve as respostas selecionadas. verificar: manual (aprovações e perguntas de duas sessões respondidas corretamente)
+- [ ] [R5] Reiniciar o app retoma a thread original e preserva histórico; tentativa de dois escritores é impedida; fork recebe identidade externa própria e mantém vínculo com o pai. verificar: flutter test test/features/sessions/codex_session_test.dart
+- [ ] [R6] Parar durante comando ou timeout não deixa processos filhos; diretório e ambiente são os esperados; fixture com segredo não o expõe em logs persistidos. verificar: manual (parar sem processos filhos órfãos, diretório e ambiente, segredo fora dos logs)
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] Testes de adaptadores e timeline passam, sem regressões nos testes existentes de Claude e ACP; `flutter analyze` não apresenta novos avisos. verificar: flutter analyze && flutter test
 
 ## Perguntas em aberto
 

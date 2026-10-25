@@ -62,12 +62,12 @@ Nesta primeira versão o ícone faz só isso: clicar mostra a janela (ou a escon
 
 ## Critérios de aceite
 
-- [ ] [R1] Ao abrir o app no Linux, o ícone do Promptorium aparece na bandeja com o tooltip "Promptorium" (verificação manual).
-- [ ] [R2] Com a janela escondida ou minimizada, clicar no ícone mostra a janela com foco (verificação manual).
-- [ ] [R3] Com a janela visível e em foco, clicar no ícone a esconde (verificação manual).
-- [ ] [R4] O menu do ícone tem "Abrir" e "Sair", e "Abrir" traz a janela de volta (verificação manual).
-- [ ] [R5] Com uma sessão em execução, esconder a janela pelo ícone e reabri-la mantém a sessão rodando e o `claude` vivo (verificação manual: `pgrep -a claude` antes e depois).
-- [ ] [R6] "Sair" encerra o app sem processos `claude` restantes (verificação manual: `pgrep -a claude` vazio).
+- [ ] [R1] Ao abrir o app no Linux, o ícone do Promptorium aparece na bandeja com o tooltip "Promptorium" (verificação manual). verificar: flutter test test/core/tray_service_test.dart
+- [ ] [R2] Com a janela escondida ou minimizada, clicar no ícone mostra a janela com foco (verificação manual). verificar: flutter test test/core/tray_service_test.dart
+- [ ] [R3] Com a janela visível e em foco, clicar no ícone a esconde (verificação manual). verificar: flutter test test/core/tray_service_test.dart
+- [ ] [R4] O menu do ícone tem "Abrir" e "Sair", e "Abrir" traz a janela de volta (verificação manual). verificar: flutter test test/core/tray_service_test.dart
+- [ ] [R5] Com uma sessão em execução, esconder a janela pelo ícone e reabri-la mantém a sessão rodando e o `claude` vivo (verificação manual: `pgrep -a claude` antes e depois). verificar: manual (pgrep -a claude antes e depois de esconder e reabrir a janela)
+- [ ] [R6] "Sair" encerra o app sem processos `claude` restantes (verificação manual: `pgrep -a claude` vazio). verificar: manual (pgrep -a claude vazio depois de Sair)
 - [x] [R7] Sem a biblioteca de bandeja, o app inicia, mostra o aviso no log e não exibe o ícone. verificar: `flutter test test/core/tray_service_test.dart`
 - [x] [R8] A lógica do ícone só é ativada no Linux. verificar: `flutter test test/core/tray_service_test.dart`
 - [x] [R1–R8] O projeto compila e a análise estática passa. verificar: `flutter analyze`

@@ -25,6 +25,7 @@ import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
 import 'step_gate.dart';
+import 'test_count.dart';
 
 class SpecRunException implements Exception {
   const SpecRunException(this.message);
@@ -57,7 +58,8 @@ List<String> parseSuggestions(String? text) => [
 ];
 
 /// The part of the spec a session needs (F7): objective, its requirements,
-/// the blocks of `## Design` that mention its steps (or the files of its
+/// its `## Fora do escopo` and `## Premissas` (SPEC-023 R13), the blocks of
+/// `## Design` that mention its steps (or the files of its
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
 /// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
 /// the whole spec goes.
@@ -140,7 +142,25 @@ String? focusedSpecText(
     ..writeln('## Objetivo')
     ..writeln()
     ..writeln(objective)
-    ..writeln()
+    ..writeln();
+  // What the spec does not do and what it assumes hold for every step
+  // (SPEC-023 R13); a section with only the template's hint is absent.
+  for (final name in [
+    SpecDocument.outOfScopeSection,
+    SpecDocument.assumptionsSection,
+  ]) {
+    final text = doc
+        .section(name)
+        ?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '')
+        .trim();
+    if (text == null || text.isEmpty) continue;
+    b
+      ..writeln('## $name')
+      ..writeln()
+      ..writeln(text)
+      ..writeln();
+  }
+  b
     ..writeln('## Requisitos desta sessão')
     ..writeln();
   for (final s in steps) {
@@ -183,14 +203,15 @@ String? focusedSpecText(
 }
 
 /// Commands the gate adds for [steps] (F7): the `verificar:` of their lines
-/// in `## Etapas` and of the acceptance criteria tied to them.
+/// in `## Etapas` and of the acceptance criteria tied to them, without the
+/// manual checks (`verificar: manual …`), which are not shell commands.
 List<String> stepVerifyCommands(String specText, List<String> steps) {
   final doc = SpecDocument.parse(specText);
   return {
     for (final s in steps) ?doc.stepPlans[s]?.verify,
     for (final c in parseCriteria(specText))
       if (c.verify != null && c.requirements.any(steps.contains)) c.verify!,
-  }.toList();
+  }.where((c) => !c.trim().toLowerCase().startsWith('manual')).toList();
 }
 
 /// Steps listed in the **last** `ETAPA CONCLUÍDA: R1, R2` line of [text]
@@ -965,6 +986,7 @@ class SpecRunner {
             steps: steps,
             startSha: duel.baseSha,
             config: config,
+            baseline: await testBaseline(spec.id),
           );
       await _manager.note(s.id, gateNote(report), error: !report.ok);
     } else {
@@ -1607,6 +1629,7 @@ class SpecRunner {
             startSha: first?.startSha,
             config: config,
             attempt: attempts,
+            baseline: await testBaseline(specId),
             extraCommands: text == null
                 ? const []
                 : stepVerifyCommands(text, steps),
@@ -1635,16 +1658,7 @@ class SpecRunner {
           );
         }
       }
-      if (report.ok && text != null) {
-        // Criteria with a `verificar:` that just passed are checked.
-        for (final c in parseCriteria(text)) {
-          if (c.verify != null && c.requirements.any(steps.contains)) {
-            await _ref
-                .read(reviewCommentsRepoProvider)
-                .setCriterion(spec.id, c.text, checked: true, by: 'gate');
-          }
-        }
-      }
+      if (report.ok && text != null) await _checkCriteria(spec, text, steps);
       await repo.setGate(specId, steps, report: report.encode());
       await _manager.note(s.id, gateNote(report), error: !report.ok);
       if (report.ok) {
@@ -1678,6 +1692,33 @@ class SpecRunner {
     } finally {
       _gates.remove(specId);
     }
+  }
+
+  /// Criteria of [steps] with a `verificar:` that just passed are checked.
+  Future<void> _checkCriteria(
+    Spec spec,
+    String text,
+    List<String> steps,
+  ) async {
+    for (final c in parseCriteria(text)) {
+      if (c.verify != null && c.requirements.any(steps.contains)) {
+        await _ref
+            .read(reviewCommentsRepoProvider)
+            .setCriterion(spec.id, c.text, checked: true, by: 'gate');
+      }
+    }
+  }
+
+  /// Test count of the most recent approved gate among the steps of
+  /// [specId] (SPEC-023 R2); null = none yet (the first one only records).
+  Future<TestCount?> testBaseline(int specId) async {
+    GateReport? best;
+    for (final row in await _ref.read(specStepsRepoProvider).bySpec(specId)) {
+      final r = GateReport.decode(row.gateReport);
+      if (r == null || !r.ok || r.testCount == null) continue;
+      if (best == null || r.at.isAfter(best.at)) best = r;
+    }
+    return best?.testCount;
   }
 
   /// Steps of the spec's last session that wait for the user after a gate
@@ -1772,6 +1813,55 @@ class SpecRunner {
       throw SpecRunException('Falha ao fazer o commit: $e');
     }
     await recheck(specId);
+  }
+
+  /// "Aceitar a redução" (SPEC-023 R3): the last gate failed only on the
+  /// test count; the user accepts it. The steps are done, the report is
+  /// stored as approved (its count is the next baseline) and the session's
+  /// timeline records the numbers and who accepted.
+  Future<void> acceptTestDrop(int specId) async {
+    final found = await _gatedSteps(specId);
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    if (found == null || spec == null) {
+      throw const SpecRunException('Nenhuma etapa aguardando verificação.');
+    }
+    final (s, steps) = found;
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
+    final report = GateReport.decode(rows[steps.first]?.gateReport);
+    if (report == null || !report.onlyTestCount) {
+      throw const SpecRunException(
+        'A verificação não falhou só pela contagem de testes.',
+      );
+    }
+    final drop = report.failures.single.output;
+    final accepted = GateReport(
+      at: report.at,
+      attempt: report.attempt,
+      checks: [
+        for (final c in report.checks)
+          c.name == 'contagem'
+              ? c.copyWith(ok: true, output: '$drop · redução aceita')
+              : c,
+      ],
+    );
+    await repo.setGate(specId, steps, report: accepted.encode());
+    await _manager.note(
+      s.id,
+      'Contagem de testes de ${steps.join(', ')} ($drop): redução aceita '
+      'pelo usuário.',
+    );
+    final ws = await _ref
+        .read(workspacesRepoProvider)
+        .getById(spec.workspaceId);
+    final text = ws == null
+        ? null
+        : await _ref.read(specServiceProvider).read(ws, spec);
+    if (text != null) await _checkCriteria(spec, text, steps);
+    for (final step in steps) {
+      await repo.set(specId, step, StepStatus.done, sessionId: s.id);
+    }
+    await _continue(s);
   }
 
   /// Stopped by the user: its running steps go back to pending. Failed:

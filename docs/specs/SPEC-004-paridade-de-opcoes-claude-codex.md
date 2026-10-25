@@ -66,13 +66,13 @@ Generalizar `core/claude/run_prefs.dart`, os seletores de sessão/Quadro, `setti
 
 ## Critérios de aceite
 
-- [ ] [R1] Matriz revisada contra opções e telas atuais; toda linha tem mecanismo, versão e evidência; nenhuma opção é descartada silenciosamente. Lacunas mantêm esta spec incompleta.
-- [ ] [R2] Modelo/esforço inválido é recusado; defaults e overrides são preservados; limites são exercitados; métricas ausentes aparecem como indisponíveis e métricas acumuladas não duplicam custo.
-- [ ] [R3] Testes de cada modo tentam escrita por patch, comando e MCP, além de acesso fora da raiz; somente as ações autorizadas ocorrem. Cada modo avançado tem cenário próprio.
-- [ ] [R4] Agente e skill de cada provedor são criados, editados e usados com precedência de projeto; referência incompatível não é enviada como argumento válido; subagentes conservam identidade na timeline.
-- [ ] [R5] Descobrir MCP e aplicar as três regras funciona em ambos os provedores; regras conflitantes mantêm o bloqueio e configuração estrita impede herança extra, inclusive após retomar.
-- [ ] [R6] Hooks/configurações temporárias não alteram arquivos globais; anexos compatíveis são recebidos; saída fora do schema falha sem atualizar indevidamente o estado do produto.
-- [ ] Testes de políticas, preferências, MCP e métricas passam para ambos os provedores; `flutter analyze` não apresenta novos avisos.
+- [ ] [R1] Matriz revisada contra opções e telas atuais; toda linha tem mecanismo, versão e evidência; nenhuma opção é descartada silenciosamente. Lacunas mantêm esta spec incompleta. verificar: manual (matriz revisada com mecanismo, versão e evidência por linha)
+- [ ] [R2] Modelo/esforço inválido é recusado; defaults e overrides são preservados; limites são exercitados; métricas ausentes aparecem como indisponíveis e métricas acumuladas não duplicam custo. verificar: manual (modelo e esforço inválidos recusados, limites e métricas por provedor)
+- [ ] [R3] Testes de cada modo tentam escrita por patch, comando e MCP, além de acesso fora da raiz; somente as ações autorizadas ocorrem. Cada modo avançado tem cenário próprio. verificar: manual (cada modo tenta patch, comando, MCP e acesso fora da raiz)
+- [ ] [R4] Agente e skill de cada provedor são criados, editados e usados com precedência de projeto; referência incompatível não é enviada como argumento válido; subagentes conservam identidade na timeline. verificar: manual (agente e skill por provedor criados, editados e usados)
+- [ ] [R5] Descobrir MCP e aplicar as três regras funciona em ambos os provedores; regras conflitantes mantêm o bloqueio e configuração estrita impede herança extra, inclusive após retomar. verificar: manual (descoberta e regras MCP em ambos os provedores, inclusive após retomar)
+- [ ] [R6] Hooks/configurações temporárias não alteram arquivos globais; anexos compatíveis são recebidos; saída fora do schema falha sem atualizar indevidamente o estado do produto. verificar: manual (hooks sem alterar arquivos globais, anexos e saída fora do schema)
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] Testes de políticas, preferências, MCP e métricas passam para ambos os provedores; `flutter analyze` não apresenta novos avisos. verificar: flutter analyze && flutter test
 
 ## Perguntas em aberto
 

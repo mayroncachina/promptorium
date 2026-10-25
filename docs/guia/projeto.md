@@ -52,6 +52,7 @@ verificacao:                   # gate da etapa
   timeout: 600                 # por comando, em segundos
   exigir-commit: true
   exigir-arvore-limpa: true
+  contar-testes: true          # reprova a etapa se passarem menos testes ou houver mais pulados
 bloquear-comandos:             # comandos Bash recusados pelo hook
   - "git push --force*"
 worktree:
