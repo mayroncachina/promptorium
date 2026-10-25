@@ -37,13 +37,13 @@ Componentes: `settings/`, configuração do projeto, `agent_registry.dart`, `dat
 
 ## Critérios de aceite
 
-- [ ] [R1] Atualizar banco e preferências antigos mantém Claude, seus modelos, esforços e compactação; um projeto com override Codex não altera outro projeto.
-- [ ] [R2] Os três pontos de entrada exibem Claude e Codex e a escolha aparece antes de executar ações auxiliares; trocar provedor atualiza somente as opções do formulário novo.
-- [ ] [R3] Teste do resolvedor cobre toda a precedência; uma spec Codex continua com Codex na segunda etapa mesmo após mudar o padrão global para Claude.
-- [ ] [R4] Reabrir o app e retomar usa provedor, ID externo e configuração salvos; fork mantém provedor; transferência para outro provedor cria outro registro e informa o contexto enviado.
-- [ ] [R5] Sessões simultâneas dos dois provedores são distinguíveis; salvar esforço/modelo Codex não altera os padrões Claude; modelos Claude não são enviados ao Codex.
-- [ ] [R6] ID desconhecido, CLI ausente ou sem autenticação não inicia outro agente; alterar preferências não modifica uma sessão salva.
-- [ ] Testes de migração, resolvedor, persistência e seletores passam; `flutter analyze` não apresenta novos avisos.
+- [ ] [R1] Atualizar banco e preferências antigos mantém Claude, seus modelos, esforços e compactação; um projeto com override Codex não altera outro projeto. verificar: flutter test test/core/provider_selection_test.dart
+- [ ] [R2] Os três pontos de entrada exibem Claude e Codex e a escolha aparece antes de executar ações auxiliares; trocar provedor atualiza somente as opções do formulário novo. verificar: manual (Prompt, Nova sessão e Executar spec exibem Claude e Codex)
+- [ ] [R3] Teste do resolvedor cobre toda a precedência; uma spec Codex continua com Codex na segunda etapa mesmo após mudar o padrão global para Claude. verificar: flutter test test/core/provider_selection_test.dart test/features/sessions/codex_session_test.dart
+- [ ] [R4] Reabrir o app e retomar usa provedor, ID externo e configuração salvos; fork mantém provedor; transferência para outro provedor cria outro registro e informa o contexto enviado. verificar: flutter test test/features/sessions/codex_session_test.dart
+- [ ] [R5] Sessões simultâneas dos dois provedores são distinguíveis; salvar esforço/modelo Codex não altera os padrões Claude; modelos Claude não são enviados ao Codex. verificar: manual (sessões dos dois provedores distinguíveis e preferências independentes)
+- [ ] [R6] ID desconhecido, CLI ausente ou sem autenticação não inicia outro agente; alterar preferências não modifica uma sessão salva. verificar: manual (provedor desconhecido, ausente ou sem login não inicia outro agente)
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] Testes de migração, resolvedor, persistência e seletores passam; `flutter analyze` não apresenta novos avisos. verificar: flutter analyze && flutter test
 
 ## Perguntas em aberto
 

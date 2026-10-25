@@ -30,10 +30,10 @@ Permitir rolar o Quadro na vertical para que o usuário alcance todas as specs, 
 - [ ] [R2] Na visão Grafo com mais de 8 specs em uma onda, rolar para baixo revela a última linha, e a rolagem horizontal continua funcionando. verificar: flutter test test/features/board/board_screen_test.dart
 - [ ] [R3] Rolar com a roda do mouse sobre um cartão move o conteúdo do Quadro, quando a coluna sob o cursor já estiver no fim ou não rolar. verificar: flutter test test/features/board/board_screen_test.dart
 - [ ] [R4] Em uma coluna com muitos cartões, rolar move só essa coluna; as demais ficam na mesma posição. verificar: flutter test test/features/board/board_screen_test.dart
-- [ ] [R5] Com poucas specs, nenhuma barra de rolagem aparece e o layout é idêntico ao atual.
+- [ ] [R5] Com poucas specs, nenhuma barra de rolagem aparece e o layout é idêntico ao atual. verificar: flutter test test/features/board/board_screen_test.dart
 - [ ] [R6] Reordenar um cartão com os botões ou por arraste continua funcionando após a mudança. verificar: flutter test test/features/board/board_ops_test.dart
-- [ ] [R7] Com rolagem possível, a barra de rolagem vertical aparece (conferir manualmente no app).
-- [ ] `flutter analyze` sem novos avisos. verificar: flutter analyze
+- [ ] [R7] Com rolagem possível, a barra de rolagem vertical aparece (conferir manualmente no app). verificar: flutter test test/features/board/board_screen_test.dart
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] [R7] `flutter analyze` sem novos avisos. verificar: flutter analyze
 
 ## Perguntas em aberto
 

@@ -59,10 +59,10 @@ Testes específicos: `test/core/codex/codex_yolo_test.dart`, `test/features/sess
 
 ## Critérios de aceite
 
-- [x] [R1] Trocar Claude por Codex em um formulário novo troca o texto do bypass para YOLO; voltar para Claude restaura sua identificação, sem ativar o modo automaticamente.
-- [x] [R2] Testes do gerador de comandos cobrem criação, terminal, retomada e fork Codex suportados com `--yolo`, sem flags Claude; a execução Claude mantém `--dangerously-skip-permissions`.
-- [x] [R3] Servidor falso verifica as políticas de criação, retomada e turnos em YOLO, sem flag inválida em `app-server`; sondagem controlada confirma a configuração efetiva na versão instalada.
-- [x] [R4] Reiniciar o app e retomar uma execução Codex YOLO preserva provedor, thread e modo; sessão Claude antiga continua Claude; mudar o padrão no rodapé não altera nenhuma delas.
-- [x] [R5] Avisos e detalhes Codex exibem YOLO e seu alcance real; as restrições de elegibilidade existentes permanecem e Perguntar/Planejar não recebem acesso irrestrito.
-- [x] [R6] Versão ou transporte incompatível produz erro antes da execução; execução Codex normal não contém `--yolo` nem políticas de bypass; não há fallback de provedor ou modo.
-- [x] Testes dos geradores de comandos, adaptadores, formulários e persistência passam; `flutter analyze` não apresenta novos avisos.
+- [x] [R1] Trocar Claude por Codex em um formulário novo troca o texto do bypass para YOLO; voltar para Claude restaura sua identificação, sem ativar o modo automaticamente. verificar: flutter test test/features/sessions/codex_permissions_ui_test.dart
+- [x] [R2] Testes do gerador de comandos cobrem criação, terminal, retomada e fork Codex suportados com `--yolo`, sem flags Claude; a execução Claude mantém `--dangerously-skip-permissions`. verificar: flutter test test/core/codex/codex_yolo_test.dart test/core/claude/claude_args_test.dart
+- [x] [R3] Servidor falso verifica as políticas de criação, retomada e turnos em YOLO, sem flag inválida em `app-server`; sondagem controlada confirma a configuração efetiva na versão instalada. verificar: flutter test test/core/codex/codex_yolo_test.dart
+- [x] [R4] Reiniciar o app e retomar uma execução Codex YOLO preserva provedor, thread e modo; sessão Claude antiga continua Claude; mudar o padrão no rodapé não altera nenhuma delas. verificar: flutter test test/features/sessions/codex_session_test.dart
+- [x] [R5] Avisos e detalhes Codex exibem YOLO e seu alcance real; as restrições de elegibilidade existentes permanecem e Perguntar/Planejar não recebem acesso irrestrito. verificar: flutter test test/core/codex/codex_yolo_test.dart test/features/sessions/codex_session_test.dart
+- [x] [R6] Versão ou transporte incompatível produz erro antes da execução; execução Codex normal não contém `--yolo` nem políticas de bypass; não há fallback de provedor ou modo. verificar: flutter test test/core/codex/codex_yolo_test.dart
+- [x] [R1] [R2] [R3] [R4] [R5] [R6] Testes dos geradores de comandos, adaptadores, formulários e persistência passam; `flutter analyze` não apresenta novos avisos. verificar: flutter analyze && flutter test

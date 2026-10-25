@@ -56,14 +56,14 @@ Automações hoje implementadas com hooks Claude devem ter equivalente Codex com
 
 ## Critérios de aceite
 
-- [ ] [R1] Com Codex, executar uma sessão com alteração real em worktree, aprovação, imagem compatível, parada, reinício do app, retomada, fork e ida/volta do terminal; não há dois escritores nem perda de histórico.
-- [ ] [R2] Exercitar os três modos do Prompt, anexos, refinamento com aprovação e continuação como sessão para Claude e Codex, verificando provedor e contexto recebidos.
-- [ ] [R3] Com o executável Claude indisponível e Codex autenticado, planejar projeto, gerar specs/etapas, gerar design e criar uma skill funciona; resposta estruturada inválida não cria dados parciais tratados como válidos.
-- [ ] [R4] Executar spec em múltiplas etapas com reinício entre elas conserva configuração/worktree e respeita gates; duelo Claude/Codex mostra tentativas separadas e permite escolher o resultado sem cruzar branches.
-- [ ] [R5] Review com herança e com override identifica o revisor; reprovação volta ao executor correto; falha de testes mantém a etapa pendente de correção; merge continua sujeito ao fluxo humano existente.
-- [ ] [R6] Executar Claude e Codex simultaneamente, provocar falha em um e parar o outro; recuperação, fila de aprovações, notificações e métricas mantêm identidades e não deixam processos órfãos.
-- [ ] Testes com processos falsos cobrem os fluxos acima e a regressão Claude/ACP. Sondagens reais autorizadas registram versões e resultados, sem depender de contas externas para a suíte comum.
-- [ ] `flutter test` e `flutter analyze` passam; conferência manual do fluxo completo com cada provedor é registrada antes de encerrar a entrega.
+- [ ] [R1] Com Codex, executar uma sessão com alteração real em worktree, aprovação, imagem compatível, parada, reinício do app, retomada, fork e ida/volta do terminal; não há dois escritores nem perda de histórico. verificar: manual (sessão Codex completa com worktree, aprovação, retomada, fork e terminal)
+- [ ] [R2] Exercitar os três modos do Prompt, anexos, refinamento com aprovação e continuação como sessão para Claude e Codex, verificando provedor e contexto recebidos. verificar: manual (três modos do Prompt, anexos e refinamento com Claude e Codex)
+- [ ] [R3] Com o executável Claude indisponível e Codex autenticado, planejar projeto, gerar specs/etapas, gerar design e criar uma skill funciona; resposta estruturada inválida não cria dados parciais tratados como válidos. verificar: manual (projeto, specs, design e skill com Codex e sem Claude)
+- [ ] [R4] Executar spec em múltiplas etapas com reinício entre elas conserva configuração/worktree e respeita gates; duelo Claude/Codex mostra tentativas separadas e permite escolher o resultado sem cruzar branches. verificar: manual (spec em várias etapas com reinício e duelo Claude e Codex)
+- [ ] [R5] Review com herança e com override identifica o revisor; reprovação volta ao executor correto; falha de testes mantém a etapa pendente de correção; merge continua sujeito ao fluxo humano existente. verificar: manual (review com herança e override, reprovação volta ao executor certo)
+- [ ] [R6] Executar Claude e Codex simultaneamente, provocar falha em um e parar o outro; recuperação, fila de aprovações, notificações e métricas mantêm identidades e não deixam processos órfãos. verificar: manual (Claude e Codex simultâneos, falha em um e parada no outro)
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] Testes com processos falsos cobrem os fluxos acima e a regressão Claude/ACP. Sondagens reais autorizadas registram versões e resultados, sem depender de contas externas para a suíte comum. verificar: manual (processos falsos cobrem os fluxos e sondagens reais registradas)
+- [ ] [R1] [R2] [R3] [R4] [R5] [R6] `flutter test` e `flutter analyze` passam; conferência manual do fluxo completo com cada provedor é registrada antes de encerrar a entrega. verificar: flutter analyze && flutter test
 
 ## Perguntas em aberto
 
