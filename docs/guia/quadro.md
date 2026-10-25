@@ -29,7 +29,9 @@ Menu do cartão: Executar com opções… (provedor, agente, modelo, esforço, m
 
 ## Gate
 
-Entre uma etapa e a seguinte, o gate confere commit, árvore limpa, testes, lint, build e os `verificar:` dos critérios da etapa. Se falhar: **Corrigir e verificar** (o agente corrige e o gate roda de novo), **Verificar de novo** ou **Commitar o que sobrou**. O diálogo da etapa ao vivo mostra o andamento.
+Entre uma etapa e a seguinte, o gate confere commit, árvore limpa, testes, lint, build e os `verificar:` dos critérios da etapa. Se falhar: **Corrigir e verificar** (o agente corrige e o gate roda de novo), **Verificar de novo** ou **Commitar o que sobrou**.
+
+O gate também conta os testes que passaram e os pulados no comando `testes:` (flutter/dart, pytest, jest, vitest, cargo) e reprova a etapa se, em relação ao último gate aprovado da mesma spec, passarem menos ou houver mais pulados. Quando essa é a única falha, **Aceitar a redução** aprova a etapa e registra os números na timeline. A primeira etapa de cada spec só registra a contagem. Desligue com `verificacao: contar-testes: false`. Critérios com `verificar: manual (…)` não rodam no gate. O diálogo da etapa ao vivo mostra o andamento.
 
 ## Checkpoints
 

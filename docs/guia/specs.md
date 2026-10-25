@@ -43,6 +43,14 @@ Ações da spec:
 
 O frontmatter também aceita subagentes por etapa, editados num painel próprio.
 
+### Avisos de estrutura e perguntas em aberto
+
+Uma faixa abaixo do editor lista os avisos da spec, atualizados enquanto você edita: requisito sem critério de aceite, critério sem `[Rn]` ou citando requisito que não existe, critério sem `verificar:` (use `verificar: manual (…)` quando não houver comando), ID repetido ou fora de sequência e requisito sem "deve" (fora do estilo EARS). Clicar num aviso leva o cursor à linha. Os avisos não impedem salvar nem aprovar.
+
+Ao aprovar uma spec com itens em `## Perguntas em aberto`, o app lista as perguntas e oferece **Refinar com IA**, **Aprovar assumindo premissas** (as perguntas vão para `## Premissas`, com a data) ou **Cancelar**. Com avisos, o mesmo diálogo mostra quantos são, com **Ver avisos** e **Aprovar mesmo assim**.
+
+Uma spec nova já vem com `## Fora do escopo` e `## Perguntas em aberto`. As sessões de etapa recebem "Fora do escopo" e "Premissas" junto com o objetivo.
+
 ## Protótipo de telas
 
 O quarto modo do editor, **Protótipo**, mostra as telas da spec num canvas com zoom, uma por requisito.
