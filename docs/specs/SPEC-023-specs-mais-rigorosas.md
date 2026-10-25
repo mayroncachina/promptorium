@@ -1,6 +1,6 @@
 ---
 id: SPEC-023
-status: rascunho
+status: aprovada
 ---
 
 # Specs mais rigorosas
@@ -102,27 +102,27 @@ Fora do escopo:
 
 ## Critérios de aceite
 
-- [ ] `parseTestCount` extrai passaram e pulados de saídas reais de flutter, pytest, jest, vitest e cargo, e devolve null para uma saída sem resumo [R1] verificar: flutter test test/features/board/test_count_test.dart
-- [ ] O relatório do gate guarda a contagem no item `testes` e sobrevive a `encode`/`decode` [R1] verificar: flutter test test/features/board/step_gate_test.dart
-- [ ] Com baseline de 10 passaram e saída com 9, o gate reprova com o item "contagem de testes" e mostra antes e depois [R2] verificar: flutter test test/features/board/step_gate_test.dart
-- [ ] Com baseline sem pulados e saída com 1 pulado, o gate reprova [R2] verificar: flutter test test/features/board/step_gate_test.dart
-- [ ] A baseline vem do gate aprovado mais recente da mesma spec, e não de outra spec [R2] verificar: flutter test test/features/board/spec_runner_test.dart
-- [ ] Com só a contagem reprovada, o painel mostra "Aceitar a redução"; acioná-la aprova a etapa e escreve a nota na timeline [R3] verificar: flutter test test/features/board
-- [ ] Com outra falha junto (por exemplo, lint), "Aceitar a redução" não aparece [R3] verificar: flutter test test/features/board
-- [ ] Na primeira etapa da spec, ou com saída sem resumo, o gate passa e registra "contagem não conferida" [R4] verificar: flutter test test/features/board/step_gate_test.dart
-- [ ] `verificacao: contar-testes: nao` desliga a conferência, e o `toYaml` preserva a chave [R5] verificar: flutter test test/features/project
-- [ ] Com perguntas em aberto, "Aprovar spec" abre o diálogo com as perguntas antes do diálogo de Design; "Cancelar" não muda o arquivo [R6] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] "Refinar com IA" no diálogo abre a conversa de refino da spec [R6] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] "Aprovar assumindo premissas" move as perguntas para `## Premissas` com a data, esvazia "Perguntas em aberto" e aprova [R7] verificar: flutter test test/features/specs/spec_file_test.dart test/features/specs/specs_screen_test.dart
-- [ ] `lintSpec` aponta, com a linha certa, cada um dos cinco tipos de aviso, e não aponta nada na SPEC-021 [R8] verificar: flutter test test/features/specs
-- [ ] Editar a spec atualiza a lista de avisos sem salvar [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Acionar um aviso posiciona o cursor na linha dele; salvar e aprovar continuam disponíveis com avisos [R9] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Com avisos, o diálogo de aprovação mostra a contagem, "Ver avisos" abre a lista e "Aprovar mesmo assim" aprova [R10] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Uma spec nova traz as seis seções na ordem do R11 [R11] verificar: flutter test test/features/specs/spec_file_test.dart
-- [ ] O prompt de refino cita "Fora do escopo" e "Perguntas em aberto" [R12] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] O trecho enviado à etapa inclui "Fora do escopo" e "Premissas" quando existem, e não muda quando não existem [R13] verificar: flutter test test/features/board/spec_runner_test.dart
-- [ ] A faixa de avisos, os avisos, os botões dos diálogos e "Aceitar a redução" recebem foco por Tab, acionam com Enter e têm rótulo de acessibilidade [R14] verificar: flutter test test/features/specs test/features/board
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] verificar: flutter analyze
+- [x] `parseTestCount` extrai passaram e pulados de saídas reais de flutter, pytest, jest, vitest e cargo, e devolve null para uma saída sem resumo [R1] verificar: flutter test test/features/board/test_count_test.dart
+- [x] O relatório do gate guarda a contagem no item `testes` e sobrevive a `encode`/`decode` [R1] verificar: flutter test test/features/board/step_gate_test.dart
+- [x] Com baseline de 10 passaram e saída com 9, o gate reprova com o item "contagem de testes" e mostra antes e depois [R2] verificar: flutter test test/features/board/step_gate_test.dart
+- [x] Com baseline sem pulados e saída com 1 pulado, o gate reprova [R2] verificar: flutter test test/features/board/step_gate_test.dart
+- [x] A baseline vem do gate aprovado mais recente da mesma spec, e não de outra spec [R2] verificar: flutter test test/features/board/spec_runner_test.dart
+- [x] Com só a contagem reprovada, o painel mostra "Aceitar a redução"; acioná-la aprova a etapa e escreve a nota na timeline [R3] verificar: flutter test test/features/board
+- [x] Com outra falha junto (por exemplo, lint), "Aceitar a redução" não aparece [R3] verificar: flutter test test/features/board
+- [x] Na primeira etapa da spec, ou com saída sem resumo, o gate passa e registra "contagem não conferida" [R4] verificar: flutter test test/features/board/step_gate_test.dart
+- [x] `verificacao: contar-testes: nao` desliga a conferência, e o `toYaml` preserva a chave [R5] verificar: flutter test test/features/project
+- [x] Com perguntas em aberto, "Aprovar spec" abre o diálogo com as perguntas antes do diálogo de Design; "Cancelar" não muda o arquivo [R6] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] "Refinar com IA" no diálogo abre a conversa de refino da spec [R6] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] "Aprovar assumindo premissas" move as perguntas para `## Premissas` com a data, esvazia "Perguntas em aberto" e aprova [R7] verificar: flutter test test/features/specs/spec_file_test.dart test/features/specs/specs_screen_test.dart
+- [x] `lintSpec` aponta, com a linha certa, cada um dos cinco tipos de aviso, e não aponta nada na SPEC-021 [R8] verificar: flutter test test/features/specs
+- [x] Editar a spec atualiza a lista de avisos sem salvar [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Acionar um aviso posiciona o cursor na linha dele; salvar e aprovar continuam disponíveis com avisos [R9] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Com avisos, o diálogo de aprovação mostra a contagem, "Ver avisos" abre a lista e "Aprovar mesmo assim" aprova [R10] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Uma spec nova traz as seis seções na ordem do R11 [R11] verificar: flutter test test/features/specs/spec_file_test.dart
+- [x] O prompt de refino cita "Fora do escopo" e "Perguntas em aberto" [R12] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] O trecho enviado à etapa inclui "Fora do escopo" e "Premissas" quando existem, e não muda quando não existem [R13] verificar: flutter test test/features/board/spec_runner_test.dart
+- [x] A faixa de avisos, os avisos, os botões dos diálogos e "Aceitar a redução" recebem foco por Tab, acionam com Enter e têm rótulo de acessibilidade [R14] verificar: flutter test test/features/specs test/features/board
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] verificar: flutter analyze
 
 ## Decisões
 
@@ -130,8 +130,9 @@ Fora do escopo:
 - A contagem só compara gates da mesma spec. A primeira etapa apenas registra a contagem, para não rodar a suíte inteira (mais de 2 minutos neste repositório) antes de começar.
 - Só o comando `testes:` é contado, porque os `verificar:` das etapas rodam subconjuntos da suíte.
 - A conferência de EARS é tolerante: só exige "deve" no texto do requisito, porque os requisitos gerais ("A ação deve ser operável…") também são válidos em EARS.
-
-## Perguntas em aberto
-
-1. Ao aprovar assumindo premissas, as perguntas devem ir para `## Premissas` (proposta do R7) ou ficar onde estão, marcadas como aceitas?
-2. A conferência de EARS deve ficar de fora no começo, para não gerar ruído nas specs antigas?
+- (Pergunta 1) Ao aprovar assumindo premissas, as perguntas vão para `## Premissas`, como no R7, e "Perguntas em aberto" fica vazia.
+- (Pergunta 2) A conferência de EARS entra já, no modo tolerante: só exige "deve" (ou "devem") no texto do requisito.
+- O item `contagem` não interrompe os comandos seguintes do gate (lint, build, `verificar:`): assim "Aceitar a redução" só aparece quando todo o resto passou.
+- A redução aceita grava o relatório como aprovado, com "redução aceita" na saída do item; a contagem dele vira a baseline seguinte.
+- A faixa de avisos fica abaixo do editor, mas vem antes dele na ordem do Tab, porque o editor usa Tab para indentar. Em specs já iniciadas (somente leitura) a faixa não aparece.
+- Um critério cujo `verificar:` tem crases (que o parser não separa) não gera o aviso "sem verificar:".
