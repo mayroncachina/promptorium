@@ -1,0 +1,104 @@
+name: Preparar release
+
+# Actions → Preparar release → Run workflow: atualiza o `version:` do
+# pubspec.yaml (número de build + 1) e o CHANGELOG.md (git-cliff) e abre o PR
+# "chore(release): vX.Y.Z". Depois do merge, publique a release com a tag
+# vX.Y.Z no commit do merge; o release.yml compila e anexa os pacotes.
+#
+# A release não é criada aqui: uma release criada pelo token do Actions não
+# dispara o release.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão (ex.: 0.7.0). Vazio = a próxima, calculada pelos commits"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: git-cliff
+        run: sudo npm install -g git-cliff >/dev/null
+
+      - name: Versão
+        id: version
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          version="${INPUT#v}"
+          if [ -z "$version" ]; then
+            version="$(git cliff --bumped-version 2>/dev/null)"
+            version="${version#v}"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.~-][0-9A-Za-z.~-]*)?$ ]]; then
+            echo "Versão '$version' inválida: use X.Y.Z (ex.: 0.7.0)." >&2
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "A tag v$version já existe." >&2
+            exit 1
+          fi
+          current="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*/\1/p' pubspec.yaml)"
+          build="${current#*+}"
+          [[ "$current" == *+* && "$build" =~ ^[0-9]+$ ]] || build=0
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "full=$version+$((build + 1))" >> "$GITHUB_OUTPUT"
+          echo "Versão: $current → $version+$((build + 1))"
+
+      - name: pubspec.yaml e CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          FULL: ${{ steps.version.outputs.full }}
+        run: |
+          sed -i -E "s/^version:.*/version: $FULL/" pubspec.yaml
+          grep -q "^version: $FULL\$" pubspec.yaml
+          git cliff --tag "v$VERSION" -o CHANGELOG.md
+
+      - name: Abrir o PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          FULL: ${{ steps.version.outputs.full }}
+        run: |
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add pubspec.yaml CHANGELOG.md
+          git commit -m "chore(release): v$VERSION"
+          git push --force origin "$branch"
+
+          git cliff --unreleased --tag "v$VERSION" --strip all -o notes.md
+          {
+            echo "Versão \`$FULL\` no pubspec.yaml e CHANGELOG.md gerado pelo git-cliff."
+            echo
+            echo "Depois do merge, publique a release com a tag \`v$VERSION\` no commit do merge (Releases → Draft a new release)."
+            echo
+            echo "---"
+            echo
+            cat notes.md
+          } > body.md
+
+          if gh pr create --base "${{ github.ref_name }}" --head "$branch" \
+              --title "chore(release): v$VERSION" --body-file body.md; then
+            exit 0
+          fi
+          # Sem "Allow GitHub Actions to create and approve pull requests"
+          # (Settings → Actions → General), o token não abre PR: fica o link.
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/${{ github.ref_name }}...$branch?expand=1"
+          echo "Não foi possível abrir o PR. Abra em: $url" >&2
+          {
+            echo "### Abra o PR da release"
+            echo
+            echo "O Actions não tem permissão para abrir PRs neste repositório. Abra pelo link: $url"
+          } >> "$GITHUB_STEP_SUMMARY"

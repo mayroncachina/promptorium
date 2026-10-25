@@ -42,10 +42,17 @@ tag_pattern = "v?[0-9].*"
 # O corpo do commit não vai para o changelog; só a primeira linha.
 commit_preprocessors = [
   { pattern = '\s+$', replace = "" },
+  # Commits das etapas de spec ("SPEC-023 R1-R5: texto") entram como
+  # funcionalidades da spec; os da própria spec ("SPEC-023: texto"), como
+  # documentação.
+  { pattern = '^(SPEC-[0-9]+) (R[^:\n]*): ([^\n]*)', replace = "feat($1): $3 ($2)" },
+  { pattern = '^(SPEC-[0-9]+): ', replace = "docs($1): " },
 ]
 
 # A ordem dos prefixos numéricos define a ordem das seções.
 commit_parsers = [
+  # O commit de versão e changelog do "Preparar release" não entra.
+  { message = "^chore\\(release\\)", skip = true },
   { message = "^feat", group = "<!-- 0 -->Funcionalidades" },
   { message = "^fix", group = "<!-- 1 -->Correções" },
   { message = "^perf", group = "<!-- 2 -->Desempenho" },
