@@ -196,6 +196,34 @@ void main() {
     expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
   });
 
+  testWidgets('the zoom also scales the preview text, not only the editor', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1440, 900));
+    TextScaler heading() => tester
+        .widget<RichText>(
+          find.descendant(
+            of: find.byKey(const ValueKey('spec-preview')),
+            matching: find.byWidgetPredicate(
+              (w) =>
+                  w is RichText &&
+                  w.text.toPlainText() == 'Sessões com stream-json',
+            ),
+          ),
+        )
+        .textScaler;
+    expect(heading(), const TextScaler.linear(1));
+    await tester.tap(find.byTooltip('Aumentar zoom (Ctrl =)'));
+    await tester.tap(find.byTooltip('Aumentar zoom (Ctrl =)'));
+    await tester.pump();
+    expect(find.text('120%'), findsOneWidget);
+    expect(heading(), const TextScaler.linear(1.2));
+    // A click on the percent goes back to 100%, the preview too.
+    await tester.tap(find.byKey(const ValueKey('zoom-specs')));
+    await tester.pump();
+    expect(heading(), const TextScaler.linear(1));
+  });
+
   testWidgets('editing marks "não salvo"; Salvar writes the file', (
     tester,
   ) async {
