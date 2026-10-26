@@ -202,7 +202,8 @@ void main() {
 
     const updateNow = ValueKey('about-update-now');
     await open(withUpdate: false);
-    expect(find.textContaining('Novidades da'), findsNothing);
+    // Anchored: the CHANGELOG itself mentions "Novidades da X.Y.Z".
+    expect(find.textContaining(RegExp(r'^Novidades da ')), findsNothing);
     expect(find.byKey(updateNow), findsNothing);
     expect(find.text('Atualizar agora'), findsNothing);
 
@@ -248,7 +249,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Atualizar agora'), findsNothing);
-    expect(find.textContaining('Novidades da'), findsNothing);
+    expect(find.textContaining(RegExp(r'^Novidades da ')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('about-check-now')));
     await tester.pumpAndSettle();
