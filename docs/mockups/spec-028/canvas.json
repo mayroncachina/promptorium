@@ -1,0 +1,78 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T19:00:00Z"
+ },
+ "title": "Promptorium · Responder as perguntas da spec",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Aprovar com perguntas em aberto"
+  },
+  "Sessao.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Sessão: uma pergunta por vez"
+  },
+  "Revisar.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Revisar as respostas"
+  },
+  "Aplicar.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · O que muda na spec"
+  },
+  "Formato.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Sugestões contadas como perguntas"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Sessao.dc.html",
+  "Revisar.dc.html",
+  "Aplicar.dc.html",
+  "Formato.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Responder as perguntas em aberto numa sessão guiada",
+   "kind": "title1",
+   "maxW": 3460
+  },
+  "t2": {
+   "x": 0,
+   "y": 820,
+   "text": "Aplicar à spec e corrigir o formato antigo",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
