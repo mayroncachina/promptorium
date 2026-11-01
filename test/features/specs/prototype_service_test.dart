@@ -314,4 +314,67 @@ void main() {
     );
     expect(await done, {'telas': <Object?>[], 'resposta': 'ok'});
   });
+
+  test('SPEC-027 R6 R7: removeAll deletes files and index entries, marks the '
+      'emptied requirement; restore puts everything back; generating only R1 '
+      'asks just that requirement and clears the mark', () async {
+    Directory(dir()).createSync(recursive: true);
+    File('${dir()}/R1-lista.html').writeAsStringSync('<p>1</p>');
+    File('${dir()}/R2-detalhe.html').writeAsStringSync('<p>2</p>');
+    File('${dir()}/R2-detalhe.b.html').writeAsStringSync('<p>2b</p>');
+    final at = DateTime(2026, 11, 1, 9, 30);
+    await PrototypeIndex(
+      screens: {
+        'R1-lista.html': ScreenMeta(description: 'lista', createdAt: at),
+        'R2-detalhe.b.html': ScreenMeta(description: 'denso', createdAt: at),
+      },
+    ).write(dir());
+    final service = c.read(prototypeServiceProvider);
+    final row = specRow('specs/SPEC-022.md');
+    final r1 = parseMockupName('R1-lista.html')!;
+    final r2b = parseMockupName('R2-detalhe.b.html')!;
+
+    final removed = await service.removeAll(
+      ws,
+      row,
+      [r1, r2b],
+      approved: {'R1-lista.html'},
+    );
+    expect(File('${dir()}/R1-lista.html').existsSync(), isFalse);
+    expect(File('${dir()}/R2-detalhe.b.html').existsSync(), isFalse);
+    expect(File('${dir()}/R2-detalhe.html').existsSync(), isTrue);
+    var index = await PrototypeIndex.read(dir());
+    expect(index.screens.keys, isEmpty);
+    // R1 has no screen left; R2 still has A.
+    expect(index.emptied.keys, ['R1']);
+    expect(index.emptied['R1']!.title, 'Lista');
+    expect(index.emptied['R1']!.hadApproval, isTrue);
+    expect(removed.emptied, {'R1'});
+    expect(
+      removed.files.keys,
+      unorderedEquals(['R1-lista.html', 'R2-detalhe.b.html']),
+    );
+
+    await service.restore(ws, row, removed);
+    expect(File('${dir()}/R1-lista.html').readAsStringSync(), '<p>1</p>');
+    expect(File('${dir()}/R2-detalhe.b.html').readAsStringSync(), '<p>2b</p>');
+    index = await PrototypeIndex.read(dir());
+    expect(index.screens['R1-lista.html']!.description, 'lista');
+    expect(index.screens['R2-detalhe.b.html']!.createdAt, at);
+    expect(index.emptied, isEmpty);
+
+    // Emptied again, then "Gerar tela do R1".
+    await service.removeAll(ws, row, [r1]);
+    expect((await PrototypeIndex.read(dir())).emptied.keys, ['R1']);
+    behave = (call) async {
+      File('${dir()}/R1-lista.html').writeAsStringSync('<p>novo</p>');
+      return {'telas': [], 'resposta': 'ok'};
+    };
+    await service.generate(ws, row, spec, only: {'R1'});
+    expect(calls.last.prompt, contains('Gere somente a tela de R1'));
+    index = await PrototypeIndex.read(dir());
+    expect(index.emptied, isEmpty);
+    expect(index.history.last.request, 'Gerar tela do R1');
+    expect(index.history.last.requirements, ['R1']);
+  });
 }

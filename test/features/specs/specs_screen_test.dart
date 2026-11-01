@@ -27,7 +27,13 @@ import 'package:re_editor/re_editor.dart' show CodeEditor;
 import '../../helpers/test_db.dart';
 import '../prompt/prompt_test_utils.dart' show SilentConversationManager;
 import '../sessions/session_test_utils.dart';
+
+import 'package:promptorium/core/process/process_runner.dart';
+import 'package:promptorium/features/specs/prototype/prototype_service.dart';
+import 'package:promptorium/features/specs/prototype/prototype_thumbnails.dart';
+
 import 'spec_action_lock_test.dart' show FakeDesigner, otherSpec;
+import 'prototype_thumbnails_test.dart' show FakeBrowser;
 import 'spec_file_test.dart' show sample;
 
 /// Real file IO does not run under FakeAsync: let it run, then pump, until
@@ -746,5 +752,88 @@ void main() {
       expect(c.read(navigationProvider), AppSection.tasks);
       expect(c.read(specActionProvider), isNull);
     });
+  });
+
+  testWidgets('SPEC-027 R5: deleting the approved screen warns, removes its '
+      'line from "## Protótipo" without changing the status; with unsaved '
+      'edits the editor loses the line too and stays unsaved; "Desfazer" '
+      'puts the line back', (tester) async {
+    const line = '- R1 → docs/mockups/spec-002/R1-sessoes.html';
+    File('${tmp.path}/specs/SPEC-002-sessoes.md')
+        .writeAsStringSync('${sample.trimRight()}\n\n## Protótipo\n\n$line\n');
+    final mockups = '${tmp.path}/docs/mockups/spec-002';
+    Directory(mockups).createSync(recursive: true);
+    File('$mockups/R1-sessoes.html').writeAsStringSync('<p>A</p>');
+    File('$mockups/R1-sessoes.b.html').writeAsStringSync('<p>B</p>');
+    final browser = FakeBrowser();
+    await pump(
+      tester,
+      const Size(1440, 900),
+      overrides: [
+        prototypeWatchProvider.overrideWithValue(false),
+        processRunnerProvider.overrideWithValue(browser.run),
+        prototypeCacheDirProvider.overrideWithValue('${tmp.path}/cache'),
+      ],
+    );
+    // Unsaved edit.
+    final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
+    editor.controller!.text = editor.controller!.text.replaceFirst(
+      '# Sessões com stream-json',
+      '# Sessões revisadas',
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await settleIo(
+      tester,
+      until: () => find
+          .byKey(const ValueKey('proto-card-R1-sessoes.html'))
+          .evaluate()
+          .isNotEmpty,
+    );
+    await tester.tap(find.byKey(const ValueKey('proto-tab-versions')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('proto-remove-R1-sessoes.html')),
+    );
+    await tester.pump();
+    expect(
+      find.text(
+        'Esta é a tela aprovada do R1. A linha dela também sai da seção '
+        'Protótipo da spec, e o R1 fica sem tela aprovada.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('proto-remove-confirm')));
+    await settleIo(
+      tester,
+      until: () =>
+          !readSpec(tmp).contains(line) &&
+          !editor.controller!.text.contains(line),
+    );
+    final disk = readSpec(tmp);
+    expect(disk, isNot(contains(line)));
+    expect(disk, contains('status: em-revisao'));
+    expect(disk, contains('# Sessões com stream-json'));
+    expect(File('$mockups/R1-sessoes.html').existsSync(), isFalse);
+    final text = editor.controller!.text;
+    expect(text, isNot(contains(line)));
+    expect(text, contains('# Sessões revisadas'));
+    expect(text, contains('status: em-revisao'));
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('proto-undo')));
+    await settleIo(
+      tester,
+      until: () =>
+          readSpec(tmp).contains(line) &&
+          editor.controller!.text.contains(line),
+    );
+    expect(File('$mockups/R1-sessoes.html').readAsStringSync(), '<p>A</p>');
+    expect(editor.controller!.text, contains(line));
+    expect(editor.controller!.text, contains('# Sessões revisadas'));
+    expect(find.byKey(const ValueKey('spec-unsaved')), findsOneWidget);
   });
 }
