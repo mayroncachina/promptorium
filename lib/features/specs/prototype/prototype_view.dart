@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/process/process_runner.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../spec_action.dart';
+import '../widgets/spec_action_banner.dart';
 import 'prototype_files.dart';
 import 'prototype_service.dart';
 import 'prototype_thumbnails.dart';
@@ -346,6 +348,15 @@ class PrototypeCanvas extends ConsumerWidget {
     final ui = ref.watch(prototypeUiProvider(spec.id));
     final uiCtrl = ref.read(prototypeUiProvider(spec.id).notifier);
     final job = ref.watch(prototypeJobsProvider)[spec.id];
+    // SPEC-025 R9: "Gerar telas da spec" holds the spec; its card has the
+    // elapsed time and "Cancelar geração".
+    final action = ref.watch(specActionProvider);
+    final screensAction =
+        action != null &&
+            action.specId == spec.id &&
+            action.kind == SpecActionKind.screens
+        ? action
+        : null;
     final rel = mockupDir(spec.code);
     final dir = '${ws.path}/$rel';
     ref.listen(prototypeScreensProvider(key).select((x) => x.browserMissing), (
@@ -430,7 +441,7 @@ class PrototypeCanvas extends ConsumerWidget {
       );
     }
 
-    Widget pending(String text, String id) => SizedBox(
+    Widget pending(String text, String id, {SpecActionState? run}) => SizedBox(
       width: w,
       child: Padding(
         padding: const EdgeInsets.all(4),
@@ -445,20 +456,52 @@ class PrototypeCanvas extends ConsumerWidget {
               child: SizedBox(
                 height: h,
                 child: Center(
-                  child: Padding(
+                  child: SingleChildScrollView(
                     padding: const EdgeInsets.all(12),
-                    child: Text(
-                      text,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.teal,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (run != null) ...[
+                          const ActionSpinner(size: 16, color: AppColors.teal),
+                          const SizedBox(height: 10),
+                        ],
+                        Text(
+                          text,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.teal,
+                          ),
+                        ),
+                        if (run != null) ...[
+                          const SizedBox(height: 8),
+                          ElapsedText(startedAt: run.startedAt),
+                          const SizedBox(height: 10),
+                          // Narrow cards (zoom out) shrink it instead of
+                          // cutting the label.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: CancelGenerationButton(
+                              onTap: ref
+                                  .read(specActionProvider.notifier)
+                                  .cancel,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
+            if (run != null) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'A spec fica bloqueada até as telas ficarem prontas.',
+                key: ValueKey('proto-generating-note'),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
           ],
         ),
       ),
@@ -472,14 +515,14 @@ class PrototypeCanvas extends ConsumerWidget {
               'Gerando variação ${m.letter.toUpperCase()} de ${m.requirement}…',
               t,
             ),
-      if (job != null && !job.isVariation)
-        pending('Gerando telas da spec…', 'spec'),
+      if ((job != null && !job.isVariation) || screensAction != null)
+        pending('Gerando telas da spec…', 'spec', run: screensAction),
     ];
 
     final status = [
       '$rel/',
       '$count ${count == 1 ? 'tela' : 'telas'}',
-      job != null ? 'gerando…' : 'salvo',
+      job != null || screensAction != null ? 'gerando…' : 'salvo',
     ].join(' · ');
     return ColoredBox(
       color: AppColors.background,

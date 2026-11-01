@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_args.dart';
+import '../../core/claude/claude_event.dart' show Result;
 import '../../core/claude/readonly_run.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../project/project_memory.dart';
+import 'spec_action.dart';
 import 'spec_file.dart';
 
 /// Instructions of "Gerar design" (read-only run in the repository).
@@ -82,26 +84,43 @@ class SpecDesigner {
   static const budgetUsd = 1.0;
 
   /// Returns [specText] with the generated design (not saved: the user
-  /// reviews it in the editor).
-  Future<String> generate(Workspace ws, String specText) async {
-    final r = await runReadOnlyClaude(
-      _ref,
-      workspaceId: ws.id,
-      cwd: ws.path,
-      options: ClaudeOptions(
-        permissionMode: ClaudePermissionMode.defaultMode,
-        disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
-        appendSystemPrompt: designPrompt,
-        jsonSchema: jsonEncode(designSchema),
-        maxBudgetUsd: budgetUsd,
-        includePartialMessages: false,
-      ),
-      prompt: [
-        if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
-          'Memória do projeto:\n${m.toPrompt()}\n',
-        'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
-      ].join('\n'),
-    );
+  /// reviews it in the editor). Completing [cancelled] stops the agent and
+  /// throws [SpecActionCancelled] (SPEC-025 R5).
+  Future<String> generate(
+    Workspace ws,
+    String specText, {
+    Future<void>? cancelled,
+  }) async {
+    var stopped = false;
+    // Registered before the run's own listener: the flag is set by the time
+    // the run fails with "cancelada".
+    cancelled?.then((_) => stopped = true);
+    final Result r;
+    try {
+      r = await runReadOnlyClaude(
+        _ref,
+        workspaceId: ws.id,
+        cancelled: cancelled,
+        cwd: ws.path,
+        options: ClaudeOptions(
+          permissionMode: ClaudePermissionMode.defaultMode,
+          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
+          appendSystemPrompt: designPrompt,
+          jsonSchema: jsonEncode(designSchema),
+          maxBudgetUsd: budgetUsd,
+          includePartialMessages: false,
+        ),
+        prompt: [
+          if (ProjectMemory.loadSync(ws.path) case final m when !m.isEmpty)
+            'Memória do projeto:\n${m.toPrompt()}\n',
+          'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
+        ].join('\n'),
+      );
+    } on PlannerException {
+      if (stopped) throw const SpecActionCancelled();
+      rethrow;
+    }
+    if (stopped) throw const SpecActionCancelled();
     return applyDesignAnswer(specText, structuredOutput(r));
   }
 }

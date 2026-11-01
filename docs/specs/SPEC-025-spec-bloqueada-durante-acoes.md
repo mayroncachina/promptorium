@@ -1,6 +1,6 @@
 ---
 id: SPEC-025
-status: rascunho
+status: concluida
 depende-de: SPEC-024
 ---
 
@@ -96,22 +96,30 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HA2AxJBRLN6oS57YHrz
 
 ## Critérios de aceite
 
-- [ ] Com "Gerar design" em andamento, digitar, colar e `Ctrl+S` não alteram o texto nem o arquivo [R1] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] Durante qualquer ação, o botão dela mostra o rótulo no gerúndio com spinner, e as demais ações e o menu ficam desabilitados [R2] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] A faixa de status aparece só nas ações longas, com título, motivo, tempo decorrido e "Cancelar geração" [R3] [R6] verificar: flutter test test/features/specs/spec_action_banner_test.dart
-- [ ] Com a spec bloqueada, as abas continuam trocando de modo e o texto continua visível, sem véu [R4] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] "Cancelar geração" e Esc completam o `cancelled` do `runReadOnlyClaude`, liberam a spec e mantêm o texto igual ao de antes [R5] verificar: flutter test test/features/specs/spec_design_test.dart test/features/specs/spec_action_lock_test.dart
-- [ ] Uma ação de menos de 300 ms não mostra spinner [R6] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] Escolher outra spec durante "Gerar design" abre a confirmação; "Continuar aqui" mantém a spec atual; a outra opção cancela e abre a escolhida [R7] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] O resultado de uma geração que termina depois da troca de spec não é aplicado à spec nova [R7] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] Uma falha mostra o aviso com a causa, libera a spec sem mudar o texto, e "Tentar de novo" repete a ação [R8] verificar: flutter test test/features/specs/spec_action_banner_test.dart
-- [ ] No modo Protótipo, o cartão de geração mostra o tempo e "Cancelar geração", e cancelar interrompe o agente [R9] verificar: flutter test test/features/specs/prototype_view_test.dart test/features/specs/prototype_service_test.dart
-- [ ] Os botões desabilitados têm contraste de 4,5:1 ou mais e não usam opacidade [R10] verificar: flutter test test/features/specs/spec_action_lock_test.dart
-- [ ] Com `disableAnimations`, o spinner fica parado; a faixa é anunciada como região viva; o Tab segue a ordem visual [R11] verificar: flutter test test/features/specs/spec_action_banner_test.dart
-- [ ] Os testes atuais de specs e do protótipo continuam passando [R1] [R2] [R9] verificar: flutter test test/features/specs
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
+- [x] Com "Gerar design" em andamento, digitar, colar e `Ctrl+S` não alteram o texto nem o arquivo [R1] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] Durante qualquer ação, o botão dela mostra o rótulo no gerúndio com spinner, e as demais ações e o menu ficam desabilitados [R2] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] A faixa de status aparece só nas ações longas, com título, motivo, tempo decorrido e "Cancelar geração" [R3] [R6] verificar: flutter test test/features/specs/spec_action_banner_test.dart
+- [x] Com a spec bloqueada, as abas continuam trocando de modo e o texto continua visível, sem véu [R4] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] "Cancelar geração" e Esc completam o `cancelled` do `runReadOnlyClaude`, liberam a spec e mantêm o texto igual ao de antes [R5] verificar: flutter test test/features/specs/spec_design_test.dart test/features/specs/spec_action_lock_test.dart
+- [x] Uma ação de menos de 300 ms não mostra spinner [R6] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] Escolher outra spec durante "Gerar design" abre a confirmação; "Continuar aqui" mantém a spec atual; a outra opção cancela e abre a escolhida [R7] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] O resultado de uma geração que termina depois da troca de spec não é aplicado à spec nova [R7] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] Uma falha mostra o aviso com a causa, libera a spec sem mudar o texto, e "Tentar de novo" repete a ação [R8] verificar: flutter test test/features/specs/spec_action_banner_test.dart
+- [x] No modo Protótipo, o cartão de geração mostra o tempo e "Cancelar geração", e cancelar interrompe o agente [R9] verificar: flutter test test/features/specs/prototype_view_test.dart test/features/specs/prototype_service_test.dart
+- [x] Os botões desabilitados têm contraste de 4,5:1 ou mais e não usam opacidade [R10] verificar: flutter test test/features/specs/spec_action_lock_test.dart
+- [x] Com `disableAnimations`, o spinner fica parado; a faixa é anunciada como região viva; o Tab segue a ordem visual [R11] verificar: flutter test test/features/specs/spec_action_banner_test.dart
+- [x] Os testes atuais de specs e do protótipo continuam passando [R1] [R2] [R9] verificar: flutter test test/features/specs
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
 
-## Perguntas em aberto
+## Decisões
 
-- Durante "Refinar com IA", o bloqueio vale só até a conversa abrir (como no R1), ou até a conversa terminar?
-- A SPEC-024 (R10) diz que ações indisponíveis ficam com opacidade de cerca de 45 %. Ajustar a SPEC-024 para o estilo do R10 desta spec, para valer em todo o cabeçalho?
+- (Pergunta 1) "Refinar com IA" bloqueia a spec só até a conversa abrir (R1); o botão mostra "Abrindo conversa…".
+- (Pergunta 2) O R10 da SPEC-024 já usa o estilo desta spec. Os desabilitados reaproveitam `AppColors.textDisabled` (`#8A93A3`) sobre `AppColors.surfaceRaised` (`#1A1E26`), com borda `border`. Não foram criadas as constantes `disabledText`/`disabledBg` do Design.
+- O header já tinha uma classe `SpecAction` (os botões da SPEC-024). Por isso o tipo da ação em andamento se chama `SpecActionKind`, e o estado fica em `SpecActionState` + `specActionProvider` (`lib/features/specs/spec_action.dart`). É um `Notifier` único, não por workspace: o `specId` já identifica a spec.
+- Em vez de um `ProgressButton` à parte, o `SpecActionButton` ganhou o estado `busy` (fundo `amberTint`, borda `approvalBorder`, rótulo no gerúndio). O `DelayedProgress` mostra o ícone da ação nos primeiros 300 ms e depois o spinner de 14 px (R6). O estado de bloqueio da linha das abas é o `SaveState` com `lockLabel`, em vez de um `LockedState` separado. Nas ações longas o texto fica em âmbar ("Bloqueada: gerando o design", "Bloqueada: gerando as telas"), como na captura 5.
+- `role status` e `role alert` já são regiões vivas. O Flutter não aceita `liveRegion: true` junto com esses papéis, então a faixa e o aviso usam só o papel. O tempo decorrido fica fora do texto anunciado, para não ser lido a cada segundo.
+- O cancelamento libera a spec na hora (`Future.any` com o `cancelled`), mesmo que o agente demore a parar. Uma resposta que chega depois é descartada. Ao cancelar "Gerar telas", o histórico do protótipo registra "Geração cancelada." e os arquivos que o agente alterou são restaurados.
+- O re_editor só abre ou fecha a conexão de entrada de texto quando o foco muda. Por isso o `AppCodeEditor` tira o foco e o devolve quando `readOnly` muda: um editor com foco não continua recebendo digitação (IME) depois de bloqueado. A faixa, o aviso e o atalho Esc ficam sempre na mesma árvore, para o editor não ser remontado e não perder a rolagem.
+- Sair da seção (R7) passa pelo `NavigationController.request`, que consulta o `leaveGuard` da tela de Specs. Usam esse caminho a barra lateral, a paleta e os atalhos (`AppShell._go`). Navegações feitas por código (notificações, aprovações) continuam diretas; se a tela de Specs for desmontada no meio de uma geração, a geração é cancelada.
+- O Esc é um `CallbackShortcuts` da tela de Specs, ativo só durante uma ação longa. Funciona com o foco no editor, na faixa ou no cartão do protótipo.
+- Em teste, o re_editor usa o caminho de teclado de celular (Enter insere linha mesmo somente leitura) porque a plataforma padrão do teste é Android. Os testes de bloqueio rodam com `TargetPlatform.linux`, a plataforma do app.
