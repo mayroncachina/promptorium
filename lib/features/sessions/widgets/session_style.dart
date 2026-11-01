@@ -93,10 +93,16 @@ class SmallButton extends StatelessWidget {
     this.expand = false,
     this.semanticLabel,
     this.focusColor,
+    this.icon,
+    this.trailing,
   });
 
   final String label;
   final VoidCallback? onTap;
+
+  /// Optional icon before the label and widget after it (`Ctrl+S`).
+  final IconData? icon;
+  final Widget? trailing;
 
   /// Accessible label (SPEC-021 R11); null keeps the visible [label].
   final String? semanticLabel;
@@ -137,7 +143,25 @@ class SmallButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             alignment: Alignment.center,
             width: expand ? double.infinity : null,
-            child: semanticLabel == null ? text : ExcludeSemantics(child: text),
+            child: icon == null && trailing == null
+                ? (semanticLabel == null ? text : ExcludeSemantics(child: text))
+                : ExcludeSemantics(
+                    excluding: semanticLabel != null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) ...[
+                          Icon(icon, size: 14, color: color),
+                          const SizedBox(width: 6),
+                        ],
+                        Flexible(child: text),
+                        if (trailing != null) ...[
+                          const SizedBox(width: 8),
+                          trailing!,
+                        ],
+                      ],
+                    ),
+                  ),
           ),
         ),
       ),

@@ -1,6 +1,6 @@
 ---
 id: SPEC-024
-status: rascunho
+status: concluida
 ---
 
 # Ações da spec mais claras
@@ -43,7 +43,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/VR4rmavZ1iG3GibBEd2
 - R7a · Os rótulos das ações não devem repetir "spec", porque o cabeçalho já é da spec aberta: "Aprovar", "Arquivar", "Desarquivar" e "Excluir…". "Gerar telas da spec" e o rótulo acessível "Mais ações da spec" ficam como estão.
 - R8 · Quando houver alterações não salvas, a linha das abas deve mostrar "● Não salvo" seguido do botão "Salvar" com o atalho `Ctrl+S` visível; sem alterações, deve mostrar "Salvo" com um ícone de confirmação, sem botão.
 - R9 · Na janela de 1100×700, nenhum rótulo de ação, aba ou estado deve ser truncado nem quebrar linha; quando o espaço não couber, "Gerar design" e depois "Refinar com IA" devem ir para o menu "Mais ações", e a ação primária deve continuar visível.
-- R10 · Cada ação deve ter tooltip com o que faz e o atalho, se existir. Uma ação indisponível deve aparecer desabilitada (opacidade de cerca de 45 %) com tooltip explicando o motivo, em vez de sumir.
+- R10 · Cada ação deve ter tooltip com o que faz e o atalho, se existir. Uma ação indisponível deve aparecer desabilitada no estilo da SPEC-025 R10 (texto `#8A93A3` sobre `#1A1E26`, borda `border`, contraste de 4,5:1 ou mais, sem reduzir a opacidade), com tooltip explicando o motivo, em vez de sumir.
 - R11 · A barra, o menu e as abas devem ser operáveis por teclado: Tab entra na barra e nas abas, setas movem entre os itens do menu, Esc fecha o menu e devolve o foco ao botão "Mais ações", e o foco tem anel âmbar visível. O botão só com ícone deve ter o rótulo acessível "Mais ações da spec".
 
 ## Fora do escopo
@@ -98,27 +98,37 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/VR4rmavZ1iG3GibBEd2
   - Gerar design: "Escreve a seção Design a partir do código atual."
   - Aprovar: "Marca a spec como pronta para virar etapas no Quadro."
   - Clonar para alterar: "A execução já começou; crie uma cópia em rascunho para mudar."
-- Os estados ficam no tema: hover clareia uns 12 %, pressionado escurece uns 12 % e desabilitado fica com opacidade 0,45. Sem animação de layout; com movimento reduzido, a transição de cor é desligada.
+- Os estados ficam no tema: hover clareia uns 12 %, pressionado escurece uns 12 % e desabilitado usa texto `#8A93A3` (`AppColors.textDisabled`) sobre `#1A1E26` (`surfaceRaised`), com borda `border`, sem opacidade. Sem animação de layout; com movimento reduzido, a transição de cor é desligada.
 - Foco: `focusColor` âmbar a 25 %, mais um contorno de 2 px. A ordem do Tab segue a ordem visual: identidade, ações, abas, Salvar e zoom.
 
 ## Critérios de aceite
 
-- [ ] O cabeçalho mostra caminho, título e selo na primeira linha, e abas, estado de salvamento e zoom na segunda [R1] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] As abas têm os rótulos do R2 com `Semantics(selected:)` na ativa, e "Dividido" não aparece mais [R2] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] `specHeaderActions` devolve, para rascunho no backlog, Refinar com IA, Gerar design, Aprovar (primária) e o menu, nesta ordem [R3] verificar: flutter test test/features/specs/spec_header_actions_test.dart
-- [ ] Uma spec recém-criada pelo "Nova spec" abre com "Salvo", selo "Rascunho" e as ações do R3 [R3] [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Para uma spec aprovada no backlog, "Aprovar" não aparece e não há primária [R4] verificar: flutter test test/features/specs/spec_header_actions_test.dart
-- [ ] Para uma spec travada, há só "Clonar para alterar" (primária) e o menu; o selo tem cadeado e aparece "Somente leitura" [R5] verificar: flutter test test/features/specs/spec_header_actions_test.dart test/features/specs/spec_header_test.dart
-- [ ] No modo Protótipo, "Gerar telas da spec" é a primária e "Comparar variações" a secundária; `proto-compare` e `proto-generate` continuam funcionando [R6] verificar: flutter test test/features/specs/prototype_view_test.dart test/features/specs/spec_header_actions_test.dart
-- [ ] O menu "Mais ações" abre com Arquivar e Excluir separados por divisor; Excluir pede confirmação como hoje; sem ações disponíveis o botão não aparece [R7] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Os botões e itens de menu do cabeçalho dizem "Aprovar", "Arquivar"/"Desarquivar" e "Excluir…", sem "spec" [R7a] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] Editar o texto mostra "Não salvo" e "Salvar" com `Ctrl+S`; salvar volta para "Salvo" [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] Em 1100×700, nenhum `Text` de ação, aba ou estado tem overflow (`didExceedMaxLines` falso) [R9] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] `fitActions` manda primeiro "Gerar design" e depois "Refinar com IA" para o menu quando a largura não basta, e nunca a primária [R9] verificar: flutter test test/features/specs/spec_header_actions_test.dart
-- [ ] Cada ação tem tooltip; uma ação desabilitada aparece com opacidade reduzida e tooltip com o motivo [R10] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] Tab percorre identidade, ações, abas, Salvar e zoom nesta ordem; no menu, as setas movem e Esc fecha e devolve o foco ao `spec-more`; o botão do menu tem o rótulo "Mais ações da spec" [R11] verificar: flutter test test/features/specs/spec_header_test.dart
-- [ ] Os testes atuais da tela de specs passam com as chaves preservadas ou migradas [R1] [R3] [R7] [R8] verificar: flutter test test/features/specs
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
+- [x] O cabeçalho mostra caminho, título e selo na primeira linha, e abas, estado de salvamento e zoom na segunda [R1] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] As abas têm os rótulos do R2 com `Semantics(selected:)` na ativa, e "Dividido" não aparece mais [R2] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] `specHeaderActions` devolve, para rascunho no backlog, Refinar com IA, Gerar design, Aprovar (primária) e o menu, nesta ordem [R3] verificar: flutter test test/features/specs/spec_header_actions_test.dart
+- [x] Uma spec recém-criada pelo "Nova spec" abre com "Salvo", selo "Rascunho" e as ações do R3 [R3] [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Para uma spec aprovada no backlog, "Aprovar" não aparece e não há primária [R4] verificar: flutter test test/features/specs/spec_header_actions_test.dart
+- [x] Para uma spec travada, há só "Clonar para alterar" (primária) e o menu; o selo tem cadeado e aparece "Somente leitura" [R5] verificar: flutter test test/features/specs/spec_header_actions_test.dart test/features/specs/spec_header_test.dart
+- [x] No modo Protótipo, "Gerar telas da spec" é a primária e "Comparar variações" a secundária; `proto-compare` e `proto-generate` continuam funcionando [R6] verificar: flutter test test/features/specs/prototype_view_test.dart test/features/specs/spec_header_actions_test.dart
+- [x] O menu "Mais ações" abre com Arquivar e Excluir separados por divisor; Excluir pede confirmação como hoje; sem ações disponíveis o botão não aparece [R7] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Os botões e itens de menu do cabeçalho dizem "Aprovar", "Arquivar"/"Desarquivar" e "Excluir…", sem "spec" [R7a] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] Editar o texto mostra "Não salvo" e "Salvar" com `Ctrl+S`; salvar volta para "Salvo" [R8] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] Em 1100×700, nenhum `Text` de ação, aba ou estado tem overflow (`didExceedMaxLines` falso) [R9] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] `fitActions` manda primeiro "Gerar design" e depois "Refinar com IA" para o menu quando a largura não basta, e nunca a primária [R9] verificar: flutter test test/features/specs/spec_header_actions_test.dart
+- [x] Cada ação tem tooltip; uma ação desabilitada aparece com texto `#8A93A3` sobre `#1A1E26` (contraste ≥ 4,5:1, sem opacidade) e tooltip com o motivo [R10] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] Tab percorre identidade, ações, abas, Salvar e zoom nesta ordem; no menu, as setas movem e Esc fecha e devolve o foco ao `spec-more`; o botão do menu tem o rótulo "Mais ações da spec" [R11] verificar: flutter test test/features/specs/spec_header_test.dart
+- [x] Os testes atuais da tela de specs passam com as chaves preservadas ou migradas [R1] [R3] [R7] [R8] verificar: flutter test test/features/specs
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
+
+## Decisões
+
+- (Pergunta 1) Spec aprovada e ainda no backlog: sem ação primária extra; a barra fica com as secundárias e "Mais ações" (R4).
+- (Pergunta 2) O modo "Dividido" passa a se chamar "Lado a lado" (R2).
+- Ações indisponíveis usam o estilo da SPEC-025 R10, não opacidade: texto `#8A93A3` sobre `#1A1E26`, borda `border` (contraste ≥ 4,5:1). O R10 foi ajustado.
+- Na janela de 1100×700 a coluna do editor tem cerca de 544 px (a lista de specs e o painel lateral continuam). A largura é medida com `TextPainter`: as abas perdem o ícone quando não cabem e, com alterações não salvas, o estado de salvamento e o zoom sobem para uma linha própria acima das abas, em vez de cortar rótulos (R9). O título e o caminho podem encurtar com reticências; ações, abas e estados não.
+- O bloco de identidade não tem controle interativo, então não recebe foco: a ordem do Tab começa nas ações, segue para as abas, "Salvar" e o zoom (R11).
+- "Arquivar" (só spec concluída) e "Excluir…" (só spec no backlog) nunca aparecem juntos na prática; o divisor entre os dois é testado no `SpecHeader` (spec_header_test.dart), e a tela testa cada item no seu estado.
+- `SpecViewMode` foi para `widgets/spec_header.dart` e continua exportado por `specs_screen.dart`.
 
 ## Perguntas em aberto
 

@@ -42,6 +42,10 @@ abstract final class AppColors {
   /// Text/icons drawn on top of amber.
   static const onAmber = Color(0xFF1A1206);
 
+  /// Text of a disabled action, on [surfaceRaised]: 4,5:1 or more without
+  /// lowering the opacity (SPEC-025 R10, SPEC-024 R10).
+  static const textDisabled = Color(0xFF8A93A3);
+
   /// Dimmed text (splash footer, idle status).
   static const textMuted = Color(0xFF7C8595);
 

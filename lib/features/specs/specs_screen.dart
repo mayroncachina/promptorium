@@ -17,7 +17,6 @@ import '../prompt/conversation_manager.dart';
 import '../prompt/refine_origin.dart';
 import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
-import '../sessions/widgets/session_style.dart';
 import 'spec_design.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
@@ -27,6 +26,9 @@ import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
+import 'widgets/spec_header.dart';
+
+export 'widgets/spec_header.dart' show SpecViewMode;
 import 'widgets/spec_list.dart';
 import 'widgets/step_trace_panel.dart';
 import 'widgets/subagents_editor.dart';
@@ -35,19 +37,6 @@ import '../board/board_rules.dart'
     show canArchiveSpec, canDeleteSpec, specStageLabel, stepsOf;
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
-
-/// Editor modes of the mockup (Editar / Dividido / Visualizar) and the
-/// prototype of the screens (SPEC-022 R1).
-enum SpecViewMode {
-  edit('Editar'),
-  split('Dividido'),
-  preview('Visualizar'),
-  prototype('Protótipo');
-
-  const SpecViewMode(this.label);
-
-  final String label;
-}
 
 /// First message of "Refinar com IA" (Prompt screen, mode
 /// [PromptMode.refine]: edits ask for approval inline — DT-35).
@@ -740,7 +729,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final ws = ref.watch(activeWorkspaceProvider);
     if (ws == null) {
       return _Shell(
-        header: const _Header(path: null, title: 'Specs'),
+        header: const SpecHeader(
+          title: 'Specs',
+          zoom: ZoomControl(editorKey: SpecsScreen.editorKey),
+        ),
         body: const Center(
           child: Text(
             'Selecione um workspace na barra de título.',
@@ -819,68 +811,83 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             ),
             Expanded(
               child: _Shell(
-                header: _Header(
+                header: SpecHeader(
                   path: spec?.path,
                   title: spec == null ? 'Specs' : (doc.title ?? spec.title),
-                  dirty: _dirty,
+                  status: spec == null ? null : (doc.status ?? spec.status),
+                  locked: locked,
                   mode: _mode,
                   onMode: (m) => setState(() => _mode = m),
-                  locked: locked,
-                  archiveLabel: spec?.status == SpecStatus.archived
-                      ? 'Desarquivar'
-                      : 'Arquivar',
-                  onArchive:
-                      spec != null &&
-                          !_busy &&
-                          (canArchiveSpec(spec) ||
-                              spec.status == SpecStatus.archived)
-                      ? () => archiveSpecAction(
-                          context,
-                          ref,
-                          spec,
-                          restore: spec.status == SpecStatus.archived,
-                        )
-                      : null,
-                  onDelete: spec != null && !_busy && canDeleteSpec(spec)
-                      ? () => deleteSpecAction(context, ref, spec)
-                      : null,
-                  onClone: ready && locked && !_busy
-                      ? () => _clone(ws, spec)
-                      : null,
+                  showSaveState: ready,
+                  dirty: _dirty,
                   onSave: ready && !locked ? () => _save(ws, spec) : null,
-                  onRefine: ready && !locked && !_busy
-                      ? () => _refine(ws, spec)
-                      : null,
-                  onDesign: ready && !locked && !_busy
-                      ? () => _design(ws, spec)
-                      : null,
-                  onApprove:
-                      ready &&
-                          !locked &&
-                          !_busy &&
-                          doc.status != SpecStatus.approved
-                      ? () => _approve(ws, spec)
-                      : null,
-                  approved: doc.status == SpecStatus.approved,
-                  prototype: proto,
-                  onCompare: proto && compareReq != null
-                      ? () => ref
-                            .read(prototypeUiProvider(spec.id).notifier)
-                            .compare(
-                              compareReq,
-                              chosen: protoState!.screens
-                                  .where(
-                                    (x) =>
-                                        x.requirement == compareReq &&
-                                        protoUi!.selected.contains(x.file),
-                                  )
-                                  .firstOrNull
-                                  ?.file,
-                            )
-                      : null,
-                  onGenerate: proto && ready && !protoBusy
-                      ? () => _generateScreens(ws, spec)
-                      : null,
+                  zoom: const ZoomControl(editorKey: SpecsScreen.editorKey),
+                  actions: spec == null
+                      ? null
+                      : SpecHeaderState(
+                          locked: locked,
+                          approved: doc.status == SpecStatus.approved,
+                          prototype: proto,
+                          archived: spec.status == SpecStatus.archived,
+                          unavailableReason: !ready
+                              ? 'Aguarde a spec carregar.'
+                              : _busy
+                              ? 'Aguarde a ação em andamento terminar.'
+                              : null,
+                          generateReason: protoBusy
+                              ? 'As telas desta spec já estão sendo geradas.'
+                              : null,
+                          onArchive:
+                              !_busy &&
+                                  (canArchiveSpec(spec) ||
+                                      spec.status == SpecStatus.archived)
+                              ? () => archiveSpecAction(
+                                  context,
+                                  ref,
+                                  spec,
+                                  restore: spec.status == SpecStatus.archived,
+                                )
+                              : null,
+                          onDelete: !_busy && canDeleteSpec(spec)
+                              ? () => deleteSpecAction(context, ref, spec)
+                              : null,
+                          onClone: ready && locked && !_busy
+                              ? () => _clone(ws, spec)
+                              : null,
+                          onRefine: ready && !locked && !_busy
+                              ? () => _refine(ws, spec)
+                              : null,
+                          onDesign: ready && !locked && !_busy
+                              ? () => _design(ws, spec)
+                              : null,
+                          onApprove:
+                              ready &&
+                                  !locked &&
+                                  !_busy &&
+                                  doc.status != SpecStatus.approved
+                              ? () => _approve(ws, spec)
+                              : null,
+                          onCompare: proto && compareReq != null
+                              ? () => ref
+                                    .read(prototypeUiProvider(spec.id).notifier)
+                                    .compare(
+                                      compareReq,
+                                      chosen: protoState!.screens
+                                          .where(
+                                            (x) =>
+                                                x.requirement == compareReq &&
+                                                protoUi!.selected.contains(
+                                                  x.file,
+                                                ),
+                                          )
+                                          .firstOrNull
+                                          ?.file,
+                                    )
+                              : null,
+                          onGenerate: proto && ready && !protoBusy
+                              ? () => _generateScreens(ws, spec)
+                              : null,
+                        ),
                 ),
                 body: spec == null
                     ? const Center(
@@ -1058,309 +1065,6 @@ class _Shell extends StatelessWidget {
       children: [
         header,
         Expanded(child: body),
-      ],
-    ),
-  );
-}
-
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.path,
-    required this.title,
-    this.dirty = false,
-    this.mode,
-    this.onMode,
-    this.onSave,
-    this.onRefine,
-    this.onDesign,
-    this.onApprove,
-    this.approved = false,
-    this.locked = false,
-    this.onClone,
-    this.onArchive,
-    this.onDelete,
-    this.archiveLabel = 'Arquivar',
-    this.prototype = false,
-    this.onCompare,
-    this.onGenerate,
-  });
-
-  /// Protótipo mode: "Comparar variações" / "Gerar telas da spec" replace
-  /// the editor actions (SPEC-022 R1).
-  final bool prototype;
-  final VoidCallback? onCompare;
-  final VoidCallback? onGenerate;
-
-  final String? path;
-  final String title;
-  final bool dirty;
-  final SpecViewMode? mode;
-  final ValueChanged<SpecViewMode>? onMode;
-  final VoidCallback? onSave;
-  final VoidCallback? onRefine;
-  final VoidCallback? onDesign;
-  final VoidCallback? onApprove;
-  final bool approved;
-  final bool locked;
-  final VoidCallback? onClone;
-  final VoidCallback? onArchive;
-  final VoidCallback? onDelete;
-  final String archiveLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final titleBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (path != null)
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  path!,
-                  key: const ValueKey('spec-path'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              if (dirty) ...[
-                const SizedBox(width: 8),
-                const Text(
-                  '● não salvo',
-                  key: ValueKey('spec-unsaved'),
-                  style: TextStyle(fontSize: 11, color: AppColors.amber),
-                ),
-              ],
-            ],
-          ),
-        const SizedBox(height: 2),
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-    final hasActions =
-        prototype ||
-        onSave != null ||
-        onRefine != null ||
-        onApprove != null ||
-        locked ||
-        onDelete != null;
-    final actions = prototype
-        ? <Widget>[
-            Flexible(
-              child: ProtoButton(
-                key: const ValueKey('proto-compare'),
-                label: 'Comparar variações',
-                onTap: onCompare,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: ProtoButton(
-                key: const ValueKey('proto-generate'),
-                label: 'Gerar telas da spec',
-                primary: true,
-                onTap: onGenerate,
-              ),
-            ),
-          ]
-        : <Widget>[
-            if (locked)
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-clone'),
-                  label: 'Clonar para alterar',
-                  color: AppColors.amber,
-                  onTap: onClone,
-                ),
-              ),
-            if (locked && onArchive != null) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-archive'),
-                  label: archiveLabel,
-                  onTap: onArchive,
-                ),
-              ),
-            ],
-            if (!locked) ...[
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-save'),
-                  label: 'Salvar',
-                  onTap: dirty ? onSave : null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-refine'),
-                  label: 'Refinar com IA',
-                  onTap: onRefine,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-design'),
-                  label: 'Gerar design',
-                  onTap: onDesign,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-approve'),
-                  label: approved ? 'Aprovada' : 'Aprovar spec',
-                  color: AppColors.teal,
-                  border: SessionColors.runningToolBorder,
-                  background: SessionColors.runningToolBg,
-                  onTap: onApprove,
-                ),
-              ),
-            ],
-            if (onDelete != null) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('spec-delete'),
-                  label: 'Excluir',
-                  color: AppColors.red,
-                  onTap: onDelete,
-                ),
-              ),
-            ],
-          ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, c) {
-          // Narrow (1100×700 window): actions go to a second row.
-          if (c.maxWidth >= 900 || mode == null) {
-            return Row(
-              children: [
-                Expanded(child: titleBlock),
-                if (mode != null) ...[
-                  const SizedBox(width: 10),
-                  _ModeSwitch(mode: mode!, onMode: onMode!),
-                ],
-                const SizedBox(width: 10),
-                const ZoomControl(editorKey: SpecsScreen.editorKey),
-                if (hasActions) ...[
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: actions,
-                    ),
-                  ),
-                ],
-              ],
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(child: titleBlock),
-                  const SizedBox(width: 10),
-                  const ZoomControl(editorKey: SpecsScreen.editorKey),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _ModeSwitch(mode: mode!, onMode: onMode!, compact: true),
-                  if (hasActions) ...[
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: actions,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ModeSwitch extends StatelessWidget {
-  const _ModeSwitch({
-    required this.mode,
-    required this.onMode,
-    this.compact = false,
-  });
-
-  /// Narrow header (1100×700): less padding per mode.
-  final bool compact;
-  final SpecViewMode mode;
-  final ValueChanged<SpecViewMode> onMode;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(2),
-    decoration: BoxDecoration(
-      color: AppColors.panel,
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: AppColors.border),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final m in SpecViewMode.values)
-          Semantics(
-            button: true,
-            selected: m == mode,
-            label: 'Modo ${m.label}',
-            child: InkWell(
-              key: ValueKey('spec-mode-${m.name}'),
-              onTap: () => onMode(m),
-              borderRadius: BorderRadius.circular(4),
-              focusColor: AppColors.amber.withValues(alpha: .25),
-              child: Container(
-                height: 26,
-                padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: m == mode ? AppColors.amberTint : null,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: ExcludeSemantics(
-                  child: Text(
-                    m.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: m == mode
-                          ? AppColors.amber
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
       ],
     ),
   );
