@@ -1,0 +1,78 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T18:30:00Z"
+ },
+ "title": "Promptorium · Apagar telas do protótipo",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Apagar pelo menu da tela"
+  },
+  "Confirmar.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Confirmar (tela aprovada)"
+  },
+  "Selecao.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Apagar várias selecionadas"
+  },
+  "Desfazer.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Apagada, com Desfazer"
+  },
+  "Versoes.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Requisito sem tela e aba Versões"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Confirmar.dc.html",
+  "Selecao.dc.html",
+  "Desfazer.dc.html",
+  "Versoes.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Apagar uma tela do protótipo que você não quer",
+   "kind": "title1",
+   "maxW": 3460
+  },
+  "t2": {
+   "x": 0,
+   "y": 820,
+   "text": "Depois de apagar: desfazer e requisito sem tela",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
