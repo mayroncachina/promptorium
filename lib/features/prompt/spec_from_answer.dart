@@ -2,6 +2,8 @@ import '../../data/db/app_database.dart';
 import '../sessions/timeline.dart';
 import '../specs/spec_service.dart';
 
+export '../../core/text/line_diff.dart';
+
 /// A spec the agent wrote inside a Prompt answer (SPEC-016): the agent has no
 /// write tool in Perguntar/Planejar and asks the user to save the file.
 class AnswerSpec {
@@ -196,51 +198,4 @@ Future<Spec> applyAnswerSpec(
     appliedSpecText(markdown, target, expectedText),
     expectedText: expectedText,
   );
-}
-
-// --- line diff ------------------------------------------------------------------
-
-enum DiffOp { same, add, del }
-
-typedef DiffLine = ({DiffOp op, String text});
-
-/// Line diff of [a] → [b] (LCS). Very large inputs fall back to removing
-/// every line of [a] and adding every line of [b].
-List<DiffLine> lineDiff(String a, String b) {
-  final x = a.split('\n'), y = b.split('\n');
-  if (x.length * y.length > 4000000) {
-    return [
-      for (final l in x) (op: DiffOp.del, text: l),
-      for (final l in y) (op: DiffOp.add, text: l),
-    ];
-  }
-  final n = x.length, m = y.length;
-  final lcs = List.generate(n + 1, (_) => List<int>.filled(m + 1, 0));
-  for (var i = n - 1; i >= 0; i--) {
-    for (var j = m - 1; j >= 0; j--) {
-      lcs[i][j] = x[i] == y[j]
-          ? lcs[i + 1][j + 1] + 1
-          : (lcs[i + 1][j] >= lcs[i][j + 1] ? lcs[i + 1][j] : lcs[i][j + 1]);
-    }
-  }
-  final out = <DiffLine>[];
-  var i = 0, j = 0;
-  while (i < n && j < m) {
-    if (x[i] == y[j]) {
-      out.add((op: DiffOp.same, text: x[i]));
-      i++;
-      j++;
-    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
-      out.add((op: DiffOp.del, text: x[i++]));
-    } else {
-      out.add((op: DiffOp.add, text: y[j++]));
-    }
-  }
-  while (i < n) {
-    out.add((op: DiffOp.del, text: x[i++]));
-  }
-  while (j < m) {
-    out.add((op: DiffOp.add, text: y[j++]));
-  }
-  return out;
 }

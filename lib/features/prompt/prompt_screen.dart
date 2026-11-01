@@ -16,6 +16,7 @@ import 'attachments.dart';
 import 'conversation_manager.dart';
 import 'plan_ready.dart';
 import 'prompt_actions.dart';
+import 'refine_changes.dart';
 import 'refine_origin.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
@@ -447,6 +448,8 @@ class _Conversation extends ConsumerWidget {
       conversationManagerProvider.select((s) => s.approvalsOf(c.id)),
     );
     final manager = ref.read(conversationManagerProvider.notifier);
+    // SPEC-026: edits of a refine conversation on its spec.
+    final progress = ref.watch(refineProgressProvider(c.id));
     final answer = lastAnswer(snap.items);
     final lastIsAnswer =
         snap.items.isNotEmpty && snap.items.last is! UserItem && answer != null;
@@ -495,6 +498,7 @@ class _Conversation extends ConsumerWidget {
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: ApprovalCard(
                       approval: a,
+                      edit: progress?.approvalInfo(a.request),
                       onOpen: () {},
                       onApprove: ({required bool always, input}) =>
                           manager.approve(
@@ -507,6 +511,13 @@ class _Conversation extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+              ],
+              if (!busy &&
+                  lastIsAnswer &&
+                  progress != null &&
+                  appliedInLastTurn(snap.items, progress) > 0) ...[
+                RefineSummaryCard(conversation: c, progress: progress),
                 const SizedBox(height: 8),
               ],
               if (!busy && lastIsAnswer)
@@ -558,6 +569,7 @@ class _Conversation extends ConsumerWidget {
       maxWidth: 760,
       assistantName: 'Claude Code · ${modelLabel(c.model)}',
       emptyText: 'Sem mensagens ainda.',
+      editInfo: progress == null ? null : (t) => progress.edits[t.id],
       answerFooter: (item) {
         final spec = detectAnswerSpec(item.text);
         return spec == null ? null : AnswerSpecBar(conversation: c, spec: spec);

@@ -3,11 +3,16 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/diff_view.dart';
+import '../edit_diff.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
 import 'session_activity.dart';
 import 'session_style.dart';
+
+/// Edit diffs of a session timeline, per snapshot.
+final _sessionDiffs = Expando<Map<String, EditDiff>>('edit diffs');
 
 /// Center column of the Sessions screen: user bubbles, Claude's text (live
 /// while streaming), tool cards with results, subagent messages nested under
@@ -34,8 +39,12 @@ class TimelineView extends ConsumerWidget {
     final since = ref.watch(
       sessionManagerProvider.select((s) => s.live[sessionId]?.busySince),
     );
+    // SPEC-026 R3: a Write after an edit of the same file in this session
+    // is compared with the text it knows.
+    final diffs = _sessionDiffs[snap] ??= editDiffsOf(snap.items, root: root);
     return TimelineListView(
       key: ValueKey('timeline-$sessionId'),
+      editInfo: (t) => diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
       footer: since == null
           ? null
           : SessionActivity(items: snap.items, since: since),
@@ -62,6 +71,7 @@ class TimelineListView extends StatelessWidget {
     this.assistantName = 'Claude',
     this.emptyText = 'Nenhum evento ainda.',
     this.answerFooter,
+    this.editInfo,
   });
 
   final List<TimelineItem> items;
@@ -78,6 +88,10 @@ class TimelineListView extends StatelessWidget {
   /// Shown under each finished top-level answer when it returns a widget
   /// (Prompt: "Spec detectada", SPEC-016).
   final Widget? Function(AssistantTextItem item)? answerFooter;
+
+  /// Diff, target and marks of an edit card (Prompt refine, SPEC-026);
+  /// null = the card works them out from the tool input.
+  final EditInfo? Function(ToolItem tool)? editInfo;
 
   Widget _wrap(Widget child) => maxWidth == null
       ? child
@@ -124,6 +138,7 @@ class TimelineListView extends StatelessWidget {
           root: root,
           waitingTools: waitingTools,
           assistantName: assistantName,
+          editInfo: editInfo,
         );
         final extraBelow =
             item is AssistantTextItem &&
@@ -155,6 +170,7 @@ class TimelineItemView extends StatelessWidget {
     this.waitingTools = const {},
     this.nested = false,
     this.assistantName = 'Claude',
+    this.editInfo,
   });
 
   final TimelineItem item;
@@ -162,6 +178,7 @@ class TimelineItemView extends StatelessWidget {
   final Set<String> waitingTools;
   final bool nested;
   final String assistantName;
+  final EditInfo? Function(ToolItem tool)? editInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +190,13 @@ class TimelineItemView extends StatelessWidget {
         nested: nested,
         name: assistantName,
       ),
-      ToolItem() => ToolCard(tool: it, root: root, waitingTools: waitingTools),
+      ToolItem() => ToolCard(
+        tool: it,
+        root: root,
+        waitingTools: waitingTools,
+        edit: editInfo?.call(it),
+        editInfo: editInfo,
+      ),
       ThinkingItem() => ThinkingCard(item: it),
       NoticeItem() => _Notice(it),
     };
@@ -414,11 +437,19 @@ class ToolCard extends StatefulWidget {
     required this.tool,
     this.root,
     this.waitingTools = const {},
+    this.edit,
+    this.editInfo,
   });
 
   final ToolItem tool;
   final String? root;
   final Set<String> waitingTools;
+
+  /// Diff and target of an edit (SPEC-026 R2); null = from the input alone.
+  final EditInfo? edit;
+
+  /// Passed to the subagent's nested cards.
+  final EditInfo? Function(ToolItem tool)? editInfo;
 
   @override
   State<ToolCard> createState() => _ToolCardState();
@@ -446,9 +477,14 @@ class _ToolCardState extends State<ToolCard> {
   @override
   Widget build(BuildContext context) {
     final t = widget.tool;
-    final waiting = widget.waitingTools.contains(t.id);
-    final running = !t.done && !waiting;
+    final info = widget.edit;
+    final isEdit = isEditTool(t.name);
+    final diff = isEdit ? (info?.diff ?? editDiffOf(t.name, t.input)) : null;
+    final denied = t.denied;
+    final waiting = !denied && widget.waitingTools.contains(t.id);
+    final running = !t.done && !waiting && !denied;
     final stats = editStats(t.name, t.input);
+    final canOpen = t.done || denied;
     final border = running
         ? SessionColors.runningToolBorder
         : (waiting ? SessionColors.approvalBorder : AppColors.border);
@@ -457,7 +493,33 @@ class _ToolCardState extends State<ToolCard> {
         : (waiting ? SessionColors.approvalBg : AppColors.panel);
 
     final List<Widget> trailing = [
-      if (waiting)
+      if (info?.outside ?? false)
+        Container(
+          key: ValueKey('tool-outside-${t.id}'),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: SessionColors.approvalBorder),
+          ),
+          child: const Text(
+            'fora da spec',
+            style: TextStyle(color: AppColors.amber, fontSize: 11),
+          ),
+        ),
+      if (denied)
+        Row(
+          key: ValueKey('tool-denied-${t.id}'),
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.block, size: 13, color: AppColors.textSecondary),
+            SizedBox(width: 5),
+            Text(
+              'Negada, não aplicada',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        )
+      else if (waiting)
         const Text(
           'aguardando aprovação',
           style: TextStyle(color: AppColors.amber),
@@ -472,6 +534,13 @@ class _ToolCardState extends State<ToolCard> {
           key: ValueKey('subagent-summary-${t.id}'),
           style: const TextStyle(color: AppColors.lilac),
         ),
+      ] else if (diff != null) ...[
+        Text('+${diff.added}', style: const TextStyle(color: AppColors.teal)),
+        if (diff.removed > 0)
+          Text(
+            '−${diff.removed}',
+            style: const TextStyle(color: AppColors.red),
+          ),
       ] else if (stats != null) ...[
         Text('+${stats.$1}', style: const TextStyle(color: AppColors.teal)),
         if (stats.$2 > 0)
@@ -483,37 +552,54 @@ class _ToolCardState extends State<ToolCard> {
         ),
     ];
 
-    final header = InkWell(
-      onTap: t.done ? () => setState(() => _open = !_open) : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Row(
-          children: [
-            if (running) ...[
-              const Dot(AppColors.teal),
-              const SizedBox(width: 10),
-            ],
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 44),
-              child: Text(
-                t.name,
-                style: _mono.copyWith(color: toolColor(t.name)),
+    final target = info?.outside ?? false
+        ? (editFilePath(t.input) ?? toolTarget(t.name, t.input))
+        : (info?.target ?? toolTarget(t.name, t.input, root: widget.root));
+
+    final header = Semantics(
+      container: true,
+      button: canOpen,
+      expanded: canOpen ? _open : null,
+      child: InkWell(
+        key: ValueKey('tool-toggle-${t.id}'),
+        onTap: canOpen ? () => setState(() => _open = !_open) : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            children: [
+              if (running) ...[
+                const Dot(AppColors.teal),
+                const SizedBox(width: 10),
+              ] else if (isEdit && canOpen) ...[
+                Icon(
+                  _open ? Icons.expand_more : Icons.chevron_right,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: 6),
+              ],
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 44),
+                child: Text(
+                  t.name,
+                  style: _mono.copyWith(color: toolColor(t.name)),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                toolTarget(t.name, t.input, root: widget.root),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _mono,
-              ),
-            ),
-            for (final w in trailing) ...[
               const SizedBox(width: 10),
-              DefaultTextStyle.merge(style: _mono, child: w),
+              Expanded(
+                child: Text(
+                  target,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _mono,
+                ),
+              ),
+              for (final w in trailing) ...[
+                const SizedBox(width: 10),
+                DefaultTextStyle.merge(style: _mono, child: w),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -523,6 +609,8 @@ class _ToolCardState extends State<ToolCard> {
     final clipped = lines.length > 40
         ? '${lines.take(40).join('\n')}\n… (+${lines.length - 40} linhas)'
         : result;
+    // SPEC-026 R2: an edit shows its diff; the tool output only on error.
+    final showDiff = diff != null && (denied || !t.isError);
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -540,7 +628,33 @@ class _ToolCardState extends State<ToolCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
-              if (_open && t.done)
+              if (_open && canOpen && showDiff)
+                Container(
+                  key: ValueKey('tool-diff-${t.id}'),
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(top: BorderSide(color: AppColors.border)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (diff.unknownBefore)
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(10, 2, 10, 4),
+                          child: Text(
+                            'Conteúdo anterior desconhecido',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      DiffView(rows: diff.rows, muted: denied, collapseSame: 3),
+                    ],
+                  ),
+                )
+              else if (_open && t.done)
                 Container(
                   padding: const EdgeInsets.fromLTRB(64, 8, 10, 8),
                   decoration: const BoxDecoration(
@@ -576,6 +690,7 @@ class _ToolCardState extends State<ToolCard> {
                             root: widget.root,
                             waitingTools: widget.waitingTools,
                             nested: true,
+                            editInfo: widget.editInfo,
                           ),
                         ),
                     ],

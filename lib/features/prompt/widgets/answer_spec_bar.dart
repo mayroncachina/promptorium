@@ -11,6 +11,7 @@ import '../../project/project_config.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart';
+import '../../../ui/widgets/diff_view.dart';
 import '../spec_from_answer.dart';
 
 /// Where a spec of an answer goes (SPEC-016): the spec of the same `id` in
@@ -494,36 +495,13 @@ class _AnswerSpecPreviewState extends State<_AnswerSpecPreview> {
           ),
         );
       case _Tab.diff:
-        final lines = lineDiff(widget.info.current ?? '', _finalText);
-        return ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            for (final l in lines)
-              Container(
-                color: switch (l.op) {
-                  DiffOp.add => SessionColors.addBg,
-                  DiffOp.del => SessionColors.delBg,
-                  DiffOp.same => Colors.transparent,
-                },
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  '${switch (l.op) {
-                    DiffOp.add => '+',
-                    DiffOp.del => '-',
-                    DiffOp.same => ' ',
-                  }} ${l.text}',
-                  style: TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 12,
-                    color: switch (l.op) {
-                      DiffOp.add => AppColors.teal,
-                      DiffOp.del => AppColors.red,
-                      DiffOp.same => AppColors.textSecondary,
-                    },
-                  ),
-                ),
-              ),
+        return DiffView(
+          rows: [
+            for (final l in lineDiff(widget.info.current ?? '', _finalText))
+              (op: l.op, text: l.text, line: null),
           ],
+          scrollable: true,
+          maxLines: 1 << 30,
         );
     }
   }

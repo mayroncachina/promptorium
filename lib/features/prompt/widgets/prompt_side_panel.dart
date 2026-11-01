@@ -6,6 +6,8 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../refine_changes.dart' show RefineSpecPanel;
+import '../refine_origin.dart' show refineOriginOf;
 import 'prompt_composer.dart' show FileChip;
 import 'prompt_dialogs.dart';
 
@@ -61,6 +63,9 @@ class PromptSidePanel extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // SPEC-026 R5: refine conversations with a stored origin.
+          if (c != null && refineOriginOf(c) != null)
+            RefineSpecPanel(conversation: c),
           const Text('CONTEXTO', style: sectionTitleStyle),
           const SizedBox(height: 8),
           row('Pasta', workspace == null ? '—' : '${workspace!.name}/', mono),

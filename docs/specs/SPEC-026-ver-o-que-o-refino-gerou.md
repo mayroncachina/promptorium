@@ -1,6 +1,6 @@
 ---
 id: SPEC-026
-status: rascunho
+status: concluida
 depende-de: SPEC-021
 ---
 
@@ -146,22 +146,38 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/G8Y8kRJV6rZTn1y8mtE
 
 ## Critérios de aceite
 
-- [ ] O cartão de aprovação de um `Edit` na spec mostra a seção, "+N −M", as linhas removidas e as adicionadas, "Negar" e "Aprovar edição" [R1] verificar: flutter test test/features/sessions/approval_card_test.dart
-- [ ] Expandir um cartão de `Edit` concluído mostra o diff, e não "has been updated successfully"; com erro, mostra o `tool_result` [R2] verificar: flutter test test/features/sessions/timeline_view_test.dart
-- [ ] Um `Write` sobre a spec mostra o diff contra o conteúdo anterior conhecido; sem ele, mostra tudo como adicionado e a nota [R3] verificar: flutter test test/features/sessions/edit_diff_test.dart
-- [ ] Uma edição negada continua na conversa com "Negada, não aplicada", o diff em cores neutras e fora das contagens [R4] verificar: flutter test test/features/prompt/refine_changes_test.dart
-- [ ] O painel "Spec em refino" mostra as contagens e o total; "Ver alterações" fica desabilitado até a primeira edição aplicada [R5] verificar: flutter test test/features/prompt/refine_changes_test.dart
-- [ ] Ao fim de um turno com edição aplicada, aparece o resumo com as seções e os requisitos tocados, "Ver alterações" e "Voltar à <código>" [R6] verificar: flutter test test/features/prompt/refine_changes_test.dart
-- [ ] O diálogo compara o texto-base com o arquivo atual, recolhe os trechos iguais com mais de 3 linhas, troca para "Spec como ficou" e fecha com Esc [R7] verificar: flutter test test/features/prompt/refine_changes_test.dart
-- [ ] A conversa de refino guarda o texto-base; a alteração externa gera o aviso; uma conversa antiga lista as edições uma a uma [R8] verificar: flutter test test/features/prompt test/data/generated_migration_test.dart
-- [ ] Cada linha do diff tem sinal e rótulo acessível; o cartão anuncia se está expandido e abre com Enter e Espaço [R9] verificar: flutter test test/features/sessions/timeline_view_test.dart
-- [ ] Um diff de 1.000 linhas mostra 400 e "Mostrar as outras 600 linhas", sem travar a rolagem [R10] verificar: flutter test test/ui/diff_view_test.dart
-- [ ] A edição de outro arquivo numa conversa de refino aparece como "fora da spec" e não entra no resumo [R11] verificar: flutter test test/features/prompt/refine_changes_test.dart
-- [ ] Os testes atuais de Prompt, Sessões e Specs continuam passando [R2] [R4] verificar: flutter test test/features
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
+- [x] O cartão de aprovação de um `Edit` na spec mostra a seção, "+N −M", as linhas removidas e as adicionadas, "Negar" e "Aprovar edição" [R1] verificar: flutter test test/features/sessions/approval_card_test.dart
+- [x] Expandir um cartão de `Edit` concluído mostra o diff, e não "has been updated successfully"; com erro, mostra o `tool_result` [R2] verificar: flutter test test/features/sessions/timeline_view_test.dart
+- [x] Um `Write` sobre a spec mostra o diff contra o conteúdo anterior conhecido; sem ele, mostra tudo como adicionado e a nota [R3] verificar: flutter test test/features/sessions/edit_diff_test.dart
+- [x] Uma edição negada continua na conversa com "Negada, não aplicada", o diff em cores neutras e fora das contagens [R4] verificar: flutter test test/features/prompt/refine_changes_test.dart
+- [x] O painel "Spec em refino" mostra as contagens e o total; "Ver alterações" fica desabilitado até a primeira edição aplicada [R5] verificar: flutter test test/features/prompt/refine_changes_test.dart
+- [x] Ao fim de um turno com edição aplicada, aparece o resumo com as seções e os requisitos tocados, "Ver alterações" e "Voltar à <código>" [R6] verificar: flutter test test/features/prompt/refine_changes_test.dart
+- [x] O diálogo compara o texto-base com o arquivo atual, recolhe os trechos iguais com mais de 3 linhas, troca para "Spec como ficou" e fecha com Esc [R7] verificar: flutter test test/features/prompt/refine_changes_test.dart
+- [x] A conversa de refino guarda o texto-base; a alteração externa gera o aviso; uma conversa antiga lista as edições uma a uma [R8] verificar: flutter test test/features/prompt test/data/generated_migration_test.dart
+- [x] Cada linha do diff tem sinal e rótulo acessível; o cartão anuncia se está expandido e abre com Enter e Espaço [R9] verificar: flutter test test/features/sessions/timeline_view_test.dart
+- [x] Um diff de 1.000 linhas mostra 400 e "Mostrar as outras 600 linhas", sem travar a rolagem [R10] verificar: flutter test test/ui/diff_view_test.dart
+- [x] A edição de outro arquivo numa conversa de refino aparece como "fora da spec" e não entra no resumo [R11] verificar: flutter test test/features/prompt/refine_changes_test.dart
+- [x] Os testes atuais de Prompt, Sessões e Specs continuam passando [R2] [R4] verificar: flutter test test/features
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] verificar: flutter analyze
 
 ## Perguntas em aberto
 
 - Mostrar o diff também na tela de Sessões (o `ApprovalCard` e o `ToolCard` são os mesmos)? A spec assume que sim para o R1 e o R2, e que só o resumo, o painel e o diálogo ficam restritos ao refino.
 - O resumo do R6 aparece a cada turno com edição ou só uma vez, no último turno? A spec assume a cada turno, com o total desde o início da conversa.
 - Guardar o texto-base no banco (schema v18) ou num arquivo ao lado da conversa? A spec escolhe o banco, pelo padrão da SPEC-021.
+
+## Decisões
+
+- (Pergunta 1) O diff no `ToolCard` e no `ApprovalCard` (R1, R2) vale também na tela de Sessões, porque os componentes são os mesmos. Lá o cartão não conhece o texto do arquivo: mostra o diff das strings do pedido, sem números de linha nem seção, e o título "Aprovar esta edição?". Um `Write` depois de outra edição do mesmo arquivo na sessão é comparado com o texto conhecido (R3). O resumo, o painel "Spec em refino" e o diálogo ficam só no refino.
+- (Pergunta 2) O resumo do R6 aparece a cada turno que aplicou edição na spec, com o total desde o início da conversa (edições, linhas e seções).
+- (Pergunta 3) O texto-base fica no banco: coluna `refineBaseText` em `Conversations`, schema v18 (`drift_schemas/drift_schema_v18.json`, passo `from17To18`). `ConversationManager.create` lê a spec do disco quando o modo é refino e há origem, com `SpecService.readSync` (o arquivo é pequeno; a leitura assíncrona travava a criação da conversa nos testes com tempo simulado, como o "Aplicar" do quadro).
+- `lineDiff` e `DiffOp` saíram de `spec_from_answer.dart` para `lib/core/text/line_diff.dart` (re-exportados pelo arquivo antigo), junto com `DiffRow` (`op`, `text`, `line`). Assim o `DiffView` (`lib/ui/widgets/diff_view.dart`) não depende de `features/`.
+- O diff de um `Edit` com texto conhecido usa as linhas inteiras do trecho (não só a substring de `old_string`), com até 3 linhas de contexto acima e abaixo. A seção é o `## ` mais próximo acima da primeira linha alterada. Quando a edição começa por linhas em branco seguidas de um título novo, a seção é esse título ("Fora do escopo").
+- Edição negada (R4): ao negar, a conversa grava o evento `promptorium_denied` (`tool_use_id`), e a timeline marca o `ToolItem.denied`. Um `tool_result` com erro e a mensagem de negação do app também marca o cartão (cobre a tela de Sessões). O cartão negado pode ser expandido mesmo antes do `tool_result` chegar.
+- As contagens do painel e do resumo vêm da timeline e não leem o arquivo: o total "+N −M" é `lineDiff(base, base + edições aplicadas)`. Sem texto-base, é a soma das edições aplicadas. Só o diálogo lê o arquivo atual; o aviso do R8 aparece quando ele difere da base com as edições aplicadas.
+- O `refineProgressProvider` só recalcula quando uma edição aparece ou muda de estado (assinatura das edições), não a cada delta do texto.
+- Resumo por seção (R6): requisitos comparados pelo id (`- Rn ·`, com as linhas de continuação recuadas: "R3 reescrito", "R4 novo", "R2 removido"); critérios (`- [ ]`) comparados por `lineDiff` e contados ("1 reescrito, 2 novos"). Seções sem requisitos nem critérios alterados mostram "+a −d linhas".
+- Recolhimento (R7): trechos sem mudança com mais de 3 linhas viram "N linhas sem mudança" com "Mostrar", mantendo uma linha de contexto junto de cada mudança. O mesmo recolhimento vale no cartão expandido (útil para `Write`).
+- O título da seção do painel segue o padrão do app ("SPEC EM REFINO", como "CONTEXTO"). O link "Ver a spec inteira" da captura 1 não foi feito: não está nos requisitos e "Voltar à spec" já existe no cabeçalho.
+- Os cartões expansíveis e as linhas do diff usam `Semantics(container: true)`: sem isso, o Flutter fundia o cartão inteiro num nó só e os rótulos por linha se perdiam.
+
