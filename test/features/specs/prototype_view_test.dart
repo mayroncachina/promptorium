@@ -359,7 +359,13 @@ void main() {
     );
     expect(find.textContaining('o gate não muda'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('proto-size-1100')));
-    await settleIo(tester);
+    // The 1100×700 thumbnail is rendered asynchronously; under the full
+    // suite's load it can take longer than a fixed settle.
+    await settleIo(
+      tester,
+      until: () =>
+          runner.calls.any((c) => c.contains('--window-size=1100,700')),
+    );
     expect(
       runner.calls.any((c) => c.contains('--window-size=1100,700')),
       isTrue,
