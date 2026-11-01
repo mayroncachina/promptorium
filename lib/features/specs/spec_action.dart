@@ -36,6 +36,16 @@ enum SpecActionKind {
     lockLabel: 'Bloqueada: gerando as telas',
     failure: 'Não foi possível gerar as telas.',
     long: true,
+  ),
+
+  /// "Aplicar respostas" with "Atualizar requisitos e critérios" (SPEC-028
+  /// R10): the Claude rewrites the spec text, shown as a diff before saving.
+  answers(
+    headerId: 'answers',
+    running: 'Aplicando respostas…',
+    lockLabel: 'Bloqueada: aplicando as respostas',
+    failure: 'Não foi possível aplicar as respostas.',
+    long: true,
   );
 
   const SpecActionKind({
@@ -64,12 +74,14 @@ enum SpecActionKind {
   /// Title of the status strip (R3).
   String title(String code) => switch (this) {
     screens => 'Gerando as telas de $code…',
+    answers => 'Atualizando requisitos de $code com as respostas…',
     _ => 'Gerando o design de $code…',
   };
 
   /// What is still running, in the leave dialog (R7).
   String get stillRunning => switch (this) {
     screens => 'As telas ainda estão sendo geradas.',
+    answers => 'As respostas ainda estão sendo aplicadas.',
     _ => 'O design ainda está sendo gerado.',
   };
 }

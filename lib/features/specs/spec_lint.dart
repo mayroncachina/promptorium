@@ -18,6 +18,27 @@ enum SpecWarningKind {
 
   /// A requirement without "deve" (outside the EARS style).
   ears,
+
+  /// `## Perguntas em aberto` outside the `- P<n> · …` format, with
+  /// suggestions counted as questions (SPEC-028 R3). Shown as its own
+  /// notice above the editor, not in the strip.
+  openQuestionsFormat,
+}
+
+/// Text of the [SpecWarningKind.openQuestionsFormat] notice (SPEC-028 R3).
+String openQuestionsFormatMessage(OpenQuestionsScan scan) {
+  final n = scan.suggestionLines.length;
+  final m = scan.questions.length;
+  final perguntas = m == 1 ? '1 pergunta' : '$m perguntas';
+  if (n == 0) {
+    return 'Em "Perguntas em aberto", as perguntas estão fora do formato '
+        '"- P<n> · …". A spec tem $perguntas.';
+  }
+  final itens = n == 1
+      ? '1 item é sugestão, não pergunta'
+      : '$n itens são sugestões, não perguntas';
+  return 'Em "Perguntas em aberto", $itens. A spec tem $perguntas, não '
+      '${n + m}. As linhas marcadas são sugestões.';
 }
 
 /// One structure warning: [line] is 1-based in the spec text.
@@ -136,6 +157,19 @@ List<SpecWarning> lintSpec(String text) {
         ),
       );
     }
+  }
+  final scan = doc.openQuestionsScan;
+  if (scan.offFormat) {
+    out.add(
+      SpecWarning(
+        line:
+            scan.suggestionLines.firstOrNull ??
+            scan.questions.firstOrNull?.line ??
+            1,
+        message: openQuestionsFormatMessage(scan),
+        kind: SpecWarningKind.openQuestionsFormat,
+      ),
+    );
   }
   // List.sort is not stable: the kind keeps the order within a line.
   out.sort(

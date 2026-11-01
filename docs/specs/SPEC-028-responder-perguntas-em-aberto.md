@@ -1,6 +1,6 @@
 ---
 id: SPEC-028
-status: rascunho
+status: concluida
 depende-de: SPEC-023
 ---
 
@@ -139,26 +139,25 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/34u61ZSh51CmZtgncna
 
 ## Critérios de aceite
 
-- [ ] O modelo de spec, o prompt de refino e o `/spec` pedem o formato `- P<n> · …` com `- Sugestão:` em subitem [R1] verificar: flutter test test/features/specs/spec_file_test.dart test/features/prompt
-- [ ] Uma seção com 4 perguntas e 4 sugestões numeradas é lida como 4 perguntas com sugestão [R2] verificar: flutter test test/features/specs/spec_file_test.dart
-- [ ] O formato antigo gera o aviso; "Corrigir formato" reescreve a seção sem mudar os textos [R3] verificar: flutter test test/features/specs/spec_lint_test.dart test/features/specs/spec_file_test.dart
-- [ ] O diálogo de aprovação mostra "4 perguntas", a sugestão de cada uma e os botões "Cancelar", "Aprovar com as sugestões" e "Responder perguntas" [R4] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] "Aprovar com as sugestões" grava em Premissas a pergunta com a sugestão e a data [R5] verificar: flutter test test/features/specs/spec_file_test.dart
-- [ ] "Responder perguntas" abre o painel na primeira pergunta, com a trilha de estados e a navegação [R6] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] O painel mostra a sugestão pré-selecionada, até duas alternativas do Claude e "Outra resposta"; a sugestão funciona antes das alternativas chegarem [R7] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] Fechar e reabrir o painel mantém as respostas, e o arquivo não muda [R8] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] A revisão lista as respostas, permite mudar uma e mostra a caixa de atualizar requisitos [R9] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] Aplicar grava as decisões, tira só as perguntas respondidas e, com a caixa marcada, devolve o texto do Claude sem gravar [R10] verificar: flutter test test/features/specs/spec_file_test.dart test/features/specs/spec_answer_applier_test.dart
-- [ ] O diff aparece antes de salvar; "Descartar" não muda o arquivo e "Salvar na spec" grava sem mudar o status [R11] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] O painel funciona por teclado e anuncia a pergunta atual [R12] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
-- [ ] Os testes atuais de specs continuam passando [R2] [R4] verificar: flutter test test/features/specs
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] verificar: flutter analyze
+- [x] O modelo de spec, o prompt de refino e o `/spec` pedem o formato `- P<n> · …` com `- Sugestão:` em subitem [R1] verificar: flutter test test/features/specs/spec_file_test.dart test/features/prompt
+- [x] Uma seção com 4 perguntas e 4 sugestões numeradas é lida como 4 perguntas com sugestão [R2] verificar: flutter test test/features/specs/spec_file_test.dart
+- [x] O formato antigo gera o aviso; "Corrigir formato" reescreve a seção sem mudar os textos [R3] verificar: flutter test test/features/specs/spec_lint_test.dart test/features/specs/spec_file_test.dart
+- [x] O diálogo de aprovação mostra "4 perguntas", a sugestão de cada uma e os botões "Cancelar", "Aprovar com as sugestões" e "Responder perguntas" [R4] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] "Aprovar com as sugestões" grava em Premissas a pergunta com a sugestão e a data [R5] verificar: flutter test test/features/specs/spec_file_test.dart
+- [x] "Responder perguntas" abre o painel na primeira pergunta, com a trilha de estados e a navegação [R6] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] O painel mostra a sugestão pré-selecionada, até duas alternativas do Claude e "Outra resposta"; a sugestão funciona antes das alternativas chegarem [R7] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] Fechar e reabrir o painel mantém as respostas, e o arquivo não muda [R8] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] A revisão lista as respostas, permite mudar uma e mostra a caixa de atualizar requisitos [R9] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] Aplicar grava as decisões, tira só as perguntas respondidas e, com a caixa marcada, devolve o texto do Claude sem gravar [R10] verificar: flutter test test/features/specs/spec_file_test.dart test/features/specs/spec_answer_applier_test.dart
+- [x] O diff aparece antes de salvar; "Descartar" não muda o arquivo e "Salvar na spec" grava sem mudar o status [R11] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] O painel funciona por teclado e anuncia a pergunta atual [R12] verificar: flutter test test/features/specs/spec_questions_panel_test.dart
+- [x] Os testes atuais de specs continuam passando [R2] [R4] verificar: flutter test test/features/specs
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] verificar: flutter analyze
+
+## Decisões
+
+- P1 · As alternativas do Claude são geradas ao chegar em cada pergunta, com a próxima em pré-carga (2026-11-01)
+- P2 · As respostas da sessão ficam só em memória até aplicar; não sobrevivem a fechar o app (2026-11-01)
+- P3 · "Aprovar com as sugestões" mistura perguntas com sugestão e "sem resposta", como no R5 (2026-11-01)
 
 ## Perguntas em aberto
-
-- P1 · As alternativas do Claude (R7) devem ser geradas para todas as perguntas ao abrir a sessão, ou só quando a pessoa chega em cada uma?
-  - Sugestão: ao chegar em cada uma, com a próxima já em pré-carga.
-- P2 · As respostas da sessão (R8) devem sobreviver a fechar o app?
-  - Sugestão: não, enquanto não houver pedido; elas só valem até aplicar.
-- P3 · "Aprovar com as sugestões" deve exigir que toda pergunta tenha sugestão, ou mistura sugestões e "sem resposta"?
-  - Sugestão: misturar, como descrito no R5.

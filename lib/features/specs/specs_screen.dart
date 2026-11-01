@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
@@ -19,6 +20,7 @@ import '../prompt/refine_origin.dart';
 import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
 import 'spec_action.dart';
+import 'spec_answers.dart';
 import 'spec_design.dart';
 import 'prototype/prototype_delete.dart';
 import 'prototype/prototype_files.dart';
@@ -31,6 +33,7 @@ import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
 import 'widgets/spec_header.dart';
+import 'widgets/spec_questions_panel.dart';
 
 export 'widgets/spec_header.dart' show SpecViewMode;
 import 'widgets/spec_list.dart';
@@ -52,7 +55,8 @@ String refineSpecPrompt(Spec spec) =>
     'requisito de cada um, ex.: [R2], e um "verificar: <comando>" quando '
     'houver), escreva a seção "Fora do escopo" com o que a spec não faz e '
     'deixe as dúvidas sem resposta como itens de "Perguntas em aberto", em '
-    'vez de transformá-las em requisitos. Edite somente esse arquivo e '
+    'vez de transformá-las em requisitos ($openQuestionsFormatHint; a '
+    'sugestão nunca é um item próprio). Edite somente esse arquivo e '
     'mantenha o frontmatter (id, status). Antes de editar, resuma o que '
     'pretende mudar.';
 
@@ -233,113 +237,219 @@ Future<bool> confirmLeaveDuringAction(
 /// Failure of an action shown above the editor (SPEC-025 R8).
 typedef SpecActionFailure = ({SpecActionKind kind, int specId, String cause});
 
-/// Choice of [showApproveChecksDialog].
-enum ApproveCheck { cancel, refine, assume, showWarnings, approve }
+/// Choice of [showApproveChecksDialog]. `answer` = "Responder perguntas"
+/// (SPEC-028 R4, in place of "Refinar com IA").
+enum ApproveCheck { cancel, answer, assume, showWarnings, approve }
 
-/// "Aprovar spec" with open questions (SPEC-023 R6) or structure warnings
-/// (R10): the questions and the count, before the Design dialog. Null =
-/// closed (same as cancel).
+/// "R7 sem critério de aceite; R8 sem "deve"" (SPEC-028 R4): the warnings
+/// by name, the first [max] of them.
+String namedWarnings(List<SpecWarning> warnings, {int max = 3}) {
+  final names = [for (final w in warnings.take(max)) w.message];
+  final rest = warnings.length - names.length;
+  return [...names, if (rest > 0) 'e mais $rest'].join('; ');
+}
+
+/// "Aprovar spec" with open questions (SPEC-023 R6, SPEC-028 R4) or
+/// structure warnings (SPEC-023 R10): the questions with their suggestions
+/// and the warnings by name, before the Design dialog. Null = closed (same
+/// as cancel).
 Future<ApproveCheck?> showApproveChecksDialog(
   BuildContext context, {
-  required List<String> questions,
-  required int warnings,
+  required String code,
+  required List<OpenQuestion> questions,
+  required List<SpecWarning> warnings,
 }) => showDialog<ApproveCheck>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (ctx) {
     void pick(ApproveCheck c) => Navigator.of(ctx).pop(c);
     final hasQuestions = questions.isNotEmpty;
+    final count = SpecWarningsBar.countLabel(warnings.length);
+    final secondary = OutlinedButton.styleFrom(
+      foregroundColor: AppColors.text,
+      side: const BorderSide(color: AppColors.border),
+    );
     return AlertDialog(
       key: const ValueKey('spec-approve-checks-dialog'),
       backgroundColor: AppColors.panel,
       title: Text(
         hasQuestions
             ? (questions.length == 1
-                  ? 'A spec tem 1 pergunta em aberto'
-                  : 'A spec tem ${questions.length} perguntas em aberto')
-            : 'A spec tem ${SpecWarningsBar.countLabel(warnings)}',
-        style: const TextStyle(fontSize: 16),
+                  ? 'A $code tem 1 pergunta em aberto'
+                  : 'A $code tem ${questions.length} perguntas em aberto')
+            : 'A spec tem $count',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
       ),
       content: SizedBox(
-        width: 520,
+        width: 560,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (hasQuestions) ...[
               const Text(
-                'Responda antes de aprovar, ou aprove assumindo cada uma '
-                'como premissa (elas vão para "Premissas", com a data).',
-                style: TextStyle(fontSize: 13),
+                'Responda numa sessão guiada antes de aprovar, ou aprove '
+                'assumindo as sugestões. Elas vão para "Premissas", com a '
+                'data.',
+                style: TextStyle(fontSize: 13, height: 1.45),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 220),
-                child: SingleChildScrollView(
-                  child: Column(
-                    key: const ValueKey('spec-approve-questions'),
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final (i, q) in questions.indexed)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            '${i + 1}. $q',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      key: const ValueKey('spec-approve-questions'),
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final (i, q) in questions.indexed) ...[
+                          if (i > 0)
+                            const Divider(height: 1, color: AppColors.border),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: '${q.id} ',
+                                        style: const TextStyle(
+                                          color: AppColors.amber,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      TextSpan(text: q.text),
+                                    ],
+                                  ),
+                                  key: ValueKey(
+                                    'spec-approve-question-${q.id}',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.45,
+                                    color: AppColors.text,
+                                  ),
+                                ),
+                                if (q.suggestion != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 28,
+                                      top: 3,
+                                    ),
+                                    child: Text(
+                                      'Sugestão: ${q.suggestion}',
+                                      key: ValueKey(
+                                        'spec-approve-suggestion-${q.id}',
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        height: 1.4,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
-                    ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
-            if (warnings > 0) ...[
-              if (hasQuestions) const SizedBox(height: 8),
-              Text(
-                hasQuestions
-                    ? 'Há também ${SpecWarningsBar.countLabel(warnings)}.'
-                    : 'Os avisos não impedem a aprovação. Veja a lista ou '
-                          'aprove mesmo assim.',
-                key: const ValueKey('spec-approve-warnings'),
-                style: const TextStyle(fontSize: 13, color: AppColors.amber),
+            if (warnings.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.error_outline,
+                      size: 15,
+                      color: AppColors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasQuestions
+                          ? 'Há também $count: ${namedWarnings(warnings)}.'
+                          : '${namedWarnings(warnings)}. Os avisos não '
+                                'impedem a aprovação. Veja a lista ou aprove '
+                                'mesmo assim.',
+                      key: const ValueKey('spec-approve-warnings'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
         ),
       ),
       actions: [
-        TextButton(
+        // Esc closes the dialog (null = cancel).
+        OutlinedButton(
           key: const ValueKey('spec-approve-checks-cancel'),
           autofocus: true,
+          style: secondary,
           onPressed: () => pick(ApproveCheck.cancel),
-          child: const Text('Cancelar'),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Cancelar'),
+              SizedBox(width: 8),
+              ExcludeSemantics(child: Kbd('Esc')),
+            ],
+          ),
         ),
-        if (warnings > 0)
-          TextButton(
+        if (!hasQuestions) ...[
+          OutlinedButton(
             key: const ValueKey('spec-approve-show-warnings'),
+            style: secondary,
             onPressed: () => pick(ApproveCheck.showWarnings),
             child: const Text('Ver avisos'),
           ),
-        if (hasQuestions) ...[
-          TextButton(
-            key: const ValueKey('spec-approve-refine'),
-            onPressed: () => pick(ApproveCheck.refine),
-            child: const Text('Refinar com IA'),
-          ),
-          TextButton(
-            key: const ValueKey('spec-approve-assume'),
-            onPressed: () => pick(ApproveCheck.assume),
-            child: const Text('Aprovar assumindo premissas'),
-          ),
-        ] else
-          TextButton(
+          OutlinedButton(
             key: const ValueKey('spec-approve-anyway'),
+            style: secondary,
             onPressed: () => pick(ApproveCheck.approve),
             child: const Text('Aprovar mesmo assim'),
           ),
+        ] else ...[
+          OutlinedButton(
+            key: const ValueKey('spec-approve-assume'),
+            style: secondary,
+            onPressed: () => pick(ApproveCheck.assume),
+            child: const Text('Aprovar com as sugestões'),
+          ),
+          FilledButton.icon(
+            key: const ValueKey('spec-approve-answer'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.amber,
+              foregroundColor: AppColors.onAmber,
+            ),
+            onPressed: () => pick(ApproveCheck.answer),
+            icon: const Icon(Icons.help_outline, size: 16),
+            label: const Text(
+              'Responder perguntas',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ],
     );
   },
@@ -378,6 +488,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   Timer? _lintTimer;
   static const _lintDelay = Duration(milliseconds: 300);
   final _editorFocus = FocusNode(debugLabel: 'spec-editor');
+
+  /// "Responder perguntas" open beside the editor (SPEC-028 R6).
+  bool _questionsOpen = false;
+
+  /// First-level suggestions counted as questions, marked in the editor
+  /// (SPEC-028 R2), by 0-based line.
+  final _questionMarks = ValueNotifier<Map<int, Color>>(const {});
 
   late final SpecUnsaved _unsaved;
   late final PrototypeUndoController _undo;
@@ -419,6 +536,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _controller?.dispose();
     _editorFocus.dispose();
     _cancelFocus.dispose();
+    _questionMarks.dispose();
     super.dispose();
   }
 
@@ -464,8 +582,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _controller = CodeLineEditingController.fromText(shown)
       ..addListener(_onText);
     _lintTimer?.cancel();
+    _setWarnings(shown);
     setState(() {
-      _warnings = lintSpec(shown);
+      _questionsOpen = false;
       _saved = text ?? '';
       _missing = text == null;
       _loading = false;
@@ -479,6 +598,16 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   String? _lastText;
 
+  /// Structure warnings of [text] and the editor marks of the suggestions
+  /// counted as questions (SPEC-028 R2).
+  void _setWarnings(String text) {
+    _warnings = lintSpec(text);
+    final scan = SpecDocument.parse(text).openQuestionsScan;
+    _questionMarks.value = {
+      for (final l in scan.suggestionLines) l - 1: AppColors.amber,
+    };
+  }
+
   /// Controller listener: re_editor may notify while it builds, so the
   /// rebuild (preview + unsaved indicator) is deferred to after the frame.
   void _onText() {
@@ -488,7 +617,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _lintTimer?.cancel();
     _lintTimer = Timer(_lintDelay, () {
       if (!mounted) return;
-      setState(() => _warnings = lintSpec(_controller?.text ?? ''));
+      setState(() => _setWarnings(_controller?.text ?? ''));
     });
     void apply() {
       if (!mounted) return;
@@ -627,6 +756,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       SpecActionKind.clone => _clone(ws, spec),
       SpecActionKind.refine => _refine(ws, spec),
       SpecActionKind.screens => _generateScreens(ws, spec),
+      SpecActionKind.answers => Future.sync(_openQuestions),
     });
   }
 
@@ -684,20 +814,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (c == null || _actions.current != null) return;
     var doc = SpecDocument.parse(c.text);
     final questions = doc.openQuestions;
-    final warnings = lintSpec(c.text);
+    // The format notice has its own strip (SPEC-028 R3).
+    final warnings = [
+      for (final w in lintSpec(c.text))
+        if (w.kind != SpecWarningKind.openQuestionsFormat) w,
+    ];
     if (questions.isNotEmpty || warnings.isNotEmpty) {
       final choice = await showApproveChecksDialog(
         context,
+        code: spec.code,
         questions: questions,
-        warnings: warnings.length,
+        warnings: warnings,
       );
       if (choice == null || choice == ApproveCheck.cancel || !mounted) return;
       switch (choice) {
-        case ApproveCheck.refine:
-          return _refine(ws, spec);
+        case ApproveCheck.answer:
+          return _openQuestions();
         case ApproveCheck.showWarnings:
           setState(() {
-            _warnings = warnings;
+            _setWarnings(c.text);
             _warningsOpen = true;
           });
           return;
@@ -819,6 +954,103 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       ref.read(selectedConversationProvider.notifier).select(id);
       ref.read(navigationProvider.notifier).go(AppSection.prompt);
     });
+  }
+
+  // --- perguntas em aberto (SPEC-028) ---------------------------------------------
+
+  /// "Responder perguntas" (R6): the panel beside the editor, in the place
+  /// of the steps panel (the Protótipo mode goes back to the split view).
+  void _openQuestions() {
+    if (!mounted || _controller == null) return;
+    setState(() {
+      if (_mode == SpecViewMode.prototype) _mode = SpecViewMode.split;
+      _questionsOpen = true;
+    });
+  }
+
+  /// R12: Esc / "Fechar" keep the answers (R8); the focus goes back to the
+  /// editor.
+  void _closeQuestions() {
+    if (!mounted) return;
+    setState(() => _questionsOpen = false);
+    _editorFocus.requestFocus();
+  }
+
+  /// "Corrigir formato" (R3): the section in the R1 format, in the editor
+  /// (saved by the user), the texts unchanged.
+  void _fixQuestionsFormat() {
+    final c = _controller;
+    if (c == null) return;
+    final doc = SpecDocument.parse(c.text);
+    c.text = doc.withOpenQuestions(doc.openQuestions);
+    setState(() => _setWarnings(c.text));
+    _snack('Formato das perguntas corrigido. Revise e salve.');
+  }
+
+  /// "Aplicar respostas" (R10): `## Decisões` written on the editor text
+  /// and, with [update], the Claude's update of the requirements (read-only
+  /// run, the text comes back by structured output; the spec is held
+  /// meanwhile, SPEC-025). Nothing is saved here (R11).
+  Future<AppliedAnswers?> _applyAnswers(
+    Workspace ws,
+    Spec spec,
+    Map<String, Answer> answers,
+    bool update,
+  ) async {
+    final c = _controller;
+    if (c == null || _actions.current != null) return null;
+    final before = c.text;
+    final doc = SpecDocument.parse(before);
+    final withDecisions = doc.withAnswers({
+      for (final MapEntry(:key, :value) in answers.entries)
+        if (value.answered) key: value.text,
+    }, DateTime.now());
+    if (!update) {
+      return (before: before, after: withDecisions, updated: false);
+    }
+    final byQuestion = {
+      for (final q in doc.openQuestions)
+        if (answers[q.id] case final a? when a.answered) q: a,
+    };
+    AppliedAnswers? out;
+    final applier = ref.read(specAnswerApplierProvider);
+    await _runAction(SpecActionKind.answers, spec, (a) async {
+      final text = await _orCancel(
+        a,
+        applier.apply(
+          ws,
+          withDecisions,
+          byQuestion,
+          cancelled: a.cancelledFuture,
+        ),
+      );
+      // SPEC-025 R7: never applied to another spec.
+      if (!mounted || _loadedSpecId != spec.id) return;
+      out = (before: before, after: text, updated: true);
+    });
+    return out;
+  }
+
+  /// "Salvar na spec" (R11): the text reviewed in the diff is written; the
+  /// status is the one it had. The answers of the session are done.
+  Future<bool> _saveAnswers(Workspace ws, Spec spec, String text) async {
+    final c = _controller;
+    if (c == null || _held(spec.id) || _loadedSpecId != spec.id) return false;
+    try {
+      await ref.read(specServiceProvider).save(ws, spec, text);
+    } catch (e) {
+      _snack('Falha ao salvar: $e');
+      return false;
+    }
+    if (!mounted) return true;
+    _saved = text;
+    c.text = text;
+    _setWarnings(text);
+    ref.read(specDirtyProvider.notifier).set(_dirty);
+    ref.read(specAnswersProvider.notifier).clear(spec.id);
+    setState(() {});
+    _snack('Respostas salvas na ${spec.code}.');
+    return true;
   }
 
   // --- protótipo (SPEC-022) -------------------------------------------------------
@@ -1214,6 +1446,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final DeleteScreens? onDeleteScreens = spec != null && deleteReason == null
         ? (screens) => _deleteScreens(ws, spec, screens)
         : null;
+    // SPEC-028: the questions of the editor text and the format notice.
+    final questions = doc.openQuestions;
+    final questionsOpen = _questionsOpen && ready && !proto;
+    final formatNotice = locked || readOnly
+        ? null
+        : _warnings
+              .where((w) => w.kind == SpecWarningKind.openQuestionsFormat)
+              .firstOrNull;
     final undoBindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
           unawaited(ref.read(prototypeUndoProvider.notifier).undo()),
@@ -1293,6 +1533,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                               : null,
                           onDelete: canDeleteSpec(spec)
                               ? () => deleteSpecAction(context, ref, spec)
+                              : null,
+                          onAnswer:
+                              ready &&
+                                  !locked &&
+                                  action == null &&
+                                  questions.isNotEmpty
+                              ? _openQuestions
                               : null,
                           onClone: ready && locked && action == null
                               ? () => _clone(ws, spec)
@@ -1427,7 +1674,18 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                             readOnly: readOnly,
                             dimmed: held,
                             focusNode: _editorFocus,
-                            warnings: locked ? const [] : _warnings,
+                            warnings: locked
+                                ? const []
+                                : [
+                                    for (final w in _warnings)
+                                      if (w.kind !=
+                                          SpecWarningKind.openQuestionsFormat)
+                                        w,
+                                  ],
+                            lineMarks: _questionMarks,
+                            questionsNotice: formatNotice?.message,
+                            onFixQuestions: _fixQuestionsFormat,
+                            onAnswerQuestions: _openQuestions,
                             warningsOpen: _warningsOpen,
                             onToggleWarnings: () =>
                                 setState(() => _warningsOpen = !_warningsOpen),
@@ -1443,9 +1701,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               ),
             ),
             SizedBox(
-              width: sideW,
+              width: questionsOpen ? 440 : sideW,
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
+                  : questionsOpen
+                  ? SpecQuestionsPanel(
+                      key: ValueKey('spec-questions-${spec.id}'),
+                      ws: ws,
+                      specId: spec.id,
+                      specCode: spec.code,
+                      specText: () => _controller?.text ?? '',
+                      questions: questions,
+                      onClose: _closeQuestions,
+                      onApply: (answers, update) =>
+                          _applyAnswers(ws, spec, answers, update),
+                      onSave: (text) => _saveAnswers(ws, spec, text),
+                    )
                   : proto
                   ? CallbackShortcuts(
                       bindings: undoBindings,
@@ -1591,9 +1862,22 @@ class _EditorBody extends StatelessWidget {
     this.warningsOpen = false,
     this.onToggleWarnings,
     this.onWarning,
+    this.lineMarks,
+    this.questionsNotice,
+    this.onFixQuestions,
+    this.onAnswerQuestions,
   });
 
   final FocusNode? focusNode;
+
+  /// Suggestions counted as questions, marked in the editor (SPEC-028 R2).
+  final ValueListenable<Map<int, Color>>? lineMarks;
+
+  /// "Perguntas em aberto" outside the format (SPEC-028 R3): the notice
+  /// above the editor with "Corrigir formato" and "Responder perguntas".
+  final String? questionsNotice;
+  final VoidCallback? onFixQuestions;
+  final VoidCallback? onAnswerQuestions;
 
   /// Structure warnings (SPEC-023 R8): the strip below the editor, hidden
   /// when there are none.
@@ -1624,6 +1908,7 @@ class _EditorBody extends StatelessWidget {
       readOnly: readOnly,
       dimmed: dimmed,
       focusNode: focusNode,
+      lineMarks: lineMarks,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
     // The same zoom as the editor ("− 100% +", Ctrl -/=): reading the
@@ -1673,6 +1958,19 @@ class _EditorBody extends StatelessWidget {
         ],
       ),
     );
+    if (questionsNotice != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SpecQuestionsFormatNotice(
+            message: questionsNotice!,
+            onFix: onFixQuestions,
+            onAnswer: onAnswerQuestions,
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
     if (lockedBanner == null) return body;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1690,6 +1988,78 @@ class _EditorBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "Em 'Perguntas em aberto', N itens são sugestões…" (SPEC-028 R3), above
+/// the editor: "Corrigir formato" (secondary, not to compete with
+/// "Aprovar") and "Responder perguntas".
+class SpecQuestionsFormatNotice extends StatelessWidget {
+  const SpecQuestionsFormatNotice({
+    super.key,
+    required this.message,
+    this.onFix,
+    this.onAnswer,
+  });
+
+  final String message;
+  final VoidCallback? onFix;
+  final VoidCallback? onAnswer;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('spec-questions-format'),
+    padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
+    decoration: const BoxDecoration(
+      color: SessionColors.approvalBg,
+      border: Border(bottom: BorderSide(color: SessionColors.approvalBorder)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.error_outline, size: 16, color: AppColors.amber),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            message,
+            key: const ValueKey('spec-questions-format-text'),
+            style: const TextStyle(
+              fontSize: 12.5,
+              height: 1.45,
+              color: AppColors.text,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        OutlinedButton(
+          key: const ValueKey('spec-questions-fix'),
+          onPressed: onFix,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.text,
+            side: const BorderSide(color: AppColors.amber),
+            visualDensity: VisualDensity.compact,
+          ),
+          child: const Text(
+            'Corrigir formato',
+            style: TextStyle(fontSize: 12.5),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          key: const ValueKey('spec-questions-format-answer'),
+          onPressed: onAnswer,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.text,
+            side: const BorderSide(color: AppColors.border),
+            visualDensity: VisualDensity.compact,
+          ),
+          icon: const Icon(Icons.help_outline, size: 15),
+          label: const Text(
+            'Responder perguntas',
+            style: TextStyle(fontSize: 12.5),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Rendered spec (frontmatter shown as a status line, like the mockup).

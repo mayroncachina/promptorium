@@ -249,70 +249,243 @@ class SpecDocument {
     return null;
   }
 
-  /// Items (`-` or numbered) of `## Perguntas em aberto` (SPEC-023 R6);
-  /// HTML comments (the template's hint) are not questions.
-  List<String> get openQuestions {
-    final text = section(openQuestionsSection)
-        ?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
-    if (text == null) return const [];
-    final out = <String>[];
-    for (final line in text.split('\n')) {
-      final m = RegExp(r'^\s*(?:[-*+]|\d+[.)])\s+(.*\S)\s*$').firstMatch(line);
-      if (m != null) {
-        out.add(m.group(1)!);
-      } else if (out.isNotEmpty && line.trim().isNotEmpty) {
-        // A wrapped item goes on in the next lines.
-        out[out.length - 1] = '${out.last} ${line.trim()}';
+  /// Questions of `## Perguntas em aberto` (SPEC-028 R2): first-level
+  /// items, each with the `- Sugestão:` subitem (or a first-level
+  /// "Sugestão:" item right after it, the old format). HTML comments (the
+  /// template's hint) are not questions.
+  List<OpenQuestion> get openQuestions => openQuestionsScan.questions;
+
+  /// [openQuestions] plus what is outside the R1 format (SPEC-028 R2, R3).
+  OpenQuestionsScan get openQuestionsScan {
+    final r = _sectionRange(text, openQuestionsSection, from: _bodyLine);
+    if (r == null) return const OpenQuestionsScan();
+    final all = text.split('\n');
+    // Comments blanked line by line: the line numbers stay.
+    final body = all
+        .sublist(r.start + 1, r.end)
+        .join('\n')
+        .replaceAllMapped(
+          RegExp(r'<!--[\s\S]*?-->'),
+          (m) => m.group(0)!.replaceAll(RegExp(r'[^\n]'), ''),
+        )
+        .split('\n');
+    final items = <_QuestionDraft>[];
+    final stray = <int>[];
+    var unprefixed = false;
+    // Where wrapped lines go: the question text or its suggestion.
+    var toSuggestion = false;
+    var skipping = false;
+    for (var k = 0; k < body.length; k++) {
+      final line = body[k];
+      final lineNo = r.start + 2 + k;
+      if (line.trim().isEmpty) continue;
+      final m = _questionItemRe.firstMatch(line);
+      if (m == null) {
+        if (items.isEmpty || skipping) continue;
+        final q = items.last;
+        if (toSuggestion) {
+          q.suggestion = '${q.suggestion} ${line.trim()}'.trim();
+        } else {
+          q.text = '${q.text} ${line.trim()}';
+        }
+        continue;
       }
+      final indent = m.group(1)!.replaceAll('\t', '  ').length;
+      var content = m.group(2)!;
+      final label = _labelRe.firstMatch(content);
+      final kind = label == null ? null : _fold(label.group(1)!);
+      if (label != null) content = content.substring(label.end).trim();
+      if (indent >= 2) {
+        // A subitem: the suggestion, or more text of the question.
+        skipping = false;
+        if (items.isEmpty) continue;
+        final q = items.last;
+        if (kind == 'sugestao') {
+          q.suggestion = content;
+          toSuggestion = true;
+        } else if (kind == null) {
+          q.text = '${q.text} $content';
+          toSuggestion = false;
+        } else {
+          skipping = true;
+        }
+        continue;
+      }
+      if (kind != null) {
+        // "Sugestão:" at the first level belongs to the question before it.
+        stray.add(lineNo);
+        skipping = kind != 'sugestao' || items.isEmpty;
+        if (!skipping) {
+          items.last.suggestion ??= content;
+          toSuggestion = true;
+        }
+        continue;
+      }
+      skipping = false;
+      toSuggestion = false;
+      final p = _questionIdRe.firstMatch(content);
+      if (p == null) unprefixed = true;
+      items.add(
+        _QuestionDraft(
+          id: p == null ? null : 'P${p.group(1)}',
+          text: p == null ? content : content.substring(p.end).trim(),
+          line: lineNo,
+        ),
+      );
     }
-    return out;
+    final used = {for (final d in items) ?d.id};
+    var n = 0;
+    String nextId() {
+      String id;
+      do {
+        id = 'P${++n}';
+      } while (used.contains(id));
+      return id;
+    }
+
+    return OpenQuestionsScan(
+      questions: [
+        for (final (i, d) in items.indexed)
+          OpenQuestion(
+            id: d.id ?? (used.contains('P${i + 1}') ? nextId() : 'P${i + 1}'),
+            text: d.text.trim(),
+            suggestion: d.suggestion == null || d.suggestion!.trim().isEmpty
+                ? null
+                : d.suggestion!.trim(),
+            line: d.line,
+          ),
+      ],
+      suggestionLines: stray,
+      unprefixed: unprefixed,
+    );
   }
 
-  /// "Aprovar assumindo premissas" (SPEC-023 R7): `## Perguntas em aberto`
-  /// left empty and each of [questions] added to `## Premissas` as
-  /// `- (sem resposta, aceita em 2026-10-24) <pergunta>` (the section is
-  /// created before `## Critérios de aceite` when absent).
-  String withAssumptions(List<String> questions, DateTime at) {
+  static final _questionItemRe = RegExp(
+    r'^([ \t]*)(?:[-*+]|\d+[.)])\s+(.*\S)\s*$',
+  );
+  static final _labelRe = RegExp(
+    r'^\**(Sugest[aã]o|Resposta|Op[cç][oõ]es)\**\s*:\**\s*',
+    caseSensitive: false,
+  );
+  static final _questionIdRe = RegExp(r'^\**P(\d+)\**(?:\s*[·:.\-–—)]\s*|\s+)');
+
+  /// `## Perguntas em aberto` rewritten in the R1 format with [questions]
+  /// (SPEC-028 R3: "Corrigir formato"; the texts are kept). Empty leaves the
+  /// section empty.
+  String withOpenQuestions(List<OpenQuestion> questions) {
+    final lines = text.split('\n');
+    final open = _sectionRange(text, openQuestionsSection, from: _bodyLine);
+    final block = [for (final q in questions) ...q.toLines()];
+    if (open == null) {
+      if (block.isEmpty) return text;
+      return '${text.trimRight()}\n\n## $openQuestionsSection\n\n'
+          '${block.join('\n')}\n';
+    }
+    lines.replaceRange(open.start + 1, open.end, [
+      '',
+      ...block,
+      if (block.isNotEmpty) '',
+    ]);
+    return lines.join('\n');
+  }
+
+  /// "Aprovar com as sugestões" (SPEC-028 R5): `## Perguntas em aberto`
+  /// left empty and each of [questions] added to `## Premissas`: with a
+  /// suggestion `- (assumida em 2026-11-01) P1 · <pergunta> → <sugestão>`,
+  /// without `- (sem resposta, aceita em 2026-11-01) P1 · <pergunta>` (the
+  /// section is created before `## Critérios de aceite` when absent).
+  String withAssumptions(List<OpenQuestion> questions, DateTime at) {
     final lines = text.split('\n');
     final open = _sectionRange(text, openQuestionsSection, from: _bodyLine);
     if (open != null) {
       lines.replaceRange(open.start + 1, open.end, ['']);
     }
     if (questions.isEmpty) return lines.join('\n');
-    final day =
-        '${at.year}-${'${at.month}'.padLeft(2, '0')}-'
-        '${'${at.day}'.padLeft(2, '0')}';
+    final day = specDay(at);
     final items = [
-      for (final q in questions) '- (sem resposta, aceita em $day) $q',
+      for (final q in questions)
+        q.suggestion == null
+            ? '- (sem resposta, aceita em $day) ${q.id} · ${q.text}'
+            : '- (assumida em $day) ${q.id} · ${q.text} → ${q.suggestion}',
     ];
-    final joined = lines.join('\n');
+    return _appendItems(
+      lines.join('\n'),
+      assumptionsSection,
+      items,
+      before: const ['Critérios', openQuestionsSection],
+    );
+  }
+
+  /// Applying the answers of the session (SPEC-028 R10): each one in
+  /// `## Decisões` as `- P1 · <resumo> (2026-11-01)` (the section is created
+  /// before `## Perguntas em aberto` when absent) and the answered questions
+  /// out of `## Perguntas em aberto`; the others stay, in the R1 format.
+  /// [answers]: question id → summary of the answer.
+  String withAnswers(Map<String, String> answers, DateTime at) {
+    final questions = openQuestions;
+    final answered = [
+      for (final q in questions)
+        if ((answers[q.id] ?? '').trim().isNotEmpty) q,
+    ];
+    if (answered.isEmpty) return text;
+    final left = [
+      for (final q in questions)
+        if (!answered.contains(q)) q,
+    ];
+    final day = specDay(at);
+    final rest = SpecDocument.parse(text).withOpenQuestions(left);
+    return SpecDocument.parse(rest)._appendItems(
+      rest,
+      decisionsSection,
+      [
+        for (final q in answered)
+          '- ${q.id} · ${_oneLine(answers[q.id]!)} ($day)',
+      ],
+      before: const [openQuestionsSection],
+    );
+  }
+
+  static String _oneLine(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+  /// [items] at the end of `## <section>` of [source], or in a new section
+  /// before the first of [before] found (the end of the file otherwise).
+  String _appendItems(
+    String source,
+    String section,
+    List<String> items, {
+    required List<String> before,
+  }) {
+    final lines = source.split('\n');
     final from = _bodyLine;
-    final premises = _sectionRange(joined, assumptionsSection, from: from);
-    if (premises != null) {
-      var j = premises.end;
-      while (j > premises.start + 1 && lines[j - 1].trim().isEmpty) {
+    final existing = _sectionRange(source, section, from: from);
+    if (existing != null) {
+      var j = existing.end;
+      while (j > existing.start + 1 && lines[j - 1].trim().isEmpty) {
         j--;
       }
       lines.insertAll(j, [
-        if (j == premises.start + 1) '',
+        if (j == existing.start + 1) '',
         ...items,
-        if (j == premises.end && j < lines.length) '',
+        if (j == existing.end && j < lines.length) '',
       ]);
       return lines.join('\n');
     }
-    final anchor =
-        _sectionRange(joined, 'Critérios', from: from) ??
-        _sectionRange(joined, openQuestionsSection, from: from);
-    final block = ['## $assumptionsSection', '', ...items, ''];
-    if (anchor == null) {
-      return '${joined.trimRight()}\n\n${block.join('\n')}';
+    final block = ['## $section', '', ...items, ''];
+    for (final name in before) {
+      final anchor = _sectionRange(source, name, from: from);
+      if (anchor == null) continue;
+      if (anchor.start > 0 && lines[anchor.start - 1].trim().isNotEmpty) {
+        block.insert(0, '');
+      }
+      lines.insertAll(anchor.start, block);
+      return lines.join('\n');
     }
-    lines.insertAll(anchor.start, block);
-    return lines.join('\n');
+    return '${source.trimRight()}\n\n${block.join('\n')}';
   }
 
   static const openQuestionsSection = 'Perguntas em aberto';
   static const assumptionsSection = 'Premissas';
+  static const decisionsSection = 'Decisões';
   static const outOfScopeSection = 'Fora do escopo';
 
   /// `## Objetivo`.
@@ -652,7 +825,10 @@ Descreva o problema e o resultado esperado.
 
 ## Perguntas em aberto
 
-<!-- Dúvidas sem resposta, uma por item. Responda antes de aprovar. -->
+<!-- Dúvidas sem resposta, uma por item, no formato:
+- P1 · <pergunta>
+  - Sugestão: <resposta sugerida, quando houver>
+Responda antes de aprovar ("Responder perguntas"). -->
 ''';
 
 final _requirementLine = RegExp(
@@ -706,6 +882,87 @@ String cloneSpecText(
     }
   }
   return meta.substring(0, doc.bodyStart) + out.join('\n');
+}
+
+/// `2026-11-01` of [at] (dates written into the spec).
+String specDay(DateTime at) =>
+    '${at.year}-${'${at.month}'.padLeft(2, '0')}-'
+    '${'${at.day}'.padLeft(2, '0')}';
+
+/// Instruction for the `## Perguntas em aberto` format (SPEC-028 R1), shared
+/// by the refine prompt and `/spec`.
+const openQuestionsFormatHint =
+    'cada pergunta como um item "- P<n> · <pergunta>", com a sugestão, '
+    'quando houver, num subitem recuado "  - Sugestão: <texto>"';
+
+/// One question of `## Perguntas em aberto` (SPEC-028 R2).
+@immutable
+class OpenQuestion {
+  const OpenQuestion({
+    required this.id,
+    required this.text,
+    this.suggestion,
+    this.line = 0,
+  });
+
+  /// `P1`, `P2`… (the item's own, or its position).
+  final String id;
+  final String text;
+  final String? suggestion;
+
+  /// 1-based line of the item in the file (0 = unknown).
+  final int line;
+
+  /// The item in the R1 format.
+  List<String> toLines() => [
+    '- $id · $text',
+    if (suggestion != null) '  - Sugestão: $suggestion',
+  ];
+
+  @override
+  bool operator ==(Object other) =>
+      other is OpenQuestion &&
+      other.id == id &&
+      other.text == text &&
+      other.suggestion == suggestion;
+
+  @override
+  int get hashCode => Object.hash(id, text, suggestion);
+
+  @override
+  String toString() =>
+      '$id · $text${suggestion == null ? '' : ' → $suggestion'}';
+}
+
+/// What [SpecDocument.openQuestionsScan] read.
+@immutable
+class OpenQuestionsScan {
+  const OpenQuestionsScan({
+    this.questions = const [],
+    this.suggestionLines = const [],
+    this.unprefixed = false,
+  });
+
+  final List<OpenQuestion> questions;
+
+  /// 1-based lines of first-level items that are not questions
+  /// ("Sugestão:", "Resposta:", "Opções:").
+  final List<int> suggestionLines;
+
+  /// Some question has no `P<n>`.
+  final bool unprefixed;
+
+  /// The section is outside the R1 format (R3).
+  bool get offFormat => suggestionLines.isNotEmpty || unprefixed;
+}
+
+class _QuestionDraft {
+  _QuestionDraft({required this.id, required this.text, required this.line});
+
+  final String? id;
+  String text;
+  String? suggestion;
+  final int line;
 }
 
 /// One line of `## Etapas`: the files a step touches and its own check.
