@@ -1,0 +1,78 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T14:00:00Z"
+ },
+ "title": "Promptorium · Spec bloqueada durante ações",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Gerando o design (ação longa)"
+  },
+  "Aprovando.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Aprovando (ação curta)"
+  },
+  "Trocar-spec.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Trocar de spec durante a geração"
+  },
+  "Falha.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Falha: spec liberada"
+  },
+  "Prototipo.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Gerando as telas"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Aprovando.dc.html",
+  "Trocar-spec.dc.html",
+  "Falha.dc.html",
+  "Prototipo.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Enquanto uma ação roda, a spec não pode ser alterada",
+   "kind": "title1",
+   "maxW": 3460
+  },
+  "t2": {
+   "x": 0,
+   "y": 820,
+   "text": "Saída com falha e o modo Protótipo",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
