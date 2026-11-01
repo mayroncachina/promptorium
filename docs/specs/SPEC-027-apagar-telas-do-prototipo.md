@@ -1,6 +1,6 @@
 ---
 id: SPEC-027
-status: rascunho
+status: concluida
 depende-de: SPEC-022
 ---
 
@@ -116,22 +116,35 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/VgzA6UuHaq7KsMi88f7
 
 ## Critérios de aceite
 
-- [ ] O cartão mostra "Mais ações da tela" ao passar o mouse, com foco ou selecionado, e o menu tem "Abrir no navegador", "Pedir variação" e "Apagar tela…" [R1a] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] O rótulo do cartão mostra requisito, título e o selo da variação, inclusive "A", e o selo "Aprovada" fica fora da miniatura [R1] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Delete com um cartão selecionado abre a confirmação [R2] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Com duas telas selecionadas, a barra mostra "2 telas selecionadas" e "Apagar 2 telas…", e Esc limpa a seleção [R3] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] O diálogo mostra a miniatura, o arquivo e a pasta, começa com foco em "Cancelar" e não apaga nada se cancelado [R4] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Apagar a tela aprovada mostra o aviso, remove a linha de `## Protótipo` e mantém o status; com o editor sujo, o texto do editor também perde a linha e continua não salvo [R5] verificar: flutter test test/features/specs/specs_screen_test.dart
-- [ ] "Desfazer" em até 10 s restaura arquivo, índice e linha da spec; depois do prazo, o aviso some e a exclusão fica [R6] verificar: flutter test test/features/specs/prototype_service_test.dart test/features/specs/prototype_view_test.dart
-- [ ] Apagar a última tela de um requisito mostra o espaço vazio com "Gerar tela do R<n>", que gera só esse requisito [R7] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Durante uma geração, apagar fica desabilitado com a dica "Aguarde a geração terminar" [R8] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Na aba "Versões", a variação aprovada também pode ser apagada pelo mesmo diálogo [R9] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Depois de apagar, a tela sai da seleção e de "Comparar variações", o foco vai para o próximo cartão e o leitor de tela anuncia a exclusão [R10] verificar: flutter test test/features/specs/prototype_view_test.dart
-- [ ] Os testes atuais do protótipo continuam passando [R9] verificar: flutter test test/features/specs
-- [ ] A análise estática passa sem avisos novos [R1] [R1a] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] verificar: flutter analyze
+- [x] O cartão mostra "Mais ações da tela" ao passar o mouse, com foco ou selecionado, e o menu tem "Abrir no navegador", "Pedir variação" e "Apagar tela…" [R1a] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] O rótulo do cartão mostra requisito, título e o selo da variação, inclusive "A", e o selo "Aprovada" fica fora da miniatura [R1] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Delete com um cartão selecionado abre a confirmação [R2] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Com duas telas selecionadas, a barra mostra "2 telas selecionadas" e "Apagar 2 telas…", e Esc limpa a seleção [R3] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] O diálogo mostra a miniatura, o arquivo e a pasta, começa com foco em "Cancelar" e não apaga nada se cancelado [R4] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Apagar a tela aprovada mostra o aviso, remove a linha de `## Protótipo` e mantém o status; com o editor sujo, o texto do editor também perde a linha e continua não salvo [R5] verificar: flutter test test/features/specs/specs_screen_test.dart
+- [x] "Desfazer" em até 10 s restaura arquivo, índice e linha da spec; depois do prazo, o aviso some e a exclusão fica [R6] verificar: flutter test test/features/specs/prototype_service_test.dart test/features/specs/prototype_view_test.dart
+- [x] Apagar a última tela de um requisito mostra o espaço vazio com "Gerar tela do R<n>", que gera só esse requisito [R7] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Durante uma geração, apagar fica desabilitado com a dica "Aguarde a geração terminar" [R8] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Na aba "Versões", a variação aprovada também pode ser apagada pelo mesmo diálogo [R9] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Depois de apagar, a tela sai da seleção e de "Comparar variações", o foco vai para o próximo cartão e o leitor de tela anuncia a exclusão [R10] verificar: flutter test test/features/specs/prototype_view_test.dart
+- [x] Os testes atuais do protótipo continuam passando [R9] verificar: flutter test test/features/specs
+- [x] A análise estática passa sem avisos novos [R1] [R1a] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] verificar: flutter analyze
 
 ## Perguntas em aberto
 
 - "Desfazer" por 10 segundos basta, ou as telas apagadas devem ir para uma lixeira que dure até fechar o app?
 - O espaço vazio do R7 deve aparecer sempre, ou só até a pessoa sair do modo Protótipo (para não ficar lembrando de um requisito que ela decidiu não ter tela)?
 - O atalho Delete deve pedir confirmação sempre, ou só quando a tela for a aprovada?
+
+## Decisões
+
+- (Pergunta 1) "Desfazer" dura 10 segundos (`prototypeUndoWindow`), em memória, sem lixeira. A exclusão fica definitiva ao fim do prazo, ao apagar outra tela (o novo aviso substitui o anterior), ao fechar o aviso, ao trocar de spec, ao sair do modo Protótipo ou ao sair da tela de Specs.
+- (Pergunta 2) O espaço vazio do R7 aparece enquanto o requisito não tiver tela e o `index.json` lembrar que ele teve: a chave `semTela` guarda o requisito, o título e se a aprovação saiu junto. Ele some quando a pessoa gera a tela (a geração tira de `semTela` os requisitos que voltaram a ter tela) ou desfaz a exclusão.
+- (Pergunta 3) Delete pede confirmação sempre, como "Apagar tela…".
+- O fluxo de apagar fica em `specs_screen.dart` (`_deleteScreens`), porque precisa do editor para o R5; o canvas e o painel recebem `onDelete`/`deleteReason`. Diálogo, aviso de desfazer, barra de seleção e o `prototypeUndoProvider` ficam em `lib/features/specs/prototype/prototype_delete.dart`.
+- `PrototypeService.remove` passa a chamar `removeAll`; `removeAll` e `restore` esperam a releitura da pasta (`PrototypeScreens.refresh`, que não espera as miniaturas).
+- Chaves mantidas: `proto-remove-<arquivo>` (agora o botão de lixeira, também na aprovada), `proto-remove-dialog`, `proto-remove-confirm`, `proto-approved-<arquivo>` (texto "Aprovada" na aba Versões). Novas: `proto-more-<arquivo>`, `proto-menu-open|ask|delete`, `proto-letter-`, `proto-card-approved-`, `proto-check-`, `proto-selection-bar|clear|delete`, `proto-remove-cancel`, `proto-undo`, `proto-undo-toast`, `proto-empty-<Rn>`, `proto-empty-generate-<Rn>`, `proto-version-empty-<Rn>`.
+- O botão "Mais ações da tela" fica fora do `InkWell` do cartão (por cima, num `Stack`): dentro, o toque esperava o tempo do duplo clique do cartão.
+- Foco depois de apagar (R10): o próximo cartão depois do último apagado, senão o anterior; quando o requisito fica sem tela, o botão "Gerar tela do R<n>" do espaço vazio. "Desfazer" devolve o foco à primeira tela restaurada.
+- R8: além da geração, outra ação que segura a spec (SPEC-025) também desabilita apagar, com a dica "Aguarde a ação terminar". Em spec já iniciada (fora do Backlog), a tela aprovada não pode ser apagada (a spec não é editável); as outras podem.
+- O diálogo mostra a pasta real (`docs/mockups/spec-024/`, minúscula), não a da captura.

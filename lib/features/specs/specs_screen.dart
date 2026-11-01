@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
 import 'spec_action.dart';
 import 'spec_design.dart';
+import 'prototype/prototype_delete.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
 import 'prototype/prototype_view.dart';
@@ -378,11 +380,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   final _editorFocus = FocusNode(debugLabel: 'spec-editor');
 
   late final SpecUnsaved _unsaved;
+  late final PrototypeUndoController _undo;
 
   @override
   void initState() {
     super.initState();
     _unsaved = ref.read(specUnsavedProvider.notifier);
+    _undo = ref.read(prototypeUndoProvider.notifier);
     _actions = ref.read(specActionProvider.notifier);
     _nav = ref.read(navigationProvider.notifier);
     _nav.leaveGuard = _guardLeave;
@@ -404,6 +408,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       });
     }
     if (_nav.leaveGuard == _guardLeave) _nav.leaveGuard = null;
+    // SPEC-027 R6: leaving the screen makes a deletion final.
+    _undo.discardLater();
     // Leaving the screen stops a long action: its result would have nowhere
     // to go (R7).
     final a = _actions.current;
@@ -427,6 +433,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   Future<void> _load(Workspace ws, Spec spec) async {
+    // SPEC-027 R6: another spec makes the deletion final.
+    if (_loadedSpecId != spec.id) _undo.discardLater();
     _loadedSpecId = spec.id;
     setState(() => _loading = true);
     String? text;
@@ -819,7 +827,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       (root: ws.path, code: spec.code);
 
   /// "Gerar telas da spec" (R2); the spec is held meanwhile (SPEC-025 R9).
-  Future<void> _generateScreens(Workspace ws, Spec spec) async {
+  /// [only]: "Gerar tela do `R<n>`" of an empty requirement (SPEC-027 R7).
+  Future<void> _generateScreens(
+    Workspace ws,
+    Spec spec, {
+    Set<String>? only,
+  }) async {
     final c = _controller;
     if (c == null || _actions.current != null) return;
     final text = c.text;
@@ -827,7 +840,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     await _runAction(SpecActionKind.screens, spec, (a) async {
       final r = await _orCancel(
         a,
-        service.generate(ws, spec, text, cancelled: a.cancelledFuture),
+        service.generate(
+          ws,
+          spec,
+          text,
+          cancelled: a.cancelledFuture,
+          only: only,
+        ),
       );
       _snack(_outcomeText(r, 'Nenhuma tela nova.'));
     });
@@ -883,6 +902,169 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _snack('${x.requirement} → $path anexada à spec.');
     } catch (e) {
       _snack('Falha ao aprovar a tela: $e');
+    }
+  }
+
+  /// Approved file names of [screens] (by `## Protótipo` of the editor).
+  Set<String> _approvedOf(List<MockupScreen> screens) {
+    final approved = SpecDocument.parse(_controller?.text ?? _saved).prototypes;
+    return {
+      for (final x in screens)
+        if (approvedFile(approved, x.requirement) == x.file) x.file,
+    };
+  }
+
+  /// Sets ([path]) or removes (null) the `## Protótipo` line of [req] on
+  /// disk and in the editor, which keeps unsaved changes unsaved (SPEC-027
+  /// R5, as [_approveScreen]). [only]: changed only while it points to that
+  /// file.
+  Future<void> _setPrototypeLine(
+    Workspace ws,
+    Spec spec,
+    String req,
+    String? path, {
+    String? only,
+  }) async {
+    bool applies(String text) =>
+        only == null ||
+        SpecDocument.parse(text).prototypes[req]?.split('/').last == only;
+    final service = ref.read(specServiceProvider);
+    final disk = await service.read(ws, spec) ?? _saved;
+    final next = applies(disk)
+        ? SpecDocument.parse(disk).withPrototype(req, path)
+        : disk;
+    if (next != disk) await service.save(ws, spec, next);
+    if (!mounted || _loadedSpecId != spec.id) return;
+    final c = _controller;
+    if (c == null) return;
+    final dirty = _dirty;
+    _saved = next;
+    if (!dirty) {
+      c.text = next;
+    } else if (applies(c.text)) {
+      c.text = SpecDocument.parse(c.text).withPrototype(req, path);
+    }
+    ref.read(specDirtyProvider.notifier).set(_dirty);
+    setState(() {});
+  }
+
+  /// "Apagar tela…" / "Apagar N telas…" (SPEC-027 R2–R6, R10): asks,
+  /// deletes, removes the approved lines and offers "Desfazer".
+  Future<void> _deleteScreens(
+    Workspace ws,
+    Spec spec,
+    List<MockupScreen> screens,
+  ) async {
+    if (screens.isEmpty || _controller == null) return;
+    final key = _protoKey(ws, spec);
+    final before = ref.read(prototypeScreensProvider(key)).screens;
+    final approved = _approvedOf(screens);
+    if (approved.isNotEmpty && spec.stage != SpecStage.backlog) {
+      _snack(
+        '${spec.code} já foi iniciada: a tela aprovada não pode ser apagada.',
+      );
+      return;
+    }
+    final ok = await showDeleteScreensDialog(
+      context,
+      screens: screens,
+      specCode: spec.code,
+      approved: approved,
+      thumbs: ref.read(prototypeScreensProvider(key)).thumbs,
+    );
+    if (!ok || !mounted) return;
+    // R8: a generation that started meanwhile wins.
+    if (ref.read(prototypeJobsProvider).containsKey(spec.id) ||
+        _held(spec.id)) {
+      _snack(deleteBusyHint);
+      return;
+    }
+    final service = ref.read(prototypeServiceProvider);
+    final uiCtrl = ref.read(prototypeUiProvider(spec.id).notifier);
+    try {
+      var removed = await service.removeAll(
+        ws,
+        spec,
+        screens,
+        approved: approved,
+      );
+      final lines = <String, String>{};
+      for (final x in screens) {
+        if (!approved.contains(x.file)) continue;
+        await _setPrototypeLine(ws, spec, x.requirement, null, only: x.file);
+        lines[x.requirement] = '${mockupDir(spec.code)}/${x.file}';
+      }
+      removed = removed.withLines(lines);
+      if (!mounted) return;
+      // R10: out of the selection and the comparison; the focus goes to
+      // the next card (or the empty slot).
+      final files = {for (final x in screens) x.file};
+      final left = [
+        for (final x in before)
+          if (!files.contains(x.file)) x,
+      ];
+      uiCtrl.forget(files, left);
+      final target = _focusAfterDelete(before, screens, left);
+      if (target != null) uiCtrl.focusOn(target);
+      unawaited(
+        SemanticsService.sendAnnouncement(
+          View.of(context),
+          deletedAnnouncement(screens.length),
+          TextDirection.ltr,
+        ),
+      );
+      _undo.offer(
+        PrototypeUndo(
+          specId: spec.id,
+          message: deletedMessage(screens),
+          undo: () => _restoreScreens(ws, spec, removed),
+        ),
+      );
+    } catch (e) {
+      _snack('Falha ao apagar: $e');
+    }
+  }
+
+  /// Card that gets the focus after deleting [gone] (R10): the next one
+  /// after the last deleted, else the previous; the empty slot when the
+  /// requirement was left without screens.
+  String? _focusAfterDelete(
+    List<MockupScreen> before,
+    List<MockupScreen> gone,
+    List<MockupScreen> left,
+  ) {
+    final files = {for (final x in gone) x.file};
+    final last = before.lastIndexWhere((x) => files.contains(x.file));
+    if (last < 0) return null;
+    final req = before[last].requirement;
+    if (!left.any((x) => x.requirement == req)) return req;
+    for (var i = last + 1; i < before.length; i++) {
+      if (!files.contains(before[i].file)) return before[i].file;
+    }
+    for (var i = last - 1; i >= 0; i--) {
+      if (!files.contains(before[i].file)) return before[i].file;
+    }
+    return null;
+  }
+
+  /// "Desfazer" (SPEC-027 R6): files, index and `## Protótipo` lines.
+  Future<void> _restoreScreens(
+    Workspace ws,
+    Spec spec,
+    RemovedScreens removed,
+  ) async {
+    try {
+      await ref.read(prototypeServiceProvider).restore(ws, spec, removed);
+      for (final MapEntry(key: req, value: path)
+          in removed.prototypeLines.entries) {
+        await _setPrototypeLine(ws, spec, req, path);
+      }
+      if (!mounted || removed.screens.isEmpty) return;
+      ref
+          .read(prototypeUiProvider(spec.id).notifier)
+          .focusOn(removed.screens.first.file);
+    } catch (e) {
+      _snack('Falha ao desfazer: $e');
     }
   }
 
@@ -1019,6 +1201,23 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         proto && ref.watch(prototypeJobsProvider).containsKey(spec.id);
     final approvedScreens = doc.prototypes;
     final compareReq = proto ? compareTarget(protoState!, protoUi!) : null;
+    // SPEC-027 R8: deleting waits for a generation (or another action).
+    final generatingScreens =
+        protoBusy || (held && action!.kind == SpecActionKind.screens);
+    final deleteReason = !ready
+        ? 'Aguarde a spec carregar.'
+        : generatingScreens
+        ? deleteBusyHint
+        : held
+        ? 'Aguarde a ação terminar'
+        : null;
+    final DeleteScreens? onDeleteScreens = spec != null && deleteReason == null
+        ? (screens) => _deleteScreens(ws, spec, screens)
+        : null;
+    final undoBindings = <ShortcutActivator, VoidCallback>{
+      const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
+          unawaited(ref.read(prototypeUndoProvider.notifier).undo()),
+    };
 
     final content = LayoutBuilder(
       builder: (context, c) {
@@ -1049,7 +1248,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   status: spec == null ? null : (doc.status ?? spec.status),
                   locked: locked,
                   mode: _mode,
-                  onMode: (m) => setState(() => _mode = m),
+                  onMode: (m) {
+                    // SPEC-027 R6: leaving the Protótipo mode makes a
+                    // deletion final.
+                    if (m != SpecViewMode.prototype) _undo.dismiss();
+                    setState(() => _mode = m);
+                  },
                   showSaveState: ready,
                   dirty: _dirty,
                   onSave: ready && !readOnly ? () => _save(ws, spec) : null,
@@ -1150,27 +1354,62 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : proto
-                      ? (protoUi!.comparing != null &&
-                                protoState!
-                                    .variationsOf(protoUi.comparing!)
-                                    .isNotEmpty
-                            ? PrototypeCompare(
-                                ws: ws,
-                                spec: spec,
-                                approved: approvedScreens,
-                                onApprove: readOnly
-                                    ? null
-                                    : (x) => _approveScreen(ws, spec, x),
-                                onViewSpec: () {
-                                  ref
-                                      .read(
-                                        prototypeUiProvider(spec.id).notifier,
+                      ? CallbackShortcuts(
+                          bindings: undoBindings,
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child:
+                                    (protoUi!.comparing != null &&
+                                        protoState!
+                                            .variationsOf(protoUi.comparing!)
+                                            .isNotEmpty
+                                    ? PrototypeCompare(
+                                        ws: ws,
+                                        spec: spec,
+                                        approved: approvedScreens,
+                                        onApprove: readOnly
+                                            ? null
+                                            : (x) =>
+                                                  _approveScreen(ws, spec, x),
+                                        onViewSpec: () {
+                                          ref
+                                              .read(
+                                                prototypeUiProvider(spec.id)
+                                                    .notifier,
+                                              )
+                                              .compare(null);
+                                          setState(
+                                            () => _mode = SpecViewMode.preview,
+                                          );
+                                        },
                                       )
-                                      .compare(null);
-                                  setState(() => _mode = SpecViewMode.preview);
-                                },
-                              )
-                            : PrototypeCanvas(ws: ws, spec: spec))
+                                    : PrototypeCanvas(
+                                        ws: ws,
+                                        spec: spec,
+                                        approved: approvedScreens,
+                                        onDelete: onDeleteScreens,
+                                        deleteReason: deleteReason,
+                                        onGenerate:
+                                            ready &&
+                                                !protoBusy &&
+                                                action == null
+                                            ? (req) => _generateScreens(
+                                                ws,
+                                                spec,
+                                                only: {req},
+                                              )
+                                            : null,
+                                      )),
+                              ),
+                              Positioned(
+                                left: 20,
+                                bottom: 20,
+                                child: PrototypeUndoToast(specId: spec.id),
+                              ),
+                            ],
+                          ),
+                        )
                       : CallbackShortcuts(
                           bindings: {
                             const SingleActivator(
@@ -1208,13 +1447,18 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
                   : proto
-                  ? PrototypePanel(
-                      ws: ws,
-                      spec: spec,
-                      approved: approvedScreens,
-                      onSend: ready
-                          ? (request) => _sendRequest(ws, spec, request)
-                          : null,
+                  ? CallbackShortcuts(
+                      bindings: undoBindings,
+                      child: PrototypePanel(
+                        ws: ws,
+                        spec: spec,
+                        approved: approvedScreens,
+                        onSend: ready
+                            ? (request) => _sendRequest(ws, spec, request)
+                            : null,
+                        onDelete: onDeleteScreens,
+                        deleteReason: deleteReason,
+                      ),
                     )
                   : Container(
                       padding: const EdgeInsets.all(16),

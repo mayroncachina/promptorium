@@ -111,6 +111,7 @@ String prototypeGeneratePrompt({
   required String dir,
   required String specText,
   required List<MockupScreen> existing,
+  Set<String>? only,
 }) {
   final doc = SpecDocument.parse(specText);
   final b = StringBuffer()
@@ -125,6 +126,13 @@ String prototypeGeneratePrompt({
     ..writeln('Requisitos:');
   for (final r in doc.requirements) {
     b.writeln('- ${r.id} · ${r.text}');
+  }
+  if (only != null && only.isNotEmpty) {
+    // SPEC-027 R7: "Gerar tela do R<n>" generates just that requirement.
+    final list = (only.toList()..sort()).join(', ');
+    b
+      ..writeln()
+      ..writeln('Gere somente a tela de $list; pule os demais requisitos.');
   }
   if (existing.isNotEmpty) {
     b
@@ -268,26 +276,32 @@ class PrototypeService {
 
   /// Completing [cancelled] stops the agent and throws
   /// [SpecActionCancelled] (SPEC-025 R9).
+  /// [only] limits the run to those requirements (SPEC-027 R7).
   Future<PrototypeOutcome> generate(
     Workspace ws,
     Spec spec,
     String specText, {
     Future<void>? cancelled,
+    Set<String>? only,
   }) async {
     final dir = mockupDir(spec.code);
     final existing = await listScreens('${ws.path}/$dir');
+    final reqs = only == null ? const <String>[] : (only.toList()..sort());
     return _run(
       ws,
       spec,
-      job: const PrototypeJob(requirements: []),
-      request: 'Gerar telas da spec',
-      requirements: const [],
+      job: PrototypeJob(requirements: reqs),
+      request: reqs.isEmpty
+          ? 'Gerar telas da spec'
+          : 'Gerar tela do ${reqs.join(', ')}',
+      requirements: reqs,
       cancelled: cancelled,
       prompt: prototypeGeneratePrompt(
         code: spec.code,
         dir: dir,
         specText: specText,
         existing: existing,
+        only: only,
       ),
     );
   }
@@ -418,8 +432,9 @@ class PrototypeService {
           for (final f in created)
             f: ScreenMeta(description: described[f], createdAt: DateTime.now()),
         },
+        filled: {for (final s in now) s.requirement},
       );
-      _reload(ws, spec);
+      unawaited(_reload(ws, spec));
       return PrototypeOutcome(
         created: created,
         restored: restored,
@@ -446,40 +461,150 @@ class PrototypeService {
     return restored;
   }
 
+  /// Records [request]; requirements in [filled] have screens again, so
+  /// they leave `semTela` (SPEC-027 R7).
   Future<void> _record(
     String dir,
     PrototypeRequest request,
-    Map<String, ScreenMeta> screens,
-  ) async {
+    Map<String, ScreenMeta> screens, {
+    Set<String> filled = const {},
+  }) async {
     final index = await PrototypeIndex.read(dir);
     await index
         .copyWith(
           screens: {...index.screens, ...screens},
           history: [...index.history, request],
+          emptied: {...index.emptied}
+            ..removeWhere((k, _) => filled.contains(k)),
         )
         .write(dir);
   }
 
-  void _reload(Workspace ws, Spec spec) {
+  /// Lists the folder again; the thumbnails follow in the background.
+  Future<void> _reload(Workspace ws, Spec spec) async {
     final key = (root: ws.path, code: spec.code);
     if (_ref.exists(prototypeScreensProvider(key))) {
-      unawaited(_ref.read(prototypeScreensProvider(key).notifier).reload());
+      await _ref.read(prototypeScreensProvider(key).notifier).refresh();
     }
   }
 
-  /// "Remover" of "Versões" (R11): the file and its `index.json` entry.
-  Future<void> remove(Workspace ws, Spec spec, MockupScreen screen) async {
+  /// One screen (SPEC-022 R11).
+  Future<RemovedScreens> remove(Workspace ws, Spec spec, MockupScreen screen) =>
+      removeAll(ws, spec, [screen]);
+
+  /// Deletes [screens] (SPEC-027 R4–R7): each HTML and its `index.json`
+  /// entry. What was deleted is kept in memory for "Desfazer" ([restore]).
+  /// A requirement left without screens is recorded in `semTela`;
+  /// [approved] are the files approved in `## Protótipo`.
+  Future<RemovedScreens> removeAll(
+    Workspace ws,
+    Spec spec,
+    List<MockupScreen> screens, {
+    Set<String> approved = const {},
+  }) async {
     final dir = '${ws.path}/${mockupDir(spec.code)}';
-    final f = File('$dir/${screen.file}');
-    if (await f.exists()) await f.delete();
-    final index = await PrototypeIndex.read(dir);
-    if (index.screens.containsKey(screen.file)) {
-      await index
-          .copyWith(screens: {...index.screens}..remove(screen.file))
-          .write(dir);
+    final files = <String, List<int>>{};
+    for (final s in screens) {
+      final f = File('$dir/${s.file}');
+      if (await f.exists()) files[s.file] = await f.readAsBytes();
     }
-    _reload(ws, spec);
+    final index = await PrototypeIndex.read(dir);
+    final entries = <String, ScreenMeta>{
+      for (final s in screens) s.file: ?index.screens[s.file],
+    };
+    for (final s in screens) {
+      final f = File('$dir/${s.file}');
+      if (await f.exists()) await f.delete();
+    }
+    final left = await listScreens(dir);
+    final gone = {for (final s in screens) s.requirement};
+    final emptied = <String, EmptiedRequirement>{
+      for (final r in gone)
+        if (!left.any((x) => x.requirement == r))
+          r: EmptiedRequirement(
+            title: screens.firstWhere((s) => s.requirement == r).title,
+            hadApproval: screens.any(
+              (s) => s.requirement == r && approved.contains(s.file),
+            ),
+          ),
+    };
+    final added = {
+      for (final r in emptied.keys)
+        if (!index.emptied.containsKey(r)) r,
+    };
+    await index
+        .copyWith(
+          screens: {...index.screens}
+            ..removeWhere((k, _) => entries.containsKey(k)),
+          emptied: {...index.emptied, ...emptied},
+        )
+        .write(dir);
+    await _reload(ws, spec);
+    return RemovedScreens(
+      screens: [
+        for (final s in screens)
+          if (files.containsKey(s.file)) s,
+      ],
+      files: files,
+      entries: entries,
+      emptied: added,
+    );
   }
+
+  /// "Desfazer" (SPEC-027 R6): the files, their `index.json` entries and
+  /// the `semTela` marks come back as they were.
+  Future<void> restore(Workspace ws, Spec spec, RemovedScreens removed) async {
+    final dir = '${ws.path}/${mockupDir(spec.code)}';
+    await Directory(dir).create(recursive: true);
+    for (final MapEntry(:key, :value) in removed.files.entries) {
+      await File('$dir/$key').writeAsBytes(value, flush: true);
+    }
+    final index = await PrototypeIndex.read(dir);
+    final back = {for (final s in removed.screens) s.requirement};
+    await index
+        .copyWith(
+          screens: {...index.screens, ...removed.entries},
+          emptied: {...index.emptied}..removeWhere((k, _) => back.contains(k)),
+        )
+        .write(dir);
+    await _reload(ws, spec);
+  }
+}
+
+/// What [PrototypeService.removeAll] deleted, kept in memory for
+/// "Desfazer" (SPEC-027 R6).
+@immutable
+class RemovedScreens {
+  const RemovedScreens({
+    required this.screens,
+    required this.files,
+    required this.entries,
+    this.emptied = const {},
+    this.prototypeLines = const {},
+  });
+
+  final List<MockupScreen> screens;
+
+  /// File → bytes.
+  final Map<String, List<int>> files;
+
+  /// File → its `index.json` entry.
+  final Map<String, ScreenMeta> entries;
+
+  /// Requirements this deletion put in `semTela`.
+  final Set<String> emptied;
+
+  /// Requirement → path of the `## Protótipo` lines removed with the
+  /// screens (R5), put back by "Desfazer".
+  final Map<String, String> prototypeLines;
+
+  RemovedScreens withLines(Map<String, String> lines) => RemovedScreens(
+    screens: screens,
+    files: files,
+    entries: entries,
+    emptied: emptied,
+    prototypeLines: lines,
+  );
 }
 
 final prototypeServiceProvider = Provider(PrototypeService.new);
@@ -519,6 +644,16 @@ class PrototypeState {
     browserMissing: browserMissing ?? this.browserMissing,
     loaded: loaded ?? this.loaded,
   );
+
+  /// Requirements whose last screen was deleted and that have none yet
+  /// (SPEC-027 R7), in requirement order.
+  List<String> get emptyRequirements {
+    int n(String r) => int.tryParse(r.substring(1)) ?? 0;
+    return [
+      for (final r in index.emptied.keys)
+        if (!screens.any((s) => s.requirement == r)) r,
+    ]..sort((a, b) => n(a).compareTo(n(b)));
+  }
 
   List<MockupScreen> variationsOf(String requirement) => [
     for (final s in screens)
@@ -566,23 +701,32 @@ class PrototypeScreens extends Notifier<PrototypeState> {
 
   /// Lists the folder again and generates the missing thumbnails (R4).
   Future<void> reload() async {
+    if (await _list()) await _thumbnails();
+  }
+
+  /// [reload] without waiting for the thumbnails.
+  Future<void> refresh() async {
+    if (await _list()) unawaited(_thumbnails());
+  }
+
+  Future<bool> _list() async {
     final screens = await listScreens(dir);
     final index = await PrototypeIndex.read(dir);
-    if (!ref.mounted) return;
+    if (!ref.mounted) return false;
     final thumbs = ref.read(prototypeThumbnailsProvider);
     final known = <String, String>{};
     for (final s in screens) {
       final png = await thumbs.cached('$dir/${s.file}');
       if (png != null) known[s.file] = png;
     }
-    if (!ref.mounted) return;
+    if (!ref.mounted) return false;
     state = state.copyWith(
       screens: screens,
       index: index,
       thumbs: known,
       loaded: true,
     );
-    await _thumbnails();
+    return true;
   }
 
   Future<void> _thumbnails() async {

@@ -49,6 +49,12 @@ class MockupScreen {
 
   int get number => int.tryParse(requirement.substring(1)) ?? 0;
 
+  /// `A`, `B`… (SPEC-027 R1: the badge of every card, A included).
+  String get letterLabel => letter.toUpperCase();
+
+  /// `R1, Lista de prompts, variação A` (SPEC-027 R1a, R4).
+  String get spokenName => '$requirement, $title, variação $letterLabel';
+
   @override
   bool operator ==(Object other) => other is MockupScreen && other.file == file;
 
@@ -161,22 +167,53 @@ class PrototypeRequest {
   }
 }
 
+/// A requirement whose last screen was deleted (SPEC-027 R7): its title
+/// and whether its approval left the spec with it.
+@immutable
+class EmptiedRequirement {
+  const EmptiedRequirement({required this.title, this.hadApproval = false});
+
+  final String title;
+  final bool hadApproval;
+
+  Map<String, Object?> toJson() => {
+    'titulo': title,
+    if (hadApproval) 'aprovada': true,
+  };
+
+  static EmptiedRequirement fromJson(Object? j) => j is Map
+      ? EmptiedRequirement(
+          title: '${j['titulo'] ?? ''}',
+          hadApproval: j['aprovada'] == true,
+        )
+      : const EmptiedRequirement(title: '');
+}
+
 /// `docs/mockups/<code>/index.json`, written by the app (never the agent).
 @immutable
 class PrototypeIndex {
-  const PrototypeIndex({this.screens = const {}, this.history = const []});
+  const PrototypeIndex({
+    this.screens = const {},
+    this.history = const [],
+    this.emptied = const {},
+  });
 
   static const fileName = 'index.json';
 
   final Map<String, ScreenMeta> screens;
   final List<PrototypeRequest> history;
 
+  /// Requirements left without a screen by a deletion (`semTela`, R7).
+  final Map<String, EmptiedRequirement> emptied;
+
   PrototypeIndex copyWith({
     Map<String, ScreenMeta>? screens,
     List<PrototypeRequest>? history,
+    Map<String, EmptiedRequirement>? emptied,
   }) => PrototypeIndex(
     screens: screens ?? this.screens,
     history: history ?? this.history,
+    emptied: emptied ?? this.emptied,
   );
 
   String encode() => const JsonEncoder.withIndent('  ').convert({
@@ -184,6 +221,10 @@ class PrototypeIndex {
       for (final k in screens.keys.toList()..sort()) k: screens[k]!.toJson(),
     },
     'historico': [for (final h in history) h.toJson()],
+    if (emptied.isNotEmpty)
+      'semTela': {
+        for (final k in emptied.keys.toList()..sort()) k: emptied[k]!.toJson(),
+      },
   });
 
   static PrototypeIndex decode(String? raw) {
@@ -192,7 +233,13 @@ class PrototypeIndex {
       final j = jsonDecode(raw);
       if (j is! Map) return const PrototypeIndex();
       final t = j['telas'];
+      final e = j['semTela'];
       return PrototypeIndex(
+        emptied: {
+          if (e is Map)
+            for (final x in e.entries)
+              '${x.key}': EmptiedRequirement.fromJson(x.value),
+        },
         screens: {
           if (t is Map)
             for (final e in t.entries) '${e.key}': ScreenMeta.fromJson(e.value),
