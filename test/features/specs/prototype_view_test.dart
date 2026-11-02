@@ -12,6 +12,8 @@ import 'package:promptorium/features/specs/prototype/prototype_thumbnails.dart';
 import 'package:promptorium/features/specs/prototype/prototype_view.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
+import 'package:promptorium/features/specs/widgets/spec_header.dart'
+    show SpecActionButton, SpecActionEmphasis;
 import 'package:promptorium/features/specs/workspace_watcher.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:re_editor/re_editor.dart' show CodeEditor;
@@ -149,8 +151,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
+  // The header actions are SpecActionButton (SPEC-024); the panel keeps
+  // ProtoButton.
   bool enabled(WidgetTester tester, String key) =>
-      tester.widget<ProtoButton>(find.byKey(ValueKey(key))).onTap != null;
+      switch (tester.widget(find.byKey(ValueKey(key)))) {
+        final SpecActionButton b => b.onTap != null,
+        final ProtoButton b => b.onTap != null,
+        _ => throw StateError('$key não é um botão'),
+      };
 
   testWidgets('R1 R3: the Protótipo mode shows the canvas with one labelled '
       'screen per file and the panel; a screen being generated is marked', (
@@ -178,6 +186,20 @@ void main() {
     expect(find.text('Comentários'), findsNothing);
     expect(find.byKey(const ValueKey('proto-generate')), findsOneWidget);
     expect(find.byKey(const ValueKey('spec-save')), findsNothing);
+    // SPEC-024 R6: "Gerar telas da spec" primary, "Comparar variações"
+    // secondary.
+    SpecActionEmphasis emphasis(String key) => tester
+        .widget<SpecActionButton>(find.byKey(ValueKey(key)))
+        .action
+        .emphasis;
+    expect(emphasis('proto-generate'), SpecActionEmphasis.primary);
+    expect(emphasis('proto-compare'), SpecActionEmphasis.secondary);
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('proto-compare'))).dx,
+      lessThan(
+        tester.getCenter(find.byKey(const ValueKey('proto-generate'))).dx,
+      ),
+    );
     // Zoom.
     expect(find.text('80%'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('proto-zoom-in')));
@@ -359,7 +381,13 @@ void main() {
     );
     expect(find.textContaining('o gate não muda'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('proto-size-1100')));
-    await settleIo(tester);
+    // The 1100×700 thumbnail is rendered asynchronously; under the full
+    // suite's load it can take longer than a fixed settle.
+    await settleIo(
+      tester,
+      until: () =>
+          runner.calls.any((c) => c.contains('--window-size=1100,700')),
+    );
     expect(
       runner.calls.any((c) => c.contains('--window-size=1100,700')),
       isTrue,

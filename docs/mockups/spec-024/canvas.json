@@ -1,0 +1,87 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T13:30:00Z"
+ },
+ "title": "Promptorium · Ações da spec",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Editando (não salvo)"
+  },
+  "Nova.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Spec recém-criada"
+  },
+  "Menu-mais.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Menu Mais ações"
+  },
+  "Aprovada.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Aprovada, ainda editável"
+  },
+  "Prototipo.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Modo Protótipo"
+  },
+  "Antes.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "Hoje · rótulos cortados"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Nova.dc.html",
+  "Menu-mais.dc.html",
+  "Aprovada.dc.html",
+  "Prototipo.dc.html",
+  "Antes.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Criar e editar uma spec: abas de modo + ações com uma primária",
+   "kind": "title1",
+   "maxW": 3460
+  },
+  "t2": {
+   "x": 0,
+   "y": 820,
+   "text": "Aprovar, prototipar e o cabeçalho de hoje",
+   "kind": "title1",
+   "maxW": 3460
+  }
+ },
+ "designSystems": []
+}

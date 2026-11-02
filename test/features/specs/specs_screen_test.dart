@@ -11,7 +11,10 @@ import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart'
     show SmallButton;
+import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
+import 'package:promptorium/features/specs/widgets/spec_header.dart'
+    show SpecActionButton, SpecActionEmphasis;
 import 'package:promptorium/features/specs/workspace_watcher.dart';
 import 'package:promptorium/features/board/widgets/spec_steps_panel.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -231,7 +234,7 @@ void main() {
     tester,
   ) async {
     await pump(tester, const Size(1440, 900));
-    expect(find.text('Aprovar spec'), findsOneWidget);
+    expect(find.text('Aprovar'), findsOneWidget);
     // The sample has structure warnings: their count comes first (SPEC-023
     // R10), "Aprovar mesmo assim" goes on.
     await tapApprove(tester, checksDialog);
@@ -285,10 +288,13 @@ void main() {
     expect(heading(), const TextScaler.linear(1));
   });
 
-  testWidgets('editing marks "não salvo"; Salvar writes the file', (
+  testWidgets('SPEC-024 R8: editing shows "Não salvo" and "Salvar" with '
+      'Ctrl+S; saving writes the file and goes back to "Salvo"', (
     tester,
   ) async {
     await pump(tester, const Size(1440, 900));
+    expect(find.text('Salvo'), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-save')), findsNothing);
     final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
     editor.controller!.text = sample.replaceFirst(
       '# Sessões com stream-json',
@@ -297,6 +303,17 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(find.byKey(const ValueKey('spec-unsaved')), findsOneWidget);
+    expect(find.text('Não salvo'), findsOneWidget);
+    expect(find.text('Salvo'), findsNothing);
+    final save = find.byKey(const ValueKey('spec-save'));
+    expect(
+      find.descendant(of: save, matching: find.text('Salvar')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: save, matching: find.text('Ctrl+S')),
+      findsOneWidget,
+    );
     // Preview follows the editor.
     expect(find.text('Sessões revisadas'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('spec-save')));
@@ -311,6 +328,107 @@ void main() {
       contains('# Sessões revisadas'),
     );
     expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+    expect(find.text('Salvo'), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-save')), findsNothing);
+  });
+
+  group('SPEC-024', () {
+    Finder key(String k) => find.byKey(ValueKey(k));
+
+    testWidgets('R3, R8: a spec just created by "Nova spec" opens with '
+        '"Salvo", the "Rascunho" badge and the R3 actions', (tester) async {
+      // Wide: the test font is wider than IBM Plex Sans and would move
+      // "Gerar design" to the menu (R9, covered in spec_header_test).
+      final c = await pump(tester, const Size(1920, 1000));
+      final ws = c.read(activeWorkspaceProvider)!;
+      final spec = await tester.runAsync(
+        () => c
+            .read(specServiceProvider)
+            .create(ws, title: 'Atalhos do editor de specs'),
+      );
+      c.read(selectedSpecProvider.notifier).select(spec!.id);
+      await settleIo(
+        tester,
+        until: () =>
+            find.text('Atalhos do editor de specs').evaluate().isNotEmpty &&
+            find.text('Salvo').evaluate().isNotEmpty,
+      );
+      expect(find.text(spec.path), findsOneWidget);
+      expect(
+        find.descendant(
+          of: key('spec-status'),
+          matching: find.text('Rascunho'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Salvo'), findsOneWidget);
+      expect(key('spec-unsaved'), findsNothing);
+      final xs = [
+        for (final k in [
+          'spec-refine',
+          'spec-design',
+          'spec-approve',
+          'spec-more',
+        ])
+          tester.getCenter(key(k)).dx,
+      ];
+      expect(xs, [...xs]..sort());
+      expect(
+        tester.widget<SpecActionButton>(key('spec-approve')).action.emphasis,
+        SpecActionEmphasis.primary,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('R7: "Mais ações" holds "Excluir…", which asks first; a '
+        'finished spec has "Arquivar"; a running one has no menu', (
+      tester,
+    ) async {
+      final c = await pump(tester, const Size(1440, 900));
+      await tester.tap(key('spec-more'));
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir…'), findsOneWidget);
+      expect(find.text('Arquivar'), findsNothing);
+      await tester.tap(key('spec-delete'));
+      await settleIo(
+        tester,
+        until: () => key('spec-delete-confirm').evaluate().isNotEmpty,
+      );
+      expect(key('spec-delete-confirm'), findsOneWidget);
+      expect(find.text('Excluir SPEC-002?'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(
+        File('${tmp.path}/specs/SPEC-002-sessoes.md').existsSync(),
+        isTrue,
+      );
+
+      final repo = c.read(specsRepoProvider);
+      final id =
+          c.read(selectedSpecProvider) ??
+          (await tester.runAsync(
+            () => repo
+                .watchByWorkspace(c.read(activeWorkspaceProvider)!.id)
+                .first,
+          ))!.single.id;
+      await tester.runAsync(() => repo.setStage(id, SpecStage.done));
+      await settleIo(
+        tester,
+        until: () => key('spec-clone').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('spec-more'));
+      await tester.pumpAndSettle();
+      expect(find.text('Arquivar'), findsOneWidget);
+      expect(find.text('Excluir…'), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() => repo.setStage(id, SpecStage.running));
+      await settleIo(tester, until: () => key('spec-more').evaluate().isEmpty);
+      expect(key('spec-more'), findsNothing);
+      expect(key('spec-clone'), findsOneWidget);
+      expect(find.text('Somente leitura'), findsOneWidget);
+    });
   });
 
   testWidgets('"Refinar com IA" stores the spec code and the Specs origin in '
@@ -443,7 +561,9 @@ void main() {
       );
       expect(
         tester
-            .widget<SmallButton>(find.byKey(const ValueKey('spec-approve')))
+            .widget<SpecActionButton>(
+              find.byKey(const ValueKey('spec-approve')),
+            )
             .onTap,
         isNotNull,
       );
