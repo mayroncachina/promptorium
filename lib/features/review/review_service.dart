@@ -16,6 +16,7 @@ import '../project/project_memory.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'pr_babysitter.dart';
+import 'restack.dart';
 import 'review_logic.dart';
 import 'comment_anchor.dart';
 import 'merge_readiness.dart';
@@ -122,13 +123,20 @@ class PrAvailability {
 
 @immutable
 class MergeResult {
-  const MergeResult({required this.commit, this.warnings = const []});
+  const MergeResult({
+    required this.commit,
+    this.warnings = const [],
+    this.restacked = const [],
+  });
 
   /// Hash of the merge commit in the base branch.
   final String commit;
 
   /// Cleanup steps that failed (worktree / branch removal).
   final List<String> warnings;
+
+  /// Children whose base was redone after the merge (SPEC-032 R6).
+  final List<RestackResult> restacked;
 }
 
 /// Git work of the Review screen (plano, Fase 9).
@@ -973,11 +981,31 @@ class ReviewService {
   /// "Mergear PR": `gh pr merge --squash|--rebase|--merge --delete-branch`;
   /// then the session / spec close like a local merge (the worktree goes
   /// away; the base branch gets the work with the next `git pull`).
-  Future<void> mergePr(String sessionId, PrMergeMethod method) async {
+  Future<List<RestackResult>> mergePr(
+    String sessionId,
+    PrMergeMethod method,
+  ) async {
     final c = await _context(sessionId);
     final url = c.session.prUrl;
     if (url == null) throw const ReviewException('A sessão não tem PR.');
     await _requireGithubRequest(url, c.workspace);
+    final children = await _prepareChildren(c.workspace, c.session.branch);
+    // The PRs of the children move to the mother's base before the merge
+    // deletes the mother's branch (a PR whose base is deleted is closed).
+    final target = await baseBranchOf(c.session, c.workspace);
+    for (final child in children.where((x) => x.prUrl != null)) {
+      try {
+        await _run('gh', [
+          'pr',
+          'edit',
+          child.prUrl!,
+          '--base',
+          target,
+        ], workingDirectory: c.workspace.path);
+      } on ProcessException catch (e) {
+        debugPrint('gh pr edit ${child.prUrl} falhou — $e');
+      }
+    }
     final ProcessResult r;
     try {
       r = await _run('gh', [
@@ -1014,11 +1042,282 @@ class ReviewService {
     final sessions = _ref.read(sessionsRepoProvider);
     await sessions.setMerged(s.id, url);
     final spec = c.spec;
+    final base = await baseBranchOf(s, ws);
     if (spec != null) {
-      await _closeSpec(ws, spec, url, await baseBranchOf(s, ws));
+      await _closeSpec(ws, spec, url, base);
     } else if (c.task != null) {
       await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.done);
     }
+    if (children.isEmpty) return const [];
+    // The merge happened on the host: the local base may be behind.
+    return restackChildren(
+      ws,
+      children,
+      newBase: await _fetchedBase(ws, base),
+      target: base,
+    );
+  }
+
+  /// `origin/<base>` after `git fetch origin <base>`, or [base] when there
+  /// is no such remote (or the fetch failed).
+  Future<String> _fetchedBase(Workspace ws, String base) async {
+    try {
+      await _git(ws.path).git(['fetch', '-q', 'origin', '--', base]);
+      return 'origin/$base';
+    } on GitException catch (e) {
+      debugPrint('fetch origin $base falhou — $e');
+      return base;
+    }
+  }
+
+  /// Direct children of [motherBranch] (SPEC-032 R6): the latest session of
+  /// each spec created on top of it, not merged, with its own worktree.
+  Future<List<Session>> stackedChildren(
+    Workspace ws,
+    String motherBranch,
+  ) async {
+    final all = await _ref
+        .read(sessionsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    final latest = <int, Session>{};
+    for (final s in all) {
+      final id = s.specId;
+      if (id == null || s.duelId != null) continue;
+      final cur = latest[id];
+      if (cur == null || s.startedAt.isAfter(cur.startedAt)) latest[id] = s;
+    }
+    return [
+      for (final s in latest.values)
+        if (s.baseBranch == motherBranch &&
+            s.branch != motherBranch &&
+            s.status != SessionStatus.merged &&
+            s.mergeCommit == null &&
+            hasWorktree(s, ws))
+          s,
+    ];
+  }
+
+  Future<String> _restackKey(Session s) async {
+    final spec = s.specId == null
+        ? null
+        : await _ref.read(specsRepoProvider).getById(s.specId!);
+    return spec?.code ?? s.id;
+  }
+
+  /// Children of [motherBranch] with its current tip saved as their old
+  /// base (`refs/promptorium/<spec>/base-antiga`), before the merge.
+  Future<List<Session>> _prepareChildren(
+    Workspace ws,
+    String motherBranch,
+  ) async {
+    try {
+      final children = await stackedChildren(ws, motherBranch);
+      if (children.isEmpty) return children;
+      final main = _git(ws.path);
+      final tip = await main.resolveRef('refs/heads/$motherBranch');
+      if (tip == null) return children;
+      for (final child in children) {
+        await main.updateRef(oldBaseRef(await _restackKey(child)), tip);
+      }
+      return children;
+    } catch (e) {
+      debugPrint('filhas de $motherBranch não preparadas — $e');
+      return const [];
+    }
+  }
+
+  /// Redoes the base of [children] on [newBase] (SPEC-032 R6, R7): each one
+  /// gets `git rebase --onto <newBase> <base-antiga>` in its worktree; a PR
+  /// is pushed (`--force-with-lease`) and moved to [target]. Their base
+  /// becomes [target] whatever the outcome; a failed one is marked in the
+  /// app settings ("Conflito ao refazer a base" / "Base desatualizada").
+  Future<List<RestackResult>> restackChildren(
+    Workspace ws,
+    List<Session> children, {
+    required String newBase,
+    required String target,
+  }) async {
+    final out = <RestackResult>[];
+    final settings = _ref.read(appSettingsProvider.notifier);
+    for (final child in children) {
+      final key = await _restackKey(child);
+      var files = <String>[];
+      String? reason;
+      final warnings = <String>[];
+      var outcome = RestackOutcome.skipped;
+      final now = await _ref.read(sessionsRepoProvider).getById(child.id);
+      final old = await _git(ws.path).resolveRef(oldBaseRef(key));
+      if (now != null && !now.status.isTerminal) {
+        reason = 'a sessão ainda está rodando';
+      } else if (old == null) {
+        reason = 'a ponta antiga da mãe não foi gravada';
+      } else {
+        try {
+          outcome = await rebaseOnto(
+            _git(child.worktreePath),
+            newBase: newBase,
+            oldBase: old,
+            onConflict: (f) => files = f,
+            onSkip: (r) => reason = r,
+          );
+        } on GitException catch (e) {
+          reason = '$e';
+        }
+      }
+      if (outcome == RestackOutcome.ok) {
+        try {
+          await _git(ws.path).git(['update-ref', '-d', oldBaseRef(key)]);
+        } on GitException {
+          /* stays as a checkpoint */
+        }
+        final url = child.prUrl;
+        if (url != null) {
+          try {
+            await _git(child.worktreePath).git(['push', '--force-with-lease']);
+          } on GitException catch (e) {
+            warnings.add('push da $key falhou: $e');
+          }
+          try {
+            final r = await _run('gh', [
+              'pr',
+              'edit',
+              url,
+              '--base',
+              target,
+            ], workingDirectory: ws.path);
+            if (r.exitCode != 0) {
+              warnings.add('base do PR da $key não trocada: ${r.stderr}');
+            }
+          } on ProcessException catch (e) {
+            warnings.add('gh pr edit falhou: ${e.message}');
+          }
+        }
+      }
+      // The mother is in the base: the child merges there from now on.
+      if (child.specId != null) {
+        await _ref
+            .read(specsRepoProvider)
+            .update(child.specId!, SpecsCompanion(baseBranch: Value(target)));
+        await _ref
+            .read(sessionsRepoProvider)
+            .setSpecBaseBranch(child.specId!, target);
+      }
+      final result = RestackResult(
+        sessionId: child.id,
+        label: key,
+        outcome: outcome,
+        files: files,
+        reason: reason,
+        warnings: warnings,
+      );
+      final mark = restackMark(result);
+      if (mark == null) {
+        await settings.remove(restackMarkKey(child.id));
+      } else {
+        await settings.set(restackMarkKey(child.id), mark);
+      }
+      out.add(result);
+    }
+    return out;
+  }
+
+  /// SPEC-032 R15: children whose mother entered the base outside the app
+  /// (PR `MERGED` on the host, or its branch gone locally and on the
+  /// remote) get their base redone on `origin/<base>`. While the mother's
+  /// branch exists, its tip is saved as the children's old base. Errors
+  /// leave everything as it was.
+  Future<List<RestackResult>> restackOrphans(Workspace ws) async {
+    try {
+      final specs = await _ref
+          .read(specsRepoProvider)
+          .watchByWorkspace(ws.id)
+          .first;
+      final out = <RestackResult>[];
+      for (final mother in specs) {
+        final branch = mother.branch;
+        if (branch == null || mother.stage == SpecStage.done) continue;
+        final children = await stackedChildren(ws, branch);
+        if (children.isEmpty) continue;
+        final main = _git(ws.path);
+        final tip = await main.resolveRef('refs/heads/$branch');
+        if (tip != null) {
+          for (final child in children) {
+            await main.updateRef(oldBaseRef(await _restackKey(child)), tip);
+          }
+        }
+        final sessions = await _ref
+            .read(sessionsRepoProvider)
+            .bySpec(mother.id);
+        final latest = sessions.isEmpty
+            ? null
+            : sessions.reduce(
+                (a, b) => b.startedAt.isAfter(a.startedAt) ? b : a,
+              );
+        final url = latest?.prUrl;
+        var merged = false;
+        if (url != null) {
+          merged = await _prMerged(url, ws.path);
+        } else if (tip == null) {
+          merged = await _goneFromRemote(main, branch);
+        }
+        if (!merged) continue;
+        final base =
+            latest?.baseBranch ??
+            mother.baseBranch ??
+            await main.currentBranch() ??
+            'main';
+        out.addAll(
+          await restackChildren(
+            ws,
+            children,
+            newBase: await _fetchedBase(ws, base),
+            target: base,
+          ),
+        );
+      }
+      return out;
+    } catch (e) {
+      debugPrint('refazer bases da Review: $e');
+      return const [];
+    }
+  }
+
+  /// [branch] is not on `origin` (there must be an `origin`).
+  Future<bool> _goneFromRemote(GitService main, String branch) async {
+    try {
+      final out = await main.git([
+        'ls-remote',
+        '--heads',
+        'origin',
+        'refs/heads/$branch',
+      ]);
+      return out.trim().isEmpty;
+    } on GitException {
+      return false;
+    }
+  }
+
+  /// "Refazer agora" (SPEC-032 R15): redoes the base of [sessionId] on its
+  /// base branch, from the saved old base or, without it, `git merge-base`.
+  Future<RestackResult> restackNow(String sessionId) async {
+    final c = await _context(sessionId);
+    final base = await baseBranchOf(c.session, c.workspace);
+    final key = await _restackKey(c.session);
+    final main = _git(c.workspace.path);
+    if (await main.resolveRef(oldBaseRef(key)) == null) {
+      final fork = (await _git(
+        c.session.worktreePath,
+      ).git(['merge-base', 'HEAD', base])).trim();
+      await main.updateRef(oldBaseRef(key), fork);
+    }
+    final r = await restackChildren(
+      c.workspace,
+      [c.session],
+      newBase: base,
+      target: base,
+    );
+    return r.single;
   }
 
   /// Whether `gh pr view` reports [url] as merged.
@@ -1044,13 +1343,26 @@ class ReviewService {
   Future<void> resolveConflict(String sessionId) async {
     final c = await _context(sessionId);
     final base = await baseBranchOf(c.session, c.workspace);
+    final settings = _ref.read(appSettingsProvider.notifier);
+    final mark = settings.get(restackMarkKey(sessionId));
+    var message = conflictMessage(base);
+    if (mark != null && mark.startsWith('conflito')) {
+      // SPEC-032 R7: the base redone after the mother's merge conflicted.
+      final old = await _git(c.workspace.path)
+          .resolveRef(oldBaseRef(await _restackKey(c.session)));
+      message = restackMessage(
+        branch: c.session.branch,
+        base: base,
+        oldBase: old,
+        files: mark.split('\n').skip(1).toList(),
+      );
+    }
     try {
-      await _ref
-          .read(sessionManagerProvider.notifier)
-          .send(sessionId, conflictMessage(base));
+      await _ref.read(sessionManagerProvider.notifier).send(sessionId, message);
     } on SessionException catch (e) {
       throw ReviewException('$e');
     }
+    await settings.remove(restackMarkKey(sessionId));
     if (c.task != null) {
       await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.running);
     }
@@ -1493,6 +1805,23 @@ class ReviewService {
         await main.git(['switch', '--', base]);
         switched = true;
       }
+      final children = await _prepareChildren(c.workspace, c.session.branch);
+      // The PRs of the children move to the mother's base before the merge
+      // deletes the mother's branch (a PR whose base is deleted is closed).
+      final target = await baseBranchOf(c.session, c.workspace);
+      for (final child in children.where((x) => x.prUrl != null)) {
+        try {
+          await _run('gh', [
+            'pr',
+            'edit',
+            child.prUrl!,
+            '--base',
+            target,
+          ], workingDirectory: c.workspace.path);
+        } on ProcessException catch (e) {
+          debugPrint('gh pr edit ${child.prUrl} falhou — $e');
+        }
+      }
       final result = await _mergeLocal(
         sessionId,
         deleteBranch: deleteBranch,
@@ -1500,9 +1829,18 @@ class ReviewService {
         options: options,
       );
       await restore();
+      final restacked = children.isEmpty
+          ? const <RestackResult>[]
+          : await restackChildren(
+              c.workspace,
+              children,
+              newBase: base,
+              target: base,
+            );
       return MergeResult(
         commit: result.commit,
         warnings: [...result.warnings, ...warnings],
+        restacked: restacked,
       );
     } catch (e) {
       await restore();
@@ -2203,3 +2541,14 @@ final conflictForecastProvider =
         }
       });
     });
+
+/// SPEC-032 R15: runs [ReviewService.restackOrphans] when the Review opens
+/// and whenever the repository changes (invalidated by the screen).
+final orphanRestackProvider = FutureProvider.family<List<RestackResult>, int>((
+  ref,
+  workspaceId,
+) async {
+  final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+  if (ws == null) return const [];
+  return ref.read(reviewServiceProvider).restackOrphans(ws);
+});

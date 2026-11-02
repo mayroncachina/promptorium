@@ -23,6 +23,7 @@ import 'auto_reviewer.dart';
 import 'pr_babysitter.dart';
 import '../specs/spec_service.dart';
 import 'review_service.dart';
+import 'restack.dart';
 import 'review_stack.dart';
 import '../board/widgets/wave_graph.dart' show dependencyWaves;
 import 'widgets/spec_review_panel.dart';
@@ -47,6 +48,19 @@ class ReviewScreen extends ConsumerWidget {
         text: 'Selecione ou adicione um workspace na barra de título.',
       );
     }
+    // SPEC-032 R15: mothers merged outside the app (on the host).
+    ref.listen(orphanRestackProvider(ws.id), (_, next) {
+      final done = next.value ?? const <RestackResult>[];
+      if (done.isEmpty) return;
+      ref.invalidate(reviewQueueProvider(ws.id));
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('Mãe mergeada pelo host · ${restackNotice(done)}'),
+          persist: false,
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    });
     final queueAsync = ref.watch(reviewQueueProvider(ws.id));
     final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
     // SPEC-032 R1: the queue follows the dependencies, base first.
@@ -433,11 +447,16 @@ MergeStatus watchMergeStatus(
       : forecast.value!.error != null
       ? const <String>[]
       : forecast.value!.files;
+  final mark = ref.watch(
+    appSettingsProvider.select((m) => m[restackMarkKey(s.id)]),
+  );
   return mergeStatusOf(
     reviewing:
         spec?.reviewPhase == ReviewPhase.auto &&
         spec?.stage == SpecStage.review,
     motherCode: mother,
+    restackConflict: mark?.startsWith('conflito') ?? false,
+    staleBase: mark?.startsWith('desatualizada') ?? false,
     conflictFiles: files,
     pending: (criteria?.isNotEmpty ?? false) || comments > 0 || flagged,
   );
@@ -861,6 +880,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   });
 
   void _refresh() {
+    ref.invalidate(conflictForecastProvider);
+    ref.invalidate(orphanRestackProvider(widget.workspaceId));
     ref.invalidate(mergeReadinessProvider(_id));
     ref.invalidate(reviewSinceProvider);
     ref.invalidate(reviewRoundAvailabilityProvider);
@@ -995,9 +1016,11 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       _advanceAfterMerge(
         queue,
         d.baseBranch,
-        detail:
-            'merge $short'
-            '${r.warnings.isEmpty ? '' : ' (${r.warnings.join('; ')})'}',
+        detail: [
+          'merge $short',
+          if (r.restacked.isNotEmpty) restackNotice(r.restacked),
+          if (r.warnings.isNotEmpty) '(${r.warnings.join('; ')})',
+        ].join(' · '),
       );
       _refresh();
     });
@@ -1126,8 +1149,13 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     if (method == null || !mounted) return;
     final queue = _queueNow;
     await _run('Mergear PR', () async {
-      await _service.mergePr(_id, method);
-      _advanceAfterMerge(queue, d.baseBranch, how: ' pelo PR');
+      final restacked = await _service.mergePr(_id, method);
+      _advanceAfterMerge(
+        queue,
+        d.baseBranch,
+        how: ' pelo PR',
+        detail: restacked.isEmpty ? '' : restackNotice(restacked),
+      );
       _refresh();
     });
   }
@@ -1171,7 +1199,17 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         'review-go-mother',
         busy ? null : _readinessAction('empilhada'),
       ),
-      PrimaryAction.resolverConflito || PrimaryAction.refazerBase => button(
+      PrimaryAction.refazerBase => button(
+        'review-restack',
+        busy
+            ? null
+            : () => _run('Refazer a base', () async {
+                final r = await _service.restackNow(_id);
+                _refresh();
+                _toast(restackNotice([r]));
+              }),
+      ),
+      PrimaryAction.resolverConflito => button(
         'review-resolve',
         busy
             ? null
