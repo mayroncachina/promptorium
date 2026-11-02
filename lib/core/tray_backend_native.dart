@@ -30,7 +30,7 @@ class NativeTrayBackend implements TrayBackend {
     if (icon == null) throw StateError('não foi possível criar o ícone');
     _icon = icon;
     final image = tray.ImageAsset.fromAsset(iconAsset);
-    if (image == null) throw StateError('ícone não encontrado: $iconAsset');
+    if (image == null) throw TrayIconUnavailable(iconAsset);
     icon.icon = image;
     icon.setTooltip(tooltip);
 

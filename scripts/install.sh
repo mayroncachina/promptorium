@@ -3,12 +3,14 @@
 #
 #   scripts/install.sh            # usa o bundle release já gerado
 #   scripts/install.sh --build    # roda `flutter build linux --release` antes
+#   scripts/install.sh --icons-only  # só os ícones hicolor (e o cache)
 #
 # O que é criado (e removido por scripts/uninstall.sh):
 #   $DATA/promptorium/app/                       bundle release (binário + data/ + lib/)
 #   ~/.local/bin/promptorium                     link para o binário
 #   $DATA/applications/promptorium.desktop       atalho (Exec com caminho absoluto)
-#   $DATA/icons/hicolor/<N>x<N>/apps/promptorium.png
+#   $DATA/icons/hicolor/<N>x<N>/apps/promptorium.png   (a marca, SPEC-029)
+#   $DATA/icons/hicolor/scalable/apps/promptorium.svg
 #
 # $DATA = ${XDG_DATA_HOME:-~/.local/share}. O banco do usuário
 # ($DATA/promptorium/promptorium.sqlite) fica na pasta-mãe de app/ e NUNCA é
@@ -22,7 +24,32 @@ APP_DIR="$DATA/promptorium/app"
 BIN_DIR="$HOME/.local/bin"
 APPS_DIR="$DATA/applications"
 ICONS_DIR="$DATA/icons/hicolor"
-SIZES=(32 48 64 128 256 512)
+SIZES=(16 22 24 32 48 64 128 256 512)
+
+# 3. Ícones hicolor: a marca sem o quadrado escuro (SPEC-029 R4).
+install_icons() {
+  for n in "${SIZES[@]}"; do
+    src="$ROOT/assets/icon/mark/mark-$n.png"
+    [[ -f "$src" ]] || continue
+    dst="$ICONS_DIR/${n}x${n}/apps"
+    mkdir -p "$dst"
+    install -m 0644 "$src" "$dst/promptorium.png"
+  done
+  install -D -m 0644 "$ROOT/assets/icon/mark/mark.svg" "$ICONS_DIR/scalable/apps/promptorium.svg"
+  echo "Ícones:   $ICONS_DIR/<N>x<N>/apps/promptorium.png (N = ${SIZES[*]}) e scalable/apps/promptorium.svg"
+}
+update_icon_cache() {
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    # -t: ~/.local/share/icons/hicolor normalmente não tem index.theme.
+    gtk-update-icon-cache -f -t -q "$ICONS_DIR" || true
+  fi
+}
+
+if [[ "${1:-}" == "--icons-only" ]]; then
+  install_icons
+  update_icon_cache
+  exit 0
+fi
 
 if [[ "${1:-}" == "--build" ]]; then
   (cd "$ROOT" && flutter build linux --release)
@@ -56,15 +83,7 @@ else
   echo "Link:     $BIN_DIR/promptorium → $APP_DIR/promptorium"
 fi
 
-# 3. Ícones hicolor.
-for n in "${SIZES[@]}"; do
-  src="$ROOT/assets/icon/icon-$n.png"
-  [[ -f "$src" ]] || continue
-  dst="$ICONS_DIR/${n}x${n}/apps"
-  mkdir -p "$dst"
-  install -m 0644 "$src" "$dst/promptorium.png"
-done
-echo "Ícones:   $ICONS_DIR/<N>x<N>/apps/promptorium.png (N = ${SIZES[*]})"
+install_icons
 
 # 4. Atalho .desktop com o caminho absoluto do binário.
 mkdir -p "$APPS_DIR"
@@ -77,10 +96,7 @@ echo "Atalho:   $APPS_DIR/promptorium.desktop"
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$APPS_DIR" || true
 fi
-if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-  # -t: ~/.local/share/icons/hicolor normalmente não tem index.theme.
-  gtk-update-icon-cache -f -t -q "$ICONS_DIR" || true
-fi
+update_icon_cache
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;

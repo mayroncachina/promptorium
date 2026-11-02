@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Marca do Promptorium: o frasco sem o quadrado de fundo (SPEC-029). -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- contorno escuro externo: separa a marca de fundos claros -->
+    <path d="M132 34 L180 22 L196 60" stroke="#14100A" stroke-width="13"/>
+    <circle cx="132" cy="34" r="13" fill="#17B8A6" stroke="#14100A" stroke-width="13"/>
+    <circle cx="180" cy="22" r="15" fill="#17B8A6" stroke="#14100A" stroke-width="13"/>
+    <circle cx="196" cy="60" r="10" fill="#17B8A6" stroke="#14100A" stroke-width="13"/>
+    <path d="M104 78 L104 122 L34 216 Q24 238 50 240 L206 240 Q232 238 222 216 L152 122 L152 78 Z" fill="#0E2226" stroke="#14100A" stroke-width="26"/>
+    <path d="M90 78 L166 78" stroke="#14100A" stroke-width="26"/>
+    <!-- molécula -->
+    <path d="M132 34 L180 22 L196 60" stroke="#F5A23A" stroke-width="6"/>
+    <circle cx="132" cy="34" r="13" fill="#17B8A6" stroke="#F5A23A" stroke-width="6"/>
+    <circle cx="180" cy="22" r="15" fill="#17B8A6" stroke="#F5A23A" stroke-width="6"/>
+    <circle cx="196" cy="60" r="10" fill="#17B8A6" stroke="#F5A23A" stroke-width="6"/>
+  </g>
+  <!-- líquido -->
+  <path d="M80 168 Q104 154 128 164 T176 162 L211 213 Q216 224 204 224 L52 224 Q40 224 45 213 Z" fill="#17B8A6"/>
+  <path d="M80 168 Q104 154 128 164 T176 162" fill="none" stroke="#5FE3D2" stroke-width="5" stroke-linecap="round"/>
+  <!-- bolhas -->
+  <circle cx="132" cy="134" r="8" fill="#3FD6C4"/>
+  <circle cx="114" cy="108" r="5" fill="#3FD6C4"/>
+  <!-- >_ -->
+  <g fill="none" stroke="#E6FFFB" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M94 184 L114 198 L94 212"/>
+    <path d="M126 212 L158 212"/>
+  </g>
+  <!-- contorno âmbar do frasco -->
+  <g fill="none" stroke="#F5A23A" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M104 78 L104 122 L34 216 Q24 238 50 240 L206 240 Q232 238 222 216 L152 122 L152 78" stroke-width="13"/>
+    <path d="M90 78 L166 78" stroke-width="13"/>
+  </g>
+</svg>

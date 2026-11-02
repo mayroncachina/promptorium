@@ -54,16 +54,34 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1440, 900);
 
-  // Window icon: bundled asset next to the executable
-  // (<bundle>/data/flutter_assets/assets/icon/icon-256.png).
-  // GTK3 API: https://docs.gtk.org/gtk3/method.Window.set_icon_from_file.html
+  // Window icon (SPEC-029 R5/R6): the mark without the dark square, in
+  // several sizes, so panels reading _NET_WM_ICON get a size close to theirs.
+  // Bundled next to the executable
+  // (<bundle>/data/flutter_assets/assets/icon/mark/mark-<N>.png). Falls back
+  // to the square icon-256.png, with a warning, when no mark loads.
+  // GTK3 API: https://docs.gtk.org/gtk3/method.Window.set_icon_list.html
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
   if (exe_path != nullptr) {
     g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
-    g_autofree gchar* icon_path =
-        g_build_filename(exe_dir, "data", "flutter_assets", "assets", "icon",
-                         "icon-256.png", nullptr);
-    gtk_window_set_icon_from_file(window, icon_path, nullptr);
+    g_autofree gchar* icon_dir = g_build_filename(
+        exe_dir, "data", "flutter_assets", "assets", "icon", nullptr);
+    GList* icons = nullptr;
+    const int sizes[] = {32, 48, 64, 128, 256};
+    for (int size : sizes) {
+      g_autofree gchar* name = g_strdup_printf("mark-%d.png", size);
+      g_autofree gchar* path = g_build_filename(icon_dir, "mark", name, nullptr);
+      GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(path, nullptr);
+      if (pixbuf != nullptr) icons = g_list_append(icons, pixbuf);
+    }
+    if (icons != nullptr) {
+      gtk_window_set_icon_list(window, icons);
+      g_list_free_full(icons, g_object_unref);
+    } else {
+      g_warning("Promptorium: marca do ícone indisponível; usando icon-256.png");
+      g_autofree gchar* icon_path =
+          g_build_filename(icon_dir, "icon-256.png", nullptr);
+      gtk_window_set_icon_from_file(window, icon_path, nullptr);
+    }
   }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

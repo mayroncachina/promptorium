@@ -22,13 +22,14 @@ No Linux, o ícone do Promptorium aparece como um quadrado preto na barra. Isso 
 
 Esta spec cria uma variante do ícone sem o quadrado escuro, para os tamanhos pequenos e para fundos escuros e claros, e passa a usá-la no dock, na bandeja e na janela.
 
-Esboço, gerado a partir da arte atual só como referência (a arte final vem do P4). Capturas em `docs/mockups/spec-029/`:
+Capturas em `docs/mockups/spec-029/` (1 a 3: o esboço gerado da arte atual; 4: a marca final, redesenhada em SVG):
 
 | Captura | O que mostra | Requisitos |
 |---|---|---|
 | `1-bandeja-barra-superior.png` | Hoje e proposta em 16, 22, 24 e 32 px sobre o preto da barra superior | R1, R3 |
 | `2-dock.png` | Hoje e proposta em 32, 36, 48 e 64 px sobre o dock | R1, R4 |
 | `3-painel-claro.png` | Hoje e proposta sobre um painel claro (tema claro do Ubuntu, KDE) | R1 |
+| `4-marca-final.png` | A marca final de 16 a 64 px sobre o preto da barra, o dock e um painel claro | R1, R2 |
 
 ## Requisitos
 
@@ -50,7 +51,7 @@ Esboço, gerado a partir da arte atual só como referência (a arte final vem do
 
 - Redesenhar a marca do Promptorium (cores, frasco, nome).
 - Ícones do macOS e do Windows.
-- Ícone simbólico monocromático, que segue a cor do tema (ver P3).
+- Ícone simbólico monocromático, que segue a cor do tema (ver Decisões, P3).
 - Badge ou estado no ícone da bandeja.
 
 ## Design
@@ -87,7 +88,7 @@ Esboço, gerado a partir da arte atual só como referência (a arte final vem do
 
 - `test/assets/icon_mark_test.dart`: para cada N do R1, o arquivo existe, tem N×N, os quatro cantos são transparentes e a forma principal atinge 3:1 contra `#000000` e `#F6F6F6` (média dos pixels opacos).
 - `test/core/tray_service_test.dart`: a bandeja recebe `mark-24.png`, e cai em `icon-64.png` quando a marca falha (R3, R6).
-- `test/scripts/install_icons_test.sh` (ou um teste Dart que roda `install.sh` com `XDG_DATA_HOME` temporário): os tamanhos do R4 e o SVG são instalados.
+- `test/core/install_icons_test.dart`: roda `install.sh --icons-only` com `XDG_DATA_HOME` temporário; os tamanhos do R4 e o SVG são instalados, e `uninstall.sh` os remove.
 
 ## Critérios de aceite
 
@@ -95,19 +96,21 @@ Esboço, gerado a partir da arte atual só como referência (a arte final vem do
 - [ ] A marca de 16 a 24 px é reconhecível como frasco (verificação manual com as capturas de `docs/mockups/spec-029/`) [R2] verificar: manual (comparar a marca de 16, 22 e 24 px sobre preto e sobre #F6F6F6)
 - [ ] A bandeja usa `mark-24.png` e volta a `icon-64.png` se a marca falhar [R3] [R6] verificar: flutter test test/core/tray_service_test.dart
 - [ ] No Ubuntu, o ícone da bandeja na barra superior mostra o frasco, não um quadrado preto (verificação manual) [R3] verificar: manual (abrir o app instalado e olhar a barra superior)
-- [ ] `install.sh` instala os tamanhos 16 a 512 e o SVG em `hicolor`, e atualiza o cache [R4] verificar: XDG_DATA_HOME=$(mktemp -d) bash scripts/install.sh && ls "$XDG_DATA_HOME"/icons/hicolor
+- [ ] `install.sh` instala os tamanhos 16 a 512 e o SVG em `hicolor`, e atualiza o cache [R4] verificar: flutter test test/core/install_icons_test.dart
 - [ ] No dock do Ubuntu, o ícone do Promptorium mostra o frasco, não um quadrado preto (verificação manual) [R4] verificar: manual (fixar o app no dock e comparar com 2-dock.png)
 - [ ] A janela publica a marca em vários tamanhos em `_NET_WM_ICON` [R5] verificar: manual (xprop -id <janela> _NET_WM_ICON lista 32 a 256 px)
 - [ ] README e release continuam com o ícone quadrado [R7] verificar: manual (README.md e o workflow de release apontam para icon-*.png)
 - [ ] A análise estática passa sem avisos novos [R1] [R3] [R6] verificar: flutter analyze
 
-## Perguntas em aberto
+## Decisões
 
-- P1 · A "barra" em que o ícone fica preto é o dock, a barra superior (bandeja) ou as duas?
-  - Sugestão: as duas. A causa é a mesma, e esta spec cobre ambas.
-- P2 · A marca sem fundo deve ser usada em todos os tamanhos do Linux, ou só até 48 px, mantendo o quadrado de 64 px para cima?
-  - Sugestão: em todos os tamanhos do Linux, porque o dock do Ubuntu e a grade de apps também têm fundo escuro. O quadrado fica só no README e no release (R7).
-- P3 · A bandeja deve ter também um ícone simbólico monocromático, que segue a cor do tema, como os ícones do sistema na barra superior?
-  - Sugestão: não nesta versão. A marca colorida com contorno já resolve, e o simbólico fica para uma spec futura.
-- P4 · A arte final da marca deve ser redesenhada em SVG ou derivada automaticamente do PNG atual, como no esboço?
-  - Sugestão: redesenhada em SVG a partir do frasco, usando o esboço só como referência. A derivação automática deixa bordas serrilhadas nos tamanhos pequenos.
+- (P1) A spec cobre o dock e a barra superior (bandeja): a causa é a mesma.
+- (P2) A marca sem fundo é usada em todos os tamanhos do Linux (16 a 512 px e o SVG), porque o dock e a grade de apps também têm fundo escuro. O quadrado fica só no README e no release (R7).
+- (P3) Sem ícone simbólico monocromático nesta versão; a marca colorida com contorno escuro resolve e o simbólico fica para uma spec futura.
+- (P4) A marca foi redesenhada em SVG a partir do frasco (`assets/icon/mark/mark.svg`), com um desenho próprio para 16–24 px (`mark-small.svg`: só a silhueta do frasco e o líquido, sem molécula, bolhas nem `>_`).
+- Contraste (R1): contorno âmbar `#F5A23A` com um contorno externo escuro `#14100A`. A média dos pixels opacos fica entre 4,2:1 e 4,4:1 contra `#000000` e entre 4,4:1 e 4,7:1 contra `#F6F6F6` em todos os tamanhos.
+- `scripts/icons.sh` usa `rsvg-convert` quando existe e cai no Inkscape senão; os PNGs desta branch foram gerados com o Inkscape (não havia `rsvg-convert` na máquina).
+- Bandeja (R3, R6): o backend lança `TrayIconUnavailable` quando o asset não carrega. Só nesse caso o `TrayService` tenta `icon-64.png` com um backend novo e registra "marca indisponível"; outras falhas (sem D-Bus etc.) continuam como na SPEC-020 R7. A bandeja usa só `mark-24.png`: o `tray_manager` aceita uma imagem só, e o painel a escala em telas com escala.
+- Instalação (R4): `install.sh --icons-only` instala só os ícones e atualiza o cache, sem exigir o bundle; é o que o teste (`test/core/install_icons_test.dart`, com `XDG_DATA_HOME` temporário) usa. O critério de aceite do R4 passou a usar esse teste, porque `install.sh` sem argumentos exige o bundle release.
+- Flatpak: a pasta `assets/icon/mark` entra como fonte `dir`, e um laço instala os 9 tamanhos e o SVG como `dev.promptorium.promptorium`.
+- `mark-small.svg` também entra no bundle (a pasta `assets/icon/mark/` é declarada inteira no `pubspec.yaml`); são poucos bytes.
