@@ -1,0 +1,80 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-02T04:00:00Z"
+ },
+ "title": "Promptorium · Fila de Review em pilha",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Antes.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Hoje"
+  },
+  "Pilha.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Fila em pilha e uma ação primária"
+  },
+  "Depois.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Depois do merge: segue para a próxima"
+  },
+  "Conflito.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Conflito ao refazer a base"
+  },
+  "Raiz.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Raiz fora da main"
+  },
+  "Mais.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Menu Mais"
+  }
+ },
+ "order": [
+  "Antes.dc.html",
+  "Pilha.dc.html",
+  "Depois.dc.html",
+  "Conflito.dc.html",
+  "Raiz.dc.html",
+  "Mais.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Fila de Review em pilha: merge de baixo para cima, sem conflito de base",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
