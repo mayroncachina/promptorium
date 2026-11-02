@@ -13,6 +13,7 @@ import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
 import 'package:promptorium/features/board/widgets/spec_canvas.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
+import 'package:promptorium/ui/theme/tokens.dart';
 
 import 'canvas_fixture.dart';
 
@@ -462,7 +463,7 @@ void main() {
         final dot = tester.widget<CanvasStepDot>(
           byKey('canvas-dot-SPEC-001-$s'),
         );
-        expect(stepDotShape(dot.status), StepDotShape.diamond, reason: s);
+        expect(stepDotShape(dot.status), StepDotShape.bubble, reason: s);
       }
     });
 
@@ -521,6 +522,162 @@ void main() {
       for (final call in ['approve', 'deny', 'respondApproval', 'allowTool']) {
         expect(source.contains('.$call('), false, reason: call);
       }
+    });
+  });
+
+  group('SPEC-030 · precisa de você no card', () {
+    const specs = [
+      CanvasSpec(
+        'SPEC-001',
+        title: 'agrupamento de maquinas',
+        stage: SpecStage.running,
+        steps: [StepStatus.done, StepStatus.needsInput],
+      ),
+      CanvasSpec('SPEC-002', steps: [StepStatus.needsInput]),
+      CanvasSpec(
+        'SPEC-003',
+        stage: SpecStage.running,
+        steps: [StepStatus.running],
+      ),
+    ];
+
+    testWidgets('the waiting step is a 14 px bubble, also in the legend (R1)', (
+      tester,
+    ) async {
+      await pumpCanvas(tester, specs);
+      expect(stepDotShape(StepStatus.needsInput), StepDotShape.bubble);
+      expect(
+        tester.getSize(byKey('canvas-dot-SPEC-001-R2')),
+        const Size(14, 14),
+      );
+      expect(
+        tester.getSize(byKey('canvas-dot-SPEC-001-R1')),
+        const Size(10, 10),
+      );
+      final legend = find.descendant(
+        of: byKey('canvas-legend'),
+        matching: find.byWidgetPredicate(
+          (w) => w is CanvasStepDot && w.status == StepStatus.needsInput,
+        ),
+      );
+      expect(legend, findsOneWidget);
+      expect(tester.getSize(legend), const Size(14, 14));
+      // The bubble has no dots: one closed body plus the tail.
+      final bounds = attentionBubblePath(14).getBounds();
+      expect(bounds.width, lessThanOrEqualTo(14));
+      expect(bounds.height, lessThanOrEqualTo(14));
+    });
+
+    testWidgets('the badge carries the bubble and never fades; the stage '
+        'pill turns neutral (R3)', (tester) async {
+      await pumpCanvas(tester, specs);
+      final badge = byKey('canvas-attention-SPEC-001');
+      expect(
+        find.descendant(of: badge, matching: find.byType(AttentionBubble)),
+        findsOneWidget,
+      );
+      // Nothing between the badge and the canvas fades it.
+      for (final type in [FadeTransition, Opacity, AnimatedOpacity]) {
+        expect(
+          find.ancestor(
+            of: badge,
+            matching: find.descendant(
+              of: byKey('board-graph'),
+              matching: find.byType(type),
+            ),
+          ),
+          findsNothing,
+          reason: '$type',
+        );
+      }
+      Color pill(String code) => tester
+          .widget<Text>(
+            find.descendant(
+              of: byKey('canvas-pill-$code'),
+              matching: find.byType(Text),
+            ),
+          )
+          .style!
+          .color!;
+      expect(pill('SPEC-001'), AppColors.textSecondary);
+      expect(pill('SPEC-003'), CanvasColors.running);
+    });
+
+    testWidgets('the card shows the reason in one line and only waiting cards '
+        'grow (R4)', (tester) async {
+      await pumpCanvas(tester, specs);
+      final reason = tester.widget<Text>(byKey('canvas-reason-SPEC-001'));
+      expect(reason.data, 'R2 aguardando você');
+      expect(reason.maxLines, 1);
+      expect(reason.overflow, TextOverflow.ellipsis);
+      expect(byKey('canvas-reason-SPEC-003'), findsNothing);
+      expect(
+        tester.getSize(byKey('canvas-node-SPEC-001')).height -
+            tester.getSize(byKey('canvas-node-SPEC-003')).height,
+        18,
+      );
+    });
+
+    testWidgets('hovering the bubble shows the step, what is missing and how '
+        'to open it (R7)', (tester) async {
+      await pumpCanvas(tester, specs);
+      await hover(tester, byKey('canvas-dot-SPEC-001-R2'));
+      expect(find.text('Etapa R2 · aguardando você'), findsOneWidget);
+      expect(find.text(stepText('SPEC-001', 'R2')), findsOneWidget);
+      expect(find.text('Clique para abrir a etapa'), findsOneWidget);
+    });
+
+    testWidgets('"Atenção" has the bubble, does not wrap and shows the '
+        'position of the selected spec in the queue (R8)', (tester) async {
+      final (_, db) = await pumpCanvas(tester, specs);
+      final button = byKey('canvas-attention-next');
+      expect(
+        find.descendant(of: button, matching: find.byType(AttentionBubble)),
+        findsOneWidget,
+      );
+      expect(find.text('Atenção · 2'), findsOneWidget);
+      expect(tester.widget<Text>(find.text('Atenção · 2')).softWrap, isFalse);
+      await tester.tap(button);
+      await pumpFor(tester);
+      expect(find.text('Atenção · 1 de 2'), findsOneWidget);
+      await tester.tap(button);
+      await pumpFor(tester);
+      expect(find.text('Atenção · 2 de 2'), findsOneWidget);
+      // A spec outside the queue: only the total.
+      await selectSpec(tester, 'SPEC-003');
+      expect(find.text('Atenção · 2'), findsOneWidget);
+      // Resolving the selected one: back to the total, next goes to the first.
+      await selectSpec(tester, 'SPEC-002');
+      expect(find.text('Atenção · 2 de 2'), findsOneWidget);
+      await tester.runAsync(
+        () => (db.update(db.specSteps)..where((s) => s.step.equals('R1')))
+            .write(const SpecStepsCompanion(status: Value(StepStatus.done))),
+      );
+      await pumpFor(tester, 20);
+      expect(find.text('Atenção · 1'), findsOneWidget);
+      await tester.tap(button);
+      await pumpFor(tester);
+      expect(find.text('Atenção · 1 de 1'), findsOneWidget);
+    });
+
+    testWidgets('screen readers hear the reason on the card and the waiting '
+        'step (R10)', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpCanvas(tester, specs);
+      expect(
+        find.bySemanticsLabel(
+          RegExp(
+            r'^SPEC-001 · agrupamento de maquinas · precisa de você: '
+            r'R2 aguardando você',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('Etapa R2: aguardando você')),
+        findsWidgets,
+      );
+      semantics.dispose();
     });
   });
 }

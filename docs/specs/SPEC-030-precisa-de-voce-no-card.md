@@ -149,6 +149,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/An9CSFnYoZtoBZgHihH
 - (P4) Só os cards que precisam da pessoa crescem 18 px para o motivo. Aceito o risco: o quadro se reorganiza quando uma etapa passa a esperar ou é resolvida, e os cards abaixo mudam de lugar.
 - (P6) O botão mostra "Atenção · <i> de <n>" quando a selecionada está na fila. Ordem: onda e depois código, como hoje. Depois de resolver, mostra só o total e o próximo clique vai para a primeira (R8).
 
+- Implementação: a pílula neutra usa o mesmo padrão das outras pílulas, com texto secundário e fundo dele a 15%, em vez de `surfaceRaised` puro. O fundo do card já é `surfaceRaised`, e a pílula sumiria.
+- Implementação: sem a spec selecionada na fila, o total continua vindo de `attentionCount`, igual ao cabeçalho do Quadro ("Precisam de mim · n"). Com a posição, "i de n" usa a lista ordenada do canvas (R8). Como só specs feitas são ocultadas e elas nunca pedem atenção, os dois números coincidem na prática.
+- Implementação: o motivo no card é o texto atual de `boardAttentionReason` (por exemplo "R2 aguardando você" ou "aguardando aprovação"). No detalhe da etapa, "o que falta" usa o texto da etapa quando ele existe e o motivo quando não existe.
+- Implementação: a borda de 3 px do selo é uma sombra sólida na cor do fundo, que não muda o tamanho do selo.
+
 ## Riscos aceitos
 
 - Pulso contínuo na visão periférica enquanto a pessoa adia uma intervenção de propósito.
