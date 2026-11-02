@@ -8,7 +8,7 @@ APP_DIR="$DATA/promptorium/app"
 BIN_LINK="$HOME/.local/bin/promptorium"
 DESKTOP="$DATA/applications/promptorium.desktop"
 ICONS_DIR="$DATA/icons/hicolor"
-SIZES=(32 48 64 128 256 512)
+SIZES=(16 22 24 32 48 64 128 256 512)
 
 # Link: só se for um link apontando para a nossa instalação.
 if [[ -L "$BIN_LINK" && "$(readlink "$BIN_LINK")" == "$APP_DIR/promptorium" ]]; then
@@ -22,8 +22,10 @@ if [[ -f "$DESKTOP" ]] && grep -qx "Exec=$APP_DIR/promptorium" "$DESKTOP"; then
   echo "Removido: $DESKTOP"
 fi
 
-for n in "${SIZES[@]}"; do
-  f="$ICONS_DIR/${n}x${n}/apps/promptorium.png"
+icons=()
+for n in "${SIZES[@]}"; do icons+=("$ICONS_DIR/${n}x${n}/apps/promptorium.png"); done
+icons+=("$ICONS_DIR/scalable/apps/promptorium.svg")
+for f in "${icons[@]}"; do
   if [[ -f "$f" ]]; then
     rm -f -- "$f"
     echo "Removido: $f"

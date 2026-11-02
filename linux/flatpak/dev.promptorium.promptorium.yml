@@ -29,10 +29,13 @@ modules:
       - install -Dm755 promptorium-wrapper.sh /app/bin/promptorium
       - install -Dm644 promptorium.desktop
         /app/share/applications/dev.promptorium.promptorium.desktop
-      - install -Dm644 icon-512.png
-        /app/share/icons/hicolor/512x512/apps/dev.promptorium.promptorium.png
-      - install -Dm644 icon-256.png
-        /app/share/icons/hicolor/256x256/apps/dev.promptorium.promptorium.png
+      # A marca sem o quadrado escuro (SPEC-029 R4), de 16 a 512 px e em SVG.
+      - for n in 16 22 24 32 48 64 128 256 512; do
+          install -Dm644 mark/mark-$n.png
+          /app/share/icons/hicolor/${n}x${n}/apps/dev.promptorium.promptorium.png;
+        done
+      - install -Dm644 mark/mark.svg
+        /app/share/icons/hicolor/scalable/apps/dev.promptorium.promptorium.svg
       - install -Dm644 dev.promptorium.promptorium.metainfo.xml
         /app/share/metainfo/dev.promptorium.promptorium.metainfo.xml
     sources:
@@ -43,9 +46,8 @@ modules:
         path: promptorium-wrapper.sh
       - type: file
         path: promptorium.desktop
-      - type: file
-        path: ../../assets/icon/icon-512.png
-      - type: file
-        path: ../../assets/icon/icon-256.png
+      - type: dir
+        path: ../../assets/icon/mark
+        dest: mark
       - type: file
         path: dev.promptorium.promptorium.metainfo.xml

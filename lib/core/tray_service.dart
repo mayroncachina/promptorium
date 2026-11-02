@@ -5,12 +5,23 @@ import 'package:flutter/foundation.dart';
 /// One item of the tray icon's menu.
 typedef TrayMenuEntry = ({String label, Future<void> Function() onSelected});
 
+/// Thrown by a [TrayBackend] when it cannot load the icon asset, so the tray
+/// can try the fallback icon (SPEC-029 R6) instead of giving up.
+class TrayIconUnavailable implements Exception {
+  TrayIconUnavailable(this.asset);
+  final String asset;
+  @override
+  String toString() => 'ícone não encontrado: $asset';
+}
+
 /// What the tray icon needs from the native side (SPEC-020). The real one is
 /// `NativeTrayBackend` (`tray_backend_native.dart`); tests use a fake.
 abstract class TrayBackend {
   /// Shows the icon with [tooltip] and [menu]. [onActivate] runs on a click
   /// on the icon (KDE: a single click; GNOME's AppIndicator: a double click).
-  /// Throws when the tray cannot be used (no session bus, missing library…).
+  /// Throws [TrayIconUnavailable] when [iconAsset] cannot be loaded, and
+  /// other errors when the tray cannot be used (no session bus, missing
+  /// library…).
   Future<void> show({
     required String iconAsset,
     required String tooltip,
@@ -52,7 +63,12 @@ class TrayService {
   }) : _backendFactory = backend,
        _log = log ?? debugPrint;
 
-  static const iconAsset = 'assets/icon/icon-64.png';
+  /// The mark without the dark square (SPEC-029 R3): 24 px, the size top
+  /// bars use; the panel scales it for HiDPI.
+  static const iconAsset = 'assets/icon/mark/mark-24.png';
+
+  /// The previous square icon, used when the mark cannot be loaded (R6).
+  static const fallbackIconAsset = 'assets/icon/icon-64.png';
   static const tooltip = 'Promptorium';
   static const openLabel = 'Abrir';
   static const quitLabel = 'Sair';
@@ -75,29 +91,36 @@ class TrayService {
   /// Creates the icon. Never throws: returns false when there is none.
   Future<bool> start() async {
     if (!isLinux || _backend != null) return _backend != null;
-    TrayBackend? backend;
-    try {
-      backend = _backendFactory();
-      await backend.show(
-        iconAsset: iconAsset,
-        tooltip: tooltip,
-        menu: [
-          (label: openLabel, onSelected: open),
-          (label: quitLabel, onSelected: quit),
-        ],
-        onActivate: toggle,
-      );
-      _backend = backend;
-      return true;
-    } catch (e) {
-      _log('bandeja indisponível, seguindo sem o ícone: $e');
-      if (backend != null) {
-        try {
-          await backend.dispose();
-        } catch (_) {}
+    for (final asset in [iconAsset, fallbackIconAsset]) {
+      TrayBackend? backend;
+      try {
+        backend = _backendFactory();
+        await backend.show(
+          iconAsset: asset,
+          tooltip: tooltip,
+          menu: [
+            (label: openLabel, onSelected: open),
+            (label: quitLabel, onSelected: quit),
+          ],
+          onActivate: toggle,
+        );
+        _backend = backend;
+        return true;
+      } catch (e) {
+        if (backend != null) {
+          try {
+            await backend.dispose();
+          } catch (_) {}
+        }
+        if (e is TrayIconUnavailable && asset != fallbackIconAsset) {
+          _log('bandeja: marca indisponível, usando o ícone anterior: $e');
+          continue;
+        }
+        _log('bandeja indisponível, seguindo sem o ícone: $e');
+        return false;
       }
-      return false;
     }
+    return false;
   }
 
   /// A click on the icon: hides a visible, focused window; otherwise brings

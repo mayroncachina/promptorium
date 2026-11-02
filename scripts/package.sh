@@ -23,7 +23,7 @@ BUNDLE="$ROOT/build/linux/x64/release/bundle"
 OUT="$ROOT/dist"
 NAME="promptorium"
 ARCH="amd64"
-SIZES=(32 48 64 128 256 512)
+SIZES=(16 22 24 32 48 64 128 256 512)
 
 if [[ ! -x "$BUNDLE/$NAME" ]]; then
   echo "Bundle release não encontrado em $BUNDLE." >&2
@@ -44,11 +44,12 @@ cp -a "$BUNDLE/." "$PKG/opt/$NAME/"
 ln -s "/opt/$NAME/$NAME" "$PKG/usr/bin/$NAME"
 install -m 0644 "$ROOT/linux/$NAME.desktop" "$PKG/usr/share/applications/$NAME.desktop"
 for n in "${SIZES[@]}"; do
-  src="$ROOT/assets/icon/icon-$n.png"
+  src="$ROOT/assets/icon/mark/mark-$n.png"  # a marca (SPEC-029 R4)
   [[ -f "$src" ]] || continue
   mkdir -p "$PKG/usr/share/icons/hicolor/${n}x${n}/apps"
   install -m 0644 "$src" "$PKG/usr/share/icons/hicolor/${n}x${n}/apps/$NAME.png"
 done
+install -D -m 0644 "$ROOT/assets/icon/mark/mark.svg" "$PKG/usr/share/icons/hicolor/scalable/apps/$NAME.svg"
 install -m 0644 "$ROOT/CHANGELOG.md" "$PKG/usr/share/doc/$NAME/changelog" 2>/dev/null || true
 find "$PKG/opt" -type d -exec chmod 0755 {} +
 
