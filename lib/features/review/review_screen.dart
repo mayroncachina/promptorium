@@ -2,8 +2,6 @@ import 'dart:async';
 
 import '../../core/fs/dir_watcher.dart';
 
-import 'dart:io';
-
 import '../project/project_config.dart';
 import 'merge_options.dart';
 import 'merge_readiness.dart';
@@ -25,6 +23,8 @@ import 'auto_reviewer.dart';
 import 'pr_babysitter.dart';
 import '../specs/spec_service.dart';
 import 'review_service.dart';
+import 'review_stack.dart';
+import '../board/widgets/wave_graph.dart' show dependencyWaves;
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
 import 'widgets/pr_panel.dart';
@@ -48,7 +48,13 @@ class ReviewScreen extends ConsumerWidget {
       );
     }
     final queueAsync = ref.watch(reviewQueueProvider(ws.id));
-    final queue = queueAsync.value ?? const <ReviewItem>[];
+    final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    // SPEC-032 R1: the queue follows the dependencies, base first.
+    final stacks = orderQueue(
+      queueAsync.value ?? const <ReviewItem>[],
+      waves: dependencyWaves(specs),
+    );
+    final queue = flatten(stacks);
     final selectedId = ref.watch(selectedReviewProvider);
     ReviewItem? selected;
     for (final i in queue) {
@@ -70,7 +76,7 @@ class ReviewScreen extends ConsumerWidget {
               SizedBox(
                 width: left,
                 child: _ReviewSidebar(
-                  queue: queue,
+                  stacks: stacks,
                   loading: queueAsync.isLoading && queueAsync.value == null,
                   selectedId: selected?.session.id,
                   detail: detail?.session.id == selected?.session.id
@@ -234,13 +240,59 @@ final _sinceSelectionProvider =
 
 class _ReviewSidebar extends ConsumerWidget {
   const _ReviewSidebar({
-    required this.queue,
+    required this.stacks,
     required this.loading,
     required this.selectedId,
     required this.detail,
   });
 
-  final List<ReviewItem> queue;
+  final List<ReviewStack> stacks;
+  List<ReviewItem> get queue => flatten(stacks);
+
+  /// Stacks first, each with its rail (R2), then "Avulsas · n" — the group
+  /// title only when there is a stack to separate them from.
+  List<Widget> _queueGroups(WidgetRef ref) {
+    void select(ReviewItem i) {
+      ref.read(selectedReviewProvider.notifier).select(i.session.id);
+      ref.read(_selectedFileProvider.notifier).select(null);
+    }
+
+    final piles = stacks.where((s) => s.isStack).toList();
+    final loose = stacks.where((s) => !s.isStack).expand((s) => s.items);
+    Widget group(String text, String key) => Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+      child: Text(text, key: ValueKey(key), style: _groupStyle),
+    );
+    return [
+      for (final (n, pile) in piles.indexed) ...[
+        group('Pilha · ${pile.items.length}', 'review-stack-$n'),
+        for (final (k, i) in pile.items.indexed)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+            child: _QueueTile(
+              item: i,
+              position: k + 1,
+              stackSize: pile.items.length,
+              mother: motherOf(i, pile.items),
+              selected: i.session.id == selectedId,
+              onTap: () => select(i),
+            ),
+          ),
+      ],
+      if (piles.isNotEmpty && loose.isNotEmpty)
+        group('Avulsas · ${loose.length}', 'review-loose'),
+      for (final i in loose)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
+          child: _QueueTile(
+            item: i,
+            selected: i.session.id == selectedId,
+            onTap: () => select(i),
+          ),
+        ),
+    ];
+  }
+
   final bool loading;
   final String? selectedId;
   final ReviewDetail? detail;
@@ -267,9 +319,9 @@ class _ReviewSidebar extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
             child: Text(
-              'AGUARDANDO REVIEW · ${queue.length}',
+              'Aguardando review · ${queue.length}',
               key: const ValueKey('review-queue-title'),
-              style: sectionTitleStyle,
+              style: _sectionStyle,
             ),
           ),
           if (queue.isEmpty)
@@ -283,28 +335,15 @@ class _ReviewSidebar extends ConsumerWidget {
                 ),
               ),
             ),
-          for (final i in queue)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
-              child: _QueueTile(
-                item: i,
-                selected: i.session.id == selectedId,
-                onTap: () {
-                  ref
-                      .read(selectedReviewProvider.notifier)
-                      .select(i.session.id);
-                  ref.read(_selectedFileProvider.notifier).select(null);
-                },
-              ),
-            ),
+          ..._queueGroups(ref),
           if (detail != null) ...[
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
               child: Text(
-                'ARQUIVOS · ${files.length}',
+                'Arquivos · ${files.length}',
                 key: const ValueKey('review-files-title'),
-                style: sectionTitleStyle,
+                style: _sectionStyle,
               ),
             ),
             for (final f in files)
@@ -333,59 +372,124 @@ class _ReviewSidebar extends ConsumerWidget {
   }
 }
 
+const _sectionStyle = TextStyle(
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+  color: AppColors.textSecondary,
+);
+
+const _groupStyle = TextStyle(fontSize: 11, color: AppColors.textMuted);
+
+/// Merge state of [item] (SPEC-032 R3): reviewer, mother still in review,
+/// predicted conflict (R4), pendencies. [readiness] refines it for the
+/// selected item.
+MergeStatus watchMergeStatus(
+  WidgetRef ref,
+  ReviewItem item, {
+  MergeReadiness? readiness,
+}) {
+  final s = item.session, spec = item.spec;
+  final peers = ref.watch(specsProvider(s.workspaceId)).value ?? <Spec>[];
+  String? mother = peers
+      .where(
+        (p) =>
+            p.id != spec?.id &&
+            p.branch != null &&
+            p.branch == s.baseBranch &&
+            p.stage != SpecStage.done,
+      )
+      .firstOrNull
+      ?.code;
+  final stacked = readiness?.blockers
+      .where((i) => i.id == 'empilhada')
+      .firstOrNull;
+  if (mother == null && stacked != null) {
+    mother =
+        RegExp(r'de (\S+) primeiro').firstMatch(stacked.detail)?.group(1) ??
+        'a mãe';
+  }
+  final criteria = spec == null
+      ? null
+      : ref.watch(pendingCriteriaProvider(spec.id)).value;
+  final comments = spec == null
+      ? 0
+      : (ref.watch(reviewCommentsProvider(spec.id)).value ??
+                const <ReviewCommentRow>[])
+            .where(isOpenReviewComment)
+            .length;
+  final flagged =
+      readiness?.items.any(
+        (i) =>
+            const {'criterios', 'verificacoes', 'comentarios'}.contains(i.id) &&
+            (i.level == ReadinessLevel.aviso ||
+                i.level == ReadinessLevel.bloqueio),
+      ) ??
+      false;
+  final forecast = ref.watch(conflictForecastProvider(s.id));
+  final files = forecast.hasError
+      ? const <String>[]
+      : forecast.value == null
+      ? null
+      : forecast.value!.error != null
+      ? const <String>[]
+      : forecast.value!.files;
+  return mergeStatusOf(
+    reviewing:
+        spec?.reviewPhase == ReviewPhase.auto &&
+        spec?.stage == SpecStage.review,
+    motherCode: mother,
+    conflictFiles: files,
+    pending: (criteria?.isNotEmpty ?? false) || comments > 0 || flagged,
+  );
+}
+
+(IconData, Color) mergeStateLook(MergeState s) => switch (s) {
+  MergeState.pronto => (Icons.check_circle, AppColors.teal),
+  MergeState.verificando => (Icons.more_horiz, AppColors.textMuted),
+  MergeState.esperaMae => (Icons.hourglass_empty, AppColors.amber),
+  MergeState.conflito ||
+  MergeState.conflitoBase => (Icons.warning_amber_rounded, AppColors.red),
+  MergeState.baseDesatualizada => (Icons.sync_problem, AppColors.amber),
+  MergeState.revisando => (Icons.rate_review_outlined, AppColors.blue),
+  MergeState.pendencias => (Icons.error_outline, AppColors.amber),
+};
+
 class _QueueTile extends ConsumerWidget {
   const _QueueTile({
     required this.item,
     required this.selected,
     required this.onTap,
+    this.position,
+    this.stackSize,
+    this.mother,
   });
 
   final ReviewItem item;
   final bool selected;
   final VoidCallback onTap;
 
+  /// Place in its stack (1 = base) and the stack size; null when loose.
+  final int? position, stackSize;
+  final ReviewItem? mother;
+
+  bool get _stacked => (stackSize ?? 1) > 1;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = item.session;
-    final complete = selected
+    final readiness = selected
         ? ref.watch(mergeReadinessProvider(s.id)).value
         : null;
-    final pending = item.spec == null
-        ? null
-        : ref.watch(pendingCriteriaProvider(item.spec!.id));
-    final peers = ref.watch(specsProvider(s.workspaceId)).value ?? <Spec>[];
-    final stacked = peers.any(
-      (p) =>
-          p.id != item.spec?.id &&
-          p.branch == s.baseBranch &&
-          p.branch != null &&
-          p.stage != SpecStage.done,
-    );
-    final workspace = ref.watch(activeWorkspaceProvider);
-    final blocked =
-        item.spec?.reviewPhase == ReviewPhase.auto ||
-        s.status == SessionStatus.merged ||
-        stacked ||
-        (pending?.hasError ?? false) ||
-        (pending?.value?.isNotEmpty ?? false) ||
-        s.worktreePath == workspace?.path ||
-        !Directory(s.worktreePath).existsSync();
-    final color = complete == null
-        ? (blocked ? AppColors.red : AppColors.amber)
-        : switch (complete.level) {
-            ReadinessLevel.ok => AppColors.teal,
-            ReadinessLevel.bloqueio => AppColors.red,
-            _ => AppColors.amber,
-          };
+    final status = watchMergeStatus(ref, item, readiness: readiness);
+    final (icon, color) = mergeStateLook(status.state);
+    final code = item.spec?.code ?? item.task?.code;
+    final motherCode = mother?.spec?.code ?? mother?.task?.code;
     final meta = [
-      if (item.spec != null)
-        item.spec!.code
-      else if (item.task != null)
-        item.task!.code,
+      ?code,
       s.agentName?.isNotEmpty ?? false ? s.agentName! : 'sem agente',
     ].join(' · ');
     final radius = BorderRadius.circular(8);
-    return Material(
+    final card = Material(
       color: selected ? SessionColors.selectedBg : Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: radius,
@@ -402,16 +506,6 @@ class _QueueTile extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Tooltip(
-                message:
-                    complete?.summary ??
-                    'Estado parcial: não verificado por completo',
-                child: Icon(
-                  complete == null ? Icons.circle_outlined : Icons.circle,
-                  color: color,
-                  size: 9,
-                ),
-              ),
               Text(
                 sessionTitle(s),
                 maxLines: 2,
@@ -432,12 +526,105 @@ class _QueueTile extends ConsumerWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+              if (_stacked)
+                Text(
+                  [
+                    '$position de $stackSize',
+                    if (motherCode != null) 'sobre $motherCode',
+                  ].join(' · '),
+                  key: ValueKey('review-item-stack-${s.id}'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              const SizedBox(height: 4),
+              Row(
+                key: ValueKey('review-item-state-${s.id}'),
+                children: [
+                  Icon(icon, color: color, size: 13),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      status.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: color),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
+    final labelled = Semantics(
+      container: true,
+      button: true,
+      selected: selected,
+      onTap: onTap,
+      excludeSemantics: true,
+      label: queueSemanticLabel(
+        title: code ?? sessionTitle(s),
+        position: position,
+        stackSize: stackSize,
+        status: status,
+      ),
+      child: card,
+    );
+    if (!_stacked) return labelled;
+    // The rail joins the stack from the base (first) to the top (R2).
+    final first = position == 1, last = position == stackSize;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 14,
+            child: CustomPaint(
+              painter: _RailPainter(first: first, last: last, color: color),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: labelled,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _RailPainter extends CustomPainter {
+  const _RailPainter({
+    required this.first,
+    required this.last,
+    required this.color,
+  });
+
+  final bool first, last;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final x = size.width / 2, y = 20.0;
+    final line = Paint()
+      ..color = SessionColors.blockedBorder
+      ..strokeWidth = 2;
+    canvas.drawLine(
+      Offset(x, first ? y : 0),
+      Offset(x, last ? y : size.height),
+      line,
+    );
+    canvas.drawCircle(Offset(x, y), 4, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_RailPainter old) =>
+      old.first != first || old.last != last || old.color != color;
 }
 
 class _FileTile extends StatelessWidget {
@@ -796,6 +983,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       ],
     );
     if (deleteBranch == null || !mounted) return;
+    final queue = _queueNow;
     await _run('Fazer merge', () async {
       final r = await _service.merge(
         _id,
@@ -803,13 +991,15 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         options: options,
         override: override,
       );
-      ref.read(selectedReviewProvider.notifier).select(null);
-      _refresh();
       final short = r.commit.length > 7 ? r.commit.substring(0, 7) : r.commit;
-      _toast(
-        'Merge concluído · $short'
-        '${r.warnings.isEmpty ? '' : ' (${r.warnings.join('; ')})'}',
+      _advanceAfterMerge(
+        queue,
+        d.baseBranch,
+        detail:
+            'merge $short'
+            '${r.warnings.isEmpty ? '' : ' (${r.warnings.join('; ')})'}',
       );
+      _refresh();
     });
   }
 
@@ -882,6 +1072,127 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     _ => null,
   };
 
+  /// After a merge (R5): selects the child of the merged spec (or the next
+  /// item of the order) and says where the screen went.
+  void _advanceAfterMerge(
+    List<ReviewItem> queue,
+    String base, {
+    String detail = '',
+    String how = '',
+  }) {
+    final next = nextAfterMerge(queue, _id);
+    ref.read(selectedReviewProvider.notifier).select(next?.session.id);
+    String name(ReviewItem i) =>
+        i.spec?.code ?? i.task?.code ?? sessionTitle(i.session);
+    _toast(
+      '${name(widget.item)} entrou na $base$how'
+      '${next == null ? '' : ' · seguindo para ${name(next)}'}'
+      '${detail.isEmpty ? '' : ' · $detail'}',
+    );
+  }
+
+  List<ReviewItem> get _queueNow =>
+      ref.read(reviewQueueProvider(widget.workspaceId)).value ??
+      const <ReviewItem>[];
+
+  /// "Mergear PR" (primary when the item has a PR): the method of the
+  /// project config, confirmed in a dialog.
+  Future<void> _mergePr(ReviewDetail d) async {
+    final ws = await ref
+        .read(workspacesRepoProvider)
+        .getById(widget.workspaceId);
+    final config = ws == null
+        ? const ProjectConfig()
+        : await ref.read(projectConfigProvider(ws.path).future);
+    if (!mounted) return;
+    final initial = PrMergeMethod.values.firstWhere(
+      (m) => m.name == config.mergeMethod,
+      orElse: () => PrMergeMethod.squash,
+    );
+    final method = await showDialog<PrMergeMethod>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Mergear PR em ${d.baseBranch}'),
+        children: [
+          for (final m in PrMergeMethod.values)
+            SimpleDialogOption(
+              key: ValueKey('review-merge-pr-${m.name}'),
+              onPressed: () => Navigator.pop(ctx, m),
+              child: Text(m == initial ? '${m.label} (padrão)' : m.label),
+            ),
+        ],
+      ),
+    );
+    if (method == null || !mounted) return;
+    final queue = _queueNow;
+    await _run('Mergear PR', () async {
+      await _service.mergePr(_id, method);
+      _advanceAfterMerge(queue, d.baseBranch, how: ' pelo PR');
+      _refresh();
+    });
+  }
+
+  Widget _primaryButton(
+    PrimaryAction primary,
+    MergeStatus status, {
+    required ReviewDetail? d,
+    required List<String> pending,
+    required bool canMerge,
+    required bool canRequest,
+    required String reason,
+    required int requestCount,
+  }) {
+    final busy = _busy != null;
+    final label = primaryLabel(primary, status);
+    Widget button(String key, VoidCallback? onTap, {String? text}) => Semantics(
+      hint: onTap == null && reason.isNotEmpty ? reason : null,
+      child: AmberButton(
+        key: ValueKey(key),
+        label: text ?? label,
+        onTap: onTap,
+      ),
+    );
+    return switch (primary) {
+      PrimaryAction.fazerMerge => Tooltip(
+        message: reason,
+        child: button(
+          'review-merge',
+          canMerge && d != null ? () => _merge(d, pending: pending) : null,
+        ),
+      ),
+      PrimaryAction.mergearPr => Tooltip(
+        message: reason,
+        child: button(
+          'review-merge-pr',
+          canMerge && d != null ? () => _mergePr(d) : null,
+        ),
+      ),
+      PrimaryAction.irParaMae => button(
+        'review-go-mother',
+        busy ? null : _readinessAction('empilhada'),
+      ),
+      PrimaryAction.resolverConflito || PrimaryAction.refazerBase => button(
+        'review-resolve',
+        busy
+            ? null
+            : () => _run('Resolver conflito', () async {
+                await _service.resolveConflict(_id);
+                _toast('Instruções do conflito enviadas ao agente da spec.');
+              }),
+      ),
+      PrimaryAction.pedirAjustes => button(
+        'review-request-changes',
+        canRequest ? _requestChanges : null,
+        text: requestCount == 0 ? label : '$label ($requestCount)',
+      ),
+      PrimaryAction.nenhuma => Text(
+        status.text,
+        key: const ValueKey('review-primary-none'),
+        style: const TextStyle(fontSize: 12, color: AppColors.blue),
+      ),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(reviewDetailProvider(_id));
@@ -918,6 +1229,19 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         ? const <String>[]
         : ref.watch(pendingCriteriaProvider(widget.item.spec!.id)).value ??
               const <String>[];
+    final status = watchMergeStatus(ref, widget.item, readiness: ready);
+    final primary = primaryActionOf(status, hasPr: s.prUrl != null);
+    final canRequest = !busy && s.status != SessionStatus.merged;
+    final mergeReason = ready?.blockers.isNotEmpty == true
+        ? ready!.blockers.map((i) => i.detail).join('\n')
+        : reviewing
+        ? 'O revisor automático ainda está revisando'
+        : pending.isEmpty
+        ? ''
+        : 'Critérios de aceite sem marcar: ${pending.length}';
+    final mergeLike =
+        primary == PrimaryAction.fazerMerge ||
+        primary == PrimaryAction.mergearPr;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -950,6 +1274,20 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     ),
                     const SizedBox(height: 4),
                     _Subtitle(detail: d, branch: s.branch, busy: _busy),
+                    if (mergeLike &&
+                        !busy &&
+                        !canMerge &&
+                        mergeReason.isNotEmpty)
+                      Text(
+                        mergeReason.split('\n').first,
+                        key: const ValueKey('review-primary-reason'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.amber,
+                        ),
+                      ),
                     _ReadinessIndicator(
                       readiness: readiness,
                       onTap: _readinessPanel.expand,
@@ -967,59 +1305,93 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                 ),
               ),
               const SizedBox(width: 10),
-              Flexible(
-                child: SmallButton(
-                  key: const ValueKey('review-request-changes'),
-                  label: draft.comments.isEmpty
-                      ? 'Pedir ajustes ao agente'
-                      : 'Pedir ajustes ao agente (${draft.comments.length})',
-                  onTap: busy || s.status == SessionStatus.merged
-                      ? null
-                      : _requestChanges,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Tooltip(
-                key: const ValueKey('review-create-pr-tooltip'),
-                message: prReason,
-                child: SmallButton(
-                  key: const ValueKey('review-create-pr'),
-                  label: s.prUrl != null
-                      ? '${pr?.requestLabel ?? 'PR'} criado'
-                      : 'Criar ${pr?.requestLabel ?? 'PR'}',
-                  onTap: canPr ? _createPr : null,
-                ),
-              ),
-              if (s.prUrl == null) ...[
-                const SizedBox(width: 4),
-                Tooltip(
-                  message: switch (pr?.host) {
-                    'github' => 'Criar PR como rascunho (gh pr create --draft)',
-                    'gitlab' =>
-                      'Criar MR como rascunho (glab mr create --draft)',
-                    _ => 'Criar como rascunho',
-                  },
+              if (primary != PrimaryAction.pedirAjustes &&
+                  draft.comments.isNotEmpty) ...[
+                Flexible(
                   child: SmallButton(
-                    key: const ValueKey('review-create-pr-draft'),
-                    label: 'Rascunho',
-                    onTap: canPr ? () => _createPr(draft: true) : null,
+                    key: const ValueKey('review-request-changes'),
+                    label: 'Pedir ajustes ao agente (${draft.comments.length})',
+                    onTap: canRequest ? _requestChanges : null,
                   ),
                 ),
+                const SizedBox(width: 8),
               ],
+              _MoreMenu(
+                entries: [
+                  if (primary != PrimaryAction.pedirAjustes &&
+                      draft.comments.isEmpty)
+                    _MoreEntry(
+                      'review-more-request-changes',
+                      'Pedir ajustes ao agente',
+                      canRequest ? _requestChanges : null,
+                    ),
+                  if (primary != PrimaryAction.fazerMerge && d != null)
+                    _MoreEntry(
+                      'review-more-merge',
+                      'Fazer merge local',
+                      canMerge ? () => _merge(d, pending: pending) : null,
+                      tooltip: mergeReason,
+                    ),
+                  _MoreEntry(
+                    'review-create-pr',
+                    s.prUrl != null
+                        ? '${pr?.requestLabel ?? 'PR'} criado'
+                        : 'Criar ${pr?.requestLabel ?? 'PR'}',
+                    canPr && s.prUrl == null ? _createPr : null,
+                    tooltip: prReason,
+                    tooltipKey: 'review-create-pr-tooltip',
+                  ),
+                  if (s.prUrl == null)
+                    _MoreEntry(
+                      'review-create-pr-draft',
+                      'Criar ${pr?.requestLabel ?? 'PR'} como rascunho',
+                      canPr ? () => _createPr(draft: true) : null,
+                      tooltip: switch (pr?.host) {
+                        'github' =>
+                          'Criar PR como rascunho (gh pr create --draft)',
+                        'gitlab' =>
+                          'Criar MR como rascunho (glab mr create --draft)',
+                        _ => 'Criar como rascunho',
+                      },
+                    ),
+                  // Criteria are the only blocker the user may override,
+                  // with a reason.
+                  if (d != null &&
+                      ready != null &&
+                      ready.blockers.any((i) => i.id == 'criterios'))
+                    _MoreEntry(
+                      'review-merge-override',
+                      'Mergear mesmo assim…',
+                      !busy && ready.canOverride
+                          ? () => _merge(d, pending: pending)
+                          : null,
+                    ),
+                  if (!busy &&
+                      d != null &&
+                      ready != null &&
+                      ready.blockers.isNotEmpty &&
+                      ready.blockers.every(
+                        (i) =>
+                            i.id == 'raiz' &&
+                            i.level != ReadinessLevel.naoVerificado,
+                      ))
+                    _MoreEntry(
+                      'review-prepare-merge',
+                      'Preparar merge local…',
+                      () => _merge(d),
+                    ),
+                ],
+              ),
               const SizedBox(width: 8),
-              Tooltip(
-                message: ready?.blockers.isNotEmpty == true
-                    ? ready!.blockers.map((i) => i.detail).join('\n')
-                    : reviewing
-                    ? 'O revisor automático ainda está revisando'
-                    : pending.isEmpty
-                    ? ''
-                    : 'Critérios de aceite sem marcar: ${pending.length}',
-                child: AmberButton(
-                  key: const ValueKey('review-merge'),
-                  label: 'Fazer merge',
-                  onTap: canMerge ? () => _merge(d, pending: pending) : null,
-                ),
+              _primaryButton(
+                primary,
+                status,
+                d: d,
+                pending: pending,
+                canMerge: canMerge,
+                canRequest: canRequest,
+                reason: mergeReason,
+                requestCount: draft.comments.length,
               ),
             ],
           ),
@@ -1101,35 +1473,6 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
-        // Criteria are the only blocker the user may override, with a
-        // reason; with any other blocker the button stays, disabled.
-        if (d != null &&
-            ready != null &&
-            ready.blockers.any((i) => i.id == 'criterios'))
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              key: const ValueKey('review-merge-override'),
-              onPressed: !busy && ready.canOverride
-                  ? () => _merge(d, pending: pending)
-                  : null,
-              child: const Text('Mergear mesmo assim…'),
-            ),
-          ),
-        if (!busy &&
-            d != null &&
-            ready != null &&
-            ready.blockers.isNotEmpty &&
-            ready.blockers.every(
-              (i) => i.id == 'raiz' && i.level != ReadinessLevel.naoVerificado,
-            ))
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => _merge(d),
-              child: const Text('Preparar merge local…'),
-            ),
-          ),
         Material(
           color: Colors.transparent,
           child: ExpansionTile(
@@ -1702,3 +2045,58 @@ final reviewAnchorProvider = FutureProvider.family<AnchorShifts, (String, int)>(
     return ref.read(reviewServiceProvider).anchorShifts(key.$1, rows);
   },
 );
+
+/// An entry of the header's "Mais" menu (SPEC-032 R8).
+class _MoreEntry {
+  const _MoreEntry(
+    this.key,
+    this.label,
+    this.onTap, {
+    this.tooltip,
+    this.tooltipKey,
+  });
+
+  final String key, label;
+  final VoidCallback? onTap;
+  final String? tooltip, tooltipKey;
+}
+
+/// "Mais": the secondary actions of the header. The button says whether the
+/// menu is open (`Semantics(expanded:)`).
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({required this.entries});
+
+  final List<_MoreEntry> entries;
+
+  @override
+  Widget build(BuildContext context) => MenuAnchor(
+    style: const MenuStyle(
+      backgroundColor: WidgetStatePropertyAll(AppColors.panel),
+    ),
+    menuChildren: [
+      for (final e in entries)
+        Tooltip(
+          key: e.tooltipKey == null ? null : ValueKey<String>(e.tooltipKey!),
+          message: e.tooltip ?? '',
+          child: MenuItemButton(
+            key: ValueKey(e.key),
+            onPressed: e.onTap,
+            child: Text(e.label, style: const TextStyle(fontSize: 12)),
+          ),
+        ),
+    ],
+    builder: (context, controller, _) => Semantics(
+      expanded: controller.isOpen,
+      child: SmallButton(
+        key: const ValueKey('review-more'),
+        label: 'Mais',
+        trailing: const Icon(
+          Icons.expand_more,
+          size: 14,
+          color: AppColors.textSecondary,
+        ),
+        onTap: () => controller.isOpen ? controller.close() : controller.open(),
+      ),
+    ),
+  );
+}

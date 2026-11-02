@@ -2161,3 +2161,45 @@ final mergeReadinessProvider = FutureProvider.family<MergeReadiness, String>((
 final _readinessStepsProvider = StreamProvider.family<List<SpecStep>, int>(
   (ref, id) => ref.watch(specStepsRepoProvider).watchBySpec(id),
 );
+
+/// One git check at a time for the conflict forecast of the queue
+/// (SPEC-032 R4): each item waits for the previous one. One lane per
+/// provider container, so a check left pending never blocks another
+/// container's queue.
+class GitLane {
+  Future<void> _tail = Future<void>.value();
+
+  Future<T> run<T>(Future<T> Function() job) {
+    final done = Completer<T>();
+    final previous = _tail;
+    _tail = done.future.then<void>((_) {}, onError: (_) {});
+    unawaited(
+      previous.whenComplete(() async {
+        try {
+          done.complete(await job());
+        } catch (e, st) {
+          done.completeError(e, st);
+        }
+      }),
+    );
+    return done.future;
+  }
+}
+
+final forecastLaneProvider = Provider<GitLane>((ref) => GitLane());
+
+/// Predicted conflict of a queue item with its base (`git merge-tree`),
+/// computed in the background, one at a time. Invalidated with the queue.
+final conflictForecastProvider =
+    FutureProvider.family<ConflictPrediction, String>((ref, sessionId) {
+      final service = ref.read(reviewServiceProvider);
+      // Never an error state: Riverpod would retry it on a timer. A failed
+      // check is a prediction with [ConflictPrediction.error].
+      return ref.read(forecastLaneProvider).run(() async {
+        try {
+          return await service.predictConflict(sessionId);
+        } catch (e) {
+          return ConflictPrediction(error: '$e');
+        }
+      });
+    });
