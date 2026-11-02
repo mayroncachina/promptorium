@@ -2,9 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/tray_service.dart';
 
 class _FakeBackend implements TrayBackend {
-  _FakeBackend({this.error});
+  _FakeBackend({this.error, this.missing = const {}});
 
   final Object? error;
+  final Set<String> missing;
   String? iconAsset;
   String? tooltip;
   List<TrayMenuEntry> menu = [];
@@ -19,6 +20,7 @@ class _FakeBackend implements TrayBackend {
     required Future<void> Function() onActivate,
   }) async {
     if (error != null) throw error!;
+    if (missing.contains(iconAsset)) throw TrayIconUnavailable(iconAsset);
     this.iconAsset = iconAsset;
     this.tooltip = tooltip;
     this.menu = menu;
@@ -100,12 +102,49 @@ void main() {
         final tray = service(backend: () => backend);
         expect(await tray.start(), isTrue);
         expect(tray.isActive, isTrue);
-        expect(backend.iconAsset, 'assets/icon/icon-64.png');
+        expect(backend.iconAsset, 'assets/icon/mark/mark-24.png');
         expect(backend.tooltip, 'Promptorium');
         expect(backend.menu.map((e) => e.label), ['Abrir', 'Sair']);
         expect(logs, isEmpty);
       },
     );
+  });
+
+  group('SPEC-029 R3/R6: marca na bandeja', () {
+    test('a bandeja usa a marca de 24 px', () async {
+      final backend = _FakeBackend();
+      expect(await service(backend: () => backend).start(), isTrue);
+      expect(backend.iconAsset, TrayService.iconAsset);
+      expect(TrayService.iconAsset, 'assets/icon/mark/mark-24.png');
+    });
+
+    test('marca indisponível: volta ao icon-64.png e registra aviso', () async {
+      final backends = <_FakeBackend>[];
+      final tray = service(
+        backend: () {
+          final b = _FakeBackend(missing: {TrayService.iconAsset});
+          backends.add(b);
+          return b;
+        },
+      );
+      expect(await tray.start(), isTrue);
+      expect(tray.isActive, isTrue);
+      expect(backends, hasLength(2));
+      expect(backends.first.disposed, isTrue);
+      expect(backends.last.iconAsset, 'assets/icon/icon-64.png');
+      expect(logs.single, contains('marca indisponível'));
+    });
+
+    test('sem marca e sem o ícone anterior: segue sem bandeja', () async {
+      final tray = service(
+        backend: () => _FakeBackend(
+          missing: {TrayService.iconAsset, TrayService.fallbackIconAsset},
+        ),
+      );
+      expect(await tray.start(), isFalse);
+      expect(logs, hasLength(2));
+      expect(logs.last, contains('bandeja indisponível'));
+    });
   });
 
   group('R7: bandeja indisponível', () {
