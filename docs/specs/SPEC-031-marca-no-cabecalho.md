@@ -12,7 +12,7 @@ O cabeçalho do app (44 px) mostra, ao lado do nome "Promptorium", um quadrado �
 
 Além disso, nada no cabeçalho indica que o app está trabalhando. Quando o Quadro executa uma onda, manualmente ou pelo autopiloto, só o Quadro e o rodapé mostram isso.
 
-Esta spec troca o quadrado âmbar pela marca da SPEC-029. Enquanto houver specs em execução, a marca ganha uma animação calma: o líquido ondula e as bolhas sobem.
+Esta spec troca o quadrado âmbar pela marca da SPEC-029. Enquanto houver specs em execução, a marca repete em loop a parte contínua da animação de abertura (`lib/features/splash/`): a onda do líquido corre, as bolhas sobem até o gargalo e as bolhas da molécula surgem.
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R775h). Cópia dos artboards e capturas em `docs/mockups/spec-031/`:
 
@@ -20,7 +20,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
 |---|---|---|
 | `0-hoje.png` | O cabeçalho de hoje: quadrado âmbar com frasco preto | — |
 | `1-proposta.png` | A marca parada e executando, com o tooltip da onda | R1, R3, R7 |
-| `2-animacao.png` | Quatro quadros de um ciclo de 2,4 s, ampliados, e os estados parado, executando e animação desligada | R4–R6 |
+| `2-animacao.png` | Quatro quadros de um ciclo de 2,4 s, ampliados (a bolha de cima chega ao gargalo em 2,2 s), e os estados parado, executando e animação desligada | R4–R6 |
 | `3-tamanho.png` | A marca no cabeçalho em 22, 24, 26 e 28 px (escolhido: 26) | R1 |
 
 ## Requisitos
@@ -30,12 +30,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
   - o nome "Promptorium" continua ao lado, como hoje.
 - R2 · A marca deve ser desenhada em vetor por um widget próprio (`BrandMark`), com as mesmas formas e cores de `assets/icon/mark/mark.svg`. Assim, ela fica nítida em qualquer escala de tela e pode ser animada.
 - R3 · A marca deve animar **enquanto alguma spec do projeto ativo estiver em execução**: com estágio `running` e uma sessão viva executando uma etapa ou a verificação. Isso vale para a execução manual e para o autopiloto.
-- R4 · A animação tem um **ciclo de 2,4 s**:
-  - a superfície do líquido ondula entre duas curvas, com entrada e saída suaves;
-  - duas bolhas sobem do líquido e somem, defasadas em meio ciclo;
-  - a silhueta do frasco, o contorno, a molécula e o `>_` ficam parados;
-  - nada pisca e nenhuma cor nova aparece.
-- R5 · Quando a execução termina, a marca **completa o ciclo atual** e para no quadro de repouso, que é idêntico à marca parada, sem salto.
+- R4 · A animação segue a **animação de abertura** (`SplashTimeline`), num ciclo de 2,4 s:
+  - **onda:** a superfície do líquido é uma onda que corre para a esquerda, um comprimento de onda por ciclo, recortada no interior do frasco, como o `pm-wave` da abertura;
+  - **bolhas:** três bolhas nascem no líquido e sobem até o gargalo, onde fica a bolha de cima da marca. Elas são defasadas em 0,8 s, crescem de 0,6 para 1 com entrada acelerada e entram e saem com fade, como o `pm-bubble`;
+  - **molécula:** as três bolhas do alto surgem uma depois da outra, com intervalo de 0,18 s, num pulso de 1 para 1,18 e de volta, como o `pm-pop`;
+  - a silhueta, o contorno âmbar e o `>_` ficam parados. Nada pisca: o cursor da abertura não pisca aqui, e nenhuma cor nova aparece.
+- R5 · Ao começar e ao terminar a execução, a marca troca entre o desenho parado e o animado com um fade de 0,3 s, sem salto. Ao terminar, a animação vai até o fim do ciclo atual antes do fade.
 - R6 · Com a animação desligada no sistema (`MediaQuery.disableAnimations`), a marca fica sempre parada. O estado continua disponível no tooltip e no rótulo (R7).
 - R7 · A marca deve ter tooltip e rótulo semântico:
   - parada: "Promptorium";
@@ -74,18 +74,21 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
 ### R4–R6, R8 · Animação
 
 - `_Logo` vira `ConsumerStatefulWidget` com `SingleTickerProviderStateMixin`. Quando `brandActivityProvider != null` e as animações estão ligadas, cria um `AnimationController(duration: 2.4 s)..repeat()`.
-- Quando a atividade some, chama `controller.forward()` até 1,0, o fim do ciclo, que equivale ao repouso, e então descarta o controller (R5).
-- No painter, com `t` como valor do ciclo:
-  - superfície: cada ponto interpola entre a curva A e a curva B com peso `(1 − cos 2πt) / 2`;
-  - cada bolha sobe 50 px a partir da sua posição no SVG e some. Ela reaparece no lugar com um fade de 10% do ciclo, e a bolha pequena anda defasada em meio ciclo.
-- Em `t = 0` e `t = 1`, a superfície está na curva A e a bolha grande no lugar do SVG, então o repouso é o próprio SVG. A bolha pequena só fica totalmente igual ao SVG ao parar, porque o painter sem `wave` desenha as duas no lugar.
+- Quando a atividade some, chama `controller.forward()` até 1,0, o fim do ciclo, e então troca para a marca parada com o fade de R5 e descarta o controller.
+- O painter reaproveita as curvas da abertura, convertidas para o quadro de 256:
+  - a onda é `M… Q… T…`, com comprimento de onda de 76 e amplitude de 7 no nível 164, deslocada em `−76·t`;
+  - as bolhas saem de (128, 204), (114, 208) e (140, 210), com raios 11, 8 e 7, e sobem 100 com `easeIn`;
+  - opacidade: 0 → 1 até 20% do caminho, 1 → 0,9 até 80%, depois 0;
+  - os nós da molécula ficam em (132, 34), (180, 22) e (196, 60).
+- Se der, `SplashTimeline.bubble` e a curva da onda viram funções compartilhadas em `lib/ui/widgets/brand_motion.dart`, para que a abertura e a marca não divirjam.
+- O fade de R5 é um `AnimatedSwitcher` de 300 ms entre `BrandMark()` e `BrandMark(wave: controller)`.
 
 ### Testes
 
 - `test/ui/widgets/brand_mark_test.dart`:
   - pinta sem erro em 16, 26 e 64 px;
   - sem `wave`, as bolhas ficam nas posições do SVG;
-  - o caminho do líquido interpola entre A e B.
+  - com `wave`, a onda se desloca, as bolhas sobem até y ≤ 110 em algum ponto do ciclo, e a molécula chega a 1,18.
 - `test/ui/shell/title_bar_logo_test.dart`:
   - o cabeçalho mostra `BrandMark` e não mostra `AppIcons.flask` (R1);
   - sem specs rodando, não há controller e o rótulo é "Promptorium";
@@ -97,7 +100,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
 ## Critérios de aceite
 
 - [ ] O cabeçalho mostra a marca de 26 px, sem o quadrado âmbar [R1] [R2] verificar: flutter test test/ui/shell/title_bar_logo_test.dart
-- [ ] `BrandMark` desenha o repouso igual ao SVG e interpola o líquido [R2] [R4] verificar: flutter test test/ui/widgets/brand_mark_test.dart
+- [ ] `BrandMark` desenha o repouso igual ao SVG e, animado, faz a onda correr, as bolhas subirem até o gargalo e a molécula pulsar [R2] [R4] verificar: flutter test test/ui/widgets/brand_mark_test.dart
 - [ ] A marca anima só com spec em execução, num ciclo de 2,4 s, e para no fim do ciclo [R3] [R4] [R5] [R8] verificar: flutter test test/ui/shell/title_bar_logo_test.dart
 - [ ] Com `disableAnimations` nada anima, e o rótulo mostra a execução [R6] [R7] verificar: flutter test test/ui/shell/title_bar_logo_test.dart
 - [ ] Clicar na marca animada abre o Quadro; parada, não faz nada [R9] verificar: flutter test test/ui/shell/title_bar_logo_test.dart
