@@ -6,6 +6,11 @@ import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/specs/prototype/prototype_files.dart';
 import 'package:promptorium/features/specs/prototype/prototype_service.dart';
+import 'package:promptorium/features/specs/spec_action.dart';
+import 'package:promptorium/core/claude/readonly_run.dart'
+    show PlannerException;
+
+import 'dart:async';
 
 import 'dart:convert';
 
@@ -18,10 +23,11 @@ import 'prototype_files_test.dart' show spec;
 
 /// What the fake agent was called with.
 class AgentCall {
-  AgentCall(this.cwd, this.options, this.prompt);
+  AgentCall(this.cwd, this.options, this.prompt, [this.cancelled]);
   final String cwd;
   final ClaudeOptions options;
   final String prompt;
+  final Future<void>? cancelled;
 }
 
 Spec specRow(String path) => Spec(
@@ -64,8 +70,9 @@ void main() {
           required cwd,
           required options,
           required prompt,
+          cancelled,
         }) {
-          final call = AgentCall(cwd, options, prompt);
+          final call = AgentCall(cwd, options, prompt, cancelled);
           calls.add(call);
           return behave(call);
         }),
@@ -190,6 +197,61 @@ void main() {
     final index = await PrototypeIndex.read(dir());
     expect(index.history.single.failed, isTrue);
     expect(c.read(prototypeJobsProvider), isEmpty);
+  });
+
+  test('SPEC-025 R9: cancelling "Gerar telas" stops the agent, puts back '
+      'what it changed and throws SpecActionCancelled', () async {
+    Directory(dir()).createSync(recursive: true);
+    File('${dir()}/R1-lista.html').writeAsStringSync('<p>antes</p>');
+    final started = Completer<void>();
+    behave = (call) async {
+      File('${dir()}/R1-lista.html').writeAsStringSync('<p>meio</p>');
+      started.complete();
+      await call.cancelled;
+      // The real run fails like this once `cancelled` completes.
+      throw const PlannerException('Verificação cancelada.');
+    };
+    final cancel = Completer<void>();
+    final run = c
+        .read(prototypeServiceProvider)
+        .generate(ws, specRow('specs/x.md'), spec, cancelled: cancel.future);
+    final rejected = expectLater(run, throwsA(isA<SpecActionCancelled>()));
+    await started.future;
+    expect(calls.single.cancelled, isNotNull);
+    expect(c.read(prototypeJobsProvider), isNotEmpty);
+    cancel.complete();
+    await rejected;
+    expect(c.read(prototypeJobsProvider), isEmpty);
+    expect(File('${dir()}/R1-lista.html').readAsStringSync(), '<p>antes</p>');
+    final index = await PrototypeIndex.read(dir());
+    expect(index.history.single.failed, isTrue);
+    expect(index.history.single.answer, 'Geração cancelada.');
+  });
+
+  test('SPEC-025 R9: the real agent stops the CLI when "cancelled" '
+      'completes', () async {
+    final cli = FakeCli();
+    final real = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        claudeProcessStarterProvider.overrideWithValue(cli.start),
+        runSettingsDirProvider.overrideWithValue('${tmp.path}/run'),
+      ],
+    );
+    addTearDown(real.dispose);
+    await real.read(appSettingsProvider.notifier).load();
+    final cancel = Completer<void>();
+    final run = real.read(prototypeAgentProvider)(
+      cwd: tmp.path,
+      options: prototypeOptions('docs/mockups/spec-022'),
+      prompt: 'gere',
+      cancelled: cancel.future,
+    );
+    final rejected = expectLater(run, throwsA(isA<PlannerException>()));
+    await until(() async => cli.processes.isNotEmpty);
+    cancel.complete();
+    await rejected;
+    expect(cli.last.signals, isNotEmpty);
   });
 
   test('R2: the real run passes --tools without Bash and --allowedTools '

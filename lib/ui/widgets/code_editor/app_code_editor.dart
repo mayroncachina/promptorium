@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -54,6 +56,7 @@ class AppCodeEditor extends ConsumerStatefulWidget {
     required this.editorKey,
     this.language = CodeLanguage.plaintext,
     this.readOnly = false,
+    this.dimmed = false,
     this.onSave,
     this.onChanged,
     this.findController,
@@ -71,6 +74,10 @@ class AppCodeEditor extends ConsumerStatefulWidget {
   final String editorKey;
   final CodeLanguage language;
   final bool readOnly;
+
+  /// Read-only look while an action holds the text (SPEC-025 R4): secondary
+  /// text on the panel, no highlighting, the "not allowed" cursor.
+  final bool dimmed;
 
   /// Ctrl+S inside the editor.
   final VoidCallback? onSave;
@@ -109,6 +116,27 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
       _ownFind!.dispose();
       _ownFind = null;
     }
+    // re_editor opens / closes its text input connection only when the
+    // focus changes: a focused editor turned read-only would keep taking
+    // typed text (SPEC-025 R1), and one released would refuse it. Focus out
+    // and back once the new flag is in place.
+    final focus = widget.focusNode;
+    if (oldWidget.readOnly != widget.readOnly &&
+        focus != null &&
+        focus.hasFocus) {
+      focus.unfocus();
+      // After the frame and after the focus manager applied the unfocus
+      // (a microtask queued before this one).
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => scheduleMicrotask(() {
+          if (!mounted || focus.context == null || focus.hasFocus) return;
+          // Only if nothing else took the focus meanwhile.
+          if (FocusManager.instance.primaryFocus is FocusScopeNode) {
+            focus.requestFocus();
+          }
+        }),
+      );
+    }
   }
 
   @override
@@ -127,7 +155,8 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
       fontSize: fontSize,
       color: CodeEditorColors.lineNumber,
     );
-    return CodeEditor(
+    final dimmed = widget.dimmed;
+    final editor = CodeEditor(
       key: ValueKey('code-editor-${widget.editorKey}'),
       controller: widget.controller,
       findController: _find,
@@ -142,18 +171,20 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
         fontSize: fontSize,
         fontFamily: AppFonts.mono,
         fontHeight: 1.6,
-        textColor: AppColors.text,
+        textColor: dimmed ? AppColors.textSecondary : AppColors.text,
         hintTextColor: AppColors.textMuted,
-        backgroundColor: AppColors.background,
+        backgroundColor: dimmed ? AppColors.panel : AppColors.background,
         selectionColor: CodeEditorColors.selection,
         highlightColor: CodeEditorColors.findMatch,
         cursorColor: AppColors.amber,
         cursorLineColor: CodeEditorColors.cursorLine,
         chunkIndicatorColor: AppColors.textMuted,
-        codeTheme: CodeHighlightTheme(
-          languages: {lang.id: CodeHighlightThemeMode(mode: lang.mode)},
-          theme: promptoriumCodeTheme,
-        ),
+        codeTheme: dimmed
+            ? null
+            : CodeHighlightTheme(
+                languages: {lang.id: CodeHighlightThemeMode(mode: lang.mode)},
+                theme: promptoriumCodeTheme,
+              ),
       ),
       shortcutsActivatorsBuilder: const AppCodeShortcuts(),
       shortcutOverrideActions: {
@@ -192,6 +223,23 @@ class _AppCodeEditorState extends ConsumerState<AppCodeEditor> {
       leadingDivider: Container(width: 1, color: AppColors.border),
       findBuilder: (context, controller, readOnly) =>
           CodeFindPanel(controller: controller, readOnly: readOnly),
+    );
+    // Same tree dimmed or not, so the editor is not remounted (scroll,
+    // focus). Translucent on top: the cursor is "not allowed" while the
+    // editor below still scrolls and selects.
+    return Stack(
+      children: [
+        Positioned.fill(child: editor),
+        if (dimmed)
+          const Positioned.fill(
+            child: MouseRegion(
+              key: ValueKey('code-editor-blocked'),
+              cursor: SystemMouseCursors.forbidden,
+              opaque: false,
+              hitTestBehavior: HitTestBehavior.translucent,
+            ),
+          ),
+      ],
     );
   }
 }

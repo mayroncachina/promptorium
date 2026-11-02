@@ -63,7 +63,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   void _go(AppSection s) {
     if (s.isTool) _lastTool = s;
-    ref.read(navigationProvider.notifier).go(s);
+    unawaited(ref.read(navigationProvider.notifier).request(s));
   }
 
   /// Sidebar / Ctrl+8: "Ferramentas" opens its last tab.

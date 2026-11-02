@@ -10,7 +10,10 @@ import 'package:promptorium/features/specs/prototype/prototype_files.dart';
 import 'package:promptorium/features/specs/prototype/prototype_service.dart';
 import 'package:promptorium/features/specs/prototype/prototype_thumbnails.dart';
 import 'package:promptorium/features/specs/prototype/prototype_view.dart';
+import 'package:promptorium/features/specs/spec_action.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
+import 'package:promptorium/core/claude/readonly_run.dart'
+    show PlannerException;
 import 'package:promptorium/features/specs/specs_screen.dart';
 import 'package:promptorium/features/specs/widgets/spec_header.dart'
     show SpecActionButton, SpecActionEmphasis;
@@ -46,6 +49,7 @@ void main() {
   late Runner runner;
   late List<String> prompts;
   late void Function() agentWrites;
+  late Future<void> Function(Future<void>? cancelled) agentWait;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('promptorium-proto-ui-');
@@ -58,6 +62,7 @@ void main() {
     runner = Runner();
     prompts = [];
     agentWrites = () {};
+    agentWait = (_) async {};
   });
 
   tearDown(() => tmp.deleteSync(recursive: true));
@@ -81,9 +86,11 @@ void main() {
           required cwd,
           required options,
           required prompt,
+          cancelled,
         }) async {
           prompts.add(prompt);
           agentWrites();
+          await agentWait(cancelled);
           return {
             'telas': [
               {
@@ -452,6 +459,86 @@ void main() {
     );
     expect(File('$mockups/R1-lista.b.html').existsSync(), isFalse);
     expect(File('$mockups/R1-lista.html').existsSync(), isTrue);
+  });
+
+  testWidgets('SPEC-025 R9: while "Gerar telas da spec" runs, its card shows '
+      'the elapsed time and "Cancelar geração"; cancelling stops the agent '
+      'and releases the spec', (tester) async {
+    var stopped = false;
+    agentWait = (cancelled) async {
+      await cancelled;
+      stopped = true;
+      throw const PlannerException('Verificação cancelada.');
+    };
+    final c = await pump(tester);
+    await openPrototype(tester);
+    await tester.tap(find.byKey(const ValueKey('proto-generate')));
+    await settleIo(tester, until: () => prompts.isNotEmpty);
+    await tester.pump(const Duration(milliseconds: 400));
+    final card = find.byKey(const ValueKey('proto-generating-spec'));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('Gerando telas da spec…')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.byKey(const ValueKey('spec-action-elapsed')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('Cancelar geração')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('A spec fica bloqueada até as telas ficarem prontas.'),
+      findsOneWidget,
+    );
+    expect(find.text('Bloqueada: gerando as telas'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('proto-generate')),
+        matching: find.text('Gerando telas…'),
+      ),
+      findsOneWidget,
+    );
+    expect(enabled(tester, 'proto-compare'), isFalse);
+    // R1 in the other tabs: the editor is read-only meanwhile.
+    await tester.tap(find.byKey(const ValueKey('spec-mode-edit')));
+    await tester.pump();
+    expect(tester.widget<CodeEditor>(find.byType(CodeEditor)).readOnly, true);
+    expect(find.byKey(const ValueKey('spec-action-banner')), findsOneWidget);
+    expect(find.text('Gerando as telas de SPEC-022…'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await tester.pump();
+
+    await tester.tap(
+      find.descendant(
+        of: card,
+        matching: find.byKey(const ValueKey('spec-action-cancel')),
+      ),
+    );
+    await settleIo(
+      tester,
+      until: () =>
+          stopped &&
+          c.read(prototypeJobsProvider).isEmpty &&
+          card.evaluate().isEmpty &&
+          find
+              .text('Geração cancelada. A spec não foi alterada.')
+              .evaluate()
+              .isNotEmpty,
+    );
+    expect(stopped, isTrue);
+    expect(card, findsNothing);
+    expect(c.read(specActionProvider), isNull);
+    expect(
+      find.text('Geração cancelada. A spec não foi alterada.'),
+      findsOneWidget,
+    );
+    expect(specFile(), spec);
   });
 
   testWidgets('R12: the controls take focus with Tab, act on Enter / Space '

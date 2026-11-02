@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show SemanticsRole;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart' show specStatusLabel;
+import 'spec_action_banner.dart' show ActionSpinner;
 
 /// Editor modes of the spec (SPEC-024 R2) and the prototype of the screens
 /// (SPEC-022 R1).
@@ -38,6 +40,7 @@ class SpecAction {
     this.onTap,
     this.unavailableReason,
     this.destructive = false,
+    this.busy = false,
   });
 
   /// Stable name (`refine`, `design`, `approve`, `clone`, `compare`,
@@ -61,6 +64,9 @@ class SpecAction {
   /// "Excluir…": red, after a divider in the menu (R7).
   final bool destructive;
 
+  /// The action is running: gerund label and progress (SPEC-025 R2).
+  final bool busy;
+
   bool get enabled => onTap != null;
 
   /// Tooltip shown: what it does, or why it is unavailable.
@@ -78,6 +84,21 @@ class SpecAction {
     onTap: onTap,
     unavailableReason: unavailableReason,
     destructive: destructive,
+    busy: busy,
+  );
+
+  /// Unavailable while another action runs; [running] = the gerund label of
+  /// this one when it is the one running (SPEC-025 R2).
+  SpecAction blocked(String reason, {String? running}) => SpecAction(
+    id: id,
+    keyName: keyName,
+    label: running ?? label,
+    icon: icon,
+    emphasis: emphasis,
+    tooltip: tooltip,
+    unavailableReason: running == null ? reason : 'Em andamento.',
+    destructive: destructive,
+    busy: running != null,
   );
 }
 
@@ -100,6 +121,8 @@ class SpecHeaderState {
     this.unavailableReason,
     this.compareReason,
     this.generateReason,
+    this.runningId,
+    this.runningLabel,
   });
 
   /// The execution started (`stage != backlog`): only "Clonar para alterar".
@@ -129,7 +152,17 @@ class SpecHeaderState {
   final String? unavailableReason;
   final String? compareReason;
   final String? generateReason;
+
+  /// [SpecAction.id] of the action in progress (SPEC-025 R2): it shows
+  /// [runningLabel] with progress; the others and the menu are disabled.
+  final String? runningId;
+  final String? runningLabel;
+
+  bool get running => runningId != null;
 }
+
+/// Why the actions are disabled while one runs (SPEC-025 R2).
+const runningReason = 'Aguarde a ação em andamento terminar.';
 
 const refineTooltip =
     'Abre uma conversa com a IA para escrever objetivo, requisitos e '
@@ -140,8 +173,22 @@ const cloneTooltip =
     'A execução já começou; crie uma cópia em rascunho para mudar.';
 
 /// Ordered actions of the header for [s] (SPEC-024 R3–R7): the bar ones
-/// first (secondary, then the primary), then the "Mais ações" items.
+/// first (secondary, then the primary), then the "Mais ações" items. While
+/// an action runs, all of them are unavailable and the running one carries
+/// its gerund label (SPEC-025 R2).
 List<SpecAction> specHeaderActions(SpecHeaderState s) {
+  final all = _specHeaderActions(s);
+  if (!s.running) return all;
+  return [
+    for (final a in all)
+      a.blocked(
+        runningReason,
+        running: a.id == s.runningId ? s.runningLabel ?? a.label : null,
+      ),
+  ];
+}
+
+List<SpecAction> _specHeaderActions(SpecHeaderState s) {
   final why = s.unavailableReason ?? 'Aguarde a spec carregar.';
   final menu = <SpecAction>[
     if (s.onArchive != null)
@@ -354,6 +401,8 @@ class SpecHeader extends StatelessWidget {
     this.dirty = false,
     this.onSave,
     this.zoom,
+    this.lockLabel,
+    this.lockAlert = false,
   });
 
   final String title;
@@ -373,6 +422,11 @@ class SpecHeader extends StatelessWidget {
   final bool dirty;
   final VoidCallback? onSave;
   final Widget? zoom;
+
+  /// An action holds the spec (SPEC-025 R6): replaces the save state with
+  /// "Somente leitura enquanto aprova"; [lockAlert] = amber (long action).
+  final String? lockLabel;
+  final bool lockAlert;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +512,10 @@ class SpecHeader extends StatelessWidget {
                       ],
                       if (split.menu.isNotEmpty) ...[
                         if (split.bar.isNotEmpty) const SizedBox(width: _gap),
-                        SpecMoreButton(items: split.menu),
+                        SpecMoreButton(
+                          items: split.menu,
+                          enabled: !actions!.running,
+                        ),
                       ],
                     ],
                   ),
@@ -469,8 +526,14 @@ class SpecHeader extends StatelessWidget {
         );
       },
     );
-    final saveState = showSaveState
-        ? SaveState(dirty: dirty, locked: locked, onSave: onSave)
+    final saveState = showSaveState || lockLabel != null
+        ? SaveState(
+            dirty: dirty,
+            locked: locked,
+            onSave: onSave,
+            lockLabel: lockLabel,
+            lockAlert: lockAlert,
+          )
         : null;
     final bottom = !hasTabs
         ? null
@@ -650,15 +713,20 @@ class _SpecActionButtonState extends State<SpecActionButton>
     final a = widget.action;
     final primary = a.emphasis == SpecActionEmphasis.primary;
     final enabled = a.enabled;
+    final busy = a.busy;
     final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     // Disabled: legible text on a raised surface, no opacity (R10,
-    // SPEC-025 R10).
-    final fg = !enabled
+    // SPEC-025 R10). Running: amber tint, the gerund label (SPEC-025 R2).
+    final fg = busy
+        ? AppColors.text
+        : !enabled
         ? AppColors.textDisabled
         : primary
         ? AppColors.onAmber
         : AppColors.text;
-    final bg = !enabled
+    final bg = busy
+        ? AppColors.amberTint
+        : !enabled
         ? AppColors.surfaceRaised
         : primary
         ? AppColors.amber
@@ -666,7 +734,11 @@ class _SpecActionButtonState extends State<SpecActionButton>
     final side = focused
         ? const BorderSide(color: AppColors.amber, width: 2)
         : BorderSide(
-            color: enabled && primary ? AppColors.amber : AppColors.border,
+            color: busy
+                ? SessionColors.approvalBorder
+                : enabled && primary
+                ? AppColors.amber
+                : AppColors.border,
           );
     final radius = BorderRadius.circular(6);
     return Tooltip(
@@ -700,7 +772,13 @@ class _SpecActionButtonState extends State<SpecActionButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(a.icon, size: 16, color: fg),
+                      if (busy)
+                        DelayedProgress(
+                          key: const ValueKey('spec-action-progress'),
+                          placeholder: Icon(a.icon, size: 16, color: fg),
+                        )
+                      else
+                        Icon(a.icon, size: 16, color: fg),
                       const SizedBox(width: _iconGap),
                       Text(
                         a.label,
@@ -724,12 +802,63 @@ class _SpecActionButtonState extends State<SpecActionButton>
   }
 }
 
+/// Progress of a running action (SPEC-025 R2, R6, R11): [placeholder] for
+/// the first [delay] (a short action does not flash a spinner), then a 14 px
+/// spinner, or a still icon with reduced motion.
+class DelayedProgress extends StatefulWidget {
+  const DelayedProgress({
+    super.key,
+    required this.placeholder,
+    this.delay = const Duration(milliseconds: 300),
+  });
+
+  final Widget placeholder;
+  final Duration delay;
+
+  @override
+  State<DelayedProgress> createState() => _DelayedProgressState();
+}
+
+class _DelayedProgressState extends State<DelayedProgress> {
+  Timer? _timer;
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(widget.delay, () {
+      if (mounted) setState(() => _shown = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 16,
+    height: 16,
+    child: Center(
+      child: _shown
+          ? const ActionSpinner(size: 14, color: AppColors.amber)
+          : widget.placeholder,
+    ),
+  );
+}
+
 /// "Mais ações" (R7, R11): icon button with a menu; arrows move, Esc closes
 /// and gives the focus back to the button.
 class SpecMoreButton extends StatefulWidget {
-  const SpecMoreButton({super.key, required this.items});
+  const SpecMoreButton({super.key, required this.items, this.enabled = true});
 
   final List<SpecAction> items;
+
+  /// False while an action runs (SPEC-025 R2): drawn like the disabled
+  /// actions, no menu.
+  final bool enabled;
 
   @override
   State<SpecMoreButton> createState() => _SpecMoreButtonState();
@@ -819,14 +948,15 @@ class _SpecMoreButtonState extends State<SpecMoreButton>
         for (final a in danger) _item(a),
       ],
       builder: (context, controller, _) => Tooltip(
-        message: 'Mais ações',
+        message: widget.enabled ? 'Mais ações' : runningReason,
         waitDuration: const Duration(milliseconds: 500),
         child: Semantics(
           button: true,
+          enabled: widget.enabled,
           label: 'Mais ações da spec',
           expanded: controller.isOpen,
           child: Material(
-            color: AppColors.panel,
+            color: widget.enabled ? AppColors.panel : AppColors.surfaceRaised,
             shape: RoundedRectangleBorder(
               borderRadius: radius,
               side: focused
@@ -840,16 +970,21 @@ class _SpecMoreButtonState extends State<SpecMoreButton>
               borderRadius: radius,
               focusColor: AppColors.amber.withValues(alpha: .25),
               hoverColor: Colors.white.withValues(alpha: .12),
-              onTap: () =>
-                  controller.isOpen ? controller.close() : controller.open(),
-              child: const SizedBox(
+              onTap: widget.enabled
+                  ? () => controller.isOpen
+                        ? controller.close()
+                        : controller.open()
+                  : null,
+              child: SizedBox(
                 width: _moreSize,
                 height: _buttonHeight,
                 child: ExcludeSemantics(
                   child: Icon(
                     Icons.more_horiz,
                     size: 18,
-                    color: AppColors.text,
+                    color: widget.enabled
+                        ? AppColors.text
+                        : AppColors.textDisabled,
                   ),
                 ),
               ),
@@ -1005,16 +1140,25 @@ class SaveState extends StatelessWidget {
     required this.dirty,
     this.locked = false,
     this.onSave,
+    this.lockLabel,
+    this.lockAlert = false,
   });
 
   final bool dirty;
   final bool locked;
   final VoidCallback? onSave;
 
+  /// An action in progress holds the spec (SPEC-025 R6).
+  final String? lockLabel;
+  final bool lockAlert;
+
   static const _style = TextStyle(fontSize: 12, color: AppColors.textSecondary);
 
   /// Natural width, to decide the layout of the tabs line (R9).
   double naturalWidth(BuildContext context) {
+    if (lockLabel != null) {
+      return 14 + 5 + _textWidth(context, lockLabel!, _style) + 1;
+    }
     if (locked) {
       return 14 + 5 + _textWidth(context, 'Somente leitura', _style) + 1;
     }
@@ -1036,6 +1180,24 @@ class SaveState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (lockLabel != null) {
+      final color = lockAlert ? AppColors.amber : AppColors.textSecondary;
+      return Row(
+        key: const ValueKey('spec-save-state'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.lock_outline, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            lockLabel!,
+            key: const ValueKey('spec-action-lock'),
+            maxLines: 1,
+            softWrap: false,
+            style: _style.copyWith(color: color),
+          ),
+        ],
+      );
+    }
     if (locked || !dirty) {
       return Row(
         key: const ValueKey('spec-save-state'),

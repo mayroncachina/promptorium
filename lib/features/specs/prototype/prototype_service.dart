@@ -11,6 +11,7 @@ import '../../../core/claude/readonly_run.dart';
 import '../../../core/fs/dir_watcher.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../spec_action.dart';
 import '../spec_file.dart';
 import 'prototype_files.dart';
 import 'prototype_thumbnails.dart';
@@ -180,22 +181,24 @@ String prototypeVariationPrompt({
 }
 
 /// Runs the agent once and returns its structured answer. Injected so tests
-/// fake the CLI.
+/// fake the CLI. Completing [cancelled] stops the agent (SPEC-025 R9).
 typedef PrototypeAgent = Future<Object?> Function({
   required String cwd,
   required ClaudeOptions options,
   required String prompt,
+  Future<void>? cancelled,
 });
 
 final prototypeAgentProvider = Provider<PrototypeAgent>(
   (ref) =>
-      ({required cwd, required options, required prompt}) async =>
+      ({required cwd, required options, required prompt, cancelled}) async =>
           structuredOutput(
             await runReadOnlyClaude(
               ref,
               cwd: cwd,
               options: options,
               prompt: prompt,
+              cancelled: cancelled,
               timeout: prototypeTimeout,
               // Write rules are Claude's (other providers run read-only).
               providerId: 'claude',
@@ -263,11 +266,14 @@ class PrototypeService {
 
   final Ref _ref;
 
+  /// Completing [cancelled] stops the agent and throws
+  /// [SpecActionCancelled] (SPEC-025 R9).
   Future<PrototypeOutcome> generate(
     Workspace ws,
     Spec spec,
-    String specText,
-  ) async {
+    String specText, {
+    Future<void>? cancelled,
+  }) async {
     final dir = mockupDir(spec.code);
     final existing = await listScreens('${ws.path}/$dir');
     return _run(
@@ -276,6 +282,7 @@ class PrototypeService {
       job: const PrototypeJob(requirements: []),
       request: 'Gerar telas da spec',
       requirements: const [],
+      cancelled: cancelled,
       prompt: prototypeGeneratePrompt(
         code: spec.code,
         dir: dir,
@@ -333,7 +340,10 @@ class PrototypeService {
     required String request,
     required List<String> requirements,
     required String prompt,
+    Future<void>? cancelled,
   }) async {
+    var stopped = false;
+    cancelled?.then((_) => stopped = true);
     final jobs = _ref.read(prototypeJobsProvider.notifier);
     if (_ref.read(prototypeJobsProvider).containsKey(spec.id)) {
       throw const PrototypeException('Já há um pedido em andamento.');
@@ -355,7 +365,9 @@ class PrototypeService {
           cwd: ws.path,
           options: prototypeOptions(rel),
           prompt: prompt,
+          cancelled: cancelled,
         );
+        if (stopped) throw const SpecActionCancelled();
       } catch (e) {
         await _record(
           dir,
@@ -363,21 +375,20 @@ class PrototypeService {
             request: request,
             at: at,
             requirements: requirements,
-            answer: '$e',
+            answer: stopped ? 'Geração cancelada.' : '$e',
             failed: true,
           ),
           const {},
         );
+        if (stopped) {
+          // What the agent wrote before stopping is put back (R5: nothing
+          // changes) and the run is reported as cancelled.
+          await _restore(dir, before);
+          throw const SpecActionCancelled();
+        }
         rethrow;
       }
-      final restored = <String>[];
-      for (final MapEntry(:key, :value) in before.entries) {
-        final f = File('$dir/$key');
-        if (!await f.exists() || !listEquals(await f.readAsBytes(), value)) {
-          await f.writeAsBytes(value, flush: true);
-          restored.add(key);
-        }
-      }
+      final restored = await _restore(dir, before);
       final now = await listScreens(dir);
       final created = [
         for (final s in now)
@@ -417,6 +428,22 @@ class PrototypeService {
     } finally {
       jobs.finish(spec.id);
     }
+  }
+
+  /// Puts back the files of [before] the agent changed or removed.
+  Future<List<String>> _restore(
+    String dir,
+    Map<String, List<int>> before,
+  ) async {
+    final restored = <String>[];
+    for (final MapEntry(:key, :value) in before.entries) {
+      final f = File('$dir/$key');
+      if (!await f.exists() || !listEquals(await f.readAsBytes(), value)) {
+        await f.writeAsBytes(value, flush: true);
+        restored.add(key);
+      }
+    }
+    return restored;
   }
 
   Future<void> _record(

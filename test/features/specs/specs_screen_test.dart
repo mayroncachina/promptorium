@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,7 +12,10 @@ import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart'
     show SmallButton;
+import 'package:promptorium/features/specs/spec_action.dart';
+import 'package:promptorium/features/specs/spec_design.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
+import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
 import 'package:promptorium/features/specs/widgets/spec_header.dart'
     show SpecActionButton, SpecActionEmphasis;
@@ -23,6 +27,7 @@ import 'package:re_editor/re_editor.dart' show CodeEditor;
 import '../../helpers/test_db.dart';
 import '../prompt/prompt_test_utils.dart' show SilentConversationManager;
 import '../sessions/session_test_utils.dart';
+import 'spec_action_lock_test.dart' show FakeDesigner, otherSpec;
 import 'spec_file_test.dart' show sample;
 
 /// Real file IO does not run under FakeAsync: let it run, then pump, until
@@ -628,6 +633,118 @@ void main() {
       await settleIo(tester, until: () => design.evaluate().isNotEmpty);
       expect(design, findsOneWidget);
       semantics.dispose();
+    });
+  });
+
+  group('SPEC-025 R7', () {
+    Finder key(String k) => find.byKey(ValueKey(k));
+    FakeDesigner? designer;
+
+    Future<ProviderContainer> pumpDesign(WidgetTester tester) async {
+      designer = null;
+      File('${tmp.path}/specs/SPEC-003-outra.md').writeAsStringSync(otherSpec);
+      final c = await pump(
+        tester,
+        const Size(1920, 1000),
+        overrides: [
+          specDesignerProvider.overrideWith(
+            (ref) => designer ??= FakeDesigner(ref),
+          ),
+        ],
+      );
+      for (var i = 0; i < 5 && (designer?.calls.isEmpty ?? true); i++) {
+        await tester.tap(key('spec-design'));
+        await settleIo(
+          tester,
+          until: () => designer?.calls.isNotEmpty ?? false,
+        );
+      }
+      expect(designer!.calls, hasLength(1));
+      expect(key('spec-action-banner'), findsOneWidget);
+      return c;
+    }
+
+    // The spinners never settle: dialogs get a fixed time.
+    Future<void> settle(WidgetTester tester) async {
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    String editorText(WidgetTester tester) =>
+        tester.widget<CodeEditor>(find.byType(CodeEditor)).controller!.text;
+
+    testWidgets('choosing another spec during "Gerar design" asks first; '
+        '"Continuar aqui" and Esc keep the spec; the other option cancels '
+        'and opens the chosen one', (tester) async {
+      await pumpDesign(tester);
+      var cancelled = false;
+      designer!.calls.single.cancelled!.then((_) => cancelled = true);
+      final dialog = key('spec-leave-dialog');
+
+      await tester.tap(key('spec-item-SPEC-003'));
+      await settle(tester);
+      expect(dialog, findsOneWidget);
+      expect(find.text('Sair da SPEC-002 durante a geração?'), findsOneWidget);
+      expect(
+        find.text(
+          'O design ainda está sendo gerado. Se você abrir a SPEC-003 agora, '
+          'a geração é cancelada e a SPEC-002 não muda.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Cancelar geração e abrir SPEC-003'), findsOneWidget);
+      expect(find.text('Continuar aqui'), findsOneWidget);
+      // "Continuar aqui" is the default (focused) button.
+      expect(focusedIn(key('spec-leave-stay')), isTrue);
+      await tester.tap(key('spec-leave-stay'));
+      await settle(tester);
+      expect(dialog, findsNothing);
+      expect(cancelled, isFalse);
+      expect(editorText(tester), sample);
+      expect(key('spec-action-banner'), findsOneWidget);
+
+      // Esc closes the dialog like "Continuar aqui": the generation goes on.
+      await tester.tap(key('spec-item-SPEC-003'));
+      await settle(tester);
+      expect(dialog, findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await settle(tester);
+      expect(dialog, findsNothing);
+      expect(cancelled, isFalse);
+      expect(key('spec-action-banner'), findsOneWidget);
+
+      await tester.tap(key('spec-item-SPEC-003'));
+      await settle(tester);
+      await tester.tap(key('spec-leave-cancel-action'));
+      await settleIo(tester, until: () => editorText(tester) == otherSpec);
+      expect(cancelled, isTrue);
+      expect(editorText(tester), otherSpec);
+      expect(key('spec-action-banner'), findsNothing);
+      // The late answer goes nowhere.
+      designer!.next.complete('# resultado\n');
+      await settleIo(tester);
+      expect(editorText(tester), otherSpec);
+      expect(readSpec(tmp), sample);
+    });
+
+    testWidgets('leaving the Specs section during the generation asks too', (
+      tester,
+    ) async {
+      final c = await pumpDesign(tester);
+      final nav = c.read(navigationProvider.notifier)..go(AppSection.specs);
+      unawaited(nav.request(AppSection.tasks));
+      await settle(tester);
+      expect(find.text('Cancelar geração e abrir Quadro'), findsOneWidget);
+      await tester.tap(key('spec-leave-stay'));
+      await settle(tester);
+      expect(c.read(navigationProvider), AppSection.specs);
+      expect(key('spec-action-banner'), findsOneWidget);
+      unawaited(nav.request(AppSection.tasks));
+      await settle(tester);
+      await tester.tap(key('spec-leave-cancel-action'));
+      await settleIo(tester);
+      expect(c.read(navigationProvider), AppSection.tasks);
+      expect(c.read(specActionProvider), isNull);
     });
   });
 }

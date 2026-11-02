@@ -17,6 +17,7 @@ import '../prompt/conversation_manager.dart';
 import '../prompt/refine_origin.dart';
 import '../prompt/spec_from_answer.dart' show DiffOp, lineDiff;
 import '../project/project_config.dart';
+import 'spec_action.dart';
 import 'spec_design.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
@@ -26,6 +27,7 @@ import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
+import 'widgets/spec_action_banner.dart';
 import 'widgets/spec_header.dart';
 
 export 'widgets/spec_header.dart' show SpecViewMode;
@@ -168,6 +170,67 @@ Future<bool> showSpecConflictDialog(
   return keep ?? true;
 }
 
+/// "Sair da `código` durante a geração?" (SPEC-025 R7): true = cancel the
+/// generation and open [destination]; "Continuar aqui", Esc or closing the
+/// dialog stay (false).
+Future<bool> confirmLeaveDuringAction(
+  BuildContext context, {
+  required String code,
+  required SpecActionKind kind,
+  required String destination,
+  bool toSpec = true,
+}) async {
+  final leave = await showDialog<bool>(
+    context: context,
+    barrierColor: AppColors.scrim,
+    builder: (ctx) => AlertDialog(
+      key: const ValueKey('spec-leave-dialog'),
+      backgroundColor: AppColors.panel,
+      title: Text(
+        'Sair da $code durante a geração?',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Text(
+          '${kind.stillRunning} Se você '
+          '${toSpec ? 'abrir a $destination' : 'abrir $destination'} agora, a '
+          'geração é cancelada e a $code não muda.',
+          style: const TextStyle(fontSize: 13),
+        ),
+      ),
+      actions: [
+        OutlinedButton(
+          key: const ValueKey('spec-leave-cancel-action'),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.text,
+            side: const BorderSide(color: AppColors.border),
+          ),
+          child: Text('Cancelar geração e abrir $destination'),
+        ),
+        FilledButton(
+          key: const ValueKey('spec-leave-stay'),
+          autofocus: true,
+          onPressed: () => Navigator.of(ctx).pop(false),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.amber,
+            foregroundColor: AppColors.onAmber,
+          ),
+          child: const Text(
+            'Continuar aqui',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+  return leave ?? false;
+}
+
+/// Failure of an action shown above the editor (SPEC-025 R8).
+typedef SpecActionFailure = ({SpecActionKind kind, int specId, String cause});
+
 /// Choice of [showApproveChecksDialog].
 enum ApproveCheck { cancel, refine, assume, showWarnings, approve }
 
@@ -299,7 +362,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   String _saved = '';
   bool _missing = false;
   bool _loading = false;
-  bool _busy = false;
+
+  /// Last failed action (SPEC-025 R8), shown while its spec is open.
+  SpecActionFailure? _failure;
+  final _cancelFocus = FocusNode(debugLabel: 'spec-action-cancel');
+  late final SpecActionController _actions;
+  late final NavigationController _nav;
 
   /// Structure warnings of the editor text (SPEC-023 R8), recomputed
   /// [_lintDelay] after the last edit.
@@ -315,6 +383,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   void initState() {
     super.initState();
     _unsaved = ref.read(specUnsavedProvider.notifier);
+    _actions = ref.read(specActionProvider.notifier);
+    _nav = ref.read(navigationProvider.notifier);
+    _nav.leaveGuard = _guardLeave;
   }
 
   @override
@@ -332,10 +403,16 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         }
       });
     }
+    if (_nav.leaveGuard == _guardLeave) _nav.leaveGuard = null;
+    // Leaving the screen stops a long action: its result would have nowhere
+    // to go (R7).
+    final a = _actions.current;
+    if (a != null && a.kind.long && !a.cancel.isCompleted) a.cancel.complete();
     _lintTimer?.cancel();
     _controller?.removeListener(_onText);
     _controller?.dispose();
     _editorFocus.dispose();
+    _cancelFocus.dispose();
     super.dispose();
   }
 
@@ -424,6 +501,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   Future<Spec?> _save(Workspace ws, Spec spec) async {
     final c = _controller;
     if (c == null) return spec;
+    // R1: nothing is written while an action holds the spec.
+    if (_held(spec.id)) return null;
     try {
       final text = c.text;
       final saved = await ref.read(specServiceProvider).save(ws, spec, text);
@@ -443,8 +522,104 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   Future<void> _select(Spec spec) async {
     if (spec.id == _loadedSpecId) return;
+    // R7: a generation of the open spec asks first.
+    final a = _actions.current;
+    if (a != null && a.kind.long && a.specId == _loadedSpecId) {
+      final leave = await confirmLeaveDuringAction(
+        context,
+        code: a.specCode,
+        kind: a.kind,
+        destination: spec.code,
+      );
+      if (!leave || !mounted) return;
+      _actions.cancel();
+    }
     if (_dirty && !await _confirmDiscard()) return;
+    if (!mounted) return;
+    setState(() => _failure = null);
     ref.read(selectedSpecProvider.notifier).select(spec.id);
+  }
+
+  /// Leaving the Specs screen during a generation (R7).
+  Future<bool> _guardLeave(AppSection to) async {
+    final a = _actions.current;
+    if (!mounted || a == null || !a.kind.long) return true;
+    final leave = await confirmLeaveDuringAction(
+      context,
+      code: a.specCode,
+      kind: a.kind,
+      destination: to.navLabel,
+      toSpec: false,
+    );
+    if (leave) _actions.cancel();
+    return leave;
+  }
+
+  /// An action is running on [specId] (R1).
+  bool _held(int specId) => _actions.current?.specId == specId;
+
+  /// Runs [body] as [kind] on [spec] (R1–R8): the spec is held until it
+  /// ends; a cancel shows the R5 notice, a failure the R8 alert.
+  Future<void> _runAction(
+    SpecActionKind kind,
+    Spec spec,
+    Future<void> Function(SpecActionState a) body,
+  ) async {
+    final a = _actions.start(
+      kind,
+      specId: spec.id,
+      specCode: spec.code,
+      fromKeyboard:
+          FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
+    );
+    if (a == null) return;
+    if (mounted) setState(() => _failure = null);
+    if (kind.long && a.fromKeyboard) {
+      // R11: from the keyboard, the focus goes to "Cancelar geração".
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _cancelFocus.context != null) {
+          _cancelFocus.requestFocus();
+        }
+      });
+    }
+    try {
+      await body(a);
+    } on SpecActionCancelled {
+      _snack('Geração cancelada. A spec não foi alterada.');
+    } catch (e) {
+      if (a.cancelled) {
+        _snack('Geração cancelada. A spec não foi alterada.');
+      } else {
+        debugPrint('${kind.name} de ${spec.code}: $e');
+        if (mounted) {
+          setState(
+            () =>
+                _failure = (kind: kind, specId: spec.id, cause: errorCause(e)),
+          );
+        }
+      }
+    } finally {
+      _actions.finish(a);
+    }
+  }
+
+  /// [run], or [SpecActionCancelled] as soon as [a] is cancelled (R5: the
+  /// spec is released at once, even if the agent takes a moment to stop).
+  Future<T> _orCancel<T>(SpecActionState a, Future<T> run) => Future.any([
+    run,
+    a.cancelledFuture.then<T>((_) => throw const SpecActionCancelled()),
+  ]);
+
+  /// "Tentar de novo" (R8): the same action with the current text.
+  void _retry(Workspace ws, Spec spec, SpecActionKind kind) {
+    setState(() => _failure = null);
+    unawaited(switch (kind) {
+      SpecActionKind.design => _design(ws, spec),
+      SpecActionKind.approve => _approve(ws, spec),
+      SpecActionKind.clone => _clone(ws, spec),
+      SpecActionKind.refine => _refine(ws, spec),
+      SpecActionKind.screens => _generateScreens(ws, spec),
+    });
   }
 
   Future<bool> _confirmDiscard() async {
@@ -498,7 +673,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   /// trivial)" (F7).
   Future<void> _approve(Workspace ws, Spec spec) async {
     final c = _controller;
-    if (c == null || _busy) return;
+    if (c == null || _actions.current != null) return;
     var doc = SpecDocument.parse(c.text);
     final questions = doc.openQuestions;
     final warnings = lintSpec(c.text);
@@ -565,25 +740,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       if (choice == 'design') return _design(ws, spec);
       c.text = doc.withMeta(designWaived: true);
     }
-    setState(() => _busy = true);
-    try {
-      final r = await ref.read(specServiceProvider).approve(ws, spec, c.text);
-      if (!mounted) return;
+    if (!mounted || _controller != c) return;
+    final text = c.text;
+    await _runAction(SpecActionKind.approve, spec, (a) async {
+      final r = await ref.read(specServiceProvider).approve(ws, spec, text);
+      // R7: never applied to another spec.
+      if (!mounted || _loadedSpecId != spec.id || _controller == null) return;
       _saved = r.text;
-      c.text = r.text;
+      _controller!.text = r.text;
       ref.read(specDirtyProvider.notifier).set(false);
       _snack('${spec.code} aprovada.');
-    } catch (e) {
-      _snack('Falha ao aprovar: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    });
   }
 
   Future<void> _clone(Workspace ws, Spec spec) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
+    if (_actions.current != null) return;
+    await _runAction(SpecActionKind.clone, spec, (a) async {
       final rows = await ref.read(specStepsRepoProvider).bySpec(spec.id);
       final done = {
         for (final s in stepsOf(spec, rows))
@@ -594,37 +766,40 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           .cloneForChange(ws, spec, doneIds: done);
       ref.read(selectedSpecProvider.notifier).select(created.id);
       _snack('${created.code} criada a partir de ${spec.code}.');
-    } catch (e) {
-      _snack('Falha ao clonar: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    });
   }
 
   /// "Gerar design": the read-only planner writes `## Design` and
   /// `## Etapas` into the editor (saved by the user).
+  /// The spec is held meanwhile (SPEC-025 R1, R3).
   Future<void> _design(Workspace ws, Spec spec) async {
     final c = _controller;
-    if (c == null || _busy) return;
-    setState(() => _busy = true);
-    _snack('Gerando o design de ${spec.code}…');
-    try {
-      final text = await ref.read(specDesignerProvider).generate(ws, c.text);
-      if (!mounted) return;
-      c.text = text;
+    if (c == null || _actions.current != null) return;
+    final source = c.text;
+    final designer = ref.read(specDesignerProvider);
+    await _runAction(SpecActionKind.design, spec, (a) async {
+      final text = await _orCancel(
+        a,
+        designer.generate(ws, source, cancelled: a.cancelledFuture),
+      );
+      // R7: the result never goes to another spec.
+      if (!mounted || _loadedSpecId != spec.id || _controller == null) {
+        debugPrint(
+          'Gerar design: resultado de ${spec.code} descartado (a spec aberta '
+          'mudou).',
+        );
+        return;
+      }
+      _controller!.text = text;
       _snack('Design gerado. Revise e salve.');
-    } catch (e) {
-      _snack('Falha ao gerar o design: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    });
   }
 
+  /// Holds the spec only until the conversation opens.
   Future<void> _refine(Workspace ws, Spec spec) async {
-    if (_busy) return;
+    if (_actions.current != null) return;
     if (_dirty && await _save(ws, spec) == null) return;
-    setState(() => _busy = true);
-    try {
+    await _runAction(SpecActionKind.refine, spec, (a) async {
       final id = await ref
           .read(conversationManagerProvider.notifier)
           .create(
@@ -635,11 +810,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           );
       ref.read(selectedConversationProvider.notifier).select(id);
       ref.read(navigationProvider.notifier).go(AppSection.prompt);
-    } catch (e) {
-      _snack('Falha ao abrir a conversa: $e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    });
   }
 
   // --- protótipo (SPEC-022) -------------------------------------------------------
@@ -647,19 +818,19 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   PrototypeKey _protoKey(Workspace ws, Spec spec) =>
       (root: ws.path, code: spec.code);
 
-  /// "Gerar telas da spec" (R2).
+  /// "Gerar telas da spec" (R2); the spec is held meanwhile (SPEC-025 R9).
   Future<void> _generateScreens(Workspace ws, Spec spec) async {
     final c = _controller;
-    if (c == null) return;
-    _snack('Gerando as telas de ${spec.code}…');
-    try {
-      final r = await ref
-          .read(prototypeServiceProvider)
-          .generate(ws, spec, c.text);
+    if (c == null || _actions.current != null) return;
+    final text = c.text;
+    final service = ref.read(prototypeServiceProvider);
+    await _runAction(SpecActionKind.screens, spec, (a) async {
+      final r = await _orCancel(
+        a,
+        service.generate(ws, spec, text, cancelled: a.cancelledFuture),
+      );
       _snack(_outcomeText(r, 'Nenhuma tela nova.'));
-    } catch (e) {
-      _snack('Falha ao gerar as telas: $e');
-    }
+    });
   }
 
   /// "Enviar" of "Pedir ao Claude" (R7).
@@ -722,6 +893,58 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  /// The status strip of a long action (R3; in Protótipo the generation
+  /// card has it, R9) and the failure alert (R8), above [child].
+  Widget _withActionStrips({
+    required Workspace ws,
+    required Spec? spec,
+    required SpecActionState? action,
+    required bool proto,
+    required SpecActionFailure? failure,
+    required Widget child,
+  }) {
+    final strip =
+        spec != null &&
+        action != null &&
+        action.kind.long &&
+        !(proto && action.kind == SpecActionKind.screens);
+    // Always the same two children: the editor below is never remounted
+    // when a strip comes or goes (it would lose its scroll and focus).
+    // Tab goes strip → editor, in the visual order (R11).
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FocusTraversalOrder(
+            order: const NumericFocusOrder(1),
+            child: strip
+                ? SpecActionBanner(
+                    title: action.kind.title(spec.code),
+                    startedAt: action.startedAt,
+                    onCancel: _actions.cancel,
+                    cancelFocus: _cancelFocus,
+                  )
+                : failure != null && spec != null
+                ? SpecActionError(
+                    title: failure.kind.failure,
+                    cause: failure.cause,
+                    onRetry: () => _retry(ws, spec, failure.kind),
+                    onClose: () => setState(() => _failure = null),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          Expanded(
+            child: FocusTraversalOrder(
+              order: const NumericFocusOrder(2),
+              child: child,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- build ---------------------------------------------------------------------
 
   @override
@@ -778,6 +1001,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // Started specs are a record of what was delivered: changes go to a
     // clone ("Clonar para alterar").
     final locked = spec != null && spec.stage != SpecStage.backlog;
+    // SPEC-025 R1: an action in progress holds the spec too.
+    final action = ref.watch(specActionProvider);
+    final held = spec != null && action?.specId == spec.id;
+    final readOnly =
+        spec != null &&
+        specLocked(specId: spec.id, stageLocked: locked, action: action);
+    final failure = spec != null && _failure?.specId == spec.id
+        ? _failure
+        : null;
     final proto = _mode == SpecViewMode.prototype && spec != null;
     final protoState = proto
         ? ref.watch(prototypeScreensProvider(_protoKey(ws, spec)))
@@ -820,7 +1052,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   onMode: (m) => setState(() => _mode = m),
                   showSaveState: ready,
                   dirty: _dirty,
-                  onSave: ready && !locked ? () => _save(ws, spec) : null,
+                  onSave: ready && !readOnly ? () => _save(ws, spec) : null,
+                  lockLabel: held ? action!.kind.lockLabel : null,
+                  lockAlert: held && action!.kind.long,
                   zoom: const ZoomControl(editorKey: SpecsScreen.editorKey),
                   actions: spec == null
                       ? null
@@ -831,16 +1065,21 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           archived: spec.status == SpecStatus.archived,
                           unavailableReason: !ready
                               ? 'Aguarde a spec carregar.'
-                              : _busy
-                              ? 'Aguarde a ação em andamento terminar.'
                               : null,
+                          // R2: the running action shows its gerund label;
+                          // one on another spec only disables these.
+                          runningId: action == null
+                              ? null
+                              : held
+                              ? action.kind.headerId
+                              : '',
+                          runningLabel: held ? action!.kind.running : null,
                           generateReason: protoBusy
                               ? 'As telas desta spec já estão sendo geradas.'
                               : null,
                           onArchive:
-                              !_busy &&
-                                  (canArchiveSpec(spec) ||
-                                      spec.status == SpecStatus.archived)
+                              (canArchiveSpec(spec) ||
+                                  spec.status == SpecStatus.archived)
                               ? () => archiveSpecAction(
                                   context,
                                   ref,
@@ -848,22 +1087,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                                   restore: spec.status == SpecStatus.archived,
                                 )
                               : null,
-                          onDelete: !_busy && canDeleteSpec(spec)
+                          onDelete: canDeleteSpec(spec)
                               ? () => deleteSpecAction(context, ref, spec)
                               : null,
-                          onClone: ready && locked && !_busy
+                          onClone: ready && locked && action == null
                               ? () => _clone(ws, spec)
                               : null,
-                          onRefine: ready && !locked && !_busy
+                          onRefine: ready && !locked && action == null
                               ? () => _refine(ws, spec)
                               : null,
-                          onDesign: ready && !locked && !_busy
+                          onDesign: ready && !locked && action == null
                               ? () => _design(ws, spec)
                               : null,
                           onApprove:
                               ready &&
                                   !locked &&
-                                  !_busy &&
+                                  action == null &&
                                   doc.status != SpecStatus.approved
                               ? () => _approve(ws, spec)
                               : null,
@@ -884,73 +1123,84 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                                           ?.file,
                                     )
                               : null,
-                          onGenerate: proto && ready && !protoBusy
+                          onGenerate:
+                              proto && ready && !protoBusy && action == null
                               ? () => _generateScreens(ws, spec)
                               : null,
                         ),
                 ),
-                body: spec == null
-                    ? const Center(
-                        child: Text(
-                          'Crie uma spec com "Nova spec".',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
+                body: _withActionStrips(
+                  ws: ws,
+                  spec: spec,
+                  action: held ? action : null,
+                  proto: proto,
+                  failure: failure,
+                  child: spec == null
+                      ? const Center(
+                          child: Text(
+                            'Crie uma spec com "Nova spec".',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        )
+                      : !ready
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : proto
+                      ? (protoUi!.comparing != null &&
+                                protoState!
+                                    .variationsOf(protoUi.comparing!)
+                                    .isNotEmpty
+                            ? PrototypeCompare(
+                                ws: ws,
+                                spec: spec,
+                                approved: approvedScreens,
+                                onApprove: readOnly
+                                    ? null
+                                    : (x) => _approveScreen(ws, spec, x),
+                                onViewSpec: () {
+                                  ref
+                                      .read(
+                                        prototypeUiProvider(spec.id).notifier,
+                                      )
+                                      .compare(null);
+                                  setState(() => _mode = SpecViewMode.preview);
+                                },
+                              )
+                            : PrototypeCanvas(ws: ws, spec: spec))
+                      : CallbackShortcuts(
+                          bindings: {
+                            const SingleActivator(
+                              LogicalKeyboardKey.keyS,
+                              control: true,
+                            ): () =>
+                                _save(ws, spec),
+                          },
+                          child: _EditorBody(
+                            mode: _mode,
+                            controller: _controller!,
+                            text: text,
+                            missing: _missing,
+                            onSave: () => _save(ws, spec),
+                            readOnly: readOnly,
+                            dimmed: held,
+                            focusNode: _editorFocus,
+                            warnings: locked ? const [] : _warnings,
+                            warningsOpen: _warningsOpen,
+                            onToggleWarnings: () =>
+                                setState(() => _warningsOpen = !_warningsOpen),
+                            onWarning: _goToLine,
+                            lockedBanner: locked
+                                ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
+                                      'não é editável. Use "Clonar para alterar" '
+                                      'ou mova o cartão de volta ao Backlog.'
+                                : null,
                           ),
                         ),
-                      )
-                    : !ready
-                    ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : proto
-                    ? (protoUi!.comparing != null &&
-                              protoState!
-                                  .variationsOf(protoUi.comparing!)
-                                  .isNotEmpty
-                          ? PrototypeCompare(
-                              ws: ws,
-                              spec: spec,
-                              approved: approvedScreens,
-                              onApprove: locked
-                                  ? null
-                                  : (x) => _approveScreen(ws, spec, x),
-                              onViewSpec: () {
-                                ref
-                                    .read(prototypeUiProvider(spec.id).notifier)
-                                    .compare(null);
-                                setState(() => _mode = SpecViewMode.preview);
-                              },
-                            )
-                          : PrototypeCanvas(ws: ws, spec: spec))
-                    : CallbackShortcuts(
-                        bindings: {
-                          const SingleActivator(
-                            LogicalKeyboardKey.keyS,
-                            control: true,
-                          ): () =>
-                              _save(ws, spec),
-                        },
-                        child: _EditorBody(
-                          mode: _mode,
-                          controller: _controller!,
-                          text: text,
-                          missing: _missing,
-                          onSave: () => _save(ws, spec),
-                          readOnly: locked,
-                          focusNode: _editorFocus,
-                          warnings: locked ? const [] : _warnings,
-                          warningsOpen: _warningsOpen,
-                          onToggleWarnings: () =>
-                              setState(() => _warningsOpen = !_warningsOpen),
-                          onWarning: _goToLine,
-                          lockedBanner: locked
-                              ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
-                                    'não é editável. Use "Clonar para alterar" '
-                                    'ou mova o cartão de volta ao Backlog.'
-                              : null,
-                        ),
-                      ),
+                ),
               ),
             ),
             SizedBox(
@@ -1015,7 +1265,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                                   workspacePath: ws.path,
                                   subagents: doc.subagents,
                                   requirements: doc.requirements,
-                                  locked: locked,
+                                  locked: readOnly,
                                   onChange: (list) {
                                     _controller!.text = SpecDocument.parse(
                                       _controller!.text,
@@ -1040,12 +1290,24 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           workspace: ws,
           specs: allSpecs,
           selected: spec,
-          canVerify: !_dirty && !_busy,
+          canVerify: !_dirty && action == null,
           onUpdated: () {
-            if (spec != null && !_dirty) _load(ws, spec);
+            if (spec != null && !_dirty && !held) _load(ws, spec);
           },
         ),
-        Expanded(child: content),
+        Expanded(
+          // R5: Esc cancels a generation (local to the screen, not global).
+          // Always wrapped (no bindings when idle): the subtree is not
+          // remounted when an action starts.
+          child: CallbackShortcuts(
+            bindings: {
+              if (held && action!.kind.long)
+                const SingleActivator(LogicalKeyboardKey.escape):
+                    _actions.cancel,
+            },
+            child: content,
+          ),
+        ),
       ],
     );
   }
@@ -1078,6 +1340,7 @@ class _EditorBody extends StatelessWidget {
     required this.missing,
     required this.onSave,
     this.readOnly = false,
+    this.dimmed = false,
     this.lockedBanner,
     this.focusNode,
     this.warnings = const [],
@@ -1095,6 +1358,9 @@ class _EditorBody extends StatelessWidget {
   final VoidCallback? onToggleWarnings;
   final ValueChanged<SpecWarning>? onWarning;
   final bool readOnly;
+
+  /// Held by an action (SPEC-025 R4).
+  final bool dimmed;
   final String? lockedBanner;
   final SpecViewMode mode;
   final CodeLineEditingController controller;
@@ -1112,6 +1378,7 @@ class _EditorBody extends StatelessWidget {
       wordWrap: true,
       onSave: onSave,
       readOnly: readOnly,
+      dimmed: dimmed,
       focusNode: focusNode,
       hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );

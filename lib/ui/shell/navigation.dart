@@ -102,6 +102,18 @@ class NavigationController extends Notifier<AppSection> {
     return AppSection.values.asNameMap()[saved] ?? AppSection.home;
   }
 
+  /// Asked before [request] leaves the current section (SPEC-025 R7: a
+  /// generation in progress on the Specs screen); false stays.
+  Future<bool> Function(AppSection to)? leaveGuard;
+
+  /// Goes to [section] after [leaveGuard] agrees (sidebar, palette,
+  /// shortcuts).
+  Future<void> request(AppSection section) async {
+    final guard = leaveGuard;
+    if (guard != null && section != state && !await guard(section)) return;
+    go(section);
+  }
+
   void go(AppSection section) {
     state = section;
     ref
