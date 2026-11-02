@@ -118,6 +118,7 @@ class SpecHeaderState {
     this.onGenerate,
     this.onArchive,
     this.onDelete,
+    this.onAnswer,
     this.unavailableReason,
     this.compareReason,
     this.generateReason,
@@ -148,6 +149,10 @@ class SpecHeaderState {
   final VoidCallback? onArchive;
   final VoidCallback? onDelete;
 
+  /// "Responder perguntas" in "Mais ações" (SPEC-028 R6); null = the spec
+  /// has no open questions (the item does not appear).
+  final VoidCallback? onAnswer;
+
   /// Why refine/design/approve/clone are disabled (loading, busy).
   final String? unavailableReason;
   final String? compareReason;
@@ -169,6 +174,9 @@ const refineTooltip =
     'critérios a partir do que você já tem.';
 const designTooltip = 'Escreve a seção Design a partir do código atual.';
 const approveTooltip = 'Marca a spec como pronta para virar etapas no Quadro.';
+const answerTooltip =
+    'Responde as perguntas em aberto uma por vez, com opções, e revisa o que '
+    'muda na spec antes de salvar.';
 const cloneTooltip =
     'A execução já começou; crie uma cópia em rascunho para mudar.';
 
@@ -289,6 +297,16 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
         tooltip: approveTooltip,
         onTap: s.onApprove,
         unavailableReason: why,
+      ),
+    if (s.onAnswer != null)
+      SpecAction(
+        id: 'answer',
+        keyName: 'spec-answer-questions',
+        label: 'Responder perguntas',
+        icon: Icons.help_outline,
+        emphasis: SpecActionEmphasis.menu,
+        tooltip: answerTooltip,
+        onTap: s.onAnswer,
       ),
     ...menu,
   ];

@@ -13,6 +13,8 @@ import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart'
     show SmallButton;
 import 'package:promptorium/features/specs/spec_action.dart';
+import 'package:promptorium/features/specs/spec_answers.dart'
+    show specQuestionOptionsProvider;
 import 'package:promptorium/features/specs/spec_design.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
@@ -35,6 +37,7 @@ import 'package:promptorium/features/specs/prototype/prototype_thumbnails.dart';
 import 'spec_action_lock_test.dart' show FakeDesigner, otherSpec;
 import 'prototype_thumbnails_test.dart' show FakeBrowser;
 import 'spec_file_test.dart' show sample;
+import 'spec_questions_panel_test.dart' show FakeQuestionOptions;
 
 /// Real file IO does not run under FakeAsync: let it run, then pump, until
 /// [until] holds (up to 15 s of real time: the full suite runs files in
@@ -93,7 +96,8 @@ bool focusedIn(Finder target) {
       .isNotEmpty;
 }
 
-/// A spec without structure warnings, with two open questions and no Design.
+/// A spec without structure warnings, with two open questions (one with a
+/// suggestion, SPEC-028 R1) and no Design.
 const questionsSpec = '''---
 id: SPEC-002
 status: rascunho
@@ -111,8 +115,9 @@ status: rascunho
 
 ## Perguntas em aberto
 
-1. Vale para o quadro?
-2. E no grafo?
+- P1 · Vale para o quadro?
+  - Sugestão: sim, como na lista.
+- P2 · E no grafo?
 ''';
 
 void main() {
@@ -465,15 +470,22 @@ void main() {
     void writeSpec(String text) =>
         File('${tmp.path}/specs/SPEC-002-sessoes.md').writeAsStringSync(text);
 
-    testWidgets('R6, R7: open questions come before the Design dialog; '
-        'Cancelar keeps the file; "Aprovar assumindo premissas" moves them '
-        'to Premissas with the date and approves', (tester) async {
+    testWidgets('R6, R7 (SPEC-028 R4, R5): open questions come before the '
+        'Design dialog; Cancelar keeps the file; "Aprovar com as sugestões" '
+        'moves them to Premissas with the date and approves', (tester) async {
       writeSpec(questionsSpec);
       await pump(tester, const Size(1440, 900));
       await tapApprove(tester, checksDialog);
-      expect(find.text('A spec tem 2 perguntas em aberto'), findsOneWidget);
-      expect(find.text('1. Vale para o quadro?'), findsOneWidget);
-      expect(find.text('2. E no grafo?'), findsOneWidget);
+      expect(find.text('A SPEC-002 tem 2 perguntas em aberto'), findsOneWidget);
+      expect(find.text('P1 Vale para o quadro?'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Sugestão: sim, como na lista.'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('P2 E no grafo?'), findsOneWidget);
       expect(find.byKey(const ValueKey('spec-no-design-dialog')), findsNothing);
       expect(find.byKey(const ValueKey('spec-approve-warnings')), findsNothing);
       await tester.tap(
@@ -503,33 +515,121 @@ void main() {
         saved,
         contains(
           '## Premissas\n\n'
-          '- (sem resposta, aceita em $day) Vale para o quadro?\n'
-          '- (sem resposta, aceita em $day) E no grafo?\n\n'
+          '- (assumida em $day) P1 · Vale para o quadro? → sim, como na '
+          'lista.\n'
+          '- (sem resposta, aceita em $day) P2 · E no grafo?\n\n'
           '## Critérios de aceite',
         ),
       );
       expect(saved, endsWith('## Perguntas em aberto\n'));
     });
 
-    testWidgets('R6: "Refinar com IA" in the questions dialog opens the '
-        'refine conversation of the spec', (tester) async {
-      writeSpec(questionsSpec);
-      final manager = SilentConversationManager();
-      final c = await pump(
+    testWidgets('SPEC-028 R4: 4 questions with their suggestions, the '
+        'warnings by name and Cancelar / "Aprovar com as sugestões" / '
+        '"Responder perguntas" (no "Refinar com IA"); "Responder perguntas" '
+        'opens the panel', (tester) async {
+      writeSpec(
+        questionsSpec
+            .replaceFirst(
+              '- R1 · Quando abrir, o sistema deve mostrar as sessões',
+              '- R1 · Quando abrir, o sistema deve mostrar as sessões\n'
+                  '- R2 · Quando fechar, o sistema deve salvar',
+            )
+            .replaceFirst(
+              '- P2 · E no grafo?\n',
+              '- P2 · E no grafo?\n'
+                  '  - Sugestão: não.\n'
+                  '3. E no terminal?\n'
+                  '4. Sugestão: só no quadro.\n'
+                  '- P4 · E no mapa?\n',
+            ),
+      );
+      await pump(
         tester,
         const Size(1440, 900),
-        overrides: [conversationManagerProvider.overrideWith(() => manager)],
+        overrides: [
+          specQuestionOptionsProvider.overrideWith(FakeQuestionOptions.new),
+        ],
       );
       await tapApprove(tester, checksDialog);
-      await tester.tap(find.byKey(const ValueKey('spec-approve-refine')));
-      await settleIo(tester, until: () => manager.sent.isNotEmpty);
-      final conv = await tester.runAsync(
-        () => c.read(conversationsRepoProvider).getById(manager.sent.single.$1),
+      expect(find.text('A SPEC-002 tem 4 perguntas em aberto'), findsOneWidget);
+      for (final id in ['P1', 'P2', 'P3', 'P4']) {
+        expect(
+          find.byKey(ValueKey('spec-approve-question-$id')),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Sugestão: não.'),
+        ),
+        findsOneWidget,
       );
-      expect(conv!.mode, PromptMode.refine.name);
-      expect(conv.refineSpecCode, 'SPEC-002');
-      expect(manager.sent.single.$2, contains('"Perguntas em aberto"'));
-      expect(readSpec(tmp), questionsSpec);
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Sugestão: só no quadro.'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('spec-approve-suggestion-P4')),
+        findsNothing,
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('spec-approve-warnings')))
+            .data,
+        'Há também 1 aviso de estrutura: R2 sem critério de aceite.',
+      );
+      expect(
+        find.descendant(of: checksDialog, matching: find.text('Cancelar')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: checksDialog, matching: find.text('Esc')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Aprovar com as sugestões'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Responder perguntas'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Refinar com IA'), findsOneWidget); // the header's
+      expect(
+        find.descendant(
+          of: checksDialog,
+          matching: find.text('Refinar com IA'),
+        ),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('spec-approve-refine')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('spec-approve-show-warnings')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const ValueKey('spec-approve-answer')));
+      final panel = find.byKey(const ValueKey('spec-questions-panel'));
+      await settleIo(tester, until: () => panel.evaluate().isNotEmpty);
+      expect(panel, findsOneWidget);
+      expect(find.byKey(const ValueKey('spec-no-design-dialog')), findsNothing);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('spec-questions-subtitle')))
+            .data,
+        'SPEC-002, pergunta 1 de 4',
+      );
+      expect(readSpec(tmp), contains('3. E no terminal?'));
     });
 
     testWidgets('R8, R9: the warnings strip follows the editor without '

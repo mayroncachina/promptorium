@@ -134,4 +134,12 @@ void main() {
       expect(validateCommand('Com Espaço'), isNotNull);
     });
   });
+
+  test('SPEC-028 R1: /spec asks for "- P<n> · …" with the suggestion in a '
+      'subitem', () {
+    final spec = defaultSavedPrompts.firstWhere((p) => p.command == 'spec');
+    expect(spec.body, contains('"Perguntas em aberto"'));
+    expect(spec.body, contains('"- P<n> · <pergunta>"'));
+    expect(spec.body, contains('"  - Sugestão: <texto>"'));
+  });
 }

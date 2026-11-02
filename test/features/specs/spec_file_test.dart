@@ -161,17 +161,22 @@ id: SPEC-009
 - A terceira?
 <!-- - não é pergunta -->
 ''';
-      expect(SpecDocument.parse(text).openQuestions, [
+      expect(SpecDocument.parse(text).openQuestions.map((q) => q.text), [
         'A primeira continua aqui?',
         'A segunda?',
         'A terceira?',
+      ]);
+      expect(SpecDocument.parse(text).openQuestions.map((q) => q.id), [
+        'P1',
+        'P2',
+        'P3',
       ]);
       expect(SpecDocument.parse(sample).openQuestions, isEmpty);
     });
 
     test('withAssumptions: questions go to Premissas (created before the '
         'criteria) with the date; the questions section is left empty '
-        '(SPEC-023 R7)', () {
+        '(SPEC-023 R7, SPEC-028 R5 without suggestion)', () {
       const text = '''---
 id: SPEC-009
 ---
@@ -199,8 +204,9 @@ id: SPEC-009
             .replaceFirst(
               '## Critérios de aceite',
               '## Premissas\n\n'
-                  '- (sem resposta, aceita em 2026-10-04) Vale para o quadro?\n'
-                  '- (sem resposta, aceita em 2026-10-04) E no grafo?\n\n'
+                  '- (sem resposta, aceita em 2026-10-04) P1 · Vale para o '
+                  'quadro?\n'
+                  '- (sem resposta, aceita em 2026-10-04) P2 · E no grafo?\n\n'
                   '## Critérios de aceite',
             )
             .replaceFirst(
@@ -224,9 +230,9 @@ id: SPEC-009
         DateTime(2026, 10, 5),
       );
       expect(SpecDocument.parse(twice).section('Premissas')!.split('\n'), [
-        '- (sem resposta, aceita em 2026-10-04) Vale para o quadro?',
-        '- (sem resposta, aceita em 2026-10-04) E no grafo?',
-        '- (sem resposta, aceita em 2026-10-05) Mais uma?',
+        '- (sem resposta, aceita em 2026-10-04) P1 · Vale para o quadro?',
+        '- (sem resposta, aceita em 2026-10-04) P2 · E no grafo?',
+        '- (sem resposta, aceita em 2026-10-05) P1 · Mais uma?',
       ]);
       expect(twice, contains('Mais uma?\n\n## Critérios de aceite'));
     });
@@ -580,4 +586,219 @@ depende-de: [SPEC-001]
     expect(c[2].requirements, isEmpty);
     expect(parseCriteria('## Criterios\n- [ ] sem acento'), hasLength(1));
   });
+
+  group('SPEC-028', () {
+    test('R1: the template, the refine prompt and /spec ask for '
+        '"- P<n> · …" with "- Sugestão:" in a subitem', () {
+      final t = newSpecMarkdown(code: 'SPEC-004', title: 'Kanban');
+      expect(t, contains('- P1 · <pergunta>\n  - Sugestão: '));
+      // The hint is a comment: not a question.
+      expect(SpecDocument.parse(t).openQuestions, isEmpty);
+      expect(openQuestionsFormatHint, contains('"- P<n> · <pergunta>"'));
+      expect(openQuestionsFormatHint, contains('"  - Sugestão: <texto>"'));
+      final p = refineSpecPrompt(
+        const Spec(
+          id: 1,
+          workspaceId: 1,
+          code: 'SPEC-002',
+          title: 't',
+          status: SpecStatus.draft,
+          path: 'specs/SPEC-002-sessoes.md',
+          stage: SpecStage.backlog,
+          requirements: [],
+          dependsOn: [],
+          autoAdvance: true,
+          reviewRounds: 0,
+          gateResends: 0,
+          rejectedHunks: 0,
+        ),
+      );
+      expect(p, contains(openQuestionsFormatHint));
+    });
+
+    test('R2: 4 questions with 4 numbered suggestions (old format) are 4 '
+        'questions with a suggestion; the suggestion lines are reported', () {
+      final d = SpecDocument.parse(oldFormatSpec);
+      final scan = d.openQuestionsScan;
+      expect(scan.questions, hasLength(4));
+      expect(scan.questions.map((q) => q.id), ['P1', 'P2', 'P3', 'P4']);
+      expect(
+        scan.questions.first.text,
+        'Como o usuário adiciona ou remove máquinas de um grupo já criado?',
+      );
+      expect(
+        scan.questions.first.suggestion,
+        'reaproveitar a seleção na tabela, com "Agrupar".',
+      );
+      expect(
+        scan.questions.last.suggestion,
+        'não; as máquinas voltam para "Sem grupo".',
+      );
+      // Lines 11, 13, 15 and 17 of the file (1-based).
+      expect(scan.suggestionLines, [11, 13, 15, 17]);
+      expect(scan.offFormat, isTrue);
+    });
+
+    test('R1, R2: the new format, wrapped lines, P<n> kept, "Resposta:" and '
+        '"Opções:" items not counted', () {
+      final d = SpecDocument.parse(newFormatSpec);
+      final scan = d.openQuestionsScan;
+      expect(scan.offFormat, isFalse);
+      expect(scan.questions, const [
+        OpenQuestion(
+          id: 'P1',
+          text:
+              'Como adicionar máquinas a um grupo já criado: pela seleção '
+              'ou pelo menu?',
+          suggestion: 'pela seleção na tabela, com "Agrupar".',
+        ),
+        OpenQuestion(id: 'P2', text: 'O filtro deve ser lembrado?'),
+        OpenQuestion(
+          id: 'P4',
+          text: 'Excluir um grupo apaga as máquinas?',
+          suggestion: 'não; elas voltam para "Sem grupo".',
+        ),
+      ]);
+      // Old format with a "Resposta:" item: not a question either.
+      final other = SpecDocument.parse(
+        '# X\n\n## Perguntas em aberto\n\n- Uma?\n- Resposta: sim\n'
+        '- Opções: a, b\n',
+      );
+      expect(other.openQuestions.map((q) => q.text), ['Uma?']);
+      expect(other.openQuestionsScan.suggestionLines, [6, 7]);
+    });
+
+    test('R3: "Corrigir formato" rewrites the section in the R1 format '
+        'without changing the texts', () {
+      final d = SpecDocument.parse(oldFormatSpec);
+      final out = d.withOpenQuestions(d.openQuestions);
+      expect(
+        out,
+        '${oldFormatSpec.substring(0, oldFormatSpec.indexOf('## Perguntas'))}'
+        '## Perguntas em aberto\n\n'
+        '- P1 · Como o usuário adiciona ou remove máquinas de um grupo '
+        'já criado?\n'
+        '  - Sugestão: reaproveitar a seleção na tabela, com '
+        '"Agrupar".\n'
+        '- P2 · O filtro de grupo deve ser lembrado entre sessões?\n'
+        '  - Sugestão: voltar para "All hosts" ao recarregar.\n'
+        '- P3 · Ao agrupar máquinas de outro grupo: mover, confirmar '
+        'ou recusar?\n'
+        '  - Sugestão: pedir confirmação, listando as máquinas que '
+        'mudam.\n'
+        '- P4 · Excluir um grupo apaga as máquinas dele?\n'
+        '  - Sugestão: não; as máquinas voltam para "Sem grupo".\n',
+      );
+      final back = SpecDocument.parse(out);
+      expect(back.openQuestions, d.openQuestions);
+      expect(back.openQuestionsScan.offFormat, isFalse);
+    });
+
+    test('R5: "Aprovar com as sugestões" writes the question with its '
+        'suggestion and the date; without one, "sem resposta"', () {
+      final d = SpecDocument.parse(newFormatSpec);
+      final out = d.withAssumptions(d.openQuestions, DateTime(2026, 11, 1));
+      final back = SpecDocument.parse(out);
+      expect(back.openQuestions, isEmpty);
+      expect(back.section('Premissas')!.split('\n'), [
+        '- (assumida em 2026-11-01) P1 · Como adicionar máquinas a um grupo '
+            'já criado: pela seleção ou pelo menu? → pela seleção na tabela, '
+            'com "Agrupar".',
+        '- (sem resposta, aceita em 2026-11-01) P2 · O filtro deve ser '
+            'lembrado?',
+        '- (assumida em 2026-11-01) P4 · Excluir um grupo apaga as máquinas? '
+            '→ não; elas voltam para "Sem grupo".',
+      ]);
+      expect(out, contains('## Premissas\n\n- (assumida'));
+      expect(
+        out.indexOf('## Premissas'),
+        lessThan(out.indexOf('## Critérios')),
+      );
+    });
+
+    test('R10: the answers go to Decisões (created before the questions) '
+        'with the date; only the answered questions leave the list', () {
+      final d = SpecDocument.parse(newFormatSpec);
+      final out = d.withAnswers({
+        'P1': 'Seleção na tabela e menu da linha',
+        'P4': '  As máquinas\n voltam para "Sem grupo"  ',
+        'P2': '',
+      }, DateTime(2026, 11, 1));
+      final back = SpecDocument.parse(out);
+      expect(back.section('Decisões')!.split('\n'), [
+        '- P1 · Seleção na tabela e menu da linha (2026-11-01)',
+        '- P4 · As máquinas voltam para "Sem grupo" (2026-11-01)',
+      ]);
+      expect(back.openQuestions, const [
+        OpenQuestion(id: 'P2', text: 'O filtro deve ser lembrado?'),
+      ]);
+      expect(
+        out,
+        contains(
+          '(2026-11-01)\n\n## Perguntas em aberto\n\n'
+          '- P2 · O filtro deve ser lembrado?\n',
+        ),
+      );
+      expect(out, endsWith('- P2 · O filtro deve ser lembrado?\n'));
+      expect(back.status, SpecStatus.draft);
+      // An existing Decisões section gets the new items at its end.
+      final again = back.withAnswers({'P2': 'Não'}, DateTime(2026, 11, 2));
+      final twice = SpecDocument.parse(again);
+      expect(
+        twice.section('Decisões')!.split('\n').last,
+        '- P2 · Não (2026-11-02)',
+      );
+      expect(twice.openQuestions, isEmpty);
+      // Nothing answered: the text stays.
+      expect(d.withAnswers({'P2': ' '}, DateTime(2026, 11, 1)), newFormatSpec);
+    });
+  });
 }
+
+/// Section of SPEC-028's case: 4 questions, each suggestion a numbered item.
+const oldFormatSpec = '''---
+id: SPEC-012
+status: rascunho
+---
+
+# Grupos de máquinas
+
+## Perguntas em aberto
+
+1. Como o usuário adiciona ou remove máquinas de um grupo já criado?
+2. Sugestão: reaproveitar a seleção na tabela, com "Agrupar".
+3. O filtro de grupo deve ser lembrado entre sessões?
+4. Sugestão: voltar para "All hosts" ao recarregar.
+5. Ao agrupar máquinas de outro grupo: mover, confirmar ou recusar?
+6. Sugestão: pedir confirmação, listando as máquinas que mudam.
+7. Excluir um grupo apaga as máquinas dele?
+8. Sugestão: não; as máquinas voltam para "Sem grupo".
+''';
+
+/// The R1 format.
+const newFormatSpec = '''---
+id: SPEC-012
+status: rascunho
+---
+
+# Grupos de máquinas
+
+## Requisitos
+
+- R1 · Quando agrupar, o sistema deve mostrar o grupo
+
+## Critérios de aceite
+
+- [ ] Agrupa [R1] verificar: true
+
+## Perguntas em aberto
+
+<!-- Dúvidas sem resposta. -->
+- P1 · Como adicionar máquinas a um grupo já criado:
+  pela seleção ou pelo menu?
+  - Sugestão: pela seleção na tabela,
+    com "Agrupar".
+- P2 · O filtro deve ser lembrado?
+- P4 · Excluir um grupo apaga as máquinas?
+  - Sugestão: não; elas voltam para "Sem grupo".
+''';

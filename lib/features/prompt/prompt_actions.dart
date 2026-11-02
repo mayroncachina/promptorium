@@ -9,6 +9,7 @@ import '../../data/repos/specs_repo.dart';
 import '../sessions/session_manager.dart' show slugify;
 import '../sessions/timeline.dart';
 import '../project/project_config.dart';
+import '../specs/spec_file.dart' show openQuestionsFormatHint;
 import '../specs/spec_service.dart' show nextSpecCode;
 
 // --- transcript ----------------------------------------------------------------
@@ -276,7 +277,7 @@ const defaultSavedPrompts = <SavedPromptSeed>[
         '## Requisitos (lista numerada; cada item verificável)\n'
         '## Fora do escopo\n## Critérios de aceite\n## Perguntas em aberto\n'
         'Seja conciso e não invente detalhes técnicos que não foram dados — '
-        'coloque-os em "Perguntas em aberto".\n\n'
+        'coloque-os em "Perguntas em aberto", $openQuestionsFormatHint.\n\n'
         'Ideia: ',
   ),
   (

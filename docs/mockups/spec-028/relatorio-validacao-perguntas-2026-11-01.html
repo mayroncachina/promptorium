@@ -1,0 +1,20 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Validação · SPEC-028 Responder as perguntas em aberto</title>
+<style>body{font-family:system-ui,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;color:#1d1f23;line-height:1.5}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{background:#f1f2f5}</style></head><body>
+<h1>Validação dos layouts · SPEC-028 Responder as perguntas em aberto</h1>
+<p>Canvas: <a href="https://claude.ai/artifact/34u61ZSh51CmZtgncnaVHv">Promptorium · Responder as perguntas da spec</a>. Modo correção, meta 90, escopo app (janela mínima 1100×700), um avaliador independente por artboard em cada rodada. Hallmark 4f6a46c · ui-ux-pro-max 9a3f14f. 2026-11-01.</p>
+<h2>Notas</h2><table><tr><th>Artboard</th><th>v0</th><th>v1</th><th>Decisão do ciclo (v1)</th><th>FAILs v0</th><th>FAILs v1</th></tr><tr><td>1 · Aprovar com perguntas em aberto</td><td>95</td><td>95</td><td>meta atingida</td><td>20, 73</td><td>20, 73</td></tr><tr><td>2 · Sessão: uma pergunta por vez</td><td>91</td><td>94</td><td>meta atingida</td><td>20, 73</td><td>20</td></tr><tr><td>3 · Revisar as respostas</td><td>92</td><td>96</td><td>meta atingida</td><td>20</td><td>20</td></tr><tr><td>4 · O que muda na spec</td><td>95</td><td>93</td><td>revertida</td><td>20, 73</td><td>20, 73</td></tr><tr><td>5 · Sugestões contadas como perguntas</td><td>96</td><td>95</td><td>revertida</td><td>20</td><td>20</td></tr></table>
+<h2>Versões publicadas</h2><p>Todas as telas foram publicadas na v1. Em "O que muda na spec" e "Sugestões contadas como perguntas", o ciclo marcou a v1 como revertida só pela parte julgada (a parte mecânica não caiu). Mesmo assim, a v1 foi mantida:</p><ul>
+<li><b>O que muda na spec:</b> a v0 mostrava "## Decisões" como linha inalterada, embora a seção fosse nova, e escondia os sinais +/− de leitores de tela. A v1 corrige os dois e acrescenta números de linha. A queda veio de achados novos de rolagem e numeração.</li>
+<li><b>Formato antigo:</b> a v0 tinha dois botões primários e não marcava as linhas de sugestão. A queda da v1 veio de um julgamento sobre a frase do aviso ser redundante.</li></ul>
+<h2>O que mudou na v1</h2><ul>
+<li>O diálogo de aprovação cita o aviso de estrutura pelo nome, em vez de uma frase âmbar que parecia link; a sugestão de P4 foi reescrita sem "Não:" e as aspas da prosa ficaram tipográficas.</li>
+<li>A trilha P1–P4 ganhou o estado "para depois" (relógio, borda tracejada) e a revisão mostra o texto curto de cada pergunta, sem o selo "Respondida" repetido.</li>
+<li>A nota sobre a origem das opções subiu para logo abaixo da pergunta.</li>
+<li>O diff passou a mostrar "## Decisões" como adição, com números de linha e rótulos acessíveis.</li>
+<li>No formato antigo, "Corrigir formato" virou secundário e as linhas de sugestão ficaram marcadas no editor.</li></ul>
+<h2>Achados julgados restantes (v1)</h2><ul>
+<li>O aviso "R7 sem critério de aceite" no diálogo não tem ação.</li><li>Rádios nativos claros no tema escuro: corrigido depois da v1, com <code>color-scheme: dark</code>.</li><li>O editor não destaca a pergunta atual da sessão.</li>
+<li>O fim da revisão e do diff fica abaixo da dobra, sem sinal de rolagem.</li><li>A numeração do diff não bate com a do trecho do editor mostrado ao lado.</li><li>A frase do aviso de formato repete informação e não diz o que "Corrigir formato" fará.</li></ul>
+<h2>Correções depois da v1, sem nova avaliação</h2><ul><li><code>color-scheme: dark</code> (rádios e caixas no tema escuro) e o rótulo do botão de fechar, "Fechar o painel Responder perguntas".</li></ul>
+<h2>FAILs mantidos</h2><ul><li>Gate 20 (carimbo Hallmark): não se aplica a mockup de app.</li><li>Gate 73: o véu do modal e o painel lateral sobre o editor, intencionais.</li></ul>
+</body></html>

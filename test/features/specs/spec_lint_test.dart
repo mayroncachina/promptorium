@@ -79,6 +79,39 @@ void main() {
   test('a well-formed real spec (SPEC-021) has no warning', () {
     final text = File('docs/specs/SPEC-021-voltar-a-spec-ao-refinar.md')
         .readAsStringSync();
-    expect(lintSpec(text), isEmpty);
+    // Only the SPEC-028 R3 notice: its questions have no `P<n>`.
+    expect(lintSpec(text).map((w) => w.kind), [
+      SpecWarningKind.openQuestionsFormat,
+    ]);
+  });
+
+  test('SPEC-028 R3: suggestions counted as questions give the notice with '
+      'both counts; the R1 format gives none', () {
+    const old = '''# X
+
+## Perguntas em aberto
+
+1. Como adicionar?
+2. Sugestão: pela seleção.
+3. Lembrar o filtro?
+4. Sugestão: não.
+''';
+    final w = lintSpec(old).single;
+    expect(w.kind, SpecWarningKind.openQuestionsFormat);
+    expect(w.line, 6);
+    expect(
+      w.message,
+      'Em "Perguntas em aberto", 2 itens são sugestões, não perguntas. A spec '
+      'tem 2 perguntas, não 4. As linhas marcadas são sugestões.',
+    );
+    const ok = '''# X
+
+## Perguntas em aberto
+
+- P1 · Como adicionar?
+  - Sugestão: pela seleção.
+- P2 · Lembrar o filtro?
+''';
+    expect(lintSpec(ok), isEmpty);
   });
 }
