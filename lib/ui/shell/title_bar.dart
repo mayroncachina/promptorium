@@ -6,6 +6,8 @@ import '../../data/providers.dart';
 
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
+import '../widgets/brand_mark.dart';
+import 'brand_activity.dart';
 import 'navigation.dart';
 import 'notification_center.dart';
 
@@ -36,7 +38,7 @@ class TitleBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const _Logo(),
+          const TitleBarLogo(),
           const SizedBox(width: 12),
           _WorkspaceButton(onTap: onWorkspace),
           const SizedBox(width: 12),
@@ -65,32 +67,98 @@ class TitleBar extends StatelessWidget {
   }
 }
 
-class _Logo extends StatelessWidget {
-  const _Logo();
+/// The Promptorium mark and name (SPEC-031). While specs of the active
+/// project run, the mark plays the splash's ambient loop and opens the
+/// Quadro on click; when they stop, it finishes the loop and fades still.
+class TitleBarLogo extends ConsumerStatefulWidget {
+  const TitleBarLogo({super.key});
+  @override
+  ConsumerState<TitleBarLogo> createState() => _TitleBarLogoState();
+}
+
+class _TitleBarLogoState extends ConsumerState<TitleBarLogo>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _wave;
+  bool _stopping = false;
+
+  /// Starts, resumes or winds down the loop (R3, R5, R6).
+  void _sync(bool wanted, bool reduced) {
+    final c = _wave;
+    if (wanted && c == null) {
+      _wave = AnimationController(vsync: this, duration: brandMotionCycle)
+        ..repeat();
+    } else if (wanted && _stopping) {
+      _stopping = false;
+      c!.repeat();
+    } else if (!wanted && c != null && reduced) {
+      c.dispose();
+      _wave = null;
+      _stopping = false;
+    } else if (!wanted && c != null && !_stopping) {
+      _stopping = true;
+      c.forward().whenCompleteOrCancel(() {
+        if (!mounted || !_stopping || _wave != c) return;
+        setState(() {
+          c.dispose();
+          _wave = null;
+          _stopping = false;
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _wave?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final activity = ref.watch(brandActivityProvider);
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    _sync(activity != null && !reduced, reduced);
+    final label = brandLabel(activity);
+    final wave = _wave;
+    Widget mark = AnimatedSwitcher(
+      duration: reduced ? Duration.zero : const Duration(milliseconds: 300),
+      child: wave == null
+          ? const BrandMark(key: ValueKey('brand-still'))
+          : BrandMark(key: const ValueKey('brand-wave'), wave: wave),
+    );
+    if (activity != null) {
+      // R9: while specs run the mark opens the Quadro.
+      mark = InkWell(
+        key: const ValueKey('brand-open-board'),
+        borderRadius: BorderRadius.circular(6),
+        onTap: () =>
+            ref.read(navigationProvider.notifier).request(AppSection.tasks),
+        child: mark,
+      );
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 26,
-          height: 26,
-          decoration: BoxDecoration(
-            color: AppColors.amber,
-            borderRadius: BorderRadius.circular(6),
+        Tooltip(
+          message: label,
+          child: Semantics(
+            key: const ValueKey('brand-mark'),
+            label: label,
+            image: activity == null,
+            button: activity != null,
+            child: mark,
           ),
-          alignment: Alignment.center,
-          child: AppIcon(AppIcons.flask, size: 16, color: AppColors.onAmber),
         ),
         const SizedBox(width: 8),
-        const Text(
-          'Promptorium',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            letterSpacing: 0.2,
-            color: AppColors.text,
+        const ExcludeSemantics(
+          child: Text(
+            'Promptorium',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              letterSpacing: 0.2,
+              color: AppColors.text,
+            ),
           ),
         ),
       ],
