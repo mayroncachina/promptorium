@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/restack.dart';
 import 'package:promptorium/features/review/review_service.dart';
 
@@ -41,6 +42,14 @@ void main() {
   /// in its own worktree; the child's session is in Review.
   Future<Stack> setUpStack() async {
     final repo = await createRepo(tmp);
+    Directory('$repo/docs/specs').createSync(recursive: true);
+    for (final (code, title) in [('SPEC-029', 'Mãe'), ('SPEC-031', 'Filha')]) {
+      File('$repo/docs/specs/$code.md').writeAsStringSync(
+        '---\nid: $code\nstatus: aprovada\n---\n\n# $title\n',
+      );
+    }
+    await gitIn(repo, ['add', '.']);
+    await gitIn(repo, ['commit', '-q', '-m', 'specs']);
     final mother = '${tmp.path}/wt/mae', child = '${tmp.path}/wt/filha';
     await gitIn(repo, ['worktree', 'add', '-q', '-b', 'pr/mae', mother]);
     File('$mother/m.txt').writeAsStringSync('mãe\n');
@@ -66,7 +75,9 @@ void main() {
         cli: FakeCli(),
         notifier: FakeNotifier(),
       ).where((o) => o.origin != gitServiceFactoryProvider),
-      gitServiceFactoryProvider.overrideWithValue(GitService.new),
+      gitServiceFactoryProvider.overrideWithValue(
+        (root) => GitService(root, worktreesBase: '${tmp.path}/wt'),
+      ),
       commandRunnerProvider.overrideWithValue(
         (exe, args, {workingDirectory}) async => ProcessResult(1, 1, '', ''),
       ),
@@ -262,6 +273,53 @@ void main() {
       // The mother's commit is already in main (same patch): dropped.
       expect(await s.ownCommits('main'), ['SPEC-031 R1: filha']);
       expect(s.mark(), isNull);
+    });
+  });
+
+  group('R13 · Mergear a pilha', () {
+    test('merges the stack from the base to the top, redoing the base of '
+        'the next one in between', () async {
+      final s = await setUpStack();
+      final r = await s.review.mergeStack([
+        'mae',
+        'filha',
+      ], options: const MergeOptions(method: MergeMethod.squash));
+      expect(r.stoppedAt, isNull, reason: r.reason);
+      expect(r.merged, ['mae', 'filha']);
+      expect(r.restacked.single.outcome, RestackOutcome.ok);
+      expect(File('${s.repo}/m.txt').existsSync(), isTrue);
+      expect(File('${s.repo}/c.txt').existsSync(), isTrue);
+      expect(
+        (await s.c.read(sessionsRepoProvider).getById('filha'))!.status,
+        SessionStatus.merged,
+      );
+    });
+
+    test('stops at the first item whose base could not be redone, and says '
+        'where', () async {
+      final s = await setUpStack();
+      final a = File('${s.child}/a.txt');
+      a.writeAsStringSync(
+        a.readAsStringSync().replaceFirst('linha 5\n', 'X\n'),
+      );
+      await gitIn(s.child, ['commit', '-q', '-am', 'SPEC-031 R2: a.txt']);
+      final b = File('${s.repo}/a.txt');
+      b.writeAsStringSync(
+        b.readAsStringSync().replaceFirst('linha 5\n', 'Y\n'),
+      );
+      await gitIn(s.repo, ['commit', '-q', '-am', 'outra spec: a.txt']);
+      final r = await s.review.mergeStack([
+        'mae',
+        'filha',
+      ], options: const MergeOptions(method: MergeMethod.squash));
+      expect(r.merged, ['mae']);
+      expect(r.stoppedAt, 'filha');
+      expect(r.reason, contains('conflito ao refazer a base da SPEC-031'));
+      expect(s.mark(), 'conflito\na.txt');
+      expect(
+        (await s.c.read(sessionsRepoProvider).getById('filha'))!.status,
+        isNot(SessionStatus.merged),
+      );
     });
   });
 }

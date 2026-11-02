@@ -139,6 +139,42 @@ class MergeResult {
   final List<RestackResult> restacked;
 }
 
+/// The project root against the branch the queue merges into (SPEC-032 R11).
+@immutable
+class RootStatus {
+  const RootStatus({required this.base, this.branch, this.dirty = const []});
+
+  final String base;
+
+  /// Branch checked out in the root (null = detached HEAD).
+  final String? branch;
+
+  /// Tracked files with uncommitted changes (not the project memory).
+  final List<String> dirty;
+
+  bool get offBase => branch != base;
+  bool get ok => !offBase && dirty.isEmpty;
+}
+
+/// Outcome of "Mergear a pilha" (SPEC-032 R13).
+@immutable
+class StackMergeResult {
+  const StackMergeResult({
+    this.merged = const [],
+    this.stoppedAt,
+    this.reason,
+    this.restacked = const [],
+  });
+
+  /// Sessions merged, in order.
+  final List<String> merged;
+
+  /// Session where the sequence stopped (null = the whole stack went in).
+  final String? stoppedAt;
+  final String? reason;
+  final List<RestackResult> restacked;
+}
+
 /// Git work of the Review screen (plano, Fase 9).
 class ReviewService {
   ReviewService(this._ref);
@@ -1220,6 +1256,101 @@ class ReviewService {
       out.add(result);
     }
     return out;
+  }
+
+  /// The branch the queue merges into (`branch-base:` of the project, else
+  /// `main` or `master`) and the root's state against it (SPEC-032 R11).
+  Future<RootStatus?> rootStatus(Workspace ws) async {
+    final main = _git(ws.path);
+    final config = await _ref.read(projectConfigProvider(ws.path).future);
+    String? base;
+    for (final b in [?config.baseBranch, 'main', 'master']) {
+      if (await main.resolveRef('refs/heads/$b') != null) {
+        base = b;
+        break;
+      }
+    }
+    if (base == null) return null;
+    return RootStatus(
+      base: base,
+      branch: await main.currentBranch(),
+      dirty: [
+        for (final e in await main.status())
+          if (!e.isUntracked && e.path != ProjectMemory.filePath) e.path,
+      ],
+    );
+  }
+
+  /// "Voltar para a main" (R11): `git switch <base>` in the root, only with
+  /// no tracked changes.
+  Future<void> switchRoot(Workspace ws, String base) async {
+    final status = await rootStatus(ws);
+    if (status != null && status.dirty.isNotEmpty) {
+      throw const ReviewException(
+        'A raiz tem alterações não commitadas: guarde-as antes de trocar.',
+      );
+    }
+    try {
+      await _git(ws.path).git(['switch', '--', _safeRef(base, 'Branch')]);
+    } on GitException catch (e) {
+      throw ReviewException('Não foi possível voltar para $base: $e');
+    }
+  }
+
+  /// "Guardar alterações" (R11): `git stash push -m promptorium` in the root
+  /// (tracked files; untracked ones stay).
+  Future<void> stashRoot(Workspace ws) async {
+    try {
+      await _git(ws.path).git(['stash', 'push', '-m', 'promptorium']);
+    } on GitException catch (e) {
+      throw ReviewException('Não foi possível guardar as alterações: $e');
+    }
+  }
+
+  /// "Mergear a pilha" (R13): merges [sessionIds] (a stack, base first) one
+  /// by one — each merge redoes the base of the next (R6). Stops at the
+  /// first one that cannot go in (a refused merge, a conflict, or a base
+  /// that could not be redone) and says where.
+  Future<StackMergeResult> mergeStack(
+    List<String> sessionIds, {
+    MergeOptions options = const MergeOptions(),
+    PrMergeMethod prMethod = PrMergeMethod.squash,
+  }) async {
+    final merged = <String>[];
+    final restacked = <RestackResult>[];
+    for (final (i, id) in sessionIds.indexed) {
+      try {
+        final c = await _context(id);
+        final List<RestackResult> r;
+        if (c.session.prUrl != null) {
+          r = await mergePr(id, prMethod);
+        } else {
+          r = (await merge(id, options: options)).restacked;
+        }
+        merged.add(id);
+        restacked.addAll(r);
+        final next = i + 1 < sessionIds.length ? sessionIds[i + 1] : null;
+        final failed = r
+            .where((x) => x.sessionId == next && x.outcome != RestackOutcome.ok)
+            .firstOrNull;
+        if (failed != null) {
+          return StackMergeResult(
+            merged: merged,
+            stoppedAt: next,
+            reason: restackNotice([failed]),
+            restacked: restacked,
+          );
+        }
+      } on ReviewException catch (e) {
+        return StackMergeResult(
+          merged: merged,
+          stoppedAt: id,
+          reason: e.message,
+          restacked: restacked,
+        );
+      }
+    }
+    return StackMergeResult(merged: merged, restacked: restacked);
   }
 
   /// SPEC-032 R15: children whose mother entered the base outside the app
@@ -2551,4 +2682,20 @@ final orphanRestackProvider = FutureProvider.family<List<RestackResult>, int>((
   final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
   if (ws == null) return const [];
   return ref.read(reviewServiceProvider).restackOrphans(ws);
+});
+
+/// SPEC-032 R11: the root against the queue's base; null when it cannot be
+/// read (never an error, so nothing retries on a timer).
+final rootStatusProvider = FutureProvider.family<RootStatus?, int>((
+  ref,
+  workspaceId,
+) async {
+  try {
+    final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+    if (ws == null) return null;
+    return await ref.read(reviewServiceProvider).rootStatus(ws);
+  } catch (e) {
+    debugPrint('raiz do workspace $workspaceId indisponível');
+    return null;
+  }
 });

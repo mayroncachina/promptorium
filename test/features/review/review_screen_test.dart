@@ -80,6 +80,9 @@ Future<ProviderContainer> pumpReview(
         ),
       ),
       prAvailabilityProvider.overrideWith((ref, id) async => pr),
+      // No real git in the root of this fake workspace (SPEC-032 R11, R15).
+      rootStatusProvider.overrideWith((ref, id) async => null),
+      orphanRestackProvider.overrideWith((ref, id) async => const []),
       if (readiness != null) ...[
         mergeReadinessProvider.overrideWith((ref, id) async => readiness),
         reviewServiceProvider.overrideWith(_NoConflictReview.new),

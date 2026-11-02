@@ -76,6 +76,8 @@ enum SettingsSection {
     'lint',
     'build',
     'formatar',
+    'executar',
+    'editor',
     'worktree',
     'porta',
     'revisor',

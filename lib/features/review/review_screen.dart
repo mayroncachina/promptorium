@@ -23,6 +23,9 @@ import 'auto_reviewer.dart';
 import 'pr_babysitter.dart';
 import '../specs/spec_service.dart';
 import 'review_service.dart';
+import '../../core/system/worktree_launcher.dart';
+import '../project/widgets/project_config_view.dart' show configFocusProvider;
+import '../settings/settings_sections.dart';
 import 'restack.dart';
 import 'review_stack.dart';
 import '../board/widgets/wave_graph.dart' show dependencyWaves;
@@ -338,6 +341,7 @@ class _ReviewSidebar extends ConsumerWidget {
               style: _sectionStyle,
             ),
           ),
+          if (queue.isNotEmpty) const _RootBanner(),
           if (queue.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -882,6 +886,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   void _refresh() {
     ref.invalidate(conflictForecastProvider);
     ref.invalidate(orphanRestackProvider(widget.workspaceId));
+    ref.invalidate(rootStatusProvider(widget.workspaceId));
     ref.invalidate(mergeReadinessProvider(_id));
     ref.invalidate(reviewSinceProvider);
     ref.invalidate(reviewRoundAvailabilityProvider);
@@ -1160,6 +1165,80 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     });
   }
 
+  /// "Mergear a pilha" (R13): one confirmation, then every item of the
+  /// stack in order; stops at the first that cannot go in.
+  Future<void> _mergeStack(ReviewStack stack) async {
+    final ws = await ref
+        .read(workspacesRepoProvider)
+        .getById(widget.workspaceId);
+    final config = ws == null
+        ? const ProjectConfig()
+        : await ref.read(projectConfigProvider(ws.path).future);
+    if (!mounted) return;
+    final method = MergeMethod.values.firstWhere(
+      (m) => m.name == config.mergeMethod,
+      orElse: () => MergeMethod.merge,
+    );
+    String name(ReviewItem i) =>
+        i.spec?.code ?? i.task?.code ?? sessionTitle(i.session);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Mergear a pilha (${stack.items.length})'),
+        content: Text(
+          'Merge em sequência, da base para o topo: '
+          '${stack.items.map(name).join(' → ')}.\n'
+          'Método: ${method.name}. Depois de cada merge, a base da próxima é '
+          'refeita. A sequência para no primeiro item que não estiver pronto '
+          'ou que conflitar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const ValueKey('review-merge-stack-confirm'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Mergear a pilha'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final queue = _queueNow;
+    await _run('Mergear a pilha', () async {
+      final r = await _service.mergeStack(
+        [for (final i in stack.items) i.session.id],
+        options: MergeOptions(method: method),
+        prMethod: PrMergeMethod.values.firstWhere(
+          (m) => m.name == config.mergeMethod,
+          orElse: () => PrMergeMethod.squash,
+        ),
+      );
+      final byId = {for (final i in queue) i.session.id: i};
+      final merged = [
+        for (final id in r.merged)
+          if (byId[id] != null) name(byId[id]!),
+      ];
+      ref
+          .read(selectedReviewProvider.notifier)
+          .select(
+            r.stoppedAt ??
+                (r.merged.isEmpty
+                    ? null
+                    : nextAfterMerge(queue, r.merged.last)?.session.id),
+          );
+      _refresh();
+      _toast(
+        r.stoppedAt == null
+            ? 'Pilha mergeada: ${merged.join(', ')}'
+            : '${merged.isEmpty ? 'Nada entrou' : 'Entraram ${merged.join(', ')}'}'
+                  ' · parou em ${byId[r.stoppedAt] == null ? r.stoppedAt : name(byId[r.stoppedAt]!)}: ${r.reason}',
+      );
+    });
+  }
+
   Widget _primaryButton(
     PrimaryAction primary,
     MergeStatus status, {
@@ -1268,6 +1347,11 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         : ref.watch(pendingCriteriaProvider(widget.item.spec!.id)).value ??
               const <String>[];
     final status = watchMergeStatus(ref, widget.item, readiness: ready);
+    // R13: this item is the base of a stack.
+    final stack = orderQueue(
+      ref.watch(reviewQueueProvider(widget.workspaceId)).value ??
+          const <ReviewItem>[],
+    ).where((g) => g.isStack && g.items.first.session.id == _id).firstOrNull;
     final primary = primaryActionOf(status, hasPr: s.prUrl != null);
     final canRequest = !busy && s.status != SessionStatus.merged;
     final mergeReason = ready?.blockers.isNotEmpty == true
@@ -1392,6 +1476,17 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                         _ => 'Criar como rascunho',
                       },
                     ),
+                  if (stack != null)
+                    _MoreEntry(
+                      'review-merge-stack',
+                      'Mergear a pilha (${stack.items.length})',
+                      !busy && status.state == MergeState.pronto
+                          ? () => _mergeStack(stack)
+                          : null,
+                      tooltip:
+                          'Merge de ${stack.items.map((i) => i.spec?.code ?? sessionTitle(i.session)).join(', ')} em sequência; '
+                          'para no primeiro que não estiver pronto',
+                    ),
                   // Criteria are the only blocker the user may override,
                   // with a reason.
                   if (d != null &&
@@ -1434,6 +1529,12 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
+        if (s.worktreePath != ref.watch(activeWorkspaceProvider)?.path)
+          _WorktreeBar(
+            path: s.worktreePath,
+            branch: s.branch,
+            onMessage: _toast,
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -2135,6 +2236,244 @@ class _MoreMenu extends StatelessWidget {
         ),
         onTap: () => controller.isOpen ? controller.close() : controller.open(),
       ),
+    ),
+  );
+}
+
+/// Fixed notice at the top of the queue when the root is off the base or
+/// has uncommitted changes (SPEC-032 R11), before any merge.
+class _RootBanner extends ConsumerStatefulWidget {
+  const _RootBanner();
+
+  @override
+  ConsumerState<_RootBanner> createState() => _RootBannerState();
+}
+
+class _RootBannerState extends ConsumerState<_RootBanner> {
+  bool _busy = false;
+
+  Future<void> _do(Future<void> Function(ReviewService, Workspace) job) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      await job(ref.read(reviewServiceProvider), ws);
+    } on ReviewException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      ref.invalidate(rootStatusProvider(ws.id));
+      ref.invalidate(mergeReadinessProvider);
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ws = ref.watch(activeWorkspaceProvider);
+    if (ws == null) return const SizedBox.shrink();
+    final root = ref.watch(rootStatusProvider(ws.id)).value;
+    if (root == null || root.ok) return const SizedBox.shrink();
+    final n = root.dirty.length;
+    final text = [
+      if (root.offBase)
+        'A raiz está em ${root.branch ?? 'HEAD destacado'}, o merge vai para '
+            '${root.base}.',
+      if (n > 0)
+        'A raiz tem $n alteraç${n == 1 ? 'ão' : 'ões'} não commitada${n == 1 ? '' : 's'}'
+            ' (${root.dirty.take(2).join(', ')}${n > 2 ? '…' : ''}).',
+    ].join(' ');
+    return Container(
+      key: const ValueKey('review-root-banner'),
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: SessionColors.approvalBg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: SessionColors.approvalBorder),
+      ),
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: AppColors.amber,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: const TextStyle(fontSize: 12, color: AppColors.text),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (n > 0)
+                  SmallButton(
+                    key: const ValueKey('review-root-stash'),
+                    label: 'Guardar alterações',
+                    onTap: _busy ? null : () => _do((s, w) => s.stashRoot(w)),
+                  ),
+                if (root.offBase)
+                  Tooltip(
+                    message: n > 0
+                        ? 'Guarde as alterações antes de trocar de branch'
+                        : 'git switch ${root.base}',
+                    child: SmallButton(
+                      key: const ValueKey('review-root-switch'),
+                      label: 'Voltar para a ${root.base}',
+                      onTap: _busy || n > 0
+                          ? null
+                          : () => _do((s, w) => s.switchRoot(w, root.base)),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Path of a worktree with the middle elided ("…/wt/promptorium/spec-031").
+String middleEllipsis(String text, {int max = 48}) {
+  if (text.length <= max) return text;
+  final head = (max / 3).floor();
+  final tail = max - head - 1;
+  return '${text.substring(0, head)}…${text.substring(text.length - tail)}';
+}
+
+/// The selected spec's worktree, with "Testar", "Terminal" and "Editor"
+/// opening there — never in the project root (SPEC-032 R9).
+class _WorktreeBar extends ConsumerWidget {
+  const _WorktreeBar({
+    required this.path,
+    required this.branch,
+    required this.onMessage,
+  });
+
+  final String path, branch;
+  final void Function(String) onMessage;
+
+  Future<ProjectConfig> _config(WidgetRef ref) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    return ws == null
+        ? const ProjectConfig()
+        : ref.read(projectConfigProvider(ws.path).future);
+  }
+
+  Future<void> _test(WidgetRef ref) async {
+    final config = await _config(ref);
+    final run = config.runCommand;
+    if (run == null) {
+      // No `executar:` yet: the project config opens on that field.
+      ref.read(configFocusProvider.notifier).set('executar');
+      ref
+          .read(selectedSettingsSectionProvider.notifier)
+          .select(SettingsSection.project);
+      ref.read(navigationProvider.notifier).go(AppSection.settings);
+      return;
+    }
+    final used = await ref.read(worktreeLauncherProvider).terminal(path, run);
+    onMessage(
+      used == null
+          ? 'Nenhum terminal encontrado (${WorktreeLauncher.terminals.join(', ')}).'
+          : 'Rodando "$run" no worktree da spec ($used).',
+    );
+  }
+
+  Future<void> _terminal(WidgetRef ref) async {
+    final used = await ref.read(worktreeLauncherProvider).terminal(path);
+    if (used == null) {
+      onMessage(
+        'Nenhum terminal encontrado (${WorktreeLauncher.terminals.join(', ')}).',
+      );
+    }
+  }
+
+  Future<void> _editor(WidgetRef ref) async {
+    final config = await _config(ref);
+    final used = await ref
+        .read(worktreeLauncherProvider)
+        .editor(path, editor: config.editorCommand);
+    if (used == 'xdg-open') {
+      onMessage(
+        'Editor "${config.editorCommand ?? 'code'}" não encontrado: o worktree abriu no gerenciador de arquivos.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+    key: const ValueKey('review-worktree-bar'),
+    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+    decoration: const BoxDecoration(
+      color: AppColors.panel,
+      border: Border(bottom: BorderSide(color: AppColors.border)),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.folder_outlined, size: 14, color: AppColors.textMuted),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Tooltip(
+            message: '$path\nbranch $branch',
+            child: Text(
+              '${middleEllipsis(path)} · $branch',
+              key: const ValueKey('review-worktree-path'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SmallButton(
+          key: const ValueKey('review-wt-run'),
+          label: 'Testar',
+          icon: Icons.play_arrow_rounded,
+          height: 26,
+          semanticLabel: 'Testar no worktree da spec',
+          onTap: () => _test(ref),
+        ),
+        const SizedBox(width: 6),
+        SmallButton(
+          key: const ValueKey('review-wt-terminal'),
+          label: 'Terminal',
+          icon: Icons.terminal,
+          height: 26,
+          semanticLabel: 'Abrir terminal no worktree da spec',
+          onTap: () => _terminal(ref),
+        ),
+        const SizedBox(width: 6),
+        SmallButton(
+          key: const ValueKey('review-wt-editor'),
+          label: 'Editor',
+          icon: Icons.code,
+          height: 26,
+          semanticLabel: 'Abrir o worktree da spec no editor',
+          onTap: () => _editor(ref),
+        ),
+      ],
     ),
   );
 }

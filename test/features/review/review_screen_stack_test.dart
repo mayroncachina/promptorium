@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
+import 'package:promptorium/core/system/worktree_launcher.dart';
+import 'package:promptorium/features/project/widgets/project_config_view.dart'
+    show configFocusProvider;
+import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
@@ -47,6 +51,12 @@ final x = spec(
 class _FakeReview extends ReviewService {
   _FakeReview(super.ref);
   final merged = <String>[];
+  final root = <String>[];
+  @override
+  Future<void> switchRoot(Workspace ws, String base) async =>
+      root.add('switch $base');
+  @override
+  Future<void> stashRoot(Workspace ws) async => root.add('stash');
   final conflicts = <String, List<String>>{};
   @override
   Future<ConflictPrediction> predictConflict(String sessionId) async =>
@@ -66,10 +76,14 @@ class _FakeReview extends ReviewService {
   }
 }
 
+final launched = <(String, List<String>, String)>[];
+
 Future<ProviderContainer> pumpStack(
   WidgetTester tester, {
   Map<String, List<String>> conflicts = const {},
+  RootStatus? root,
 }) async {
+  launched.clear();
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -118,6 +132,13 @@ Future<ProviderContainer> pumpStack(
             hasSpec: true,
             stackedOn: id == 'b' ? 'SPEC-029' : null,
           ),
+        ),
+      ),
+      rootStatusProvider.overrideWith((ref, id) async => root),
+      worktreeLauncherProvider.overrideWithValue(
+        WorktreeLauncher(
+          start: (exe, args, cwd) async => launched.add((exe, args, cwd)),
+          which: (exe) async => exe == 'gnome-terminal' || exe == 'code',
         ),
       ),
       reviewServiceProvider.overrideWith((ref) {
@@ -243,5 +264,86 @@ void main() {
       find.textContaining('SPEC-029 entrou na main · seguindo para SPEC-031'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('R11 · root off main: fixed notice in the queue with "Voltar '
+      'para a main"; with changes, "Guardar alterações" first', (tester) async {
+    var c = await pumpStack(
+      tester,
+      root: const RootStatus(base: 'main', branch: 'spec/031-filha'),
+    );
+    expect(
+      find.text('A raiz está em spec/031-filha, o merge vai para main.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('review-root-stash')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('review-root-switch')));
+    await tester.pump();
+    expect((c.read(reviewServiceProvider) as _FakeReview).root, [
+      'switch main',
+    ]);
+    await tester.pumpWidget(const SizedBox());
+
+    c = await pumpStack(
+      tester,
+      root: const RootStatus(
+        base: 'main',
+        branch: 'spec/031-filha',
+        dirty: ['lib/a.dart'],
+      ),
+    );
+    expect(find.textContaining('1 alteração não commitada'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('review-root-switch')));
+    await tester.tap(find.byKey(const ValueKey('review-root-stash')));
+    await tester.pump();
+    expect((c.read(reviewServiceProvider) as _FakeReview).root, ['stash']);
+    await tester.pumpWidget(const SizedBox());
+
+    await pumpStack(
+      tester,
+      root: const RootStatus(base: 'main', branch: 'main'),
+    );
+    expect(find.byKey(const ValueKey('review-root-banner')), findsNothing);
+  });
+
+  testWidgets('R9 · Terminal and Editor open the spec worktree; Testar '
+      'without "executar:" opens the project config on that field', (
+    tester,
+  ) async {
+    final c = await pumpStack(tester);
+    expect(find.textContaining('/wt · pr/a'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('review-wt-terminal')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('review-wt-editor')));
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(
+      [for (final (exe, args, cwd) in launched) '$exe ${args.join(' ')}@$cwd'],
+      ['gnome-terminal @/wt', 'code /wt@/wt'],
+    );
+    await tester.tap(find.byKey(const ValueKey('review-wt-run')));
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(c.read(navigationProvider), AppSection.settings);
+    expect(c.read(configFocusProvider), 'executar');
+  });
+
+  test('middleEllipsis keeps the start and the end of a long path', () {
+    expect(middleEllipsis('/curto'), '/curto');
+    final long = middleEllipsis(
+      '/home/mayron/.promptorium/worktrees/promptorium/spec-031-filha',
+      max: 30,
+    );
+    expect(long.length, 30);
+    expect(long, startsWith('/home/mayr'));
+    expect(long, endsWith('spec-031-filha'));
   });
 }

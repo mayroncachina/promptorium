@@ -179,6 +179,8 @@ class ProjectConfig {
     this.lintCommand,
     this.buildCommand,
     this.formatCommand,
+    this.runCommand,
+    this.editorCommand,
     this.baseBranch,
     this.agent,
     this.subagents = const [],
@@ -207,6 +209,13 @@ class ProjectConfig {
 
   /// `formatar:` run after each edit, `{arquivo}` = the edited file.
   final String? formatCommand;
+
+  /// `executar:` runs the app of a worktree ("Testar" in the Review,
+  /// SPEC-032 R9).
+  final String? runCommand;
+
+  /// `editor:` opens a worktree (default `code`; SPEC-032 R9).
+  final String? editorCommand;
   final String? baseBranch;
   final String? agent;
   final List<SpecSubagent> subagents;
@@ -243,6 +252,8 @@ class ProjectConfig {
     String? Function()? lintCommand,
     String? Function()? buildCommand,
     String? Function()? formatCommand,
+    String? Function()? runCommand,
+    String? Function()? editorCommand,
     String? Function()? baseBranch,
     String? Function()? agent,
     List<SpecSubagent>? subagents,
@@ -260,6 +271,8 @@ class ProjectConfig {
     lintCommand: lintCommand == null ? this.lintCommand : lintCommand(),
     buildCommand: buildCommand == null ? this.buildCommand : buildCommand(),
     formatCommand: formatCommand == null ? this.formatCommand : formatCommand(),
+    runCommand: runCommand == null ? this.runCommand : runCommand(),
+    editorCommand: editorCommand == null ? this.editorCommand : editorCommand(),
     baseBranch: baseBranch == null ? this.baseBranch : baseBranch(),
     agent: agent == null ? this.agent : agent(),
     subagents: subagents ?? this.subagents,
@@ -377,6 +390,8 @@ class ProjectConfig {
       lintCommand: str(root['lint']),
       buildCommand: str(root['build']),
       formatCommand: str(root['formatar']),
+      runCommand: str(root['executar']),
+      editorCommand: str(root['editor']),
       baseBranch: str(root['branch-base']),
       agent: str(root['agente']),
       subagents: doc.subagents,
@@ -431,6 +446,10 @@ class ProjectConfig {
     if (buildCommand != null) b.writeln('build: ${_quote(buildCommand!)}');
     if (formatCommand != null) {
       b.writeln('formatar: ${_quote(formatCommand!)}');
+    }
+    if (runCommand != null) b.writeln('executar: ${_quote(runCommand!)}');
+    if (editorCommand != null) {
+      b.writeln('editor: ${_quote(editorCommand!)}');
     }
     if (baseBranch != null) b.writeln('branch-base: $baseBranch');
     if (agent != null) b.writeln('agente: $agent');
