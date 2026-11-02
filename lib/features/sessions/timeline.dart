@@ -14,6 +14,22 @@ abstract final class AppEventTypes {
   /// Lifecycle note: `{"type":"promptorium_note","level":"info|error","text":…}`.
   static const note = 'promptorium_note';
 
+  /// Approval denied in the app: `{"type":"promptorium_denied",
+  /// "tool_use_id":…}` (SPEC-026 R4). Marks the tool card as denied.
+  static const denied = 'promptorium_denied';
+
+  /// Message sent to the agent when a tool call is denied in the app.
+  static const deniedMessage = 'O usuário negou esta ação no Promptorium.';
+
+  static Map<String, dynamic> deniedMessageEvent(
+    String toolUseId, {
+    DateTime? at,
+  }) => {
+    'type': denied,
+    'tool_use_id': toolUseId,
+    'at': (at ?? DateTime.now()).toIso8601String(),
+  };
+
   /// Stdout line that was not a JSON object: `{"type":"invalid_line","raw":…}`.
   static const invalidLine = 'invalid_line';
 
@@ -103,6 +119,9 @@ class ToolItem extends TimelineItem {
   String? result;
   bool isError = false;
 
+  /// The user denied the call in the app (SPEC-026 R4): not applied.
+  bool denied = false;
+
   /// Subagent messages (`parent_tool_use_id == id`).
   final List<TimelineItem> children = [];
 
@@ -150,6 +169,7 @@ class Timeline {
   final Map<String?, AssistantTextItem> _live = {};
   final Map<String?, ThinkingItem> _liveThinking = {};
   bool _sawInit = false;
+  final Set<String> _deniedIds = {};
 
   /// Model reported by the first `system/init`.
   String? model;
@@ -252,6 +272,7 @@ class Timeline {
                 at: now,
                 parentToolUseId: e.parentToolUseId,
               );
+              if (_deniedIds.contains(b.id)) t.denied = true;
               _tools[b.id] = t;
               _target(e.parentToolUseId).add(t);
             case ThinkingBlock(:final thinking):
@@ -280,6 +301,9 @@ class Timeline {
             ..result = e.content
             ..isError = e.isError
             ..doneAt = now;
+          if (e.isError && e.content.contains(AppEventTypes.deniedMessage)) {
+            t.denied = true;
+          }
         } else if (e.isError) {
           items.add(NoticeItem(e.content, level: NoticeLevel.error, at: now));
         }
@@ -311,6 +335,10 @@ class Timeline {
     switch (j['type']) {
       case AppEventTypes.user:
         items.add(UserItem('${j['text'] ?? ''}', at: at));
+      case AppEventTypes.denied:
+        final id = j['tool_use_id'];
+        if (id is String) _deniedIds.add(id);
+        _tools[id]?.denied = true;
       case AppEventTypes.note:
         items.add(
           NoticeItem(

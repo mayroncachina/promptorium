@@ -271,6 +271,14 @@ class SpecService {
     return f.readAsString();
   }
 
+  /// [read], synchronous: a spec file is small, and the caller must not
+  /// wait on other IO before it (text-base of a refine conversation,
+  /// SPEC-026 R8).
+  String? readSync(Workspace ws, Spec spec) {
+    final f = fileOf(ws, spec);
+    return f.existsSync() ? f.readAsStringSync() : null;
+  }
+
   /// Writes [text] (temporary file + rename) and refreshes the row. Stored
   /// dependencies missing from the file are written to its frontmatter.
   Future<Spec> save(

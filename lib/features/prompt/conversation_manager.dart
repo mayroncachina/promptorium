@@ -18,6 +18,7 @@ import '../sessions/session_manager.dart'
     show PendingApproval, sessionIdGeneratorProvider;
 import '../sessions/timeline.dart';
 import '../sessions/timeline_provider.dart';
+import '../specs/spec_service.dart' show specServiceProvider;
 import 'refine_origin.dart';
 
 /// Runtime state of a conversation with a live agent process.
@@ -145,6 +146,11 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final selected =
         providerId ?? ref.read<String>(defaultAgentProvider(workspace.id));
     final refine = mode == PromptMode.refine;
+    // SPEC-026 R8: the spec text when the conversation starts (the Specs
+    // screen saves the editor before opening it, so this is the disk text).
+    final base = refine && origin != null
+        ? await _specText(workspace, origin.specCode)
+        : null;
     final c = await _repo.insert(
       workspaceId: workspace.id,
       title: conversationTitle(msg),
@@ -153,9 +159,21 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       mode: mode.name,
       refineSpecCode: refine ? origin?.specCode : null,
       refineOrigin: refine ? origin?.source.name : null,
+      refineBaseText: base,
     );
     await send(c.id, msg, images: images);
     return c.id;
+  }
+
+  Future<String?> _specText(Workspace ws, String code) async {
+    try {
+      final spec = await ref.read(specsRepoProvider).getByCode(ws.id, code);
+      if (spec == null) return null;
+      return ref.read(specServiceProvider).readSync(ws, spec);
+    } catch (e) {
+      debugPrint('conversa: texto-base de $code: $e');
+      return null;
+    }
   }
 
   /// Sends a message; (re)starts the process when needed.
@@ -220,11 +238,24 @@ class ConversationManager extends Notifier<ConversationManagerState> {
   Future<void> deny(
     int id,
     String requestId, {
-    String message = 'O usuário negou esta ação no Promptorium.',
+    String message = AppEventTypes.deniedMessage,
   }) async {
     final r = _runs[id];
     final req = _take(id, requestId);
     if (r == null || req == null) return;
+    // SPEC-026 R4: the denied edit stays in the conversation, marked.
+    final toolUseId = req.toolUseId;
+    if (toolUseId != null) {
+      await _enqueue(id, r, () async {
+        final json = AppEventTypes.deniedMessageEvent(toolUseId);
+        final row = await _repo.appendEvent(
+          id,
+          type: AppEventTypes.denied,
+          json: jsonEncode(json),
+        );
+        _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      });
+    }
     await r.run.deny(requestId, message);
   }
 

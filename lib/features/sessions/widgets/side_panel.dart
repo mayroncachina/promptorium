@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/agent_event.dart' show PermissionRequest;
 import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/shell/navigation.dart';
@@ -11,6 +12,8 @@ import '../../../ui/theme/tokens.dart';
 import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
 import '../session_manager.dart';
+import '../../../ui/widgets/diff_view.dart';
+import '../edit_diff.dart';
 import '../timeline.dart';
 import 'question_card.dart';
 import 'session_style.dart';
@@ -106,9 +109,14 @@ class ApprovalCard extends ConsumerStatefulWidget {
     this.onApprove,
     this.onDeny,
     this.onOpen,
+    this.edit,
   });
 
   final PendingApproval approval;
+
+  /// Diff and target of an edit (Prompt refine, SPEC-026 R1); null = from
+  /// the request input alone.
+  final EditInfo? edit;
 
   /// `always` = "Sempre permitir" (first permission suggestion).
   ///
@@ -173,6 +181,216 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
     }
   }
 
+  /// Edit of a file (SPEC-026 R1, R10, R11): title, tool, file and
+  /// section, "+N −M" and the diff in a box that scrolls by itself.
+  Widget _editCard(PendingApproval a, PermissionRequest r, String? always) {
+    final info = widget.edit;
+    final diff = info?.diff ?? editDiffOf(r.toolName, r.input);
+    final path = editFilePath(r.input) ?? toolTarget(r.toolName, r.input);
+    final outside = info?.outside ?? false;
+    final onSpec = info?.target != null && !outside;
+    final file = outside ? path : path.split('/').last;
+    const mono = TextStyle(
+      fontFamily: AppFonts.mono,
+      fontSize: 12,
+      color: AppColors.text,
+    );
+    return Container(
+      key: ValueKey('approval-${a.requestId}'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: SessionColors.approvalBg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: SessionColors.approvalBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.onOpen == null) ...[
+            InkWell(
+              onTap: () => ref
+                  .read(selectedSessionProvider.notifier)
+                  .select(a.sessionId),
+              child: Text(
+                a.sessionTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.amber),
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  onSpec
+                      ? 'Aprovar esta edição na spec?'
+                      : 'Aprovar esta edição?',
+                  key: ValueKey('approval-title-${a.requestId}'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+              if (diff != null)
+                Semantics(
+                  label:
+                      '${diff.added} linhas adicionadas, '
+                      '${diff.removed} removidas',
+                  excludeSemantics: true,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '+${diff.added}',
+                          style: const TextStyle(color: AppColors.teal),
+                        ),
+                        const TextSpan(text: ' '),
+                        TextSpan(
+                          text: '−${diff.removed}',
+                          style: const TextStyle(color: AppColors.red),
+                        ),
+                      ],
+                    ),
+                    key: ValueKey('approval-stats-${a.requestId}'),
+                    style: mono,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(r.toolName, style: mono.copyWith(color: AppColors.amber)),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  file,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: mono.copyWith(color: AppColors.textSecondary),
+                ),
+              ),
+              if (diff?.section != null) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    diff!.section!,
+                    key: ValueKey('approval-section-${a.requestId}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: mono.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+              if (outside) ...[
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: SessionColors.approvalBorder),
+                  ),
+                  child: const Text(
+                    'fora da spec',
+                    style: TextStyle(fontSize: 11, color: AppColors.amber),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (diff != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: ValueKey('approval-diff-${a.requestId}'),
+              constraints: const BoxConstraints(maxHeight: 200),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: SingleChildScrollView(
+                primary: false,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (diff.unknownBefore)
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(10, 2, 10, 4),
+                        child: Text(
+                          'Conteúdo anterior desconhecido',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    DiffView(rows: diff.rows, collapseSame: 3),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (r.description != null && r.description!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              r.description!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              SmallButton(
+                key: ValueKey('deny-${a.requestId}'),
+                label: 'Negar',
+                height: 34,
+                onTap: _busy ? null : _deny,
+              ),
+              const SizedBox(width: 8),
+              AmberButton(
+                key: ValueKey('approve-${a.requestId}'),
+                label: 'Aprovar edição',
+                height: 34,
+                onTap: _busy ? null : () => _approve(always: false),
+              ),
+            ],
+          ),
+          if (always != null) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
+                key: ValueKey('always-${a.requestId}'),
+                onTap: _busy ? null : () => _approve(always: true),
+                child: Text(
+                  always,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = widget.approval;
@@ -221,6 +439,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
         ),
       );
     }
+    if (isEditTool(r.toolName)) return _editCard(a, r, always);
     return Container(
       key: ValueKey('approval-${a.requestId}'),
       padding: const EdgeInsets.all(10),

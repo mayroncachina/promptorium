@@ -1,0 +1,17 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Validação · SPEC-026 Ver o que o refino gerou</title>
+<style>body{font-family:system-ui,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;color:#1d1f23;line-height:1.5}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{background:#f1f2f5}</style></head><body>
+<h1>Validação dos layouts · SPEC-026 Ver o que o refino gerou</h1>
+<p>Canvas: <a href="https://claude.ai/artifact/G8Y8kRJV6rZTn1y8mtEj3T">Promptorium · Ver o que o refino gerou</a>. Modo correção, meta 90, escopo app (janela mínima 1100×700), um avaliador independente por artboard em cada rodada. Hallmark 4f6a46c · ui-ux-pro-max 9a3f14f. 2026-11-01.</p>
+<h2>Notas</h2><table><tr><th>Artboard</th><th>v0</th><th>v1</th><th>FAILs v0</th><th>FAILs v1</th><th>Achado julgado restante (v1)</th></tr><tr><td>1 · Aprovar vendo o que muda</td><td>89</td><td>96</td><td>20, 26a, 40, 63</td><td>20</td><td>"Ver alterações" desabilitado pode parecer ambíguo (10 pts)</td></tr><tr><td>2 · Edição aplicada, diff no card</td><td>93</td><td>97</td><td>20, 40, 63</td><td>20</td><td>O cartão expandido não diz "aplicada" enquanto o seguinte diz "executando" (10 pts)</td></tr><tr><td>3 · Fim do refino: o que mudou</td><td>91</td><td>97</td><td>20, 40, 63</td><td>20</td><td>O painel lateral repete o resumo do cartão; aspas retas na fala do assistente (10 pts cada)</td></tr><tr><td>4 · Alterações do refino (diálogo)</td><td>91</td><td>96</td><td>20, 40, 63, 73</td><td>20, 73 (véu do modal, intencional)</td><td>Faixa vazia de ~20px no fim do diff (10 pts)</td></tr><tr><td>5 · Edição negada continua visível</td><td>93</td><td>98</td><td>20, 40, 63</td><td>20</td><td>A negação depende de um rótulo pequeno; "Edit" segue âmbar e o card não muda de borda (10 pts)</td></tr></table>
+<p>Todas as telas atingiram a meta na v1, sem falhas críticas. Na v0, todas tinham o gate 40 (crítico: borda do campo com 1,34:1).</p>
+<h2>Achados da v0 corrigidos na v1</h2><ul>
+<li>Borda do campo de mensagem com contraste de 3:1 ou mais (gate 40) e anel de foco no link "Ver a spec inteira" (gate 26a).</li>
+<li>Metadados sem o separador "·" (gate 63): subtítulo do cabeçalho, alvo das ferramentas, lista de conversas, rótulo "Negada, não aplicada".</li>
+<li>Números incoerentes entre cartões, resumo, painel e diálogo (o diálogo dizia +14 −4 e o diff somava +10 −2): agora +10 −2 em todos.</li>
+<li>Linha removida sem número e sinal "−" colado ao "-" de lista: a linha removida ganha número e a coluna do sinal é separada por um fio.</li>
+<li>Edição negada com sinais verde/vermelho: sinais e fundo neutros.</li>
+<li>"Enviar" ativo com o campo vazio; cartão "executando" reagindo ao mouse; títulos do painel em caixa alta; trechos recolhidos com botão "Mostrar".</li></ul>
+<h2>FAILs mantidos</h2><ul><li>Gate 20 (carimbo Hallmark no CSS): não se aplica a mockup de app.</li><li>Gate 73 em Alterações: texto sob o véu do modal, intencional (o avaliador ajustou +1).</li></ul>
+<h2>Não verificado</h2><ul><li>Aba "Spec como ficou" e estado vazio do diálogo (não desenhados).</li><li>Larguras de celular: só registradas, a janela mínima do app é 1100×700.</li></ul>
+<p>Observação: os arquivos JSON brutos das avaliações (ajustes.json, julgados.json, historico.json) foram apagados com a pasta temporária; este relatório resume as notas e os achados registrados durante o ciclo.</p>
+</body></html>

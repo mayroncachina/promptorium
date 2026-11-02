@@ -37,6 +37,7 @@ class ConversationsRepo {
     String mode = 'ask',
     String? refineSpecCode,
     String? refineOrigin,
+    String? refineBaseText,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -51,6 +52,7 @@ class ConversationsRepo {
           updatedAt: Value(DateTime.now()),
           refineSpecCode: Value(refineSpecCode),
           refineOrigin: Value(refineOrigin),
+          refineBaseText: Value(refineBaseText),
         ),
       );
 
