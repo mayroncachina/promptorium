@@ -103,7 +103,10 @@ void main() {
     );
     Future<void> open() async {
       await tester.tap(find.byKey(const ValueKey('run')));
-      for (var i = 0; i < 20; i++) {
+      // Espera o diálogo em vez de um tempo fixo: com a suíte inteira em
+      // paralelo, o trabalho assíncrono pode passar de 400 ms.
+      final dialog = find.byKey(const ValueKey('run-no-design-dialog'));
+      for (var i = 0; i < 250 && dialog.evaluate().isEmpty; i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );

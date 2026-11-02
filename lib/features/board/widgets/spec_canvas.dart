@@ -28,6 +28,9 @@ import 'duel_dialog.dart' show openDuelsProvider;
 
 /// Node size, wave spacing and reference rows (Quadro-Canvas.dc.html).
 const _cardSize = Size(250, 116);
+
+/// A card that needs the person has one more line, the reason (SPEC-030 R4).
+const _attentionCardSize = Size(250, 134);
 const _waveX = 380.0, _originX = 60.0, _originY = 110.0, _rowGap = 54.0;
 const _refRow = 56.0, _refHeight = 40.0, _refCap = 3, _refsPerRow = 3;
 const _panelWidth = 290.0;
@@ -53,12 +56,28 @@ class SpecCanvas extends ConsumerStatefulWidget {
 /// An agent or skill drawn under the selected node, or its "+N mais".
 typedef _Ref = ({String name, String kind, bool more, Rect rect});
 
-class _SpecCanvasState extends ConsumerState<SpecCanvas> {
+class _SpecCanvasState extends ConsumerState<SpecCanvas>
+    with TickerProviderStateMixin {
   final _view = CanvasViewController();
   bool _agents = true, _skills = true;
   final _expanded = <String>{};
+
+  /// One clock for every card that needs the person (SPEC-030 R2): it only
+  /// exists while one does and animations are on (R6).
+  AnimationController? _pulse;
+  void _syncPulse(bool wanted) {
+    if (wanted && _pulse == null) {
+      _pulse = AnimationController(vsync: this, duration: attentionPulsePeriod)
+        ..repeat();
+    } else if (!wanted && _pulse != null) {
+      _pulse!.dispose();
+      _pulse = null;
+    }
+  }
+
   @override
   void dispose() {
+    _pulse?.dispose();
     _view.dispose();
     super.dispose();
   }
@@ -149,7 +168,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
     for (final entry in columns.entries) {
       var y = _originY;
       for (final d in entry.value) {
-        final r = Offset(_originX + entry.key * _waveX, y) & _cardSize;
+        final r =
+            Offset(_originX + entry.key * _waveX, y) &
+            (widget.attention(d) ? _attentionCardSize : _cardSize);
         rects[d.spec.id] = r;
         y = r.bottom + _rowGap;
         if (d.spec.id == selectedId && refRows > 0) {
@@ -188,6 +209,11 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
         final wave = (waves[a.spec.id] ?? 0).compareTo(waves[b.spec.id] ?? 0);
         return wave == 0 ? a.spec.code.compareTo(b.spec.code) : wave;
       });
+    _syncPulse(
+      attention.isNotEmpty && !MediaQuery.disableAnimationsOf(context),
+    );
+    final pulse = _pulse;
+    final position = attention.indexWhere((d) => d.spec.id == selectedId);
     void select(int? id) =>
         ref.read(boardSelectedSpecProvider.notifier).select(id);
     void fitSelected() {
@@ -315,10 +341,14 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                       child: RepaintBoundary(
                                         child: _AttentionHalo(
                                           enabled: widget.attention(d),
+                                          pulse: pulse,
                                           child: _SpecNode(
                                             data: d,
                                             selected: d.spec.id == selectedId,
-                                            attention: widget.attention(d),
+                                            reason: widget.attention(d)
+                                                ? _attentionReason(d)
+                                                : null,
+                                            pulse: pulse,
                                             onTap: () => select(d.spec.id),
                                           ),
                                         ),
@@ -329,7 +359,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                                   if (widget.attention(d))
                                     Positioned(
                                       left: rects[d.spec.id]!.left,
-                                      top: rects[d.spec.id]!.top - 11,
+                                      top: rects[d.spec.id]!.top - 13,
                                       width: _cardSize.width - 12,
                                       child: IgnorePointer(
                                         child: Align(
@@ -421,9 +451,14 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                           children: [
                             _BarButton(
                               key: const ValueKey('canvas-attention-next'),
-                              label:
-                                  'Atenção · '
-                                  '${widget.attentionCount ?? attention.length}',
+                              leading: const AttentionBubble(size: 14),
+                              // With the selected spec in the queue: its
+                              // position and the size of the same list (R8).
+                              label: position < 0
+                                  ? 'Atenção · '
+                                        '${widget.attentionCount ?? attention.length}'
+                                  : 'Atenção · ${position + 1} de '
+                                        '${attention.length}',
                               tooltip:
                                   'Ir para a próxima spec que precisa de você',
                               color: AppColors.amber,
@@ -431,11 +466,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas> {
                               onTap: attention.isEmpty
                                   ? null
                                   : () {
-                                      final i = attention.indexWhere(
-                                        (d) => d.spec.id == selectedId,
-                                      );
                                       final id =
-                                          attention[(i + 1) % attention.length]
+                                          attention[(position + 1) %
+                                                  attention.length]
                                               .spec
                                               .id;
                                       select(id);
@@ -596,11 +629,15 @@ String _stepLabel(StepView s) => switch (s.status) {
 };
 
 class _Pill extends StatelessWidget {
-  const _Pill(this.stage);
+  const _Pill(this.stage, {super.key, this.neutral = false});
   final SpecStage stage;
+
+  /// On a card that needs the person, so amber is only the attention signal.
+  final bool neutral;
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _stagePill(stage);
+    final (label, stageColor) = _stagePill(stage);
+    final color = neutral ? AppColors.textSecondary : stageColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -619,22 +656,34 @@ class _Pill extends StatelessWidget {
   }
 }
 
+/// Never blinks (R3): the dark text keeps its contrast on amber.
 class _AttentionBadge extends StatelessWidget {
   const _AttentionBadge({super.key});
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+    padding: const EdgeInsets.fromLTRB(6, 2, 9, 2),
     decoration: BoxDecoration(
       color: AppColors.amber,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(11),
+      boxShadow: const [
+        BoxShadow(color: AppColors.background, spreadRadius: 3),
+      ],
     ),
-    child: const Text(
-      'Precisa de você',
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.onAmber,
-      ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AttentionBubble(size: 13, color: AppColors.onAmber),
+        SizedBox(width: 5),
+        Text(
+          'Precisa de você',
+          softWrap: false,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.onAmber,
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -661,17 +710,23 @@ class _SpecNode extends StatelessWidget {
   const _SpecNode({
     required this.data,
     required this.selected,
-    required this.attention,
+    required this.reason,
     required this.onTap,
+    this.pulse,
   });
   final SpecCardData data;
-  final bool selected, attention;
+  final bool selected;
+
+  /// Why the spec needs the person; null when it does not.
+  final String? reason;
+  final Animation<double>? pulse;
   final VoidCallback onTap;
+  bool get attention => reason != null;
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(12);
     final done = data.steps.where((s) => s.isDone).length;
-    return DecoratedBox(
+    final node = DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surfaceRaised,
         borderRadius: radius,
@@ -720,7 +775,11 @@ class _SpecNode extends StatelessWidget {
                     const SizedBox(width: 6),
                     GateFixBadge(data: data, fontSize: 11),
                     const SizedBox(width: 6),
-                    _Pill(data.spec.stage),
+                    _Pill(
+                      data.spec.stage,
+                      key: ValueKey('canvas-pill-${data.spec.code}'),
+                      neutral: attention,
+                    ),
                   ],
                 ),
                 Text(
@@ -734,22 +793,36 @@ class _SpecNode extends StatelessWidget {
                     color: AppColors.text,
                   ),
                 ),
+                if (reason != null)
+                  Text(
+                    reason!,
+                    key: ValueKey('canvas-reason-${data.spec.code}'),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.text,
+                    ),
+                  ),
                 Row(
                   children: [
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, box) {
-                          final fits = math.max(1, box.maxWidth ~/ 16);
-                          final shown = data.steps.length > fits
-                              ? data.steps.take(fits - 1)
-                              : data.steps;
+                          final shown = _fittingSteps(data.steps, box.maxWidth);
                           return Row(
                             children: [
                               for (final step in shown)
                                 CanvasDetailCard(
                                   focusable: false,
                                   width: 250,
-                                  details: _StepDetails(step: step),
+                                  details: _StepDetails(
+                                    step: step,
+                                    reason: reason,
+                                    clickable: true,
+                                  ),
                                   child: MouseRegion(
                                     cursor: SystemMouseCursors.click,
                                     child: GestureDetector(
@@ -774,6 +847,17 @@ class _SpecNode extends StatelessWidget {
                                             'canvas-dot-${data.spec.code}-${step.id}',
                                           ),
                                           status: step.status,
+                                          pulse:
+                                              step.status ==
+                                                  StepStatus.needsInput
+                                              ? pulse
+                                              : null,
+                                          semanticLabel:
+                                              step.status ==
+                                                  StepStatus.needsInput
+                                              ? 'Etapa ${step.id}: '
+                                                    'aguardando você'
+                                              : null,
                                         ),
                                       ),
                                     ),
@@ -810,36 +894,118 @@ class _SpecNode extends StatelessWidget {
         ),
       ),
     );
+    if (reason == null) return node;
+    return Semantics(
+      key: ValueKey('canvas-semantics-${data.spec.code}'),
+      container: true,
+      label:
+          '${data.spec.code} · ${data.spec.title} · precisa de você: $reason',
+      child: node,
+    );
   }
 }
 
+/// Width a step takes in the card row: its dot plus the 1 + 5 px padding.
+double _stepWidth(StepView s) =>
+    (s.status == StepStatus.needsInput ? _bubbleSize : _dotSize) + 6;
+
+/// The steps that fit in [maxWidth], leaving room for "+N" when some don't.
+List<StepView> _fittingSteps(List<StepView> steps, double maxWidth) {
+  final total = steps.fold<double>(0, (w, s) => w + _stepWidth(s));
+  if (total <= maxWidth) return steps;
+  final out = <StepView>[];
+  var used = 0.0;
+  for (final s in steps) {
+    if (used + _stepWidth(s) > maxWidth - 16) break;
+    used += _stepWidth(s);
+    out.add(s);
+  }
+  return out.isEmpty ? [steps.first] : out;
+}
+
 class _StepDetails extends StatelessWidget {
-  const _StepDetails({required this.step});
+  const _StepDetails({required this.step, this.reason, this.clickable = false});
   final StepView step;
+
+  /// What is missing, for a step that waits for the person (R7).
+  final String? reason;
+
+  /// The step opens on click (the card's dots, not the panel's list).
+  final bool clickable;
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        step.id,
-        style: const TextStyle(
-          fontFamily: AppFonts.mono,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
+  Widget build(BuildContext context) {
+    if (step.status == StepStatus.needsInput) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const AttentionBubble(size: 14),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Etapa ${step.id} · aguardando você',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              step.gateFailed
+                  ? 'A verificação falhou.'
+                  : step.text.isNotEmpty
+                  ? step.text
+                  : reason ?? _stepLabel(step),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          if (clickable)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'Clique para abrir a etapa',
+                style: TextStyle(color: AppColors.amber),
+              ),
+            ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          step.id,
+          style: const TextStyle(
+            fontFamily: AppFonts.mono,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(
-          _stepLabel(step),
-          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            _stepLabel(step),
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
         ),
-      ),
-      if (step.text.isNotEmpty)
-        Text(step.text, style: const TextStyle(color: AppColors.textSecondary)),
-    ],
-  );
+        if (step.text.isNotEmpty)
+          Text(
+            step.text,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+      ],
+    );
+  }
 }
 
 Color _refColor(String kind) =>
@@ -955,14 +1121,33 @@ class _MoreNode extends StatelessWidget {
 
 // ---------------------------------------------------------------- bolinhas
 
+const _dotSize = 10.0, _bubbleSize = 14.0;
+
+/// Period of the shared attention pulse (SPEC-030 R2): well under one blink
+/// per second, far from the 3 per second of WCAG 2.3.1 (R9).
+const attentionPulsePeriod = Duration(milliseconds: 1800);
+
+/// Opacity of the waiting step's bubble at [t] of the pulse: 1 → .55 → 1.
+double attentionBubbleOpacity(double t) => 1 - .45 * math.sin(math.pi * t);
+
 /// One step: filled circle (feita), pulsing circle (em execução), outline
-/// (pendente), diamond (aguardando você) or spinning ring (verificando).
+/// (pendente), bubble (aguardando você) or spinning ring (verificando).
 class CanvasStepDot extends StatefulWidget {
-  const CanvasStepDot({super.key, required this.status, this.animate = true});
+  const CanvasStepDot({
+    super.key,
+    required this.status,
+    this.animate = true,
+    this.pulse,
+    this.semanticLabel,
+  });
   final StepStatus status;
 
   /// False in the legend, which must not keep a ticker alive.
   final bool animate;
+
+  /// The canvas's shared attention clock; the bubble breathes with it.
+  final Animation<double>? pulse;
+  final String? semanticLabel;
   @override
   State<CanvasStepDot> createState() => _CanvasStepDotState();
 }
@@ -1015,12 +1200,68 @@ class _CanvasStepDotState extends State<CanvasStepDot>
   }
 
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-    child: CustomPaint(
-      size: const Size.square(10),
-      painter: _DotPainter(widget.status, _animation),
-    ),
+  Widget build(BuildContext context) {
+    final bubble = widget.status == StepStatus.needsInput;
+    final Widget dot = RepaintBoundary(
+      child: CustomPaint(
+        size: Size.square(bubble ? _bubbleSize : _dotSize),
+        painter: _DotPainter(
+          widget.status,
+          bubble ? (widget.animate ? widget.pulse : null) : _animation,
+        ),
+      ),
+    );
+    if (widget.semanticLabel == null) return dot;
+    return Semantics(label: widget.semanticLabel, child: dot);
+  }
+}
+
+/// The speech bubble of "aguardando você", in a 16 × 16 box scaled to
+/// [size]: a body with 2.5 px corners and a tail down on the left. Without
+/// the dots, it does not read as "someone is typing" (SPEC-030 R1).
+Path attentionBubblePath(double size) {
+  final k = size / 16;
+  return Path()
+    ..addRRect(
+      RRect.fromLTRBR(
+        .5 * k,
+        1.5 * k,
+        15.5 * k,
+        12 * k,
+        Radius.circular(2.5 * k),
+      ),
+    )
+    ..moveTo(4 * k, 11.5 * k)
+    ..lineTo(7.2 * k, 11.5 * k)
+    ..lineTo(4 * k, 14.8 * k)
+    ..close();
+}
+
+/// The bubble as a widget: the badge, the bar button and step details.
+class AttentionBubble extends StatelessWidget {
+  const AttentionBubble({
+    super.key,
+    this.size = _bubbleSize,
+    this.color = CanvasColors.needsInput,
+  });
+  final double size;
+  final Color color;
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(size: Size.square(size), painter: _BubblePainter(color));
+}
+
+class _BubblePainter extends CustomPainter {
+  const _BubblePainter(this.color);
+  final Color color;
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawPath(
+    attentionBubblePath(size.shortestSide),
+    Paint()..color = color,
   );
+
+  @override
+  bool shouldRepaint(covariant _BubblePainter old) => old.color != color;
 }
 
 class _DotPainter extends CustomPainter {
@@ -1055,19 +1296,14 @@ class _DotPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );
-      case StepDotShape.diamond:
-        canvas
-          ..save()
-          ..translate(c.dx, c.dy)
-          ..rotate(math.pi / 4);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromCenter(center: Offset.zero, width: 8, height: 8),
-            const Radius.circular(2),
-          ),
-          Paint()..color = CanvasColors.needsInput,
+      case StepDotShape.bubble:
+        canvas.drawPath(
+          attentionBubblePath(size.shortestSide),
+          Paint()
+            ..color = CanvasColors.needsInput.withValues(
+              alpha: animation == null ? 1 : attentionBubbleOpacity(t),
+            ),
         );
-        canvas.restore();
       case StepDotShape.spinner:
         final ring = Paint()
           ..style = PaintingStyle.stroke
@@ -1092,68 +1328,55 @@ class _DotPainter extends CustomPainter {
       old.status != status || old.animation != animation;
 }
 
-class _AttentionHalo extends StatefulWidget {
-  const _AttentionHalo({required this.enabled, required this.child});
+/// The card's ring while it needs the person: on the canvas's shared clock
+/// it opens from 0 to 10 px while fading (R2); with no clock (animations
+/// off, R6) it stays as a still 3 px glow.
+class _AttentionHalo extends StatelessWidget {
+  const _AttentionHalo({
+    required this.enabled,
+    required this.pulse,
+    required this.child,
+  });
   final bool enabled;
+  final Animation<double>? pulse;
   final Widget child;
-  @override
-  State<_AttentionHalo> createState() => _AttentionHaloState();
-}
+  static const _curve = Cubic(.2, .6, .4, 1);
 
-class _AttentionHaloState extends State<_AttentionHalo>
-    with TickerProviderStateMixin {
-  AnimationController? _pulse;
-  void _sync() {
-    final active = widget.enabled && !MediaQuery.disableAnimationsOf(context);
-    if (active && _pulse == null) {
-      _pulse = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 900),
-      )..repeat(reverse: true);
-    } else if (!active && _pulse != null) {
-      _pulse!.dispose();
-      _pulse = null;
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(covariant _AttentionHalo old) {
-    super.didUpdateWidget(old);
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _pulse?.dispose();
-    super.dispose();
+  /// Spread and alpha of the ring at [t] of the cycle: it opens over the
+  /// first 70% and is gone for the rest.
+  static (double, double) ring(double t) {
+    if (t >= .7) return (0, 0);
+    final e = _curve.transform(t / .7);
+    return (10 * e, .55 * (1 - e));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_pulse == null) return widget.child;
-    return AnimatedBuilder(
-      animation: _pulse!,
-      child: widget.child,
-      builder: (_, child) => DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.amber.withValues(
-                alpha: .45 * (1 - _pulse!.value),
-              ),
-              spreadRadius: 9 * _pulse!.value,
-            ),
-          ],
+    if (!enabled) return child;
+    BoxDecoration glow(double spread, double alpha) => BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.amber.withValues(alpha: alpha),
+          spreadRadius: spread,
         ),
+      ],
+    );
+    final p = pulse;
+    if (p == null) {
+      return DecoratedBox(
+        key: const ValueKey('canvas-attention-still'),
+        decoration: glow(3, .28),
         child: child,
-      ),
+      );
+    }
+    return AnimatedBuilder(
+      animation: p,
+      child: child,
+      builder: (_, child) {
+        final (spread, alpha) = ring(p.value);
+        return DecoratedBox(decoration: glow(spread, alpha), child: child);
+      },
     );
   }
 }
@@ -1194,13 +1417,13 @@ List<(String, String)> dependencyLinks(List<Spec> specs) {
 }
 
 /// Shape of each step state, so it differs also without colour.
-enum StepDotShape { filled, pulsing, outline, diamond, spinner }
+enum StepDotShape { filled, pulsing, outline, bubble, spinner }
 
 StepDotShape stepDotShape(StepStatus s) => switch (s) {
   StepStatus.done => StepDotShape.filled,
   StepStatus.running => StepDotShape.pulsing,
   StepStatus.pending => StepDotShape.outline,
-  StepStatus.needsInput => StepDotShape.diamond,
+  StepStatus.needsInput => StepDotShape.bubble,
   StepStatus.verifying => StepDotShape.spinner,
 };
 
@@ -1378,9 +1601,13 @@ class _BarButton extends StatelessWidget {
     this.toggle = false,
     this.tooltip,
     this.icon,
+    this.leading,
   });
   final String label;
   final IconData? icon;
+
+  /// A drawn icon before the label (the attention bubble).
+  final Widget? leading;
   final Color color;
   final bool active, toggle;
   final VoidCallback? onTap;
@@ -1421,8 +1648,10 @@ class _BarButton extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
               ],
+              if (leading != null) ...[leading!, const SizedBox(width: 7)],
               Text(
                 label,
+                softWrap: false,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,

@@ -54,7 +54,7 @@ void main() {
     expect([
       for (final s in ['R1', 'R2', 'R3', 'R4', 'R5']) dot(s),
     ], specs[2].steps);
-    expect(stepDotShape(StepStatus.needsInput), StepDotShape.diamond);
+    expect(stepDotShape(StepStatus.needsInput), StepDotShape.bubble);
     expect(stepDotShape(StepStatus.verifying), StepDotShape.spinner);
     expect({
       for (final s in StepStatus.values) stepDotShape(s),

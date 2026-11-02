@@ -1,0 +1,78 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T22:00:00Z"
+ },
+ "title": "Promptorium · Precisa de você no card",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Antes.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Hoje"
+  },
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Proposta: ícone, motivo e pulso"
+  },
+  "Icones.dc.html": {
+   "expand": "fill",
+   "x": 2360,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Opções de ícone da etapa"
+  },
+  "Ritmo.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Ritmo do pulso"
+  },
+  "Quadro.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1080,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Quadro com várias specs"
+  }
+ },
+ "order": [
+  "Antes.dc.html",
+  "Main.dc.html",
+  "Icones.dc.html",
+  "Ritmo.dc.html",
+  "Quadro.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Card que precisa de você: ícone da etapa e pulso de atenção",
+   "kind": "title1",
+   "maxW": 3460
+  },
+  "t2": {
+   "x": 0,
+   "y": 820,
+   "text": "Ritmo da animação e o quadro inteiro",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
