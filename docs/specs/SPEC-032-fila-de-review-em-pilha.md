@@ -22,6 +22,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 | `0-hoje.png` | A tela de hoje: fila plana, cabeçalho com seis ações e o aviso da raiz só no merge | — |
 | `1-pilha.png` | Fila em pilha: SPEC-029 na base, SPEC-031 em cima e SPEC-030 sozinha; o cabeçalho tem uma ação primária e a barra do worktree | R1–R4, R8–R10 |
 | `5-mais.png` | O menu "Mais", com "Mergear a pilha" e as ações secundárias | R8, R13 |
+| `6-muitas.png` | Fila com oito specs: uma pilha de 3, uma de 2 e três avulsas | R1–R3 |
+| `7-grafo.png` | Grafo das ramificações do merge: a `main` como tronco embaixo, cada pilha como um galho, o conflito previsto entre avulsas e o "próximo" | R16 |
+| `8-resolver.png` | Resolver conflito: com o agente (recomendado) ou eu mesmo, vendo os dois lados do trecho | R7, R17 |
+| `9-eu-mesmo.png` | Rebase em andamento no worktree: trechos resolvidos e pendentes, "Continuar rebase" e "Desistir" | R17 |
 | `2-depois-do-merge.png` | Depois do merge da SPEC-029: a base da SPEC-031 foi refeita sobre a `main` e ela foi selecionada sozinha | R5–R7 |
 | `3-conflito.png` | A base refeita conflitou: o card e o cabeçalho mostram "Resolver conflito" | R6, R7 |
 | `4-raiz.png` | A raiz está em outra branch: aviso fixo na fila, com "Voltar para a main" | R11, R12 |
@@ -50,7 +54,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
   - o rebase só começa com o worktree da filha limpo e com nenhuma sessão viva nele. Se não for possível, a filha fica com "Base desatualizada · Refazer agora".
 - R7 · Se o rebase de R6 conflitar, o sistema deve abortá-lo (`git rebase --abort`), deixar a branch como estava e marcar a filha com **"Conflito ao refazer a base"**:
   - a ação primária vira "Resolver conflito", que manda o agente da spec refazer o rebase e resolver os conflitos no worktree dela;
-  - "Ver arquivos" lista os arquivos em conflito.
+  - "Ver arquivos" lista os arquivos em conflito;
+  - a mesma regra vale para o conflito com a `main` de uma spec avulsa, quando outra spec que mexe nos mesmos arquivos entra antes dela.
 - R8 · O cabeçalho da spec selecionada deve ter **uma ação primária por estado**, com as demais num menu "Mais":
   - pronto → "Fazer merge" (ou "Mergear PR", se houver PR);
   - espera a mãe → "Ir para SPEC-029";
@@ -81,10 +86,24 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
   - a ponta antiga da mãe vem de `refs/promptorium/<spec>/base-antiga`. A fila grava essa ref sempre que lê uma filha com a branch da mãe ainda existente, então ela continua disponível depois que a branch da mãe é apagada. Sem a ref, o card mostra "Base desatualizada · Refazer agora", que usa `git merge-base` como ponta antiga;
   - o aviso de R5 diz "SPEC-029 entrou na main pelo GitHub · base da SPEC-031 refeita".
 
+- R16 · **Grafo das ramificações do merge.** A fila deve ter duas visões, "Lista" e "Grafo", escolhidas por abas no topo. A escolha é guardada por projeto. O grafo:
+  - ocupa a área toda da tela (a lista lateral some) e se lê **de baixo para cima**: a `main` é um tronco horizontal embaixo, e cada pilha é um galho vertical que sai dele, da base para o topo. Cada spec avulsa é um galho de um nó;
+  - mostra em cada nó o código, o título e o estado de R3. Os nós que podem entrar agora têm contorno âmbar e o selo "próximo";
+  - liga com uma linha tracejada vermelha, com o nome do arquivo, as specs que mexem no mesmo arquivo (previsão de R4 entre as specs da fila, não só contra a base);
+  - mostra no tronco as specs que entraram hoje na `main`, com a hora;
+  - selecionar um nó (clique, ou as setas do teclado e Enter) mostra uma barra embaixo com o estado, "Abrir o review", que volta para a Lista com o diff, e a ação primária de R8;
+  - tem legenda das linhas e do contorno, e cada nó tem rótulo semântico, como em R14.
+- R17 · **Como resolver um conflito.** Quando houver conflito (R7, ou conflito previsto com a base), a tela deve oferecer dois caminhos, lado a lado, e mostrar os trechos em conflito:
+  - **com o agente da spec (recomendado):** como em R7, o agente refaz a base no worktree, junta os dois lados, roda os testes da spec e commita. O card mostra "Agente resolvendo o conflito…" até ele terminar, e o resultado volta para o diff para ser revisado antes do merge;
+  - **eu mesmo, no editor:** o app roda o rebase no worktree e para nos conflitos. O estado vira "Rebase em andamento · i de n". A tela lista cada trecho com "resolvido" ou "ainda tem marcadores", atualizada pelo vigia do worktree, e oferece "Abrir no editor", "Continuar rebase" (`git rebase --continue`, habilitado só sem marcadores `<<<<<<<`, `=======` e `>>>>>>>`) e "Desistir e voltar como estava" (`git rebase --abort`). Depois de continuar, o app roda os testes da spec antes de devolver o card à fila;
+  - "Passar para o agente" fica disponível durante o rebase manual, e o agente continua do ponto em que ele parou;
+  - **trechos:** cada trecho aparece com os dois lados, "Na main (veio da SPEC-x)" e "Nesta spec", sem cores de adição ou remoção, porque nenhum dos lados é uma remoção;
+  - em nenhum dos caminhos a raiz do projeto muda de branch.
+
 ## Fora do escopo
 
 - Trocar a branch da raiz ao clicar num card (decisão P1).
-- Resolver conflitos dentro do app, num editor de três vias. O conflito é resolvido pelo agente ou à mão, no worktree.
+- Editar o conflito dentro do app, num editor de três vias. O app mostra os dois lados (R17), mas a edição acontece no editor do sistema ou pelo agente.
 - Mudar o método de merge padrão. O squash continua disponível; R6 é o que o torna seguro em pilhas.
 - O GitLab (SPEC-013): o rebase local vale, mas o `push` e a troca de base do MR ficam para outra spec.
 
@@ -135,6 +154,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 
 - `mergeStack(stack)` faz o merge em laço, item a item, e para no primeiro `MergeState` que não seja `pronto`. Ela usa um diálogo de confirmação só no início, com a lista das specs e o método de merge.
 
+### R16 · Grafo
+
+- `ReviewGraph` (`lib/features/review/widgets/review_graph.dart`): um `CustomPaint` para o tronco, os galhos e as linhas de conflito, com os nós como widgets posicionados (`Stack`). Ele reaproveita `orderQueue` (pilhas) e `conflictForecastProvider` entre pares de itens da fila, por meio de `git merge-tree` entre as duas branches, com o mesmo `Pool(1)`.
+- `reviewViewProvider` ganha `mode` (`lista` | `grafo`), persistido por projeto como os filtros de hoje.
+- As specs que entraram hoje vêm das sessões `merged` com `endedAt` de hoje.
+
+### R17 · Resolver conflito
+
+- `ReviewService.startRebase(sessionId)` roda `git rebase --onto <base> <base-antiga>` no worktree e deixa o rebase parado. `rebaseStatus(sessionId)` lê `.git/rebase-merge` e procura marcadores nos arquivos em conflito (`git diff --name-only --diff-filter=U`, mais a busca de `<<<<<<<`). `continueRebase` e `abortRebase` completam o fluxo.
+- `conflictHunks(sessionId)` monta os trechos com os dois lados a partir de `git merge-tree --write-tree --name-only` e dos estágios 2 e 3 do índice durante o rebase.
+- "Passar para o agente" envia a mensagem de R7 com "o rebase já está em andamento; continue de onde parou".
+
 ### Testes
 
 - `test/features/review/review_stack_test.dart`: `orderQueue` (pilha de três, duas pilhas, item sem spec, ciclo) e `primaryActionOf` (todos os estados).
@@ -142,6 +173,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
   - mãe com squash na `main` e filha rebaseada sem conflito; a filha fica com só os commits dela;
   - conflito real: rebase abortado, a branch fica igual e o estado vira `conflitoBase`;
   - worktree sujo: o rebase é pulado.
+- `test/features/review/review_graph_test.dart` (widget): galhos e nós na ordem da base ao topo, o selo "próximo", a linha de conflito com o nome do arquivo, a seleção pelo teclado e a barra de ação.
+- `restack_test.dart` também cobre R17: `startRebase` para nos conflitos, `rebaseStatus` conta os marcadores, `continueRebase` é recusado com marcadores e `abortRebase` volta ao SHA anterior.
 - `test/features/review/review_screen_stack_test.dart` (widget):
   - a ordem dos cards e o trilho;
   - os rótulos de estado com texto;
@@ -162,7 +195,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 - [ ] "Mergear a pilha" para no primeiro item que não está pronto [R13] verificar: flutter test test/features/review/restack_test.dart
 - [ ] Com a mãe mergeada fora do app (PR `MERGED` e branch apagada), abrir a Review refaz a base da filha sobre `origin/main` com a `base-antiga` gravada; sem a ref, mostra "Refazer agora" [R15] verificar: flutter test test/features/review/restack_test.dart
 - [ ] Com um PR empilhado no GitHub, o merge da mãe troca a base do PR filho para a `main`, e ele continua aberto (verificação manual) [R6] verificar: manual (dois PRs empilhados de teste)
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] verificar: flutter analyze
+- [ ] O grafo desenha a main embaixo, as pilhas como galhos da base ao topo, o "próximo" e a linha de conflito entre specs da fila; selecionar um nó mostra a ação primária [R16] verificar: flutter test test/features/review/review_graph_test.dart
+- [ ] Resolver eu mesmo: o rebase para nos conflitos, "Continuar rebase" só libera sem marcadores, e "Desistir" volta a branch ao estado anterior [R17] verificar: flutter test test/features/review/restack_test.dart
+- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] [R16] [R17] verificar: flutter analyze
 
 ## Decisões
 
@@ -170,4 +205,6 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 - (P2) Depois do merge da mãe, a base das filhas é refeita sozinha. Se houver conflito, o rebase é desfeito e a filha fica marcada para "Resolver conflito" (R6, R7).
 - (P3) Os problemas mais frequentes, segundo o usuário, são o conflito em pilha e a raiz suja ou fora da `main` (R6 e R11 são o núcleo da spec).
 - (P4) Quando a mãe é mergeada fora do app, a base das filhas é refeita na próxima vez que a Review abre ou que as refs mudam, sobre `origin/<base>` (R15).
+- (P5) A fila ganha a visão em grafo das ramificações do merge, que se lê de baixo para cima, como o usuário descreveu ("um canvas com as ramificações do merge, caso um dependa do outro") (R16).
+- (P6) O conflito é resolvido pelo agente por padrão, ou à mão, no editor, com o rebase parado no worktree. O app mostra os dois lados de cada trecho (R17).
 - Validação do mockup (`/validar-layouts`, relatório em `docs/mockups/spec-032/relatorio-validacao-fila-de-review-em-pilha-2026-11-02.html`): a proposta tirou 94 e a tela de hoje 85. A v2 do mockup corrige os ganhos rápidos apontados: o grupo "Avulsas" (R2), os títulos sem caixa-alta espaçada (R2), "Fazer merge" desabilitado de verdade com o motivo (R8), o estado aberto do "Mais" (R8) e o tooltip de "Testar" (R9).

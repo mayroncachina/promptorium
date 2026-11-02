@@ -57,6 +57,38 @@
    "w": 1100,
    "h": 700,
    "title": "5 · Menu Mais"
+  },
+  "Muitas.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 2700,
+   "w": 1100,
+   "h": 700,
+   "title": "6 · Fila com várias specs"
+  },
+  "Grafo.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 2700,
+   "w": 1100,
+   "h": 700,
+   "title": "7 · Grafo das ramificações"
+  },
+  "Resolver.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 3600,
+   "w": 1100,
+   "h": 700,
+   "title": "8 · Resolver conflito"
+  },
+  "EuMesmo.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 3600,
+   "w": 1100,
+   "h": 700,
+   "title": "9 · Rebase em andamento (eu mesmo)"
   }
  },
  "order": [
@@ -65,7 +97,11 @@
   "Depois.dc.html",
   "Conflito.dc.html",
   "Raiz.dc.html",
-  "Mais.dc.html"
+  "Mais.dc.html",
+  "Muitas.dc.html",
+  "Grafo.dc.html",
+  "Resolver.dc.html",
+  "EuMesmo.dc.html"
  ],
  "notes": {
   "t1": {
