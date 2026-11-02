@@ -1,0 +1,28 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Validação · SPEC-030 "Precisa de você" no card</title>
+<style>body{font-family:system-ui,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;color:#1d1f23;line-height:1.5}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{background:#f1f2f5}td.n{text-align:right;font-variant-numeric:tabular-nums}</style></head><body>
+<h1>Validação dos layouts · SPEC-030 “Precisa de você” no card</h1>
+<p>Canvas: <a href="https://claude.ai/artifact/An9CSFnYoZtoBZgHihHRYp">Promptorium · Precisa de você no card</a> (versão publicada 1793582493-9937). Modo correção, meta 90, escopo app (janela mínima 1100×700), um avaliador independente por artboard em cada rodada. Opiniões de design também do ui-ux-pro-max (Animation: Continuous Animation, Reduced Motion, Excessive Motion; Accessibility: color-not-only) e do ui-styling (tokens e hierarquia). Hallmark 4f6a46c · ui-ux-pro-max 9a3f14f. 2026-11-01.</p>
+<h2>Notas</h2><table><tr><th>Artboard</th><th>v0</th><th>v1</th><th>Decisão do ciclo (v1)</th><th>FAILs v0</th><th>FAILs v1</th><th>Temp. máx. v0 → v1</th></tr>
+<tr><td>0 · Hoje</td><td class="n">88</td><td class="n">89</td><td>estagnou (é o estado atual, de propósito)</td><td>20, 49a</td><td>20</td><td class="n">10° → 20°</td></tr>
+<tr><td>1 · Proposta: ícone, motivo e pulso</td><td class="n">88</td><td class="n">92</td><td>meta atingida</td><td>20, 49a</td><td>20</td><td class="n">40° → 20°</td></tr>
+<tr><td>2 · Opções de ícone da etapa</td><td class="n">89</td><td class="n">94</td><td>meta atingida</td><td>20</td><td>20</td><td class="n">10° → 20°</td></tr>
+<tr><td>3 · Ritmo do pulso</td><td class="n">92</td><td class="n">97</td><td>meta atingida</td><td>20</td><td>20</td><td class="n">80° → 30°</td></tr>
+<tr><td>4 · Quadro com várias specs</td><td class="n">87</td><td class="n">90</td><td>meta atingida</td><td>20, 49a</td><td>20</td><td class="n">40° → 30°</td></tr></table>
+<p>O gate 20 (carimbo do Hallmark) não se aplica a layouts que o Hallmark não construiu e não desconta nota.</p>
+<h2>O que mudou na v1</h2><ul>
+<li>O selo “Precisa de você” deixou de piscar: a 55% de opacidade o texto caía para 3,26:1. Agora só o ícone da etapa (elemento gráfico, 3:1 basta) e o halo pulsam.</li>
+<li>Menos âmbar por card: a linha do motivo ficou em texto claro, sem ícone, e a pílula de status do card que precisa de você ficou neutra, porque o laranja de “Em execução” é quase igual ao âmbar de atenção.</li>
+<li>O tooltip da etapa ganhou seta e passou a encostar no ícone a que se refere.</li>
+<li>O Quadro ganhou as arestas entre as ondas e um status coerente com o progresso (SPEC-005 “Na fila”, 2/4); a nota de designer sobre o quadro saiu da tela.</li>
+<li>O Ritmo mostra os três estados ao vivo (esperando, já vista, em execução), uma linha do tempo com as marcas de 0; 0,6; 0,9 e 1,8 s e a regra “selo sempre aceso”.</li>
+<li>Opções de ícone e Ritmo passaram a usar layout em fluxo (grid que reflui, legenda junto da comparação).</li>
+<li>Botão “Atenção · 2” sem quebra de linha, estados :active e :disabled, h1 de cada tela, aspas tipográficas, um peso de fonte a menos e alvos de 44 px no celular.</li></ul>
+<h2>Achados julgados que ficaram (pendente com você)</h2><ul>
+<li><b>Quadro:</b> os dois cards que precisam de você, um selecionado (brilho fixo, borda branca) e outro pulsando, não têm legenda; “Atenção · 2” não mostra a posição (1 de 2). Viraram as perguntas P5 e P6 da spec.</li>
+<li><b>Quadro:</b> a mesma pílula “Em execução” aparece neutra nos cards de atenção e laranja nos demais. É a decisão do R3 (âmbar só para atenção); a spec registra o motivo.</li>
+<li><b>Proposta:</b> com vários cards esperando, todos pulsam juntos e o quadro pode virar ruído (vira a P5).</li>
+<li><b>Ritmo:</b> as marcas da linha do tempo são proporcionais ao tempo e não ficam exatamente sob os quadros, que são distribuídos por igual; a fileira de estados ao vivo deixa espaço à direita em telas largas.</li>
+<li><b>Opções de ícone:</b> a legenda diz que a forma muda com a cor, mas “feita” e “em execução” são o mesmo círculo (o que difere é a animação); metade de baixo do artboard fica vazia.</li>
+<li><b>Celular (375 px):</b> a barra do canvas quebra em duas linhas e os cards de 300 px passam da borda. O Promptorium é um app desktop (janela mínima 1100×700), então isso não entra na spec.</li></ul>
+<h2>Não verificado</h2><p>As animações (halo, ícone a 55%, bolinha que respira) não aparecem em capturas estáticas; foram avaliadas pelo código. A renderização é local (runtime dc-lite), não a do editor do Claude Design.</p>
+</body></html>
