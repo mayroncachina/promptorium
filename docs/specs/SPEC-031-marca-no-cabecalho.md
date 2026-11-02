@@ -77,7 +77,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
 - Quando a atividade some, chama `controller.forward()` até 1,0, o fim do ciclo, e então troca para a marca parada com o fade de R5 e descarta o controller.
 - O painter reaproveita as curvas da abertura, convertidas para o quadro de 256:
   - a onda é `M… Q… T…`, com comprimento de onda de 76 e amplitude de 7 no nível 164, deslocada em `−76·t`;
-  - as bolhas saem de (128, 204), (114, 208) e (140, 210), com raios 11, 8 e 7, e sobem 100 com `easeIn`;
+  - as bolhas saem de (128, 204), (114, 208) e (140, 210), com raios 11, 8 e 7, e sobem 104 com `easeIn`;
   - opacidade: 0 → 1 até 20% do caminho, 1 → 0,9 até 80%, depois 0;
   - os nós da molécula ficam em (132, 34), (180, 22) e (196, 60).
 - Se der, `SplashTimeline.bubble` e a curva da onda viram funções compartilhadas em `lib/ui/widgets/brand_motion.dart`, para que a abertura e a marca não divirjam.
@@ -113,3 +113,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NRUsZY4t2xnsTXpX7R7
 - (P2) 26 px, com o desenho completo da marca: é o mesmo tamanho do quadrado de hoje, e o desenho simples não tem bolhas para animar (R1).
 - (P3) Enquanto anima, clicar na marca abre o Quadro do projeto ativo. Parada, ela não faz nada (R9).
 - (P4) A marca não muda quando uma spec precisa de você. O sinal de atenção fica no Quadro e no sino de notificações.
+- Implementação: o clique que abre o Quadro (R9) vale enquanto há specs em execução, mesmo com a animação desligada no sistema. Assim, quem usa "reduzir movimento" também tem o atalho.
+- Implementação: a onda animada é recortada no formato do líquido parado (`_liquidBounds`, os lados e o fundo do líquido do SVG, prolongados até o gargalo). Por isso o fundo escuro do frasco aparece igual nos dois estados. As bolhas só são recortadas pelo interior do frasco, para chegarem ao gargalo.
+- Implementação: as bolhas sobem 104 em vez de 100, para que a bolha visível passe do nível 110 do gargalo.
+- Implementação: o estado vem de `brandActivityProvider` (`lib/ui/shell/brand_activity.dart`), que observa só quais sessões estão vivas, e não cada evento delas.
+
