@@ -75,6 +75,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
   - cada card tem rótulo semântico com título, posição na pilha e estado ("SPEC-031, 2 de 2 na pilha, espera SPEC-029");
   - o aviso de R5 é anunciado uma vez, sem roubar o foco;
   - todos os botões novos são focáveis por Tab, com anel de foco visível.
+- R15 · **Mãe mergeada fora do app** (pelo site do GitHub, por exemplo): ao abrir a tela de Review, e quando o vigia do repositório notar mudança nas refs, o sistema deve detectar as filhas cuja mãe já entrou na base e refazer a base delas como em R6 e R7:
+  - a mãe conta como mergeada quando o PR dela está `MERGED` (`gh pr view --json state`) ou, sem PR, quando a branch dela sumiu do remote e os commits dela estão em `origin/<base>`;
+  - antes de refazer, o sistema roda `git fetch origin <base>` e refaz a base sobre `origin/<base>`, porque a `main` local da raiz pode estar atrasada;
+  - a ponta antiga da mãe vem de `refs/promptorium/<spec>/base-antiga`. A fila grava essa ref sempre que lê uma filha com a branch da mãe ainda existente, então ela continua disponível depois que a branch da mãe é apagada. Sem a ref, o card mostra "Base desatualizada · Refazer agora", que usa `git merge-base` como ponta antiga;
+  - o aviso de R5 diz "SPEC-029 entrou na main pelo GitHub · base da SPEC-031 refeita".
 
 ## Fora do escopo
 
@@ -155,16 +160,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 - [ ] "Testar", "Terminal" e "Editor" abrem no worktree, e clicar no card não troca a branch da raiz [R9] [R10] verificar: flutter test test/features/review/review_screen_stack_test.dart
 - [ ] O aviso da raiz aparece na fila e "Voltar para a main" funciona [R11] [R12] verificar: flutter test test/features/review/review_screen_stack_test.dart
 - [ ] "Mergear a pilha" para no primeiro item que não está pronto [R13] verificar: flutter test test/features/review/restack_test.dart
+- [ ] Com a mãe mergeada fora do app (PR `MERGED` e branch apagada), abrir a Review refaz a base da filha sobre `origin/main` com a `base-antiga` gravada; sem a ref, mostra "Refazer agora" [R15] verificar: flutter test test/features/review/restack_test.dart
 - [ ] Com um PR empilhado no GitHub, o merge da mãe troca a base do PR filho para a `main`, e ele continua aberto (verificação manual) [R6] verificar: manual (dois PRs empilhados de teste)
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] verificar: flutter analyze
+- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] verificar: flutter analyze
 
 ## Decisões
 
 - (P1) Clicar num card não troca a branch da raiz. Testar uma branch acontece no worktree dela, com "Testar", "Terminal" e "Editor". O merge local exige a raiz na `main`, e o git recusa o checkout de uma branch que já está aberta em um worktree (R9, R10).
 - (P2) Depois do merge da mãe, a base das filhas é refeita sozinha. Se houver conflito, o rebase é desfeito e a filha fica marcada para "Resolver conflito" (R6, R7).
 - (P3) Os problemas mais frequentes, segundo o usuário, são o conflito em pilha e a raiz suja ou fora da `main` (R6 e R11 são o núcleo da spec).
+- (P4) Quando a mãe é mergeada fora do app, a base das filhas é refeita na próxima vez que a Review abre ou que as refs mudam, sobre `origin/<base>` (R15).
 - Validação do mockup (`/validar-layouts`, relatório em `docs/mockups/spec-032/relatorio-validacao-fila-de-review-em-pilha-2026-11-02.html`): a proposta tirou 94 e a tela de hoje 85. A v2 do mockup corrige os ganhos rápidos apontados: o grupo "Avulsas" (R2), os títulos sem caixa-alta espaçada (R2), "Fazer merge" desabilitado de verdade com o motivo (R8), o estado aberto do "Mais" (R8) e o tooltip de "Testar" (R9).
-
-## Perguntas em aberto
-
-- Quando a mãe for mergeada fora do app (pelo site do GitHub), o rebase das filhas deve ser feito na próxima vez que a fila for aberta? Proposta: sim, detectado pela ausência da branch da mãe e pela `base-antiga` gravada no último push.
