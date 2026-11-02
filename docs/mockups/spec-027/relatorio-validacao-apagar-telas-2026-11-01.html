@@ -1,0 +1,20 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Validação · SPEC-027 Apagar telas do protótipo</title>
+<style>body{font-family:system-ui,sans-serif;max-width:980px;margin:32px auto;padding:0 20px;color:#1d1f23;line-height:1.5}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd;padding:6px 8px;text-align:left;font-size:14px;vertical-align:top}th{background:#f1f2f5}</style></head><body>
+<h1>Validação dos layouts · SPEC-027 Apagar telas do protótipo</h1>
+<p>Canvas: <a href="https://claude.ai/artifact/VgzA6UuHaq7KsMi88f7ZXx">Promptorium · Apagar telas do protótipo</a>. Modo correção, meta 90, escopo app (janela mínima 1100×700), um avaliador independente por artboard em cada rodada. Hallmark 4f6a46c · ui-ux-pro-max 9a3f14f. 2026-11-01.</p>
+<h2>Notas</h2><table><tr><th>Artboard</th><th>v0</th><th>v1</th><th>FAILs v0</th><th>FAILs v1</th></tr><tr><td>1 · Apagar pelo menu da tela</td><td>96</td><td>96</td><td>20, 63</td><td>20</td></tr><tr><td>2 · Confirmar (tela aprovada)</td><td>96</td><td>98</td><td>20, 63, 73</td><td>20, 73</td></tr><tr><td>3 · Apagar várias selecionadas</td><td>96</td><td>96</td><td>20, 63</td><td>20</td></tr><tr><td>4 · Apagada, com Desfazer</td><td>96</td><td>97</td><td>20, 63</td><td>20</td></tr><tr><td>5 · Requisito sem tela e aba Versões</td><td>95</td><td>96</td><td>20, 63</td><td>20</td></tr></table>
+<p>A v0 já atingia a meta; a v1 corrigiu os achados julgados que mudavam decisões da spec.</p>
+<h2>O que mudou na v1</h2><ul>
+<li>Rótulo do cartão com requisito, título e selo da variação (inclusive "A"), igual aos nomes da aba Versões; selo "Aprovada" saiu de cima da miniatura.</li>
+<li>Rótulos sem o separador "·" (gate 63).</li>
+<li>"Enviar pedido" desabilitado sem tela e sem texto.</li>
+<li>O diálogo diz que dá para desfazer logo depois; o aviso da tela aprovada entrou no <code>aria-describedby</code>.</li>
+<li>Barra de seleção sem "Pedir variação" (duplicava o painel).</li>
+<li>Lixeiras da aba Versões neutras (vermelhas só no hover/foco) e com rótulo que avisa quando a variação é a aprovada; títulos do painel como h2.</li></ul>
+<h2>Achados julgados restantes (v1, 10 pontos cada)</h2><ul>
+<li>O título do cartão aprovado corta ("Cabeçalho da s…") por causa do selo; o texto inteiro ficou na dica (<code>title</code>), aplicada depois da avaliação.</li>
+<li>Caixa de seleção e botão "⋯" ficam sobre a miniatura (Seleção).</li>
+<li>Lixeiras discretas demais na aba Versões.</li></ul>
+<h2>FAILs mantidos</h2><ul><li>Gate 20 (carimbo Hallmark no CSS): não se aplica a mockup de app.</li><li>Gate 73 em Confirmar: texto sob o véu do modal, intencional.</li></ul>
+<h2>Correções feitas depois da v1, sem nova avaliação</h2><ul><li>Dica com o título inteiro no cartão e <code>aria-describedby</code> incluindo o aviso da tela aprovada. Nenhuma das duas muda o visual.</li></ul>
+</body></html>
