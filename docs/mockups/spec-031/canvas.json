@@ -1,0 +1,62 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-02T02:30:00Z"
+ },
+ "title": "Promptorium · Marca do sistema no cabeçalho",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Antes.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Hoje"
+  },
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Proposta: marca parada e executando"
+  },
+  "Animacao.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Animação da marca"
+  },
+  "Tamanho.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Tamanho no cabeçalho"
+  }
+ },
+ "order": [
+  "Antes.dc.html",
+  "Main.dc.html",
+  "Animacao.dc.html",
+  "Tamanho.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Cabeçalho com a marca do sistema, animada enquanto as ondas executam",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
