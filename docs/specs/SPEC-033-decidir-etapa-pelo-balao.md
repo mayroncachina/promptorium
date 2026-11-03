@@ -67,7 +67,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - a consequência, numa frase;
   - a mudança proposta no requisito, quando o tipo a exige;
   - a marca **Sugerida** em no máximo uma opção.
-  - A geração começa assim que a etapa entra em `needsInput`, sem esperar o clique, e fica guardada por (sessão, etapa, última mensagem) enquanto o app estiver aberto.
+  - A geração começa só quando a pessoa abre o modal; parar uma etapa não gasta nenhuma execução. Enquanto ela roda, o modal mostra o carregamento do R14.
+  - O resultado fica guardado por (sessão, etapa, última mensagem) enquanto o app estiver aberto: reabrir o modal da mesma parada não gera de novo.
 - R5 · As opções devem aparecer numa lista vertical numerada de 1 a 4:
   - cada linha tem o número (`kbd`), o título, o rótulo do tipo e a consequência;
   - a opção sugerida vem primeiro, com o selo "Sugerida";
@@ -96,6 +97,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - o diff da spec, no mesmo componente da SPEC-026 (número de linha e rótulos acessíveis "Linha adicionada" e "Linha removida"). Ele é gerado por uma execução somente leitura que aplica as escolhas aos requisitos e aos critérios, no mesmo formato da `SpecAnswerApplier` da SPEC-028;
   - a mensagem que o agente vai receber, editável;
   - os botões "Voltar", "Só alterar a spec" e **Compilar e continuar** (primário, `Ctrl+Enter`).
+  - Quando nenhuma escolha muda a spec (todas são do tipo **Responder**), a fase não mostra diff:
+    - aparecem só as decisões, a mensagem e o aviso "O requisito não muda";
+    - não há "Só alterar a spec";
+    - o botão primário vira **Enviar e continuar**.
 - R10 · **Compilar e continuar** deve, nesta ordem:
   1. gravar a spec com o diff aprovado, sem mudar o status;
   2. reestruturar a etapa conforme o tipo escolhido:
@@ -105,16 +110,16 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   3. retomar a etapa:
      - com a sessão viva, enviar a mensagem a ela e marcar a etapa "em execução";
      - com a sessão encerrada, iniciar a próxima sessão da etapa (`runNext`) com a mensagem como contexto;
-  4. fechar o modal e mostrar o aviso "SPEC-<n>: etapa <id> retomada · requisito alterado", com "Desfazer" por 8 s. "Desfazer" restaura o arquivo e a fila de etapas enquanto o agente não tiver começado.
+  4. fechar o modal e mostrar o aviso "SPEC-<n>: etapa <id> retomada · requisito alterado", com "Desfazer" por 8 s. "Desfazer" restaura o arquivo e a fila de etapas. O botão some antes dos 8 s assim que a sessão emitir o primeiro evento, porque aí o agente já começou.
   - "Só alterar a spec" faz só o passo 1 e deixa a etapa em "aguardando você".
 - R11 · Se a spec tiver mudado no disco desde a abertura do modal, **Compilar e continuar** não deve gravar nada. O modal mostra "A spec mudou enquanto você decidia" com os botões "Recompilar" e "Abrir no editor".
-- R12 · O modal deve ter **Abrir sessão** (tecla `S` quando o foco não está num campo) em todas as fases, para quem quer fazer pair programming com o agente.
+- R12 · O modal deve ter **Abrir sessão** (`Ctrl+O`, que vale também com o foco num campo de texto) em todas as fases, para quem quer fazer pair programming com o agente.
   - Ele fecha o modal, abre a sessão da etapa no Prompt (`openSession`) e coloca no campo de mensagem um rascunho com as decisões já tomadas. O rascunho não é enviado sozinho.
   - Com a sessão encerrada, ele retoma a sessão (`--resume`) no modo interativo.
   - A etapa continua em "aguardando você" até o agente concluí-la.
 - R13 · Com a animação desligada no sistema (`MediaQuery.disableAnimations`), o modal deve abrir e fechar sem escala nem deslizamento, só com o fundo (opacidade, 0 ms). As opções aparecem todas juntas e a prévia troca sem transição.
 - R14 · O modal deve tratar os estados de espera e de erro sem prender a pessoa:
-  - **Gerando opções**: o resumo e as linhas de opção aparecem como esqueletos, com "A IA está lendo a sessão…". "Outra resposta" e "Abrir sessão" já funcionam;
+  - **Gerando opções**: o modal abre na hora, e o resumo e as linhas de opção aparecem como esqueletos, com "A IA está lendo a sessão…" e o tempo decorrido. "Outra resposta" e "Abrir sessão" já funcionam. Fechar o modal cancela a geração;
   - **Falha ao gerar**: "Não consegui propor opções: <motivo curto>", com "Tentar de novo", "Outra resposta" e "Abrir sessão";
   - **Verificação falhou** (o `GateReport` esgotou as tentativas): o resumo mostra o comando e as últimas linhas da saída, e as opções incluem, quando fizer sentido, "Corrigir o teste" e "Marcar o critério como manual" (tipo **Ajustar o requisito**).
 - R15 · Leitores de tela devem ouvir:
@@ -173,14 +178,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - `StepDecisionOptions` (em `lib/features/board/step_decision.dart`) segue o modelo da `SpecQuestionOptions`:
   - o schema tem `summary` (string), `decisions[]` com `question` e `options[]` (`title`, `kind` ∈ {`answer`, `amend`, `split`, `defer`}, `consequence`, `change`, `split[]`, `suggested`) e no máximo 4 opções por decisão;
   - `parseStepDecisions` descarta títulos vazios, limita a 4 opções e mantém só a primeira `suggested`.
-- O cache usa a chave (sessionId, step, hash da última mensagem do agente). Um `ref.listen` em `specStepsProvider` dispara a geração quando uma etapa passa a `needsInput`, com no máximo uma execução por spec ao mesmo tempo.
+- O cache usa a chave (sessionId, step, hash da última mensagem do agente). A geração é disparada pelo `initState` do modal, quando não há resultado no cache, com no máximo uma execução por spec ao mesmo tempo. O `dispose` do modal cancela a execução (`cancelled` do `runReadOnlyClaude`) se ela ainda não terminou.
 - O contexto da sessão é limitado aos últimos 12 mil caracteres da linha do tempo. Com a verificação esgotada, o contexto inclui o `GateReport` (o comando e as últimas 40 linhas).
 - Os erros nunca terminam o provider em erro, para o Riverpod 3 não agendar novas tentativas: o resultado é `StepDecisionResult(error:)`.
 
 ### R6–R8 · Decisões e prévia
 
 - `StepDecisionDialog` (`ConsumerStatefulWidget`), com as fases `decidindo(i)` → `compilando` → `compilado` (ou `conflito`, no caso do R11).
-- `Shortcuts` e `Actions` com `SingleActivator` para `digit1`…`digit5`, `arrowUp`/`arrowDown`, `enter`, `backspace`, `keyS`, `ctrl+enter` e `escape`. Um `FocusScope` prende o foco no modal. As teclas de número e o `S` são ignoradas quando o foco primário é um `EditableText`.
+- `Shortcuts` e `Actions` com `SingleActivator` para `digit1`…`digit5`, `arrowUp`/`arrowDown`, `enter`, `backspace`, `ctrl+o`, `ctrl+enter` e `escape`. Um `FocusScope` prende o foco no modal. As teclas de número são ignoradas quando o foco primário é um `EditableText`; `Ctrl+O` e `Ctrl+Enter` valem sempre.
 - As escolhas ficam em `stepDecisionChoicesProvider` (`Notifier<Map<(String sessionId, String step), List<Choice>>>`).
 - O avanço automático do R8 usa um `Timer` de 250 ms, cancelado se a pessoa apertar outra tecla antes.
 - A prévia é `StepDecisionPreview(option)`, com `AnimatedSwitcher` de 120 ms (zero com a animação desligada).
@@ -195,7 +200,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - em **Dividir**, o compilador troca o `R3` por `R3a` e `R3b`, e a linha de `spec_steps` do `R3` é removida (`specStepsRepoProvider`). As novas etapas nascem pendentes;
   - em **Adiar**, o compilador move o item do requisito para o fim de `## Requisitos`, sem mudar o id, e a etapa volta para `pending`.
 - A retomada usa `sessionManagerProvider.notifier.send` quando a sessão está viva e, quando não está, `specRunnerProvider.runNext(specId, context: message)`. Este é um parâmetro novo: o texto entra no prompt da etapa.
-- O "Desfazer" guarda o texto anterior e as linhas de `spec_steps` em memória e só vale enquanto a sessão não tiver emitido nenhum evento novo.
+- O "Desfazer" guarda o texto anterior e as linhas de `spec_steps` em memória. Um `ref.listen` nos eventos da sessão esconde o botão no primeiro evento novo.
+- Sem mudança na spec (só **Responder**), o compilador não roda: a fase Compilar monta a mensagem a partir das escolhas, sem execução somente leitura.
 
 ### R12 · Abrir sessão
 
@@ -217,7 +223,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - a reestruturação da fila: com o texto compilado, `stepsOf` devolve `R3a` e `R3b` no lugar do `R3`, e o requisito adiado vai para o fim.
 - `test/features/board/step_decision_dialog_test.dart` (novo), testes de widget com `ProviderContainer(retry: (_, _) => null)`:
   - o balão abre o modal e as outras etapas abrem o `StepLiveDialog`;
-  - as teclas `1`–`5`, as setas, `Enter`, `Backspace`, `S`, `Ctrl+Enter` e `Esc`;
+  - as teclas `1`–`5`, as setas, `Enter`, `Backspace`, `Ctrl+O`, `Ctrl+Enter` e `Esc`;
+  - a geração só começa ao abrir o modal, e fechar cancela;
+  - com só **Responder**, Compilar não mostra diff e o botão é "Enviar e continuar";
+  - o "Desfazer" some no primeiro evento da sessão;
   - os números não valem dentro do campo de texto;
   - "Decisão 1 de 2" avança depois de 250 ms;
   - a prévia de cada tipo;
@@ -234,31 +243,34 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - [ ] O balão da etapa em "aguardando você" abre o modal de decisão; as demais etapas abrem o `StepLiveDialog` [R1] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] O modal abre com fundo em 160 ms e escala 0,92 → 1 em 220 ms a partir do balão, e as opções entram em sequência a cada 40 ms; sem animação, as durações são zero [R2] [R13] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] O cabeçalho mostra a etapa, o requisito e o resumo de "O que aconteceu" [R3] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] As opções da IA são lidas com no máximo 4 por decisão e uma só sugerida, e ficam em cache por (sessão, etapa, última mensagem) [R4] verificar: flutter test test/features/board/step_decision_test.dart
+- [ ] As opções da IA são lidas com no máximo 4 por decisão e uma só sugerida, e ficam em cache por (sessão, etapa, última mensagem); a geração só começa ao abrir o modal [R4] verificar: flutter test test/features/board/step_decision_test.dart
 - [ ] As opções aparecem numeradas, com tipo, consequência e "Outra resposta" em 5; a escolhida tem ícone e "Escolhida" [R5] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] As teclas 1–5, setas, Enter, Backspace, S, Ctrl+Enter e Esc funcionam, e os números não valem dentro do campo de texto [R6] [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
+- [ ] As teclas 1–5, setas, Enter, Backspace, Ctrl+O, Ctrl+Enter e Esc funcionam; os números não valem dentro do campo de texto e o Ctrl+O vale [R6] [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] A prévia mostra o requisito alterado, a etapa dividida em duas, a etapa adiada ou a mensagem, conforme o tipo [R7] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Com duas decisões, o modal mostra "Decisão 1 de 2" e avança 250 ms depois da escolha; reabrir mantém as escolhas [R8] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] Compilar mostra a lista das decisões, o diff da spec e a mensagem editável [R9] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] Compilar e continuar grava a spec, divide ou adia a etapa, envia a mensagem (ou inicia a próxima sessão) e oferece Desfazer [R10] verificar: flutter test test/features/board/step_decision_dialog_test.dart
+- [ ] Compilar mostra a lista das decisões, o diff da spec e a mensagem editável; com só Responder, mostra "O requisito não muda" e "Enviar e continuar", sem diff [R9] verificar: flutter test test/features/board/step_decision_dialog_test.dart
+- [ ] Compilar e continuar grava a spec, divide ou adia a etapa, envia a mensagem (ou inicia a próxima sessão) e oferece Desfazer, que some no primeiro evento da sessão [R10] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] A reestruturação da fila divide R3 em R3a e R3b e adia a etapa para o fim [R10] verificar: flutter test test/features/board/step_decision_test.dart
 - [ ] Com a spec alterada no disco, nada é gravado e aparece "A spec mudou enquanto você decidia" [R11] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Abrir sessão fecha o modal e abre a sessão com o rascunho das decisões, sem enviar [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] Gerando, falha ao gerar e verificação que falhou mostram os textos e as ações do R14 [R14] verificar: flutter test test/features/board/step_decision_dialog_test.dart
+- [ ] Gerando (com o tempo decorrido e cancelamento ao fechar), falha ao gerar e verificação que falhou mostram os textos e as ações do R14 [R14] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] O modal, as opções e a troca de decisão têm os rótulos semânticos, e o foco volta ao balão ao fechar [R15] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Os testes atuais do quadro continuam passando [R1] verificar: flutter test test/features/board
 - [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] verificar: flutter analyze
 - [ ] Numa sessão real que parou com uma pergunta, as opções fazem sentido e Compilar e continuar retoma a etapa com o requisito alterado [R4] [R10] (manual)
 
+## Decisões
+
+- (P1) As opções são geradas só quando a pessoa abre o modal, com o carregamento do R14. Parar uma etapa não gasta execução (R4, R14).
+- (P3) Quando todas as escolhas são **Responder**, Compilar não mostra diff: mostra "O requisito não muda" e o botão vira "Enviar e continuar" (R9).
+- (P4) "Desfazer" fica, por 8 s, e some no primeiro evento da sessão (R10).
+- (P5) "Abrir sessão" usa `Ctrl+O`, que vale também dentro de campos de texto (R6, R12).
+
 ## Perguntas em aberto
 
-- P1 · As opções devem ser geradas assim que a etapa entra em "aguardando você" (custa uma execução do planner por parada, mesmo que a pessoa nunca abra o modal) ou só ao abrir o modal (espera de 10 a 30 s)?
-  - Sugestão: gerar na hora da parada, como no R4. O modal abre pronto, e o custo é pequeno perto da sessão que parou.
 - P2 · "Dividir a etapa" deve criar requisitos novos na spec (`R3a`, `R3b`) ou só etapas novas na fila, mantendo o R3 único na spec?
-  - Sugestão: criar `R3a` e `R3b` na spec, como no R7, para a spec continuar sendo a fonte do que foi pedido e os critérios apontarem para cada parte.
-- P3 · Quando a escolha é do tipo **Responder** (o requisito não muda), Compilar ainda deve passar pela tela de diff?
-  - Sugestão: não. Sem mudança na spec, Compilar mostra só a mensagem ao agente e "o requisito não muda", e o botão vira "Enviar e continuar".
-- P4 · "Desfazer" (R10) deve existir, sabendo que o agente pode começar a trabalhar em segundos e o desfazer só vale antes disso?
-  - Sugestão: manter, com 8 s, e escondê-lo assim que a sessão emitir o primeiro evento.
-- P5 · A tecla `S` para "Abrir sessão" pode conflitar com quem digita direto sem focar o campo. Usar `S` ou `Ctrl+O`?
-  - Sugestão: `S`, ignorada dentro de campos de texto, como os números. Fica coerente com teclas de uma letra só e aparece na barra inferior.
+  - Sugestão: no desenvolvimento guiado por spec (GitHub Spec Kit, Kiro), requisitos dizem **o que** deve existir e ficam estáveis. **Como** fazer vira tarefas, numa camada à parte que aponta para o requisito ("_Requirements: 1.2_" no Kiro, `T001…` no Spec Kit).
+    - Dividir a execução, como "migração primeiro, gravação depois", é dividir tarefas. O R3 continua único na spec, e a fila ganha as subetapas `R3.1` e `R3.2`.
+    - As subetapas ficam em `spec_steps` com o texto próprio (`body`), como as etapas `REV<n>` do revisor. Os critérios do R3 são verificados quando a última subetapa termina.
+    - Se a divisão muda o que foi pedido (dois comportamentos diferentes), a opção é **Ajustar o requisito**, que reescreve a spec com o diff.
+    - Com isso, o R7 e o mockup `3-reestruturar.png` passam a mostrar `R3.1` e `R3.2` na fila, sem riscar o R3.
