@@ -53,3 +53,8 @@ docs/demo/*.mp4
 
 # Pacotes gerados por scripts/package.sh
 /dist/
+
+# Claude Code: worktrees de agentes, trava da sessão e cache das skills
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+__pycache__/
