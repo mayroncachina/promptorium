@@ -130,6 +130,7 @@ enum MergeState {
   conflitoBase('Conflito ao refazer a base'),
   baseDesatualizada('Base desatualizada'),
   revisando('Revisor revisando'),
+  rebaseManual('Rebase em andamento'),
   pendencias('Pendências');
 
   const MergeState(this.label);
@@ -151,6 +152,8 @@ class MergeStatus {
   String get text => switch (state) {
     MergeState.esperaMae when detail != null => 'Espera $detail',
     MergeState.conflito when detail != null => 'Conflito em $detail',
+    MergeState.rebaseManual when detail != null =>
+      'Rebase em andamento · $detail',
     _ => state.label,
   };
 
@@ -166,6 +169,7 @@ class MergeStatus {
 /// then the mother not merged, a failed restack, a predicted conflict,
 /// pendencies, and only then ready. [conflictFiles] null = not checked yet.
 MergeStatus mergeStatusOf({
+  String? rebaseStep,
   bool reviewing = false,
   String? motherCode,
   bool restackConflict = false,
@@ -173,6 +177,10 @@ MergeStatus mergeStatusOf({
   List<String>? conflictFiles,
   bool pending = false,
 }) {
+  // A manual rebase in the worktree is the dominant fact (R17).
+  if (rebaseStep != null) {
+    return MergeStatus(MergeState.rebaseManual, detail: rebaseStep);
+  }
   if (reviewing) return const MergeStatus(MergeState.revisando);
   if (motherCode != null) {
     return MergeStatus(MergeState.esperaMae, detail: motherCode);
@@ -201,6 +209,7 @@ enum PrimaryAction {
   resolverConflito('Resolver conflito'),
   refazerBase('Refazer agora'),
   pedirAjustes('Pedir ajustes ao agente'),
+  abrirEditor('Abrir no editor'),
   nenhuma('');
 
   const PrimaryAction(this.label);
@@ -220,6 +229,7 @@ PrimaryAction primaryActionOf(MergeStatus status, {required bool hasPr}) =>
       MergeState.baseDesatualizada => PrimaryAction.refazerBase,
       MergeState.pendencias => PrimaryAction.pedirAjustes,
       MergeState.revisando => PrimaryAction.nenhuma,
+      MergeState.rebaseManual => PrimaryAction.abrirEditor,
     };
 
 /// Label of the primary action, with the mother's code for "Ir para".

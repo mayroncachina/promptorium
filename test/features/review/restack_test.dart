@@ -322,4 +322,95 @@ void main() {
       );
     });
   });
+
+  group('R17 · resolver eu mesmo, no editor', () {
+    test('parseConflictHunks reads both sides and skips the diff3 '
+        'ancestor; countMarkers counts what is left', () {
+      const text =
+          'a\n<<<<<<< HEAD\nmain 1\nmain 2\n||||||| base\nvelho\n'
+          '=======\nspec 1\n>>>>>>> abc (SPEC-031)\nb\n';
+      final h = parseConflictHunks('x.dart', text).single;
+      expect(h.line, 2);
+      expect(h.base, ['main 1', 'main 2']);
+      expect(h.spec, ['spec 1']);
+      expect(countMarkers(text), 3);
+      expect(countMarkers('a\nb\n'), 0);
+    });
+
+    /// The child conflicts with main on a.txt line 5 and its base is main.
+    Future<Stack> conflicting() async {
+      final s = await setUpStack();
+      await saveOldBase(s);
+      final a = File('${s.child}/a.txt');
+      a.writeAsStringSync(
+        a.readAsStringSync().replaceFirst('linha 5\n', 'X\n'),
+      );
+      await gitIn(s.child, ['commit', '-q', '-am', 'SPEC-031 R2: a.txt']);
+      await squashMother(s);
+      final b = File('${s.repo}/a.txt');
+      b.writeAsStringSync(
+        b.readAsStringSync().replaceFirst('linha 5\n', 'Y\n'),
+      );
+      await gitIn(s.repo, ['commit', '-q', '-am', 'outra spec: a.txt']);
+      await s.c
+          .read(sessionsRepoProvider)
+          .setSpecBaseBranch(s.session.specId!, 'main');
+      return s;
+    }
+
+    test('before the rebase, the stretches come from git merge-tree', () async {
+      final s = await conflicting();
+      final hunks = await s.review.conflictHunks('filha');
+      expect(hunks.single.path, 'a.txt');
+      expect(hunks.single.base, ['Y']);
+      expect(hunks.single.spec, contains('X'));
+    });
+
+    test('the rebase stops on the conflicts; continuing is refused while '
+        'markers remain; resolving and continuing finishes it', () async {
+      final s = await conflicting();
+      var status = await s.review.startRebase('filha');
+      expect(status.inProgress, isTrue);
+      expect(status.files, {'a.txt': 3});
+      expect(status.canContinue, isFalse);
+      expect(
+        () => s.review.continueRebase('filha'),
+        throwsA(isA<ReviewException>()),
+      );
+      final hunks = await s.review.conflictHunks('filha');
+      expect(hunks.single.base, ['Y']);
+      expect(hunks.single.spec, ['X']);
+      // The user keeps both lines in the editor.
+      final f = File('${s.child}/a.txt');
+      f.writeAsStringSync(
+        f.readAsStringSync().replaceAll(
+          RegExp(r'<<<<<<< [^\n]*\nY\n=======\nX\n>>>>>>> [^\n]*\n'),
+          'Y\nX\n',
+        ),
+      );
+      status = await s.review.rebaseStatus('filha');
+      expect(status.files, {'a.txt': 0});
+      expect(status.canContinue, isTrue);
+      status = await s.review.continueRebase('filha');
+      expect(status.inProgress, isFalse);
+      expect(await s.ownCommits('main'), [
+        'SPEC-031 R2: a.txt',
+        'SPEC-031 R1: filha',
+      ]);
+      // The root never changed branch.
+      expect(
+        (await gitIn(s.repo, ['branch', '--show-current'])).trim(),
+        'main',
+      );
+    });
+
+    test('"Desistir" puts the branch back where it was', () async {
+      final s = await conflicting();
+      final before = (await gitIn(s.child, ['rev-parse', 'HEAD'])).trim();
+      await s.review.startRebase('filha');
+      await s.review.abortRebase('filha');
+      expect((await gitIn(s.child, ['rev-parse', 'HEAD'])).trim(), before);
+      expect((await s.review.rebaseStatus('filha')).inProgress, isFalse);
+    });
+  });
 }

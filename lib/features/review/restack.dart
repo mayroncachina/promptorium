@@ -141,3 +141,98 @@ String restackNotice(List<RestackResult> results) => [
         'base da ${r.label} desatualizada: ${r.reason ?? 'não refeita'}',
     },
 ].join(' · ');
+
+/// One conflicting stretch of a file: what the base has and what the spec
+/// has (SPEC-032 R17). Neither side is a removal.
+@immutable
+class ConflictHunk {
+  const ConflictHunk({
+    required this.path,
+    required this.line,
+    required this.base,
+    required this.spec,
+  });
+
+  final String path;
+
+  /// Line of the `<<<<<<<` marker (1-based).
+  final int line;
+
+  /// "Na main" / "Nesta spec".
+  final List<String> base, spec;
+
+  /// Last line of the stretch in the file with the markers.
+  int get endLine => line + base.length + spec.length + 1;
+}
+
+final _open = RegExp(r'^<{7}(?: |$)');
+final _mid = RegExp(r'^={7}$');
+final _close = RegExp(r'^>{7}(?: |$)');
+final _ancestor = RegExp(r'^\|{7}(?: |$)');
+
+/// Stretches between conflict markers of [text]. In a rebase (and in
+/// `git merge-tree <base> <branch>`) the first side is the base and the
+/// second is the commit of the spec; a diff3 ancestor section is skipped.
+List<ConflictHunk> parseConflictHunks(String path, String text) {
+  final out = <ConflictHunk>[];
+  final lines = text.split('\n');
+  var i = 0;
+  while (i < lines.length) {
+    if (!_open.hasMatch(lines[i])) {
+      i++;
+      continue;
+    }
+    final start = i + 1;
+    final base = <String>[], spec = <String>[];
+    var side = 0; // 0 base, 1 ancestor, 2 spec
+    i++;
+    var closed = false;
+    while (i < lines.length) {
+      final l = lines[i];
+      if (_ancestor.hasMatch(l) && side == 0) {
+        side = 1;
+      } else if (_mid.hasMatch(l) && side < 2) {
+        side = 2;
+      } else if (_close.hasMatch(l) && side == 2) {
+        closed = true;
+        break;
+      } else if (side == 0) {
+        base.add(l);
+      } else if (side == 2) {
+        spec.add(l);
+      }
+      i++;
+    }
+    if (closed) {
+      out.add(ConflictHunk(path: path, line: start, base: base, spec: spec));
+    }
+    i++;
+  }
+  return out;
+}
+
+/// Conflict markers still in [text] (`<<<<<<<`, `=======`, `>>>>>>>`).
+int countMarkers(String text) => text
+    .split('\n')
+    .where((l) => _open.hasMatch(l) || _mid.hasMatch(l) || _close.hasMatch(l))
+    .length;
+
+/// A rebase stopped in a worktree (SPEC-032 R17): which commit of how many,
+/// and each conflicted file with the markers it still has.
+@immutable
+class RebaseStatus {
+  const RebaseStatus({
+    this.inProgress = false,
+    this.step = 0,
+    this.total = 0,
+    this.files = const {},
+  });
+
+  final bool inProgress;
+  final int step, total;
+
+  /// Conflicted file → markers left (0 = resolved).
+  final Map<String, int> files;
+
+  bool get canContinue => inProgress && files.values.every((n) => n == 0);
+}

@@ -113,6 +113,10 @@ void main() {
         'Pendências',
       );
       expect(mergeStatusOf().text, 'Verificando…');
+      expect(
+        mergeStatusOf(rebaseStep: '1 de 2', reviewing: true).text,
+        'Rebase em andamento · 1 de 2',
+      );
       expect(mergeStatusOf(conflictFiles: []).text, 'Pronto para merge');
     });
 
@@ -128,6 +132,7 @@ void main() {
       expect(of(MergeState.baseDesatualizada), PrimaryAction.refazerBase);
       expect(of(MergeState.pendencias), PrimaryAction.pedirAjustes);
       expect(of(MergeState.revisando), PrimaryAction.nenhuma);
+      expect(of(MergeState.rebaseManual), PrimaryAction.abrirEditor);
       const wait = MergeStatus(MergeState.esperaMae, detail: 'SPEC-029');
       expect(
         primaryLabel(primaryActionOf(wait, hasPr: false), wait),

@@ -1353,6 +1353,203 @@ class ReviewService {
     return StackMergeResult(merged: merged, restacked: restacked);
   }
 
+  /// Upstream of the manual rebase of [s]: the saved old base of the
+  /// mother (R6) or, without it, the fork point with [base].
+  Future<String> _rebaseUpstream(Session s, Workspace ws, String base) async {
+    final saved = await _git(ws.path)
+        .resolveRef(oldBaseRef(await _restackKey(s)));
+    if (saved != null) return saved;
+    return (await _git(s.worktreePath).git(['merge-base', 'HEAD', base]))
+        .trim();
+  }
+
+  /// "Começar rebase" (SPEC-032 R17): `git rebase --onto <base> <upstream>`
+  /// in the spec's worktree, left stopped on the conflicts. The root never
+  /// changes branch.
+  Future<RebaseStatus> startRebase(String sessionId) async {
+    final c = await _context(sessionId);
+    if (!hasWorktree(c.session, c.workspace)) {
+      throw const ReviewException('A sessão não tem worktree próprio.');
+    }
+    final wt = _git(c.session.worktreePath);
+    final dirty = (await wt.status()).where((e) => !e.isUntracked).toList();
+    if (dirty.isNotEmpty) {
+      throw ReviewException(
+        'O worktree tem ${dirty.length} alteração(ões) não commitada(s): '
+        'faça commit antes de começar o rebase.',
+      );
+    }
+    final base = await baseBranchOf(c.session, c.workspace);
+    final upstream = await _rebaseUpstream(c.session, c.workspace, base);
+    try {
+      await wt.git(['rebase', '--onto', base, upstream]);
+    } on GitException catch (e) {
+      final status = await rebaseStatus(sessionId);
+      if (!status.inProgress) {
+        throw ReviewException('O rebase não começou: $e');
+      }
+      return status;
+    }
+    await _ref
+        .read(appSettingsProvider.notifier)
+        .remove(restackMarkKey(sessionId));
+    return const RebaseStatus();
+  }
+
+  /// State of the rebase in the spec's worktree (R17): `rebase-merge/msgnum`
+  /// and `end`, and the markers left in each conflicted file.
+  Future<RebaseStatus> rebaseStatus(String sessionId) async {
+    final c = await _context(sessionId);
+    if (!hasWorktree(c.session, c.workspace)) return const RebaseStatus();
+    final root = c.session.worktreePath;
+    final wt = _git(root);
+    var dir = (await wt.git(['rev-parse', '--git-path', 'rebase-merge']))
+        .trim();
+    if (!dir.startsWith('/')) dir = '$root/$dir';
+    if (!Directory(dir).existsSync()) return const RebaseStatus();
+    int read(String name) =>
+        int.tryParse(
+          File('$dir/$name').existsSync()
+              ? File('$dir/$name').readAsStringSync().trim()
+              : '',
+        ) ??
+        0;
+    final files = <String, int>{};
+    for (final path in (await wt.git([
+      'diff',
+      '--name-only',
+      '--diff-filter=U',
+    ])).split('\n').where((l) => l.trim().isNotEmpty)) {
+      final f = File('$root/$path');
+      files[path] = f.existsSync() ? countMarkers(f.readAsStringSync()) : 0;
+    }
+    return RebaseStatus(
+      inProgress: true,
+      step: read('msgnum'),
+      total: read('end'),
+      files: files,
+    );
+  }
+
+  /// "Continuar rebase" (R17): only with no markers left. Stages the
+  /// conflicted files and runs `git rebase --continue` (no editor); it may
+  /// stop again on the next commit.
+  Future<RebaseStatus> continueRebase(String sessionId) async {
+    final status = await rebaseStatus(sessionId);
+    if (!status.inProgress) return status;
+    if (!status.canContinue) {
+      throw const ReviewException(
+        'Ainda há marcadores de conflito: resolva todos os trechos antes de '
+        'continuar.',
+      );
+    }
+    final c = await _context(sessionId);
+    final wt = _git(c.session.worktreePath);
+    if (status.files.isNotEmpty) {
+      await wt.git(['add', '--', ...status.files.keys]);
+    }
+    try {
+      await wt.git(['-c', 'core.editor=true', 'rebase', '--continue']);
+    } on GitException catch (e) {
+      final next = await rebaseStatus(sessionId);
+      if (!next.inProgress) throw ReviewException('$e');
+      return next;
+    }
+    return rebaseStatus(sessionId);
+  }
+
+  /// "Desistir e voltar como estava" (R17): `git rebase --abort`.
+  Future<void> abortRebase(String sessionId) async {
+    final c = await _context(sessionId);
+    try {
+      await _git(c.session.worktreePath).git(['rebase', '--abort']);
+    } on GitException catch (e) {
+      throw ReviewException('Não foi possível desfazer o rebase: $e');
+    }
+  }
+
+  /// The stretches in conflict (R17): from the files of a rebase in
+  /// progress, or else from `git merge-tree <base> <branch>`.
+  Future<List<ConflictHunk>> conflictHunks(String sessionId) async {
+    final c = await _context(sessionId);
+    final status = await rebaseStatus(sessionId);
+    if (status.inProgress) {
+      return [
+        for (final path in status.files.keys)
+          if (File('${c.session.worktreePath}/$path').existsSync())
+            ...parseConflictHunks(
+              path,
+              File('${c.session.worktreePath}/$path').readAsStringSync(),
+            ),
+      ];
+    }
+    final main = _git(c.workspace.path);
+    final base = await baseBranchOf(c.session, c.workspace);
+    try {
+      await main.git([
+        'merge-tree',
+        '--write-tree',
+        '--name-only',
+        base,
+        c.session.branch,
+      ]);
+      return const [];
+    } on GitException catch (e) {
+      if (e.exitCode != 1) rethrow;
+      final lines = e.stdout.split('\n');
+      final tree = lines.first.trim();
+      final out = <ConflictHunk>[];
+      for (final path in lines.skip(1).takeWhile((l) => l.isNotEmpty)) {
+        try {
+          final text = await main.git(['cat-file', '-p', '$tree:$path']);
+          out.addAll(parseConflictHunks(path, text));
+        } on GitException {
+          /* binary or deleted on one side */
+        }
+      }
+      return out;
+    }
+  }
+
+  /// "Passar para o agente" during a manual rebase (R17).
+  Future<void> handRebaseToAgent(String sessionId) async {
+    final c = await _context(sessionId);
+    final base = await baseBranchOf(c.session, c.workspace);
+    final status = await rebaseStatus(sessionId);
+    final message =
+        '${restackMessage(branch: c.session.branch, base: base, files: status.files.keys.toList())}'
+        '${status.inProgress ? ' O rebase já está em andamento no worktree (commit ${status.step} de ${status.total}): continue de onde parou, sem recomeçar.' : ''}';
+    try {
+      await _ref.read(sessionManagerProvider.notifier).send(sessionId, message);
+    } on SessionException catch (e) {
+      throw ReviewException('$e');
+    }
+  }
+
+  /// The spec's tests (`testes:` of the project) in its worktree, after a
+  /// manual rebase (R17). Null = no test command.
+  Future<(bool, String)?> runSpecTests(String sessionId) async {
+    final c = await _context(sessionId);
+    final config = await _ref.read(
+      projectConfigProvider(c.workspace.path).future,
+    );
+    final cmd = config.testCommand;
+    if (cmd == null) return null;
+    try {
+      final r = await _run('bash', [
+        '-lc',
+        cmd,
+      ], workingDirectory: c.session.worktreePath);
+      final out = '${r.stdout}${r.stderr}'.trim().split('\n');
+      return (
+        r.exitCode == 0,
+        out.skip(out.length > 8 ? out.length - 8 : 0).join('\n'),
+      );
+    } on ProcessException catch (e) {
+      return (false, e.message);
+    }
+  }
+
   /// SPEC-032 R15: children whose mother entered the base outside the app
   /// (PR `MERGED` on the host, or its branch gone locally and on the
   /// remote) get their base redone on `origin/<base>`. While the mother's
@@ -2699,3 +2896,26 @@ final rootStatusProvider = FutureProvider.family<RootStatus?, int>((
     return null;
   }
 });
+
+/// SPEC-032 R17: the rebase of a queue item (never an error).
+final rebaseStatusProvider = FutureProvider.family<RebaseStatus, String>((
+  ref,
+  sessionId,
+) async {
+  try {
+    return await ref.read(reviewServiceProvider).rebaseStatus(sessionId);
+  } catch (_) {
+    return const RebaseStatus();
+  }
+});
+
+/// SPEC-032 R17: the stretches in conflict of a queue item.
+final conflictHunksProvider = FutureProvider.family<List<ConflictHunk>, String>(
+  (ref, sessionId) async {
+    try {
+      return await ref.read(reviewServiceProvider).conflictHunks(sessionId);
+    } catch (_) {
+      return const [];
+    }
+  },
+);

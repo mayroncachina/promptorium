@@ -10,6 +10,7 @@ import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
+import 'package:promptorium/features/review/restack.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/review/widgets/spec_review_panel.dart'
@@ -52,6 +53,27 @@ class _FakeReview extends ReviewService {
   _FakeReview(super.ref);
   final merged = <String>[];
   final root = <String>[];
+  final calls = <String>[];
+  RebaseStatus rebase = const RebaseStatus();
+  @override
+  Future<RebaseStatus> rebaseStatus(String sessionId) async =>
+      sessionId == 'x' ? rebase : const RebaseStatus();
+  @override
+  Future<List<ConflictHunk>> conflictHunks(String sessionId) async => [
+    const ConflictHunk(path: 'lib/a.dart', line: 3, base: ['Y'], spec: ['X']),
+  ];
+  @override
+  Future<void> resolveConflict(String sessionId) async =>
+      calls.add('agente $sessionId');
+  @override
+  Future<RebaseStatus> startRebase(String sessionId) async {
+    calls.add('rebase $sessionId');
+    return rebase;
+  }
+
+  @override
+  Future<void> abortRebase(String sessionId) async =>
+      calls.add('abort $sessionId');
   @override
   Future<void> switchRoot(Workspace ws, String base) async =>
       root.add('switch $base');
@@ -82,6 +104,7 @@ Future<ProviderContainer> pumpStack(
   WidgetTester tester, {
   Map<String, List<String>> conflicts = const {},
   RootStatus? root,
+  RebaseStatus rebase = const RebaseStatus(),
 }) async {
   launched.clear();
   tester.view.physicalSize = const Size(1440, 900);
@@ -144,6 +167,7 @@ Future<ProviderContainer> pumpStack(
       reviewServiceProvider.overrideWith((ref) {
         final f = _FakeReview(ref);
         f.conflicts.addAll(conflicts);
+        f.rebase = rebase;
         return f;
       }),
     ],
@@ -345,5 +369,65 @@ void main() {
     expect(long.length, 30);
     expect(long, startsWith('/home/mayr'));
     expect(long, endsWith('spec-031-filha'));
+  });
+
+  Future<_FakeReview> selectX(WidgetTester tester, ProviderContainer c) async {
+    await tester.tap(card('x'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    return c.read(reviewServiceProvider) as _FakeReview;
+  }
+
+  testWidgets('R17 · a conflict offers the agent (recommended) or a manual '
+      'rebase, and shows both sides of each stretch', (tester) async {
+    final c = await pumpStack(
+      tester,
+      conflicts: {
+        'x': ['lib/a.dart'],
+      },
+    );
+    final f = await selectX(tester, c);
+    expect(find.byKey(const ValueKey('review-conflict-panel')), findsOneWidget);
+    expect(find.text('Recomendado'), findsOneWidget);
+    expect(find.text('Trecho 1 de 1 · a.dart, linhas 3–6'), findsOneWidget);
+    expect(find.text('Nesta spec (SPEC-030)'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('review-conflict-agent')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('review-conflict-start')));
+    await tester.pump();
+    expect(f.calls, ['agente x', 'rebase x']);
+    // The notices leave after their 8 s.
+    await tester.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('R17 · during the manual rebase: state in the card, files with '
+      'markers, "Continuar" only without markers, "Desistir"', (tester) async {
+    final c = await pumpStack(
+      tester,
+      rebase: const RebaseStatus(
+        inProgress: true,
+        step: 1,
+        total: 2,
+        files: {'lib/a.dart': 3, 'lib/b.dart': 0},
+      ),
+    );
+    final f = await selectX(tester, c);
+    expect(stateOf(tester, 'x'), 'Rebase em andamento · 1 de 2');
+    expect(find.text('Abrir no editor'), findsWidgets);
+    expect(find.text('ainda tem marcadores'), findsOneWidget);
+    expect(find.text('resolvido'), findsOneWidget);
+    final cont = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const ValueKey('review-rebase-continue')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(cont.onTap, isNull);
+    await tester.tap(find.byKey(const ValueKey('review-rebase-abort')));
+    await tester.pump();
+    expect(f.calls, ['abort x']);
+    // The notices leave after their 8 s.
+    await tester.pump(const Duration(seconds: 10));
   });
 }

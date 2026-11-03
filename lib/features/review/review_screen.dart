@@ -454,7 +454,11 @@ MergeStatus watchMergeStatus(
   final mark = ref.watch(
     appSettingsProvider.select((m) => m[restackMarkKey(s.id)]),
   );
+  final rebase = ref.watch(rebaseStatusProvider(s.id)).value;
   return mergeStatusOf(
+    rebaseStep: rebase?.inProgress ?? false
+        ? '${rebase!.step} de ${rebase.total}'
+        : null,
     reviewing:
         spec?.reviewPhase == ReviewPhase.auto &&
         spec?.stage == SpecStage.review,
@@ -475,6 +479,7 @@ MergeStatus watchMergeStatus(
   MergeState.baseDesatualizada => (Icons.sync_problem, AppColors.amber),
   MergeState.revisando => (Icons.rate_review_outlined, AppColors.blue),
   MergeState.pendencias => (Icons.error_outline, AppColors.amber),
+  MergeState.rebaseManual => (Icons.schedule, AppColors.amber),
 };
 
 class _QueueTile extends ConsumerWidget {
@@ -885,6 +890,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   void _refresh() {
     ref.invalidate(conflictForecastProvider);
+    ref.invalidate(rebaseStatusProvider(_id));
+    ref.invalidate(conflictHunksProvider(_id));
     ref.invalidate(orphanRestackProvider(widget.workspaceId));
     ref.invalidate(rootStatusProvider(widget.workspaceId));
     ref.invalidate(mergeReadinessProvider(_id));
@@ -1165,6 +1172,21 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     });
   }
 
+  Future<void> _openEditor() async {
+    final ws = ref.read(activeWorkspaceProvider);
+    final config = ws == null
+        ? const ProjectConfig()
+        : await ref.read(projectConfigProvider(ws.path).future);
+    final used = await ref
+        .read(worktreeLauncherProvider)
+        .editor(widget.item.session.worktreePath, editor: config.editorCommand);
+    if (used == 'xdg-open') {
+      _toast(
+        'Editor "${config.editorCommand ?? 'code'}" não encontrado: o worktree abriu no gerenciador de arquivos.',
+      );
+    }
+  }
+
   /// "Mergear a pilha" (R13): one confirmation, then every item of the
   /// stack in order; stops at the first that cannot go in.
   Future<void> _mergeStack(ReviewStack stack) async {
@@ -1301,6 +1323,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         'review-request-changes',
         canRequest ? _requestChanges : null,
         text: requestCount == 0 ? label : '$label ($requestCount)',
+      ),
+      PrimaryAction.abrirEditor => button(
+        'review-open-editor',
+        () => unawaited(_openEditor()),
       ),
       PrimaryAction.nenhuma => Text(
         status.text,
@@ -1534,6 +1560,30 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             path: s.worktreePath,
             branch: s.branch,
             onMessage: _toast,
+          ),
+        // R17: how to resolve a conflict, with the stretches.
+        if (const {
+          MergeState.conflito,
+          MergeState.conflitoBase,
+          MergeState.rebaseManual,
+        }.contains(status.state))
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: SingleChildScrollView(
+              child: _ConflictPanel(
+                item: widget.item,
+                rebase: ref.watch(rebaseStatusProvider(_id)).value,
+                busy: busy,
+                run: _run,
+                toast: _toast,
+                refresh: () {
+                  ref.invalidate(rebaseStatusProvider(_id));
+                  ref.invalidate(conflictHunksProvider(_id));
+                  _refresh();
+                },
+                openEditor: _openEditor,
+              ),
+            ),
           ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2472,6 +2522,383 @@ class _WorktreeBar extends ConsumerWidget {
           height: 26,
           semanticLabel: 'Abrir o worktree da spec no editor',
           onTap: () => _editor(ref),
+        ),
+      ],
+    ),
+  );
+}
+
+/// "Resolver conflito" (SPEC-032 R17): with the spec's agent (recommended)
+/// or by hand in the editor, with the stretches of both sides; during a
+/// manual rebase, each file with its markers and the rebase controls.
+class _ConflictPanel extends ConsumerWidget {
+  const _ConflictPanel({
+    required this.item,
+    required this.rebase,
+    required this.busy,
+    required this.run,
+    required this.toast,
+    required this.refresh,
+    required this.openEditor,
+  });
+
+  final ReviewItem item;
+  final RebaseStatus? rebase;
+  final bool busy;
+  final Future<void> Function(String, Future<void> Function()) run;
+  final void Function(String) toast;
+  final VoidCallback refresh;
+  final Future<void> Function() openEditor;
+
+  String get _id => item.session.id;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final service = ref.read(reviewServiceProvider);
+    final hunks = ref.watch(conflictHunksProvider(_id)).value ?? const [];
+    final code = item.spec?.code ?? 'desta spec';
+    if (rebase?.inProgress ?? false) {
+      return _inProgress(context, service, code);
+    }
+    final files = {for (final h in hunks) h.path};
+    Widget card({
+      required String title,
+      required String text,
+      required Widget action,
+      bool recommended = false,
+    }) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: recommended ? AppColors.amber : AppColors.border,
+            width: recommended ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                if (recommended)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Recomendado',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.onAmber,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            action,
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      key: const ValueKey('review-conflict-panel'),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hunks.isEmpty
+                ? 'Esta spec conflita com a base.'
+                : 'Há ${hunks.length} trecho${hunks.length == 1 ? '' : 's'} '
+                      'em conflito, em ${files.length} arquivo${files.length == 1 ? '' : 's'}.',
+            style: const TextStyle(fontSize: 13, color: AppColors.text),
+          ),
+          const SizedBox(height: 10),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                card(
+                  title: 'Com o agente da spec',
+                  recommended: true,
+                  text:
+                      'O agente refaz a base no worktree, junta os dois lados de '
+                      'cada trecho, roda os testes da spec e commita. Você '
+                      'revisa o resultado aqui, no diff, antes do merge.',
+                  action: AmberButton(
+                    key: const ValueKey('review-conflict-agent'),
+                    label: 'Resolver com o agente',
+                    onTap: busy
+                        ? null
+                        : () => run('Resolver com o agente', () async {
+                            await service.resolveConflict(_id);
+                            refresh();
+                            toast('Instruções do conflito enviadas ao agente.');
+                          }),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                card(
+                  title: 'Eu mesmo, no editor',
+                  text:
+                      'O app começa o rebase no worktree e para nos conflitos. '
+                      'Você edita os marcadores no editor e volta aqui para '
+                      'continuar ou desistir. A raiz não muda.',
+                  action: SmallButton(
+                    key: const ValueKey('review-conflict-start'),
+                    label: 'Começar rebase',
+                    icon: Icons.call_split,
+                    onTap: busy
+                        ? null
+                        : () => run('Começar rebase', () async {
+                            await service.startRebase(_id);
+                            refresh();
+                          }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final (i, h) in hunks.indexed) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Trecho ${i + 1} de ${hunks.length} · ${h.path.split('/').last}, '
+              'linhas ${h.line}–${h.endLine}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 6),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _HunkSide(
+                      title: 'Na base (${item.session.baseBranch ?? 'main'})',
+                      lines: h.base,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _HunkSide(
+                      title: 'Nesta spec ($code)',
+                      lines: h.spec,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _inProgress(BuildContext context, ReviewService service, String code) {
+    final r = rebase!;
+    return Container(
+      key: const ValueKey('review-rebase-panel'),
+      margin: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: SessionColors.approvalBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: SessionColors.approvalBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Rebase parado nos conflitos, no worktree da $code '
+            '(commit ${r.step} de ${r.total})',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.amber,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Edite os trechos marcados com <<<<<<< no editor e salve. A lista '
+            'abaixo se atualiza sozinha.',
+            style: TextStyle(fontSize: 12, color: AppColors.text),
+          ),
+          const SizedBox(height: 10),
+          for (final MapEntry(key: path, value: n) in r.files.entries)
+            Semantics(
+              container: true,
+              label: '$path, ${n == 0 ? 'resolvido' : 'ainda tem marcadores'}',
+              child: Padding(
+                key: ValueKey('review-rebase-file-$path'),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      n == 0 ? Icons.check : Icons.warning_amber_rounded,
+                      size: 14,
+                      color: n == 0 ? AppColors.teal : AppColors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        path,
+                        style: const TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 12,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      n == 0 ? 'resolvido' : 'ainda tem marcadores',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: n == 0 ? AppColors.teal : AppColors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SmallButton(
+                key: const ValueKey('review-rebase-editor'),
+                label: 'Abrir no editor',
+                icon: Icons.code,
+                onTap: () => unawaited(openEditor()),
+              ),
+              Tooltip(
+                message: r.canContinue
+                    ? 'git rebase --continue; depois, os testes da spec'
+                    : 'Libera quando não houver mais marcadores',
+                child: SmallButton(
+                  key: const ValueKey('review-rebase-continue'),
+                  label: 'Continuar rebase',
+                  icon: Icons.arrow_forward,
+                  onTap: busy || !r.canContinue
+                      ? null
+                      : () => run('Continuar rebase', () async {
+                          final next = await service.continueRebase(_id);
+                          refresh();
+                          if (next.inProgress) {
+                            toast(
+                              'O rebase parou de novo no commit ${next.step} de ${next.total}.',
+                            );
+                            return;
+                          }
+                          final tests = await service.runSpecTests(_id);
+                          toast(switch (tests) {
+                            null => 'Rebase concluído. Sem comando de testes no projeto.',
+                            (true, _) =>
+                              'Rebase concluído e testes da spec passando.',
+                            (false, final out) =>
+                              'Rebase concluído, mas os testes falharam: $out',
+                          });
+                        }),
+                ),
+              ),
+              SmallButton(
+                key: const ValueKey('review-rebase-abort'),
+                label: 'Desistir e voltar como estava',
+                icon: Icons.close,
+                onTap: busy
+                    ? null
+                    : () => run('Desistir do rebase', () async {
+                        await service.abortRebase(_id);
+                        refresh();
+                        toast('Rebase desfeito; a branch voltou como estava.');
+                      }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            key: const ValueKey('review-rebase-agent'),
+            onPressed: busy
+                ? null
+                : () => run('Passar para o agente', () async {
+                    await service.handRebaseToAgent(_id);
+                    toast('O agente continua o rebase de onde você parou.');
+                  }),
+            child: const Text('Travou? Passar para o agente'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One side of a stretch in conflict: plain lines, no add/remove colors.
+class _HunkSide extends StatelessWidget {
+  const _HunkSide({required this.title, required this.lines});
+
+  final String title;
+  final List<String> lines;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: SelectableText(
+            lines.isEmpty ? '(vazio)' : lines.join('\n'),
+            style: const TextStyle(
+              fontFamily: AppFonts.mono,
+              fontSize: 12,
+              color: AppColors.text,
+            ),
+          ),
         ),
       ],
     ),
