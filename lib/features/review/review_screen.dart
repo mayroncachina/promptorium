@@ -28,6 +28,8 @@ import '../project/widgets/project_config_view.dart' show configFocusProvider;
 import '../settings/settings_sections.dart';
 import 'restack.dart';
 import 'review_stack.dart';
+import 'widgets/merge_status_view.dart';
+import 'widgets/review_graph.dart';
 import '../board/widgets/wave_graph.dart' show dependencyWaves;
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
@@ -82,6 +84,12 @@ class ReviewScreen extends ConsumerWidget {
         ? null
         : ref.watch(reviewDetailProvider(selected.session.id)).value;
 
+    // R16: the graph takes the whole screen (no list on the side).
+    if (ref.watch(
+      appSettingsProvider.select((m) => m[reviewModeKey(ws.id)] == 'grafo'),
+    )) {
+      return ReviewGraph(stacks: stacks, workspaceId: ws.id);
+    }
     return LayoutBuilder(
       builder: (context, c) {
         final left = c.maxWidth < 1100 ? 250.0 : 280.0;
@@ -333,6 +341,11 @@ class _ReviewSidebar extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: 12),
         children: [
+          if (ref.watch(activeWorkspaceProvider) case final ws?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+              child: ReviewModeTabs(workspaceId: ws.id),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
             child: Text(
@@ -397,90 +410,6 @@ const _sectionStyle = TextStyle(
 );
 
 const _groupStyle = TextStyle(fontSize: 11, color: AppColors.textMuted);
-
-/// Merge state of [item] (SPEC-032 R3): reviewer, mother still in review,
-/// predicted conflict (R4), pendencies. [readiness] refines it for the
-/// selected item.
-MergeStatus watchMergeStatus(
-  WidgetRef ref,
-  ReviewItem item, {
-  MergeReadiness? readiness,
-}) {
-  final s = item.session, spec = item.spec;
-  final peers = ref.watch(specsProvider(s.workspaceId)).value ?? <Spec>[];
-  String? mother = peers
-      .where(
-        (p) =>
-            p.id != spec?.id &&
-            p.branch != null &&
-            p.branch == s.baseBranch &&
-            p.stage != SpecStage.done,
-      )
-      .firstOrNull
-      ?.code;
-  final stacked = readiness?.blockers
-      .where((i) => i.id == 'empilhada')
-      .firstOrNull;
-  if (mother == null && stacked != null) {
-    mother =
-        RegExp(r'de (\S+) primeiro').firstMatch(stacked.detail)?.group(1) ??
-        'a mãe';
-  }
-  final criteria = spec == null
-      ? null
-      : ref.watch(pendingCriteriaProvider(spec.id)).value;
-  final comments = spec == null
-      ? 0
-      : (ref.watch(reviewCommentsProvider(spec.id)).value ??
-                const <ReviewCommentRow>[])
-            .where(isOpenReviewComment)
-            .length;
-  final flagged =
-      readiness?.items.any(
-        (i) =>
-            const {'criterios', 'verificacoes', 'comentarios'}.contains(i.id) &&
-            (i.level == ReadinessLevel.aviso ||
-                i.level == ReadinessLevel.bloqueio),
-      ) ??
-      false;
-  final forecast = ref.watch(conflictForecastProvider(s.id));
-  final files = forecast.hasError
-      ? const <String>[]
-      : forecast.value == null
-      ? null
-      : forecast.value!.error != null
-      ? const <String>[]
-      : forecast.value!.files;
-  final mark = ref.watch(
-    appSettingsProvider.select((m) => m[restackMarkKey(s.id)]),
-  );
-  final rebase = ref.watch(rebaseStatusProvider(s.id)).value;
-  return mergeStatusOf(
-    rebaseStep: rebase?.inProgress ?? false
-        ? '${rebase!.step} de ${rebase.total}'
-        : null,
-    reviewing:
-        spec?.reviewPhase == ReviewPhase.auto &&
-        spec?.stage == SpecStage.review,
-    motherCode: mother,
-    restackConflict: mark?.startsWith('conflito') ?? false,
-    staleBase: mark?.startsWith('desatualizada') ?? false,
-    conflictFiles: files,
-    pending: (criteria?.isNotEmpty ?? false) || comments > 0 || flagged,
-  );
-}
-
-(IconData, Color) mergeStateLook(MergeState s) => switch (s) {
-  MergeState.pronto => (Icons.check_circle, AppColors.teal),
-  MergeState.verificando => (Icons.more_horiz, AppColors.textMuted),
-  MergeState.esperaMae => (Icons.hourglass_empty, AppColors.amber),
-  MergeState.conflito ||
-  MergeState.conflitoBase => (Icons.warning_amber_rounded, AppColors.red),
-  MergeState.baseDesatualizada => (Icons.sync_problem, AppColors.amber),
-  MergeState.revisando => (Icons.rate_review_outlined, AppColors.blue),
-  MergeState.pendencias => (Icons.error_outline, AppColors.amber),
-  MergeState.rebaseManual => (Icons.schedule, AppColors.amber),
-};
 
 class _QueueTile extends ConsumerWidget {
   const _QueueTile({
@@ -1273,14 +1202,26 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   }) {
     final busy = _busy != null;
     final label = primaryLabel(primary, status);
-    Widget button(String key, VoidCallback? onTap, {String? text}) => Semantics(
-      hint: onTap == null && reason.isNotEmpty ? reason : null,
-      child: AmberButton(
-        key: ValueKey(key),
-        label: text ?? label,
-        onTap: onTap,
-      ),
-    );
+    // The graph's action bar asked for this item's primary action (R16).
+    final asked = ref.watch(reviewPendingActionProvider) == _id;
+    Widget button(String key, VoidCallback? onTap, {String? text}) {
+      if (asked && onTap != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || ref.read(reviewPendingActionProvider) != _id) return;
+          ref.read(reviewPendingActionProvider.notifier).set(null);
+          onTap();
+        });
+      }
+      return Semantics(
+        hint: onTap == null && reason.isNotEmpty ? reason : null,
+        child: AmberButton(
+          key: ValueKey(key),
+          label: text ?? label,
+          onTap: onTap,
+        ),
+      );
+    }
+
     return switch (primary) {
       PrimaryAction.fazerMerge => Tooltip(
         message: reason,

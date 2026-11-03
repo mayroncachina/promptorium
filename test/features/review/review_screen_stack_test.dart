@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
 import 'package:promptorium/core/system/worktree_launcher.dart';
@@ -105,6 +106,7 @@ Future<ProviderContainer> pumpStack(
   Map<String, List<String>> conflicts = const {},
   RootStatus? root,
   RebaseStatus rebase = const RebaseStatus(),
+  List<Override> extra = const [],
 }) async {
   launched.clear();
   tester.view.physicalSize = const Size(1440, 900);
@@ -157,6 +159,7 @@ Future<ProviderContainer> pumpStack(
           ),
         ),
       ),
+      ...extra,
       rootStatusProvider.overrideWith((ref, id) async => root),
       worktreeLauncherProvider.overrideWithValue(
         WorktreeLauncher(

@@ -185,19 +185,19 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MczasWNKVPLQAm2fvhU
 
 ## Critérios de aceite
 
-- [ ] A fila segue a ordem das dependências e agrupa as pilhas [R1] [R2] verificar: flutter test test/features/review/review_stack_test.dart
-- [ ] Cada card mostra o estado de merge com ícone e texto, incluindo o conflito previsto [R3] [R4] [R14] verificar: flutter test test/features/review/review_screen_stack_test.dart
-- [ ] Depois do merge, a tela seleciona o próximo item e avisa [R5] verificar: flutter test test/features/review/review_screen_stack_test.dart
-- [ ] A base da filha é refeita sozinha depois do squash da mãe; com conflito, o rebase é abortado e a filha fica marcada [R6] [R7] verificar: flutter test test/features/review/restack_test.dart
-- [ ] O cabeçalho tem uma ação primária por estado [R8] verificar: flutter test test/features/review/review_stack_test.dart
-- [ ] "Testar", "Terminal" e "Editor" abrem no worktree, e clicar no card não troca a branch da raiz [R9] [R10] verificar: flutter test test/features/review/review_screen_stack_test.dart
-- [ ] O aviso da raiz aparece na fila e "Voltar para a main" funciona [R11] [R12] verificar: flutter test test/features/review/review_screen_stack_test.dart
-- [ ] "Mergear a pilha" para no primeiro item que não está pronto [R13] verificar: flutter test test/features/review/restack_test.dart
-- [ ] Com a mãe mergeada fora do app (PR `MERGED` e branch apagada), abrir a Review refaz a base da filha sobre `origin/main` com a `base-antiga` gravada; sem a ref, mostra "Refazer agora" [R15] verificar: flutter test test/features/review/restack_test.dart
+- [x] A fila segue a ordem das dependências e agrupa as pilhas [R1] [R2] verificar: flutter test test/features/review/review_stack_test.dart
+- [x] Cada card mostra o estado de merge com ícone e texto, incluindo o conflito previsto [R3] [R4] [R14] verificar: flutter test test/features/review/review_screen_stack_test.dart
+- [x] Depois do merge, a tela seleciona o próximo item e avisa [R5] verificar: flutter test test/features/review/review_screen_stack_test.dart
+- [x] A base da filha é refeita sozinha depois do squash da mãe; com conflito, o rebase é abortado e a filha fica marcada [R6] [R7] verificar: flutter test test/features/review/restack_test.dart
+- [x] O cabeçalho tem uma ação primária por estado [R8] verificar: flutter test test/features/review/review_stack_test.dart
+- [x] "Testar", "Terminal" e "Editor" abrem no worktree, e clicar no card não troca a branch da raiz [R9] [R10] verificar: flutter test test/features/review/review_screen_stack_test.dart
+- [x] O aviso da raiz aparece na fila e "Voltar para a main" funciona [R11] [R12] verificar: flutter test test/features/review/review_screen_stack_test.dart
+- [x] "Mergear a pilha" para no primeiro item que não está pronto [R13] verificar: flutter test test/features/review/restack_test.dart
+- [x] Com a mãe mergeada fora do app (PR `MERGED` e branch apagada), abrir a Review refaz a base da filha sobre `origin/main` com a `base-antiga` gravada; sem a ref, mostra "Refazer agora" [R15] verificar: flutter test test/features/review/restack_test.dart
 - [ ] Com um PR empilhado no GitHub, o merge da mãe troca a base do PR filho para a `main`, e ele continua aberto (verificação manual) [R6] verificar: manual (dois PRs empilhados de teste)
-- [ ] O grafo desenha a main embaixo, as pilhas como galhos da base ao topo, o "próximo" e a linha de conflito entre specs da fila; selecionar um nó mostra a ação primária [R16] verificar: flutter test test/features/review/review_graph_test.dart
-- [ ] Resolver eu mesmo: o rebase para nos conflitos, "Continuar rebase" só libera sem marcadores, e "Desistir" volta a branch ao estado anterior [R17] verificar: flutter test test/features/review/restack_test.dart
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] [R16] [R17] verificar: flutter analyze
+- [x] O grafo desenha a main embaixo, as pilhas como galhos da base ao topo, o "próximo" e a linha de conflito entre specs da fila; selecionar um nó mostra a ação primária [R16] verificar: flutter test test/features/review/review_graph_test.dart
+- [x] Resolver eu mesmo: o rebase para nos conflitos, "Continuar rebase" só libera sem marcadores, e "Desistir" volta a branch ao estado anterior [R17] verificar: flutter test test/features/review/restack_test.dart
+- [x] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] [R16] [R17] verificar: flutter analyze
 
 ## Decisões
 

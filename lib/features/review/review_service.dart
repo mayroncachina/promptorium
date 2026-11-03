@@ -2919,3 +2919,35 @@ final conflictHunksProvider = FutureProvider.family<List<ConflictHunk>, String>(
     }
   },
 );
+
+/// SPEC-032 R16: files two branches of the queue both change in conflicting
+/// ways (`git merge-tree <a> <b>` in the root), one check at a time. Key:
+/// (workspace id, branch a, branch b). Never an error (empty = none).
+final pairConflictProvider =
+    FutureProvider.family<List<String>, (int, String, String)>((
+      ref,
+      key,
+    ) async {
+      final (wsId, a, b) = key;
+      final ws = await ref.read(workspacesRepoProvider).getById(wsId);
+      if (ws == null) return const [];
+      final git = ref.read(gitServiceFactoryProvider)(ws.path);
+      return ref.read(forecastLaneProvider).run(() async {
+        try {
+          await git.git(['merge-tree', '--write-tree', '--name-only', a, b]);
+          return const <String>[];
+        } on GitException catch (e) {
+          if (e.exitCode != 1) return const <String>[];
+          return e.stdout
+              .split('\n')
+              .skip(1)
+              .takeWhile((l) => l.isNotEmpty)
+              .toList();
+        } catch (_) {
+          return const <String>[];
+        }
+      });
+    });
+
+/// App setting with the Review's view of a workspace ("lista" | "grafo").
+String reviewModeKey(int workspaceId) => 'review.modo.$workspaceId';
