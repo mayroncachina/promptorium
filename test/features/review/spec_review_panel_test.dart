@@ -144,11 +144,11 @@ const _criteria =
     '- [ ] e [R1] · verificar: true\n'
     '- [ ] f\n';
 
-typedef _Panel = ({ProviderContainer c, int specId});
+typedef _Panel = ({ProviderContainer c, int specId, bool hasCriteria});
 
 void batchTests() {
   /// Pumps 30 rounds; with [p], then until the panel shows the marks in
-  /// the database (up to 15 s of real time): a busy machine (the whole
+  /// the database (up to 30 s of real time): a busy machine (the whole
   /// suite in parallel) loads it slower.
   Future<void> settle(WidgetTester tester, [_Panel? p]) async {
     Future<void> round() async {
@@ -173,10 +173,16 @@ void batchTests() {
               .byKey(const ValueKey('spec-review-summary'))
               .evaluate()
               .isNotEmpty &&
+          // "Marcar todos" comes from the spec file, read separately.
+          (!p.hasCriteria ||
+              find
+                  .byKey(const ValueKey('review-criteria-master-label'))
+                  .evaluate()
+                  .isNotEmpty) &&
           list.every((c) => c.mark?.checked == want[c.criterion.text]);
     }
 
-    final end = DateTime.now().add(const Duration(seconds: 15));
+    final end = DateTime.now().add(const Duration(seconds: 30));
     while (!synced() && DateTime.now().isBefore(end)) {
       await round();
     }
@@ -237,7 +243,7 @@ void batchTests() {
         ),
       ),
     );
-    final panel = (c: c, specId: id);
+    final panel = (c: c, specId: id, hasCriteria: criteria.isNotEmpty);
     await settle(tester, panel);
     return panel;
   }
