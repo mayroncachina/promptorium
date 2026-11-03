@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Abrir sessão: pair programming com as decisões no rascunho</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+button{transition:background-color .12s ease-out,filter .12s ease-out}
+button:hover{filter:brightness(1.12)}
+button:active{filter:brightness(.88)}
+button:disabled{opacity:.45;cursor:not-allowed;filter:none}
+b,strong{font-weight:600}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width: 640px){nav button,main button{min-height:44px;min-width:44px}.note,.chip{display:none !important}.topbar{left:12px !important;right:12px;transform:none !important;flex-wrap:wrap}}
+button:focus-visible,.card:focus-visible{outline:2px solid #F2A541;outline-offset:3px}
+.board{background-color:#0E1014;background-image:radial-gradient(#232833 1.2px,transparent 1.3px);background-size:24px 24px}
+@keyframes halo{0%{box-shadow:0 0 0 0 rgba(242,165,65,.55)}70%{box-shadow:0 0 0 10px rgba(242,165,65,0)}100%{box-shadow:0 0 0 0 rgba(242,165,65,0)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.1);opacity:0}}
+@keyframes oldhalo{0%,100%{box-shadow:0 0 0 0 rgba(242,165,65,.45)}50%{box-shadow:0 0 0 9px rgba(242,165,65,0)}}
+.att-card{animation:halo 1.8s cubic-bezier(.2,.6,.4,1) infinite}
+.att-card .att-ico{animation:breathe 1.8s ease-in-out infinite}
+.att-ico{position:relative}
+.att-card .att-ico::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:1.5px solid #F2A541;animation:ring 1.8s ease-out infinite}
+.att-still{box-shadow:0 0 0 3px rgba(242,165,65,.28)}
+.old-halo{animation:oldhalo .9s ease-in-out infinite alternate}
+.run{animation:breathe .7s ease-in-out infinite alternate}
+@media (prefers-reduced-motion: reduce){
+  .att-card,.old-halo{animation:none;box-shadow:0 0 0 3px rgba(242,165,65,.35)}
+  .att-card .att-ico,.run{animation:none}
+  .att-card .att-ico::after{display:none}
+  button{transition:none}
+}
+
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.62);z-index:5}
+.modal{position:absolute;z-index:6;background:#14171D;border:1px solid #2E3542;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.opt{cursor:pointer;transition:background-color .12s ease-out,border-color .12s ease-out}
+.opt:hover{background:#1F2430 !important}
+.opt:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+textarea:focus-visible,input:focus-visible{outline:2px solid #F2A541;outline-offset:1px}
+@keyframes o-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.modal.live .opt{animation:o-in .16s cubic-bezier(.2,.8,.2,1) both}
+.modal.live .opt:nth-child(2){animation-delay:.12s}.modal.live .opt:nth-child(3){animation-delay:.16s}.modal.live .opt:nth-child(4){animation-delay:.2s}.modal.live .opt:nth-child(5){animation-delay:.24s}.modal.live .opt:nth-child(6){animation-delay:.28s}
+.modal.live .m-prev{animation:o-in .18s cubic-bezier(.2,.8,.2,1) .26s both}
+@keyframes dopt{0%,22%{opacity:0;transform:translateY(6px)}30%,88%{opacity:1;transform:none}94%,100%{opacity:0}}
+.demo .d-opt{animation:dopt 2.6s cubic-bezier(.2,.8,.2,1) infinite both}
+.demo .d-opt:nth-of-type(2){animation-delay:.04s}.demo .d-opt:nth-of-type(3){animation-delay:.08s}.demo .d-opt:nth-of-type(4){animation-delay:.12s}
+@keyframes m-in{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:none}}
+@keyframes s-in{from{opacity:0}to{opacity:1}}
+@keyframes once{0%{box-shadow:0 0 0 0 rgba(242,165,65,.6)}100%{box-shadow:0 0 0 9px rgba(242,165,65,0)}}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+.modal.live{animation:m-in .22s cubic-bezier(.2,.8,.2,1) both}
+.scrim.live{animation:s-in .16s linear both}
+.hb{border-radius:5px;animation:once 1.8s cubic-bezier(.2,.6,.4,1) .22s 1 both}
+.sk{display:block;border-radius:4px;background:#2E3542;animation:shimmer 1.4s ease-in-out infinite}
+.demo{animation:demo 2.6s cubic-bezier(.2,.8,.2,1) infinite}
+@keyframes demo{0%,12%{opacity:0;transform:scale(.92)}21%,88%{opacity:1;transform:none}94%,100%{opacity:0;transform:scale(.96)}}
+@media (prefers-reduced-motion: reduce){.modal.live,.scrim.live,.hb,.demo,.demo .d-opt,.modal.live .opt,.modal.live .m-prev{animation:none}.sk{animation:none}.opt{transition:none}}
+@media (max-width: 900px){.m-prev{display:none !important}.modal{left:12px !important;right:12px;width:auto !important}}
+@media (max-width: 640px){.m-keys{display:none !important}.modal{top:12px !important;bottom:12px;height:auto !important}.opt{min-height:48px}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 700px; height: 700px; position: relative; overflow: hidden; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+<nav aria-label="Seções" style="width: 52px; flex: none; background: #14171D; border-right: 1px solid #252B35; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 12px"><button type="button" aria-label="Prompt" aria-current="page" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: #2A2418; color: #F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg></button><button type="button" aria-label="Quadro" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg></button><button type="button" aria-label="Specs" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></button><button type="button" aria-label="Review" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button></nav><aside aria-label="Sessões" style="width: 230px; flex: none; background: #14171D; border-right: 1px solid #252B35; padding: 12px 8px; display: flex; flex-direction: column; gap: 4px"><div style="font-size: 12px; color: #A0A8B6; padding: 0 8px 6px">Sessões</div><button type="button" aria-current="true" style="text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid #2E3542; background: #1F2430; color: #E7E9EE; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">SPEC-003 · R3</span><span style="font-size: 12px; color: #F2A541">aguardando você</span></button><button type="button" aria-current="false" style="text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #E7E9EE; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">SPEC-004 · R2</span><span style="font-size: 12px; color: #A0A8B6">em execução</span></button><button type="button" aria-current="false" style="text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #E7E9EE; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Refinar SPEC-005</span><span style="font-size: 12px; color: #A0A8B6">ontem</span></button></aside><main style="flex: 1; min-width: 0; display: flex; flex-direction: column"><header style="padding: 12px 20px; border-bottom: 1px solid #252B35; display: flex; align-items: center; gap: 12px"><div style="flex: 1; min-width: 0"><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">spec/003-adicionar-id-da-imagem · worktree</div><h1 style="margin: 0; font-size: 16px; font-weight: 600">SPEC-003 · R3 · sessão da etapa</h1></div><span style="display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; background: #2A2418; color: #F2A541; font-size: 12px; font-weight: 600; white-space: nowrap"><svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true" style="flex: none; display: block"><path d="M3 1.5h10A2.5 2.5 0 0 1 15.5 4v5.5A2.5 2.5 0 0 1 13 12H7.2L4 14.8V12H3A2.5 2.5 0 0 1 .5 9.5V4A2.5 2.5 0 0 1 3 1.5Z" fill="#F2A541"/></svg>Etapa 3 · aguardando você</span></header><div style="flex: 1; min-height: 0; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; overflow: hidden"><div style="display: flex; flex-direction: column; gap: 4px; max-width: 620px; "><span style="font-size: 12px; color: #A0A8B6">Agente</span><div style="padding: 10px 12px; border-radius: 10px; background: #1A1E26; border: 1px solid #252B35; font-size: 13px">Li o schema. A tabela <code>machines</code> tem id, name, host e metadata (JSON). Não há coluna para a imagem.</div></div><div style="display: flex; flex-direction: column; gap: 4px; max-width: 620px; "><span style="font-size: 12px; color: #A0A8B6">Agente</span><div style="padding: 10px 12px; border-radius: 10px; background: #1A1E26; border: 1px solid #252B35; font-size: 13px">Antes de seguir no R3, preciso de duas decisões: <b>1.</b> crio a migração 0012 com <code>image_id</code> ou guardo em <code>metadata</code>? <b>2.</b> o id deve aparecer na lista de máquinas?</div></div></div><div style="padding: 12px 20px 16px; border-top: 1px solid #252B35; display: flex; flex-direction: column; gap: 8px"><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #A0A8B6"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5"/><path d="M11 20c0-3 2.2-5 5-5s5 2 5 5"/></svg><span>Rascunho com as decisões do modal · <b style="color: #E7E9EE">ainda não enviado</b></span></div><div style="display: flex; gap: 8px; align-items: flex-end"><textarea aria-label="Mensagem para a sessão" rows="5" style="flex: 1; resize: none; background: #0E1014; color: #E7E9EE; border: 1px solid #F2A541; border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 13px; line-height: 1.5">Decidi pelo modal:
+1. Onde guardar o id? → Criar a coluna image_id com migração.
+2. Como mostrar o id na lista? (ainda não decidi; vamos ver juntos)
+
+Antes de criar a migração, me mostra o schema atual de machines.</textarea><button type="button" style="height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border-radius: 8px; font-size: 13px; white-space: nowrap; cursor: pointer; font-family: inherit; flex: none; background: #F2A541; color: #1A1206; border: 1px solid #F2A541; font-weight: 600"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="m4 12 16-8-6 16-3-7Z"/></svg><span>Enviar</span><kbd style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #1A1206; background: rgba(26,18,6,.12); border: 1px solid rgba(26,18,6,.35); border-radius: 4px; padding: 0 5px; line-height: 18px; display: inline-block; min-width: 10px; text-align: center; flex: none">Enter</kbd></button></div></div></main><aside class="note" style="position: absolute; right: 20px; top: 300px; width: 270px; padding: 14px; background: #14171D; border: 1px solid #252B35; border-radius: 12px; z-index: 3"><h2 style="margin: 0 0 6px; font-size: 14px; font-weight: 600">Abrir sessão (S)</h2><ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 13px"><li>Funciona em qualquer fase do modal.</li><li>As decisões já tomadas viram um rascunho; nada é enviado sozinho.</li><li>A etapa continua “aguardando você” até o agente concluí-la.</li></ul></aside>
+
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

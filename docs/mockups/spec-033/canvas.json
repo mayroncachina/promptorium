@@ -1,0 +1,89 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-03T03:00:00Z"
+ },
+ "title": "Promptorium · Decidir a etapa pelo balão",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Antes.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Hoje: a linha do tempo da sessão"
+  },
+  "Abrindo.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Abertura a partir do balão"
+  },
+  "Decidir.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Decidir: opções da IA e teclas 1–4"
+  },
+  "Reestruturar.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Reestruturar: dividir a etapa"
+  },
+  "Compilar.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Compilar o requisito"
+  },
+  "Estados.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Estados"
+  },
+  "Pair.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 2700,
+   "w": 1100,
+   "h": 700,
+   "title": "6 · Abrir sessão (pair programming)"
+  }
+ },
+ "order": [
+  "Antes.dc.html",
+  "Abrindo.dc.html",
+  "Decidir.dc.html",
+  "Reestruturar.dc.html",
+  "Compilar.dc.html",
+  "Estados.dc.html",
+  "Pair.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Etapa que precisa de você: decidir pelo modal, sem abrir a sessão",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}
