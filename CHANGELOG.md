@@ -2,6 +2,59 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.8.0] - 2026-11-03
+
+### Funcionalidades
+
+- **specs:** Cabeçalho da spec com ações por estado, menu Mais ações e abas de modo (SPEC-024) (058194b)
+- **specs:** Spec bloqueada durante ações, com faixa de status, cancelamento e aviso de falha (SPEC-025) (2480123)
+- **prompt:** Diff das edições, painel Spec em refino, resumo do turno e diálogo de alterações do refino (SPEC-026) (20c0dfa)
+- **prototipo:** Apagar telas pelo cartão, pela seleção e pela aba Versões, com confirmação, aviso da aprovada e Desfazer (SPEC-027) (b5750b3)
+- **specs:** Responder as perguntas em aberto numa sessão guiada, com formato P<n>, aviso de formato, aprovar com as sugestões e diff antes de salvar (SPEC-028) (d353a10)
+- **icone:** Marca sem o quadrado escuro na janela, na bandeja e no tema hicolor, de 16 a 512 px e em SVG, com volta ao ícone anterior (SPEC-029) (7e0c31d)
+- **board:** Balão na etapa que espera você, pulso único de 1,8 s até resolver, motivo no card, selo com balão, pílula neutra e "Atenção · i de n" (SPEC-030) (c8989f3)
+- **shell:** Marca do sistema no cabeçalho, desenhada em vetor e animada como a abertura enquanto specs executam, com tooltip da onda e clique para o Quadro (SPEC-031) (2a8b56a)
+- **review:** SPEC-032 R1-R5, R8, R10, R14 fila em pilha, estado em texto, uma ação primária e merge que segue para a próxima spec (553b99e)
+- **review:** SPEC-032 R6, R7, R15 refaz a base das filhas depois do merge da mãe (34f1fc2)
+- **review:** SPEC-032 R9, R11-R13 barra do worktree, aviso da raiz e Mergear a pilha (9bf8d78)
+- **review:** SPEC-032 R17 resolver conflito com o agente ou eu mesmo, no editor (f3bbc16)
+- **review:** SPEC-032 R16 grafo das ramificações do merge (7b38502)
+
+### Documentação
+
+- **specs:** SPEC-024 ações da spec mais claras, com mockups validados (79b9e73)
+- **specs:** SPEC-025 spec bloqueada durante ações, com mockups validados (30c5d97)
+- **specs:** SPEC-026 ver o que o refino gerou, com mockups validados (1edaf0b)
+- **specs:** SPEC-027 apagar telas do protótipo, com mockups validados (72190c1)
+- **specs:** SPEC-028 responder as perguntas em aberto, com mockups validados (9d1d9a0)
+- **specs:** SPEC-029 ícone visível nas barras do Linux, com comparação do ícone atual e do esboço sem fundo (3d7cc71)
+- **specs:** SPEC-030 precisa de você no card, com mockups validados e decisões do grill (7adb0da)
+- **specs:** SPEC-031 marca do sistema no cabeçalho, animada enquanto as ondas executam, com mockups e decisões (d5c266c)
+- **specs:** SPEC-031 animação da marca segue a de abertura (onda, bolhas até o gargalo, molécula) (101d96f)
+- **specs:** SPEC-032 fila de Review em pilha, com merge de baixo para cima, rebase das filhas, aviso da raiz e mockups validados (d16002d)
+- **specs:** SPEC-032 refaz a base das filhas quando a mãe é mergeada fora do app (R15) (07bd352)
+- **specs:** SPEC-032 grafo das ramificações do merge (R16), resolver conflito com o agente ou no editor (R17) e fila com várias specs no mockup (c25776f)
+
+### Testes
+
+- **prototipo:** Espera a miniatura de 1100×700 em vez de um settle fixo (3a5f862)
+- **specs:** Critérios de aceite do cabeçalho da spec (SPEC-024) (cf1d65d)
+- **specs:** Critérios de aceite da spec bloqueada durante ações (SPEC-025) (9e6f07a)
+- **prompt:** Critérios de aceite do que o refino gerou (SPEC-026) (ec0fea6)
+- **prototipo:** Critérios de aceite de apagar telas do protótipo (SPEC-027) (e31645b)
+- **specs:** Critérios de aceite de responder as perguntas em aberto (SPEC-028) (4cd6406)
+- **icone:** Critérios de aceite da marca, da bandeja e da instalação dos ícones (SPEC-029) (bd3b7b1)
+- **board:** Espera o diálogo de sem-design em vez de um tempo fixo (f8f06ca)
+- **board:** Critérios de aceite do card que precisa de você (SPEC-030) (ed69626)
+- **shell:** Critérios de aceite da marca no cabeçalho (SPEC-031) (2cf3f53)
+- **specs:** Espera mais pela verificação no spec_sync_bar_test, que estourava os 10 s com a suíte inteira rodando (2d73254)
+- **review:** Espera o controle Marcar todos no spec_review_panel_test, que falhava com a suíte inteira rodando (fae4594)
+
+### Manutenção
+
+- Versão 0.8.0 e configuração do Claude Code no repositório (81cf85c)
+- Hook de Stop do Claude Code (testes verdes) e o settings.local.json que o liga (94e1401)
+
 ## [0.7.0] - 2026-10-26
 
 ### Funcionalidades
@@ -53,6 +106,10 @@ Todas as mudanças relevantes do Promptorium.
 - README enxuto e guia de uso por tela em docs/guia (463a1e0)
 - **guia:** Modo Protótipo das specs (SPEC-022) (dc9d465)
 - **guia:** Avisos de estrutura, perguntas ao aprovar e contagem de testes (SPEC-023) (84886f3)
+
+### Testes
+
+- **about:** Ancora "Novidades da" no início para não casar com o CHANGELOG (16e3f57)
 
 ### Build e CI
 
