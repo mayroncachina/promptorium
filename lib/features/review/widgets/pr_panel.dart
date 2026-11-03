@@ -6,6 +6,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../pr_babysitter.dart';
 import '../review_service.dart';
+import '../review_stack.dart' show nextAfterMerge;
 
 /// PR of the reviewed session (F16): its state, "Acompanhar PR", "Mergear
 /// PR" (squash / rebase / merge) and "Resolver conflito".
@@ -122,8 +123,16 @@ class _PrPanelState extends ConsumerState<PrPanel> {
               onSelected: (m) => _do(
                 'PR mergeado (${m.label}). Atualize a branch base com git pull.',
                 () async {
+                  // SPEC-032 R5: on to the child (or the next item).
+                  final queue =
+                      ref
+                          .read(reviewQueueProvider(widget.session.workspaceId))
+                          .value ??
+                      const <ReviewItem>[];
                   await ref.read(reviewServiceProvider).mergePr(_id, m);
-                  ref.read(selectedReviewProvider.notifier).select(null);
+                  ref
+                      .read(selectedReviewProvider.notifier)
+                      .select(nextAfterMerge(queue, _id)?.session.id);
                 },
               ),
               itemBuilder: (_) => [

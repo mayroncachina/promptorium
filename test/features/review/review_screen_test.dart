@@ -80,6 +80,9 @@ Future<ProviderContainer> pumpReview(
         ),
       ),
       prAvailabilityProvider.overrideWith((ref, id) async => pr),
+      // No real git in the root of this fake workspace (SPEC-032 R11, R15).
+      rootStatusProvider.overrideWith((ref, id) async => null),
+      orphanRestackProvider.overrideWith((ref, id) async => const []),
       if (readiness != null) ...[
         mergeReadinessProvider.overrideWith((ref, id) async => readiness),
         reviewServiceProvider.overrideWith(_NoConflictReview.new),
@@ -107,17 +110,25 @@ Future<ProviderContainer> pumpReview(
   return container;
 }
 
+Future<void> openMore(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('review-more')));
+  await tester.pumpAndSettle();
+}
+
+bool menuEnabled(WidgetTester tester, String key) =>
+    tester.widget<MenuItemButton>(find.byKey(ValueKey(key))).onPressed != null;
+
 void main() {
   testWidgets('fits the minimum window (1100×700) without overflow; queue, '
       'files, header and disabled "Criar PR"', (tester) async {
     // Shell: sidebar 56px, title bar + footer ≈ 72px.
     await pumpReview(tester, size: const Size(1044, 628));
     expect(tester.takeException(), isNull);
-    expect(find.text('AGUARDANDO REVIEW · 2'), findsOneWidget);
+    expect(find.text('Aguardando review · 2'), findsOneWidget);
     expect(find.byKey(const ValueKey('review-item-s1')), findsOneWidget);
     expect(find.text('TASK-011 · implementer'), findsOneWidget);
     expect(find.text('Tema escuro e tokens'), findsOneWidget);
-    expect(find.text('ARQUIVOS · 2'), findsOneWidget);
+    expect(find.text('Arquivos · 2'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('review-file-lib/ui/status_bar.dart')),
       findsOneWidget,
@@ -130,7 +141,8 @@ void main() {
       'pr/status-bar → main · 2 arquivos · +4 −1 · 2 commits · '
       '1 não commitado',
     );
-    // Criar PR disabled with the reason in the tooltip.
+    // Criar PR (in "Mais") disabled with the reason in the tooltip.
+    await openMore(tester);
     final pr = tester.widget<Tooltip>(
       find.byKey(const ValueKey('review-create-pr-tooltip')),
     );
@@ -146,6 +158,8 @@ void main() {
           .onTap,
       isNull,
     );
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
     // Diff with line numbers.
     expect(find.byKey(const ValueKey('review-line-8')), findsOneWidget);
     expect(find.byKey(const ValueKey('review-line-o7')), findsOneWidget);
@@ -251,6 +265,7 @@ void main() {
       'GitLab · glab · gitlab.com · origin · '
       'Integração de MR ainda indisponível (DT-55).',
     );
+    await openMore(tester);
     expect(find.text('Criar MR'), findsOneWidget);
     expect(
       tester
@@ -276,6 +291,7 @@ void main() {
       ),
     );
     expect(band(), startsWith('Hospedagem não identificada · bitbucket.org'));
+    await openMore(tester);
     expect(find.text('Criar PR'), findsOneWidget);
     final draft = tester
         .widget<Tooltip>(
@@ -312,20 +328,25 @@ void main() {
         readiness: evaluateReadiness(const ReadinessInputs()),
       );
       expect(summary(tester), 'Pronto para merge');
-      final dot = tester.widget<Icon>(
+      // SPEC-032 R3: the state in text, with its icon.
+      expect(
         find.descendant(
-          of: find.byKey(const ValueKey('review-item-s1')),
-          matching: find.byType(Icon),
+          of: find.byKey(const ValueKey('review-item-state-s1')),
+          matching: find.text('Pronto para merge'),
         ),
+        findsOneWidget,
       );
-      expect(dot.icon, Icons.circle);
-      final other = tester.widget<Icon>(
-        find.descendant(
-          of: find.byKey(const ValueKey('review-item-s2')),
-          matching: find.byType(Icon),
-        ),
+      expect(
+        tester
+            .widget<Icon>(
+              find.descendant(
+                of: find.byKey(const ValueKey('review-item-state-s1')),
+                matching: find.byType(Icon),
+              ),
+            )
+            .icon,
+        Icons.check_circle,
       );
-      expect(other.icon, Icons.circle_outlined); // partial, never green
       await tester.pumpWidget(const SizedBox());
 
       await pumpReview(
@@ -397,15 +418,13 @@ void main() {
           const ReadinessInputs(hasSpec: true, pendingCriteria: ['R1 ok']),
         ),
       );
-      expect(enabled(tester, 'review-merge'), isFalse);
-      expect(
-        tester
-            .widget<TextButton>(
-              find.byKey(const ValueKey('review-merge-override')),
-            )
-            .onPressed,
-        isNotNull,
-      );
+      // SPEC-032 R8: pendencies → "Pedir ajustes" is the primary action;
+      // the merge and its override live in "Mais".
+      expect(find.byKey(const ValueKey('review-merge')), findsNothing);
+      expect(enabled(tester, 'review-request-changes'), isTrue);
+      await openMore(tester);
+      expect(menuEnabled(tester, 'review-more-merge'), isFalse);
+      expect(menuEnabled(tester, 'review-merge-override'), isTrue);
       await tester.pumpWidget(const SizedBox());
 
       await pumpReview(
@@ -418,15 +437,10 @@ void main() {
           ),
         ),
       );
-      expect(enabled(tester, 'review-merge'), isFalse);
-      expect(
-        tester
-            .widget<TextButton>(
-              find.byKey(const ValueKey('review-merge-override')),
-            )
-            .onPressed,
-        isNull,
-      );
+      // Waiting for the mother → "Ir para SPEC-001".
+      expect(find.text('Ir para SPEC-001'), findsOneWidget);
+      await openMore(tester);
+      expect(menuEnabled(tester, 'review-merge-override'), isFalse);
     });
   });
 

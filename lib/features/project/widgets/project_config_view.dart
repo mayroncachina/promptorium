@@ -51,7 +51,29 @@ class ProjectConfigView extends ConsumerStatefulWidget {
   ConsumerState<ProjectConfigView> createState() => _ProjectConfigViewState();
 }
 
+/// Field to focus when the project config opens ("Testar" without
+/// `executar:` opens it on that field, SPEC-032 R9).
+class ConfigFocus extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? field) => state = field;
+}
+
+final configFocusProvider = NotifierProvider<ConfigFocus, String?>(
+  ConfigFocus.new,
+);
+
 class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
+  late final bool _focusRun = () {
+    final focus = ref.read(configFocusProvider) == 'executar';
+    if (focus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(configFocusProvider.notifier).set(null);
+      });
+    }
+    return focus;
+  }();
   late ProjectConfig _saved = ProjectConfig.loadSync(widget.workspace.path);
   late final _specs = TextEditingController(text: _saved.specsDir);
   late final _tests = TextEditingController(text: _saved.testCommand ?? '');
@@ -59,6 +81,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _lint = TextEditingController(text: _saved.lintCommand ?? '');
   late final _build = TextEditingController(text: _saved.buildCommand ?? '');
   late final _format = TextEditingController(text: _saved.formatCommand ?? '');
+  late final _run = TextEditingController(text: _saved.runCommand ?? '');
+  late final _editor = TextEditingController(text: _saved.editorCommand ?? '');
   late final _attempts = TextEditingController(text: '${_saved.gate.attempts}');
   late final _timeout = TextEditingController(
     text: '${_saved.gate.timeoutSeconds}',
@@ -101,6 +125,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _lint,
       _build,
       _format,
+      _run,
+      _editor,
       _attempts,
       _timeout,
       _blocked,
@@ -143,6 +169,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     lintCommand: () => _text(_lint),
     buildCommand: () => _text(_build),
     formatCommand: () => _text(_format),
+    runCommand: () => _text(_run),
+    editorCommand: () => _text(_editor),
     baseBranch: () => _text(_branch),
     agent: () => _agent,
     subagents: _subagents,
@@ -462,6 +490,23 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
         _format,
         'ex.: dart format {arquivo}',
       ),
+      _label(
+        'Executar o app',
+        '"Testar" da Review roda no worktree da spec, sem trocar a raiz',
+      ),
+      TextField(
+        key: const ValueKey('config-run'),
+        controller: _run,
+        autofocus: _focusRun,
+        style: const TextStyle(fontSize: 13, fontFamily: AppFonts.mono),
+        decoration: const InputDecoration(
+          isDense: true,
+          hintText: 'ex.: flutter run -d linux',
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+      _label('Editor', 'abre o worktree da Review (padrão: code)'),
+      _field(const ValueKey('config-editor'), _editor, 'ex.: code'),
       _label(
         'Comandos bloqueados',
         'um por linha; * = qualquer coisa (soma à lista embutida)',
