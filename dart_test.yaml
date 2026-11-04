@@ -1,3 +1,7 @@
+# Tests with real git, database and file IO take 1-5 s alone but can pass the
+# default 30 s with every file running in parallel.
+timeout: 3x
+
 # Tags used by the test suite.
 tags:
   # Calls the real Claude Code CLI (costs a few cents). Excluded from the
