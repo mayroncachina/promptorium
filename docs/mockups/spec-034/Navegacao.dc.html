@@ -18,7 +18,7 @@ button:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
 b,strong{font-weight:600}
 .mono{font-family:'JetBrains Mono',monospace}
 .m-hoje{--k:0}.m-prop{--k:1}.m-lento{--k:4}
-.app{--q:calc(120ms*var(--k));--qx:calc(80ms*var(--k));--b:calc(160ms*var(--k));--bx:calc(110ms*var(--k));--e:calc(220ms*var(--k));--ex:calc(150ms*var(--k));--in:cubic-bezier(.2,.8,.2,1);--out:cubic-bezier(.4,0,1,1)}
+.app{--q:calc(120ms*var(--k));--qx:calc(80ms*var(--k));--b:calc(160ms*var(--k));--bx:calc(110ms*var(--k));--e:calc(220ms*var(--k));--ex:calc(150ms*var(--k));--s:calc(640ms*var(--k));--in:cubic-bezier(.2,.8,.2,1);--out:cubic-bezier(.4,0,1,1)}
 @media (prefers-reduced-motion:reduce){.app{--k:0 !important}}
 .seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid #252B35;border-radius:8px;background:#14171D}
 .seg button{white-space:nowrap;height:30px;padding:0 12px;border-radius:6px;font-size:12px;color:#A0A8B6}
@@ -37,7 +37,7 @@ b,strong{font-weight:600}
 .side a,.nav{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:#A0A8B6}
 .nav.on{color:#F2A541}
 
-.ind{position:absolute;left:8px;top:10px;width:40px;height:40px;border-radius:8px;background:#2A2418;transition:transform var(--b) var(--in)}
+.ind{position:absolute;left:8px;top:10px;width:40px;height:40px;border-radius:8px;background:#2A2418;transition:transform var(--s) var(--in)}
 .nav{transition:color var(--q) var(--in)}
 .nav:hover{color:#E7E9EE}
 .nav.on:hover{color:#F2A541}
@@ -45,8 +45,8 @@ b,strong{font-weight:600}
 @keyframes dnB{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes upA{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 @keyframes upB{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-.dnA{animation:dnA var(--b) var(--in) both}.dnB{animation:dnB var(--b) var(--in) both}
-.upA{animation:upA var(--b) var(--in) both}.upB{animation:upB var(--b) var(--in) both}
+.dnA{animation:dnA var(--s) var(--in) both}.dnB{animation:dnB var(--s) var(--in) both}
+.upA{animation:upA var(--s) var(--in) both}.upB{animation:upB var(--s) var(--in) both}
 .line{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #252B35}
 </style>
 </helmet>

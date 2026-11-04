@@ -20,7 +20,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
 
 | Artboard | O que mostra | Requisitos |
 |---|---|---|
-| `Main.dc.html` | As três durações e as duas curvas | R1 |
+| `Main.dc.html` | As quatro durações e as duas curvas | R1 |
 | `Navegacao.dc.html` | Tela nova na direção do movimento e destaque da barra lateral | R2, R3 |
 | `Dialogos.dc.html` | Diálogo de confirmação e aviso com Desfazer | R4, R5 |
 | `Hover.dc.html` | Hover, press e foco em cards, linhas, botões e barra lateral | R6 |
@@ -35,16 +35,17 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
   | Token | Entrada | Saída | Uso |
   |---|---|---|---|
   | `quick` | 120 ms | 80 ms | hover, press, foco |
-  | `base` | 160 ms | 110 ms | troca de seção, toast, fundo do diálogo, evento novo, status da etapa |
+  | `base` | 160 ms | 110 ms | toast, fundo do diálogo, evento novo, status da etapa |
   | `emphasis` | 220 ms | 150 ms | diálogo, card que muda de coluna |
+  | `section` | 640 ms | na hora | troca de seção, destaque da barra lateral |
 
   - A curva de entrada é `Cubic(.2, .8, .2, 1)` e a de saída é `Cubic(.4, 0, 1, 1)`.
   - Os valores de `emphasis` e do fundo do diálogo são os mesmos da SPEC-033 R2.
-- R2 · Ao trocar de seção, a tela nova deve entrar com fade e deslocamento de 8 px em `base`:
+- R2 · Ao trocar de seção, a tela nova deve entrar com fade e deslocamento de 8 px em `section`:
   - ela vem de baixo quando o item escolhido está abaixo do atual na barra lateral, e de cima quando está acima;
   - a tela anterior sai na hora, sem ficar sobreposta à nova;
   - a barra de título e a barra lateral não animam com a tela.
-- R3 · O destaque do item ativo da barra lateral deve deslizar até o item novo em `base`.
+- R3 · O destaque do item ativo da barra lateral deve deslizar até o item novo em `section`.
 - R4 · Os diálogos do app devem abrir pelo helper `showAppDialog`:
   - o fundo escurece em `base`;
   - o diálogo cresce de escala 0,96 e opacidade 0 até 1, em `emphasis`;
@@ -158,8 +159,8 @@ Nenhuma implementação começa antes da aprovação do canvas.
 
 ## Critérios de aceite
 
-- [ ] `AppMotion` expõe as três durações, as saídas e as duas curvas; com animações desligadas, `AppMotion.duration` devolve zero [R1] [R11] verificar: flutter test test/ui/motion_test.dart
-- [ ] Trocar de seção mostra só a tela nova, com fade e 8 px na direção do item escolhido [R2] verificar: flutter test test/ui/shell/section_transition_test.dart
+- [ ] `AppMotion` expõe as quatro durações, as saídas e as duas curvas; com animações desligadas, `AppMotion.duration` devolve zero [R1] [R11] verificar: flutter test test/ui/motion_test.dart
+- [ ] Trocar de seção mostra só a tela nova, com fade e 8 px em 640 ms, na direção do item escolhido; trocar de novo durante a entrada já mostra a próxima tela [R2] [R12] verificar: flutter test test/ui/shell/section_transition_test.dart
 - [ ] O destaque da barra lateral é um único elemento que desliza até o item ativo [R3] verificar: flutter test test/ui/shell/section_transition_test.dart
 - [ ] `showAppDialog` abre com escala 0,96 e fecha com escala 0,98, mantendo `Esc`, fundo e valor retornado; o foco entra, fica preso e volta a quem abriu [R4] verificar: flutter test test/ui/widgets/app_dialog_test.dart
 - [ ] Nenhum `showDialog` direto sobra em `lib/`, fora do helper [R4] verificar: test "$(grep -rn 'showDialog<\|showDialog(' lib | grep -v app_dialog.dart | wc -l)" = 0
@@ -178,6 +179,7 @@ Nenhuma implementação começa antes da aprovação do canvas.
 - D1 · A tela anterior sai na hora, sem crossfade. Duas telas montadas juntas duplicariam providers, foco e chaves.
 - D2 · Sem pacote de animação: o Flutter já cobre tudo o que a spec pede.
 - D4 · O ritmo das animações é aprovado no canvas, por quem usa o app: a auditoria automática não mede transições.
+- D5 · Canvas aprovado em 2026-11-04. A troca de seção usa 640 ms, o ritmo de 4× escolhido pelo autor; diálogos, toasts e o restante ficam como na Proposta.
 - D3 · Uma spec com branch pai e uma branch por tarefa, a pedido do autor, com o canvas aprovado antes de implementar.
 
 ## Perguntas em aberto
