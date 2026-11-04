@@ -180,8 +180,9 @@ Nenhuma implementação começa antes da aprovação do canvas.
 - D2 · Sem pacote de animação: o Flutter já cobre tudo o que a spec pede.
 - D4 · O ritmo das animações é aprovado no canvas, por quem usa o app: a auditoria automática não mede transições.
 - D5 · Canvas aprovado em 2026-11-04. A troca de seção usa 640 ms, o ritmo de 4× escolhido pelo autor; diálogos, toasts e o restante ficam como na Proposta.
+- D6 · A tarefa T3 troca todos os 66 diálogos, sem exceção (P1).
 - D3 · Uma spec com branch pai e uma branch por tarefa, a pedido do autor, com o canvas aprovado antes de implementar.
 
 ## Perguntas em aberto
 
-- P1 · A tarefa T3 troca 66 chamadas de diálogo de uma vez. Algum diálogo deve ficar de fora, como os de erro fatal?
+Nenhuma.
