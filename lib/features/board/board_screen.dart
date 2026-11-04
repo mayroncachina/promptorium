@@ -29,6 +29,7 @@ import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/step_live_dialog.dart';
+import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
@@ -1652,11 +1653,14 @@ class _Progress extends StatelessWidget {
                               0,
                               4,
                             ),
-                            child: Container(
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: stepSegmentColor(s),
-                                borderRadius: BorderRadius.circular(3),
+                            child: StepColorTransition(
+                              color: stepSegmentColor(s),
+                              builder: (_, color) => Container(
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
                               ),
                             ),
                           ),

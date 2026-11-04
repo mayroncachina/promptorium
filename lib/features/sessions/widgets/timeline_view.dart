@@ -1,9 +1,13 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/diff_view.dart';
+import '../../../ui/widgets/motion_enter.dart';
 import '../edit_diff.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
@@ -58,8 +62,9 @@ class TimelineView extends ConsumerWidget {
 
 /// Scrollable list of timeline items (sessions and Prompt conversations).
 /// Reversed, so the end stays visible while new items arrive. [footer] is
-/// shown after the last item (inline approvals, answer actions).
-class TimelineListView extends StatelessWidget {
+/// shown after the last item (inline approvals, answer actions). Items that
+/// arrive after the list opened enter with motion (SPEC-034 R8).
+class TimelineListView extends StatefulWidget {
   const TimelineListView({
     super.key,
     required this.items,
@@ -93,22 +98,84 @@ class TimelineListView extends StatelessWidget {
   /// null = the card works them out from the tool input.
   final EditInfo? Function(ToolItem tool)? editInfo;
 
-  Widget _wrap(Widget child) => maxWidth == null
+  @override
+  State<TimelineListView> createState() => _TimelineListViewState();
+}
+
+class _TimelineListViewState extends State<TimelineListView> {
+  /// More than this many items inside [_burstWindow] enter without motion.
+  static const _burstSize = 3;
+  static const _burstWindow = Duration(milliseconds: 300);
+
+  /// Items already accounted for. The list only grows, so the position of an
+  /// item is its id: the only one every kind of item has.
+  late int _seen;
+
+  /// Items from this position on arrived in the frame [_arrivedAt]. One that
+  /// is not built in that frame is off screen, and shows up later as history.
+  late int _arrivedFrom;
+  Duration? _arrivedAt;
+
+  /// Items before this position were part of a burst.
+  var _settled = 0;
+
+  /// Frame of each recent arrival.
+  final _recent = ListQueue<Duration>();
+
+  Duration get _frame => SchedulerBinding.instance.currentSystemFrameTimeStamp;
+
+  bool _isArriving(int idx) =>
+      idx >= _arrivedFrom && idx >= _settled && _frame == _arrivedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _seen = _arrivedFrom = widget.items.length;
+  }
+
+  @override
+  void didUpdateWidget(covariant TimelineListView old) {
+    super.didUpdateWidget(old);
+    // The list is mutated in place, so old.items cannot tell what is new.
+    final items = widget.items;
+    final count = items.length;
+    if (old.loading ||
+        widget.loading ||
+        !identical(items, old.items) ||
+        count < _seen) {
+      // The stored rows land all at once, when loading ends: that is history.
+      _seen = _arrivedFrom = count;
+      return;
+    }
+    if (count == _seen) return;
+    final now = _frame;
+    while (_recent.isNotEmpty && now - _recent.first > _burstWindow) {
+      _recent.removeFirst();
+    }
+    _recent.addAll(List.filled(count - _seen, now));
+    if (_recent.length > _burstSize) _settled = count;
+    _arrivedFrom = _seen;
+    _arrivedAt = now;
+    _seen = count;
+  }
+
+  Widget _wrap(Widget child) => widget.maxWidth == null
       ? child
       : Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth!),
+            constraints: BoxConstraints(maxWidth: widget.maxWidth!),
             child: child,
           ),
         );
 
   @override
   Widget build(BuildContext context) {
-    final foot = footer;
+    final items = widget.items;
+    final foot = widget.footer;
     if (items.isEmpty && foot == null) {
       return Center(
         child: Text(
-          loading ? 'Carregando…' : emptyText,
+          widget.loading ? 'Carregando…' : widget.emptyText,
           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       );
@@ -118,12 +185,21 @@ class TimelineListView extends StatelessWidget {
       reverse: true,
       padding: const EdgeInsets.all(20),
       itemCount: items.length + extra,
+      // A new item shifts every index: the keys keep each one on its element.
+      findChildIndexCallback: (key) => switch ((key as ValueKey).value) {
+        final int idx when idx < items.length => items.length - 1 - idx + extra,
+        _footerKey when foot != null => 0,
+        _ => null,
+      },
       itemBuilder: (context, i) {
         if (foot != null && i == 0) {
-          return _wrap(
-            Padding(
-              padding: EdgeInsets.only(top: items.isEmpty ? 0 : 10),
-              child: foot,
+          return KeyedSubtree(
+            key: const ValueKey(_footerKey),
+            child: _wrap(
+              Padding(
+                padding: EdgeInsets.only(top: items.isEmpty ? 0 : 10),
+                child: foot,
+              ),
             ),
           );
         }
@@ -135,31 +211,67 @@ class TimelineListView extends StatelessWidget {
             : (item is ToolItem && prev is ToolItem ? 4.0 : 14.0);
         final view = TimelineItemView(
           item: item,
-          root: root,
-          waitingTools: waitingTools,
-          assistantName: assistantName,
-          editInfo: editInfo,
+          root: widget.root,
+          waitingTools: widget.waitingTools,
+          assistantName: widget.assistantName,
+          editInfo: widget.editInfo,
         );
         final extraBelow =
             item is AssistantTextItem &&
                 item.parentToolUseId == null &&
                 !item.live
-            ? answerFooter?.call(item)
+            ? widget.answerFooter?.call(item)
             : null;
-        return _wrap(
-          Padding(
-            padding: EdgeInsets.only(top: gap),
-            child: extraBelow == null
-                ? view
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [view, const SizedBox(height: 8), extraBelow],
-                  ),
+        return _ItemEntrance(
+          key: ValueKey(idx),
+          arriving: _isArriving(idx),
+          settled: idx < _settled,
+          child: _wrap(
+            Padding(
+              padding: EdgeInsets.only(top: gap),
+              child: extraBelow == null
+                  ? view
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [view, const SizedBox(height: 8), extraBelow],
+                    ),
+            ),
           ),
         );
       },
     );
   }
+}
+
+const _footerKey = 'timeline-footer';
+
+/// One timeline item. The list remounts items as they scroll, so [arriving]
+/// only counts on the first mount: an item that left and came back stays put.
+class _ItemEntrance extends StatefulWidget {
+  const _ItemEntrance({
+    super.key,
+    required this.arriving,
+    required this.settled,
+    required this.child,
+  });
+
+  final bool arriving;
+
+  /// A burst caught up with this item: it stops moving, if it still is.
+  final bool settled;
+  final Widget child;
+
+  @override
+  State<_ItemEntrance> createState() => _ItemEntranceState();
+}
+
+class _ItemEntranceState extends State<_ItemEntrance> {
+  late final bool _enters = widget.arriving;
+
+  @override
+  Widget build(BuildContext context) => _enters
+      ? MotionEnter(dy: 6, animate: !widget.settled, child: widget.child)
+      : widget.child;
 }
 
 class TimelineItemView extends StatelessWidget {

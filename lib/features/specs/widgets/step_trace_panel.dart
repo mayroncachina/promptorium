@@ -10,6 +10,7 @@ import '../../board/board_screen.dart' show openSession;
 import '../../board/widgets/gate_report_view.dart';
 import '../../board/widgets/spec_steps_panel.dart'
     show rewindStepAction, selectedStepProvider, stepStatusColor;
+import '../../board/widgets/step_status_motion.dart';
 import '../../review/review_screen.dart' show stepCommitsProvider;
 import '../../review/review_service.dart'
     show reviewInitialStepProvider, selectedReviewProvider;
@@ -104,12 +105,15 @@ class StepTracePanel extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Text(
-              step.id,
-              style: TextStyle(
-                fontFamily: AppFonts.mono,
-                fontSize: 12,
-                color: color,
+            StepColorTransition(
+              color: color,
+              builder: (_, color) => Text(
+                step.id,
+                style: TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 12,
+                  color: color,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -125,9 +129,12 @@ class StepTracePanel extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 6),
-            Text(
-              stepStatusLabel(step.status),
-              style: TextStyle(fontSize: 11, color: color),
+            StepColorTransition(
+              color: color,
+              builder: (_, color) => Text(
+                stepStatusLabel(step.status),
+                style: TextStyle(fontSize: 11, color: color),
+              ),
             ),
             IconButton(
               key: const ValueKey('step-trace-close'),
