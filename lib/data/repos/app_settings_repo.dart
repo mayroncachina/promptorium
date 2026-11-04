@@ -55,6 +55,23 @@ abstract final class AppSettingKeys {
   /// Shortcut layout the user was told about (`AppSection.shortcutsVersion`).
   static const shortcutsVersion = 'ui.shortcutsVersion';
 
+  /// Rule of a `StepKind` of the Orquestrador: model alias and `--effort`
+  /// (SPEC-035 R2, R6).
+  static String orchestratorModel(String kind) => 'orchestrator.model.$kind';
+  static String orchestratorEffort(String kind) => 'orchestrator.effort.$kind';
+
+  /// "Abrir Executar em Automático" (`1` / `0`).
+  static const orchestratorAutoByDefault = 'orchestrator.autoByDefault';
+
+  /// "Escaladas por etapa" (`0`–`2`).
+  static const orchestratorEscalations = 'orchestrator.escalations';
+
+  /// "Perguntar antes de escalar para Opus" (`1` / `0`).
+  static const orchestratorAskBeforeOpus = 'orchestrator.askBeforeOpus';
+
+  /// "Classificar as etapas com": model alias (`haiku` / `sonnet`).
+  static const orchestratorClassifierModel = 'orchestrator.classifierModel';
+
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 

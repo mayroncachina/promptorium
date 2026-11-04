@@ -10,7 +10,9 @@ import 'package:promptorium/data/repos/mcp_tool_rules_repo.dart';
 import 'package:promptorium/data/repos/review_comments_repo.dart';
 import 'package:promptorium/data/repos/saved_prompts_repo.dart';
 import 'package:promptorium/data/repos/sessions_repo.dart';
+import 'package:promptorium/data/repos/spec_steps_repo.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
+import 'package:promptorium/data/repos/step_runs_repo.dart';
 import 'package:promptorium/data/repos/tasks_repo.dart';
 import 'package:promptorium/data/repos/workspaces_repo.dart';
 
@@ -531,6 +533,118 @@ void main() {
         });
       },
     );
+  });
+
+  group('orchestrator plan and step runs (SPEC-035)', () {
+    Future<Spec> spec() async => SpecsRepo(db).insert(
+      workspaceId: (await ws()).id,
+      code: 'SPEC-035',
+      title: 'Orquestrador',
+      path: 'specs/SPEC-035.md',
+    );
+
+    test('setPlan keeps the status; escalations count and reset', () async {
+      final s = await spec();
+      final repo = SpecStepsRepo(db);
+      await repo.set(s.id, 'R1', StepStatus.running, sessionId: 's1');
+      await repo.setPlan(
+        s.id,
+        'R1',
+        kind: 'mecanica',
+        model: 'haiku',
+        effort: 'low',
+        hash: 'h1',
+      );
+      // A step without a row gets one.
+      await repo.setPlan(
+        s.id,
+        'R2',
+        kind: 'altoRisco',
+        model: 'opus',
+        effort: 'high',
+        userPicked: true,
+      );
+      final r1 = (await repo.byStep(s.id, 'R1'))!;
+      expect(r1.status, StepStatus.running);
+      expect(r1.sessionId, 's1');
+      expect(
+        (r1.kind, r1.planModel, r1.planEffort, r1.planHash, r1.userPicked),
+        ('mecanica', 'haiku', 'low', 'h1', false),
+      );
+      expect(r1.escalations, 0);
+      final r2 = (await repo.byStep(s.id, 'R2'))!;
+      expect(
+        (r2.status, r2.planModel, r2.userPicked),
+        (StepStatus.pending, 'opus', true),
+      );
+
+      expect(await repo.incrementEscalations(s.id, 'R1'), 1);
+      expect(await repo.incrementEscalations(s.id, 'R1'), 2);
+      expect((await repo.byStep(s.id, 'R1'))!.escalations, 2);
+      // The escalated model is not the plan's (R13).
+      expect((await repo.byStep(s.id, 'R1'))!.planModel, 'haiku');
+      await repo.resetEscalations(s.id, ['R1']);
+      expect((await repo.byStep(s.id, 'R1'))!.escalations, 0);
+
+      await repo.clearPlan(s.id, ['R1']);
+      final cleared = (await repo.byStep(s.id, 'R1'))!;
+      expect(
+        (cleared.kind, cleared.planModel, cleared.status),
+        (null, null, StepStatus.running),
+      );
+      expect(await repo.byStep(s.id, 'R9'), isNull);
+    });
+
+    test('step runs are read by period, oldest first', () async {
+      final s = await spec();
+      final repo = StepRunsRepo(db);
+      final now = DateTime(2026, 11, 4, 12);
+      await repo.add(
+        specId: s.id,
+        step: 'R1',
+        kind: 'mecanica',
+        model: 'haiku',
+        effort: 'low',
+        sessionId: 's1',
+        result: StepRunResult.escalated,
+        costUsd: 0.12,
+        at: now.subtract(const Duration(days: 40)),
+      );
+      await repo.add(
+        specId: s.id,
+        step: 'R1',
+        kind: 'mecanica',
+        model: 'sonnet',
+        effort: 'medium',
+        result: StepRunResult.passed,
+        at: now.subtract(const Duration(days: 2)),
+      );
+      await repo.add(
+        specId: s.id,
+        step: 'R2',
+        kind: null,
+        model: 'opus',
+        result: StepRunResult.failed,
+        at: now,
+      );
+      final last30 = await repo.between(now.subtract(const Duration(days: 30)));
+      expect(last30.map((r) => (r.step, r.model, r.result)), [
+        ('R1', 'sonnet', StepRunResult.passed),
+        ('R2', 'opus', StepRunResult.failed),
+      ]);
+      expect(last30.first.costUsd, isNull);
+      final before = await repo.between(
+        now.subtract(const Duration(days: 90)),
+        now,
+      );
+      expect(before.map((r) => r.model), ['haiku', 'sonnet']);
+      expect(before.first.costUsd, 0.12);
+      expect(await repo.bySpec(s.id), hasLength(3));
+
+      // Deleting the spec takes its runs.
+      await SpecsRepo(db).delete(s.id);
+      expect(await repo.bySpec(s.id), isEmpty);
+    });
   });
 }
 

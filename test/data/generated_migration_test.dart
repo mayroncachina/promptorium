@@ -26,4 +26,28 @@ void main() {
       await db.close();
     });
   }
+
+  test('v18 → v19 keeps the steps, with no plan and no escalation', () async {
+    final schema = await verifier.schemaAt(18);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-001', 'x', 'specs/x.md')",
+      )
+      ..execute(
+        "INSERT INTO spec_steps (spec_id, step, status, gate_attempts) "
+        "VALUES (1, 'R1', 'done', 1)",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.specSteps).getSingle();
+    expect(row.status, StepStatus.done);
+    expect(row.gateAttempts, 1);
+    expect(
+      (row.kind, row.planModel, row.userPicked, row.escalations),
+      (null, null, false, 0),
+    );
+    expect(await db.select(db.stepRuns).get(), isEmpty);
+    await db.close();
+  });
 }

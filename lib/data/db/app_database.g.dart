@@ -1747,6 +1747,75 @@ class $SpecStepsTable extends SpecSteps
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _planModelMeta = const VerificationMeta(
+    'planModel',
+  );
+  @override
+  late final GeneratedColumn<String> planModel = GeneratedColumn<String>(
+    'plan_model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _planEffortMeta = const VerificationMeta(
+    'planEffort',
+  );
+  @override
+  late final GeneratedColumn<String> planEffort = GeneratedColumn<String>(
+    'plan_effort',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _planHashMeta = const VerificationMeta(
+    'planHash',
+  );
+  @override
+  late final GeneratedColumn<String> planHash = GeneratedColumn<String>(
+    'plan_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _userPickedMeta = const VerificationMeta(
+    'userPicked',
+  );
+  @override
+  late final GeneratedColumn<bool> userPicked = GeneratedColumn<bool>(
+    'user_picked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("user_picked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _escalationsMeta = const VerificationMeta(
+    'escalations',
+  );
+  @override
+  late final GeneratedColumn<int> escalations = GeneratedColumn<int>(
+    'escalations',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     specId,
@@ -1759,6 +1828,12 @@ class $SpecStepsTable extends SpecSteps
     gateReport,
     gateAttempts,
     body,
+    kind,
+    planModel,
+    planEffort,
+    planHash,
+    userPicked,
+    escalations,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1833,6 +1908,45 @@ class $SpecStepsTable extends SpecSteps
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
       );
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('plan_model')) {
+      context.handle(
+        _planModelMeta,
+        planModel.isAcceptableOrUnknown(data['plan_model']!, _planModelMeta),
+      );
+    }
+    if (data.containsKey('plan_effort')) {
+      context.handle(
+        _planEffortMeta,
+        planEffort.isAcceptableOrUnknown(data['plan_effort']!, _planEffortMeta),
+      );
+    }
+    if (data.containsKey('plan_hash')) {
+      context.handle(
+        _planHashMeta,
+        planHash.isAcceptableOrUnknown(data['plan_hash']!, _planHashMeta),
+      );
+    }
+    if (data.containsKey('user_picked')) {
+      context.handle(
+        _userPickedMeta,
+        userPicked.isAcceptableOrUnknown(data['user_picked']!, _userPickedMeta),
+      );
+    }
+    if (data.containsKey('escalations')) {
+      context.handle(
+        _escalationsMeta,
+        escalations.isAcceptableOrUnknown(
+          data['escalations']!,
+          _escalationsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1884,6 +1998,30 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       ),
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      ),
+      planModel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_model'],
+      ),
+      planEffort: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_effort'],
+      ),
+      planHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_hash'],
+      ),
+      userPicked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}user_picked'],
+      )!,
+      escalations: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}escalations'],
+      )!,
     );
   }
 
@@ -1922,8 +2060,28 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
   final int gateAttempts;
 
   /// Text of a step that is not in the file (schema v10): `REV1`, the
-  /// corrections asked by the automatic reviewer.
+  /// corrections asked by the automatic reviewer, or `R3.1`, a sub-step of
+  /// a split requirement (SPEC-033 R16).
   final String? body;
+
+  /// `StepKind.name` given by the classification (null = no plan: the step
+  /// runs with the model of the Executar form).
+  final String? kind;
+
+  /// Model alias and `--effort` of the plan, copied from the rules when the
+  /// execution starts: changing a rule later does not touch them (R7).
+  final String? planModel;
+  final String? planEffort;
+
+  /// Hash of the step's text when it was classified (cache of R3).
+  final String? planHash;
+
+  /// The user changed the plan's model of the step ("você escolheu", R4):
+  /// a new classification keeps it.
+  final bool userPicked;
+
+  /// Rungs climbed after failed gates in the current execution (R9).
+  final int escalations;
   const SpecStep({
     required this.specId,
     required this.step,
@@ -1935,6 +2093,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     this.gateReport,
     required this.gateAttempts,
     this.body,
+    this.kind,
+    this.planModel,
+    this.planEffort,
+    this.planHash,
+    required this.userPicked,
+    required this.escalations,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1965,6 +2129,20 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     if (!nullToAbsent || body != null) {
       map['body'] = Variable<String>(body);
     }
+    if (!nullToAbsent || kind != null) {
+      map['kind'] = Variable<String>(kind);
+    }
+    if (!nullToAbsent || planModel != null) {
+      map['plan_model'] = Variable<String>(planModel);
+    }
+    if (!nullToAbsent || planEffort != null) {
+      map['plan_effort'] = Variable<String>(planEffort);
+    }
+    if (!nullToAbsent || planHash != null) {
+      map['plan_hash'] = Variable<String>(planHash);
+    }
+    map['user_picked'] = Variable<bool>(userPicked);
+    map['escalations'] = Variable<int>(escalations);
     return map;
   }
 
@@ -1990,6 +2168,18 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           : Value(gateReport),
       gateAttempts: Value(gateAttempts),
       body: body == null && nullToAbsent ? const Value.absent() : Value(body),
+      kind: kind == null && nullToAbsent ? const Value.absent() : Value(kind),
+      planModel: planModel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planModel),
+      planEffort: planEffort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planEffort),
+      planHash: planHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planHash),
+      userPicked: Value(userPicked),
+      escalations: Value(escalations),
     );
   }
 
@@ -2011,6 +2201,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       gateReport: serializer.fromJson<String?>(json['gateReport']),
       gateAttempts: serializer.fromJson<int>(json['gateAttempts']),
       body: serializer.fromJson<String?>(json['body']),
+      kind: serializer.fromJson<String?>(json['kind']),
+      planModel: serializer.fromJson<String?>(json['planModel']),
+      planEffort: serializer.fromJson<String?>(json['planEffort']),
+      planHash: serializer.fromJson<String?>(json['planHash']),
+      userPicked: serializer.fromJson<bool>(json['userPicked']),
+      escalations: serializer.fromJson<int>(json['escalations']),
     );
   }
   @override
@@ -2029,6 +2225,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       'gateReport': serializer.toJson<String?>(gateReport),
       'gateAttempts': serializer.toJson<int>(gateAttempts),
       'body': serializer.toJson<String?>(body),
+      'kind': serializer.toJson<String?>(kind),
+      'planModel': serializer.toJson<String?>(planModel),
+      'planEffort': serializer.toJson<String?>(planEffort),
+      'planHash': serializer.toJson<String?>(planHash),
+      'userPicked': serializer.toJson<bool>(userPicked),
+      'escalations': serializer.toJson<int>(escalations),
     };
   }
 
@@ -2043,6 +2245,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     Value<String?> gateReport = const Value.absent(),
     int? gateAttempts,
     Value<String?> body = const Value.absent(),
+    Value<String?> kind = const Value.absent(),
+    Value<String?> planModel = const Value.absent(),
+    Value<String?> planEffort = const Value.absent(),
+    Value<String?> planHash = const Value.absent(),
+    bool? userPicked,
+    int? escalations,
   }) => SpecStep(
     specId: specId ?? this.specId,
     step: step ?? this.step,
@@ -2054,6 +2262,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     gateReport: gateReport.present ? gateReport.value : this.gateReport,
     gateAttempts: gateAttempts ?? this.gateAttempts,
     body: body.present ? body.value : this.body,
+    kind: kind.present ? kind.value : this.kind,
+    planModel: planModel.present ? planModel.value : this.planModel,
+    planEffort: planEffort.present ? planEffort.value : this.planEffort,
+    planHash: planHash.present ? planHash.value : this.planHash,
+    userPicked: userPicked ?? this.userPicked,
+    escalations: escalations ?? this.escalations,
   );
   SpecStep copyWithCompanion(SpecStepsCompanion data) {
     return SpecStep(
@@ -2073,6 +2287,18 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ? data.gateAttempts.value
           : this.gateAttempts,
       body: data.body.present ? data.body.value : this.body,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      planModel: data.planModel.present ? data.planModel.value : this.planModel,
+      planEffort: data.planEffort.present
+          ? data.planEffort.value
+          : this.planEffort,
+      planHash: data.planHash.present ? data.planHash.value : this.planHash,
+      userPicked: data.userPicked.present
+          ? data.userPicked.value
+          : this.userPicked,
+      escalations: data.escalations.present
+          ? data.escalations.value
+          : this.escalations,
     );
   }
 
@@ -2088,7 +2314,13 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('startStash: $startStash, ')
           ..write('gateReport: $gateReport, ')
           ..write('gateAttempts: $gateAttempts, ')
-          ..write('body: $body')
+          ..write('body: $body, ')
+          ..write('kind: $kind, ')
+          ..write('planModel: $planModel, ')
+          ..write('planEffort: $planEffort, ')
+          ..write('planHash: $planHash, ')
+          ..write('userPicked: $userPicked, ')
+          ..write('escalations: $escalations')
           ..write(')'))
         .toString();
   }
@@ -2105,6 +2337,12 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     gateReport,
     gateAttempts,
     body,
+    kind,
+    planModel,
+    planEffort,
+    planHash,
+    userPicked,
+    escalations,
   );
   @override
   bool operator ==(Object other) =>
@@ -2119,7 +2357,13 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.startStash == this.startStash &&
           other.gateReport == this.gateReport &&
           other.gateAttempts == this.gateAttempts &&
-          other.body == this.body);
+          other.body == this.body &&
+          other.kind == this.kind &&
+          other.planModel == this.planModel &&
+          other.planEffort == this.planEffort &&
+          other.planHash == this.planHash &&
+          other.userPicked == this.userPicked &&
+          other.escalations == this.escalations);
 }
 
 class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
@@ -2133,6 +2377,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<String?> gateReport;
   final Value<int> gateAttempts;
   final Value<String?> body;
+  final Value<String?> kind;
+  final Value<String?> planModel;
+  final Value<String?> planEffort;
+  final Value<String?> planHash;
+  final Value<bool> userPicked;
+  final Value<int> escalations;
   final Value<int> rowid;
   const SpecStepsCompanion({
     this.specId = const Value.absent(),
@@ -2145,6 +2395,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.gateReport = const Value.absent(),
     this.gateAttempts = const Value.absent(),
     this.body = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.planModel = const Value.absent(),
+    this.planEffort = const Value.absent(),
+    this.planHash = const Value.absent(),
+    this.userPicked = const Value.absent(),
+    this.escalations = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SpecStepsCompanion.insert({
@@ -2158,6 +2414,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.gateReport = const Value.absent(),
     this.gateAttempts = const Value.absent(),
     this.body = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.planModel = const Value.absent(),
+    this.planEffort = const Value.absent(),
+    this.planHash = const Value.absent(),
+    this.userPicked = const Value.absent(),
+    this.escalations = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : specId = Value(specId),
        step = Value(step);
@@ -2172,6 +2434,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? gateReport,
     Expression<int>? gateAttempts,
     Expression<String>? body,
+    Expression<String>? kind,
+    Expression<String>? planModel,
+    Expression<String>? planEffort,
+    Expression<String>? planHash,
+    Expression<bool>? userPicked,
+    Expression<int>? escalations,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2185,6 +2453,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (gateReport != null) 'gate_report': gateReport,
       if (gateAttempts != null) 'gate_attempts': gateAttempts,
       if (body != null) 'body': body,
+      if (kind != null) 'kind': kind,
+      if (planModel != null) 'plan_model': planModel,
+      if (planEffort != null) 'plan_effort': planEffort,
+      if (planHash != null) 'plan_hash': planHash,
+      if (userPicked != null) 'user_picked': userPicked,
+      if (escalations != null) 'escalations': escalations,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2200,6 +2474,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<String?>? gateReport,
     Value<int>? gateAttempts,
     Value<String?>? body,
+    Value<String?>? kind,
+    Value<String?>? planModel,
+    Value<String?>? planEffort,
+    Value<String?>? planHash,
+    Value<bool>? userPicked,
+    Value<int>? escalations,
     Value<int>? rowid,
   }) {
     return SpecStepsCompanion(
@@ -2213,6 +2493,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       gateReport: gateReport ?? this.gateReport,
       gateAttempts: gateAttempts ?? this.gateAttempts,
       body: body ?? this.body,
+      kind: kind ?? this.kind,
+      planModel: planModel ?? this.planModel,
+      planEffort: planEffort ?? this.planEffort,
+      planHash: planHash ?? this.planHash,
+      userPicked: userPicked ?? this.userPicked,
+      escalations: escalations ?? this.escalations,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2252,6 +2538,24 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (body.present) {
       map['body'] = Variable<String>(body.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (planModel.present) {
+      map['plan_model'] = Variable<String>(planModel.value);
+    }
+    if (planEffort.present) {
+      map['plan_effort'] = Variable<String>(planEffort.value);
+    }
+    if (planHash.present) {
+      map['plan_hash'] = Variable<String>(planHash.value);
+    }
+    if (userPicked.present) {
+      map['user_picked'] = Variable<bool>(userPicked.value);
+    }
+    if (escalations.present) {
+      map['escalations'] = Variable<int>(escalations.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2271,6 +2575,12 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('gateReport: $gateReport, ')
           ..write('gateAttempts: $gateAttempts, ')
           ..write('body: $body, ')
+          ..write('kind: $kind, ')
+          ..write('planModel: $planModel, ')
+          ..write('planEffort: $planEffort, ')
+          ..write('planHash: $planHash, ')
+          ..write('userPicked: $userPicked, ')
+          ..write('escalations: $escalations, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11732,6 +12042,608 @@ class SpecDuelsCompanion extends UpdateCompanion<SpecDuel> {
   }
 }
 
+class $StepRunsTable extends StepRuns with TableInfo<$StepRunsTable, StepRun> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StepRunsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<String> step = GeneratedColumn<String>(
+    'step',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _effortMeta = const VerificationMeta('effort');
+  @override
+  late final GeneratedColumn<String> effort = GeneratedColumn<String>(
+    'effort',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<StepRunResult, String> result =
+      GeneratedColumn<String>(
+        'result',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<StepRunResult>($StepRunsTable.$converterresult);
+  static const VerificationMeta _costUsdMeta = const VerificationMeta(
+    'costUsd',
+  );
+  @override
+  late final GeneratedColumn<double> costUsd = GeneratedColumn<double>(
+    'cost_usd',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    step,
+    kind,
+    model,
+    effort,
+    sessionId,
+    result,
+    costUsd,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'step_runs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StepRun> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stepMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_modelMeta);
+    }
+    if (data.containsKey('effort')) {
+      context.handle(
+        _effortMeta,
+        effort.isAcceptableOrUnknown(data['effort']!, _effortMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('cost_usd')) {
+      context.handle(
+        _costUsdMeta,
+        costUsd.isAcceptableOrUnknown(data['cost_usd']!, _costUsdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StepRun map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StepRun(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      )!,
+      effort: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effort'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      result: $StepRunsTable.$converterresult.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}result'],
+        )!,
+      ),
+      costUsd: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cost_usd'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StepRunsTable createAlias(String alias) {
+    return $StepRunsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<StepRunResult, String, String> $converterresult =
+      const EnumNameConverter<StepRunResult>(StepRunResult.values);
+}
+
+class StepRun extends DataClass implements Insertable<StepRun> {
+  final int id;
+  final int specId;
+
+  /// Requirement id (`R2`, `R3.1`, `REV1`).
+  final String step;
+
+  /// `StepKind.name` (null = the step ran without a plan, in Manual).
+  final String? kind;
+  final String model;
+  final String? effort;
+  final String? sessionId;
+  final StepRunResult result;
+
+  /// Share of the session's cost (estimate of the CLI; split evenly when the
+  /// session ran several steps).
+  final double? costUsd;
+  final DateTime createdAt;
+  const StepRun({
+    required this.id,
+    required this.specId,
+    required this.step,
+    this.kind,
+    required this.model,
+    this.effort,
+    this.sessionId,
+    required this.result,
+    this.costUsd,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    map['step'] = Variable<String>(step);
+    if (!nullToAbsent || kind != null) {
+      map['kind'] = Variable<String>(kind);
+    }
+    map['model'] = Variable<String>(model);
+    if (!nullToAbsent || effort != null) {
+      map['effort'] = Variable<String>(effort);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    {
+      map['result'] = Variable<String>(
+        $StepRunsTable.$converterresult.toSql(result),
+      );
+    }
+    if (!nullToAbsent || costUsd != null) {
+      map['cost_usd'] = Variable<double>(costUsd);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  StepRunsCompanion toCompanion(bool nullToAbsent) {
+    return StepRunsCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      step: Value(step),
+      kind: kind == null && nullToAbsent ? const Value.absent() : Value(kind),
+      model: Value(model),
+      effort: effort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(effort),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      result: Value(result),
+      costUsd: costUsd == null && nullToAbsent
+          ? const Value.absent()
+          : Value(costUsd),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory StepRun.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StepRun(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      step: serializer.fromJson<String>(json['step']),
+      kind: serializer.fromJson<String?>(json['kind']),
+      model: serializer.fromJson<String>(json['model']),
+      effort: serializer.fromJson<String?>(json['effort']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      result: $StepRunsTable.$converterresult.fromJson(
+        serializer.fromJson<String>(json['result']),
+      ),
+      costUsd: serializer.fromJson<double?>(json['costUsd']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'step': serializer.toJson<String>(step),
+      'kind': serializer.toJson<String?>(kind),
+      'model': serializer.toJson<String>(model),
+      'effort': serializer.toJson<String?>(effort),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'result': serializer.toJson<String>(
+        $StepRunsTable.$converterresult.toJson(result),
+      ),
+      'costUsd': serializer.toJson<double?>(costUsd),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  StepRun copyWith({
+    int? id,
+    int? specId,
+    String? step,
+    Value<String?> kind = const Value.absent(),
+    String? model,
+    Value<String?> effort = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    StepRunResult? result,
+    Value<double?> costUsd = const Value.absent(),
+    DateTime? createdAt,
+  }) => StepRun(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    step: step ?? this.step,
+    kind: kind.present ? kind.value : this.kind,
+    model: model ?? this.model,
+    effort: effort.present ? effort.value : this.effort,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    result: result ?? this.result,
+    costUsd: costUsd.present ? costUsd.value : this.costUsd,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  StepRun copyWithCompanion(StepRunsCompanion data) {
+    return StepRun(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      step: data.step.present ? data.step.value : this.step,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      model: data.model.present ? data.model.value : this.model,
+      effort: data.effort.present ? data.effort.value : this.effort,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      result: data.result.present ? data.result.value : this.result,
+      costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StepRun(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('step: $step, ')
+          ..write('kind: $kind, ')
+          ..write('model: $model, ')
+          ..write('effort: $effort, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('result: $result, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    specId,
+    step,
+    kind,
+    model,
+    effort,
+    sessionId,
+    result,
+    costUsd,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StepRun &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.step == this.step &&
+          other.kind == this.kind &&
+          other.model == this.model &&
+          other.effort == this.effort &&
+          other.sessionId == this.sessionId &&
+          other.result == this.result &&
+          other.costUsd == this.costUsd &&
+          other.createdAt == this.createdAt);
+}
+
+class StepRunsCompanion extends UpdateCompanion<StepRun> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String> step;
+  final Value<String?> kind;
+  final Value<String> model;
+  final Value<String?> effort;
+  final Value<String?> sessionId;
+  final Value<StepRunResult> result;
+  final Value<double?> costUsd;
+  final Value<DateTime> createdAt;
+  const StepRunsCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.step = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.model = const Value.absent(),
+    this.effort = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.result = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  StepRunsCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    required String step,
+    this.kind = const Value.absent(),
+    required String model,
+    this.effort = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    required StepRunResult result,
+    this.costUsd = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       step = Value(step),
+       model = Value(model),
+       result = Value(result);
+  static Insertable<StepRun> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? step,
+    Expression<String>? kind,
+    Expression<String>? model,
+    Expression<String>? effort,
+    Expression<String>? sessionId,
+    Expression<String>? result,
+    Expression<double>? costUsd,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (step != null) 'step': step,
+      if (kind != null) 'kind': kind,
+      if (model != null) 'model': model,
+      if (effort != null) 'effort': effort,
+      if (sessionId != null) 'session_id': sessionId,
+      if (result != null) 'result': result,
+      if (costUsd != null) 'cost_usd': costUsd,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  StepRunsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String>? step,
+    Value<String?>? kind,
+    Value<String>? model,
+    Value<String?>? effort,
+    Value<String?>? sessionId,
+    Value<StepRunResult>? result,
+    Value<double?>? costUsd,
+    Value<DateTime>? createdAt,
+  }) {
+    return StepRunsCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      step: step ?? this.step,
+      kind: kind ?? this.kind,
+      model: model ?? this.model,
+      effort: effort ?? this.effort,
+      sessionId: sessionId ?? this.sessionId,
+      result: result ?? this.result,
+      costUsd: costUsd ?? this.costUsd,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (step.present) {
+      map['step'] = Variable<String>(step.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (effort.present) {
+      map['effort'] = Variable<String>(effort.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (result.present) {
+      map['result'] = Variable<String>(
+        $StepRunsTable.$converterresult.toSql(result.value),
+      );
+    }
+    if (costUsd.present) {
+      map['cost_usd'] = Variable<double>(costUsd.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StepRunsCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('step: $step, ')
+          ..write('kind: $kind, ')
+          ..write('model: $model, ')
+          ..write('effort: $effort, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('result: $result, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -11761,6 +12673,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $NotificationsTable notifications = $NotificationsTable(this);
   late final $SpecDuelsTable specDuels = $SpecDuelsTable(this);
+  late final $StepRunsTable stepRuns = $StepRunsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11787,6 +12700,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     specSuggestions,
     notifications,
     specDuels,
+    stepRuns,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -11915,6 +12829,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('spec_duels', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('step_runs', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -12875,6 +13796,25 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$StepRunsTable, List<StepRun>> _stepRunsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.stepRuns,
+    aliasName: 'specs__id__step_runs__spec_id',
+  );
+
+  $$StepRunsTableProcessedTableManager get stepRunsRefs {
+    final manager = $$StepRunsTableTableManager(
+      $_db,
+      $_db.stepRuns,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_stepRunsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -13192,6 +14132,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$SpecDuelsTableFilterComposer(
             $db: $db,
             $table: $db.specDuels,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> stepRunsRefs(
+    Expression<bool> Function($$StepRunsTableFilterComposer f) f,
+  ) {
+    final $$StepRunsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stepRuns,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StepRunsTableFilterComposer(
+            $db: $db,
+            $table: $db.stepRuns,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -13642,6 +14607,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> stepRunsRefs<T extends Object>(
+    Expression<T> Function($$StepRunsTableAnnotationComposer a) f,
+  ) {
+    final $$StepRunsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.stepRuns,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StepRunsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.stepRuns,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -13666,6 +14656,7 @@ class $$SpecsTableTableManager
             bool specCriteriaRefs,
             bool specSuggestionsRefs,
             bool specDuelsRefs,
+            bool stepRunsRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -13799,6 +14790,7 @@ class $$SpecsTableTableManager
                 specCriteriaRefs = false,
                 specSuggestionsRefs = false,
                 specDuelsRefs = false,
+                stepRunsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -13810,6 +14802,7 @@ class $$SpecsTableTableManager
                     if (specCriteriaRefs) db.specCriteria,
                     if (specSuggestionsRefs) db.specSuggestions,
                     if (specDuelsRefs) db.specDuels,
+                    if (stepRunsRefs) db.stepRuns,
                   ],
                   addJoins:
                       <
@@ -13970,6 +14963,23 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (stepRunsRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, StepRun>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._stepRunsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).stepRunsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -13999,6 +15009,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool specCriteriaRefs,
         bool specSuggestionsRefs,
         bool specDuelsRefs,
+        bool stepRunsRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -14012,6 +15023,12 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> gateReport,
   Value<int> gateAttempts,
   Value<String?> body,
+  Value<String?> kind,
+  Value<String?> planModel,
+  Value<String?> planEffort,
+  Value<String?> planHash,
+  Value<bool> userPicked,
+  Value<int> escalations,
   Value<int> rowid,
 });
 typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
@@ -14025,6 +15042,12 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> gateReport,
   Value<int> gateAttempts,
   Value<String?> body,
+  Value<String?> kind,
+  Value<String?> planModel,
+  Value<String?> planEffort,
+  Value<String?> planHash,
+  Value<bool> userPicked,
+  Value<int> escalations,
   Value<int> rowid,
 });
 
@@ -14102,6 +15125,36 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planModel => $composableBuilder(
+    column: $table.planModel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planEffort => $composableBuilder(
+    column: $table.planEffort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planHash => $composableBuilder(
+    column: $table.planHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get userPicked => $composableBuilder(
+    column: $table.userPicked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get escalations => $composableBuilder(
+    column: $table.escalations,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14183,6 +15236,36 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get planModel => $composableBuilder(
+    column: $table.planModel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get planEffort => $composableBuilder(
+    column: $table.planEffort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get planHash => $composableBuilder(
+    column: $table.planHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get userPicked => $composableBuilder(
+    column: $table.userPicked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get escalations => $composableBuilder(
+    column: $table.escalations,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$SpecsTableOrderingComposer get specId {
     final $$SpecsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14249,6 +15332,30 @@ class $$SpecStepsTableAnnotationComposer
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get planModel =>
+      $composableBuilder(column: $table.planModel, builder: (column) => column);
+
+  GeneratedColumn<String> get planEffort => $composableBuilder(
+    column: $table.planEffort,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get planHash =>
+      $composableBuilder(column: $table.planHash, builder: (column) => column);
+
+  GeneratedColumn<bool> get userPicked => $composableBuilder(
+    column: $table.userPicked,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get escalations => $composableBuilder(
+    column: $table.escalations,
+    builder: (column) => column,
+  );
+
   $$SpecsTableAnnotationComposer get specId {
     final $$SpecsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -14311,6 +15418,12 @@ class $$SpecStepsTableTableManager
                 Value<String?> gateReport = const Value.absent(),
                 Value<int> gateAttempts = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<String?> kind = const Value.absent(),
+                Value<String?> planModel = const Value.absent(),
+                Value<String?> planEffort = const Value.absent(),
+                Value<String?> planHash = const Value.absent(),
+                Value<bool> userPicked = const Value.absent(),
+                Value<int> escalations = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion(
                 specId: specId,
@@ -14323,6 +15436,12 @@ class $$SpecStepsTableTableManager
                 gateReport: gateReport,
                 gateAttempts: gateAttempts,
                 body: body,
+                kind: kind,
+                planModel: planModel,
+                planEffort: planEffort,
+                planHash: planHash,
+                userPicked: userPicked,
+                escalations: escalations,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14337,6 +15456,12 @@ class $$SpecStepsTableTableManager
                 Value<String?> gateReport = const Value.absent(),
                 Value<int> gateAttempts = const Value.absent(),
                 Value<String?> body = const Value.absent(),
+                Value<String?> kind = const Value.absent(),
+                Value<String?> planModel = const Value.absent(),
+                Value<String?> planEffort = const Value.absent(),
+                Value<String?> planHash = const Value.absent(),
+                Value<bool> userPicked = const Value.absent(),
+                Value<int> escalations = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SpecStepsCompanion.insert(
                 specId: specId,
@@ -14349,6 +15474,12 @@ class $$SpecStepsTableTableManager
                 gateReport: gateReport,
                 gateAttempts: gateAttempts,
                 body: body,
+                kind: kind,
+                planModel: planModel,
+                planEffort: planEffort,
+                planHash: planHash,
+                userPicked: userPicked,
+                escalations: escalations,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -21416,6 +22547,410 @@ typedef $$SpecDuelsTableProcessedTableManager =
       SpecDuel,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$StepRunsTableCreateCompanionBuilder = StepRunsCompanion Function({
+  Value<int> id,
+  required int specId,
+  required String step,
+  Value<String?> kind,
+  required String model,
+  Value<String?> effort,
+  Value<String?> sessionId,
+  required StepRunResult result,
+  Value<double?> costUsd,
+  Value<DateTime> createdAt,
+});
+typedef $$StepRunsTableUpdateCompanionBuilder = StepRunsCompanion Function({
+  Value<int> id,
+  Value<int> specId,
+  Value<String> step,
+  Value<String?> kind,
+  Value<String> model,
+  Value<String?> effort,
+  Value<String?> sessionId,
+  Value<StepRunResult> result,
+  Value<double?> costUsd,
+  Value<DateTime> createdAt,
+});
+
+final class $$StepRunsTableReferences
+    extends BaseReferences<_$AppDatabase, $StepRunsTable, StepRun> {
+  $$StepRunsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('step_runs__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StepRunsTableFilterComposer
+    extends Composer<_$AppDatabase, $StepRunsTable> {
+  $$StepRunsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effort => $composableBuilder(
+    column: $table.effort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<StepRunResult, StepRunResult, String>
+  get result => $composableBuilder(
+    column: $table.result,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StepRunsTableOrderingComposer
+    extends Composer<_$AppDatabase, $StepRunsTable> {
+  $$StepRunsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get effort => $composableBuilder(
+    column: $table.effort,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get result => $composableBuilder(
+    column: $table.result,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StepRunsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StepRunsTable> {
+  $$StepRunsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<String> get effort =>
+      $composableBuilder(column: $table.effort, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<StepRunResult, String> get result =>
+      $composableBuilder(column: $table.result, builder: (column) => column);
+
+  GeneratedColumn<double> get costUsd =>
+      $composableBuilder(column: $table.costUsd, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StepRunsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StepRunsTable,
+          StepRun,
+          $$StepRunsTableFilterComposer,
+          $$StepRunsTableOrderingComposer,
+          $$StepRunsTableAnnotationComposer,
+          $$StepRunsTableCreateCompanionBuilder,
+          $$StepRunsTableUpdateCompanionBuilder,
+          (StepRun, $$StepRunsTableReferences),
+          StepRun,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$StepRunsTableTableManager(_$AppDatabase db, $StepRunsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StepRunsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StepRunsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StepRunsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String> step = const Value.absent(),
+                Value<String?> kind = const Value.absent(),
+                Value<String> model = const Value.absent(),
+                Value<String?> effort = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<StepRunResult> result = const Value.absent(),
+                Value<double?> costUsd = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StepRunsCompanion(
+                id: id,
+                specId: specId,
+                step: step,
+                kind: kind,
+                model: model,
+                effort: effort,
+                sessionId: sessionId,
+                result: result,
+                costUsd: costUsd,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                required String step,
+                Value<String?> kind = const Value.absent(),
+                required String model,
+                Value<String?> effort = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                required StepRunResult result,
+                Value<double?> costUsd = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => StepRunsCompanion.insert(
+                id: id,
+                specId: specId,
+                step: step,
+                kind: kind,
+                model: model,
+                effort: effort,
+                sessionId: sessionId,
+                result: result,
+                costUsd: costUsd,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$StepRunsTable, StepRun>(table),
+                  $$StepRunsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$StepRunsTableReferences._specIdTable(
+                          db,
+                        ),
+                        referencedColumn: $$StepRunsTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StepRunsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StepRunsTable,
+      StepRun,
+      $$StepRunsTableFilterComposer,
+      $$StepRunsTableOrderingComposer,
+      $$StepRunsTableAnnotationComposer,
+      $$StepRunsTableCreateCompanionBuilder,
+      $$StepRunsTableUpdateCompanionBuilder,
+      (StepRun, $$StepRunsTableReferences),
+      StepRun,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -21462,4 +22997,6 @@ class $AppDatabaseManager {
       $$NotificationsTableTableManager(_db, _db.notifications);
   $$SpecDuelsTableTableManager get specDuels =>
       $$SpecDuelsTableTableManager(_db, _db.specDuels);
+  $$StepRunsTableTableManager get stepRuns =>
+      $$StepRunsTableTableManager(_db, _db.stepRuns);
 }

@@ -109,6 +109,8 @@ SpecStep row(
   status: status,
   gateAttempts: 0,
   body: body,
+  userPicked: false,
+  escalations: 0,
 );
 
 void main() {
