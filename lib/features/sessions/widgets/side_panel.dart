@@ -9,6 +9,7 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../review/review_service.dart' show selectedReviewProvider;
 import '../session_changes.dart';
 import '../session_manager.dart';
@@ -664,7 +665,7 @@ class _DetailsState extends ConsumerState<_Details> {
             onTap: () async {
               await Clipboard.setData(ClipboardData(text: s.id));
               if (context.mounted) {
-                ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                ScaffoldMessenger.maybeOf(context)?.showAppToast(
                   const SnackBar(content: Text('Session ID copiado')),
                 );
               }

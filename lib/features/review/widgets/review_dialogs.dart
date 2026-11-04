@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../review_logic.dart';
 import '../merge_options.dart';
@@ -85,7 +86,7 @@ const _body = TextStyle(fontSize: 13, color: AppColors.textSecondary);
 Future<String?> showAdjustDialog(
   BuildContext context,
   List<ReviewComment> comments,
-) => showDialog<String>(
+) => showAppDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _AdjustDialog(comments: comments),
@@ -191,7 +192,7 @@ Future<bool?> showMergeDialog(
   bool published = false,
   MergeMethod initialMethod = MergeMethod.merge,
   MergeFacts facts = const MergeFacts(),
-}) => showDialog<bool>(
+}) => showAppDialog<bool>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _MergeDialog(
@@ -418,7 +419,7 @@ Future<void> showPrCreatedDialog(
   BuildContext context, {
   required String url,
   required VoidCallback onOpen,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (ctx) => ReviewDialogFrame(
@@ -453,7 +454,7 @@ Future<void> showReviewError(
   String title,
   String msg, {
   VoidCallback? onResolve,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (ctx) => ReviewDialogFrame(
@@ -484,7 +485,7 @@ Future<void> showReviewError(
 Future<String?> showMergeOverrideDialog(
   BuildContext context,
   List<String> pending,
-) => showDialog<String>(
+) => showAppDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _OverrideDialog(pending: pending),
@@ -553,7 +554,7 @@ Future<bool> showBatchCriteriaDialog(
   required int eligible,
   required int awaiting,
 }) async =>
-    await showDialog<bool>(
+    await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (ctx) => CallbackShortcuts(

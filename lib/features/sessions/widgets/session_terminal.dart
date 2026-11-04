@@ -17,6 +17,7 @@ import '../../../core/claude/run_prefs.dart';
 import '../../../data/providers.dart';
 import '../../../ui/shell/shell_intents.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
 
@@ -269,7 +270,7 @@ class SessionTerminalView extends ConsumerWidget {
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context)
-                          .showSnackBar(SnackBar(content: Text('$e')));
+                          .showAppToast(SnackBar(content: Text('$e')));
                     }
                   }
                 },
@@ -325,7 +326,7 @@ class SessionTerminalView extends ConsumerWidget {
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context)
-                            .showSnackBar(SnackBar(content: Text('$e')));
+                            .showAppToast(SnackBar(content: Text('$e')));
                       }
                     }
                   },

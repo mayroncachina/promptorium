@@ -5,6 +5,8 @@ import '../../core/providers/agent_provider.dart' show PromptMode;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../board/board_screen.dart'
     show
         boardFocusSpecProvider,
@@ -48,12 +50,12 @@ RefineOrigin? refineOriginOf(Conversation c) {
 void _snack(BuildContext context, String msg) {
   ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+    ..showAppToast(SnackBar(content: Text(msg)));
 }
 
 /// "Edição pendente" warning (R8): true = go back anyway.
 Future<bool> _confirmPending(BuildContext context, int count) async {
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/db/app_database.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/session_manager.dart';
 import '../board_screen.dart' show SpecCardData;
 import '../spec_runner.dart';
@@ -66,13 +67,13 @@ class GateFixBadge extends ConsumerWidget {
             final messenger = ScaffoldMessenger.maybeOf(context);
             try {
               await ref.read(specRunnerProvider).fixGate(spec.id);
-              messenger?.showSnackBar(
+              messenger?.showAppToast(
                 SnackBar(
                   content: Text('${spec.code}: falha enviada ao agente.'),
                 ),
               );
             } catch (e) {
-              messenger?.showSnackBar(SnackBar(content: Text('$e')));
+              messenger?.showAppToast(SnackBar(content: Text('$e')));
             }
           },
           child: Container(

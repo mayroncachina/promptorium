@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../board/board_rules.dart';
 import '../../board/widgets/gate_report_view.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -181,7 +182,7 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
     messenger?.hideCurrentSnackBar();
     if (done.isEmpty) {
       _batch = null;
-      messenger?.showSnackBar(
+      messenger?.showAppToast(
         const SnackBar(
           content: Text('Nada mudou: os critérios já estavam marcados.'),
           persist: false,
@@ -194,7 +195,7 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
     _toastOpen = true;
     final n = done.length;
     messenger
-        ?.showSnackBar(
+        ?.showAppToast(
           SnackBar(
             key: const ValueKey('review-batch-toast'),
             content: Text(

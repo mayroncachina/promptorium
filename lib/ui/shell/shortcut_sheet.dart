@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
+import '../widgets/app_dialog.dart';
 
 /// One line of the shortcut sheet.
 class ShortcutEntry {
@@ -77,7 +78,7 @@ bool _matches(ShortcutEntry e, String q) =>
     e.label.toLowerCase().contains(q) || e.keys.toLowerCase().contains(q);
 
 /// Folha de atalhos (Ctrl+/).
-Future<void> showShortcutSheet(BuildContext context) => showDialog<void>(
+Future<void> showShortcutSheet(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const ShortcutSheet(),

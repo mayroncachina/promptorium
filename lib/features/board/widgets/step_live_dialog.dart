@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../sessions/widgets/timeline_view.dart';
@@ -18,7 +20,7 @@ Future<void> showStepLiveDialog(
   BuildContext context, {
   required Spec spec,
   required String step,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   builder: (_) => StepLiveDialog(spec: spec, step: step),
 );
@@ -50,7 +52,7 @@ class _StepLiveDialogState extends ConsumerState<StepLiveDialog> {
     try {
       await ref.read(sessionManagerProvider.notifier).send(sessionId, text);
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('$e')));
+      messenger?.showAppToast(SnackBar(content: Text('$e')));
     }
   }
 
@@ -59,7 +61,7 @@ class _StepLiveDialogState extends ConsumerState<StepLiveDialog> {
     try {
       await ref.read(specRunnerProvider).fixGate(widget.spec.id);
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('$e')));
+      messenger?.showAppToast(SnackBar(content: Text('$e')));
     }
   }
 

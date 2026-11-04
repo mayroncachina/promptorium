@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
@@ -179,7 +180,7 @@ Future<void> showSpecEditor(
   required Roadmap roadmap,
   int? index,
   RoadmapPhase phase = RoadmapPhase.mvp,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _SpecEditor(
@@ -416,7 +417,7 @@ Future<void> showIdeasEditor(
   BuildContext context, {
   required Workspace workspace,
   required Roadmap roadmap,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _IdeasEditor(workspace: workspace, roadmap: roadmap),
@@ -484,7 +485,7 @@ Future<void> showIdeaDialog(
   BuildContext context, {
   required Workspace workspace,
   required String idea,
-}) => showDialog<void>(
+}) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _IdeaDialog(workspace: workspace, idea: idea),

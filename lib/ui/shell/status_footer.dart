@@ -10,6 +10,7 @@ import '../../core/codex/codex_cli.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/providers/provider_availability.dart';
 import '../../data/providers.dart';
+import '../widgets/app_dialog.dart';
 import 'navigation.dart';
 import 'footer_stats.dart';
 
@@ -329,7 +330,7 @@ class _ProviderSelector extends ConsumerWidget {
               .read(appSettingsProvider.notifier)
               .set(providerPreferenceKey(ws?.id), id);
         } else if (context.mounted) {
-          await showDialog<void>(
+          await showAppDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
               title: const Text('Provedor indisponível'),

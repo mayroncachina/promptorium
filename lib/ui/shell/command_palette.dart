@@ -16,7 +16,9 @@ import '../../features/specs/new_spec_dialog.dart';
 import '../../features/specs/spec_service.dart' show selectedSpecProvider;
 
 import '../theme/tokens.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_icon.dart';
+import '../widgets/app_toast.dart';
 import 'navigation.dart';
 import 'about_dialog.dart';
 import 'shortcut_sheet.dart';
@@ -116,7 +118,7 @@ List<PaletteCommand> paletteCommands(
   final messenger = ScaffoldMessenger.maybeOf(context);
   void toast(String msg) => messenger
     ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+    ..showAppToast(SnackBar(content: Text(msg)));
   final byCode = specsByCode(specs);
   void openSession(String id) {
     ref.read(selectedSessionProvider.notifier).select(id);
@@ -370,7 +372,7 @@ Future<void> showCommandPalette(
     paletteCommands(context, ref, onNavigate: onNavigate),
     recentPaletteLabels(settings),
   );
-  return showDialog<void>(
+  return showAppDialog<void>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (_) => CommandPalette(

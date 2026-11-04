@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../spec_service.dart';
 
 /// "Arquivar" / "Desarquivar" a finished spec.
@@ -17,7 +19,7 @@ Future<void> archiveSpecAction(
     final ws = await ref.read(workspacesRepoProvider).getById(spec.workspaceId);
     if (ws == null) return;
     await ref.read(specServiceProvider).archive(ws, spec, restore: restore);
-    messenger?.showSnackBar(
+    messenger?.showAppToast(
       SnackBar(
         content: Text(
           restore ? '${spec.code} desarquivada.' : '${spec.code} arquivada.',
@@ -25,7 +27,7 @@ Future<void> archiveSpecAction(
       ),
     );
   } catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    messenger?.showAppToast(SnackBar(content: Text('$e')));
   }
 }
 
@@ -41,7 +43,7 @@ Future<void> deleteSpecAction(
   final service = ref.read(specServiceProvider);
   final dependents = await service.dependentsOf(ws, spec);
   if (!context.mounted) return;
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(
@@ -72,8 +74,8 @@ Future<void> deleteSpecAction(
   if (ok != true) return;
   try {
     await service.delete(ws, spec);
-    messenger?.showSnackBar(SnackBar(content: Text('${spec.code} excluída.')));
+    messenger?.showAppToast(SnackBar(content: Text('${spec.code} excluída.')));
   } catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    messenger?.showAppToast(SnackBar(content: Text('$e')));
   }
 }

@@ -7,12 +7,13 @@ import '../../core/git/git_root.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_icon.dart';
 import 'project_service.dart';
 
 /// "Novo projeto" (step 1 · Pasta e repositório): creates the folder, runs
 /// `git init` and opens the Projeto screen on the new workspace.
-Future<void> showNewProjectDialog(BuildContext context) => showDialog<void>(
+Future<void> showNewProjectDialog(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const NewProjectDialog(),
