@@ -9,6 +9,9 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../board/autopilot.dart';
 import '../board/board_screen.dart' show openSession, openSessionIn;
+import '../board/widgets/duel_dialog.dart' show openDuelsProvider;
+import '../board/widgets/step_decision_dialog.dart'
+    show StepFocusAnchor, openStep, stepOrigin;
 import '../board/widgets/card_extras.dart' show LiveToolLine;
 import '../project/project_config.dart';
 import '../prompt/conversation_manager.dart';
@@ -249,6 +252,10 @@ class _InboxRow extends ConsumerWidget {
           : openSession(ref, id),
     );
     final key = ValueKey('home-action-${item.kind.name}-${id ?? item.ref}');
+    // openStep reads the duels of the spec: keep them loaded.
+    if (item.spec case final spec?) {
+      ref.watch(openDuelsProvider(spec.workspaceId));
+    }
     return switch (item.kind) {
       // Only a "plano pronto" of a conversation gets here (no approval).
       InboxKind.approval => (
@@ -269,11 +276,25 @@ class _InboxRow extends ConsumerWidget {
         null,
       ),
       InboxKind.needsAnswer => (
-        AmberButton(
-          key: key,
-          label: 'Responder na sessão',
-          height: 28,
-          onTap: () => id == null ? null : openSession(ref, id),
+        StepFocusAnchor(
+          builder: (context, focus) {
+            final spec = item.spec, step = item.step;
+            return AmberButton(
+              key: key,
+              label: 'Decidir',
+              height: 28,
+              focusNode: focus,
+              onTap: spec == null || step == null
+                  ? null
+                  : () => openStep(
+                      context,
+                      spec,
+                      step,
+                      stepOrigin(context),
+                      returnFocus: focus,
+                    ),
+            );
+          },
         ),
         SmallButton(
           label: 'Quadro',

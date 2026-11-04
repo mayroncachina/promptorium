@@ -129,7 +129,8 @@ uma), com "question" e de 2 a 4 opções. Em cada opção:
 - "kind": answer (Responder, só a mensagem ao agente), amend (Ajustar o
   requisito), split (Dividir a etapa) ou defer (Adiar a etapa);
 - "consequence": a consequência, numa frase;
-- "change": a mudança proposta no requisito, só em amend (vazio nos outros);
+- "change": só em amend (vazio nos outros): o texto novo e completo do
+  requisito, sem o id, e cada critério novo numa linha "- [ ] ...";
 - "split": de 2 a 4 subetapas em ordem, cada uma com o texto do que fazer, só
   em split (vazio nos outros);
 - "suggested": true em no máximo uma opção, a que você recomenda.
@@ -521,7 +522,8 @@ class StepDecisionOptions
     if (run.stopped) return stopped;
     final items = await _timeline(step.sessionId);
     final key = stepDecisionKey(
-      step.sessionId,
+      // Without a session the step id alone would mix up specs.
+      step.sessionId ?? 'spec-${spec.id}',
       step.id,
       lastAgentMessage(items),
     );
