@@ -215,7 +215,8 @@ List<String> stepVerifyCommands(String specText, List<String> steps) {
 }
 
 /// Steps listed in the **last** `ETAPA CONCLUÍDA: R1, R2` line of [text]
-/// (accents and case tolerated; "R1 e R2" too). Empty = no marker.
+/// (accents and case tolerated; "R1 e R2" and the sub-step `R3.1` too).
+/// Empty = no marker.
 Set<String> parseStepMarker(String? text) {
   if (text == null) return const {};
   final re = RegExp(
@@ -226,7 +227,7 @@ Set<String> parseStepMarker(String? text) {
   if (m == null) return const {};
   return {
     for (final r in RegExp(
-      r'\b(?:REV|R)\d+\b',
+      r'\b(?:REV\d+|R\d+(?:\.\d+)?)\b',
       caseSensitive: false,
     ).allMatches(m.group(1)!))
       r.group(0)!.toUpperCase(),
@@ -264,9 +265,41 @@ void _writePrototypes(StringBuffer b, String specText, List<String> todo) {
   }
 }
 
+/// What a sub-step's session must know (SPEC-033 R16): the requirement,
+/// which stays as it is, and the sub-steps with the finished ones checked.
+void _writeSubSteps(
+  StringBuffer b,
+  String id,
+  String? parentText,
+  List<StepView> steps,
+) {
+  final parent = parentOf(id);
+  b
+    ..writeln()
+    ..writeln('Esta etapa é uma subetapa do requisito $parent, que não muda:')
+    ..writeln('- $parent · ${parentText ?? '(fora da spec)'}')
+    ..writeln()
+    ..writeln('Subetapas de $parent:');
+  for (final s in steps) {
+    if (!isSubStep(s.id) || parentOf(s.id) != parent) continue;
+    b.writeln(
+      '- [${s.isDone ? 'x' : ' '}] ${s.id} · ${s.text}'
+      '${s.id == id ? ' (agora)' : ''}',
+    );
+  }
+  b.writeln(
+    closesRequirement(id, steps)
+        ? 'É a última subetapa: ao concluí-la, o Promptorium verifica os '
+              'critérios de $parent.'
+        : 'Faça só esta subetapa: os critérios de $parent são verificados '
+              'quando a última subetapa terminar.',
+  );
+}
+
 /// First message of a step session: the spec itself (the file may not be
 /// committed, so it is not read from the worktree), what is done, what to do
-/// now and how to finish.
+/// now and how to finish. A sub-step reads the spec through its requirement:
+/// the file does not know it.
 String specStepPrompt({
   required Spec spec,
   required String specText,
@@ -275,6 +308,7 @@ String specStepPrompt({
   List<SpecSubagent> subagents = const [],
   String? testCommand,
   String? previousAttempt,
+  String? context,
   String? memory,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
@@ -291,6 +325,9 @@ String specStepPrompt({
       if (!s.isDone && !todo.contains(s.id)) s.id,
   ];
   final ids = todo.join(', ');
+  final requirements = SpecDocument.parse(specText).requirements;
+  final specTodo = {for (final t in todo) parentOf(t)}.toList();
+  final specIds = specTodo.join(', ');
   final b = StringBuffer()
     ..writeln(
       todo.length == 1
@@ -317,6 +354,10 @@ String specStepPrompt({
       'Ficam para as próximas sessões (não implemente agora): '
       '${later.join(', ')}.',
     );
+  }
+  for (final t in todo.where(isSubStep)) {
+    final parent = requirements.where((r) => r.id == parentOf(t)).firstOrNull;
+    _writeSubSteps(b, t, parent?.text, steps);
   }
   final plan = subagentPlan(subagents, steps: steps, todo: todo);
   if (plan.isNotEmpty) {
@@ -347,6 +388,16 @@ String specStepPrompt({
       ..writeln('</tentativa-anterior>')
       ..writeln('Faça diferente do que não funcionou.');
   }
+  if (context != null && context.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Decisão da pessoa sobre a etapa que parou (siga esta decisão):',
+      )
+      ..writeln('<decisao>')
+      ..writeln(context.trim())
+      ..writeln('</decisao>');
+  }
   if (memory != null && memory.trim().isNotEmpty) {
     b
       ..writeln()
@@ -356,39 +407,60 @@ String specStepPrompt({
       )
       ..writeln(memory.trim());
   }
-  _writePrototypes(b, specText, todo);
-  final focused = focusedSpecText(specText, steps: steps, todo: todo);
+  _writePrototypes(b, specText, specTodo);
+  final focused = focusedSpecText(
+    specText,
+    steps: [
+      ...steps,
+      for (final r in requirements)
+        if (specTodo.contains(r.id) && !todo.contains(r.id))
+          StepView(id: r.id, text: r.text),
+    ],
+    todo: specTodo,
+  );
   b
     ..writeln()
     ..writeln(
       focused == null
           ? 'Spec (${spec.path}):'
-          : 'Trecho da spec ligado a $ids (a spec inteira está em '
+          : 'Trecho da spec ligado a $specIds (a spec inteira está em '
                 '${spec.path}, se precisar):',
     )
     ..writeln('<spec>')
     ..writeln((focused ?? specText).trimRight())
     ..writeln('</spec>')
     ..writeln();
-  _writeFinish(b, spec, specText, todo, testCommand);
+  // Before the last sub-step the requirement's checks cannot pass yet.
+  final closing = todo.every(
+    (t) => !isSubStep(t) || closesRequirement(t, steps),
+  );
+  _writeFinish(
+    b,
+    spec,
+    specText,
+    todo,
+    testCommand,
+    checks: closing ? specTodo : todo,
+  );
   return b.toString().trimRight();
 }
 
-/// "Ao terminar" of a step prompt: focused tests, commit, learning,
-/// suggestion and the step marker.
+/// "Ao terminar" of a step prompt: focused tests of [checks] ([todo] when
+/// null), commit, learning, suggestion and the step marker.
 void _writeFinish(
   StringBuffer b,
   Spec spec,
   String specText,
   List<String> todo,
-  String? testCommand,
-) {
+  String? testCommand, {
+  List<String>? checks,
+}) {
   final ids = todo.join(', ');
   b
     ..writeln('Ao terminar:')
     ..writeln(
       focusedTestsStep(
-        focusedChecks(specText, todo: todo, suite: testCommand),
+        focusedChecks(specText, todo: checks ?? todo, suite: testCommand),
         testCommand,
       ),
     )
@@ -473,6 +545,12 @@ List<String> subagentPlan(
   );
   final startsSpec = todo.contains(steps.first.id) && untouched;
   final finishesSpec = todo.contains(steps.last.id);
+  // A subagent tied to a split requirement runs with its last sub-step.
+  final finishing = {
+    ...todo,
+    for (final t in todo)
+      if (closesRequirement(t, steps)) parentOf(t),
+  };
   final ids = todo.join(', ');
   String extra(SpecSubagent a) =>
       a.instruction == null ? '' : ' Instrução: ${a.instruction}';
@@ -485,7 +563,7 @@ List<String> subagentPlan(
           '${a.agent}: antes de implementar $ids.${extra(a)}',
         SubagentWhen.afterEach =>
           '${a.agent}: depois de implementar $ids, antes do commit.${extra(a)}',
-        SubagentWhen.atStep when a.step != null && todo.contains(a.step) =>
+        SubagentWhen.atStep when a.step != null && finishing.contains(a.step) =>
           '${a.agent}: ao terminar ${a.step}, antes do commit.${extra(a)}',
         SubagentWhen.specEnd when finishesSpec =>
           '${a.agent}: ao terminar tudo (é a última etapa), antes do '
@@ -611,7 +689,8 @@ class SpecRunner {
 
   /// Opens the session of the next steps of [specId] and returns its id.
   /// [mode] / [model] / [effort] null = those of the spec's last session,
-  /// else the defaults. [agent] is stored on the spec.
+  /// else the defaults. [agent] is stored on the spec. [context] goes into
+  /// the prompt of the step: what the person decided (SPEC-033 R10).
   Future<String> runNext(
     int specId, {
     ClaudePermissionMode? mode,
@@ -622,6 +701,7 @@ class SpecRunner {
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
     String? previousAttempt,
+    String? context,
     bool duel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
@@ -770,6 +850,7 @@ class SpecRunner {
         ),
         testCommand: config.testCommand,
         previousAttempt: previousAttempt,
+        context: context,
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
       agent: spec.agentName ?? config.agent,
@@ -963,6 +1044,10 @@ class SpecRunner {
     final config = await _config(s.workspaceId);
     final spec = await _ref.read(specsRepoProvider).getById(duel.specId);
     if (spec == null) return;
+    final views = stepsOf(
+      spec,
+      await _ref.read(specStepsRepoProvider).bySpec(spec.id),
+    );
     GateReport report;
     if (!steps.every(marked.contains)) {
       report = GateReport(
@@ -975,7 +1060,9 @@ class SpecRunner {
           ),
         ],
       );
-    } else if (config != null && config.gateEnabled) {
+    } else if (config != null &&
+        config.gateEnabled &&
+        !steps.any((x) => _skipsGate(x, views))) {
       await _manager.note(s.id, 'Verificando a tentativa ${isA ? 'A' : 'B'}…');
       report =
           await StepGate(
@@ -1073,6 +1160,7 @@ class SpecRunner {
     for (final step in steps) {
       await repo.set(spec.id, step, StepStatus.done, sessionId: session);
     }
+    await _closeRequirements(spec.id, steps, sessionId: session);
     for (final id in [duel.sessionA, duel.sessionB]) {
       if (id == null) continue;
       await _ref
@@ -1284,7 +1372,8 @@ class SpecRunner {
 
   /// "Voltar ao início da etapa": stops the spec's live session, resets the
   /// worktree to the step's start (plus the changes that were uncommitted
-  /// then) and turns [step] and the later steps back to pending.
+  /// then) and turns [step] and the later steps back to pending, with the
+  /// requirements of the sub-steps among them.
   Future<void> rewind(int specId, String step) async {
     final (spec, after, row) = await _rewindTarget(specId, step);
     for (final s in await _ref.read(sessionsRepoProvider).bySpec(specId)) {
@@ -1302,9 +1391,9 @@ class SpecRunner {
     } on GitException catch (e) {
       throw SpecRunException('Falha ao voltar o worktree: $e');
     }
-    await _ref.read(specStepsRepoProvider).reset(specId, [
-      for (final s in after) s.id,
-    ]);
+    await _ref.read(specStepsRepoProvider).reset(specId, {
+      for (final s in after) ...[s.id, parentOf(s.id)],
+    });
     if (spec.stage == SpecStage.review) {
       await _ref.read(specsRepoProvider).setStage(specId, SpecStage.running);
     }
@@ -1400,8 +1489,9 @@ class SpecRunner {
 
   /// End of a turn: steps named in `ETAPA CONCLUÍDA` are done (after the
   /// gate, when the project has one), the others of the session wait for
-  /// the user. All steps done → Review; this session's steps done and
-  /// auto-advance on → next session.
+  /// the user. A sub-step skips the gate unless it is the last of its
+  /// requirement (SPEC-033 R16). All steps done → Review; this session's
+  /// steps done and auto-advance on → next session.
   Future<void> onResult(
     String sessionId,
     Result r,
@@ -1420,6 +1510,10 @@ class SpecRunner {
     final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
     final config = await _config(s.workspaceId);
     final gated = config != null && config.gateEnabled;
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    final views = spec == null
+        ? const <StepView>[]
+        : stepsOf(spec, rows.values);
     for (final text in parseSuggestions(r.result)) {
       await _ref
           .read(specSuggestionsRepoProvider)
@@ -1432,7 +1526,6 @@ class SpecRunner {
     }
     if (parseLearning(r.isSuccess ? r.result : null) case final l?) {
       final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
-      final spec = await _ref.read(specsRepoProvider).getById(specId);
       if (ws != null) {
         await ProjectMemory.record(
           ws.path,
@@ -1448,13 +1541,14 @@ class SpecRunner {
     for (final step in mine) {
       if (rows[step]?.status == StepStatus.done) continue;
       final ok = marked.contains(step);
-      if (ok && gated) toVerify.add(step);
+      final verify = ok && gated && !_skipsGate(step, views);
+      if (verify) toVerify.add(step);
       await repo.set(
         specId,
         step,
         !ok
             ? StepStatus.needsInput
-            : gated
+            : verify
             ? StepStatus.verifying
             : StepStatus.done,
         sessionId: sessionId,
@@ -1466,8 +1560,34 @@ class SpecRunner {
       unawaited(Future<void>.microtask(() => _verify(s, toVerify, config!)));
       return;
     }
+    await _closeRequirements(specId, mine, sessionId: sessionId);
     await _continue(s);
   });
+
+  /// A sub-step with others still open concludes without the gate: the
+  /// requirement is verified as a whole, with the last one (SPEC-033 R16).
+  static bool _skipsGate(String step, List<StepView> steps) =>
+      isSubStep(step) && !closesRequirement(step, steps);
+
+  /// The requirements of the sub-steps in [steps] whose sub-steps are all
+  /// done are done too.
+  Future<void> _closeRequirements(
+    int specId,
+    List<String> steps, {
+    String? sessionId,
+  }) async {
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = subStepRows(await repo.bySpec(specId));
+    for (final parent in {
+      for (final s in steps)
+        if (isSubStep(s)) parentOf(s),
+    }) {
+      final own = rows.where((r) => parentOf(r.step) == parent);
+      if (own.every((r) => r.status == StepStatus.done)) {
+        await repo.set(specId, parent, StepStatus.done, sessionId: sessionId);
+      }
+    }
+  }
 
   Future<ProjectConfig?> _config(int workspaceId) async {
     final ws = await _ref.read(workspacesRepoProvider).getById(workspaceId);
@@ -1519,8 +1639,9 @@ class SpecRunner {
 
   /// Sends the next step to [s] itself when its context is below the
   /// limit, it is alive, it is Claude and its gate passed at the first try
-  /// (SPEC-017 R4); the decision goes to its timeline. False = a new
-  /// session (as before).
+  /// (SPEC-017 R4), unless a sub-step is involved: each one has its own
+  /// session (SPEC-033 R16). The decision goes to its timeline. False = a
+  /// new session (as before).
   Future<bool> _continueHere(Session s, Spec spec, List<StepView> steps) async {
     final prefs = _ref.read(runPrefsProvider);
     final todo = nextSteps(
@@ -1536,7 +1657,9 @@ class SpecRunner {
         x.step: x,
     };
     String k(int tokens) => '${(tokens / 1000).round()} mil';
-    final why = limit <= 0
+    final why = [...todo, ...parseSessionSteps(s.steps)].any(isSubStep)
+        ? 'cada subetapa roda numa sessão própria'
+        : limit <= 0
         ? 'continuar na mesma sessão está desligado'
         : s.provider != 'claude'
         ? 'só sessões do Claude continuam'
@@ -1597,7 +1720,9 @@ class SpecRunner {
 
   /// Runs the gate of [steps] (marked by the agent) in the spec's worktree:
   /// passed → done; failed with attempts left → the failure goes back to
-  /// the same session; else the steps wait for the user.
+  /// the same session; else the steps wait for the user. The last sub-step
+  /// of a requirement brings its commit; the commands and the criteria are
+  /// the requirement's, which is done when the gate passes (SPEC-033 R16).
   Future<void> _verify(
     Session s,
     List<String> steps,
@@ -1612,6 +1737,7 @@ class SpecRunner {
       final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
       final first = rows[steps.first];
       final attempts = first?.gateAttempts ?? 0;
+      final requirements = {for (final st in steps) parentOf(st)}.toList();
       await _manager.note(s.id, 'Verificando ${steps.join(', ')}…');
       final ws = await _ref
           .read(workspacesRepoProvider)
@@ -1632,7 +1758,7 @@ class SpecRunner {
             baseline: await testBaseline(specId),
             extraCommands: text == null
                 ? const []
-                : stepVerifyCommands(text, steps),
+                : stepVerifyCommands(text, requirements),
             environment: ws == null
                 ? null
                 : worktreeEnvironment(
@@ -1658,13 +1784,16 @@ class SpecRunner {
           );
         }
       }
-      if (report.ok && text != null) await _checkCriteria(spec, text, steps);
+      if (report.ok && text != null) {
+        await _checkCriteria(spec, text, requirements);
+      }
       await repo.setGate(specId, steps, report: report.encode());
       await _manager.note(s.id, gateNote(report), error: !report.ok);
       if (report.ok) {
         for (final step in steps) {
           await repo.set(specId, step, StepStatus.done, sessionId: s.id);
         }
+        await _closeRequirements(specId, steps, sessionId: s.id);
         await _continue(s);
         return;
       }
@@ -1857,10 +1986,13 @@ class SpecRunner {
     final text = ws == null
         ? null
         : await _ref.read(specServiceProvider).read(ws, spec);
-    if (text != null) await _checkCriteria(spec, text, steps);
+    if (text != null) {
+      await _checkCriteria(spec, text, [for (final st in steps) parentOf(st)]);
+    }
     for (final step in steps) {
       await repo.set(specId, step, StepStatus.done, sessionId: s.id);
     }
+    await _closeRequirements(specId, steps, sessionId: s.id);
     await _continue(s);
   }
 

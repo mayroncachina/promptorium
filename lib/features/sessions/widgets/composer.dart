@@ -16,6 +16,7 @@ import '../../prompt/prompt_actions.dart'
         workspaceFilesProvider;
 import '../../prompt/widgets/prompt_composer.dart'
     show ComposerSuggestions, insertSavedPrompt, replaceComposerRange;
+import '../session_composer_draft.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
 
@@ -92,6 +93,37 @@ String removeMention(String text, String path) => text
     .replaceAll(RegExp(r'  +'), ' ')
     .trimLeft();
 
+/// Says that the text in the field is a draft of the decision modal.
+class _DraftNote extends StatelessWidget {
+  const _DraftNote();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+    key: ValueKey('composer-draft-note'),
+    children: [
+      Icon(Icons.group_outlined, size: 14, color: AppColors.textSecondary),
+      SizedBox(width: 6),
+      Flexible(
+        child: Text.rich(
+          TextSpan(
+            text: 'Rascunho com as decisões do modal · ',
+            children: [
+              TextSpan(
+                text: 'ainda não enviado',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+      ),
+    ],
+  );
+}
+
 class _SessionComposerState extends ConsumerState<SessionComposer> {
   final _text = TextEditingController();
   final _focus = FocusNode();
@@ -100,13 +132,46 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
   int _highlight = 0;
   int? _dismissedAt;
 
+  /// The text came from a draft and was not sent (SPEC-033 R12).
+  bool _fromDraft = false;
+
   @override
   void initState() {
     super.initState();
     _text.addListener(_onText);
+    _takeDraftAfterFrame();
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionComposer old) {
+    super.didUpdateWidget(old);
+    if (old.sessionId != widget.sessionId) _takeDraftAfterFrame();
+  }
+
+  void _takeDraftAfterFrame() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _takeDraft();
+      });
+
+  /// Fills the field with the draft of this session, after what is already
+  /// there. Nothing is sent.
+  void _takeDraft() {
+    final draft = ref
+        .read(sessionComposerDraftProvider.notifier)
+        .take(widget.sessionId);
+    if (draft == null) return;
+    final typed = _text.text.trimRight();
+    final text = typed.isEmpty ? draft : '$typed\n\n$draft';
+    _text.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    setState(() => _fromDraft = true);
+    _focus.requestFocus();
   }
 
   void _onText() {
+    if (_fromDraft && _text.text.isEmpty) setState(() => _fromDraft = false);
     final specs = attachedSpecs(_text.text);
     final cursor = _text.selection.isValid ? _text.selection.extentOffset : -1;
     var t = triggerAt(_text.text, cursor);
@@ -226,6 +291,12 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      sessionComposerDraftProvider.select((d) => d[widget.sessionId]),
+      (_, draft) {
+        if (draft != null) _takeDraft();
+      },
+    );
     final mode = ClaudePermissionMode.fromCli(widget.permissionMode);
     final alive = ref.watch(
       sessionManagerProvider.select((s) => s.isAlive(widget.sessionId)),
@@ -312,6 +383,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
               ),
               const SizedBox(height: 8),
             ],
+            if (_fromDraft) ...[const _DraftNote(), const SizedBox(height: 8)],
             CallbackShortcuts(
               bindings: bindings,
               child: TextField(

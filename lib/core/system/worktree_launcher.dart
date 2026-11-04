@@ -72,15 +72,16 @@ class WorktreeLauncher {
 
   /// Opens [path] in [editor] (default `code`), or in the file manager
   /// (`xdg-open`) when the editor is not installed. Returns what was used.
-  Future<String> editor(String path, {String? editor}) async {
+  /// [cwd] is where it starts, needed when [path] is a file.
+  Future<String> editor(String path, {String? editor, String? cwd}) async {
     final parts = (editor?.trim().isNotEmpty ?? false)
         ? editor!.trim().split(RegExp(r'\s+'))
         : ['code'];
     if (await which(parts.first)) {
-      await _start(parts.first, [...parts.skip(1), path], path);
+      await _start(parts.first, [...parts.skip(1), path], cwd ?? path);
       return parts.first;
     }
-    await _start('xdg-open', [path], path);
+    await _start('xdg-open', [path], cwd ?? path);
     return 'xdg-open';
   }
 }

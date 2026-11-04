@@ -286,7 +286,8 @@ autopilot:
     await tester.tap(find.byKey(const ValueKey('config-save')));
     // Real file IO (several awaits): alternate real time and the fake clock
     // until it is saved and shown (the suite may run under load).
-    for (var i = 0; i < 300; i++) {
+    final deadline = DateTime.now().add(const Duration(seconds: 45));
+    for (var i = 0; DateTime.now().isBefore(deadline); i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
