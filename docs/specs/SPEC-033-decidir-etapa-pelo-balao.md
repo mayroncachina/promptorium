@@ -33,7 +33,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 | `1-abrindo.png` | Quatro quadros da abertura: o modal cresce a partir do balão, os tempos e uma demonstração em laço | R2, R13 |
 | `1b-abertura-quadros.png` | O modal real aos 40, 120, 200, 300 e 460 ms: opções e prévia entram em sequência | R2 |
 | `2-decidir.png` | Resumo, 4 opções numeradas (uma sugerida) e a prévia da etapa | R3–R7 |
-| `3-reestruturar.png` | Opção "Dividir a etapa" em foco: R3 vira R3a e R3b na prévia | R6, R7 |
+| `3-reestruturar.png` | Opção "Dividir a etapa" em foco: o R3 fica na spec e a fila ganha as subetapas R3.1 e R3.2 | R6, R7 |
 | `4-compilar.png` | Revisão das decisões, diff do requisito e mensagem ao agente | R9–R11 |
 | `5-estados.png` | Gerando opções, falha ao gerar e verificação que falhou | R4, R8, R14 |
 | `6-pair.png` | "Abrir sessão": o Prompt com a sessão e as decisões já tomadas | R12 |
@@ -85,7 +85,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - A barra inferior mostra essas teclas.
 - R7 · Ao lado das opções, o painel **Como a etapa fica** deve mostrar a prévia da opção em foco (ou da escolhida):
   - **Ajustar o requisito**: o texto do requisito com as trocas marcadas;
-  - **Dividir a etapa**: a etapa trocada por duas (por exemplo, `R3` vira `R3a` e `R3b`), cada uma com o texto e os critérios dela, e a fila de etapas do card com uma bolinha a mais;
+  - **Dividir a etapa**: o requisito, que não muda, e abaixo dele as subetapas da fila (por exemplo, `R3.1` e `R3.2`), cada uma com o texto do que fazer. Uma nota diz que os critérios do `R3` são verificados quando a última subetapa terminar. A fila de etapas do card ganha uma bolinha a mais;
   - **Adiar a etapa**: a etapa vai para o fim da fila, com o status "pendente";
   - **Responder**: a mensagem que o agente vai receber, e "o requisito não muda".
   - A troca de prévia é uma transição cruzada de 120 ms.
@@ -104,7 +104,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - R10 · **Compilar e continuar** deve, nesta ordem:
   1. gravar a spec com o diff aprovado, sem mudar o status;
   2. reestruturar a etapa conforme o tipo escolhido:
-     - em **Dividir**, criar as etapas novas no lugar da original;
+     - em **Dividir**, criar as subetapas na fila no lugar da etapa original, sem mudar o requisito na spec;
      - em **Adiar**, mover a etapa para o fim e marcá-la "pendente";
      - nos demais tipos, manter a etapa;
   3. retomar a etapa:
@@ -127,6 +127,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - cada opção como item de um grupo de rádio, com "Opção <n> de <total>: <título>. <tipo>. <consequência>", e "sugerida" quando for o caso;
   - a mudança de decisão ("Decisão 2 de 2") num aviso polido, sem mover o foco para fora da lista;
   - o foco preso no modal enquanto ele estiver aberto, e devolvido ao balão quando ele fechar.
+- R16 · **Dividir a etapa** divide só a execução, não o requisito:
+  - o requisito (`R3`) continua único na spec, com o texto e os critérios dele;
+  - a fila troca a etapa `R3` pelas subetapas `R3.1`, `R3.2`… (de 2 a 4), executadas em ordem, cada uma numa sessão própria;
+  - cada subetapa conclui sem rodar a verificação; quando a última termina, a etapa `R3` roda a verificação com os critérios dela, como hoje. Se a verificação falhar, a última subetapa volta a "aguardando você";
+  - o card e o quadro contam o progresso pelas subetapas (`R3.1` concluída conta como uma etapa feita);
+  - se a divisão mudar o que foi pedido (dois comportamentos diferentes), a opção certa é **Ajustar o requisito**, e a IA não deve propor **Dividir** nesse caso.
 
 ## Fora do escopo
 
@@ -194,10 +200,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 
 ### R9–R11 · Compilar
 
-- `StepDecisionCompiler.compile(spec, step, choices)` roda o `runReadOnlyClaude` com o prompt da `SpecAnswerApplier`, mais as instruções de divisão (`R3a`, `R3b`, critérios com `[R3a]` e `[R3b]`) e de adiamento. Ele devolve o texto novo da spec e a mensagem ao agente.
+- `StepDecisionCompiler.compile(spec, step, choices)` roda o `runReadOnlyClaude` com o prompt da `SpecAnswerApplier`, mais as instruções de adiamento. Ele devolve o texto novo da spec e a mensagem ao agente. **Dividir** não passa pelo compilador: as subetapas vêm prontas do campo `split[]` da opção.
 - **Compilar e continuar** compara o `mtime` e o hash do arquivo com os da abertura (R11) antes de gravar.
-- A fila de etapas vem da ordem dos requisitos (`stepsOf`), então a reestruturação acontece no texto da spec:
-  - em **Dividir**, o compilador troca o `R3` por `R3a` e `R3b`, e a linha de `spec_steps` do `R3` é removida (`specStepsRepoProvider`). As novas etapas nascem pendentes;
+- A reestruturação:
+  - em **Dividir**, grava em `spec_steps` uma linha por subetapa (`R3.1`, `R3.2`…), pendente e com o texto em `body`, como as etapas `REV<n>` do revisor. A linha do `R3` fica, com o status `pending`;
   - em **Adiar**, o compilador move o item do requisito para o fim de `## Requisitos`, sem mudar o id, e a etapa volta para `pending`.
 - A retomada usa `sessionManagerProvider.notifier.send` quando a sessão está viva e, quando não está, `specRunnerProvider.runNext(specId, context: message)`. Este é um parâmetro novo: o texto entra no prompt da etapa.
 - O "Desfazer" guarda o texto anterior e as linhas de `spec_steps` em memória. Um `ref.listen` nos eventos da sessão esconde o botão no primeiro evento novo.
@@ -215,12 +221,23 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - `SemanticsService.sendAnnouncement` na troca de decisão.
 - Ao fechar, `FocusNode.requestFocus` devolve o foco ao nó do balão (`origin`).
 
+### R16 · Subetapas
+
+- `isSubStep(id)` (`^R\d+\.\d+$`) e `parentOf(id)` em `board_rules.dart`.
+- `stepsOf` lê as linhas de subetapa com `body` e, para cada requisito que tem subetapas, coloca as subetapas no lugar dele, em ordem; o requisito sai da lista visível e volta só para a verificação.
+- `spec_runner`:
+  - `runNext` escolhe a primeira subetapa pendente antes do requisito pai; o prompt da subetapa leva o texto dela, o texto do requisito pai e a lista das subetapas (as concluídas marcadas);
+  - ao concluir uma subetapa, o runner marca `done` sem rodar o `GateReport`; ao concluir a última, ele roda a verificação do requisito pai com os critérios `[R3]`. Com a verificação aprovada, o `R3` vira `done`; com falha, a última subetapa volta a `needsInput` com o `GateReport`;
+  - "Desfazer" do R10 apaga as linhas das subetapas.
+- O prompt das opções (R4) diz que **Dividir** é para separar o trabalho, e que mudar o comportamento pedido é **Ajustar o requisito**.
+
 ### Testes
 
 - `test/features/board/step_decision_test.dart` (novo), testes puros:
   - `parseStepDecisions`: limite de 4 opções, uma só sugerida e títulos vazios descartados;
   - a chave do cache;
-  - a reestruturação da fila: com o texto compilado, `stepsOf` devolve `R3a` e `R3b` no lugar do `R3`, e o requisito adiado vai para o fim.
+  - a reestruturação da fila: com as linhas `R3.1` e `R3.2`, `stepsOf` devolve as subetapas no lugar do `R3`, e a spec não muda; com o texto compilado, o requisito adiado vai para o fim;
+  - o runner: `runNext` pega `R3.1` antes de `R3.2`; concluir `R3.1` não roda a verificação; concluir `R3.2` roda a verificação do `R3`, e a falha devolve `R3.2` para "aguardando você".
 - `test/features/board/step_decision_dialog_test.dart` (novo), testes de widget com `ProviderContainer(retry: (_, _) => null)`:
   - o balão abre o modal e as outras etapas abrem o `StepLiveDialog`;
   - as teclas `1`–`5`, as setas, `Enter`, `Backspace`, `Ctrl+O`, `Ctrl+Enter` e `Esc`;
@@ -246,17 +263,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - [ ] As opções da IA são lidas com no máximo 4 por decisão e uma só sugerida, e ficam em cache por (sessão, etapa, última mensagem); a geração só começa ao abrir o modal [R4] verificar: flutter test test/features/board/step_decision_test.dart
 - [ ] As opções aparecem numeradas, com tipo, consequência e "Outra resposta" em 5; a escolhida tem ícone e "Escolhida" [R5] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] As teclas 1–5, setas, Enter, Backspace, Ctrl+O, Ctrl+Enter e Esc funcionam; os números não valem dentro do campo de texto e o Ctrl+O vale [R6] [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] A prévia mostra o requisito alterado, a etapa dividida em duas, a etapa adiada ou a mensagem, conforme o tipo [R7] verificar: flutter test test/features/board/step_decision_dialog_test.dart
+- [ ] A prévia mostra o requisito alterado, o requisito intacto com as subetapas, a etapa adiada ou a mensagem, conforme o tipo [R7] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Com duas decisões, o modal mostra "Decisão 1 de 2" e avança 250 ms depois da escolha; reabrir mantém as escolhas [R8] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Compilar mostra a lista das decisões, o diff da spec e a mensagem editável; com só Responder, mostra "O requisito não muda" e "Enviar e continuar", sem diff [R9] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Compilar e continuar grava a spec, divide ou adia a etapa, envia a mensagem (ou inicia a próxima sessão) e oferece Desfazer, que some no primeiro evento da sessão [R10] verificar: flutter test test/features/board/step_decision_dialog_test.dart
-- [ ] A reestruturação da fila divide R3 em R3a e R3b e adia a etapa para o fim [R10] verificar: flutter test test/features/board/step_decision_test.dart
+- [ ] Dividir troca a etapa R3 pelas subetapas R3.1 e R3.2 na fila sem mudar a spec, e Adiar leva a etapa para o fim [R10] [R16] verificar: flutter test test/features/board/step_decision_test.dart
+- [ ] As subetapas rodam em ordem, só a última dispara a verificação dos critérios do R3, e a falha devolve a última subetapa para "aguardando você" [R16] verificar: flutter test test/features/board/step_decision_test.dart
 - [ ] Com a spec alterada no disco, nada é gravado e aparece "A spec mudou enquanto você decidia" [R11] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Abrir sessão fecha o modal e abre a sessão com o rascunho das decisões, sem enviar [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Gerando (com o tempo decorrido e cancelamento ao fechar), falha ao gerar e verificação que falhou mostram os textos e as ações do R14 [R14] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] O modal, as opções e a troca de decisão têm os rótulos semânticos, e o foco volta ao balão ao fechar [R15] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Os testes atuais do quadro continuam passando [R1] verificar: flutter test test/features/board
-- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] verificar: flutter analyze
+- [ ] A análise estática passa sem avisos novos [R1] [R2] [R3] [R4] [R5] [R6] [R7] [R8] [R9] [R10] [R11] [R12] [R13] [R14] [R15] [R16] verificar: flutter analyze
 - [ ] Numa sessão real que parou com uma pergunta, as opções fazem sentido e Compilar e continuar retoma a etapa com o requisito alterado [R4] [R10] (manual)
 
 ## Decisões
@@ -265,12 +283,4 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - (P3) Quando todas as escolhas são **Responder**, Compilar não mostra diff: mostra "O requisito não muda" e o botão vira "Enviar e continuar" (R9).
 - (P4) "Desfazer" fica, por 8 s, e some no primeiro evento da sessão (R10).
 - (P5) "Abrir sessão" usa `Ctrl+O`, que vale também dentro de campos de texto (R6, R12).
-
-## Perguntas em aberto
-
-- P2 · "Dividir a etapa" deve criar requisitos novos na spec (`R3a`, `R3b`) ou só etapas novas na fila, mantendo o R3 único na spec?
-  - Sugestão: no desenvolvimento guiado por spec (GitHub Spec Kit, Kiro), requisitos dizem **o que** deve existir e ficam estáveis. **Como** fazer vira tarefas, numa camada à parte que aponta para o requisito ("_Requirements: 1.2_" no Kiro, `T001…` no Spec Kit).
-    - Dividir a execução, como "migração primeiro, gravação depois", é dividir tarefas. O R3 continua único na spec, e a fila ganha as subetapas `R3.1` e `R3.2`.
-    - As subetapas ficam em `spec_steps` com o texto próprio (`body`), como as etapas `REV<n>` do revisor. Os critérios do R3 são verificados quando a última subetapa termina.
-    - Se a divisão muda o que foi pedido (dois comportamentos diferentes), a opção é **Ajustar o requisito**, que reescreve a spec com o diff.
-    - Com isso, o R7 e o mockup `3-reestruturar.png` passam a mostrar `R3.1` e `R3.2` na fila, sem riscar o R3.
+- (P2) **Dividir a etapa** cria subetapas na fila (`R3.1`, `R3.2`) e não requisitos novos: o requisito diz *o que* e fica estável; as subetapas dizem *como*, como as tarefas no desenvolvimento guiado por spec (GitHub Spec Kit, Kiro). Os critérios do `R3` são verificados quando a última subetapa termina. Mudar o que foi pedido é **Ajustar o requisito** (R7, R10, R16).
