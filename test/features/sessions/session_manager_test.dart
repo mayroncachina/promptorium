@@ -138,11 +138,12 @@ void main() {
         'session_id': id,
       }),
     );
-    await settle();
-    final events = await c.read(sessionsRepoProvider).events(id);
-    expect(
-      events.where((e) => e.type == AppEventTypes.note).last.json,
-      contains('Hook bloqueou `npm publish`'),
+    await until(
+      () async => (await c.read(sessionsRepoProvider).events(id)).any(
+        (e) =>
+            e.type == AppEventTypes.note &&
+            e.json.contains('Hook bloqueou `npm publish`'),
+      ),
     );
     expect(c.read(hookActivityProvider)[ManagedHook.block], isNotNull);
 
@@ -156,8 +157,7 @@ void main() {
     expect(cli.args.last, isNot(contains('--settings')));
 
     await m.stop(id);
-    await settle();
-    expect(Directory(hooks.dirOf(id)).existsSync(), isFalse);
+    await until(() async => !Directory(hooks.dirOf(id)).existsSync());
   });
 
   test('fork carries the parent worktree uncommitted changes (DT-18) and '

@@ -43,7 +43,9 @@ import 'spec_questions_panel_test.dart' show FakeQuestionOptions;
 /// [until] holds (up to 15 s of real time: the full suite runs files in
 /// parallel).
 Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
-  final end = DateTime.now().add(const Duration(seconds: 15));
+  // Each lap moves the real IO a little: with the full suite in parallel a
+  // chain of them passed 20 s.
+  final end = DateTime.now().add(const Duration(seconds: 45));
   for (var i = 0; DateTime.now().isBefore(end); i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),

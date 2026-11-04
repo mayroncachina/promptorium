@@ -413,9 +413,10 @@ status: aprovada
     Future<SpecStage> stage() async =>
         (await c.read(specsRepoProvider).getById(spec.id))!.stage;
 
-    /// Waits (up to 15 s) for [cond]: the gate runs real git / bash.
+    /// Waits (up to 45 s) for [cond]: the gate runs real git / bash, slow
+    /// with the full suite in parallel.
     Future<void> until(Future<bool> Function() cond) async {
-      final end = DateTime.now().add(const Duration(seconds: 15));
+      final end = DateTime.now().add(const Duration(seconds: 45));
       while (!await cond()) {
         if (DateTime.now().isAfter(end)) fail('condição não atingida');
         await Future<void>.delayed(const Duration(milliseconds: 20));
