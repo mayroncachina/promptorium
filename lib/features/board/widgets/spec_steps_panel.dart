@@ -13,6 +13,7 @@ import 'gate_report_view.dart';
 import 'subagent_status.dart';
 import '../board_screen.dart';
 import 'run_spec_dialog.dart';
+import 'step_status_motion.dart';
 
 final _specProvider = StreamProvider.family<Spec?, int>(
   (ref, id) => ref.watch(specsRepoProvider).watchById(id),
@@ -207,7 +208,8 @@ class SpecStepsPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final spec = ref.watch(_specProvider(specId)).value;
     if (spec == null) return const SizedBox.shrink();
-    final rows = ref.watch(_stepRowsProvider(specId)).value ?? const [];
+    final stepRows = ref.watch(_stepRowsProvider(specId));
+    final rows = stepRows.value ?? const [];
     final steps = stepsOf(spec, rows);
     final all = ref.watch(specsProvider(spec.workspaceId)).value ?? const [];
     final sessions = [
@@ -317,11 +319,18 @@ class SpecStepsPanel extends ConsumerWidget {
                   ),
                 )
               : ListView.separated(
+                  // Until the rows load every step reads as pending: what
+                  // they bring, or another spec, is no status change (R9).
+                  key: ValueKey('steps-$specId-${stepRows.hasValue}'),
                   itemCount: steps.length,
                   separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: AppColors.border),
-                  itemBuilder: (_, i) =>
-                      _StepRow(spec: spec, step: steps[i], inDialog: inDialog),
+                  itemBuilder: (_, i) => _StepRow(
+                    key: ValueKey('step-row-${steps[i].id}'),
+                    spec: spec,
+                    step: steps[i],
+                    inDialog: inDialog,
+                  ),
                 ),
         ),
         Builder(
@@ -458,6 +467,7 @@ Future<void> _gateAction(
 
 class _StepRow extends ConsumerWidget {
   const _StepRow({
+    super.key,
     required this.spec,
     required this.step,
     required this.inDialog,
@@ -494,9 +504,10 @@ class _StepRow extends ConsumerWidget {
   Widget _row(BuildContext context, WidgetRef ref) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Dot(stepStatusColor(step.status)),
+      StepStatusDot(
+        key: ValueKey('step-dot-${step.id}'),
+        color: stepStatusColor(step.status),
+        done: step.isDone,
       ),
       const SizedBox(width: 8),
       SizedBox(
@@ -529,10 +540,13 @@ class _StepRow extends ConsumerWidget {
         ),
       ),
       const SizedBox(width: 8),
-      Text(
-        stepStatusLabel(step.status),
-        key: ValueKey('step-status-${step.id}'),
-        style: TextStyle(fontSize: 11, color: stepStatusColor(step.status)),
+      StepColorTransition(
+        color: stepStatusColor(step.status),
+        builder: (_, color) => Text(
+          stepStatusLabel(step.status),
+          key: ValueKey('step-status-${step.id}'),
+          style: TextStyle(fontSize: 11, color: color),
+        ),
       ),
       if (step.sessionId != null)
         IconButton(

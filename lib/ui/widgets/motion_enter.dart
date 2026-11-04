@@ -3,7 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../theme/motion.dart';
 
 /// Fades [child] in while it travels [dy] pixels up to its place (a negative
-/// [dy] comes from above). Runs once, when mounted: a new key starts it over.
+/// [dy] comes from above). Runs once, when mounted: a new key starts it over,
+/// and turning [animate] off midway jumps to the final state.
 /// Only opacity and transform change, and it never blocks input (R12, R13).
 class MotionEnter extends StatefulWidget {
   const MotionEnter({
@@ -46,6 +47,12 @@ class _MotionEnterState extends State<MotionEnter>
       _c.duration = d;
       _c.forward();
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant MotionEnter old) {
+    super.didUpdateWidget(old);
+    if (!widget.animate) _c.value = 1;
   }
 
   @override
