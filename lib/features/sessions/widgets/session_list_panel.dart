@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_pressable.dart';
 import '../../board/widgets/card_extras.dart' show LiveToolLine;
 import '../session_manager.dart';
 import '../sessions_screen.dart' show splitSessionProvider;
@@ -183,135 +184,143 @@ class _SessionTile extends ConsumerWidget {
     );
     final radius = BorderRadius.circular(8);
     final end = session.endedAt ?? DateTime.now();
-    return Material(
-      key: ValueKey('session-tile-${session.id}'),
-      color: selected ? SessionColors.selectedBg : Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: radius,
-        side: BorderSide(
-          color: selected ? SessionColors.selectedBorder : Colors.transparent,
+    return AppPressable(
+      borderRadius: radius,
+      hoverTint: AppPressable.tint,
+      child: Material(
+        key: ValueKey('session-tile-${session.id}'),
+        color: selected ? SessionColors.selectedBg : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(
+            color: selected ? SessionColors.selectedBorder : Colors.transparent,
+          ),
         ),
-      ),
-      child: InkWell(
-        borderRadius: radius,
-        onTap: () =>
-            ref.read(selectedSessionProvider.notifier).select(session.id),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  busy ? BusyDot(look.color) : Dot(look.color),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      sessionTitle(session),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (pane != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
+        child: InkWell(
+          borderRadius: radius,
+          hoverColor: Colors.transparent,
+          onTap: () =>
+              ref.read(selectedSessionProvider.notifier).select(session.id),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    busy ? BusyDot(look.color) : Dot(look.color),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Text(
-                        pane!,
-                        key: ValueKey('session-pane-${session.id}'),
+                        sessionTitle(session),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontFamily: AppFonts.mono,
-                          fontSize: 10,
-                          color: AppColors.amber,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.text,
                         ),
                       ),
                     ),
-                  Text(
-                    formatAge(end.difference(session.startedAt)),
-                    style: const TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  // The selected session is pane A: opening it in B too
-                  // would show nothing new.
-                  if (!selected) ...[
-                    const SizedBox(width: 4),
-                    InkWell(
-                      key: ValueKey('session-split-${session.id}'),
-                      borderRadius: BorderRadius.circular(4),
-                      onTap: () => ref
-                          .read(splitSessionProvider.notifier)
-                          .set(pane == 'B' ? null : session.id),
-                      child: Tooltip(
-                        message: pane == 'B'
-                            ? 'Fechar o painel B'
-                            : 'Abrir ao lado (painel B)',
-                        child: const Padding(
-                          padding: EdgeInsets.all(2),
-                          child: Icon(
-                            Icons.vertical_split_outlined,
-                            size: 14,
-                            color: AppColors.textMuted,
+                    const SizedBox(width: 8),
+                    if (pane != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Text(
+                          pane!,
+                          key: ValueKey('session-pane-${session.id}'),
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 10,
+                            color: AppColors.amber,
                           ),
                         ),
                       ),
+                    Text(
+                      formatAge(end.difference(session.startedAt)),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: DefaultTextStyle.merge(
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          session.agentName ?? 'sem agente',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    // The selected session is pane A: opening it in B too
+                    // would show nothing new.
+                    if (!selected) ...[
+                      const SizedBox(width: 4),
+                      Listener(
+                        onPointerDown: AppPressable.claim,
+                        child: InkWell(
+                          key: ValueKey('session-split-${session.id}'),
+                          borderRadius: BorderRadius.circular(4),
+                          onTap: () => ref
+                              .read(splitSessionProvider.notifier)
+                              .set(pane == 'B' ? null : session.id),
+                          child: Tooltip(
+                            message: pane == 'B'
+                                ? 'Fechar o painel B'
+                                : 'Abrir ao lado (painel B)',
+                            child: const Padding(
+                              padding: EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.vertical_split_outlined,
+                                size: 14,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('·'),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          look.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: look.color),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        formatCost(session.costUsd),
-                        style: const TextStyle(fontFamily: AppFonts.mono),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ),
-              if (alive && busy)
+                const SizedBox(height: 4),
                 Padding(
-                  padding: const EdgeInsets.only(left: 16, top: 2),
-                  child: LiveToolLine(
-                    session: session,
-                    specCode: 'list-${session.id}',
+                  padding: const EdgeInsets.only(left: 16),
+                  child: DefaultTextStyle.merge(
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            session.agentName ?? 'sem agente',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('·'),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            look.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: look.color),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          formatCost(session.costUsd),
+                          style: const TextStyle(fontFamily: AppFonts.mono),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-            ],
+                if (alive && busy)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, top: 2),
+                    child: LiveToolLine(
+                      session: session,
+                      specCode: 'list-${session.id}',
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

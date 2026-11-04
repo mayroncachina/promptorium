@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_pressable.dart';
 
 /// What the list shows for a session (DB status + whether the process lives).
 enum SessionLook {
@@ -128,40 +129,49 @@ class SmallButton extends StatelessWidget {
     );
     final button = Opacity(
       opacity: enabled ? 1 : 0.5,
-      child: Material(
-        color: background,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: border),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          focusColor: focusColor,
-          child: Container(
-            height: height,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            alignment: Alignment.center,
-            width: expand ? double.infinity : null,
-            child: icon == null && trailing == null
-                ? (semanticLabel == null ? text : ExcludeSemantics(child: text))
-                : ExcludeSemantics(
-                    excluding: semanticLabel != null,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(icon, size: 14, color: color),
-                          const SizedBox(width: 6),
+      child: AppPressable(
+        enabled: enabled,
+        borderRadius: radius,
+        hoverTint: AppPressable.tint,
+        hoverBorder: border == AppColors.border ? AppColors.borderHover : null,
+        child: Material(
+          color: background,
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(color: border),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            focusColor: focusColor,
+            hoverColor: Colors.transparent,
+            child: Container(
+              height: height,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              width: expand ? double.infinity : null,
+              child: icon == null && trailing == null
+                  ? (semanticLabel == null
+                        ? text
+                        : ExcludeSemantics(child: text))
+                  : ExcludeSemantics(
+                      excluding: semanticLabel != null,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icon != null) ...[
+                            Icon(icon, size: 14, color: color),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(child: text),
+                          if (trailing != null) ...[
+                            const SizedBox(width: 8),
+                            trailing!,
+                          ],
                         ],
-                        Flexible(child: text),
-                        if (trailing != null) ...[
-                          const SizedBox(width: 8),
-                          trailing!,
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       ),
@@ -198,24 +208,30 @@ class AmberButton extends StatelessWidget {
     final radius = BorderRadius.circular(6);
     return Opacity(
       opacity: onTap == null ? 0.5 : 1,
-      child: Material(
-        color: AppColors.amber,
-        shape: RoundedRectangleBorder(borderRadius: radius),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          child: Container(
-            height: height,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            alignment: Alignment.center,
-            width: expand ? double.infinity : null,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.onAmber,
+      child: AppPressable(
+        enabled: onTap != null,
+        borderRadius: radius,
+        hoverTint: AppPressable.primaryTint,
+        child: Material(
+          color: AppColors.amber,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: radius,
+            hoverColor: Colors.transparent,
+            child: Container(
+              height: height,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              width: expand ? double.infinity : null,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.onAmber,
+                ),
               ),
             ),
           ),
