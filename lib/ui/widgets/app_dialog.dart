@@ -11,6 +11,9 @@ import 'motion_progress.dart';
 /// [AppMotion.baseExit]. Everything else is [showDialog]'s: `Esc`, a click on
 /// the scrim, the trapped focus, the focus handed back and the returned value.
 ///
+/// With [origin], a rect in global coordinates, the dialog grows out of its
+/// centre from [originScale] and leaves the same way (SPEC-033 R2).
+///
 /// It pushes its own route because [showGeneralDialog] has a single duration
 /// for both directions.
 Future<T?> showAppDialog<T>({
@@ -25,6 +28,8 @@ Future<T?> showAppDialog<T>({
   Offset? anchorPoint,
   TraversalEdgeBehavior? traversalEdgeBehavior,
   bool? requestFocus,
+  Rect? origin,
+  double originScale = _enterScale,
 }) {
   assert(debugCheckHasMaterialLocalizations(context));
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
@@ -48,6 +53,9 @@ Future<T?> showAppDialog<T>({
       requestFocus: requestFocus,
       enter: AppMotion.duration(context, AppMotion.emphasis),
       exit: AppMotion.duration(context, AppMotion.emphasisExit),
+      origin: origin,
+      enterScale: origin == null ? _enterScale : originScale,
+      exitScale: origin == null ? _exitScale : originScale,
     ),
   );
 }
@@ -68,6 +76,9 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     required super.builder,
     required this._enter,
     required this._exit,
+    required this.enterScale,
+    required this.exitScale,
+    this.origin,
     super.themes,
     required Color super.barrierColor,
     super.barrierDismissible,
@@ -81,6 +92,9 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
 
   final Duration _enter;
   final Duration _exit;
+  final double enterScale;
+  final double exitScale;
+  final Rect? origin;
 
   late final MotionProgress _dialog;
   late final MotionProgress _scrim;
@@ -110,14 +124,26 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
   }
 
   double get _scale {
-    double scaleAt(double t) => lerpDouble(_enterScale, 1, t)!;
+    double scaleAt(double t) => lerpDouble(enterScale, 1, t)!;
     return _dialog.leaving
         ? lerpDouble(
             scaleAt(_dialog.leftFrom),
-            _exitScale,
+            exitScale,
             _dialog.exitProgress,
           )!
         : scaleAt(_dialog.value);
+  }
+
+  /// Where the dialog scales from: [child] of [buildTransitions] fills the
+  /// screen, so the point of [origin] is a fraction of the screen.
+  Alignment _alignment(BuildContext context) {
+    final centre = origin?.center;
+    final size = MediaQuery.sizeOf(context);
+    if (centre == null || size.isEmpty) return Alignment.center;
+    return Alignment(
+      centre.dx / size.width * 2 - 1,
+      centre.dy / size.height * 2 - 1,
+    );
   }
 
   @override
@@ -147,7 +173,11 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     child: AnimatedBuilder(
       animation: _dialog,
       child: child,
-      builder: (context, child) => Transform.scale(scale: _scale, child: child),
+      builder: (context, child) => Transform.scale(
+        scale: _scale,
+        alignment: _alignment(context),
+        child: child,
+      ),
     ),
   );
 }

@@ -9,6 +9,7 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/motion.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../sessions/session_composer_draft.dart';
 import '../sessions/session_manager.dart';
 import '../specs/workspace_watcher.dart';
 import '../specs/widgets/spec_sync_bar.dart';
@@ -31,7 +32,7 @@ import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
-import 'widgets/step_live_dialog.dart';
+import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
@@ -1387,8 +1388,13 @@ class SpecCard extends ConsumerWidget {
                   total: total,
                   specCode: spec.code,
                   steps: data.steps,
-                  onStep: (s) =>
-                      showStepLiveDialog(context, spec: spec, step: s.id),
+                  onStep: (s, context, focus) => openStep(
+                    context,
+                    spec,
+                    s,
+                    stepOrigin(context),
+                    returnFocus: focus,
+                  ),
                 ),
               ),
               Builder(
@@ -1592,8 +1598,12 @@ class BoardSpecAction extends ConsumerWidget {
   }
 }
 
-/// Selects [sessionId] and goes to Sessões.
-void openSession(WidgetRef ref, String sessionId) {
+/// Selects [sessionId] and goes to Sessões. A non-empty [draft] waits in the
+/// message field, unsent (SPEC-033 R12).
+void openSession(WidgetRef ref, String sessionId, {String? draft}) {
+  if (draft != null && draft.isNotEmpty) {
+    ref.read(sessionComposerDraftProvider.notifier).put(sessionId, draft);
+  }
   ref.read(selectedSessionProvider.notifier).select(sessionId);
   ref.read(navigationProvider.notifier).go(AppSection.sessions);
 }
@@ -1671,8 +1681,9 @@ class _Progress extends StatelessWidget {
   final String specCode;
   final List<StepView> steps;
 
-  /// Tap on a segment (opens the step followed live).
-  final void Function(StepView step)? onStep;
+  /// Tap on a segment (opens the step), with what opens it.
+  final void Function(StepView step, BuildContext context, FocusNode focus)?
+  onStep;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -1694,24 +1705,29 @@ class _Progress extends StatelessWidget {
                     Expanded(
                       child: Tooltip(
                         message: '${s.id} · ${stepStatusLabel(s.status)}',
-                        child: InkWell(
-                          key: ValueKey('board-step-$specCode-${s.id}'),
-                          onTap: onStep == null ? null : () => onStep!(s),
-                          child: Padding(
-                            // Taller than the 5 px bar, so it is easy to hit.
-                            padding: EdgeInsets.fromLTRB(
-                              i == 0 ? 0 : 3,
-                              4,
-                              0,
-                              4,
-                            ),
-                            child: StepColorTransition(
-                              color: stepSegmentColor(s),
-                              builder: (_, color) => Container(
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  borderRadius: BorderRadius.circular(3),
+                        child: StepFocusAnchor(
+                          builder: (context, focus) => InkWell(
+                            key: ValueKey('board-step-$specCode-${s.id}'),
+                            focusNode: focus,
+                            onTap: onStep == null
+                                ? null
+                                : () => onStep!(s, context, focus),
+                            child: Padding(
+                              // Taller than the 5 px bar, so it is easy to hit.
+                              padding: EdgeInsets.fromLTRB(
+                                i == 0 ? 0 : 3,
+                                4,
+                                0,
+                                4,
+                              ),
+                              child: StepColorTransition(
+                                color: stepSegmentColor(s),
+                                builder: (_, color) => Container(
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
                                 ),
                               ),
                             ),

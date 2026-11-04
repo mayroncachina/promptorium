@@ -96,10 +96,12 @@ class SmallButton extends StatelessWidget {
     this.focusColor,
     this.icon,
     this.trailing,
+    this.fontWeight,
   });
 
   final String label;
   final VoidCallback? onTap;
+  final FontWeight? fontWeight;
 
   /// Optional icon before the label and widget after it (`Ctrl+S`).
   final IconData? icon;
@@ -125,7 +127,11 @@ class SmallButton extends StatelessWidget {
       label,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(fontSize: fontSize, color: color),
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      ),
     );
     final button = Opacity(
       opacity: enabled ? 1 : 0.5,
@@ -196,12 +202,14 @@ class AmberButton extends StatelessWidget {
     required this.onTap,
     this.height = 30,
     this.expand = false,
+    this.focusNode,
   });
 
   final String label;
   final VoidCallback? onTap;
   final double height;
   final bool expand;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +225,7 @@ class AmberButton extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: radius),
           child: InkWell(
             onTap: onTap,
+            focusNode: focusNode,
             borderRadius: radius,
             hoverColor: Colors.transparent,
             child: Container(
