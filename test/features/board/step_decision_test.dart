@@ -5,13 +5,21 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
+import 'package:promptorium/core/text/line_diff.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_decision.dart';
+import 'package:promptorium/features/board/step_decision_apply.dart';
+import 'package:promptorium/features/board/step_decision_choices.dart';
+import 'package:promptorium/features/board/step_decision_compiler.dart';
 import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
+import 'package:promptorium/features/specs/spec_answers.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
+import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
 import '../project/project_planner_test.dart' show resultLine;
 import '../sessions/session_test_utils.dart';
@@ -60,7 +68,295 @@ GateReport failedGate({int lines = 60}) => GateReport(
   ],
 );
 
+const compileSpec = '''---
+id: SPEC-001
+status: aprovada
+---
+
+# Extração
+
+## Requisitos
+
+- R1 · Extrair tabelas
+- R2 · Extrair índices
+- R3 · Extrair generators
+  - sem os de sistema
+- R4 · Ligar na CLI
+
+## Design
+
+Nada.
+
+## Critérios de aceite
+
+- [ ] r3.txt existe [R3]
+''';
+
+const stopped = StepView(
+  id: 'R3',
+  text: 'Extrair generators',
+  status: StepStatus.needsInput,
+  sessionId: 's1',
+);
+
+StepDecisionChoice choose(
+  StepDecisionKind kind, {
+  String title = 'Escolha',
+  String change = '',
+  List<String> split = const [],
+  int decision = 0,
+}) => StepDecisionChoice(
+  decision: decision,
+  question: 'Como?',
+  option: StepDecisionOption(
+    title: title,
+    kind: kind,
+    change: change,
+    split: split,
+  ),
+);
+
 void main() {
+  group('Compilar, pure', () {
+    final amend = choose(StepDecisionKind.amend, change: 'Novo texto');
+    final answer = choose(StepDecisionKind.answer);
+    final defer = choose(StepDecisionKind.defer);
+    final split = choose(StepDecisionKind.split, split: ['a', 'b']);
+
+    test('only an amendment or a deferred step need the compiler', () {
+      expect(stepDecisionNeedsCompiler([amend]), isTrue);
+      expect(stepDecisionNeedsCompiler([answer, defer]), isTrue);
+      expect(stepDecisionNeedsCompiler([answer, split]), isFalse);
+      expect(
+        stepDecisionNeedsCompiler([const StepDecisionChoice(decision: 0)]),
+        isFalse,
+      );
+    });
+
+    test('a split has 2 to 4 sub-steps, in decision order, and a sub-step '
+        'does not split', () {
+      expect(stepDecisionSplitProblem(stopped, [answer]), isNull);
+      expect(stepDecisionSplitProblem(stopped, [split]), isNull);
+      final four = choose(
+        StepDecisionKind.split,
+        split: ['c', 'd'],
+        decision: 1,
+      );
+      expect(stepDecisionSplitBodies([split, four]), ['a', 'b', 'c', 'd']);
+      expect(stepDecisionSplitProblem(stopped, [split, four]), isNull);
+      expect(
+        stepDecisionSplitProblem(stopped, [
+          split,
+          four,
+          choose(StepDecisionKind.split, split: ['e', 'f'], decision: 2),
+        ]),
+        contains('são 6 subetapas'),
+      );
+      expect(
+        stepDecisionSplitProblem(stopped, [
+          choose(StepDecisionKind.split, split: ['só uma']),
+        ]),
+        contains('é de 2 a 4'),
+      );
+      expect(
+        stepDecisionSplitProblem(const StepView(id: 'R3.1', text: 'x'), [
+          split,
+        ]),
+        'R3.1 já é uma subetapa',
+      );
+    });
+
+    test('deferRequirement moves the item with its sub-items, keeps the ids '
+        'and the rest of the file', () {
+      final out = deferRequirement(compileSpec, 'R3');
+      final doc = SpecDocument.parse(out);
+      expect(doc.requirements.map((r) => r.id), ['R1', 'R2', 'R4', 'R3']);
+      expect(
+        out,
+        contains(
+          '- R4 · Ligar na CLI\n- R3 · Extrair generators\n'
+          '  - sem os de sistema\n\n## Design',
+        ),
+      );
+      expect(out.length, compileSpec.length);
+      expect(deferRequirement(out, 'R3'), out);
+      expect(deferRequirement(compileSpec, 'R9'), compileSpec);
+    });
+
+    test('with the compiled text, stepsOf sends the deferred step to the '
+        'end of the queue, pending', () {
+      final doc = SpecDocument.parse(deferRequirement(compileSpec, 'R3'));
+      final spec = Spec(
+        id: 1,
+        workspaceId: 1,
+        code: 'SPEC-001',
+        title: 'Extração',
+        status: SpecStatus.approved,
+        path: 'specs/SPEC-001.md',
+        stage: SpecStage.running,
+        requirements: doc.requirements,
+        dependsOn: const [],
+        autoAdvance: true,
+        reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
+      );
+      final steps = stepsOf(spec, const []);
+      expect(steps.map((s) => s.id), ['R1', 'R2', 'R4', 'R3']);
+      expect(steps.last.status, StepStatus.pending);
+    });
+
+    test('parseStepCompilation keeps the id and the status, makes sure of a '
+        'deferred step and never leaves the message empty', () {
+      final data = {
+        'markdown': compileSpec.replaceFirst(
+          'status: aprovada',
+          'status: rascunho',
+        ),
+        'message': '  Siga com o R4.  ',
+      };
+      final out = parseStepCompilation(
+        compileSpec,
+        data,
+        step: stopped,
+        choices: [defer],
+      );
+      expect(SpecDocument.parse(out.after).rawStatus, 'aprovada');
+      expect(SpecDocument.parse(out.after).requirements.last.id, 'R3');
+      expect(out.before, compileSpec);
+      expect(out.message, 'Siga com o R4.');
+      expect(out.changesSpec, isTrue);
+
+      final none = parseStepCompilation(
+        compileSpec,
+        {'markdown': compileSpec, 'message': ''},
+        step: stopped,
+        choices: [amend],
+      );
+      expect(none.changesSpec, isFalse);
+      expect(none.message, contains('Escolha'));
+      expect(
+        () => parseStepCompilation(
+          compileSpec,
+          const {'markdown': ''},
+          step: stopped,
+          choices: [amend],
+        ),
+        throwsA(isA<PlannerException>()),
+      );
+    });
+
+    test('the prompt is the one of the SPEC-028 plus the deferred step; the '
+        'input has the choices, with the change', () {
+      expect(stepDecisionCompilePrompt, startsWith(applyAnswersPrompt));
+      expect(stepDecisionCompilePrompt, contains('para o fim'));
+      expect(stepDecisionCompilePrompt, contains('sem mudar o texto nem o id'));
+      expect(
+        stepDecisionCompilePrompt,
+        contains('Dividir a etapa e Responder'),
+      );
+      expect(stepDecisionCompileSchema['required'], ['markdown', 'message']);
+      final input = stepDecisionCompileInput(
+        specText: compileSpec,
+        step: stopped,
+        choices: [amend, defer],
+      );
+      expect(input, contains('Etapa R3: Extrair generators'));
+      expect(
+        input,
+        contains(
+          '- Como? → Ajustar o requisito: Escolha\n'
+          '  Mudança proposta: Novo texto',
+        ),
+      );
+      expect(input, contains('- Como? → Adiar a etapa: Escolha'));
+      expect(input, contains(compileSpec.trimRight()));
+    });
+
+    test('specDiffRows numbers the lines, the old place for a removed one', () {
+      final rows = specDiffRows('a\nb\nc', 'a\nx\ny\nc');
+      expect(rows, [
+        (op: DiffOp.same, text: 'a', line: 1),
+        (op: DiffOp.del, text: 'b', line: 2),
+        (op: DiffOp.add, text: 'x', line: 2),
+        (op: DiffOp.add, text: 'y', line: 3),
+        (op: DiffOp.same, text: 'c', line: 4),
+      ]);
+      expect(specDiffRows('a\n', 'b\n'), [
+        (op: DiffOp.del, text: 'a', line: 1),
+        (op: DiffOp.add, text: 'b', line: 1),
+      ]);
+    });
+
+    test('specChangeSummary counts requirements, criteria and lines', () {
+      expect(
+        specChangeSummary(
+          compileSpec,
+          compileSpec
+              .replaceFirst('Extrair índices', 'Extrair só índices')
+              .replaceFirst('Ligar na CLI', 'Ligar no app')
+              .replaceFirst('r3.txt existe', 'r3.txt fica'),
+        ),
+        '2 requisitos e 1 critério · +3 −3',
+      );
+      expect(
+        specChangeSummary(compileSpec, deferRequirement(compileSpec, 'R3')),
+        '+1 −1',
+      );
+    });
+
+    test('a stamp changes with the text and with the time', () {
+      final dir = Directory.systemTemp.createTempSync('promptorium-stamp-');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final file = File('${dir.path}/s.md');
+      expect(SpecFileStamp.of(file), isNull);
+      file.writeAsStringSync('a');
+      final at = DateTime(2026);
+      file.setLastModifiedSync(at);
+      final first = SpecFileStamp.of(file);
+      expect(SpecFileStamp.of(file), first);
+      file
+        ..writeAsStringSync('b')
+        ..setLastModifiedSync(at);
+      expect(SpecFileStamp.of(file), isNot(first));
+      file
+        ..writeAsStringSync('a')
+        ..setLastModifiedSync(DateTime(2027));
+      expect(SpecFileStamp.of(file), isNot(first));
+    });
+
+    test('the context of runNext goes into the prompt of the step', () {
+      final spec = Spec(
+        id: 1,
+        workspaceId: 1,
+        code: 'SPEC-001',
+        title: 'Extração',
+        status: SpecStatus.approved,
+        path: 'specs/SPEC-001.md',
+        stage: SpecStage.running,
+        requirements: const [(id: 'R3', text: 'Extrair generators')],
+        dependsOn: const [],
+        autoAdvance: true,
+        reviewRounds: 0,
+        gateResends: 0,
+        rejectedHunks: 0,
+      );
+      String prompt(String? context) => specStepPrompt(
+        spec: spec,
+        specText: compileSpec,
+        steps: const [StepView(id: 'R3', text: 'Extrair generators')],
+        todo: const ['R3'],
+        context: context,
+      );
+      expect(
+        prompt('  Use a tabela nova.\n'),
+        contains('<decisao>\nUse a tabela nova.\n</decisao>'),
+      );
+      expect(prompt(null), isNot(contains('<decisao>')));
+      expect(prompt('  '), isNot(contains('<decisao>')));
+    });
+  });
+
   group('parseStepDecisions', () {
     List<StepDecisionOption> parse(List<Object?> options) =>
         parseStepDecisions({
@@ -659,6 +955,84 @@ void main() {
       });
     });
 
+    group('StepDecisionCompiler', () {
+      StepDecisionCompiler compiler() => c.read(stepDecisionCompilerProvider);
+      final choices = [choose(StepDecisionKind.amend, change: 'Novo')];
+      Map<String, String> answer(String markdown) => {
+        'markdown': markdown,
+        'message': 'Siga.',
+      };
+
+      test(
+        'a read-only run with the schema; the file stays as it was',
+        () async {
+          final run = compiler().compile(spec, step(), choices);
+          await settle();
+          final args = cli.args.single;
+          expect(
+            jsonDecode(flag(args, '--json-schema')),
+            stepDecisionCompileSchema,
+          );
+          expect(
+            flag(args, '--append-system-prompt'),
+            stepDecisionCompilePrompt,
+          );
+          final tools = flag(args, '--tools').split(',');
+          expect(tools, isNot(contains('Write')));
+          expect(tools, isNot(contains('Edit')));
+          expect(prompt(cli.last), contains('Mudança proposta: Novo'));
+          expect(prompt(cli.last), contains(newFormatSpec.trimRight()));
+
+          cli.last.emit(resultLine(answer('$newFormatSpec\nNovo.\n')));
+          final out = await run;
+          expect(out.before, newFormatSpec);
+          expect(out.after, contains('Novo.'));
+          expect(out.message, 'Siga.');
+          expect(file.readAsStringSync(), newFormatSpec);
+        },
+      );
+
+      test('the same choices on the same text do not pay for a new run; '
+          'another text does', () async {
+        final run = compiler().compile(spec, step(), choices);
+        await settle();
+        cli.last.emit(resultLine(answer(newFormatSpec)));
+        await run;
+        await compiler().compile(spec, step(), choices);
+        expect(cli.processes, hasLength(1));
+
+        file.writeAsStringSync('$newFormatSpec\n');
+        final again = compiler().compile(spec, step(), choices);
+        await settle();
+        expect(cli.processes, hasLength(2));
+        cli.last.emit(resultLine(answer(newFormatSpec)));
+        await again;
+      });
+
+      test('a failure is thrown and not kept', () async {
+        final run = compiler().compile(spec, step(), choices);
+        final failed = expectLater(run, throwsA(isA<PlannerException>()));
+        await settle();
+        cli.last.emit(resultLine(const {'markdown': ''}));
+        await failed;
+
+        final again = compiler().compile(spec, step(), choices);
+        await settle();
+        expect(cli.processes, hasLength(2));
+        cli.last.emit(resultLine(answer(newFormatSpec)));
+        await again;
+      });
+
+      test('a spec that is gone starts no run', () async {
+        file.deleteSync();
+        await expectLater(
+          compiler().compile(spec, step(), choices),
+          throwsA(isA<PlannerException>()),
+        );
+        expect(cli.args, isEmpty);
+      });
+    });
+
     group('errors become a result', () {
       test('a run that cannot start; "Tentar de novo" generates', () async {
         cli.failStart = true;
@@ -750,6 +1124,245 @@ void main() {
       await tester.runAsync(settle);
       expect(tester.takeException(), isNull);
       expect(c.read(stepDecisionOptionsProvider), isEmpty);
+    });
+  });
+
+  group('Compilar e continuar, with the real runner', () {
+    late Directory tmp;
+    late FakeCli cli;
+    late ProviderContainer c;
+    late File file;
+    late String first;
+    late Spec spec;
+
+    StepDecisionApplier applier() => c.read(stepDecisionApplierProvider);
+    SessionManagerState sessions() => c.read(sessionManagerProvider);
+
+    Future<Map<String, SpecStep>> rows() async => {
+      for (final r in await c.read(specStepsRepoProvider).bySpec(spec.id))
+        r.step: r,
+    };
+
+    Future<StepDecisionPlan> plan(
+      StepDecisionKind kind, {
+      List<String> split = const [],
+      String? after,
+    }) async => StepDecisionPlan(
+      spec: (await c.read(specsRepoProvider).getById(spec.id))!,
+      step: StepView(
+        id: 'R3',
+        text: 'Extrair generators',
+        status: StepStatus.needsInput,
+        sessionId: first,
+      ),
+      choices: [choose(kind, split: split)],
+      message: 'Decidi assim.',
+      opened: SpecFileStamp.of(file),
+      compiled: after == null
+          ? null
+          : StepCompilation(
+              before: compileSpec,
+              after: after,
+              message: 'Decidi assim.',
+            ),
+    );
+
+    setUp(() async {
+      tmp = Directory.systemTemp.createTempSync('promptorium-continue-');
+      final repo = await createRepo(tmp);
+      file = File('$repo/specs/SPEC-001-extracao.md')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(compileSpec);
+      cli = FakeCli();
+      c = sessionContainer(
+        sessionOverrides(
+          db: memoryDatabase(),
+          cli: cli,
+          notifier: FakeNotifier(),
+          worktreesBase: '${tmp.path}/wt',
+        ),
+      );
+      await c.read(appSettingsProvider.notifier).load();
+      final ws = await c
+          .read(workspacesRepoProvider)
+          .add(path: repo, name: 'r');
+      await c.read(specServiceProvider).sync(ws);
+      spec = (await c.read(specsRepoProvider).getByCode(ws.id, 'SPEC-001'))!;
+      await c.read(specStepsRepoProvider).setAll(spec.id, [
+        'R1',
+        'R2',
+      ], StepStatus.done);
+
+      // The agent stops without the marker: R3 waits, its process alive.
+      first = await c.read(specRunnerProvider).runNext(spec.id);
+      await settle();
+      cli.last.emit(
+        jsonEncode({
+          'type': 'result',
+          'subtype': 'success',
+          'is_error': false,
+          'total_cost_usd': 0.01,
+          'result': 'Qual tabela?',
+        }),
+      );
+      await until(
+        () async => (await rows())['R3']?.status == StepStatus.needsInput,
+      );
+      expect(sessions().isAlive(first), isTrue);
+    });
+
+    tearDown(() {
+      c.dispose();
+      tmp.deleteSync(recursive: true);
+    });
+
+    test('Ajustar goes to the live session and the step runs again', () async {
+      final oldProcess = cli.last;
+      final undo = await applier().continueStep(
+        await plan(
+          StepDecisionKind.amend,
+          after: compileSpec.replaceFirst('generators', 'geradores'),
+        ),
+      );
+      await settle();
+      expect(undo.sessionId, first);
+      expect(cli.processes, hasLength(1));
+      expect(
+        oldProcess.writtenJson.last['message']['content'],
+        'Decidi assim.',
+      );
+      expect((await rows())['R3']!.status, StepStatus.running);
+      expect(file.readAsStringSync(), contains('geradores'));
+      expect(
+        (await c.read(specsRepoProvider).getById(spec.id))!.status,
+        SpecStatus.approved,
+      );
+    });
+
+    test(
+      'Dividir ends the session without a word to it: R3.1 runs in a new '
+      'one, with the message, and a late marker of R3 cannot close it',
+      () async {
+        final oldProcess = cli.last;
+        final sent = oldProcess.writtenJson.length;
+        final undo = await applier().continueStep(
+          await plan(StepDecisionKind.split, split: ['Ler', 'Gravar']),
+        );
+        await settle();
+
+        expect(oldProcess.writtenJson, hasLength(sent));
+        expect(sessions().isAlive(first), isFalse);
+        expect(cli.processes, hasLength(2));
+        expect(undo.sessionId, isNot(first));
+        final session = await c
+            .read(sessionsRepoProvider)
+            .getById(undo.sessionId);
+        expect(session!.steps, 'R3.1');
+        final prompt = cli.last.writtenJson.single['message']['content'];
+        expect(prompt, contains('<decisao>\nDecidi assim.\n</decisao>'));
+        expect(prompt, contains('- [ ] R3.1 · Ler (agora)'));
+        final all = await rows();
+        expect(all['R3']!.status, StepStatus.pending);
+        expect(all['R3.1']!.status, StepStatus.running);
+        expect(all['R3.2']!.status, StepStatus.pending);
+        expect(file.readAsStringSync(), compileSpec);
+      },
+    );
+
+    test('Desfazer of a split stops the new session and restores the rows '
+        'as they were', () async {
+      final before = await rows();
+      final undo = await applier().continueStep(
+        await plan(StepDecisionKind.split, split: ['Ler', 'Gravar']),
+      );
+      await settle();
+      expect(sessions().isAlive(undo.sessionId), isTrue);
+
+      await applier().undo(undo);
+      await settle();
+      expect(sessions().isAlive(undo.sessionId), isFalse);
+      final session = await c
+          .read(sessionsRepoProvider)
+          .getById(undo.sessionId);
+      expect(session!.status, SessionStatus.stopped);
+      final after = await rows();
+      expect(after.keys, unorderedEquals(before.keys));
+      expect(after['R3']!.status, StepStatus.needsInput);
+      expect(after['R3']!.sessionId, first);
+      expect(after['R3']!.startSha, before['R3']!.startSha);
+    });
+
+    test('Adiar sends the next step to a new session; the deferred one is '
+        'pending at the end of the queue', () async {
+      final oldProcess = cli.last;
+      final sent = oldProcess.writtenJson.length;
+      final undo = await applier().continueStep(
+        await plan(
+          StepDecisionKind.defer,
+          after: deferRequirement(compileSpec, 'R3'),
+        ),
+      );
+      await settle();
+
+      expect(oldProcess.writtenJson, hasLength(sent));
+      expect(sessions().isAlive(first), isFalse);
+      final session = await c
+          .read(sessionsRepoProvider)
+          .getById(undo.sessionId);
+      expect(session!.steps, 'R4');
+      expect(
+        cli.last.writtenJson.single['message']['content'],
+        contains('Decidi assim.'),
+      );
+      final now = (await c.read(specsRepoProvider).getById(spec.id))!;
+      final steps = stepsOf(now, (await rows()).values);
+      expect(steps.map((s) => s.id), ['R1', 'R2', 'R4', 'R3']);
+      expect(steps.last.status, StepStatus.pending);
+
+      await applier().undo(undo);
+      await settle();
+      expect(file.readAsStringSync(), compileSpec);
+      final back = (await c.read(specsRepoProvider).getById(spec.id))!;
+      expect(back.requirements.map((r) => r.id), ['R1', 'R2', 'R3', 'R4']);
+      expect((await rows())['R3']!.status, StepStatus.needsInput);
+    });
+
+    test(
+      'R11 at the last moment: a file that changed stops everything',
+      () async {
+        final p = await plan(
+          StepDecisionKind.amend,
+          after: compileSpec.replaceFirst('generators', 'geradores'),
+        );
+        file.writeAsStringSync('$compileSpec\n');
+        await expectLater(
+          applier().continueStep(p),
+          throwsA(isA<StepDecisionConflict>()),
+        );
+        expect(file.readAsStringSync(), '$compileSpec\n');
+        expect((await rows())['R3']!.status, StepStatus.needsInput);
+      },
+    );
+
+    test('SpecStepsRepo.restore leaves exactly the rows given', () async {
+      final repo = c.read(specStepsRepoProvider);
+      final before = await repo.bySpec(spec.id);
+      await repo.addSubSteps(spec.id, 'R3', ['a', 'b']);
+      await repo.set(spec.id, 'R4', StepStatus.running);
+      await repo.restore(spec.id, before);
+      final after = await repo.bySpec(spec.id);
+      expect(after, unorderedEquals(before));
+    });
+
+    test('the choices go with the stop and come back with Desfazer', () async {
+      final p = await plan(StepDecisionKind.answer);
+      final key = stepDecisionChoiceKey(spec.id, p.step);
+      c.read(stepDecisionChoicesProvider.notifier).set(key, p.choices.single);
+      final undo = await applier().continueStep(p);
+      await settle();
+      expect(c.read(stepDecisionChoicesProvider)[key], isNull);
+      await applier().undo(undo);
+      expect(c.read(stepDecisionChoicesProvider)[key], hasLength(1));
     });
   });
 }

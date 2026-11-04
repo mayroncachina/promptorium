@@ -15,7 +15,9 @@ import '../../sessions/session_manager.dart';
 import '../board_rules.dart';
 import '../board_screen.dart' show openSession, specStepsProvider;
 import '../step_decision.dart';
+import '../step_decision_apply.dart';
 import '../step_decision_choices.dart';
+import '../step_decision_compiler.dart';
 import 'duel_dialog.dart' show openDuelsProvider, showDuelDialog;
 import 'spec_canvas.dart' show attentionPulsePeriod;
 import 'step_decision_chrome.dart';
@@ -28,6 +30,7 @@ export 'step_decision_compile.dart'
     show
         StepDecisionCompileBuilder,
         StepDecisionCompileRequest,
+        StepDecisionUndoToast,
         buildStepDecisionCompile;
 export 'step_decision_preview.dart' show StepDecisionPreview;
 
@@ -191,6 +194,9 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
   late final StepDecisionOptions _options;
   late final StepDecisionChoices _choices;
 
+  /// The spec file when the modal opened (R11).
+  late final Future<SpecFileStamp?> _opened;
+
   /// Keeps the focus inside and sees every key, even when no row has it (a
   /// click outside a text field leaves the focus on this scope).
   final _root = FocusScopeNode(debugLabel: 'decisão', skipTraversal: true);
@@ -212,6 +218,10 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
   var _motionReady = false;
 
   var _phase = StepDecisionPhase.deciding;
+
+  /// The choices that went to Compilar: they are forgotten before the modal
+  /// finishes closing, and it must not show that.
+  List<StepDecisionChoice> _reviewed = const [];
   var _index = 0;
   var _otherOpen = false;
 
@@ -222,8 +232,7 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
   Spec get _spec => widget.spec;
   StepView get _step => widget.step;
   StepDecisionTarget get _target => (_spec.id, _step.id);
-  StepDecisionChoiceKey get _key =>
-      (_step.sessionId ?? 'spec-${_spec.id}', _step.id);
+  StepDecisionChoiceKey get _key => stepDecisionChoiceKey(_spec.id, _step);
 
   StepDecisionState get _state => ref.read(stepDecisionProvider(_target));
   List<StepDecision> get _decisions =>
@@ -287,6 +296,7 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
     super.initState();
     _options = ref.read(stepDecisionOptionsProvider.notifier);
     _choices = ref.read(stepDecisionChoicesProvider.notifier);
+    _opened = ref.read(stepDecisionApplierProvider).stamp(_spec);
     unawaited(_options.generate(_spec, _step));
     if (_state.result case final result? when result.error == null) {
       _showDecisions();
@@ -485,7 +495,7 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
 
   void _close() {
     _advance?.cancel();
-    unawaited(Navigator.of(context).maybePop());
+    if (mounted) unawaited(Navigator.of(context).maybePop());
   }
 
   /// The way to the Compilar phase (R9), which [StepDecisionDialog.compileBuilder]
@@ -495,7 +505,10 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
       _submit.fire();
     } else if (_missing == 0) {
       _advance?.cancel();
-      setState(() => _phase = StepDecisionPhase.compile);
+      setState(() {
+        _phase = StepDecisionPhase.compile;
+        _reviewed = _answers;
+      });
       _keepFocus();
     }
   }
@@ -558,8 +571,8 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
   }
 
   /// Keys of the "Outra resposta" field: `Enter` confirms (`Shift+Enter` is a
-  /// new line) and `↑` at the start goes back to the options. The T4 message
-  /// field keeps them all.
+  /// new line) and `↑` at the start goes back to the options. The message
+  /// field of the Compilar phase keeps them all.
   KeyEventResult _onFieldKey(bool Function(SingleActivator) on) {
     if (!_otherField.hasFocus) return KeyEventResult.ignored;
     if (_enterKeys.any(on)) {
@@ -597,6 +610,7 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
     ref.watch(stepDecisionChoicesProvider.select((m) => m[_key]));
     final size = MediaQuery.sizeOf(context);
     final number = stepNumber(_step.id);
+    final compiling = _phase == StepDecisionPhase.compile;
     return Semantics(
       role: SemanticsRole.dialog,
       scopesRoute: true,
@@ -637,25 +651,24 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
                     total: _total,
                     pulse: _pulse,
                     onClose: _close,
+                    ready: compiling ? stepDecisionReady(_reviewed) : null,
                   ),
                   Expanded(
-                    child: _phase == StepDecisionPhase.compile
+                    child: compiling
                         ? widget.compileBuilder(context, _compileRequest(state))
                         : _body(state, size),
                   ),
-                  StepDecisionFooter(
-                    status: state.status,
-                    deciding: _phase == StepDecisionPhase.deciding,
-                    missing: _missing,
-                    otherOpen: _otherOpen,
-                    showKeys: size.width >= _keysMinWidth,
-                    onRetry: () => _options.retry(_spec, _step),
-                    onOther: _openOther,
-                    onOpenSession: _step.sessionId == null
-                        ? null
-                        : _openSession,
-                    onCompile: _compile,
-                  ),
+                  if (!compiling)
+                    StepDecisionFooter(
+                      status: state.status,
+                      missing: _missing,
+                      otherOpen: _otherOpen,
+                      showKeys: size.width >= _keysMinWidth,
+                      onRetry: () => _options.retry(_spec, _step),
+                      onOther: _openOther,
+                      onOpenSession: _sessionAction,
+                      onCompile: _compile,
+                    ),
                 ],
               ),
             ),
@@ -671,12 +684,17 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
         step: _step,
         summary: state.result?.summary ?? '',
         decisions: _decisions,
-        choices: _answers,
+        choices: _reviewed,
         onBack: _back,
         onChange: _goTo,
         onClose: _close,
         onSubmit: _submit,
+        opened: _opened,
+        onOpenSession: _sessionAction,
       );
+
+  VoidCallback? get _sessionAction =>
+      _step.sessionId == null ? null : _openSession;
 
   Widget _body(StepDecisionState state, Size size) => Row(
     crossAxisAlignment: CrossAxisAlignment.stretch,

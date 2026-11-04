@@ -642,7 +642,12 @@ class StepDecisionRowsSkeleton extends StatelessWidget {
 
 /// "A IA está lendo a sessão…" with the time since it was mounted (R14).
 class StepDecisionGenerating extends StatefulWidget {
-  const StepDecisionGenerating({super.key});
+  const StepDecisionGenerating({
+    super.key,
+    this.label = 'A IA está lendo a sessão…',
+  });
+
+  final String label;
 
   @override
   State<StepDecisionGenerating> createState() => _StepDecisionGeneratingState();
@@ -672,12 +677,16 @@ class _StepDecisionGeneratingState extends State<StepDecisionGenerating> {
     children: [
       const Icon(Icons.auto_awesome, size: 14, color: AppColors.lilac),
       const SizedBox(width: 8),
-      Semantics(
-        liveRegion: true,
-        child: const Text(
-          'A IA está lendo a sessão…',
-          key: ValueKey('step-decision-generating'),
-          style: TextStyle(fontSize: 13, color: AppColors.text),
+      Flexible(
+        flex: 3,
+        child: Semantics(
+          liveRegion: true,
+          child: Text(
+            widget.label,
+            key: const ValueKey('step-decision-generating'),
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: AppColors.text),
+          ),
         ),
       ),
       const SizedBox(width: 6),
@@ -703,11 +712,18 @@ class _StepDecisionGeneratingState extends State<StepDecisionGenerating> {
   );
 }
 
-/// "Falha ao gerar" (R14).
+/// "Falha ao gerar" (R14), and the failures of the Compilar phase.
 class StepDecisionFailure extends StatelessWidget {
-  const StepDecisionFailure({super.key, required this.reason});
+  const StepDecisionFailure({
+    super.key,
+    required this.reason,
+    this.lead = 'Não consegui propor opções',
+  });
 
   final String reason;
+
+  /// What failed, before the colon.
+  final String lead;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -730,7 +746,7 @@ class StepDecisionFailure extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Não consegui propor opções: $reason',
+              '$lead: $reason',
               key: const ValueKey('step-decision-failure'),
               style: const TextStyle(
                 fontSize: 13,
@@ -750,10 +766,12 @@ class StepDecisionSummary extends StatelessWidget {
   const StepDecisionSummary({
     super.key,
     required this.summary,
-    required this.loading,
+    this.title = 'O que aconteceu',
+    this.loading = false,
   });
 
   final String summary;
+  final String title;
   final bool loading;
 
   @override
@@ -768,9 +786,9 @@ class StepDecisionSummary extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'O que aconteceu',
-          style: TextStyle(
+        Text(
+          title,
+          style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: AppColors.text,

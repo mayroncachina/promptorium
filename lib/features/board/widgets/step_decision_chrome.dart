@@ -20,6 +20,7 @@ class StepDecisionHeader extends StatelessWidget {
     required this.total,
     required this.pulse,
     required this.onClose,
+    this.ready,
   });
 
   final Spec spec;
@@ -31,6 +32,9 @@ class StepDecisionHeader extends StatelessWidget {
   /// The single pulse of the bubble (R2); null without animations.
   final Animation<double>? pulse;
   final VoidCallback onClose;
+
+  /// In the Compilar phase, what takes the place of "O que aconteceu".
+  final String? ready;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -116,13 +120,15 @@ class StepDecisionHeader extends StatelessWidget {
 
   List<Widget> _summary() {
     final summary = state.result?.summary ?? '';
-    final Widget? child = step.gateFailed
+    final Widget? child = ready != null
+        ? StepDecisionSummary(title: 'Pronto para compilar', summary: ready!)
+        : step.gateFailed
         ? StepDecisionGateSummary(stepId: step.id, report: step.gate!)
         : state.status == StepDecisionStatus.loading
         ? const StepDecisionSummary(summary: '', loading: true)
         : summary.isEmpty
         ? null
-        : StepDecisionSummary(summary: summary, loading: false);
+        : StepDecisionSummary(summary: summary);
     return [
       if (child != null) ...[
         const SizedBox(height: 10),
@@ -155,13 +161,38 @@ class StepDecisionHeader extends StatelessWidget {
   );
 }
 
-/// Bottom of the modal: the keys (R6), "Abrir sessão" (R12) and, by state,
-/// "Tentar de novo", "Outra resposta" (R14) and "Compilar".
+/// "Abrir sessão" (R12), the same in the two bars of the modal.
+class StepDecisionSessionButton extends StatelessWidget {
+  const StepDecisionSessionButton({super.key, required this.onTap});
+
+  /// Null when the step has no session.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = IntrinsicWidth(
+      child: SmallButton(
+        key: const ValueKey('step-decision-open-session'),
+        label: 'Abrir sessão',
+        height: 34,
+        fontSize: 13,
+        background: AppColors.surfaceRaised,
+        icon: Icons.group_outlined,
+        trailing: const StepKbd('Ctrl+O'),
+        onTap: onTap,
+      ),
+    );
+    if (onTap != null) return button;
+    return Tooltip(message: 'Esta etapa ainda não tem sessão', child: button);
+  }
+}
+
+/// Bottom of the modal while deciding: the keys (R6), "Abrir sessão" (R12)
+/// and, by state, "Tentar de novo", "Outra resposta" (R14) and "Compilar".
 class StepDecisionFooter extends StatelessWidget {
   const StepDecisionFooter({
     super.key,
     required this.status,
-    required this.deciding,
     required this.missing,
     required this.otherOpen,
     required this.showKeys,
@@ -172,9 +203,6 @@ class StepDecisionFooter extends StatelessWidget {
   });
 
   final StepDecisionStatus status;
-
-  /// False in the Compilar phase, which has its own buttons.
-  final bool deciding;
 
   /// Decisions still without an answer.
   final int missing;
@@ -190,18 +218,6 @@ class StepDecisionFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ready = status == StepDecisionStatus.ready;
-    final session = IntrinsicWidth(
-      child: SmallButton(
-        key: const ValueKey('step-decision-open-session'),
-        label: 'Abrir sessão',
-        height: 34,
-        fontSize: 13,
-        background: AppColors.surfaceRaised,
-        icon: Icons.group_outlined,
-        trailing: const StepKbd('Ctrl+O'),
-        onTap: onOpenSession,
-      ),
-    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: const BoxDecoration(
@@ -212,7 +228,7 @@ class StepDecisionFooter extends StatelessWidget {
         children: [
           Expanded(
             flex: 2,
-            child: showKeys && deciding ? const _KeyLegend() : const SizedBox(),
+            child: showKeys ? const _KeyLegend() : const SizedBox(),
           ),
           const SizedBox(width: 12),
           // Wraps instead of overflowing in a narrow window.
@@ -224,7 +240,7 @@ class StepDecisionFooter extends StatelessWidget {
               spacing: 8,
               runSpacing: 6,
               children: [
-                if (deciding && status == StepDecisionStatus.failed)
+                if (status == StepDecisionStatus.failed)
                   IntrinsicWidth(
                     child: AmberButton(
                       key: const ValueKey('step-decision-retry'),
@@ -233,9 +249,7 @@ class StepDecisionFooter extends StatelessWidget {
                       onTap: onRetry,
                     ),
                   ),
-                if (deciding &&
-                    status == StepDecisionStatus.loading &&
-                    !otherOpen)
+                if (status == StepDecisionStatus.loading && !otherOpen)
                   IntrinsicWidth(
                     child: SmallButton(
                       key: const ValueKey('step-decision-other-button'),
@@ -247,14 +261,8 @@ class StepDecisionFooter extends StatelessWidget {
                       onTap: onOther,
                     ),
                   ),
-                if (onOpenSession != null)
-                  session
-                else
-                  Tooltip(
-                    message: 'Esta etapa ainda não tem sessão',
-                    child: session,
-                  ),
-                if (deciding && ready && missing > 0)
+                StepDecisionSessionButton(onTap: onOpenSession),
+                if (ready && missing > 0)
                   Text(
                     missing == 1
                         ? 'Falta 1 decisão'
@@ -265,7 +273,7 @@ class StepDecisionFooter extends StatelessWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
-                if (deciding && (ready || missing == 0))
+                if (ready || missing == 0)
                   IntrinsicWidth(
                     child: SmallButton(
                       key: const ValueKey('step-decision-compile-button'),
@@ -292,9 +300,9 @@ class StepDecisionFooter extends StatelessWidget {
 
 /// The keys of the modal (R6).
 class _KeyLegend extends StatelessWidget {
-  const _KeyLegend();
+  const _KeyLegend({this.keys = _deciding});
 
-  static const _keys = [
+  static const _deciding = [
     ('1–4', 'escolher'),
     ('5', 'outra'),
     ('↑↓', 'mover'),
@@ -302,6 +310,8 @@ class _KeyLegend extends StatelessWidget {
     ('⌫', 'voltar'),
     ('Esc', 'fechar'),
   ];
+
+  final List<(String, String)> keys;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -312,7 +322,7 @@ class _KeyLegend extends StatelessWidget {
       spacing: 10,
       runSpacing: 6,
       children: [
-        for (final (key, label) in _keys)
+        for (final (key, label) in keys)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -330,4 +340,13 @@ class _KeyLegend extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// The keys of the Compilar phase that its buttons do not show.
+class StepDecisionCompileKeys extends StatelessWidget {
+  const StepDecisionCompileKeys({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      const _KeyLegend(keys: [('⌫', 'voltar'), ('Esc', 'fechar')]);
 }

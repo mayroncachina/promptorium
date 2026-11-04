@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'board_rules.dart';
 import 'step_decision.dart';
 
 /// What the person chose for one decision of a stop (SPEC-033 R8).
@@ -46,6 +47,9 @@ class StepDecisionChoice {
 /// uses `spec-<id>`, so that `R1` of two specs do not share them.
 typedef StepDecisionChoiceKey = (String sessionId, String step);
 
+StepDecisionChoiceKey stepDecisionChoiceKey(int specId, StepView step) =>
+    (step.sessionId ?? 'spec-$specId', step.id);
+
 /// The choices of each stop while the app is open: closing and reopening the
 /// modal does not lose them (R8). The list is in decision order.
 class StepDecisionChoices
@@ -74,7 +78,7 @@ class StepDecisionChoices
     state = left.isEmpty ? ({...state}..remove(key)) : {...state, key: left};
   }
 
-  /// The stop is over: Compilar (T4) forgets its choices.
+  /// The stop is over: Compilar forgets its choices.
   void clear(StepDecisionChoiceKey key) {
     if (state.containsKey(key)) state = {...state}..remove(key);
   }
