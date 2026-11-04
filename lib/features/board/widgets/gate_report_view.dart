@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../step_gate.dart';
 
 /// `✓ commit · ✓ testes · ✗ lint`; a tap opens [showGateReportDialog].
@@ -43,7 +44,7 @@ class GateChips extends StatelessWidget {
 Future<void> showGateReportDialog(
   BuildContext context,
   GateReport report,
-) => showDialog<void>(
+) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (context) => Dialog(

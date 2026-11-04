@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../autopilot.dart';
 
 /// "Agendar Autopilot" (F17): time of day and budget of that run.
@@ -9,7 +10,7 @@ Future<void> showScheduleDialog(
   BuildContext context,
   WidgetRef ref,
   int workspaceId,
-) => showDialog<void>(
+) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _ScheduleDialog(workspaceId: workspaceId),

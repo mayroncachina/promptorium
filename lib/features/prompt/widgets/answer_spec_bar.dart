@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_icon.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../project/project_config.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
@@ -67,7 +69,7 @@ String _savedKey(Conversation c, String markdown) =>
 void _snack(BuildContext context, String msg) {
   ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+    ..showAppToast(SnackBar(content: Text(msg)));
 }
 
 void openSpecInSpecs(WidgetRef ref, Spec spec) {
@@ -353,7 +355,7 @@ Future<void> showAnswerSpecPreview(
 ) async {
   final t = await ref.read(answerSpecTargetProvider((c, spec.id)).future);
   if (!context.mounted) return;
-  final r = await showDialog<_PreviewResult>(
+  final r = await showAppDialog<_PreviewResult>(
     context: context,
     builder: (_) => _AnswerSpecPreview(spec: spec, info: t),
   );

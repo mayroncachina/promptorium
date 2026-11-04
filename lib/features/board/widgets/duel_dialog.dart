@@ -5,6 +5,7 @@ import '../../../core/git/diff_parser.dart';
 import '../../../core/git/git_service.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../review/review_logic.dart';
 import '../../review/review_service.dart' show ReviewDraft;
 import '../../review/widgets/review_all_files.dart';
@@ -35,7 +36,7 @@ final _attemptDiffProvider = FutureProvider.autoDispose
 /// "Comparar A/B" (F15): the gate, the files and the diff of each attempt;
 /// the chosen one goes into the spec's branch.
 Future<void> showDuelDialog(BuildContext context, SpecDuel duel) =>
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (_) => _DuelDialog(duel: duel),

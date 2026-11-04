@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../agents/agent_repository.dart' show agentHomeProvider;
 import '../../agents/widgets/agent_style.dart'
     show FieldLabel, TogglePill, agentFieldDecoration;
@@ -14,7 +15,7 @@ import '../mcp_state.dart';
 /// "Adicionar servidor": runs `claude mcp add` (never edits the JSON files).
 /// Returns the new server's name.
 Future<String?> showAddMcpServerDialog(BuildContext context) =>
-    showDialog<String>(
+    showAppDialog<String>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (_) => const AddMcpServerDialog(),

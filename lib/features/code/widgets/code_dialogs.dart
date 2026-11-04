@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../review/widgets/review_dialogs.dart' show ReviewDialogFrame;
 import '../../sessions/widgets/session_style.dart';
@@ -15,7 +16,7 @@ Future<String?> showPathDialog(
   required String label,
   String initial = '',
   String action = 'Criar',
-}) => showDialog<String>(
+}) => showAppDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) =>
@@ -120,7 +121,7 @@ Future<bool> showConfirmDialog(
   required String message,
   String action = 'Excluir',
 }) async =>
-    await showDialog<bool>(
+    await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => ReviewDialogFrame(
@@ -160,7 +161,7 @@ Future<UnsavedChoice> showUnsavedDialog(
   BuildContext context,
   String name,
 ) async =>
-    await showDialog<UnsavedChoice>(
+    await showAppDialog<UnsavedChoice>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => ReviewDialogFrame(
@@ -197,7 +198,7 @@ Future<UnsavedChoice> showUnsavedDialog(
 
 /// "Ir para arquivo" (Ctrl+P): fuzzy search over [files]. Returns the path.
 Future<String?> showGoToFileDialog(BuildContext context, List<String> files) =>
-    showDialog<String>(
+    showAppDialog<String>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (_) => _GoToFile(files: files),

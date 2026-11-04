@@ -7,6 +7,7 @@ import '../../core/providers/agent_registry.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_icon.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../sessions/session_manager.dart' show PendingApproval;
 import '../sessions/timeline.dart';
 import '../sessions/widgets/session_style.dart';
@@ -57,7 +58,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   void _snack(String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   void _addFiles(Iterable<String> paths) {
@@ -277,7 +278,7 @@ class _Header extends ConsumerWidget {
   void _snack(BuildContext context, String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   Future<void> _toSpec(BuildContext context, WidgetRef ref) async {
@@ -437,7 +438,7 @@ class _Conversation extends ConsumerWidget {
   void _snack(BuildContext context, String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   @override

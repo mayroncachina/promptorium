@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_pressable.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart' show specStatusLabel;
 import 'spec_action_banner.dart' show ActionSpinner;
@@ -767,48 +768,53 @@ class _SpecActionButtonState extends State<SpecActionButton>
           button: true,
           enabled: enabled,
           label: a.label,
-          child: Material(
-            color: bg,
-            animationDuration: reduced
-                ? Duration.zero
-                : const Duration(milliseconds: 120),
-            shape: RoundedRectangleBorder(borderRadius: radius, side: side),
-            child: InkWell(
-              onTap: a.onTap,
-              onFocusChange: onFocus,
-              borderRadius: radius,
-              focusColor: (primary ? AppColors.onAmber : AppColors.amber)
-                  .withValues(alpha: .25),
-              hoverColor: Colors.white.withValues(alpha: .12),
-              highlightColor: Colors.black.withValues(alpha: .12),
-              splashFactory: reduced ? NoSplash.splashFactory : null,
-              child: Container(
-                height: _buttonHeight,
-                padding: const EdgeInsets.symmetric(horizontal: _buttonPad),
-                alignment: Alignment.center,
-                child: ExcludeSemantics(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (busy)
-                        DelayedProgress(
-                          key: const ValueKey('spec-action-progress'),
-                          placeholder: Icon(a.icon, size: 16, color: fg),
-                        )
-                      else
-                        Icon(a.icon, size: 16, color: fg),
-                      const SizedBox(width: _iconGap),
-                      Text(
-                        a.label,
-                        maxLines: 1,
-                        softWrap: false,
-                        style: TextStyle(
-                          fontSize: _actionFont,
-                          fontWeight: primary ? FontWeight.w600 : null,
-                          color: fg,
+          child: AppPressable(
+            enabled: enabled,
+            borderRadius: radius,
+            hoverTint: Colors.white.withValues(alpha: .12),
+            child: Material(
+              color: bg,
+              animationDuration: reduced
+                  ? Duration.zero
+                  : const Duration(milliseconds: 120),
+              shape: RoundedRectangleBorder(borderRadius: radius, side: side),
+              child: InkWell(
+                onTap: a.onTap,
+                onFocusChange: onFocus,
+                borderRadius: radius,
+                focusColor: (primary ? AppColors.onAmber : AppColors.amber)
+                    .withValues(alpha: .25),
+                hoverColor: Colors.transparent,
+                highlightColor: Colors.black.withValues(alpha: .12),
+                splashFactory: reduced ? NoSplash.splashFactory : null,
+                child: Container(
+                  height: _buttonHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: _buttonPad),
+                  alignment: Alignment.center,
+                  child: ExcludeSemantics(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (busy)
+                          DelayedProgress(
+                            key: const ValueKey('spec-action-progress'),
+                            placeholder: Icon(a.icon, size: 16, color: fg),
+                          )
+                        else
+                          Icon(a.icon, size: 16, color: fg),
+                        const SizedBox(width: _iconGap),
+                        Text(
+                          a.label,
+                          maxLines: 1,
+                          softWrap: false,
+                          style: TextStyle(
+                            fontSize: _actionFont,
+                            fontWeight: primary ? FontWeight.w600 : null,
+                            color: fg,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

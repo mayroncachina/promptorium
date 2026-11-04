@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/agent_names.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_file.dart' show SpecSubagent;
@@ -230,7 +231,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _saved = c;
       ref.invalidate(projectConfigProvider);
       ref.invalidate(hasExistingCodeProvider);
-      messenger?.showSnackBar(
+      messenger?.showAppToast(
         const SnackBar(
           content: Text(
             'Configuração salva em .promptorium/config.yml '

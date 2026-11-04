@@ -1,0 +1,88 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-04T15:10:00Z"
+ },
+ "title": "Promptorium · Motion e fluidez",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Ritmo: durações e curvas",
+   "is_interactive": true
+  },
+  "Navegacao.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Troca de seção",
+   "is_interactive": true
+  },
+  "Dialogos.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 820,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Diálogos e toasts",
+   "is_interactive": true
+  },
+  "Hover.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 820,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Hover, press e foco",
+   "is_interactive": true
+  },
+  "Quadro.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1640,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Card muda de coluna",
+   "is_interactive": true
+  },
+  "Sessao.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1640,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Timeline e etapas",
+   "is_interactive": true
+  },
+  "Carregando.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 2460,
+   "w": 1100,
+   "h": 700,
+   "title": "6 · Carregamento da spec",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Navegacao.dc.html",
+  "Dialogos.dc.html",
+  "Hover.dc.html",
+  "Quadro.dc.html",
+  "Sessao.dc.html",
+  "Carregando.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

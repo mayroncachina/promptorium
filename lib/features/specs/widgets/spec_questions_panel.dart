@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/text/line_diff.dart';
 import '../../../data/providers.dart';
+import '../../../ui/theme/app_theme.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_pressable.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../spec_answers.dart';
 import '../spec_file.dart';
@@ -956,7 +958,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     final primary = FilledButton.styleFrom(
       backgroundColor: AppColors.amber,
       foregroundColor: AppColors.onAmber,
-    );
+    ).copyWith(overlayColor: AppTheme.filledOverlay);
     const bold = TextStyle(fontWeight: FontWeight.w600);
     return switch (_stage) {
       _Stage.question => _bar(
@@ -976,12 +978,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             icon: const Icon(Icons.schedule, size: 16),
             label: const Text('Deixar para depois'),
           ),
-          FilledButton.icon(
-            key: const ValueKey('spec-questions-next'),
-            onPressed: _next,
-            style: primary,
-            icon: const Icon(Icons.chevron_right, size: 18),
-            label: const Text('Próxima', style: bold),
+          AppPressable(
+            child: FilledButton.icon(
+              key: const ValueKey('spec-questions-next'),
+              onPressed: _next,
+              style: primary,
+              icon: const Icon(Icons.chevron_right, size: 18),
+              label: const Text('Próxima', style: bold),
+            ),
           ),
         ],
       ),
@@ -995,18 +999,21 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
           ),
         ],
         [
-          FilledButton.icon(
-            key: const ValueKey('spec-questions-apply'),
-            onPressed: _stage == _Stage.review && _answeredCount > 0
-                ? _apply
-                : null,
-            style: primary,
-            icon: const Icon(Icons.check, size: 16),
-            label: Text(
-              _answeredCount == 1
-                  ? 'Aplicar 1 resposta'
-                  : 'Aplicar $_answeredCount respostas',
-              style: bold,
+          AppPressable(
+            enabled: _stage == _Stage.review && _answeredCount > 0,
+            child: FilledButton.icon(
+              key: const ValueKey('spec-questions-apply'),
+              onPressed: _stage == _Stage.review && _answeredCount > 0
+                  ? _apply
+                  : null,
+              style: primary,
+              icon: const Icon(Icons.check, size: 16),
+              label: Text(
+                _answeredCount == 1
+                    ? 'Aplicar 1 resposta'
+                    : 'Aplicar $_answeredCount respostas',
+                style: bold,
+              ),
             ),
           ),
         ],
@@ -1029,12 +1036,15 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             icon: const Icon(Icons.chevron_left, size: 18),
             label: const Text('Voltar às respostas'),
           ),
-          FilledButton.icon(
-            key: const ValueKey('spec-questions-save'),
-            onPressed: _saving ? null : _save,
-            style: primary,
-            icon: const Icon(Icons.check, size: 16),
-            label: const Text('Salvar na spec', style: bold),
+          AppPressable(
+            enabled: !_saving,
+            child: FilledButton.icon(
+              key: const ValueKey('spec-questions-save'),
+              onPressed: _saving ? null : _save,
+              style: primary,
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('Salvar na spec', style: bold),
+            ),
           ),
         ],
       ),

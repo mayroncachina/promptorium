@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ritmo do motion: durações e curvas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b,strong{font-weight:600}
+.mono{font-family:'JetBrains Mono',monospace}
+.m-hoje{--k:0}.m-prop{--k:1}.m-lento{--k:4}
+.app{--q:calc(120ms*var(--k));--qx:calc(80ms*var(--k));--b:calc(160ms*var(--k));--bx:calc(110ms*var(--k));--e:calc(220ms*var(--k));--ex:calc(150ms*var(--k));--s:calc(640ms*var(--k));--in:cubic-bezier(.2,.8,.2,1);--out:cubic-bezier(.4,0,1,1)}
+@media (prefers-reduced-motion:reduce){.app{--k:0 !important}}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid #252B35;border-radius:8px;background:#14171D}
+.seg button{white-space:nowrap;height:30px;padding:0 12px;border-radius:6px;font-size:12px;color:#A0A8B6}
+.seg button:hover{color:#E7E9EE}
+.seg button.on{background:#2A2418;color:#F2A541;font-weight:600}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid #252B35;border-radius:6px;background:#14171D;font-size:13px;color:#E7E9EE;transition:background-color var(--q) var(--in),border-color var(--q) var(--in),transform var(--q) var(--in)}
+.btn:hover{background:#1A1E26;border-color:#3A4250}
+.btn:active{transform:scale(.98)}
+.m-hoje .btn:active{transform:none}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.pri:hover{background:#F6B662;border-color:#F6B662}
+.btn.danger{background:#F27A6E;border-color:#F27A6E;color:#1A1206;font-weight:600}
+.btn.danger:hover{background:#F58F85;border-color:#F58F85}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:1px 4px;border:1px solid #252B35;border-radius:4px;background:#0E1014;color:#A0A8B6}
+.side a,.nav{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:#A0A8B6}
+.nav.on{color:#F2A541}
+
+.row{display:grid;grid-template-columns:150px 110px minmax(0,1fr) minmax(0,1.2fr);gap:16px;align-items:center;padding:16px 0;border-top:1px solid #252B35}
+.track{position:relative;height:18px;border-radius:9px;background:#14171D;border:1px solid #252B35;padding:2px}
+.run{width:100%;transform:translateX(0)}
+.dot{display:block;width:12px;height:12px;border-radius:50%;background:#F2A541}
+.r-q .run{transition:transform var(--qx) var(--out)}
+.r-b .run{transition:transform var(--bx) var(--out)}
+.r-e .run{transition:transform var(--ex) var(--out)}
+.r-s .run{transition:none}
+.play .run{transform:translateX(calc(100% - 16px))}
+.play .r-q .run{transition:transform var(--q) var(--in)}
+.play .r-b .run{transition:transform var(--b) var(--in)}
+.play .r-e .run{transition:transform var(--e) var(--in)}
+.play .r-s .run{transition:transform var(--s) var(--in)}
+@media (max-width:760px){.row{grid-template-columns:1fr}}
+</style>
+</helmet>
+<div class="app {{cls}}" style="min-height:100vh;display:flex;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:14px">
+<nav aria-label="Navegação" style="flex:none;width:56px;padding:10px 8px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #252B35;background:#14171D"><div class="nav on" style="background:#2A2418" title="Início"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></div><div class="nav" style="" title="Projeto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"></path></svg></div><div class="nav" style="" title="Specs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M9 12h7M9 16h7"></path></svg></div><div class="nav" style="" title="Quadro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v16H4zM14 4h6v10h-6z"></path></svg></div><div class="nav" style="" title="Sessões"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l6 6-6 6"></path><path d="M12 19h8"></path></svg></div><div class="nav" style="" title="Review"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="6" r="2.5"></circle><circle cx="7" cy="18" r="2.5"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M7 8.5v7M17 11.5c0 3-5 3-8 4"></path></svg></div><div class="nav" style="" title="Código"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"></path></svg></div><div class="nav" style="" title="Prompt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></div><div class="nav" style="" title="Ferramentas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6a4 4 0 0 0 5 5l-9 9-4-4 9-9z"></path></svg></div></nav>
+<main style="flex:999 1 560px;min-width:0">
+<header style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #252B35">
+<div style="flex:1 1 320px;min-width:0"><h1 style="margin:0;font-size:16px;font-weight:600">Ritmo: quatro durações e duas curvas</h1><p style="margin:2px 0 0;font-size:12px;color:#A0A8B6">Tudo no app usa estes valores. Sair é sempre mais rápido que entrar, e a tela anterior sai na hora.</p></div>
+<div class="seg" role="group" aria-label="Movimento">
+<button class="{{m.hoje}}" aria-pressed="{{m.isHoje}}" onClick="{{m.setHoje}}">Hoje</button>
+<button class="{{m.prop}}" aria-pressed="{{m.isProp}}" onClick="{{m.setProp}}">Proposta</button>
+<button class="{{m.lento}}" aria-pressed="{{m.isLento}}" onClick="{{m.setLento}}">4× mais lento</button>
+</div>
+</header>
+<section style="max-width:940px;padding:8px 20px 24px" class="{{playCls}}">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0">
+<button class="btn pri" onClick="{{toggle}}">{{label}}</button>
+<span style="font-size:12px;color:#A0A8B6">Os pontos usam a duração e a curva de cada linha.</span>
+</div>
+<div class="row r-q"><div><b>Rápido</b><div class="mono" style="font-size:12px;color:#A0A8B6">AppMotion.quick</div></div><div class="mono" style="font-size:13px">120 ms entra<br>80 ms sai</div><div class="track"><div class="run"><span class="dot"></span></div></div><div style="font-size:13px;color:#A0A8B6">Hover, press, foco</div></div>
+<div class="row r-b"><div><b>Base</b><div class="mono" style="font-size:12px;color:#A0A8B6">AppMotion.base</div></div><div class="mono" style="font-size:13px">160 ms entra<br>110 ms sai</div><div class="track"><div class="run"><span class="dot"></span></div></div><div style="font-size:13px;color:#A0A8B6">Toast, fundo do diálogo, evento novo, status da etapa</div></div>
+<div class="row r-e"><div><b>Ênfase</b><div class="mono" style="font-size:12px;color:#A0A8B6">AppMotion.emphasis</div></div><div class="mono" style="font-size:13px">220 ms entra<br>150 ms sai</div><div class="track"><div class="run"><span class="dot"></span></div></div><div style="font-size:13px;color:#A0A8B6">Diálogo, card que muda de coluna</div></div>
+<div class="row r-s"><div><b>Seção</b><div class="mono" style="font-size:12px;color:#A0A8B6">AppMotion.section</div></div><div class="mono" style="font-size:13px">640 ms entra<br>sai na hora</div><div class="track"><div class="run"><span class="dot"></span></div></div><div style="font-size:13px;color:#A0A8B6">Troca de seção e destaque da barra lateral</div></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding-top:20px;border-top:1px solid #252B35">
+<div style="display:flex;gap:14px;align-items:center"><svg width="72" height="72" viewBox="-4 -4 68 68" fill="none" role="img" aria-label="Curva de entrada: desacelera até parar"><path d="M0 60H60V0" stroke="#252B35"></path><path d="M0 60C12 12 12 0 60 0" stroke="#F2A541" stroke-width="2"></path></svg><div><b>Entrada</b><div class="mono" style="font-size:12px;color:#A0A8B6">Cubic(.2, .8, .2, 1)</div><div style="font-size:13px;color:#A0A8B6">Chega rápido e pousa devagar.</div></div></div>
+<div style="display:flex;gap:14px;align-items:center"><svg width="72" height="72" viewBox="-4 -4 68 68" fill="none" role="img" aria-label="Curva de saída: acelera até sumir"><path d="M0 60H60V0" stroke="#252B35"></path><path d="M0 60C24 60 60 0 60 0" stroke="#4FD1B5" stroke-width="2"></path></svg><div><b>Saída</b><div class="mono" style="font-size:12px;color:#A0A8B6">Cubic(.4, 0, 1, 1)</div><div style="font-size:13px;color:#A0A8B6">Acelera e sai do caminho.</div></div></div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+constructor(p){super(p);this.state={mode:'prop',play:false};}
+
+K(){return ({hoje:0,prop:1,lento:4})[this.state.mode];}
+modeVals(){const s=this.state.mode,set=(mode)=>()=>this.setState({mode});
+return {cls:'m-'+s,m:{hoje:s==='hoje'?'on':'',prop:s==='prop'?'on':'',lento:s==='lento'?'on':'',isHoje:s==='hoje',isProp:s==='prop',isLento:s==='lento',setHoje:set('hoje'),setProp:set('prop'),setLento:set('lento')}};}
+
+
+renderVals(){const p=this.state.play;return {...this.modeVals(),playCls:p?'play':'',label:p?'Sair':'Entrar',toggle:()=>this.setState({play:!p})};}
+
+}
+</script>
+</body>
+</html>

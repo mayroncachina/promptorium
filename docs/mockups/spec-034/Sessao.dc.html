@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Eventos novos na sessão e status das etapas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b,strong{font-weight:600}
+.mono{font-family:'JetBrains Mono',monospace}
+.m-hoje{--k:0}.m-prop{--k:1}.m-lento{--k:4}
+.app{--q:calc(120ms*var(--k));--qx:calc(80ms*var(--k));--b:calc(160ms*var(--k));--bx:calc(110ms*var(--k));--e:calc(220ms*var(--k));--ex:calc(150ms*var(--k));--s:calc(640ms*var(--k));--in:cubic-bezier(.2,.8,.2,1);--out:cubic-bezier(.4,0,1,1)}
+@media (prefers-reduced-motion:reduce){.app{--k:0 !important}}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border:1px solid #252B35;border-radius:8px;background:#14171D}
+.seg button{white-space:nowrap;height:30px;padding:0 12px;border-radius:6px;font-size:12px;color:#A0A8B6}
+.seg button:hover{color:#E7E9EE}
+.seg button.on{background:#2A2418;color:#F2A541;font-weight:600}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid #252B35;border-radius:6px;background:#14171D;font-size:13px;color:#E7E9EE;transition:background-color var(--q) var(--in),border-color var(--q) var(--in),transform var(--q) var(--in)}
+.btn:hover{background:#1A1E26;border-color:#3A4250}
+.btn:active{transform:scale(.98)}
+.m-hoje .btn:active{transform:none}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.pri:hover{background:#F6B662;border-color:#F6B662}
+.btn.danger{background:#F27A6E;border-color:#F27A6E;color:#1A1206;font-weight:600}
+.btn.danger:hover{background:#F58F85;border-color:#F58F85}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:11px;padding:1px 4px;border:1px solid #252B35;border-radius:4px;background:#0E1014;color:#A0A8B6}
+.side a,.nav{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;color:#A0A8B6}
+.nav.on{color:#F2A541}
+
+.log{height:400px;overflow:auto;display:flex;flex-direction:column-reverse;gap:6px;padding:12px;border:1px solid #252B35;border-radius:10px;background:#14171D}
+.ev{display:flex;gap:10px;padding:8px 10px;border-radius:6px;background:#1A1E26;font-size:13px}
+.ev .t{flex:none;width:64px;font-size:12px;color:#A0A8B6}
+.ev.newA{animation:evA var(--b) var(--in) both}.ev.newB{animation:evB var(--b) var(--in) both}
+@keyframes evA{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes evB{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.st{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;font-size:13px;transition:background-color var(--b) var(--in)}
+.st.run{background:#1A1E26}
+.ball{position:relative;flex:none;width:18px;height:18px;border-radius:50%;border:1.5px solid #7C8595;transition:background-color var(--b) var(--in),border-color var(--b) var(--in)}
+.st.run .ball{border-color:#F2A541}
+.st.done .ball{background:#4FD1B5;border-color:#4FD1B5}
+.ball svg{position:absolute;inset:2px}
+.ball path{stroke-dasharray:18;stroke-dashoffset:18;transition:stroke-dashoffset var(--b) var(--in)}
+.st.done .ball path{stroke-dashoffset:0}
+</style>
+</helmet>
+<div class="app {{cls}}" style="min-height:100vh;display:flex;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:14px">
+<nav aria-label="Navegação" style="flex:none;width:56px;padding:10px 8px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #252B35;background:#14171D"><div class="nav" style="" title="Início"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></div><div class="nav" style="" title="Projeto"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"></path></svg></div><div class="nav" style="" title="Specs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M9 12h7M9 16h7"></path></svg></div><div class="nav" style="" title="Quadro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6v16H4zM14 4h6v10h-6z"></path></svg></div><div class="nav on" style="background:#2A2418" title="Sessões"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l6 6-6 6"></path><path d="M12 19h8"></path></svg></div><div class="nav" style="" title="Review"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="6" r="2.5"></circle><circle cx="7" cy="18" r="2.5"></circle><circle cx="17" cy="9" r="2.5"></circle><path d="M7 8.5v7M17 11.5c0 3-5 3-8 4"></path></svg></div><div class="nav" style="" title="Código"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"></path></svg></div><div class="nav" style="" title="Prompt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></div><div class="nav" style="" title="Ferramentas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6a4 4 0 0 0 5 5l-9 9-4-4 9-9z"></path></svg></div></nav>
+<main style="flex:999 1 560px;min-width:0">
+<header style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid #252B35">
+<div style="flex:1 1 320px;min-width:0"><h1 style="margin:0;font-size:16px;font-weight:600">Timeline da sessão e etapas</h1><p style="margin:2px 0 0;font-size:12px;color:#A0A8B6">Evento novo sobe 6 px e aparece. Rajadas entram sem animação, e o histórico nunca anima.</p></div>
+<div class="seg" role="group" aria-label="Movimento">
+<button class="{{m.hoje}}" aria-pressed="{{m.isHoje}}" onClick="{{m.setHoje}}">Hoje</button>
+<button class="{{m.prop}}" aria-pressed="{{m.isProp}}" onClick="{{m.setProp}}">Proposta</button>
+<button class="{{m.lento}}" aria-pressed="{{m.isLento}}" onClick="{{m.setLento}}">4× mais lento</button>
+</div>
+</header>
+<section style="padding:14px 20px 20px;display:flex;flex-wrap:wrap;gap:16px">
+<div style="flex:999 1 420px;min-width:0">
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"><button class="btn pri" onClick="{{next}}" disabled="{{ended}}">Próximo evento</button><button class="btn" onClick="{{burst}}" disabled="{{ended}}">Rajada de 6 eventos</button><button class="btn" onClick="{{reset}}">Recomeçar</button></div>
+<div class="log" role="log" aria-label="Eventos da sessão"><sc-for list="{{evs}}" as="e" hint-placeholder-count="4"><div class="{{e.cls}}"><span class="t mono">{{e.t}}</span><span>{{e.x}}</span></div></sc-for></div>
+</div>
+<aside aria-label="Etapas" style="flex:1 1 220px;padding-top:46px"><p style="margin:0 0 8px;font-size:12px;color:#A0A8B6">Etapas da SPEC-034</p>
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="4"><div class="{{s.cls}}"><span class="ball"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6.5l2.6 2.6L10 3.4" stroke="#14171D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span>{{s.n}}</span><span style="margin-left:auto;font-size:12px;color:#A0A8B6">{{s.l}}</span></div></sc-for>
+</aside>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+constructor(p){super(p);this.state={mode:'prop',evs:[{id:-1,t:'Agente',x:'Li a spec e vou começar pelo R1.'},{id:-2,t:'Leitura',x:'docs/specs/SPEC-034-motion-e-fluidez.md'},{id:-3,t:'Sessão',x:'Sessão iniciada na worktree da SPEC-034'}],done:0,i:0};}
+
+K(){return ({hoje:0,prop:1,lento:4})[this.state.mode];}
+modeVals(){const s=this.state.mode,set=(mode)=>()=>this.setState({mode});
+return {cls:'m-'+s,m:{hoje:s==='hoje'?'on':'',prop:s==='prop'?'on':'',lento:s==='lento'?'on':'',isHoje:s==='hoje',isProp:s==='prop',isLento:s==='lento',setHoje:set('hoje'),setProp:set('prop'),setLento:set('lento')}};}
+
+
+script(){return [['Leitura','lib/ui/theme/tokens.dart'],['Edição','Cria AppMotion com as quatro durações'],['Comando','flutter analyze'],['Comando','flutter test test/ui/motion_test.dart'],['Agente','R1 pronto. ETAPA CONCLUÍDA: R1'],['Leitura','lib/ui/shell/app_shell.dart'],['Edição','Adiciona a entrada da tela nova'],['Comando','flutter test test/ui/shell_test.dart'],['Agente','R2 pronto. ETAPA CONCLUÍDA: R2'],['Leitura','lib/ui/shell/side_bar.dart'],['Edição','Destaque desliza até o item'],['Agente','R3 pronto. ETAPA CONCLUÍDA: R3'],['Edição','Cria o helper showAppDialog'],['Comando','flutter test test/ui/widgets/app_dialog_test.dart'],['Agente','R4 pronto. ETAPA CONCLUÍDA: R4']];}
+hist(){return [{id:-1,t:'Agente',x:'Li a spec e vou começar pelo R1.'},{id:-2,t:'Leitura',x:'docs/specs/SPEC-034-motion-e-fluidez.md'},{id:-3,t:'Sessão',x:'Sessão iniciada na worktree da SPEC-034'}];}
+add(n){const s=this.state,all=this.script();let evs=s.evs,done=s.done,i=s.i;const burst=n>1;
+for(let j=0;j<n&&i<all.length;j++,i++){const e=all[i];evs=[{id:i,t:e[0],x:e[1],fresh:!burst},...evs.map(v=>({...v,fresh:false}))];if(e[1].includes('ETAPA CONCLUÍDA'))done++;}
+this.setState({evs,done,i});}
+renderVals(){const s=this.state,names=['R1','R2','R3','R4'];
+const steps=names.map((n,j)=>{const st=j<s.done?'done':j===s.done?'run':'wait';return {n,cls:'st '+st,l:st==='done'?'concluída':st==='run'?'executando':'na fila'};});
+return {...this.modeVals(),evs:s.evs.map(e=>({...e,cls:'ev'+(e.fresh?(e.id%2?' newA':' newB'):'')})),steps,next:()=>this.add(1),burst:()=>this.add(6),ended:s.i>=this.script().length,reset:()=>this.setState({evs:this.hist(),done:0,i:0})};}
+
+}
+</script>
+</body>
+</html>

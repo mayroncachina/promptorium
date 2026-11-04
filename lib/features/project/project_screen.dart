@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../sessions/widgets/session_style.dart';
 import 'project_plan.dart';
@@ -196,7 +197,7 @@ class _Stepper extends ConsumerWidget {
   }
 
   Future<void> _discard(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => AlertDialog(
@@ -305,7 +306,7 @@ class _Stepper extends ConsumerWidget {
                   const SizedBox(height: 4),
                   TextButton.icon(
                     key: const ValueKey('project-config-open'),
-                    onPressed: () => showDialog<void>(
+                    onPressed: () => showAppDialog<void>(
                       context: context,
                       barrierColor: AppColors.scrim,
                       builder: (ctx) => Dialog(
@@ -325,7 +326,7 @@ class _Stepper extends ConsumerWidget {
                   ),
                   TextButton.icon(
                     key: const ValueKey('project-memory-open'),
-                    onPressed: () => showDialog<void>(
+                    onPressed: () => showAppDialog<void>(
                       context: context,
                       barrierColor: AppColors.scrim,
                       builder: (ctx) => Dialog(
@@ -345,7 +346,7 @@ class _Stepper extends ConsumerWidget {
                   ),
                   TextButton.icon(
                     key: const ValueKey('project-metrics-open'),
-                    onPressed: () => showDialog<void>(
+                    onPressed: () => showAppDialog<void>(
                       context: context,
                       barrierColor: AppColors.scrim,
                       builder: (ctx) => Dialog(
@@ -410,7 +411,7 @@ class _Stepper extends ConsumerWidget {
                     key: const ValueKey('project-delete'),
                     onPressed: busy
                         ? null
-                        : () => showDialog<void>(
+                        : () => showAppDialog<void>(
                             context: context,
                             barrierColor: AppColors.scrim,
                             builder: (_) =>

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import '../agents/widgets/agent_style.dart';
 import '../sessions/widgets/session_style.dart';
 
@@ -31,7 +32,7 @@ class _BackupsCardState extends ConsumerState<BackupsCard> {
   String? _pending;
 
   Future<void> _restore(Directory dir, File f) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.panel,

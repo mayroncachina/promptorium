@@ -6,6 +6,7 @@ import '../../../core/providers/agent_provider.dart';
 import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../prompt_actions.dart';
@@ -132,7 +133,7 @@ class _Frame extends StatelessWidget {
 Future<SavedPrompt?> showSavePromptDialog(
   BuildContext context, {
   String body = '',
-}) => showDialog<SavedPrompt>(
+}) => showAppDialog<SavedPrompt>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => SavePromptDialog(body: body),
@@ -256,7 +257,7 @@ const continueSessionPrompt =
 Future<String?> showContinueSessionDialog(
   BuildContext context,
   Conversation conversation,
-) => showDialog<String>(
+) => showAppDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => ContinueSessionDialog(conversation: conversation),
