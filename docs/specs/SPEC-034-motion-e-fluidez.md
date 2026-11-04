@@ -1,6 +1,6 @@
 ---
 id: SPEC-034
-status: rascunho
+status: em-revisao
 ---
 
 # Motion e fluidez na interface
@@ -118,9 +118,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
 
 ### R4, R5 · Diálogos e toasts
 
-- `showAppDialog<T>` em `lib/ui/widgets/app_dialog.dart`, com a mesma assinatura usada hoje do `showDialog` e implementado com `showGeneralDialog`.
+- `showAppDialog<T>` em `lib/ui/widgets/app_dialog.dart`, com a mesma assinatura usada hoje do `showDialog` e uma `DialogRoute` própria, porque `showGeneralDialog` não tem duração de saída separada.
 - Os 66 `showDialog` são trocados de forma mecânica.
-- Snackbars: tema único em `AppTheme`, com o estilo de animação do `ScaffoldMessenger`. Se a API não permitir o deslocamento de 8 px, o helper `showAppToast` substitui as 44 chamadas.
+- O `ScaffoldMessenger` só muda as durações, então `showAppToast` em `lib/ui/widgets/app_toast.dart` substitui as 44 chamadas e faz o deslocamento de 8 px. O tema deixa o toast flutuante, como no protótipo.
 
 ### R6 · Hover e press
 
@@ -128,8 +128,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
 
 ### R7 · Quadro
 
-- Cada card guarda sua posição por `GlobalKey`. Quando a etapa do card muda, um `OverlayEntry` leva uma cópia da posição antiga até a nova com `Transform`, e o card real fica invisível até o fim, sem sair do layout.
-- Os vizinhos usam a mesma técnica, com deslocamento relativo.
+- `lib/features/board/widgets/board_card_flight.dart`: uma camada em `Stack` com `IgnorePointer`, dentro do Quadro, leva a cópia do card. Ela fica sob os diálogos e some com a tela, o que um `OverlayEntry` não faria.
+- Um render object por card informa a posição, e o estado fica por id da spec, porque o `ListView` remonta as linhas.
+- O limite de 3 vale para quem muda de coluna; os vizinhos não contam.
 - A contagem usa `AnimatedSwitcher`.
 
 ### R8, R9 · Sessão
@@ -140,7 +141,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
 
 ### R10 · Skeleton
 
-- `SpecSkeleton` em `lib/features/specs/widgets/spec_skeleton.dart`, com `Timer` de 300 ms e `AnimatedSwitcher` para o texto.
+- `SpecSkeleton`, `SpecOpenError` e `SpecTextFade` em `lib/features/specs/widgets/spec_skeleton.dart`, com `Timer` de 300 ms em `_load`. `AnimatedSwitcher` manteria o editor antigo sobre um controller descartado.
+- `_docSpecId` diz a quem pertence o texto do editor, para salvar nunca gravar o texto antigo na spec nova.
+- Arquivo ausente agora é falha ao abrir: sai o aviso "salvar recria o arquivo".
 
 ### Branches
 
