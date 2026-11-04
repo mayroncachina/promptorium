@@ -35,6 +35,7 @@ import 'command_palette.dart';
 import 'editor_zoom.dart';
 import 'global_approvals.dart';
 import 'navigation.dart';
+import 'section_transition.dart';
 import 'shell_intents.dart';
 import 'about_dialog.dart';
 import 'shortcut_sheet.dart';
@@ -387,9 +388,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                         child: Stack(
                           children: [
                             Positioned.fill(
-                              child: KeyedSubtree(
-                                key: ValueKey('screen-${section.name}'),
-                                child: _screenFor(section),
+                              child: SectionTransition(
+                                section: section,
+                                child: KeyedSubtree(
+                                  key: ValueKey('screen-${section.name}'),
+                                  child: _screenFor(section),
+                                ),
                               ),
                             ),
                             // Approvals of sessions / conversations that are

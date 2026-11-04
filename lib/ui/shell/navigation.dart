@@ -53,6 +53,16 @@ enum AppSection {
 
   bool get isTool => toolTabs.contains(this);
 
+  /// The sidebar item lit on this screen: the tools share "Ferramentas".
+  AppSection get navItem => isTool ? agents : this;
+
+  /// Position of [navItem] in the sidebar, top to bottom. What is not in
+  /// [navItems] (the gear) comes after them.
+  int get navIndex {
+    final i = navItems.indexOf(navItem);
+    return i < 0 ? navItems.length : i;
+  }
+
   /// Ctrl+1…9 targets (same order as the sidebar).
   static const shortcutItems = navItems;
 
