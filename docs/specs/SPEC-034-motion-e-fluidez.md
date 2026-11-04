@@ -107,7 +107,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NYfLh5R43xnTq8LTB8U
 ### R1, R11 · Base
 
 - `lib/ui/theme/motion.dart` com `AppMotion`: as durações, as curvas e `AppMotion.duration(context, d)`, que devolve `Duration.zero` quando `MediaQuery.disableAnimationsOf(context)` está ligado.
-- Os testes de widget que não tratam de motion rodam com animações desligadas, por um `MediaQuery` no helper de montagem. Assim os 15 arquivos com `pumpAndSettle` e os testes com número fixo de `pump` não mudam de comportamento.
+- `MotionEnter` em `lib/ui/widgets/motion_enter.dart`: a entrada com fade e deslocamento, usada pela tela nova, pelos eventos e pelos toasts.
+- `test/flutter_test_config.dart` desliga `AppMotion.enabled` na suíte. Assim os 15 arquivos com `pumpAndSettle` e os testes com número fixo de `pump` não mudam de comportamento, e os testes de motion ligam de novo.
 
 ### R2, R3 · Navegação
 
