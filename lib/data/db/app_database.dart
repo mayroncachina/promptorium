@@ -194,7 +194,8 @@ class SpecSteps extends Table {
   IntColumn get gateAttempts => integer().withDefault(const Constant(0))();
 
   /// Text of a step that is not in the file (schema v10): `REV1`, the
-  /// corrections asked by the automatic reviewer.
+  /// corrections asked by the automatic reviewer, or `R3.1`, a sub-step of
+  /// a split requirement (SPEC-033 R16).
   TextColumn get body => text().nullable()();
 
   @override

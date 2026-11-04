@@ -20,7 +20,7 @@ class StepView {
     this.startSha,
   });
 
-  /// `R1`.
+  /// `R1`; `R3.1` for a sub-step of `R3` (SPEC-033 R16).
   final String id;
   final String text;
   final StepStatus status;
@@ -40,7 +40,9 @@ class StepView {
 }
 
 /// Steps of [spec] in file order, with the state of [rows] (rows of steps
-/// no longer in the file are ignored).
+/// no longer in the file are ignored). A requirement split into sub-steps
+/// (SPEC-033 R16) is replaced by them, in number order: its own row only
+/// records that the requirement passed the gate.
 List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
   final byStep = {
     for (final r in rows)
@@ -59,8 +61,16 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
     for (final r in byStep.values)
       if (isReviewStep(r.step) && r.body != null) r,
   ]..sort((a, b) => reviewStepRound(a.step).compareTo(reviewStepRound(b.step)));
+  final subSteps = <String, List<SpecStep>>{};
+  for (final r in subStepRows(byStep.values)) {
+    subSteps.putIfAbsent(parentOf(r.step), () => []).add(r);
+  }
   return [
-    for (final req in spec.requirements) view(req.id, req.text),
+    for (final req in spec.requirements)
+      if (subSteps[req.id] case final subs?)
+        for (final r in subs) view(r.step, r.body!)
+      else
+        view(req.id, req.text),
     for (final r in extra) view(r.step, r.body!),
   ];
 }
@@ -69,6 +79,32 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
 bool isReviewStep(String id) => RegExp(r'^REV\d+$').hasMatch(id);
 
 int reviewStepRound(String id) => int.tryParse(id.substring(3)) ?? 0;
+
+/// `R3.1`, `R3.2`…: the execution of `R3` split by "Dividir a etapa"
+/// (SPEC-033 R16). The requirement itself stays whole in the spec.
+bool isSubStep(String id) => RegExp(r'^R\d+\.\d+$').hasMatch(id);
+
+/// `R3` for `R3.1`; any other id is its own requirement.
+String parentOf(String id) =>
+    isSubStep(id) ? id.substring(0, id.indexOf('.')) : id;
+
+int _subStepNumber(String id) =>
+    int.tryParse(id.substring(id.indexOf('.') + 1)) ?? 0;
+
+/// Sub-step rows of [rows] (those with their text), by requirement and then
+/// by number: `R3.10` comes after `R3.2`.
+List<SpecStep> subStepRows(Iterable<SpecStep> rows) => [
+  for (final r in rows)
+    if (isSubStep(r.step) && r.body != null) r,
+]..sort((a, b) => _subStepNumber(a.step).compareTo(_subStepNumber(b.step)));
+
+/// [id] is a sub-step and the others of its requirement are done: finishing
+/// it finishes the requirement, so it is the one that goes through the gate.
+bool closesRequirement(String id, Iterable<StepView> steps) =>
+    isSubStep(id) &&
+    steps.every(
+      (s) => s.id == id || parentOf(s.id) != parentOf(id) || s.isDone,
+    );
 
 /// `(done, total)` of [steps].
 (int, int) progressOf(List<StepView> steps) =>
@@ -97,14 +133,16 @@ bool isSpecBlocked(Spec spec, Map<String, Spec> byCode) =>
 
 /// Steps the next session should do: every step when nothing was done yet
 /// and the spec has at most [singleSessionMax] steps (small spec = one
-/// session), else the first step not done. Empty = all done.
+/// session), else the first step not done. A sub-step is never grouped
+/// (SPEC-033 R16). Empty = all done.
 List<String> nextSteps(List<StepView> steps, {required int singleSessionMax}) {
   final open = steps.where((s) => !s.isDone).toList();
   if (open.isEmpty) return const [];
   final untouched =
       open.length == steps.length &&
       steps.every((s) => s.status == StepStatus.pending);
-  if (untouched && steps.length <= singleSessionMax) {
+  final split = steps.any((s) => isSubStep(s.id));
+  if (untouched && !split && steps.length <= singleSessionMax) {
     return [for (final s in steps) s.id];
   }
   return [open.first.id];
@@ -200,7 +238,12 @@ List<SubagentStatus> subagentStatuses(
   required List<StepView> steps,
   required Iterable<List<TimelineItem>> timelines,
 }) {
-  bool stepDone(String? id) => steps.any((s) => s.id == id && s.isDone);
+  // A split requirement is done with its sub-steps.
+  bool stepDone(String? id) {
+    final own = steps.where((s) => parentOf(s.id) == id);
+    return own.isNotEmpty && own.every((s) => s.isDone);
+  }
+
   bool passed(SpecSubagent a) => switch (a.when) {
     SubagentWhen.specEnd =>
       spec.stage == SpecStage.review || spec.stage == SpecStage.done,
