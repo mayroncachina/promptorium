@@ -93,16 +93,15 @@ Instalação local a partir do código: [Instalação](instalacao.md#a-partir-do
 
 ## CI e release
 
-- `.github/workflows/ci.yml`: `flutter analyze` e `flutter test` em todo PR e push na `main`.
-- `.github/workflows/prepare-release.yml` (manual): atualiza o `version:` do `pubspec.yaml` (número de build + 1) e o `CHANGELOG.md` (`git cliff`) e abre o PR `chore(release): vX.Y.Z`. Sem versão informada, calcula a próxima pelos commits (`feat` sobe a versão menor, `fix` o patch).
-- `.github/workflows/release.yml`: ao publicar uma release com tag `vX.Y.Z`, confere se o `pubspec.yaml` está na mesma versão, roda analyze e testes, compila com a versão da tag, empacota com `scripts/package.sh` e anexa `.deb` e `.tar.gz` (e um `.zip` do Windows, experimental). As notas saem do `git cliff`.
+- `.github/workflows/ci.yml`: `flutter analyze` e `flutter test` em todo PR. O merge na `main` não roda o CI de novo.
+- `.github/workflows/create-release.yml` (manual, **Criar Release**): atualiza o `version:` do `pubspec.yaml` (número de build + 1) e o `CHANGELOG.md` (`git cliff`) num commit na branch `release/vX.Y.Z`, cria a tag `vX.Y.Z` nesse commit e a release em rascunho, chama o `release.yml` para compilar e anexar os pacotes, publica a release e abre o PR `chore(release): vX.Y.Z` para a `main`. Sem versão informada, calcula a próxima pelos commits (`feat` sobe a versão menor, `fix` o patch). Se o build falhar, a release fica em rascunho.
+- `.github/workflows/release.yml`: chamado pelo Criar Release, ou ao publicar uma release à mão com tag `vX.Y.Z`. Confere se o `pubspec.yaml` está na mesma versão, roda analyze e testes, compila com a versão da tag, empacota com `scripts/package.sh` e anexa `.deb` e `.tar.gz` (e um `.zip` do Windows, experimental). As notas saem do `git cliff`.
 - `.github/workflows/windows.yml`: build manual do Windows. O repositório não tem a pasta `windows/`; o build a cria com `flutter create --platforms=windows`. Não há suporte oficial a Windows nem macOS.
 
 Para publicar:
 
-1. **Actions → Preparar release → Run workflow**, com a versão ou em branco.
-2. Mescle o PR `chore(release): vX.Y.Z`. Se o Actions não puder abrir PRs no repositório, o resumo do workflow traz o link para abri-lo.
-3. **Releases → Draft a new release**: crie a tag `vX.Y.Z` no commit do merge e publique.
+1. **Actions → Criar Release → Run workflow**, na `main`, com a versão ou em branco. A release sai publicada, com os pacotes.
+2. Mescle o PR `chore(release): vX.Y.Z` com merge commit (não squash), para a tag ficar no histórico da `main`. Se o Actions não puder abrir PRs no repositório, o resumo do workflow traz o link para abri-lo.
 
 Os commits de etapa (`SPEC-023 R1-R5: texto`) entram no changelog como funcionalidades da spec, e os da própria spec (`SPEC-023: texto`) como documentação.
 

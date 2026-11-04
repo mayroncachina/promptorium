@@ -1,10 +1,8 @@
 name: CI
 
-# Em todo PR e ao mergear na main (push): só analisa e testa. O .deb é gerado
-# apenas ao publicar uma release (release.yml).
+# Só em PRs: analisa e testa. O merge na main não roda nada (o PR já foi
+# testado). O .deb é gerado apenas ao criar uma release (release.yml).
 on:
-  push:
-    branches: [main]
   pull_request:
 
 permissions:

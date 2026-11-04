@@ -1,0 +1,145 @@
+name: Criar Release
+
+# Actions → Criar Release → Run workflow, na main:
+#   1. atualiza o `version:` do pubspec.yaml (número de build + 1) e o
+#      CHANGELOG.md (git-cliff) num commit na branch release/vX.Y.Z;
+#   2. cria a tag vX.Y.Z nesse commit e a release como rascunho;
+#   3. compila, testa e anexa os pacotes (release.yml) e publica a release;
+#   4. abre o PR "chore(release): vX.Y.Z" para levar a versão para a main.
+#
+# A main exige PR com aprovação, então o commit da versão não vai direto
+# para ela: a tag fica no commit da branch, que entra na main com o merge.
+# Se o build falhar, a release fica em rascunho e nada é publicado.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão (ex.: 0.7.0). Vazio = a próxima, calculada pelos commits"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: create-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: v${{ steps.version.outputs.version }}
+    steps:
+      - name: Só na main
+        if: github.ref_name != 'main'
+        run: |
+          echo "Rode o Criar Release a partir da main (Use workflow from: main)." >&2
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: git-cliff
+        run: sudo npm install -g git-cliff >/dev/null
+
+      - name: Versão
+        id: version
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          version="${INPUT#v}"
+          if [ -z "$version" ]; then
+            version="$(git cliff --bumped-version 2>/dev/null)"
+            version="${version#v}"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.~-][0-9A-Za-z.~-]*)?$ ]]; then
+            echo "Versão '$version' inválida: use X.Y.Z (ex.: 0.7.0)." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "A tag v$version já existe." >&2
+            exit 1
+          fi
+          current="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#]+).*/\1/p' pubspec.yaml)"
+          build="${current#*+}"
+          [[ "$current" == *+* && "$build" =~ ^[0-9]+$ ]] || build=0
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "full=$version+$((build + 1))" >> "$GITHUB_OUTPUT"
+          echo "Versão: $current → $version+$((build + 1))"
+
+      - name: pubspec.yaml e CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          FULL: ${{ steps.version.outputs.full }}
+        run: |
+          sed -i -E "s/^version:.*/version: $FULL/" pubspec.yaml
+          grep -q "^version: $FULL\$" pubspec.yaml
+          git cliff --tag "v$VERSION" -o CHANGELOG.md
+
+      - name: Commit, tag e release em rascunho
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git cliff --unreleased --tag "v$VERSION" --strip all -o notes.md
+          git switch -c "$branch"
+          git add pubspec.yaml CHANGELOG.md
+          git commit -m "chore(release): v$VERSION"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push --force origin "$branch"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" --verify-tag --draft \
+            --title "v$VERSION" --notes-file notes.md
+
+  package:
+    needs: prepare
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+    permissions:
+      contents: write
+
+  publish:
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publicar a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --latest
+
+      - name: Abrir o PR da versão
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          branch="release/$TAG"
+          url="$(gh release view "$TAG" --json url -q .url)"
+          {
+            echo "Versão e CHANGELOG.md da release [$TAG]($url), já publicada pelo Criar Release."
+            echo
+            echo "A tag \`$TAG\` está no commit desta branch: mescle com merge commit (não squash) para ela ficar no histórico da main."
+          } > body.md
+          if gh pr create --base main --head "$branch" \
+              --title "chore(release): $TAG" --body-file body.md; then
+            exit 0
+          fi
+          # Sem "Allow GitHub Actions to create and approve pull requests"
+          # (Settings → Actions → General), o token não abre PR: fica o link.
+          compare="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/main...$branch?expand=1"
+          echo "Não foi possível abrir o PR. Abra em: $compare" >&2
+          {
+            echo "### Abra o PR da versão"
+            echo
+            echo "O Actions não tem permissão para abrir PRs neste repositório. Abra pelo link: $compare"
+          } >> "$GITHUB_STEP_SUMMARY"
