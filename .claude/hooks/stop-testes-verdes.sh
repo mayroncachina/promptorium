@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Hook Stop: o turno só termina com `flutter analyze` e `flutter test` verdes.
-# Pula quando o código (HEAD + diff de lib/, test/ e pubspec.yaml) é o mesmo
-# da última rodada verde; depois de 3 bloqueios seguidos, libera com um aviso.
+# Pula quando o conteúdo de lib/, test/ e pubspec.yaml é igual ao de uma das
+# últimas rodadas verdes: commits só de docs, troca de branch ou pull que não
+# mexem no código não rodam a suíte de novo. Depois de 3 bloqueios seguidos,
+# libera com um aviso.
 # Não roda em worktrees e espera outro `flutter test` em andamento acabar.
 set -u
 cat >/dev/null # entrada do hook (não usada)
@@ -12,13 +14,17 @@ cd "$root" || exit 0
 state=.dart_tool/claude-stop-hook
 mkdir -p "$state"
 
+# Impressão do conteúdo, não do commit: as árvores de lib/ e test/ e o blob do
+# pubspec.yaml no HEAD, mais o que mudou no diretório de trabalho.
 fp=$({
-  git rev-parse HEAD
+  git rev-parse HEAD:lib HEAD:test HEAD:pubspec.yaml 2>/dev/null
   git diff HEAD -- lib test pubspec.yaml
   git ls-files -o --exclude-standard -- lib test | xargs -r -d '\n' sha1sum
 } | sha1sum | cut -d' ' -f1)
 
-if [ "$(cat "$state/green" 2>/dev/null)" = "$fp" ]; then
+# Últimas impressões verdes (até 50), uma por linha.
+greens="$state/greens"
+if grep -qxF "$fp" "$greens" 2>/dev/null; then
   rm -f "$state/tries"
   exit 0
 fi
@@ -45,7 +51,8 @@ if ! flutter analyze >"$log" 2>&1; then
 elif ! flutter test --reporter failures-only >"$log" 2>&1; then
   step="flutter test"
 else
-  echo "$fp" >"$state/green"
+  { grep -vxF "$fp" "$greens" 2>/dev/null; echo "$fp"; } | tail -n 50 >"$greens.tmp"
+  mv "$greens.tmp" "$greens"
   rm -f "$state/tries"
   exit 0
 fi
