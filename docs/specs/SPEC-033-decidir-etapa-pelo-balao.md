@@ -1,6 +1,6 @@
 ---
 id: SPEC-033
-status: rascunho
+status: em-revisao
 depende-de: SPEC-030, SPEC-028
 ---
 
@@ -231,13 +231,23 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
   - "Desfazer" do R10 apaga as linhas das subetapas.
 - O prompt das opções (R4) diz que **Dividir** é para separar o trabalho, e que mudar o comportamento pedido é **Ajustar o requisito**.
 
+### Desvios da implementação
+
+- T3: uma decisão por etapa, porque as opções são geradas por etapa (R8); as teclas ficam no `onKeyEvent` do `FocusScope`, sem `Shortcuts`; a abertura usa o `showAppDialog` da SPEC-034; `wordDiff` novo em `line_diff.dart`.
+- T4, **Adiar** com a sessão viva: não usa `send`, como **Dividir**, porque o `send` marcaria a etapa "em execução". A sessão é encerrada e `runNext` inicia a próxima etapa da fila, com a mensagem como contexto.
+- T4, só **Dividir**: sem compilador e sem diff, mostra "O requisito não muda" e não tem "Só alterar a spec"; o botão continua "Compilar e continuar". Várias escolhas **Dividir** somam as subetapas, com o limite de 2 a 4 na soma. Uma subetapa não se divide de novo, porque `addSubSteps` trocaria as irmãs já concluídas.
+- T4, "Desfazer": primeiro para a sessão que recebeu a mensagem (`release`, status `stopped`), nova ou não, e só então restaura o arquivo e as linhas de `spec_steps` (`SpecStepsRepo.restore`). Se o arquivo mudou depois de compilar, nada é desfeito.
+- T4, retomada que falha (`runNext` recusa): a spec e a fila voltam ao que eram, e o modal fica aberto com o motivo.
+- T4, gravação: `markStart` no `WorkspaceWatcher`, para ela não contar como edição externa e bloquear o `runNext`. O R11 não vale para só **Responder**, que não grava nada.
+- T4, tela: o aviso se adapta ("retomada", "dividida em <n> subetapas", "adiada para o fim da fila"); a fase desenha a própria barra, com "Abrir sessão"; os rótulos do `DiffView` seguem em minúsculas, como na SPEC-026.
+
 ### Testes
 
 - `test/features/board/step_decision_test.dart` (novo), testes puros:
   - `parseStepDecisions`: limite de 4 opções, uma só sugerida e títulos vazios descartados;
   - a chave do cache;
   - a reestruturação da fila: com as linhas `R3.1` e `R3.2`, `stepsOf` devolve as subetapas no lugar do `R3`, e a spec não muda; com o texto compilado, o requisito adiado vai para o fim;
-  - o runner: `runNext` pega `R3.1` antes de `R3.2`; concluir `R3.1` não roda a verificação; concluir `R3.2` roda a verificação do `R3`, e a falha devolve `R3.2` para "aguardando você".
+- `test/features/board/step_substeps_test.dart` (novo), as subetapas: `runNext` pega `R3.1` antes de `R3.2`; concluir `R3.1` não roda a verificação; concluir `R3.2` roda a verificação do `R3`, e a falha devolve `R3.2` para "aguardando você".
 - `test/features/board/step_decision_dialog_test.dart` (novo), testes de widget com `ProviderContainer(retry: (_, _) => null)`:
   - o balão abre o modal e as outras etapas abrem o `StepLiveDialog`;
   - as teclas `1`–`5`, as setas, `Enter`, `Backspace`, `Ctrl+O`, `Ctrl+Enter` e `Esc`;
@@ -268,7 +278,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/J3VVoyZe3SzbZLN7MvS
 - [ ] Compilar mostra a lista das decisões, o diff da spec e a mensagem editável; com só Responder, mostra "O requisito não muda" e "Enviar e continuar", sem diff [R9] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Compilar e continuar grava a spec, divide ou adia a etapa, envia a mensagem (ou inicia a próxima sessão) e oferece Desfazer, que some no primeiro evento da sessão [R10] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Dividir troca a etapa R3 pelas subetapas R3.1 e R3.2 na fila sem mudar a spec, e Adiar leva a etapa para o fim [R10] [R16] verificar: flutter test test/features/board/step_decision_test.dart
-- [ ] As subetapas rodam em ordem, só a última dispara a verificação dos critérios do R3, e a falha devolve a última subetapa para "aguardando você" [R16] verificar: flutter test test/features/board/step_decision_test.dart
+- [ ] As subetapas rodam em ordem, só a última dispara a verificação dos critérios do R3, e a falha devolve a última subetapa para "aguardando você" [R16] verificar: flutter test test/features/board/step_substeps_test.dart
 - [ ] Com a spec alterada no disco, nada é gravado e aparece "A spec mudou enquanto você decidia" [R11] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Abrir sessão fecha o modal e abre a sessão com o rascunho das decisões, sem enviar [R12] verificar: flutter test test/features/board/step_decision_dialog_test.dart
 - [ ] Gerando (com o tempo decorrido e cancelamento ao fechar), falha ao gerar e verificação que falhou mostram os textos e as ações do R14 [R14] verificar: flutter test test/features/board/step_decision_dialog_test.dart

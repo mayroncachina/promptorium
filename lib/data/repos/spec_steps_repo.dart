@@ -162,6 +162,16 @@ class SpecStepsRepo {
         .write(previous.toCompanion(false));
   });
 
+  /// The steps of [specId] are exactly [rows] again, as read by [bySpec]:
+  /// the rows written since then go away ("Desfazer", SPEC-033 R10).
+  Future<void> restore(int specId, List<SpecStep> rows) =>
+      _db.transaction(() async {
+        await (_db.delete(_t)..where((s) => s.specId.equals(specId))).go();
+        for (final row in rows) {
+          await _db.into(_t).insert(row.toCompanion(false));
+        }
+      });
+
   Future<void> _deleteSubSteps(int specId, String parent) => (_db.delete(
     _t,
   )..where((s) => s.specId.equals(specId) & s.step.like('$parent.%'))).go();

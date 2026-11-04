@@ -308,6 +308,7 @@ String specStepPrompt({
   List<SpecSubagent> subagents = const [],
   String? testCommand,
   String? previousAttempt,
+  String? context,
   String? memory,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
@@ -386,6 +387,16 @@ String specStepPrompt({
       ..writeln(previousAttempt.trim())
       ..writeln('</tentativa-anterior>')
       ..writeln('Faça diferente do que não funcionou.');
+  }
+  if (context != null && context.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Decisão da pessoa sobre a etapa que parou (siga esta decisão):',
+      )
+      ..writeln('<decisao>')
+      ..writeln(context.trim())
+      ..writeln('</decisao>');
   }
   if (memory != null && memory.trim().isNotEmpty) {
     b
@@ -678,7 +689,8 @@ class SpecRunner {
 
   /// Opens the session of the next steps of [specId] and returns its id.
   /// [mode] / [model] / [effort] null = those of the spec's last session,
-  /// else the defaults. [agent] is stored on the spec.
+  /// else the defaults. [agent] is stored on the spec. [context] goes into
+  /// the prompt of the step: what the person decided (SPEC-033 R10).
   Future<String> runNext(
     int specId, {
     ClaudePermissionMode? mode,
@@ -689,6 +701,7 @@ class SpecRunner {
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
     String? previousAttempt,
+    String? context,
     bool duel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
@@ -837,6 +850,7 @@ class SpecRunner {
         ),
         testCommand: config.testCommand,
         previousAttempt: previousAttempt,
+        context: context,
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
       agent: spec.agentName ?? config.agent,

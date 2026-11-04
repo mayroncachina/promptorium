@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -5,13 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/claude_event.dart';
+import 'package:promptorium/core/claude/readonly_run.dart';
 import 'package:promptorium/core/process/process_runner.dart';
+import 'package:promptorium/core/system/worktree_launcher.dart';
 import 'package:promptorium/core/text/line_diff.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/step_decision.dart';
 import 'package:promptorium/features/board/step_decision_choices.dart';
+import 'package:promptorium/features/board/step_decision_compiler.dart';
 import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/board/widgets/spec_canvas.dart';
 import 'package:promptorium/features/board/widgets/step_decision_dialog.dart';
@@ -20,8 +28,10 @@ import 'package:promptorium/features/review/review_service.dart'
     show reviewQueueProvider;
 import 'package:promptorium/features/sessions/session_composer_draft.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/features/sessions/timeline_provider.dart';
 import 'package:promptorium/features/sessions/widgets/composer.dart';
 import 'package:promptorium/features/sessions/widgets/session_style.dart';
+import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -127,6 +137,10 @@ class FakeManager extends SessionManager {
   final bool alive;
   final resumed = <String>[];
   final sent = <String>[];
+  final released = <String>[];
+
+  /// Runs at each release, before it returns.
+  void Function()? onRelease;
 
   @override
   SessionManagerState build() =>
@@ -137,15 +151,126 @@ class FakeManager extends SessionManager {
 
   @override
   Future<void> send(String id, String text) async => sent.add(text);
+
+  @override
+  Future<void> release(String id) async {
+    released.add(id);
+    onRelease?.call();
+  }
 }
 
+/// Answers for the run: the text [after] gives, or the failure of [error].
+class FakeCompiler extends StepDecisionCompiler {
+  FakeCompiler(super.ref, this.file);
+
+  final File? file;
+  final calls = <List<StepDecisionChoice>>[];
+  String Function(String before) after = amended;
+  String message = 'Crie a coluna image_id.';
+  Object? error;
+
+  /// Holds the run until it completes.
+  Completer<void>? hold;
+
+  @override
+  Future<StepCompilation> compile(
+    Spec spec,
+    StepView step,
+    List<StepDecisionChoice> choices, {
+    Future<void>? cancelled,
+  }) async {
+    calls.add(choices);
+    await hold?.future;
+    if (error case final e?) throw e;
+    final before = file!.readAsStringSync();
+    return StepCompilation(
+      before: before,
+      after: after(before),
+      message: message,
+    );
+  }
+}
+
+class FakeRunner extends SpecRunner {
+  FakeRunner(super.ref);
+
+  final contexts = <String?>[];
+  Object? error;
+
+  @override
+  Future<String> runNext(
+    int specId, {
+    ClaudePermissionMode? mode,
+    String? provider,
+    String? model,
+    String? effort,
+    String? agent,
+    bool ignoreBlockers = false,
+    bool reviewUnblocks = false,
+    String? previousAttempt,
+    String? context,
+    bool duel = false,
+  }) async {
+    if (error case final e?) throw e;
+    contexts.add(context);
+    return 's2';
+  }
+}
+
+const specFile =
+    '''---
+id: SPEC-003
+status: aprovada
+---
+
+# Imagem
+
+## Requisitos
+
+- R1 · Um
+- R2 · Dois
+- R3 · $requirement
+- R4 · Quatro
+
+## Critérios de aceite
+
+- [ ] O id fica gravado [R3]
+''';
+
+String amended(String before) => before
+    .replaceFirst(requirement, 'O sistema deve gravar o id na coluna nova.')
+    .replaceFirst(
+      '- [ ] O id fica gravado [R3]',
+      '- [ ] O id fica gravado [R3]\n- [ ] A migração cria a coluna [R3]',
+    );
+
+String deferred(String before) => deferRequirement(before, 'R3');
+
 class Harness {
-  Harness(this.container, this.options, this.manager, this.spec);
+  Harness(
+    this.container,
+    this.options,
+    this.manager,
+    this.spec,
+    this.compiler,
+    this.runner,
+    this.file,
+  );
 
   final ProviderContainer container;
   final FakeOptions options;
   final FakeManager manager;
   final Spec spec;
+  final FakeCompiler? compiler;
+  final FakeRunner? runner;
+
+  /// The spec on the disk, with [pumpPage]'s `onDisk`.
+  final File? file;
+
+  Future<Map<String, SpecStep>> rows() async => {
+    for (final r in await container.read(specStepsRepoProvider).bySpec(spec.id))
+      r.step: r,
+  };
 
   List<StepDecisionChoice> choices([String session = 's1']) =>
       container.read(stepDecisionChoicesProvider)[(session, 'R3')] ?? const [];
@@ -183,15 +308,29 @@ Future<Harness> pumpPage(
   bool reduceMotion = false,
   bool alive = false,
   Size size = const Size(1440, 900),
+  bool onDisk = false,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final db = memoryDatabase();
+  final root = onDisk
+      ? Directory.systemTemp.createTempSync('promptorium-compile-')
+      : null;
+  addTearDown(() => root?.deleteSync(recursive: true));
+  final file = root == null
+      ? null
+      : (File('${root.path}/specs/SPEC-003.md')
+          ..createSync(recursive: true)
+          ..writeAsStringSync(specFile));
   final ws = await db
       .into(db.workspaces)
       .insertReturning(
-        WorkspacesCompanion.insert(path: '/work/repo', name: 'repo'),
+        WorkspacesCompanion.insert(
+          path: root?.path ?? '/work/repo',
+          name: 'repo',
+        ),
       );
   final spec = await db
       .into(db.specs)
@@ -222,14 +361,28 @@ Future<Harness> pumpPage(
       );
   final options = FakeOptions(result);
   final manager = FakeManager(alive: alive);
+  FakeCompiler? compiler;
+  FakeRunner? runner;
   final c = ProviderContainer(
     retry: (_, _) => null,
     overrides: [
       databaseOverride(db),
       stepDecisionOptionsProvider.overrideWith(() => options),
       sessionManagerProvider.overrideWith(() => manager),
+      if (onDisk) ...[
+        stepDecisionCompilerProvider.overrideWith(
+          (ref) => compiler = FakeCompiler(ref, file),
+        ),
+        specRunnerProvider.overrideWith((ref) => runner = FakeRunner(ref)),
+      ],
+      ...overrides,
     ],
   );
+  if (onDisk) {
+    c
+      ..read(stepDecisionCompilerProvider)
+      ..read(specRunnerProvider);
+  }
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
@@ -273,7 +426,7 @@ Future<Harness> pumpPage(
     await tester.pump(Duration.zero);
   });
   await settle(tester, 3);
-  return Harness(c, options, manager, spec);
+  return Harness(c, options, manager, spec, compiler, runner, file);
 }
 
 Future<Harness> openModal(
@@ -282,6 +435,8 @@ Future<Harness> openModal(
   StepView step = waiting,
   bool alive = false,
   bool reduceMotion = false,
+  bool onDisk = false,
+  List<Override> overrides = const [],
 }) async {
   final h = await pumpPage(
     tester,
@@ -289,10 +444,95 @@ Future<Harness> openModal(
     step: step,
     alive: alive,
     reduceMotion: reduceMotion,
+    onDisk: onDisk,
+    overrides: overrides,
   );
   await tester.tap(byKey('open'));
   await settle(tester);
   return h;
+}
+
+/// A few turns of the real clock: the file operations of the app run out of
+/// the fake clock of the test.
+Future<void> drain(WidgetTester tester, [int times = 10]) async {
+  for (var i = 0; i < times; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 2)),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+}
+
+/// [drain] until [done]: how long the disk takes depends on the machine.
+Future<void> drainUntil(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 2000 && !done(); i++) {
+    await drain(tester, 1);
+  }
+  expect(done(), isTrue, reason: 'condição não atingida');
+  await drain(tester, 2);
+}
+
+/// Waits for the buttons of the phase to come back, or for the modal to go.
+Future<void> finished(WidgetTester tester) async {
+  await tester.pump();
+  await drainUntil(
+    tester,
+    () =>
+        dialog.evaluate().isEmpty ||
+        smallButton(tester, 'step-decision-submit').label != 'Retomando…',
+  );
+}
+
+/// Presses "Desfazer" and waits for the notice that says how it went.
+Future<void> undoAndWait(WidgetTester tester, String notice) async {
+  await tester.tap(byKey('step-decision-undo'));
+  await tester.pump();
+  await drainUntil(tester, () => find.text(notice).evaluate().isNotEmpty);
+}
+
+const undone = 'Decisão desfeita: a spec e a fila voltaram ao que eram.';
+
+/// The Compilar phase with option [row] of the single decision chosen, the
+/// file of the spec on the disk and the compiler done.
+Future<Harness> compileOption(
+  WidgetTester tester,
+  int row, {
+  bool alive = true,
+  StepDecisionResult? result = one,
+  StepView step = waiting,
+  void Function(Harness h)? before,
+  List<Override> overrides = const [],
+}) async {
+  final h = await openModal(
+    tester,
+    alive: alive,
+    result: result,
+    step: step,
+    onDisk: true,
+    overrides: overrides,
+  );
+  await drain(tester);
+  before?.call(h);
+  await press(
+    tester,
+    const [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+    ][row - 1],
+  );
+  await ctrl(tester, LogicalKeyboardKey.enter);
+  await drain(tester);
+  return h;
+}
+
+SmallButton smallButton(WidgetTester tester, String key) =>
+    tester.widget<SmallButton>(byKey(key));
+
+Future<void> submit(WidgetTester tester) async {
+  await tester.tap(byKey('step-decision-submit'));
+  await finished(tester);
 }
 
 FocusNode openerFocus(WidgetTester tester) =>
@@ -1341,6 +1581,624 @@ void main() {
       await press(tester, LogicalKeyboardKey.digit1);
       expect(h.choices('spec-${h.spec.id}').single.title, amend.title);
       expect(h.choices(''), isEmpty);
+    });
+  });
+
+  group('R9 · Compilar', () {
+    testWidgets('shows the decisions, the diff and the editable message', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      expect(h.compiler!.calls.single.single.title, amend.title);
+      expect(find.text('Pronto para compilar'), findsOneWidget);
+      expect(find.textContaining('Uma decisão tomada.'), findsOneWidget);
+      expect(find.text('O que aconteceu'), findsNothing);
+
+      final decided = byKey('step-decision-decided-1');
+      for (final t in [
+        '1 · Onde guardar o id?',
+        amend.title,
+        amend.kind.label,
+      ]) {
+        expect(
+          find.descendant(of: decided, matching: find.text(t)),
+          findsOneWidget,
+        );
+      }
+      expect(byKey('step-decision-change-1'), findsOneWidget);
+
+      expect(
+        text(tester, 'step-decision-changes'),
+        '1 requisito e 1 critério · +2 −1',
+      );
+      expect(find.text(h.spec.path), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      expect(
+        find.bySemanticsLabel(
+          RegExp('^linha removida, linha 12: - R3 · $requirement'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(
+          RegExp(r'^linha adicionada, linha 12: - R3 · O sistema deve gravar'),
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
+      expect(find.textContaining('na mesma sessão'), findsOneWidget);
+
+      final field = byKey('step-decision-message');
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Crie a coluna image_id.',
+      );
+      await tester.enterText(field, 'Outra coisa');
+      await tester.pump();
+      expect(
+        smallButton(tester, 'step-decision-submit').label,
+        'Compilar e continuar',
+      );
+      expect(byKey('step-decision-only-spec'), findsOneWidget);
+      expect(byKey('step-decision-open-session'), findsOneWidget);
+      expect(find.text('Voltar'), findsOneWidget);
+    });
+
+    testWidgets('waits for the compiler, with nothing to send yet', (
+      tester,
+    ) async {
+      final hold = Completer<void>();
+      final h = await compileOption(
+        tester,
+        1,
+        before: (h) => h.compiler!.hold = hold,
+      );
+      expect(byKey('step-decision-generating'), findsOneWidget);
+      expect(byKey('step-decision-diff'), findsNothing);
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNull);
+      expect(
+        tester.widget<TextField>(byKey('step-decision-message')).enabled,
+        isFalse,
+      );
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await drain(tester);
+      expect(h.manager.sent, isEmpty);
+
+      hold.complete();
+      await drain(tester);
+      expect(byKey('step-decision-diff'), findsOneWidget);
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNotNull);
+    });
+
+    testWidgets('a failed compiler shows why, and "Tentar de novo" runs it', (
+      tester,
+    ) async {
+      final h = await compileOption(
+        tester,
+        1,
+        before: (h) =>
+            h.compiler!.error = const PlannerException('O planner caiu.'),
+      );
+      expect(
+        text(tester, 'step-decision-failure'),
+        'Não consegui compilar: o planner caiu',
+      );
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNull);
+      expect(byKey('step-decision-only-spec'), findsNothing);
+
+      h.compiler!.error = null;
+      await tester.tap(byKey('step-decision-compile-retry'));
+      await drain(tester);
+      expect(h.compiler!.calls, hasLength(2));
+      expect(byKey('step-decision-failure'), findsNothing);
+      expect(byKey('step-decision-diff'), findsOneWidget);
+    });
+
+    testWidgets('only Responder: no run, no diff, "Enviar e continuar" (P3)', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 2);
+      expect(h.compiler!.calls, isEmpty);
+      expect(byKey('step-decision-diff'), findsNothing);
+      expect(text(tester, 'step-decision-unchanged'), 'O requisito não muda');
+      expect(byKey('step-decision-only-spec'), findsNothing);
+      expect(
+        smallButton(tester, 'step-decision-submit').label,
+        'Enviar e continuar',
+      );
+      expect(
+        tester
+            .widget<TextField>(byKey('step-decision-message'))
+            .controller!
+            .text,
+        'Decidi pelo modal:\n'
+        '1. Onde guardar o id? → Guardar em metadata.',
+      );
+      expect(find.textContaining('Revise a mensagem'), findsOneWidget);
+    });
+
+    testWidgets('Dividir does not go through the compiler: the spec stays', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 3);
+      expect(h.compiler!.calls, isEmpty);
+      expect(byKey('step-decision-diff'), findsNothing);
+      expect(byKey('step-decision-only-spec'), findsNothing);
+      expect(
+        smallButton(tester, 'step-decision-submit').label,
+        'Compilar e continuar',
+      );
+      expect(
+        text(tester, 'step-decision-queue'),
+        contains('o R3 vira R3.1 e R3.2'),
+      );
+    });
+
+    testWidgets('"Mudar" and "Voltar" go back to the decisions', (
+      tester,
+    ) async {
+      final h = await openModal(tester, result: two, onDisk: true, alive: true);
+      await drain(tester);
+      await press(tester, LogicalKeyboardKey.digit2);
+      await tester.pump(stepDecisionAdvanceDelay);
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.digit1);
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await drain(tester);
+      expect(find.textContaining('Duas decisões tomadas.'), findsOneWidget);
+
+      await tester.tap(byKey('step-decision-change-1'));
+      await settle(tester, 2);
+      expect(byKey('step-decision-compile'), findsNothing);
+      expect(text(tester, 'step-decision-progress'), 'Decisão 1 de 2');
+      expect(h.choices(), hasLength(2));
+    });
+
+    testWidgets('a split out of the 2 to 4 sub-steps is refused', (
+      tester,
+    ) async {
+      const wide = StepDecisionOption(
+        title: 'Em três',
+        kind: StepDecisionKind.split,
+        split: ['a', 'b', 'c'],
+      );
+      const narrow = StepDecisionOption(
+        title: 'Em duas',
+        kind: StepDecisionKind.split,
+        split: ['d', 'e'],
+      );
+      final h = await openModal(
+        tester,
+        onDisk: true,
+        result: const StepDecisionResult(
+          decisions: [
+            StepDecision(question: 'A', options: [wide, answer]),
+            StepDecision(question: 'B', options: [narrow, answer]),
+          ],
+        ),
+      );
+      await drain(tester);
+      await press(tester, LogicalKeyboardKey.digit1);
+      await tester.pump(stepDecisionAdvanceDelay);
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.digit1);
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await drain(tester);
+      expect(
+        text(tester, 'step-decision-failure'),
+        'Não dá para dividir: são 5 subetapas, e o limite é de 2 a 4',
+      );
+      expect(byKey('step-decision-compile-retry'), findsNothing);
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNull);
+      expect(h.compiler!.calls, isEmpty);
+    });
+
+    testWidgets('a sub-step does not split again', (tester) async {
+      await compileOption(
+        tester,
+        3,
+        step: const StepView(
+          id: 'R3.2',
+          text: 'Gravar',
+          status: StepStatus.needsInput,
+          sessionId: 's1',
+        ),
+      );
+      expect(
+        text(tester, 'step-decision-failure'),
+        'Não dá para dividir: R3.2 já é uma subetapa',
+      );
+    });
+
+    testWidgets('fits a window as narrow as the modal goes', (tester) async {
+      final h = await pumpPage(
+        tester,
+        size: const Size(700, 600),
+        onDisk: true,
+        alive: true,
+      );
+      await tester.tap(byKey('open'));
+      await settle(tester);
+      await drain(tester);
+      await press(tester, LogicalKeyboardKey.digit1);
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await drain(tester);
+      expect(byKey('step-decision-diff'), findsOneWidget);
+      expect(h.compiler!.calls, hasLength(1));
+    });
+  });
+
+  group('R10 · Compilar e continuar', () {
+    testWidgets('live session: writes the spec, keeps its status, sends the '
+        'edited message and marks the step as running', (tester) async {
+      final h = await compileOption(tester, 1);
+      await tester.enterText(byKey('step-decision-message'), 'Mensagem minha');
+      await tester.pump();
+      await submit(tester);
+
+      expect(h.file!.readAsStringSync(), amended(specFile));
+      expect(
+        SpecDocument.parse(h.file!.readAsStringSync()).rawStatus,
+        'aprovada',
+      );
+      expect(h.manager.sent, ['Mensagem minha']);
+      expect(h.runner!.contexts, isEmpty);
+      final rows = await h.rows();
+      expect(rows['R3']!.status, StepStatus.running);
+      expect(rows['R3']!.sessionId, 's1');
+      expect(dialog, findsNothing);
+      expect(
+        text(tester, 'step-decision-toast'),
+        'SPEC-003: etapa R3 retomada · requisito alterado',
+      );
+      expect(byKey('step-decision-undo'), findsOneWidget);
+      expect(h.choices(), isEmpty);
+    });
+
+    testWidgets('Ctrl+Enter is the primary button, also in the field', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      await tester.tap(byKey('step-decision-message'));
+      await tester.pump();
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await finished(tester);
+      expect(h.manager.sent, ['Crie a coluna image_id.']);
+    });
+
+    testWidgets('an empty message goes nowhere', (tester) async {
+      final h = await compileOption(tester, 1);
+      await tester.enterText(byKey('step-decision-message'), '  ');
+      await tester.pump();
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNull);
+      await ctrl(tester, LogicalKeyboardKey.enter);
+      await drain(tester);
+      expect(h.file!.readAsStringSync(), specFile);
+    });
+
+    testWidgets('session over: the next session starts with the message', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1, alive: false);
+      expect(find.textContaining('A sessão terminou'), findsOneWidget);
+      await submit(tester);
+      expect(h.manager.sent, isEmpty);
+      expect(h.manager.released, isEmpty);
+      expect(h.runner!.contexts, ['Crie a coluna image_id.']);
+      expect(h.file!.readAsStringSync(), amended(specFile));
+    });
+
+    testWidgets('only Responder sends without touching the file; the notice '
+        'says no requirement changed', (tester) async {
+      final h = await compileOption(tester, 2);
+      final modified = h.file!.lastModifiedSync();
+      await submit(tester);
+      expect(h.manager.sent.single, contains('Guardar em metadata'));
+      expect(h.file!.lastModifiedSync(), modified);
+      expect(
+        text(tester, 'step-decision-toast'),
+        'SPEC-003: etapa R3 retomada',
+      );
+      expect(byKey('step-decision-undo'), findsOneWidget);
+    });
+
+    testWidgets('Dividir with a live session never sends to it: the session '
+        'ends and the first sub-step gets a new one', (tester) async {
+      final h = await compileOption(tester, 3);
+      final message = tester
+          .widget<TextField>(byKey('step-decision-message'))
+          .controller!
+          .text;
+      await submit(tester);
+
+      expect(h.manager.sent, isEmpty);
+      expect(h.manager.released, ['s1']);
+      expect(h.runner!.contexts, [message]);
+      expect(h.file!.readAsStringSync(), specFile);
+      final rows = await h.rows();
+      expect(rows['R3']!.status, StepStatus.pending);
+      expect(rows['R3.1']!.body, 'Criar a migração');
+      expect(rows['R3.2']!.body, 'Gravar o id');
+      expect(
+        text(tester, 'step-decision-toast'),
+        'SPEC-003: etapa R3 dividida em 2 subetapas',
+      );
+    });
+
+    testWidgets('Adiar with a live session does not send either: the step is '
+        'pending at the end of the list', (tester) async {
+      final h = await compileOption(
+        tester,
+        4,
+        before: (h) => h.compiler!.after = deferred,
+      );
+      expect(find.textContaining('o R3 vai para o fim'), findsOneWidget);
+      await submit(tester);
+
+      expect(h.manager.sent, isEmpty);
+      expect(h.manager.released, ['s1']);
+      expect(h.runner!.contexts, hasLength(1));
+      expect((await h.rows())['R3']!.status, StepStatus.pending);
+      final spec = (await h.container
+          .read(specsRepoProvider)
+          .getById(h.spec.id))!;
+      expect(spec.requirements.map((r) => r.id), ['R1', 'R2', 'R4', 'R3']);
+      expect(
+        text(tester, 'step-decision-toast'),
+        'SPEC-003: etapa R3 adiada para o fim da fila',
+      );
+    });
+
+    testWidgets('"Só alterar a spec" writes and leaves the step waiting', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      await tester.tap(byKey('step-decision-only-spec'));
+      await finished(tester);
+      expect(h.file!.readAsStringSync(), amended(specFile));
+      expect(h.manager.sent, isEmpty);
+      expect(h.runner!.contexts, isEmpty);
+      expect((await h.rows())['R3']!.status, StepStatus.needsInput);
+      expect(dialog, findsNothing);
+      expect(byKey('step-decision-undo'), findsNothing);
+      expect(
+        find.text('SPEC-003: spec alterada · etapa R3 segue aguardando você'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a step that cannot resume puts everything back and stays '
+        'in the phase', (tester) async {
+      final h = await compileOption(tester, 3, alive: false);
+      h.runner!.error = const SpecRunException('A spec tem um duelo aberto.');
+      await submit(tester);
+      expect(dialog, findsOneWidget);
+      expect(
+        text(tester, 'step-decision-failure'),
+        'Não consegui retomar a etapa: A spec tem um duelo aberto. A spec e a '
+        'fila voltaram ao que eram.',
+      );
+      final rows = await h.rows();
+      expect(rows.keys, ['R3']);
+      expect(rows['R3']!.status, StepStatus.needsInput);
+      expect(h.choices(), hasLength(1));
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNotNull);
+    });
+
+    testWidgets('and a failure keeps the file of a compiled spec too', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1, alive: false);
+      h.runner!.error = const SpecRunException('Ocupada.');
+      await submit(tester);
+      expect(h.file!.readAsStringSync(), specFile);
+      expect(dialog, findsOneWidget);
+    });
+
+    group('Desfazer', () {
+      testWidgets('stops the session that got the message and only then puts '
+          'the file and the queue back', (tester) async {
+        final h = await compileOption(tester, 1);
+        await submit(tester);
+        String? textAtStop;
+        h.manager.onRelease = () => textAtStop = h.file!.readAsStringSync();
+
+        await undoAndWait(tester, undone);
+
+        expect(h.manager.released, ['s1']);
+        expect(textAtStop, amended(specFile));
+        expect(h.file!.readAsStringSync(), specFile);
+        final row = (await h.rows())['R3']!;
+        expect(row.status, StepStatus.needsInput);
+        expect(h.choices().single.title, amend.title);
+      });
+
+      testWidgets('a split: the session started goes, the sub-steps too', (
+        tester,
+      ) async {
+        final h = await compileOption(tester, 3);
+        await submit(tester);
+        expect((await h.rows()).keys, containsAll(['R3.1', 'R3.2']));
+
+        await undoAndWait(tester, undone);
+
+        expect(h.manager.released, ['s1', 's2']);
+        final rows = await h.rows();
+        expect(rows.keys, ['R3']);
+        expect(rows['R3']!.status, StepStatus.needsInput);
+      });
+
+      testWidgets('leaves at the first event of the session', (tester) async {
+        final h = await compileOption(tester, 1);
+        await submit(tester);
+        expect(byKey('step-decision-undo'), findsOneWidget);
+        // The load of the stored events is not an event.
+        await drain(tester);
+        expect(byKey('step-decision-undo'), findsOneWidget);
+
+        h.container
+            .read(sessionTimelineProvider('s1').notifier)
+            .push(const UnknownEvent({'type': 'assistant'}));
+        await tester.pump();
+        expect(byKey('step-decision-undo'), findsNothing);
+        expect(byKey('step-decision-toast'), findsOneWidget);
+      });
+
+      testWidgets('watches the new session, not the old one', (tester) async {
+        final h = await compileOption(tester, 1, alive: false);
+        await submit(tester);
+        h.container
+            .read(sessionTimelineProvider('s1').notifier)
+            .push(const UnknownEvent({'type': 'assistant'}));
+        await tester.pump();
+        expect(byKey('step-decision-undo'), findsOneWidget);
+        h.container
+            .read(sessionTimelineProvider('s2').notifier)
+            .push(const UnknownEvent({'type': 'assistant'}));
+        await tester.pump();
+        expect(byKey('step-decision-undo'), findsNothing);
+      });
+
+      testWidgets('is there for 8 s', (tester) async {
+        await compileOption(tester, 1);
+        await submit(tester);
+        await tester.pump(const Duration(seconds: 7));
+        expect(byKey('step-decision-undo'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pump(const Duration(seconds: 1));
+        expect(byKey('step-decision-undo'), findsNothing);
+      });
+
+      testWidgets('touches nothing when the file changed after compiling', (
+        tester,
+      ) async {
+        final h = await compileOption(tester, 1);
+        await submit(tester);
+        h.file!.writeAsStringSync('${amended(specFile)}\n<!-- editado -->\n');
+        await undoAndWait(
+          tester,
+          'A spec mudou depois de compilar: nada foi desfeito.',
+        );
+
+        expect(h.manager.released, isEmpty);
+        expect(h.file!.readAsStringSync(), contains('editado'));
+        expect((await h.rows())['R3']!.status, StepStatus.running);
+      });
+    });
+  });
+
+  group('R11 · spec changed on the disk', () {
+    const edited = '$specFile\n<!-- editado -->\n';
+
+    testWidgets('nothing is written and the modal says so', (tester) async {
+      final h = await compileOption(tester, 1);
+      h.file!.writeAsStringSync(edited);
+      await submit(tester);
+
+      expect(h.file!.readAsStringSync(), edited);
+      expect(h.manager.sent, isEmpty);
+      expect((await h.rows())['R3']!.status, StepStatus.needsInput);
+      expect(dialog, findsOneWidget);
+      expect(find.text('A spec mudou enquanto você decidia'), findsOneWidget);
+      expect(byKey('step-decision-diff'), findsNothing);
+      expect(smallButton(tester, 'step-decision-submit').onTap, isNull);
+    });
+
+    testWidgets('a change before Compilar counts, since the opening', (
+      tester,
+    ) async {
+      final h = await compileOption(
+        tester,
+        1,
+        before: (h) => h.file!.writeAsStringSync(edited),
+      );
+      await submit(tester);
+      expect(byKey('step-decision-conflict'), findsOneWidget);
+      expect(h.manager.sent, isEmpty);
+    });
+
+    testWidgets('the same text with a new mtime is a change too', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      h.file!.setLastModifiedSync(DateTime(2020));
+      await submit(tester);
+      expect(byKey('step-decision-conflict'), findsOneWidget);
+      expect(h.manager.sent, isEmpty);
+    });
+
+    testWidgets('"Só alterar a spec" stops at the conflict as well', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      h.file!.writeAsStringSync(edited);
+      await tester.tap(byKey('step-decision-only-spec'));
+      await finished(tester);
+      expect(h.file!.readAsStringSync(), edited);
+      expect(byKey('step-decision-conflict'), findsOneWidget);
+    });
+
+    testWidgets('a split writes no file, and still does not touch the queue', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 3);
+      h.file!.writeAsStringSync(edited);
+      await submit(tester);
+      expect((await h.rows()).keys, ['R3']);
+      expect(h.runner!.contexts, isEmpty);
+      expect(byKey('step-decision-conflict'), findsOneWidget);
+    });
+
+    testWidgets('only Responder writes nothing, so nothing conflicts', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 2);
+      h.file!.writeAsStringSync(edited);
+      await submit(tester);
+      expect(h.manager.sent, hasLength(1));
+      expect(h.file!.readAsStringSync(), edited);
+    });
+
+    testWidgets('"Recompilar" starts from the file as it is now', (
+      tester,
+    ) async {
+      final h = await compileOption(tester, 1);
+      h.file!.writeAsStringSync(edited);
+      await submit(tester);
+      await tester.tap(byKey('step-decision-recompile'));
+      await drain(tester);
+      expect(h.compiler!.calls, hasLength(2));
+      expect(byKey('step-decision-conflict'), findsNothing);
+      expect(byKey('step-decision-diff'), findsOneWidget);
+
+      await submit(tester);
+      expect(h.file!.readAsStringSync(), amended(edited));
+      expect(h.manager.sent, hasLength(1));
+    });
+
+    testWidgets('"Abrir no editor" opens the file, from the workspace', (
+      tester,
+    ) async {
+      final started = <(String, List<String>, String)>[];
+      final h = await compileOption(
+        tester,
+        1,
+        overrides: [
+          worktreeLauncherProvider.overrideWithValue(
+            WorktreeLauncher(
+              which: (_) async => true,
+              start: (exe, args, cwd) async => started.add((exe, args, cwd)),
+            ),
+          ),
+        ],
+      );
+      h.file!.writeAsStringSync(edited);
+      await submit(tester);
+      await tester.tap(byKey('step-decision-open-editor'));
+      await drain(tester);
+      expect(started.single.$1, 'code');
+      expect(started.single.$2, [h.file!.path]);
+      expect(started.single.$3, h.file!.parent.parent.path);
     });
   });
 
