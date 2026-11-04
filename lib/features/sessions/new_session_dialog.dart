@@ -8,6 +8,7 @@ import '../../core/providers/agent_registry.dart' show codexEnabledProvider;
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import 'agent_names.dart';
 import 'session_manager.dart';
 import 'widgets/composer.dart' show uiPermissionModes;
@@ -20,7 +21,7 @@ Future<String?> showNewSessionDialog(
   String? agent,
   String? title,
   String? prompt,
-}) => showDialog<String>(
+}) => showAppDialog<String>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => NewSessionDialog(
@@ -32,7 +33,7 @@ Future<String?> showNewSessionDialog(
 
 /// "Fork" of a session: asks the first message of the fork.
 Future<String?> showForkDialog(BuildContext context, Session parent) =>
-    showDialog<String>(
+    showAppDialog<String>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (_) => NewSessionDialog(forkOf: parent),

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/provider_preferences.dart';
 import '../../../data/providers.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../project/project_config.dart';
 import '../spec_service.dart';
 import '../spec_verifier.dart';
@@ -47,7 +49,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
   void _message(String message) {
     if (mounted) {
       ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text(message)));
+          ?.showAppToast(SnackBar(content: Text(message)));
     }
   }
 
@@ -65,7 +67,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
 
   Future<void> _showText(String title, String text) async {
     if (!mounted) return;
-    await showDialog<void>(
+    await showAppDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
@@ -99,7 +101,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
         widget.selected!.id,
     };
     final provider = ref.read(defaultAgentProvider(ws.id));
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) => AlertDialog(

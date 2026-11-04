@@ -31,6 +31,7 @@ import '../../features/board/board_screen.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/tokens.dart';
+import '../widgets/app_toast.dart';
 import 'command_palette.dart';
 import 'editor_zoom.dart';
 import 'global_approvals.dart';
@@ -132,7 +133,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
     // A first run has nothing to unlearn.
     if (settings.get(AppSettingKeys.lastSection) == null) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showAppToast(
       SnackBar(
         key: const ValueKey('shortcuts-changed'),
         duration: const Duration(seconds: 10),
@@ -276,7 +277,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _notImplemented(String what) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showAppToast(
         SnackBar(
           content: Text('$what — em construção'),
           duration: const Duration(seconds: 2),

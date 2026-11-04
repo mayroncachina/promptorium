@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart';
 import '../board_screen.dart';
@@ -39,7 +40,7 @@ Future<void> showLegacyTasksDialog(
   BuildContext context,
   Workspace ws,
   List<Task> tasks,
-) => showDialog<void>(
+) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => _LegacyTasksDialog(ws: ws),

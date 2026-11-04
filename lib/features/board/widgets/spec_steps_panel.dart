@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
@@ -32,7 +34,7 @@ Color stepStatusColor(StepStatus s) => switch (s) {
 
 /// Card details: the steps with their state and session.
 Future<void> showSpecDetailDialog(BuildContext context, int specId) =>
-    showDialog<void>(
+    showAppDialog<void>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => Align(
@@ -89,11 +91,11 @@ Future<void> rewindStepAction(
   try {
     preview = await runner.rewindPreview(spec.id, step.id);
   } catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    messenger?.showAppToast(SnackBar(content: Text('$e')));
     return;
   }
   if (!context.mounted) return;
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       key: const ValueKey('rewind-dialog'),
@@ -189,7 +191,7 @@ Future<void> rewindStepAction(
       await runner.rewind(spec.id, step.id);
     }
   } catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    messenger?.showAppToast(SnackBar(content: Text('$e')));
   }
 }
 
@@ -452,7 +454,7 @@ Future<void> _gateAction(
   try {
     await action();
   } catch (e) {
-    messenger?.showSnackBar(SnackBar(content: Text('$e')));
+    messenger?.showAppToast(SnackBar(content: Text('$e')));
   }
 }
 

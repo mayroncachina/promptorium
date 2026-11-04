@@ -8,6 +8,7 @@ import '../../core/claude/claude_event.dart' show PermissionRequest;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart';
 import '../sessions/new_session_dialog.dart';
 import '../sessions/session_manager.dart' show PendingApproval, slugify;
@@ -147,7 +148,7 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
   void _snack(String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   Future<void> _deny(String message) async {

@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_service.dart';
 
 /// "Nova spec" (title bar of the Specs screen): asks the title, writes
 /// `specs/SPEC-NNN-<slug>.md` from the template and selects it.
-Future<Spec?> showNewSpecDialog(BuildContext context) => showDialog<Spec>(
+Future<Spec?> showNewSpecDialog(BuildContext context) => showAppDialog<Spec>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const NewSpecDialog(),

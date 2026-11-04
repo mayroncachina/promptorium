@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../board/board_rules.dart';
 import '../../board/board_screen.dart' show specStepsProvider;
 import '../../board/step_gate.dart';
@@ -476,7 +477,7 @@ Future<void> showAnalyzeDialog(
   if (!context.mounted) return;
   final config = ProjectConfig.loadSync(ws.path);
   final (_, changes) = applyDetection(config, d);
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       key: const ValueKey('analyze-dialog'),

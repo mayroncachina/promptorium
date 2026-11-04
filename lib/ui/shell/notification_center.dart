@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../features/sessions/session_manager.dart';
 import '../theme/tokens.dart';
+import '../widgets/app_dialog.dart';
 import 'navigation.dart';
 
 /// Recent notifications (newest first), refreshed on every change.
@@ -32,7 +33,7 @@ class NotificationBell extends ConsumerWidget {
         key: const ValueKey('notifications-open'),
         borderRadius: BorderRadius.circular(6),
         onTap: () async {
-          await showDialog<void>(
+          await showAppDialog<void>(
             context: context,
             barrierColor: AppColors.scrim,
             builder: (_) => const _NotificationsDialog(),

@@ -6,6 +6,7 @@ import '../../../core/claude/claude_args.dart';
 import '../../../data/providers.dart';
 import '../../../core/providers/permission_policy.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../prompt/prompt_actions.dart'
     show
         ComposerTrigger,
@@ -198,7 +199,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
   void _snack(String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   Future<void> _send() async {
@@ -349,7 +350,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                             .read(sessionManagerProvider.notifier)
                             .setPermissionMode(widget.sessionId, m);
                       } on SessionException catch (e) {
-                        messenger?.showSnackBar(
+                        messenger?.showAppToast(
                           SnackBar(content: Text(e.message)),
                         );
                       }

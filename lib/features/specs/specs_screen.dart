@@ -12,6 +12,8 @@ import '../../core/providers/agent_provider.dart' show PromptMode;
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../../ui/widgets/code_editor/app_code_editor.dart';
 import '../../ui/shell/editor_zoom.dart';
 import '../../ui/widgets/zoom_control.dart';
@@ -102,7 +104,7 @@ Future<bool> showSpecConflictDialog(
   required String draft,
 }) async {
   final lines = lineDiff(disk, draft);
-  final keep = await showDialog<bool>(
+  final keep = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(
@@ -186,7 +188,7 @@ Future<bool> confirmLeaveDuringAction(
   required String destination,
   bool toSpec = true,
 }) async {
-  final leave = await showDialog<bool>(
+  final leave = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(
@@ -258,7 +260,7 @@ Future<ApproveCheck?> showApproveChecksDialog(
   required String code,
   required List<OpenQuestion> questions,
   required List<SpecWarning> warnings,
-}) => showDialog<ApproveCheck>(
+}) => showAppDialog<ApproveCheck>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (ctx) {
@@ -761,7 +763,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   Future<bool> _confirmDiscard() async {
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (ctx) => AlertDialog(
@@ -844,7 +846,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       }
     }
     if (doc.design == null && !doc.designWaived) {
-      final choice = await showDialog<String>(
+      final choice = await showAppDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
           key: const ValueKey('spec-no-design-dialog'),
@@ -1304,7 +1306,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
+      ..showAppToast(SnackBar(content: Text(msg)));
   }
 
   /// The status strip of a long action (R3; in Protótipo the generation

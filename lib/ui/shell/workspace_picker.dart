@@ -9,6 +9,7 @@ import '../../data/providers.dart';
 import '../../features/project/widgets/start_screen.dart'
     show startScreenProvider;
 import '../theme/tokens.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_icon.dart';
 import 'navigation.dart';
 
@@ -16,7 +17,7 @@ import 'navigation.dart';
 /// workspaces, selects one, removes one or adds a git folder (typed path or
 /// native folder chooser). A folder that is not a repository can be `git
 /// init`-ed (optionally with a remote) or cloned into.
-Future<void> showWorkspacePicker(BuildContext context) => showDialog<void>(
+Future<void> showWorkspacePicker(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const WorkspacePicker(),

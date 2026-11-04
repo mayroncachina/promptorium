@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/process/process_runner.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../spec_action.dart';
 import '../widgets/spec_action_banner.dart';
 import 'prototype_delete.dart';
@@ -493,7 +494,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       final settings = ref.read(appSettingsProvider.notifier);
       if (settings.get(headlessWarnedKey) == '1') return;
       unawaited(settings.set(headlessWarnedKey, '1'));
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showAppToast(
         const SnackBar(
           key: ValueKey('proto-headless-hint'),
           content: Text(headlessInstallHint),

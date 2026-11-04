@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../sessions/agent_names.dart';
 import '../sessions/new_session_dialog.dart';
 import '../sessions/widgets/session_style.dart';
@@ -84,7 +85,7 @@ class AgentsScreen extends ConsumerWidget {
                           ref.invalidate(agentListProvider(ws?.path));
                           ScaffoldMessenger.maybeOf(context)
                             ?..hideCurrentSnackBar()
-                            ..showSnackBar(
+                            ..showAppToast(
                               SnackBar(
                                 content: Text('Agente salvo em $path'),
                                 duration: const Duration(seconds: 2),

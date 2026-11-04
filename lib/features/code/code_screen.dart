@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/fs/dir_watcher.dart';
+import '../../ui/widgets/app_toast.dart';
 import 'code_panels.dart';
 
 import '../../core/git/git_service.dart';
@@ -106,7 +107,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     if (!mounted || msg.isEmpty) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showAppToast(
         SnackBar(content: Text(msg), duration: const Duration(seconds: 3)),
       );
   }

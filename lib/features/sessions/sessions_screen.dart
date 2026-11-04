@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
@@ -443,7 +444,7 @@ class _Header extends ConsumerWidget {
   void _snack(BuildContext context, Object e) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$e')));
+      ..showAppToast(SnackBar(content: Text('$e')));
   }
 
   @override

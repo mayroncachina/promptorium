@@ -306,6 +306,12 @@ autopilot:
     // Saved: the "specs already existing stay" warning is gone.
     expect(find.byKey(const ValueKey('config-specs-warning')), findsNothing);
 
+    // The "saved" toast sits over the bottom of the form: out of the way.
+    ScaffoldMessenger.of(
+      tester.element(find.byKey(const ValueKey('config-save'))),
+    ).removeCurrentSnackBar();
+    await tester.pump();
+
     // Invalid folder: error, nothing written.
     await tester.enterText(
       find.byKey(const ValueKey('config-specs')),

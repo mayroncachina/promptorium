@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 
 /// Models of the editor (plano 0.2). `inherit` = "Herdar".
 const agentModels = [
@@ -265,7 +266,7 @@ Future<bool> confirmAgentAction(
   required String message,
   required String confirm,
 }) async {
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../sessions/session_manager.dart';
 import '../specs/workspace_watcher.dart';
 import '../specs/widgets/spec_sync_bar.dart';
@@ -1725,7 +1726,7 @@ class _CardMenu extends ConsumerWidget {
                     .read(specRunnerProvider)
                     .runNext(spec.id, duel: true, reviewUnblocks: true);
               } catch (e) {
-                messenger?.showSnackBar(SnackBar(content: Text('$e')));
+                messenger?.showAppToast(SnackBar(content: Text('$e')));
               }
             case 'up':
               await onMove?.call(-1);

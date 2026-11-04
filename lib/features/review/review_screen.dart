@@ -2,6 +2,8 @@ import 'dart:async';
 
 import '../../core/fs/dir_watcher.dart';
 
+import '../../ui/widgets/app_dialog.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart';
 import 'merge_options.dart';
 import 'merge_readiness.dart';
@@ -58,7 +60,7 @@ class ReviewScreen extends ConsumerWidget {
       final done = next.value ?? const <RestackResult>[];
       if (done.isEmpty) return;
       ref.invalidate(reviewQueueProvider(ws.id));
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showAppToast(
         SnackBar(
           content: Text('Mãe mergeada pelo host · ${restackNotice(done)}'),
           persist: false,
@@ -766,7 +768,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   void _toast(String msg, {SnackBarAction? action}) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showAppToast(
         SnackBar(
           content: Text(msg),
           persist: false,
@@ -1073,7 +1075,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       (m) => m.name == config.mergeMethod,
       orElse: () => PrMergeMethod.squash,
     );
-    final method = await showDialog<PrMergeMethod>(
+    final method = await showAppDialog<PrMergeMethod>(
       context: context,
       builder: (ctx) => SimpleDialog(
         title: Text('Mergear PR em ${d.baseBranch}'),
@@ -1132,7 +1134,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     );
     String name(ReviewItem i) =>
         i.spec?.code ?? i.task?.code ?? sessionTitle(i.session);
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Mergear a pilha (${stack.items.length})'),
@@ -1578,7 +1580,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                 key: const ValueKey('review-host-details'),
                 tooltip: 'Ver diagnóstico da hospedagem',
                 iconSize: 16,
-                onPressed: () => showDialog<void>(
+                onPressed: () => showAppDialog<void>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Hospedagem do projeto'),
@@ -2252,7 +2254,7 @@ class _RootBannerState extends ConsumerState<_RootBanner> {
     } on ReviewException catch (e) {
       if (mounted) {
         ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(e.message)));
+            ?.showAppToast(SnackBar(content: Text(e.message)));
       }
     } finally {
       ref.invalidate(rootStatusProvider(ws.id));
