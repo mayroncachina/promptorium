@@ -465,7 +465,10 @@ Future<void> drain(WidgetTester tester, [int times = 10]) async {
 
 /// [drain] until [done]: how long the disk takes depends on the machine.
 Future<void> drainUntil(WidgetTester tester, bool Function() done) async {
-  for (var i = 0; i < 2000 && !done(); i++) {
+  // Bounded by real time, not by turns: with the full suite running files in
+  // parallel each turn takes longer.
+  final deadline = DateTime.now().add(const Duration(seconds: 45));
+  while (!done() && DateTime.now().isBefore(deadline)) {
     await drain(tester, 1);
   }
   expect(done(), isTrue, reason: 'condição não atingida');
