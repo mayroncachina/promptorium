@@ -30,7 +30,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4BTHA99gBd9kY4aokfZ
 
 ## Requisitos
 
-- R1 · A visão de foco deve ter a pasta `specs/` à esquerda e o palco ocupando o resto da tela:
+- R1 · O Quadro deve ganhar a visão **Foco**, ao lado das atuais: **Colunas · Grafo · Foco**. O Canvas de ondas continua como está, e a escolha fica salva como hoje. O Foco tem a pasta `specs/` à esquerda e o palco ocupando o resto da tela:
   - a pasta lista as specs do workspace, da mais nova para a mais antiga;
   - cada linha mostra o ícone de status, o número e o título;
   - o título cortado termina em reticências e aparece inteiro no hover (R4);
@@ -89,7 +89,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4BTHA99gBd9kY4aokfZ
   - arrastar e dar zoom;
   - "Ajustar" enquadra o que está no palco;
   - quando os cards não couberem na janela, o palco enquadra todos ao abrir;
-  - "Voltar à pasta" e `Esc` esvaziam o palco e devolvem as specs à pasta;
+  - "Voltar à pasta" e `Esc` esvaziam o palco e devolvem as specs à pasta; com o painel de detalhes aberto (R18), `Esc` fecha primeiro o painel;
   - os cards do palco mantêm os balões das etapas, que abrem a etapa como hoje (SPEC-033), e o halo de "Precisa de você" (SPEC-030).
 - R12 · O botão **Executando · <n>** deve mostrar as specs em execução no palco, lado a lado:
   - `<n>` conta as specs que têm uma sessão rodando ou uma etapa em andamento;
@@ -100,6 +100,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4BTHA99gBd9kY4aokfZ
   - "Etapa <n> de <total> · rodando", com a barra de atividade;
   - em "aguardando você", o card mostra o balão, e a barra para;
   - quando a spec sai de execução, o card volta para a pasta e a contagem cai.
+- R17 · Acima do card central, o palco deve mostrar de quem a spec depende:
+  - uma linha com "Depende de SPEC-030, SPEC-028", em que cada código é clicável e leva aquela spec ao centro;
+  - sem dependências, a linha não aparece;
+  - a árvore para cima não é desenhada: o palco continua mostrando só as dependentes.
+- R18 · Clicar na spec que já está no centro deve abrir o painel lateral de detalhes que o Canvas já tem, com as mesmas ações. O palco se recentraliza no espaço que sobra.
 - R14 · Com animações desligadas (`MediaQuery.disableAnimations`), tudo vai direto ao estado final: sem voo, sem desenho das setas, com o loading e a barra de atividade parados.
 - R15 · As animações seguem a SPEC-034: só opacidade e transformação nos cards, sem bloquear clique ou teclado. Uma nova escolha interrompe a anterior e parte do estado atual.
 - R16 · A visão deve funcionar no tamanho mínimo da janela (1100×700), sem estouro de layout.
@@ -129,6 +134,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4BTHA99gBd9kY4aokfZ
 - O card expandido reusa o conteúdo de `_SpecNode`, extraído para um widget próprio.
 - Recolhida, o hover usa um `OverlayEntry` para o card passar por cima do palco.
 - `boardFolderCollapsedProvider`, como `BoardHideDone`.
+- `boardGraphViewProvider` hoje é um booleano e passa a ser um `enum` com colunas, grafo e foco, lendo o valor salvo antigo.
 
 ### R6, R7 · Busca
 
@@ -152,14 +158,14 @@ A branch pai é `spec/036-pasta-e-palco`. Cada tarefa tem sua branch e vira um P
 
 | Tarefa | Branch | Requisitos | Depende de |
 |---|---|---|---|
-| T1 · Pasta | `spec/036-t1-pasta` | R1–R5, R16 | — |
+| T1 · Visão Foco e pasta | `spec/036-t1-pasta` | R1–R5, R16 | — |
 | T2 · Busca | `spec/036-t2-busca` | R6, R7 | T1 |
-| T3 · Palco | `spec/036-t3-palco` | R8–R11, R14, R15 | T1 |
+| T3 · Palco | `spec/036-t3-palco` | R8–R11, R14, R15, R17, R18 | T1 |
 | T4 · Executando | `spec/036-t4-executando` | R12, R13 | T3 |
 
 ## Critérios de aceite
 
-- [ ] A pasta lista as specs da mais nova para a mais antiga e respeita "Ocultar concluídas" [R1] verificar: flutter test test/features/board/spec_folder_test.dart
+- [ ] O Quadro oferece Colunas, Grafo e Foco, e o Canvas de ondas não muda; a pasta lista as specs da mais nova para a mais antiga e respeita "Ocultar concluídas" [R1] verificar: flutter test test/features/board/spec_folder_test.dart
 - [ ] Cada status tem o ícone e o rótulo acessível, e o balão tem prioridade [R2] verificar: flutter test test/features/board/spec_folder_test.dart
 - [ ] A pasta mostra até 15 linhas e rola pela roda, pelas setas e pelo teclado; as setas desabilitam nas pontas; o foco rola até a linha [R3] verificar: flutter test test/features/board/spec_folder_test.dart
 - [ ] O hover expande a linha sem cobrir as outras, inclusive a última [R4] verificar: flutter test test/features/board/spec_folder_test.dart
@@ -172,6 +178,8 @@ A branch pai é `spec/036-pasta-e-palco`. Cada tarefa tem sua branch e vira um P
 - [ ] Zoom, Ajustar, Esc, balões das etapas e halo continuam funcionando no palco [R11] verificar: flutter test test/features/board/spec_stage_test.dart
 - [ ] "Executando" mostra as specs em execução, com a contagem certa, e fica desabilitado sem nenhuma [R12] verificar: flutter test test/features/board/spec_stage_running_test.dart
 - [ ] O card atualiza a etapa, mostra o balão ao aguardar e volta à pasta ao sair de execução [R13] verificar: flutter test test/features/board/spec_stage_running_test.dart
+- [ ] A linha "Depende de" lista as dependências, cada código leva a spec ao centro, e ela some sem dependências [R17] verificar: flutter test test/features/board/spec_stage_test.dart
+- [ ] Clicar na spec central abre o painel de detalhes, e `Esc` fecha o painel antes do palco [R18] [R11] verificar: flutter test test/features/board/spec_stage_test.dart
 - [ ] Com animações desligadas, tudo vai direto ao estado final [R14] verificar: flutter test test/features/board/spec_stage_test.dart
 - [ ] Clique e teclado valem durante o voo, e uma nova escolha parte do estado atual [R15] verificar: flutter test test/features/board/spec_stage_test.dart
 - [ ] Em 1100×700 não há estouro de layout [R16] verificar: flutter test test/features/board/spec_stage_test.dart
@@ -182,13 +190,11 @@ A branch pai é `spec/036-pasta-e-palco`. Cada tarefa tem sua branch e vira um P
 - D1 · O protótipo usa uma altura fixa de 15 linhas, mas a janela mínima do app tem 700 px. A pasta mostra até 15 linhas e, em janela menor, as que couberem (R3).
 - D2 · A busca usa `/` e `Ctrl+F` porque `Ctrl+K` já é a paleta de comandos.
 - D3 · No hover, a linha sempre cresce para baixo e empurra as vizinhas. Crescer para cima, testado no protótipo, cobria as linhas de baixo e impedia de alcançá-las.
+- D5 · O Foco convive com o Canvas de ondas, como terceira opção: **Colunas · Grafo · Foco**. O Canvas é a única visão de todas as specs juntas e mostra agentes e skills da spec selecionada. Se o Foco for mais usado, ele pode virar o padrão depois (P1).
+- D6 · O palco mostra de quem a spec depende numa linha clicável acima do card central, sem desenhar a árvore para cima, para não tirar o foco e o espaço das dependentes (P2).
+- D7 · Clicar na spec central abre o painel lateral que o Canvas já tem. O protótipo não mostra esse painel nem a linha do D6 (P3).
 - D4 · No app, o texto "Em execução" hoje é laranja; o protótipo usa amarelo. Esta spec segue o protótipo só no ícone de loading da pasta e nos cards do palco.
 
 ## Perguntas em aberto
 
-- P1 · A visão de foco substitui o Canvas de ondas ou convive com ele?
-  - Sugestão: convive, como uma terceira opção: **Colunas · Grafo · Foco**. O Canvas de ondas é a única visão de todas as specs juntas e mostra agentes e skills da spec selecionada, que o palco não cobre. Se o Foco for mais usado, ele pode virar o padrão depois.
-- P2 · O palco deve mostrar também de quem a spec depende, acima do card central?
-  - Sugestão: sim, de forma leve: uma linha acima do card com "Depende de SPEC-030, SPEC-028", clicável. Desenhar a árvore para cima tiraria o foco e o espaço das dependentes.
-- P3 · Como abrir os detalhes da spec central?
-  - Sugestão: clicar na spec central abre o painel lateral que o Canvas já tem, e `Esc` fecha primeiro o painel e depois o palco. O protótipo não mostra esse painel.
+Nenhuma.
