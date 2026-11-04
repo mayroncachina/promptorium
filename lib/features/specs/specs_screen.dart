@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show FileSystemException;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
 import 'widgets/spec_header.dart';
 import 'widgets/spec_questions_panel.dart';
+import 'widgets/spec_skeleton.dart';
 
 export 'widgets/spec_header.dart' show SpecViewMode;
 import 'widgets/spec_list.dart';
@@ -472,8 +474,30 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   int? _loadedSpecId;
   CodeLineEditingController? _controller;
   String _saved = '';
-  bool _missing = false;
   bool _loading = false;
+
+  /// The spec whose text is in [_controller]. It differs from [_loadedSpecId]
+  /// while another spec is on the way: that text is never saved, edited or
+  /// kept as a draft of the spec being opened (SPEC-034 R10).
+  int? _docSpecId;
+
+  /// Bumped by each [_load]: a newer one cancels the wait of the older.
+  int _loadTurn = 0;
+
+  /// R10: how long the current document stays before the skeleton comes.
+  static const _skeletonDelay = Duration(milliseconds: 300);
+  Timer? _skeletonTimer;
+  bool _skeletonDue = false;
+
+  /// Why the spec did not open (R10), shown in the place of the document.
+  ({int specId, String message})? _openError;
+
+  /// Changes when a text enters, which fades it in (R10).
+  int _fadeTurn = 0;
+
+  /// The last document shown: during the wait it stays as it was, with
+  /// [hold] true, so nothing in it acts on the spec being opened (R10).
+  Widget Function({required bool hold})? _shownBody;
 
   /// Last failed action (SPEC-025 R8), shown while its spec is open.
   SpecActionFailure? _failure;
@@ -513,7 +537,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   void dispose() {
     // R9: the screen is rebuilt on every visit; keep what was not saved.
     final id = _loadedSpecId, text = _controller?.text;
-    if (id != null && text != null && _dirty && !_missing) {
+    if (id != null && text != null && _dirty) {
       // Providers cannot change while the tree is being finalized.
       final unsaved = _unsaved;
       scheduleMicrotask(() {
@@ -532,6 +556,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final a = _actions.current;
     if (a != null && a.kind.long && !a.cancel.isCompleted) a.cancel.complete();
     _lintTimer?.cancel();
+    _skeletonTimer?.cancel();
     _controller?.removeListener(_onText);
     _controller?.dispose();
     _editorFocus.dispose();
@@ -554,43 +579,85 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // SPEC-027 R6: another spec makes the deletion final.
     if (_loadedSpecId != spec.id) _undo.discardLater();
     _loadedSpecId = spec.id;
-    setState(() => _loading = true);
+    final turn = ++_loadTurn;
+    bool stale() => turn != _loadTurn || _loadedSpecId != spec.id;
+    // A skeleton already on screen stays: going back to the old document
+    // would blink.
+    if (!_skeletonDue) {
+      _skeletonTimer?.cancel();
+      _skeletonTimer = Timer(_skeletonDelay, () {
+        if (mounted) setState(() => _skeletonDue = true);
+      });
+    }
+    setState(() {
+      _loading = true;
+      _openError = null;
+    });
+    ref.read(specDirtyProvider.notifier).set(_dirty);
     String? text;
+    String? failure;
     try {
       text = await ref.read(specServiceProvider).read(ws, spec);
+      if (text == null) failure = 'o arquivo não está mais na pasta de specs.';
     } catch (e) {
-      _snack('Falha ao abrir ${spec.path}: $e');
+      failure = switch (e) {
+        FileSystemException(:final osError?) => osError.message,
+        _ => '$e',
+      };
     }
-    if (!mounted || _loadedSpecId != spec.id) return;
+    if (!mounted || stale()) return;
+    if (failure != null) {
+      _skeletonTimer?.cancel();
+      setState(() {
+        _openError = (
+          specId: spec.id,
+          message: 'Não foi possível abrir a ${spec.code}: $failure',
+        );
+        _shownBody = null;
+        _questionsOpen = false;
+        _loading = false;
+        _skeletonDue = false;
+        _fadeTurn++;
+      });
+      return;
+    }
     // R9: unsaved text left in the editor differs from the file: show the
     // diff and ask (never overwritten without confirmation).
-    var shown = text ?? '';
+    var shown = text!;
     final draft = ref.read(specUnsavedProvider.notifier).take(spec.id);
-    if (text != null && draft != null && draft != text) {
+    if (draft != null && draft != text) {
       final keep = await showSpecConflictDialog(
         context,
         code: spec.code,
         disk: text,
         draft: draft,
       );
-      if (!mounted || _loadedSpecId != spec.id) return;
+      if (!mounted || stale()) return;
       if (keep) shown = draft;
     }
-    _controller?.removeListener(_onText);
-    _controller?.dispose();
+    // The editor on screen still uses the old controller until the next
+    // frame takes it away.
+    final old = _controller?..removeListener(_onText);
+    if (old != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
     _lastText = shown;
     _controller = CodeLineEditingController.fromText(shown)
       ..addListener(_onText);
     _lintTimer?.cancel();
+    _skeletonTimer?.cancel();
     _setWarnings(shown);
     setState(() {
+      // A reload of the same text, with nothing covering it, just stays.
+      if (_docSpecId != spec.id || _skeletonDue) _fadeTurn++;
+      _docSpecId = spec.id;
       _questionsOpen = false;
-      _saved = text ?? '';
-      _missing = text == null;
+      _saved = text!;
       _loading = false;
+      _skeletonDue = false;
     });
     ref.read(specDirtyProvider.notifier).set(_dirty);
-    if (text != null && ref.read(pendingDesignProvider) == spec.id) {
+    if (ref.read(pendingDesignProvider) == spec.id) {
       ref.read(pendingDesignProvider.notifier).select(null);
       await _design(ws, spec);
     }
@@ -633,21 +700,25 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  bool get _dirty => _controller != null && _controller!.text != _saved;
+  bool get _dirty =>
+      _controller != null &&
+      _docSpecId == _loadedSpecId &&
+      _controller!.text != _saved;
 
   Future<Spec?> _save(Workspace ws, Spec spec) async {
     final c = _controller;
     if (c == null) return spec;
+    // SPEC-034 R10: during a wait the text on screen is the old one.
+    if (_loading || _docSpecId != spec.id || _loadedSpecId != spec.id) {
+      return null;
+    }
     // R1: nothing is written while an action holds the spec.
     if (_held(spec.id)) return null;
     try {
       final text = c.text;
       final saved = await ref.read(specServiceProvider).save(ws, spec, text);
-      if (!mounted) return saved;
-      setState(() {
-        _saved = text;
-        _missing = false;
-      });
+      if (!mounted || _docSpecId != spec.id) return saved;
+      setState(() => _saved = text);
       ref.read(specDirtyProvider.notifier).set(_dirty);
       ref.invalidate(specSubagentsProvider);
       return saved;
@@ -1381,6 +1452,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (_syncedWorkspace != ws.id) {
       _syncedWorkspace = ws.id;
       _loadedSpecId = null;
+      _shownBody = null;
       Future.microtask(() => _sync(ws));
     }
     final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
@@ -1401,7 +1473,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _loadedSpecId = spec.id;
       Future.microtask(() => _load(ws, spec));
     }
-    final text = _controller?.text ?? '';
+    // While another spec is on the way the controller has the old text,
+    // which says nothing about [spec].
+    final current =
+        spec != null && _controller != null && _docSpecId == spec.id;
+    final text = current ? _controller!.text : '';
     final doc = SpecDocument.parse(text);
     // Traceability of the step clicked in the steps panel (U5).
     final selectedStep = ref.watch(selectedStepProvider);
@@ -1411,7 +1487,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             spec,
             stepRows,
           ).where((st) => st.id == selectedStep!.step).firstOrNull;
-    final ready = spec != null && _controller != null && !_loading;
+    final openError = spec != null && _openError?.specId == spec.id
+        ? _openError
+        : null;
+    final ready = current && !_loading && openError == null;
+    final notReadyReason = openError != null
+        ? 'A spec não abriu.'
+        : 'Aguarde a spec carregar.';
     // Started specs are a record of what was delivered: changes go to a
     // clone ("Clonar para alterar").
     final locked = spec != null && spec.stage != SpecStage.backlog;
@@ -1437,7 +1519,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final generatingScreens =
         protoBusy || (held && action!.kind == SpecActionKind.screens);
     final deleteReason = !ready
-        ? 'Aguarde a spec carregar.'
+        ? notReadyReason
         : generatingScreens
         ? deleteBusyHint
         : held
@@ -1458,6 +1540,106 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
           unawaited(ref.read(prototypeUndoProvider.notifier).undo()),
     };
+
+    if (ready) {
+      final controller = _controller!;
+      _shownBody = ({required bool hold}) => IgnorePointer(
+        ignoring: hold,
+        child: ExcludeFocus(
+          excluding: hold,
+          child: proto
+              ? CallbackShortcuts(
+                  bindings: undoBindings,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child:
+                            (protoUi!.comparing != null &&
+                                protoState!
+                                    .variationsOf(protoUi.comparing!)
+                                    .isNotEmpty
+                            ? PrototypeCompare(
+                                ws: ws,
+                                spec: spec,
+                                approved: approvedScreens,
+                                onApprove: readOnly
+                                    ? null
+                                    : (x) => _approveScreen(ws, spec, x),
+                                onViewSpec: () {
+                                  ref
+                                      .read(
+                                        prototypeUiProvider(spec.id).notifier,
+                                      )
+                                      .compare(null);
+                                  setState(() => _mode = SpecViewMode.preview);
+                                },
+                              )
+                            : PrototypeCanvas(
+                                ws: ws,
+                                spec: spec,
+                                approved: approvedScreens,
+                                onDelete: onDeleteScreens,
+                                deleteReason: deleteReason,
+                                onGenerate:
+                                    ready && !protoBusy && action == null
+                                    ? (req) => _generateScreens(
+                                        ws,
+                                        spec,
+                                        only: {req},
+                                      )
+                                    : null,
+                              )),
+                      ),
+                      Positioned(
+                        left: 20,
+                        bottom: 20,
+                        child: PrototypeUndoToast(specId: spec.id),
+                      ),
+                    ],
+                  ),
+                )
+              : CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(
+                      LogicalKeyboardKey.keyS,
+                      control: true,
+                    ): () =>
+                        _save(ws, spec),
+                  },
+                  child: _EditorBody(
+                    mode: _mode,
+                    key: ObjectKey(controller),
+                    controller: controller,
+                    text: text,
+                    onSave: () => _save(ws, spec),
+                    readOnly: readOnly || hold,
+                    dimmed: held,
+                    focusNode: _editorFocus,
+                    warnings: locked
+                        ? const []
+                        : [
+                            for (final w in _warnings)
+                              if (w.kind != SpecWarningKind.openQuestionsFormat)
+                                w,
+                          ],
+                    lineMarks: _questionMarks,
+                    questionsNotice: formatNotice?.message,
+                    onFixQuestions: _fixQuestionsFormat,
+                    onAnswerQuestions: _openQuestions,
+                    warningsOpen: _warningsOpen,
+                    onToggleWarnings: () =>
+                        setState(() => _warningsOpen = !_warningsOpen),
+                    onWarning: _goToLine,
+                    lockedBanner: locked
+                        ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
+                              'não é editável. Use "Clonar para alterar" '
+                              'ou mova o cartão de volta ao Backlog.'
+                        : null,
+                  ),
+                ),
+        ),
+      );
+    }
 
     final content = LayoutBuilder(
       builder: (context, c) {
@@ -1507,9 +1689,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           approved: doc.status == SpecStatus.approved,
                           prototype: proto,
                           archived: spec.status == SpecStatus.archived,
-                          unavailableReason: !ready
-                              ? 'Aguarde a spec carregar.'
-                              : null,
+                          unavailableReason: !ready ? notReadyReason : null,
                           // R2: the running action shows its gerund label;
                           // one on another spec only disables these.
                           runningId: action == null
@@ -1596,106 +1776,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                             ),
                           ),
                         )
-                      : !ready
-                      ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : proto
-                      ? CallbackShortcuts(
-                          bindings: undoBindings,
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child:
-                                    (protoUi!.comparing != null &&
-                                        protoState!
-                                            .variationsOf(protoUi.comparing!)
-                                            .isNotEmpty
-                                    ? PrototypeCompare(
-                                        ws: ws,
-                                        spec: spec,
-                                        approved: approvedScreens,
-                                        onApprove: readOnly
-                                            ? null
-                                            : (x) =>
-                                                  _approveScreen(ws, spec, x),
-                                        onViewSpec: () {
-                                          ref
-                                              .read(
-                                                prototypeUiProvider(spec.id)
-                                                    .notifier,
-                                              )
-                                              .compare(null);
-                                          setState(
-                                            () => _mode = SpecViewMode.preview,
-                                          );
-                                        },
-                                      )
-                                    : PrototypeCanvas(
-                                        ws: ws,
-                                        spec: spec,
-                                        approved: approvedScreens,
-                                        onDelete: onDeleteScreens,
-                                        deleteReason: deleteReason,
-                                        onGenerate:
-                                            ready &&
-                                                !protoBusy &&
-                                                action == null
-                                            ? (req) => _generateScreens(
-                                                ws,
-                                                spec,
-                                                only: {req},
-                                              )
-                                            : null,
-                                      )),
-                              ),
-                              Positioned(
-                                left: 20,
-                                bottom: 20,
-                                child: PrototypeUndoToast(specId: spec.id),
-                              ),
-                            ],
-                          ),
-                        )
-                      : CallbackShortcuts(
-                          bindings: {
-                            const SingleActivator(
-                              LogicalKeyboardKey.keyS,
-                              control: true,
-                            ): () =>
-                                _save(ws, spec),
-                          },
-                          child: _EditorBody(
-                            mode: _mode,
-                            controller: _controller!,
-                            text: text,
-                            missing: _missing,
-                            onSave: () => _save(ws, spec),
-                            readOnly: readOnly,
-                            dimmed: held,
-                            focusNode: _editorFocus,
-                            warnings: locked
-                                ? const []
-                                : [
-                                    for (final w in _warnings)
-                                      if (w.kind !=
-                                          SpecWarningKind.openQuestionsFormat)
-                                        w,
-                                  ],
-                            lineMarks: _questionMarks,
-                            questionsNotice: formatNotice?.message,
-                            onFixQuestions: _fixQuestionsFormat,
-                            onAnswerQuestions: _openQuestions,
-                            warningsOpen: _warningsOpen,
-                            onToggleWarnings: () =>
-                                setState(() => _warningsOpen = !_warningsOpen),
-                            onWarning: _goToLine,
-                            lockedBanner: locked
-                                ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
-                                      'não é editável. Use "Clonar para alterar" '
-                                      'ou mova o cartão de volta ao Backlog.'
-                                : null,
-                          ),
+                      : SpecTextFade(
+                          turn: _fadeTurn,
+                          child: openError != null
+                              ? SpecOpenError(
+                                  key: const ValueKey('spec-open-error'),
+                                  message: openError.message,
+                                  onRetry: () => _load(ws, spec),
+                                )
+                              : ready
+                              ? _shownBody!(hold: false)
+                              : _skeletonDue
+                              ? const SpecSkeleton(
+                                  key: ValueKey('spec-skeleton'),
+                                )
+                              : _shownBody?.call(hold: true) ??
+                                    const SizedBox.shrink(),
                         ),
                 ),
               ),
@@ -1849,10 +1945,10 @@ class _Shell extends StatelessWidget {
 
 class _EditorBody extends StatelessWidget {
   const _EditorBody({
+    super.key,
     required this.mode,
     required this.controller,
     required this.text,
-    required this.missing,
     required this.onSave,
     this.readOnly = false,
     this.dimmed = false,
@@ -1893,7 +1989,6 @@ class _EditorBody extends StatelessWidget {
   final SpecViewMode mode;
   final CodeLineEditingController controller;
   final String text;
-  final bool missing;
   final VoidCallback onSave;
 
   @override
@@ -1909,7 +2004,6 @@ class _EditorBody extends StatelessWidget {
       dimmed: dimmed,
       focusNode: focusNode,
       lineMarks: lineMarks,
-      hint: missing ? 'Arquivo ausente — salvar recria o arquivo.' : null,
     );
     // The same zoom as the editor ("− 100% +", Ctrl -/=): reading the
     // rendered spec is where small text hurts most.
