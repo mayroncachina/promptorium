@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/ui/theme/motion.dart';
+import 'package:promptorium/ui/widgets/app_pressable.dart';
 import 'package:promptorium/ui/widgets/motion_enter.dart';
 
 void motionOn() {
@@ -102,5 +103,22 @@ void main() {
     expect(taps, 1);
     await tester.pump(const Duration(milliseconds: 1));
     await tester.pump(AppMotion.section);
+  });
+
+  testWidgets('R13 · with the app idle, hover, press and entrances ask for no '
+      'more frames', (tester) async {
+    motionOn();
+    await tester.pumpWidget(
+      app(
+        const MotionEnter(
+          child: AppPressable(child: SizedBox(width: 100, height: 100)),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(AppMotion.base);
+    await tester.pump(AppMotion.quick);
+    expect(tester.hasRunningAnimations, isFalse);
+    expect(tester.binding.transientCallbackCount, 0);
   });
 }

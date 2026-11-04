@@ -48,6 +48,19 @@ abstract final class AppTheme {
     );
 
     return base.copyWith(
+      // Floats over the content, as in the approved mockup (SPEC-034 R5).
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        width: 520,
+        elevation: 6,
+        backgroundColor: AppColors.surfaceRaised,
+        actionTextColor: AppColors.amber,
+        contentTextStyle: const TextStyle(color: AppColors.text, fontSize: 13),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppColors.border),
+        ),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: ButtonStyle(
           overlayColor: filledOverlay,
