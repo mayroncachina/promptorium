@@ -9,6 +9,7 @@ import '../../core/update/installer.dart';
 import '../../data/providers.dart';
 import '../../core/update/update_check.dart';
 import '../theme/tokens.dart';
+import '../widgets/app_dialog.dart';
 
 const repositoryUrl = 'https://github.com/mayroncachina/promptorium';
 
@@ -19,7 +20,7 @@ final changelogProvider = FutureProvider<String>(
 );
 
 /// Diálogo Sobre (F1).
-Future<void> showAboutPromptorium(BuildContext context) => showDialog<void>(
+Future<void> showAboutPromptorium(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const AboutPromptoriumDialog(),
@@ -201,7 +202,7 @@ Future<bool> _confirmUpdate(
   BuildContext context,
   AvailableUpdate update,
 ) async {
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => AlertDialog(
@@ -232,7 +233,7 @@ Future<bool> _confirmUpdate(
 /// After the confirmation: picks the Linux asset and downloads it,
 /// showing the progress in a dialog.
 void _startUpdate(BuildContext context, WidgetRef ref, AvailableUpdate update) {
-  showDialog<void>(
+  showAppDialog<void>(
     context: context,
     barrierDismissible: false,
     barrierColor: AppColors.scrim,

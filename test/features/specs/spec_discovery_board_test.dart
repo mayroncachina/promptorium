@@ -57,7 +57,10 @@ void main() {
         ),
       );
       try {
-        for (var i = 0; i < 100; i++) {
+        // Bounded by real time, not by turns: with the full suite running
+        // files in parallel each turn takes longer than its 20 ms.
+        final deadline = DateTime.now().add(const Duration(seconds: 45));
+        while (DateTime.now().isBefore(deadline)) {
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 20)),
           );

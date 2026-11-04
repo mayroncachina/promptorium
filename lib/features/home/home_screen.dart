@@ -6,6 +6,7 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/shell/notification_center.dart'
     show recentNotificationsProvider;
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../board/autopilot.dart';
 import '../board/board_screen.dart' show openSession, openSessionIn;
 import '../board/widgets/card_extras.dart' show LiveToolLine;
@@ -313,7 +314,7 @@ class _InboxRow extends ConsumerWidget {
                   .send(id, 'Continue de onde parou.');
               openSessionIn(container, id);
             } catch (e) {
-              messenger?.showSnackBar(SnackBar(content: Text('$e')));
+              messenger?.showAppToast(SnackBar(content: Text('$e')));
             }
           },
         ),

@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/shell/navigation.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../specs/spec_service.dart';
 import '../../review/widgets/spec_review_panel.dart'
     show pendingCriteriaProvider;
@@ -2173,7 +2175,7 @@ class _FinishActionState extends ConsumerState<_FinishAction> {
   bool _busy = false;
 
   Future<bool> _confirm(int pending) async {
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (ctx) => AlertDialog(
@@ -2227,7 +2229,7 @@ class _FinishActionState extends ConsumerState<_FinishAction> {
         await service.reopen(ws, spec);
       }
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(content: Text('$e')));
+      messenger?.showAppToast(SnackBar(content: Text('$e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

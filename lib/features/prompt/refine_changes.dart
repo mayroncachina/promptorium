@@ -5,6 +5,7 @@ import '../../core/providers/agent_event.dart' show PermissionRequest;
 import '../../core/text/line_diff.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/diff_view.dart';
 import '../sessions/edit_diff.dart';
 import '../sessions/session_manager.dart' show PendingApproval;
@@ -602,7 +603,7 @@ Future<void> showRefineChangesDialog(
     current = null;
   }
   if (!context.mounted) return;
-  final back = await showDialog<bool>(
+  final back = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (_) => _RefineChangesDialog(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
@@ -12,7 +13,7 @@ import 'project_widgets.dart';
 import 'roadmap_editors.dart';
 
 Future<bool> _confirmRegenerate(BuildContext context) async =>
-    await showDialog<bool>(
+    await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => AlertDialog(

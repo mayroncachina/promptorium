@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_dialog.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../agents/agent_repository.dart';
 import '../agents/widgets/agent_style.dart' show AgentAvatar, agentTint;
 import '../sessions/session_manager.dart';
@@ -460,7 +462,7 @@ class _ServerDetailState extends ConsumerState<_ServerDetail> {
   void _toast(String text, {bool error = false}) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showAppToast(
         SnackBar(
           content: Text(
             text,
@@ -503,7 +505,7 @@ class _ServerDetailState extends ConsumerState<_ServerDetail> {
   Future<void> _remove() async {
     final c = row.config;
     if (c == null) return;
-    final ok = await showDialog<bool>(
+    final ok = await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (ctx) => AlertDialog(

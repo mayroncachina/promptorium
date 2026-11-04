@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/db/app_database.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_pressable.dart';
 import '../../board/board_rules.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
@@ -107,75 +108,80 @@ class SpecList extends StatelessWidget {
                     itemBuilder: (_, i) {
                       final s = specs[i];
                       final active = s.id == selectedId;
-                      return Material(
-                        color: active
-                            ? SessionColors.selectedBg
-                            : Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: active
-                                ? SessionColors.selectedBorder
-                                : Colors.transparent,
+                      return AppPressable(
+                        borderRadius: BorderRadius.circular(8),
+                        hoverTint: AppPressable.tint,
+                        child: Material(
+                          color: active
+                              ? SessionColors.selectedBg
+                              : Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: active
+                                  ? SessionColors.selectedBorder
+                                  : Colors.transparent,
+                            ),
                           ),
-                        ),
-                        child: InkWell(
-                          key: ValueKey('spec-item-${s.code}'),
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => onSelect(s),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        s.code,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontFamily: AppFonts.mono,
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary,
+                          child: InkWell(
+                            key: ValueKey('spec-item-${s.code}'),
+                            borderRadius: BorderRadius.circular(8),
+                            hoverColor: Colors.transparent,
+                            onTap: () => onSelect(s),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          s.code,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontFamily: AppFonts.mono,
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Spacer(),
-                                    Flexible(
-                                      child: Text(
-                                        specStatusLabel(s.status),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: specStatusColor(s.status),
+                                      const SizedBox(width: 8),
+                                      const Spacer(),
+                                      Flexible(
+                                        child: Text(
+                                          specStatusLabel(s.status),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: specStatusColor(s.status),
+                                          ),
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    s.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  s.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  specStepsMeta(s, stepRows),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    specStepsMeta(s, stepRows),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
+import '../../ui/theme/motion.dart';
 import '../../ui/theme/tokens.dart';
+import '../../ui/widgets/app_toast.dart';
 import '../sessions/session_manager.dart';
 import '../specs/workspace_watcher.dart';
 import '../specs/widgets/spec_sync_bar.dart';
@@ -19,6 +21,8 @@ import 'board_rules.dart';
 import 'spec_runner.dart'
     show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
+import '../../ui/widgets/app_pressable.dart';
+import 'widgets/board_card_flight.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
@@ -28,6 +32,7 @@ import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/step_live_dialog.dart';
+import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
@@ -746,12 +751,14 @@ class _Header extends ConsumerWidget {
                 ? 'Parar: desliga o automático e interrompe as sessões das specs'
                 : 'Executar: inicia as specs sem bloqueio em paralelo e as '
                       'bloqueadas assim que a dependência chegar em Review',
-            child: FilledButton.icon(
-              key: const ValueKey('board-autopilot'),
-              onPressed: () =>
-                  on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
-              icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
-              label: Text(on ? 'Parar' : 'Executar tudo'),
+            child: AppPressable(
+              child: FilledButton.icon(
+                key: const ValueKey('board-autopilot'),
+                onPressed: () =>
+                    on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+                icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
+                label: Text(on ? 'Parar' : 'Executar tudo'),
+              ),
             ),
           ),
         ],
@@ -820,8 +827,19 @@ class _Board extends StatelessWidget {
   /// the whole Board scrolls vertically instead of clipping.
   static const _minHeight = 360.0;
 
+  Widget? _flying(int id) {
+    final data = cards.where((d) => d.spec.id == id).firstOrNull;
+    return data == null ? null : SpecCard(data: data);
+  }
+
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context) => BoardFlights(
+    stages: {for (final d in cards) d.spec.id: d.spec.stage},
+    cardOf: _flying,
+    child: _layout(),
+  );
+
+  Widget _layout() => LayoutBuilder(
     builder: (context, c) {
       final avail = c.maxWidth - 2 * _pad - 3 * _gap;
       final colW = math.max(_minCol, avail / 4);
@@ -958,8 +976,10 @@ class _Column extends ConsumerWidget {
     return DragTarget<int>(
       key: ValueKey('board-column-${stage.name}'),
       onWillAcceptWithDetails: (d) => !cards.any((c) => c.spec.id == d.data),
-      onAcceptWithDetails: (d) =>
-          ref.read(specsRepoProvider).setStage(d.data, stage),
+      onAcceptWithDetails: (d) {
+        BoardFlights.of(context).drop(d.data, d.offset, width - 20);
+        ref.read(specsRepoProvider).setStage(d.data, stage);
+      },
       builder: (context, candidate, _) => Container(
         decoration: BoxDecoration(
           color: AppColors.panel,
@@ -987,19 +1007,7 @@ class _Column extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    limit == null
-                        ? '${cards.length}'
-                        : '${cards.length} / $limit',
-                    key: ValueKey('board-column-count-${stage.name}'),
-                    style: TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: limit != null && cards.length >= limit!
-                          ? AppColors.amber
-                          : AppColors.textSecondary,
-                    ),
-                  ),
+                  _ColumnCount(stage: stage, count: cards.length, limit: limit),
                   if (limit != null) ...[
                     const Spacer(),
                     const Text(
@@ -1076,26 +1084,74 @@ class _Column extends ConsumerWidget {
                           isFirst: i == 0,
                           isLast: i == shown.length - 1,
                         );
-                        return Draggable<int>(
-                          key: ValueKey('board-card-${d.spec.code}'),
-                          data: d.spec.id,
-                          feedback: Material(
-                            color: Colors.transparent,
-                            child: SizedBox(
-                              width: width - 20,
-                              child: Opacity(opacity: 0.9, child: card),
+                        return BoardCardSlot(
+                          key: ValueKey('board-slot-${d.spec.id}'),
+                          id: d.spec.id,
+                          child: Draggable<int>(
+                            key: ValueKey('board-card-${d.spec.code}'),
+                            data: d.spec.id,
+                            feedback: Material(
+                              color: Colors.transparent,
+                              child: SizedBox(
+                                width: width - 20,
+                                child: Opacity(opacity: 0.9, child: card),
+                              ),
                             ),
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.35,
+                            childWhenDragging: Opacity(
+                              opacity: 0.35,
+                              child: card,
+                            ),
                             child: card,
                           ),
-                          child: card,
                         );
                       },
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Cards in a column ("3 / 3" under the Autopilot limit); a new number fades
+/// over the old one in `base` (SPEC-034 R7).
+class _ColumnCount extends StatelessWidget {
+  const _ColumnCount({
+    required this.stage,
+    required this.count,
+    required this.limit,
+  });
+
+  final SpecStage stage;
+  final int count;
+  final int? limit;
+
+  @override
+  Widget build(BuildContext context) {
+    final limit = this.limit;
+    final label = limit == null ? '$count' : '$count / $limit';
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.base),
+      reverseDuration: AppMotion.duration(context, AppMotion.baseExit),
+      switchInCurve: AppMotion.enter,
+      switchOutCurve: AppMotion.exit,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.centerLeft,
+        children: [...previous, ?current],
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(label),
+        child: Text(
+          label,
+          key: ValueKey('board-column-count-${stage.name}'),
+          style: TextStyle(
+            fontFamily: AppFonts.mono,
+            fontSize: 11,
+            color: limit != null && count >= limit
+                ? AppColors.amber
+                : AppColors.textSecondary,
+          ),
         ),
       ),
     );
@@ -1242,147 +1298,168 @@ class SpecCard extends ConsumerWidget {
         );
       });
     }
-    return InkWell(
-      key: ValueKey('board-open-${spec.code}'),
+    return AppPressable(
       borderRadius: BorderRadius.circular(8),
-      // The side panel (U8): same card again closes it.
-      onTap: () => ref
-          .read(boardSelectedSpecProvider.notifier)
-          .select(selected ? null : spec.id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? SessionColors.selectedBg : AppColors.surfaceRaised,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected && border == AppColors.border
-                ? SessionColors.selectedBorder
-                : border,
+      hoverTint: AppPressable.tint,
+      // A card with a warning keeps its colour.
+      hoverBorder: border == AppColors.border ? AppColors.borderHover : null,
+      hoverShadow: AppPressable.cardShadow,
+      child: InkWell(
+        key: ValueKey('board-open-${spec.code}'),
+        borderRadius: BorderRadius.circular(8),
+        // The side panel (U8): same card again closes it.
+        onTap: () => ref
+            .read(boardSelectedSpecProvider.notifier)
+            .select(selected ? null : spec.id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? SessionColors.selectedBg
+                : AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected && border == AppColors.border
+                  ? SessionColors.selectedBorder
+                  : border,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Text(
-                  spec.code,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (spec.phase != null) ...[
-                  const SizedBox(width: 6),
-                  _Chip(spec.phase!),
-                ],
-                const SizedBox(width: 6),
-                GateFixBadge(data: data, compact: true),
-                const Spacer(),
-                if (data.cost > 0)
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
                   Text(
-                    formatCost(data.cost),
+                    spec.code,
                     style: const TextStyle(
                       fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                _CardMenu(
-                  data: data,
-                  canRun: canRun,
-                  onMove: onMove,
-                  isFirst: isFirst,
-                  isLast: isLast,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              spec.title,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            _Progress(
-              done: done,
-              total: total,
-              specCode: spec.code,
-              steps: data.steps,
-              onStep: (s) =>
-                  showStepLiveDialog(context, spec: spec, step: s.id),
-            ),
-            Builder(
-              builder: (context) {
-                final subs = watchSubagentStatuses(
-                  ref,
-                  spec,
-                  data.steps,
-                  data.sessions,
-                );
-                if (subs.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: SubagentChips(statuses: subs),
-                );
-              },
-            ),
-            if (current != null && spec.stage != SpecStage.done) ...[
-              const SizedBox(height: 6),
-              Text(
-                '${current.id} · ${current.text}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              if (current.gate case final g?) ...[
-                const SizedBox(height: 4),
-                GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
-              ],
-            ],
-            if (busy && last != null) ...[
-              const SizedBox(height: 4),
-              LiveToolLine(session: last, specCode: spec.code),
-            ],
-            SuggestionBanner(spec: spec),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                _AgentAvatar(spec.agentName),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    spec.agentName ?? 'sem agente',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  if (spec.phase != null) ...[
+                    const SizedBox(width: 6),
+                    _Chip(spec.phase!),
+                  ],
+                  const SizedBox(width: 6),
+                  Listener(
+                    onPointerDown: AppPressable.claim,
+                    child: GateFixBadge(data: data, compact: true),
+                  ),
+                  const Spacer(),
+                  if (data.cost > 0)
+                    Text(
+                      formatCost(data.cost),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  Listener(
+                    onPointerDown: AppPressable.claim,
+                    child: _CardMenu(
+                      data: data,
+                      canRun: canRun,
+                      onMove: onMove,
+                      isFirst: isFirst,
+                      isLast: isLast,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                spec.title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    meta,
-                    key: ValueKey('board-meta-${spec.code}'),
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: metaColor),
+              ),
+              const SizedBox(height: 8),
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: _Progress(
+                  done: done,
+                  total: total,
+                  specCode: spec.code,
+                  steps: data.steps,
+                  onStep: (s) =>
+                      showStepLiveDialog(context, spec: spec, step: s.id),
+                ),
+              ),
+              Builder(
+                builder: (context) {
+                  final subs = watchSubagentStatuses(
+                    ref,
+                    spec,
+                    data.steps,
+                    data.sessions,
+                  );
+                  if (subs.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: SubagentChips(statuses: subs),
+                  );
+                },
+              ),
+              if (current != null && spec.stage != SpecStage.done) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${current.id} · ${current.text}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
+                if (current.gate case final g?) ...[
+                  const SizedBox(height: 4),
+                  GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
+                ],
               ],
-            ),
-            BoardSpecAction(data: data),
-          ],
+              if (busy && last != null) ...[
+                const SizedBox(height: 4),
+                LiveToolLine(session: last, specCode: spec.code),
+              ],
+              SuggestionBanner(spec: spec),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _AgentAvatar(spec.agentName),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      spec.agentName ?? 'sem agente',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      meta,
+                      key: ValueKey('board-meta-${spec.code}'),
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: metaColor),
+                    ),
+                  ),
+                ],
+              ),
+              BoardSpecAction(data: data),
+            ],
+          ),
         ),
       ),
     );
@@ -1628,11 +1705,14 @@ class _Progress extends StatelessWidget {
                               0,
                               4,
                             ),
-                            child: Container(
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: stepSegmentColor(s),
-                                borderRadius: BorderRadius.circular(3),
+                            child: StepColorTransition(
+                              color: stepSegmentColor(s),
+                              builder: (_, color) => Container(
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
                               ),
                             ),
                           ),
@@ -1725,7 +1805,7 @@ class _CardMenu extends ConsumerWidget {
                     .read(specRunnerProvider)
                     .runNext(spec.id, duel: true, reviewUnblocks: true);
               } catch (e) {
-                messenger?.showSnackBar(SnackBar(content: Text('$e')));
+                messenger?.showAppToast(SnackBar(content: Text('$e')));
               }
             case 'up':
               await onMove?.call(-1);

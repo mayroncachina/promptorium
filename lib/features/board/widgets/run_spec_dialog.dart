@@ -8,6 +8,8 @@ import '../../../core/providers/agent_registry.dart' show codexEnabledProvider;
 import '../../../core/providers/permission_policy.dart';
 import '../../../core/providers/provider_preferences.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
 import '../../project/project_config.dart';
 import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
@@ -64,7 +66,7 @@ Future<void> runSpec(
     } catch (_) {}
     if (!context.mounted) return;
     if (needsDesignWarning(text, maxSingleSession: max)) {
-      final choice = await showDialog<String>(
+      final choice = await showAppDialog<String>(
         context: context,
         barrierColor: AppColors.scrim,
         builder: (_) => _NoDesignDialog(
@@ -83,7 +85,7 @@ Future<void> runSpec(
   }
   RunSpecOptions? o;
   if (ask || data.sessions.isEmpty) {
-    o = await showDialog<RunSpecOptions>(
+    o = await showAppDialog<RunSpecOptions>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (_) =>
@@ -109,7 +111,7 @@ Future<void> runSpec(
     }
     messenger
       ?..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showAppToast(
         SnackBar(
           content: Text('Sessão aberta para ${data.spec.code}.'),
           // A snackbar with an action does not go away by itself otherwise.
@@ -127,11 +129,11 @@ Future<void> runSpec(
   } on SpecRunException catch (e) {
     messenger
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(e.message)));
+      ..showAppToast(SnackBar(content: Text(e.message)));
   } on SessionException catch (e) {
     messenger
       ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(e.message)));
+      ..showAppToast(SnackBar(content: Text(e.message)));
   }
 }
 

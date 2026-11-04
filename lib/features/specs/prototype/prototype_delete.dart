@@ -4,7 +4,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
+import '../../../ui/widgets/app_toast.dart';
+import '../../../ui/widgets/motion_enter.dart';
 import 'prototype_files.dart';
 
 /// Deleting prototype screens (SPEC-027): confirmation, "Desfazer" and the
@@ -125,7 +129,7 @@ Future<bool> showDeleteScreensDialog(
   required Set<String> approved,
   required Map<String, String> thumbs,
 }) async {
-  final ok = await showDialog<bool>(
+  final ok = await showAppDialog<bool>(
     context: context,
     barrierColor: AppColors.scrim,
     builder: (ctx) => _DeleteDialog(
@@ -344,16 +348,84 @@ class _DeleteDialog extends StatelessWidget {
 
 /// "Tela … apagada." with "Desfazer" (R6), shown while the deletion of
 /// [specId] can be undone.
-class PrototypeUndoToast extends ConsumerWidget {
+class PrototypeUndoToast extends ConsumerStatefulWidget {
   const PrototypeUndoToast({super.key, required this.specId});
 
   final int specId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final u = ref.watch(prototypeUndoProvider);
-    if (u == null || u.specId != specId) return const SizedBox.shrink();
+  ConsumerState<PrototypeUndoToast> createState() => _PrototypeUndoToastState();
+}
+
+class _PrototypeUndoToastState extends ConsumerState<PrototypeUndoToast>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _exit = AnimationController(vsync: this);
+  late final CurvedAnimation _exitCurve = CurvedAnimation(
+    parent: _exit,
+    curve: AppMotion.exit,
+  );
+  late final Animation<double> _shown = ReverseAnimation(_exitCurve);
+
+  /// The offer on screen. It outlives the provider's state while the toast
+  /// leaves: the deletion is already final or undone by then, so the timer
+  /// and Ctrl+Z never wait for the animation.
+  PrototypeUndo? _offer;
+  var _leaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final u = ref.read(prototypeUndoProvider);
+    if (u?.specId == widget.specId) _offer = u;
+    _exit.addStatusListener((status) {
+      if (!status.isCompleted) return;
+      setState(() {
+        _offer = null;
+        _leaving = false;
+      });
+      _exit.value = 0;
+    });
+  }
+
+  @override
+  void dispose() {
+    _exitCurve.dispose();
+    _exit.dispose();
+    super.dispose();
+  }
+
+  void _onOffer(PrototypeUndo? _, PrototypeUndo? next) {
+    _exit.duration = AppMotion.duration(context, AppMotion.baseExit);
+    if (next != null && next.specId == widget.specId) {
+      // A new deletion while leaving turns back from where the toast is.
+      setState(() {
+        _offer = next;
+        _leaving = false;
+      });
+      _exit.reverse();
+    } else if (_offer != null) {
+      setState(() => _leaving = true);
+      _exit.forward();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<PrototypeUndo?>(prototypeUndoProvider, _onOffer);
+    final u = _offer;
+    if (u == null || u.specId != widget.specId) return const SizedBox.shrink();
     final ctrl = ref.read(prototypeUndoProvider.notifier);
+    return ToastMotion(
+      progress: _shown,
+      // A click on a toast on its way out reaches what is under it (R12).
+      child: IgnorePointer(
+        ignoring: _leaving,
+        child: MotionEnter(child: _toast(u, ctrl)),
+      ),
+    );
+  }
+
+  Widget _toast(PrototypeUndo u, PrototypeUndoController ctrl) {
     return Semantics(
       container: true,
       liveRegion: true,

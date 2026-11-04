@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/app_dialog.dart';
 import '../../agents/agent_file.dart';
 import '../skill_catalog.dart';
 import '../skill_repository.dart';
@@ -17,7 +18,7 @@ Future<bool> confirmDialog(
   required String text,
   required String action,
 }) async =>
-    await showDialog<bool>(
+    await showAppDialog<bool>(
       context: context,
       barrierColor: AppColors.scrim,
       builder: (context) => AlertDialog(
@@ -168,7 +169,7 @@ Widget _errorText(String? e) => e == null
 
 enum NewSkillMode { ai, session, blank }
 
-Future<void> showNewSkillDialog(BuildContext context) => showDialog<void>(
+Future<void> showNewSkillDialog(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const NewSkillDialog(),
@@ -440,7 +441,7 @@ class _NewSkillDialogState extends ConsumerState<NewSkillDialog> {
 
 // --- Adicionar repositório -------------------------------------------------------
 
-Future<void> showAddCatalogDialog(BuildContext context) => showDialog<void>(
+Future<void> showAddCatalogDialog(BuildContext context) => showAppDialog<void>(
   context: context,
   barrierColor: AppColors.scrim,
   builder: (_) => const _AddCatalogDialog(),
