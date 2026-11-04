@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
+import '../../ui/theme/motion.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../sessions/session_manager.dart';
@@ -21,6 +22,7 @@ import 'spec_runner.dart'
     show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
 import '../../ui/widgets/app_pressable.dart';
+import 'widgets/board_card_flight.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
@@ -825,8 +827,19 @@ class _Board extends StatelessWidget {
   /// the whole Board scrolls vertically instead of clipping.
   static const _minHeight = 360.0;
 
+  Widget? _flying(int id) {
+    final data = cards.where((d) => d.spec.id == id).firstOrNull;
+    return data == null ? null : SpecCard(data: data);
+  }
+
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context) => BoardFlights(
+    stages: {for (final d in cards) d.spec.id: d.spec.stage},
+    cardOf: _flying,
+    child: _layout(),
+  );
+
+  Widget _layout() => LayoutBuilder(
     builder: (context, c) {
       final avail = c.maxWidth - 2 * _pad - 3 * _gap;
       final colW = math.max(_minCol, avail / 4);
@@ -963,8 +976,10 @@ class _Column extends ConsumerWidget {
     return DragTarget<int>(
       key: ValueKey('board-column-${stage.name}'),
       onWillAcceptWithDetails: (d) => !cards.any((c) => c.spec.id == d.data),
-      onAcceptWithDetails: (d) =>
-          ref.read(specsRepoProvider).setStage(d.data, stage),
+      onAcceptWithDetails: (d) {
+        BoardFlights.of(context).drop(d.data, d.offset, width - 20);
+        ref.read(specsRepoProvider).setStage(d.data, stage);
+      },
       builder: (context, candidate, _) => Container(
         decoration: BoxDecoration(
           color: AppColors.panel,
@@ -992,19 +1007,7 @@ class _Column extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    limit == null
-                        ? '${cards.length}'
-                        : '${cards.length} / $limit',
-                    key: ValueKey('board-column-count-${stage.name}'),
-                    style: TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: limit != null && cards.length >= limit!
-                          ? AppColors.amber
-                          : AppColors.textSecondary,
-                    ),
-                  ),
+                  _ColumnCount(stage: stage, count: cards.length, limit: limit),
                   if (limit != null) ...[
                     const Spacer(),
                     const Text(
@@ -1081,26 +1084,74 @@ class _Column extends ConsumerWidget {
                           isFirst: i == 0,
                           isLast: i == shown.length - 1,
                         );
-                        return Draggable<int>(
-                          key: ValueKey('board-card-${d.spec.code}'),
-                          data: d.spec.id,
-                          feedback: Material(
-                            color: Colors.transparent,
-                            child: SizedBox(
-                              width: width - 20,
-                              child: Opacity(opacity: 0.9, child: card),
+                        return BoardCardSlot(
+                          key: ValueKey('board-slot-${d.spec.id}'),
+                          id: d.spec.id,
+                          child: Draggable<int>(
+                            key: ValueKey('board-card-${d.spec.code}'),
+                            data: d.spec.id,
+                            feedback: Material(
+                              color: Colors.transparent,
+                              child: SizedBox(
+                                width: width - 20,
+                                child: Opacity(opacity: 0.9, child: card),
+                              ),
                             ),
-                          ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.35,
+                            childWhenDragging: Opacity(
+                              opacity: 0.35,
+                              child: card,
+                            ),
                             child: card,
                           ),
-                          child: card,
                         );
                       },
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Cards in a column ("3 / 3" under the Autopilot limit); a new number fades
+/// over the old one in `base` (SPEC-034 R7).
+class _ColumnCount extends StatelessWidget {
+  const _ColumnCount({
+    required this.stage,
+    required this.count,
+    required this.limit,
+  });
+
+  final SpecStage stage;
+  final int count;
+  final int? limit;
+
+  @override
+  Widget build(BuildContext context) {
+    final limit = this.limit;
+    final label = limit == null ? '$count' : '$count / $limit';
+    return AnimatedSwitcher(
+      duration: AppMotion.duration(context, AppMotion.base),
+      reverseDuration: AppMotion.duration(context, AppMotion.baseExit),
+      switchInCurve: AppMotion.enter,
+      switchOutCurve: AppMotion.exit,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.centerLeft,
+        children: [...previous, ?current],
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(label),
+        child: Text(
+          label,
+          key: ValueKey('board-column-count-${stage.name}'),
+          style: TextStyle(
+            fontFamily: AppFonts.mono,
+            fontSize: 11,
+            color: limit != null && count >= limit
+                ? AppColors.amber
+                : AppColors.textSecondary,
+          ),
         ),
       ),
     );
