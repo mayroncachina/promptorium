@@ -32,7 +32,7 @@ class StepStatusDot extends StatefulWidget {
     super.key,
     required this.color,
     required this.done,
-    this.size = 18,
+    this.size = 14,
   });
 
   final Color color;

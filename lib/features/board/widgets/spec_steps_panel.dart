@@ -504,12 +504,15 @@ class _StepRow extends ConsumerWidget {
   Widget _row(BuildContext context, WidgetRef ref) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      StepStatusDot(
-        key: ValueKey('step-dot-${step.id}'),
-        color: stepStatusColor(step.status),
-        done: step.isDone,
+      // Ball and gap take the 16 px of the old dot: the text must not rewrap.
+      Padding(
+        padding: const EdgeInsets.only(top: 2, right: 2),
+        child: StepStatusDot(
+          key: ValueKey('step-dot-${step.id}'),
+          color: stepStatusColor(step.status),
+          done: step.isDone,
+        ),
       ),
-      const SizedBox(width: 8),
       SizedBox(
         width: 32,
         child: Text(

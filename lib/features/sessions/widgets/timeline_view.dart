@@ -186,7 +186,7 @@ class _TimelineListViewState extends State<TimelineListView> {
       padding: const EdgeInsets.all(20),
       itemCount: items.length + extra,
       // A new item shifts every index: the keys keep each one on its element.
-      findChildIndexCallback: (key) => null ??  switch ((key as ValueKey).value) {
+      findChildIndexCallback: (key) => switch ((key as ValueKey).value) {
         final int idx when idx < items.length => items.length - 1 - idx + extra,
         _footerKey when foot != null => 0,
         _ => null,
