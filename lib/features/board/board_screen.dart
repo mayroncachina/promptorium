@@ -19,6 +19,7 @@ import 'board_rules.dart';
 import 'spec_runner.dart'
     show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
+import '../../ui/widgets/app_pressable.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
@@ -746,12 +747,14 @@ class _Header extends ConsumerWidget {
                 ? 'Parar: desliga o automático e interrompe as sessões das specs'
                 : 'Executar: inicia as specs sem bloqueio em paralelo e as '
                       'bloqueadas assim que a dependência chegar em Review',
-            child: FilledButton.icon(
-              key: const ValueKey('board-autopilot'),
-              onPressed: () =>
-                  on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
-              icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
-              label: Text(on ? 'Parar' : 'Executar tudo'),
+            child: AppPressable(
+              child: FilledButton.icon(
+                key: const ValueKey('board-autopilot'),
+                onPressed: () =>
+                    on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+                icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
+                label: Text(on ? 'Parar' : 'Executar tudo'),
+              ),
             ),
           ),
         ],
@@ -1242,147 +1245,168 @@ class SpecCard extends ConsumerWidget {
         );
       });
     }
-    return InkWell(
-      key: ValueKey('board-open-${spec.code}'),
+    return AppPressable(
       borderRadius: BorderRadius.circular(8),
-      // The side panel (U8): same card again closes it.
-      onTap: () => ref
-          .read(boardSelectedSpecProvider.notifier)
-          .select(selected ? null : spec.id),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? SessionColors.selectedBg : AppColors.surfaceRaised,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: selected && border == AppColors.border
-                ? SessionColors.selectedBorder
-                : border,
+      hoverTint: AppPressable.tint,
+      // A card with a warning keeps its colour.
+      hoverBorder: border == AppColors.border ? AppColors.borderHover : null,
+      hoverShadow: AppPressable.cardShadow,
+      child: InkWell(
+        key: ValueKey('board-open-${spec.code}'),
+        borderRadius: BorderRadius.circular(8),
+        // The side panel (U8): same card again closes it.
+        onTap: () => ref
+            .read(boardSelectedSpecProvider.notifier)
+            .select(selected ? null : spec.id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? SessionColors.selectedBg
+                : AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected && border == AppColors.border
+                  ? SessionColors.selectedBorder
+                  : border,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Text(
-                  spec.code,
-                  style: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (spec.phase != null) ...[
-                  const SizedBox(width: 6),
-                  _Chip(spec.phase!),
-                ],
-                const SizedBox(width: 6),
-                GateFixBadge(data: data, compact: true),
-                const Spacer(),
-                if (data.cost > 0)
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
                   Text(
-                    formatCost(data.cost),
+                    spec.code,
                     style: const TextStyle(
                       fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                _CardMenu(
-                  data: data,
-                  canRun: canRun,
-                  onMove: onMove,
-                  isFirst: isFirst,
-                  isLast: isLast,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              spec.title,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            _Progress(
-              done: done,
-              total: total,
-              specCode: spec.code,
-              steps: data.steps,
-              onStep: (s) =>
-                  showStepLiveDialog(context, spec: spec, step: s.id),
-            ),
-            Builder(
-              builder: (context) {
-                final subs = watchSubagentStatuses(
-                  ref,
-                  spec,
-                  data.steps,
-                  data.sessions,
-                );
-                if (subs.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: SubagentChips(statuses: subs),
-                );
-              },
-            ),
-            if (current != null && spec.stage != SpecStage.done) ...[
-              const SizedBox(height: 6),
-              Text(
-                '${current.id} · ${current.text}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              if (current.gate case final g?) ...[
-                const SizedBox(height: 4),
-                GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
-              ],
-            ],
-            if (busy && last != null) ...[
-              const SizedBox(height: 4),
-              LiveToolLine(session: last, specCode: spec.code),
-            ],
-            SuggestionBanner(spec: spec),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                _AgentAvatar(spec.agentName),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    spec.agentName ?? 'sem agente',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  if (spec.phase != null) ...[
+                    const SizedBox(width: 6),
+                    _Chip(spec.phase!),
+                  ],
+                  const SizedBox(width: 6),
+                  Listener(
+                    onPointerDown: AppPressable.claim,
+                    child: GateFixBadge(data: data, compact: true),
+                  ),
+                  const Spacer(),
+                  if (data.cost > 0)
+                    Text(
+                      formatCost(data.cost),
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  Listener(
+                    onPointerDown: AppPressable.claim,
+                    child: _CardMenu(
+                      data: data,
+                      canRun: canRun,
+                      onMove: onMove,
+                      isFirst: isFirst,
+                      isLast: isLast,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                spec.title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    meta,
-                    key: ValueKey('board-meta-${spec.code}'),
-                    textAlign: TextAlign.right,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: metaColor),
+              ),
+              const SizedBox(height: 8),
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: _Progress(
+                  done: done,
+                  total: total,
+                  specCode: spec.code,
+                  steps: data.steps,
+                  onStep: (s) =>
+                      showStepLiveDialog(context, spec: spec, step: s.id),
+                ),
+              ),
+              Builder(
+                builder: (context) {
+                  final subs = watchSubagentStatuses(
+                    ref,
+                    spec,
+                    data.steps,
+                    data.sessions,
+                  );
+                  if (subs.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: SubagentChips(statuses: subs),
+                  );
+                },
+              ),
+              if (current != null && spec.stage != SpecStage.done) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${current.id} · ${current.text}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
+                if (current.gate case final g?) ...[
+                  const SizedBox(height: 4),
+                  GateChips(report: g, keyPrefix: 'board-gate-${spec.code}'),
+                ],
               ],
-            ),
-            BoardSpecAction(data: data),
-          ],
+              if (busy && last != null) ...[
+                const SizedBox(height: 4),
+                LiveToolLine(session: last, specCode: spec.code),
+              ],
+              SuggestionBanner(spec: spec),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _AgentAvatar(spec.agentName),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      spec.agentName ?? 'sem agente',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      meta,
+                      key: ValueKey('board-meta-${spec.code}'),
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: metaColor),
+                    ),
+                  ),
+                ],
+              ),
+              BoardSpecAction(data: data),
+            ],
+          ),
         ),
       ),
     );

@@ -36,6 +36,9 @@ abstract final class AppColors {
   /// Raised controls on panels (workspace selector, chips).
   static const surfaceRaised = Color(0xFF1A1E26);
 
+  /// Border of a card or button under the mouse.
+  static const borderHover = Color(0xFF3A4250);
+
   /// Active nav item background (amber tint).
   static const amberTint = Color(0xFF2A2418);
 
