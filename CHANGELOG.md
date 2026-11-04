@@ -2,6 +2,17 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.9.0] - 2026-11-04
+
+### Documentação
+
+- **spec:** SPEC-033 decidir a etapa que precisa de você pelo modal do balão (06ee3fe)
+- **spec:** SPEC-033 decisões P1, P3, P4 e P5; P2 com a sugestão do desenvolvimento guiado por spec (d761101)
+
+### Testes
+
+- Prazo real nos testes com IO que estouravam com a suíte inteira (b5da378)
+
 ## [0.8.0] - 2026-11-03
 
 ### Funcionalidades
