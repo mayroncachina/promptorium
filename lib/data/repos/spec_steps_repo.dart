@@ -130,6 +130,42 @@ class SpecStepsRepo {
         }
       });
 
+  /// Splits the execution of [parent] (SPEC-033 R16): one pending row per
+  /// text of [bodies] (`R3.1`, `R3.2`…, returned in order), in place of any
+  /// earlier split. The requirement's row stays, pending and without gate.
+  Future<List<String>> addSubSteps(
+    int specId,
+    String parent,
+    List<String> bodies,
+  ) => _db.transaction(() async {
+    await _deleteSubSteps(specId, parent);
+    await set(specId, parent, StepStatus.pending);
+    await reset(specId, [parent]);
+    final ids = [for (var i = 1; i <= bodies.length; i++) '$parent.$i'];
+    for (final (i, id) in ids.indexed) {
+      await addExtra(specId, id, bodies[i]);
+    }
+    return ids;
+  });
+
+  /// Undoes [addSubSteps]: the sub-step rows of [parent] go away and, with
+  /// [previous] (its row before the split), the requirement is as it was.
+  Future<void> removeSubSteps(
+    int specId,
+    String parent, {
+    SpecStep? previous,
+  }) => _db.transaction(() async {
+    await _deleteSubSteps(specId, parent);
+    if (previous == null) return;
+    await (_db.update(_t)
+          ..where((s) => s.specId.equals(specId) & s.step.equals(parent)))
+        .write(previous.toCompanion(false));
+  });
+
+  Future<void> _deleteSubSteps(int specId, String parent) => (_db.delete(
+    _t,
+  )..where((s) => s.specId.equals(specId) & s.step.like('$parent.%'))).go();
+
   /// A step that is not in the file ([body] = its text): pending.
   Future<void> addExtra(int specId, String step, String body) => _db
       .into(_t)
