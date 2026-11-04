@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Canvas de specs: pasta recolhida</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b{font-weight:600}
+.mono{font-family:'JetBrains Mono',monospace}
+.root{--k:1;--in:cubic-bezier(.2,.8,.2,1)}
+.root.slow{--k:4}
+@media (prefers-reduced-motion:reduce){.root{--k:0 !important}}
+.grid{background-color:#0E1014;background-image:radial-gradient(#232833 1.2px,transparent 1.3px);background-size:24px 24px}
+.nv{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#A0A8B6}
+.nv.on{background:#2A2418;color:#F2A541}
+.folder{position:absolute;left:64px;top:92px;width:330px;height:768px;transition:width calc(320ms*var(--k)) var(--in);background:#14171D;border:1px solid #252B35;border-radius:0 12px 12px 12px}
+.tab{position:absolute;left:64px;top:60px;height:33px;width:190px;padding:0 6px 0 12px;transition:width calc(320ms*var(--k)) var(--in);overflow:hidden;white-space:nowrap;display:flex;align-items:center;gap:8px;background:#14171D;border:1px solid #252B35;border-bottom:0;border-radius:10px 10px 0 0;color:#F2A541;font-size:13px;font-weight:600;z-index:1}
+.tab span{color:#E7E9EE}
+.tog{flex:none;margin-left:6px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:#A0A8B6;transition:transform calc(320ms*var(--k)) var(--in)}
+.tog:hover{background:#1F2430;color:#E7E9EE}
+.tlabel{transition:opacity calc(160ms*var(--k))}
+.folded .folder{width:88px;border-radius:0 12px 12px 12px}
+.folded .tab{width:88px}
+.folded .tlabel{opacity:0;width:0;overflow:hidden}
+.folded .tog{transform:rotate(180deg);margin-left:auto}
+.ic{flex:none;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+.ok{color:#5BC88A}
+.find{position:absolute;left:72px;top:100px;width:314px;height:36px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid #2E3542;border-radius:8px;background:#0E1014;color:#A0A8B6;z-index:47;overflow:hidden;transition:width calc(320ms*var(--k)) var(--in),border-color calc(120ms*var(--k))}
+.find:focus-within{border-color:#F2A541}
+.find input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;color:#E7E9EE;font:inherit;font-size:13px}
+.find input::placeholder{color:#7C8595}
+.find .kbd{flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;padding:1px 6px;border:1px solid #2E3542;border-radius:4px;color:#A0A8B6}
+.findbtn{position:absolute;left:72px;top:100px;width:72px;height:36px;display:none;align-items:center;justify-content:center;gap:6px;border:1px solid #2E3542;border-radius:8px;background:#0E1014;color:#A0A8B6;z-index:47}
+.findbtn:hover{color:#E7E9EE}
+.folded .find{display:none}
+.folded .findbtn{display:flex}
+.none{position:absolute;left:84px;top:210px;width:290px;font-size:13px;color:#A0A8B6;z-index:47;transition:opacity calc(160ms*var(--k))}
+.bk{display:block;width:12px;height:12px;border-radius:50%;border:2px solid #7C8595}
+.sc{position:absolute;left:72px;width:314px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:#A0A8B6;z-index:47;transition:width calc(320ms*var(--k)) var(--in),opacity calc(120ms*var(--k))}
+.sc:hover:not(:disabled){background:#1F2430;color:#E7E9EE}
+.sc:disabled{opacity:.3;cursor:default}
+.folded .sc{width:72px}
+.edge{position:absolute;left:66px;width:326px;height:30px;pointer-events:none;z-index:46;transition:width calc(320ms*var(--k)) var(--in),opacity calc(160ms*var(--k))}
+.folded .edge{width:84px}
+.edge.t{top:170px;background:linear-gradient(#14171D,rgba(20,23,29,0))}
+.edge.b{top:800px;background:linear-gradient(rgba(20,23,29,0),#14171D)}
+.thumb{position:absolute;left:388px;width:3px;border-radius:2px;background:#3F4858;z-index:47;transition:transform calc(170ms*var(--k)) var(--in),left calc(320ms*var(--k)) var(--in),height calc(170ms*var(--k))}
+.folded .thumb{left:146px}
+.spin{display:block;width:14px;height:14px;border-radius:50%;border:2.2px solid rgba(242,165,65,.28);border-top-color:#F2A541;animation:rot .85s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none;border-color:#F2A541}.live i{animation:none}}
+.rv{display:block;width:10px;height:10px;border-radius:50%;background:#E07AB0}
+.card.mini:not(.big) .tt{display:none}
+.card.mini .row{left:10px;right:6px;gap:6px}
+.now{font-size:13px;color:#F2A541}
+.live{display:block;height:3px;border-radius:2px;background:rgba(242,165,65,.18);overflow:hidden}
+.live i{display:block;width:34%;height:100%;border-radius:2px;background:#F2A541;animation:sl calc(1300ms*var(--k)) ease-in-out infinite}
+@keyframes sl{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+.bt.run{gap:8px}
+.bt.run.on{background:#2A2418;color:#F2A541}
+.card{position:absolute;left:0;top:0;overflow:hidden;text-align:left;border-radius:10px;background:#1A1E26;border:1px solid #2E3542;box-shadow:0 2px 6px rgba(0,0,0,.35);color:#E7E9EE;
+ transition:transform calc(420ms*var(--k)) var(--in),width calc(420ms*var(--k)) var(--in),height calc(420ms*var(--k)) var(--in),border-color calc(160ms*var(--k)),box-shadow calc(220ms*var(--k)),scale calc(160ms*var(--k)) var(--in)}
+.card.gone{opacity:0;pointer-events:none}
+.card.fold{transition-duration:calc(170ms*var(--k)),calc(170ms*var(--k)),calc(170ms*var(--k)),calc(160ms*var(--k)),calc(220ms*var(--k)),calc(160ms*var(--k))}
+.card.hot{border-color:#F2A541;box-shadow:0 12px 30px rgba(0,0,0,.55),0 0 0 3px rgba(242,165,65,.14)}
+.card.stage:hover{scale:1.03;border-color:#3F4858}
+.card.root-card{border:2px solid #F2A541;box-shadow:0 18px 44px rgba(0,0,0,.6),0 0 0 6px rgba(242,165,65,.1)}
+.row{position:absolute;left:12px;right:12px;top:0;height:42px;display:flex;align-items:center;gap:10px;font-size:13px;transition:opacity calc(120ms*var(--k))}
+.row .mono{flex:none;font-size:12px;color:#A0A8B6}
+.row .tt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.full{position:absolute;inset:0;padding:12px 14px;display:flex;flex-direction:column;gap:6px;opacity:0;transition:opacity calc(160ms*var(--k))}
+.card.big .row{opacity:0}
+.card.big .full{opacity:1;transition-delay:calc(70ms*var(--k))}
+.hd{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.hd .mono{color:#A0A8B6}
+.ti{font-size:15px;font-weight:600;line-height:1.3;flex:1;min-height:0;overflow:hidden}
+.root-card .ti{font-size:19px}
+.dots{display:flex;align-items:center;gap:6px;font-size:12px;color:#A0A8B6}
+.dot{width:10px;height:10px;border-radius:50%;border:1.5px solid #7C8595}
+.dot.ok{background:#5BC88A;border-color:#5BC88A}
+.dot.run{border-color:#F08A4B;box-shadow:0 0 0 2px rgba(240,138,75,.25)}
+.dots .ct{margin-left:auto;font-family:'JetBrains Mono',monospace}
+.ln{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+.ln.a{animation:drawA calc(380ms*var(--k)) var(--in) forwards}
+.ln.b{animation:drawB calc(380ms*var(--k)) var(--in) forwards}
+@keyframes drawA{to{stroke-dashoffset:0}}
+@keyframes drawB{to{stroke-dashoffset:0}}
+.hdn{position:absolute;left:0;top:0;opacity:0;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid #7C8595}
+.hdn.a{animation:fadeA calc(120ms*var(--k)) linear forwards}
+.hdn.b{animation:fadeB calc(120ms*var(--k)) linear forwards}
+@keyframes fadeA{to{opacity:1}}
+@keyframes fadeB{to{opacity:1}}
+.bar{position:absolute;top:16px;display:flex;gap:2px;padding:4px;background:#14171D;border:1px solid #252B35;border-radius:12px;z-index:5}
+.bt{height:32px;padding:0 12px;display:inline-flex;align-items:center;border-radius:8px;font-size:13px;color:#A0A8B6}
+.bt:hover{color:#E7E9EE}
+.bt.on{background:#1F2430;color:#E7E9EE}
+.hint{position:absolute;text-align:center;color:#A0A8B6;font-size:15px;transition:opacity calc(220ms*var(--k))}
+.crumb{position:absolute;top:70px;display:flex;align-items:center;gap:10px;font-size:13px;color:#A0A8B6;transition:opacity calc(220ms*var(--k))}
+.crumb button{height:30px;padding:0 10px;border:1px solid #2E3542;border-radius:8px;color:#E7E9EE}
+.crumb button:hover{background:#1A1E26}
+</style>
+</helmet>
+<div class="root {{slowCls}} {{foldCls}}" tabindex="-1" ref="{{stageRef}}" onKeyDown="{{onKey}}" onWheel="{{onWheel}}" style="position:relative;width:100%;height:900px;overflow:hidden;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<div class="grid" style="position:absolute;inset:0"></div>
+<nav aria-label="Seções" style="position:absolute;left:0;top:0;bottom:0;width:52px;background:#14171D;border-right:1px solid #252B35;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:12px;z-index:4"><button type="button" class="nv" aria-label="Prompt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6"></path><path d="M12 19h8"></path></svg></button><button type="button" class="nv on" aria-label="Quadro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5"></rect><rect x="14" y="3" width="7" height="11" rx="1.5"></rect></svg></button><button type="button" class="nv" aria-label="Specs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path><path d="M14 3v6h6"></path></svg></button><button type="button" class="nv" aria-label="Review"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button></nav>
+<div class="tab"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"></path></svg><span class="tlabel">specs/</span> <span class="tlabel" style="color:#A0A8B6;font-weight:400;margin-left:auto">{{inFolder}}</span><button type="button" class="tog" aria-label="{{togLabel}}" aria-expanded="{{togOpen}}" onClick="{{toggle}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button></div>
+<div class="folder"></div>
+<label class="find"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input type="text" aria-label="Buscar spec" placeholder="Buscar por número ou título" value="{{q}}" ref="{{inpRef}}" onChange="{{onQ}}" onFocus="{{onInFocus}}" onBlur="{{onInBlur}}"></input><span class="kbd">/</span></label>
+<button type="button" class="findbtn" aria-label="Buscar spec" onClick="{{openFind}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><span class="mono" style="font-size:11px">/</span></button>
+<div class="none" style="opacity:{{noneO}}">{{noneText}}</div>
+<button type="button" class="sc" style="top:140px" aria-label="Subir a lista" disabled="{{atTop}}" onClick="{{up}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></button>
+<button type="button" class="sc" style="top:830px" aria-label="Descer a lista" disabled="{{atEnd}}" onClick="{{down}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<div class="edge t" style="opacity:{{edgeT}}"></div><div class="edge b" style="opacity:{{edgeB}}"></div>
+<span class="thumb" style="top:170px;height:{{thumbH}}px;transform:translateY({{thumbY}}px);opacity:{{thumbO}}"></span>
+<div class="bar" style="left:{{barX}}px"><button type="button" class="{{runCls}}" aria-pressed="{{runOn}}" onClick="{{toggleRun}}"><span class="spin"></span>Executando · {{runN}}</button><button type="button" class="bt">Colunas</button><button type="button" class="bt on">Grafo</button><button type="button" class="bt">Ajustar</button></div>
+<div class="bar" style="right:16px" role="group" aria-label="Velocidade"><button type="button" class="{{pCls}}" onClick="{{setP}}">Proposta</button><button type="button" class="{{lCls}}" onClick="{{setL}}">4× mais lento</button></div>
+<div class="hint" style="left:{{hintX}}px;top:400px;width:420px;opacity:{{hintO}}"><div style="font-size:20px;font-weight:600;color:#E7E9EE;margin-bottom:6px">Escolha uma spec na pasta</div>Passe o mouse para ver os detalhes. Clique para abrir, com as specs que dependem dela.</div>
+<div class="crumb" style="left:{{barX}}px;opacity:{{crumbO}}"><button type="button" onClick="{{close}}">Voltar à pasta <span class="mono" style="font-size:11px;color:#A0A8B6">Esc</span></button><span>{{depText}}</span></div>
+<svg width="100%" height="900" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none"><sc-for list="{{lines}}" as="l" hint-placeholder-count="2"><path class="{{l.cls}}" d="{{l.d}}" pathLength="1" stroke="{{l.c}}" style="animation-delay:{{l.delay}}"></path></sc-for></svg>
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="2"><span class="{{l.hcls}}" style="transform:translate({{l.hx}}px,{{l.hy}}px);border-top-color:{{l.c}};animation-delay:{{l.hdelay}}"></span></sc-for>
+<sc-for list="{{cards}}" as="k" hint-placeholder-count="35"><button type="button" class="{{k.cls}}" aria-label="{{k.label}}" onClick="{{k.pick}}" onMouseEnter="{{k.enter}}" onMouseLeave="{{k.leave}}" onFocus="{{k.focus}}" onBlur="{{k.leave}}" style="transform:translate({{k.x}}px,{{k.y}}px);width:{{k.w}}px;height:{{k.h}}px;z-index:{{k.z}};transition-delay:{{k.delay}}">
+<span class="row"><span class="ic"><sc-if value="{{k.isDone}}" hint-placeholder-val="{{true}}"><svg class="ok" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Feito"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if><sc-if value="{{k.isRun}}" hint-placeholder-val="{{false}}"><span class="spin" role="img" aria-label="Em execução"></span></sc-if><sc-if value="{{k.isRev}}" hint-placeholder-val="{{false}}"><span class="rv" role="img" aria-label="Review"></span></sc-if><sc-if value="{{k.isBack}}" hint-placeholder-val="{{false}}"><span class="bk" role="img" aria-label="Backlog"></span></sc-if></span><span class="mono">{{k.short}}</span><span class="tt">{{k.title}}</span></span>
+<span class="full"><span class="hd"><span class="mono">{{k.id}}</span><span style="color:{{k.sc}};font-weight:500">{{k.stage}}</span></span><span class="ti">{{k.title}}</span><sc-if value="{{k.live}}" hint-placeholder-val="{{false}}"><span class="now">{{k.now}}</span><span class="live"><i></i></span></sc-if><span class="dots"><sc-for list="{{k.dots}}" as="d" hint-placeholder-count="6"><span class="{{d.c}}"></span></sc-for><span class="ct">{{k.count}}</span></span></span>
+</button></sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+
+constructor(p){super(p);this.state={sel:"SPEC-009",view:null,folded:true,off:0,q:'',act:0,hover:null,slow:false,n:0,W:1440};}
+componentDidUpdate(){if(this.wantFind&&this.inp&&document.activeElement!==this.inp){this.inp.focus();const n=this.inp.value.length;this.inp.setSelectionRange(n,n);}}
+componentDidMount(){this.measure();if(this.el&&this.el.focus)this.el.focus();if(window.ResizeObserver&&this.el){this.ro=new ResizeObserver(()=>this.measure());this.ro.observe(this.el);}}
+componentWillUnmount(){if(this.ro)this.ro.disconnect();}
+measure(){if(this.el&&this.el.clientWidth&&this.el.clientWidth!==this.state.W)this.setState({W:this.el.clientWidth});}
+tree(root){const S=[{"id": "SPEC-035", "title": "Orquestrador de modelos", "st": "running", "n": 20, "dep": []}, {"id": "SPEC-034", "title": "Motion e fluidez na interface", "st": "review", "n": 13, "dep": []}, {"id": "SPEC-033", "title": "Decidir a etapa sem abrir a sessão", "st": "running", "n": 16, "dep": ["SPEC-030", "SPEC-028"]}, {"id": "SPEC-032", "title": "Fila de review em pilha", "st": "running", "n": 17, "dep": []}, {"id": "SPEC-031", "title": "Marca do sistema no cabeçalho", "st": "done", "n": 9, "dep": ["SPEC-029"]}, {"id": "SPEC-030", "title": "\"Precisa de você\" mais claro no card", "st": "done", "n": 10, "dep": ["SPEC-017"]}, {"id": "SPEC-029", "title": "Ícone visível nas barras do Linux", "st": "done", "n": 7, "dep": ["SPEC-020"]}, {"id": "SPEC-028", "title": "Responder as perguntas em aberto", "st": "done", "n": 12, "dep": ["SPEC-023"]}, {"id": "SPEC-027", "title": "Apagar telas do protótipo", "st": "done", "n": 12, "dep": ["SPEC-022"]}, {"id": "SPEC-026", "title": "Ver o que o refino gerou", "st": "done", "n": 11, "dep": ["SPEC-021"]}, {"id": "SPEC-025", "title": "Spec bloqueada durante ações", "st": "done", "n": 11, "dep": ["SPEC-024"]}, {"id": "SPEC-024", "title": "Ações da spec mais claras", "st": "done", "n": 12, "dep": []}, {"id": "SPEC-023", "title": "Specs mais rigorosas", "st": "done", "n": 28, "dep": []}, {"id": "SPEC-022", "title": "Protótipo de telas da spec", "st": "done", "n": 24, "dep": []}, {"id": "SPEC-021", "title": "Voltar a spec ao refinar", "st": "done", "n": 25, "dep": []}, {"id": "SPEC-020", "title": "Ícone na bandeja do sistema", "st": "done", "n": 8, "dep": []}, {"id": "SPEC-019", "title": "Ocultar specs concluídas", "st": "done", "n": 10, "dep": ["SPEC-015"]}, {"id": "SPEC-018", "title": "Marcar todos os critérios de aceite", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-017", "title": "Menos tokens por etapa", "st": "done", "n": 5, "dep": []}, {"id": "SPEC-016", "title": "Salvar a spec escrita pelo agente", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-015", "title": "Descoberta de specs existentes", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-014", "title": "Identificação da hospedagem", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-013", "title": "Review no GitLab", "st": "backlog", "n": 6, "dep": ["SPEC-009", "SPEC-011", "SPEC-012"]}, {"id": "SPEC-012", "title": "Review: merge local guiado", "st": "done", "n": 6, "dep": ["SPEC-011"]}, {"id": "SPEC-011", "title": "Review: \"Pronto para merge?\"", "st": "done", "n": 5, "dep": ["SPEC-009", "SPEC-010"]}, {"id": "SPEC-010", "title": "Review: diff desde a última rodada", "st": "done", "n": 6, "dep": ["SPEC-009"]}, {"id": "SPEC-009", "title": "Review: comentários nas linhas do diff", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-008", "title": "Canvas do Quadro", "st": "done", "n": 7, "dep": []}, {"id": "SPEC-007", "title": "Modo YOLO do Codex", "st": "done", "n": 6, "dep": ["SPEC-003", "SPEC-004"]}, {"id": "SPEC-006", "title": "Provedor pelo indicador do rodapé", "st": "done", "n": 6, "dep": ["SPEC-003"]}, {"id": "SPEC-005", "title": "Codex em todos os fluxos", "st": "backlog", "n": 6, "dep": ["SPEC-004"]}, {"id": "SPEC-004", "title": "Paridade das opções", "st": "backlog", "n": 6, "dep": ["SPEC-003"]}, {"id": "SPEC-003", "title": "Seleção de Claude Code ou Codex", "st": "backlog", "n": 6, "dep": ["SPEC-002"]}, {"id": "SPEC-002", "title": "Integração Codex", "st": "backlog", "n": 6, "dep": []}, {"id": "SPEC-001", "title": "Scroll vertical no Quadro", "st": "done", "n": 7, "dep": []}];const kids=(id)=>S.filter(s=>s.dep.includes(id)).map(s=>s.id);const lvl={};lvl[root]=0;
+const walk=(id)=>{for(const c of kids(id)){const d=lvl[id]+1;if(!(c in lvl)||lvl[c]<d){lvl[c]=d;walk(c);}}};walk(root);return {lvl,kids};}
+renderVals(){const st=this.state,S=[{"id": "SPEC-035", "title": "Orquestrador de modelos", "st": "running", "n": 20, "dep": []}, {"id": "SPEC-034", "title": "Motion e fluidez na interface", "st": "review", "n": 13, "dep": []}, {"id": "SPEC-033", "title": "Decidir a etapa sem abrir a sessão", "st": "running", "n": 16, "dep": ["SPEC-030", "SPEC-028"]}, {"id": "SPEC-032", "title": "Fila de review em pilha", "st": "running", "n": 17, "dep": []}, {"id": "SPEC-031", "title": "Marca do sistema no cabeçalho", "st": "done", "n": 9, "dep": ["SPEC-029"]}, {"id": "SPEC-030", "title": "\"Precisa de você\" mais claro no card", "st": "done", "n": 10, "dep": ["SPEC-017"]}, {"id": "SPEC-029", "title": "Ícone visível nas barras do Linux", "st": "done", "n": 7, "dep": ["SPEC-020"]}, {"id": "SPEC-028", "title": "Responder as perguntas em aberto", "st": "done", "n": 12, "dep": ["SPEC-023"]}, {"id": "SPEC-027", "title": "Apagar telas do protótipo", "st": "done", "n": 12, "dep": ["SPEC-022"]}, {"id": "SPEC-026", "title": "Ver o que o refino gerou", "st": "done", "n": 11, "dep": ["SPEC-021"]}, {"id": "SPEC-025", "title": "Spec bloqueada durante ações", "st": "done", "n": 11, "dep": ["SPEC-024"]}, {"id": "SPEC-024", "title": "Ações da spec mais claras", "st": "done", "n": 12, "dep": []}, {"id": "SPEC-023", "title": "Specs mais rigorosas", "st": "done", "n": 28, "dep": []}, {"id": "SPEC-022", "title": "Protótipo de telas da spec", "st": "done", "n": 24, "dep": []}, {"id": "SPEC-021", "title": "Voltar a spec ao refinar", "st": "done", "n": 25, "dep": []}, {"id": "SPEC-020", "title": "Ícone na bandeja do sistema", "st": "done", "n": 8, "dep": []}, {"id": "SPEC-019", "title": "Ocultar specs concluídas", "st": "done", "n": 10, "dep": ["SPEC-015"]}, {"id": "SPEC-018", "title": "Marcar todos os critérios de aceite", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-017", "title": "Menos tokens por etapa", "st": "done", "n": 5, "dep": []}, {"id": "SPEC-016", "title": "Salvar a spec escrita pelo agente", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-015", "title": "Descoberta de specs existentes", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-014", "title": "Identificação da hospedagem", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-013", "title": "Review no GitLab", "st": "backlog", "n": 6, "dep": ["SPEC-009", "SPEC-011", "SPEC-012"]}, {"id": "SPEC-012", "title": "Review: merge local guiado", "st": "done", "n": 6, "dep": ["SPEC-011"]}, {"id": "SPEC-011", "title": "Review: \"Pronto para merge?\"", "st": "done", "n": 5, "dep": ["SPEC-009", "SPEC-010"]}, {"id": "SPEC-010", "title": "Review: diff desde a última rodada", "st": "done", "n": 6, "dep": ["SPEC-009"]}, {"id": "SPEC-009", "title": "Review: comentários nas linhas do diff", "st": "done", "n": 6, "dep": []}, {"id": "SPEC-008", "title": "Canvas do Quadro", "st": "done", "n": 7, "dep": []}, {"id": "SPEC-007", "title": "Modo YOLO do Codex", "st": "done", "n": 6, "dep": ["SPEC-003", "SPEC-004"]}, {"id": "SPEC-006", "title": "Provedor pelo indicador do rodapé", "st": "done", "n": 6, "dep": ["SPEC-003"]}, {"id": "SPEC-005", "title": "Codex em todos os fluxos", "st": "backlog", "n": 6, "dep": ["SPEC-004"]}, {"id": "SPEC-004", "title": "Paridade das opções", "st": "backlog", "n": 6, "dep": ["SPEC-003"]}, {"id": "SPEC-003", "title": "Seleção de Claude Code ou Codex", "st": "backlog", "n": 6, "dep": ["SPEC-002"]}, {"id": "SPEC-002", "title": "Integração Codex", "st": "backlog", "n": 6, "dep": []}, {"id": "SPEC-001", "title": "Scroll vertical no Quadro", "st": "done", "n": 7, "dep": []}],W=st.W,X0=st.folded?160:410,cx=X0+(W-X0)/2;
+const names={done:['Feito','#5BC88A'],running:['Em execução','#F2A541'],review:['Review','#E07AB0'],backlog:['Backlog','#A0A8B6']};
+const t=st.sel?this.tree(st.sel):{lvl:{},kids:()=>[]};const lvl=t.lvl;
+const byL={};Object.keys(lvl).forEach(id=>{(byL[lvl[id]]=byL[lvl[id]]||[]).push(id);});
+Object.values(byL).forEach(a=>a.sort());
+const pos={};const depth=Math.max(0,...Object.values(lvl));const CW=250,CH=116,RW=330,RH=150,TOP=112,GAP=depth?Math.min(78,(880-TOP-RH-depth*CH)/depth):78;
+Object.keys(byL).forEach(l=>{const a=byL[l],L=+l;a.forEach((id,i)=>{const w=L?CW:RW,h=L?CH:RH;const span=a.length*CW+(a.length-1)*28;
+const x=L?cx-span/2+i*(CW+28):cx-RW/2;const y=L?TOP+RH+GAP+(L-1)*(CH+GAP):TOP;pos[id]={x,y,w,h,i,L};});});
+const runIds=S.filter(s=>s.st==='running').map(s=>s.id);
+if(st.view==='run'){const w=320,g=24,span=runIds.length*w+(runIds.length-1)*g;runIds.forEach((id,i)=>{pos[id]={x:cx-span/2+i*(w+g),y:300,w,h:206,i,L:1};});}
+// the folder closes the gaps and opens around the hovered sheet
+const WT=170,ROW=43,VIS=15,WB=WT+VIS*ROW,GROW=88;const fold0=S.filter(s=>!(s.id in pos));
+const norm=(x)=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();const q=norm(st.q.trim());
+const inFold=q?fold0.filter(s=>norm(s.id+' '+s.title).includes(q)):fold0;
+const maxOff=inFold.length>VIS-1?Math.max(0,(inFold.length-VIS)*ROW+GROW):0;const off=Math.min(st.off,maxOff);this.maxOff=maxOff;this.off=off;this.inFold=inFold;
+const act=q&&inFold.length?inFold[Math.min(st.act,inFold.length-1)].id:null;this.actId=act;
+const hi=inFold.findIndex(s=>s.id===(act||st.hover));const fold={};
+inFold.forEach((s,i)=>{const hot=i===hi;const near=hi>=0&&Math.abs(i-hi)===1;const y=WT+i*ROW-off+(hi>=0&&i>hi?GROW:0);const h=hot?124:40;
+const gone=!hot&&(y+h<=WT||y>=WB);
+fold[s.id]=st.folded?{x:72,y,w:hot?326:72,h,hot,gone,z:hot?70:10+i}:{x:hot?74:80+(near?-2:0),y,w:hot?326:298+(near?6:0),h,hot,gone,z:hot?48:10+i};});
+fold0.forEach(s=>{if(!fold[s.id])fold[s.id]={x:st.folded?72:80,y:WT,w:st.folded?72:298,h:40,hot:false,gone:true,z:1};});
+const cards=S.map(s=>{const p=pos[s.id],f=fold[s.id],on=!!p,root=on&&p.L===0;
+const q=names[s.st];const done=s.st==='done'||s.st==='review'?s.n:s.st==='backlog'?0:Math.round(s.n*.55);
+const show=Math.min(s.n,on&&root?14:10);const dots=[];for(let i=0;i<show;i++)dots.push({c:'dot'+(i<Math.round(done*show/s.n)?' ok':(i===Math.round(done*show/s.n)&&s.st==='running')?' run':'')});
+const big=on||f.hot;
+return {...s,short:s.id.slice(5),stage:q[0],sc:q[1],dots,count:done+'/'+s.n,label:s.id+': '+s.title,
+x:on?p.x:f.x,y:on?p.y:f.y,w:on?p.w:f.w,h:on?p.h:f.h,z:on?(root?60:50):f.z,
+delay:on?(p.L*90+p.i*45)+'ms':'0ms',
+cls:'card'+(on?' stage':' fold')+(big?' big':'')+(f&&f.hot?' hot':'')+(root?' root-card':'')+(!on&&st.folded?' mini':'')+(!on&&f.gone?' gone':''),
+isDone:s.st==='done',isRun:s.st==='running',isRev:s.st==='review',isBack:s.st==='backlog',live:on&&st.view==='run',now:'Etapa '+(done+1)+' de '+s.n+' · rodando',
+pick:()=>{if(st.sel===s.id)return;this.wantFind=false;this.setState({sel:s.id,view:null,q:'',act:0,hover:null,n:st.n+1});},
+enter:()=>{if(!on&&st.hover!==s.id)this.setState({hover:s.id});},
+focus:()=>{if(on)return;const i=this.inFold.findIndex(x=>x.id===s.id),top=i*ROW,cur=this.off;const next=top<cur?top:top+ROW>cur+VIS*ROW?top+ROW-VIS*ROW:cur;this.setState({hover:s.id,off:next});},leave:()=>{if(st.hover===s.id)this.setState({hover:null});}};});
+const lines=[];const flip=st.n%2?'a':'b';
+Object.keys(lvl).forEach(id=>{t.kids(id).forEach(c=>{if(!(c in lvl))return;const a=pos[id],b=pos[c];if(!a||!b)return;
+const skip=b.L-a.L>1,off=skip?a.w/2-34:0;const x1=a.x+a.w/2+off,y1=a.y+a.h,x2=b.x+b.w/2+(skip?b.w/2-34:0),y2=b.y-11,m=(y2-y1)*.55,bow=skip?190:0;
+const delay=(320+b.L*90+b.i*45);const col=skip?'#7C8595':'#F2A541';
+lines.push({d:`M${x1} ${y1} C${x1+bow} ${y1+m} ${x2+bow} ${y2-m} ${x2} ${y2}`,c:col,cls:'ln '+flip,delay:`calc(${delay}ms*var(--k))`,hcls:'hdn '+flip,hx:x2-7,hy:y2,hdelay:`calc(${delay+320}ms*var(--k))`});});});
+const n=lines.length?Object.keys(lvl).length-1:0;
+const scroll=(d)=>this.setState({off:Math.max(0,Math.min(this.maxOff,this.off+d)),hover:null});const track=VIS*ROW-4,thumbH=maxOff?Math.max(36,track*VIS/inFold.length):0;
+const openFind=()=>{this.wantFind=true;this.setState({folded:false,hover:null});setTimeout(()=>{if(this.inp)this.inp.focus();},0);};
+const pickAct=()=>{if(!this.actId)return;this.wantFind=false;if(this.el)this.el.focus();this.setState({sel:this.actId,view:null,q:'',act:0,off:0,hover:null,n:st.n+1});};
+const moveAct=(d)=>{const i=Math.max(0,Math.min(inFold.length-1,st.act+d));const top=i*ROW;const next=top<off?top:top+ROW+GROW>off+VIS*ROW?top+ROW+GROW-VIS*ROW:off;this.setState({act:i,off:next});};
+return {cards,lines,q:st.q,inpRef:(el)=>{if(el)this.inp=el;},onQ:(e)=>this.setState({q:e.target.value,act:0,off:0,hover:null}),onInFocus:()=>{this.wantFind=true;},onInBlur:(e)=>{const el=e.target;setTimeout(()=>{if(el.isConnected)this.wantFind=false;},0);},openFind,
+noneO:q&&!inFold.length?1:0,noneText:q&&!inFold.length?`Nenhuma spec com "${st.q.trim()}"`:'',atTop:off<=0,atEnd:off>=maxOff,up:()=>scroll(-ROW*4),down:()=>scroll(ROW*4),edgeT:off>0?1:0,edgeB:off<maxOff?1:0,thumbH,thumbY:maxOff?(track-thumbH)*off/maxOff:0,thumbO:maxOff?1:0,
+onWheel:(e)=>{const r=this.el?this.el.getBoundingClientRect():{left:0};const lim=r.left+(st.folded?160:410);if(e.clientX<lim)scroll(e.deltaY>0?ROW*2:-ROW*2);},slowCls:st.slow?'slow':'',inFolder:q?inFold.length+' de '+fold0.length:String(fold0.length),barX:Math.round(cx-190),hintX:Math.round(cx-210),hintO:st.sel||st.view?0:1,crumbO:st.sel||st.view?1:0,
+foldCls:st.folded?'folded':'',togLabel:st.folded?'Abrir a pasta':'Recolher a pasta',togOpen:!st.folded,toggle:()=>this.setState({folded:!st.folded,hover:null}),
+runN:runIds.length,runOn:st.view==='run',runCls:'bt run'+(st.view==='run'?' on':''),toggleRun:()=>this.setState({view:st.view==='run'?null:'run',sel:null,hover:null,n:st.n+1}),
+depText:st.view==='run'?`${runIds.length} specs em execução`:!st.sel?'':n?`${n} ${n>1?'specs dependem':'spec depende'} de ${st.sel}`:`Nenhuma spec depende de ${st.sel}`,
+pCls:st.slow?'bt':'bt on',lCls:st.slow?'bt on':'bt',setP:()=>this.setState({slow:false}),setL:()=>this.setState({slow:true}),
+close:()=>this.setState({sel:null,view:null,hover:null}),onKey:(e)=>{const inInput=e.target&&e.target.tagName==='INPUT';const pd=()=>{if(e.preventDefault)e.preventDefault();};
+if((e.key==='/'&&!inInput)||((e.ctrlKey||e.metaKey)&&e.key==='f')){pd();openFind();return;}
+if(inInput){if(e.key==='Escape'){this.wantFind=false;if(this.el)this.el.focus();this.setState({q:'',act:0,off:0,hover:null});}else if(e.key==='Enter'){pd();pickAct();}else if(e.key==='ArrowDown'){pd();moveAct(1);}else if(e.key==='ArrowUp'){pd();moveAct(-1);}return;}
+if(e.key==='Escape')this.setState({sel:null,view:null,hover:null});if(e.key==='ArrowDown'){pd();scroll(ROW);}if(e.key==='ArrowUp'){pd();scroll(-ROW);}},stageRef:(el)=>{if(el)this.el=el;}};}
+
+}
+</script>
+</body>
+</html>
