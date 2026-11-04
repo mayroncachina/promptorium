@@ -421,8 +421,10 @@ void main() {
     // Real file IO (code detection, config, memory) does not run under
     // FakeAsync: let it run, then pump, until the tab shows.
     Future<void> settleIo(bool Function() until) async {
-      // Bounded but generous: the full suite runs files in parallel.
-      for (var i = 0; i < 400; i++) {
+      // Bounded by real time, not by turns: with the full suite running
+      // files in parallel each turn takes longer than its 20 ms.
+      final deadline = DateTime.now().add(const Duration(seconds: 45));
+      for (var i = 0; DateTime.now().isBefore(deadline); i++) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
@@ -461,7 +463,7 @@ void main() {
     expect(find.textContaining('Stack detectada: Flutter'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await unmount(tester, c);
-  });
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   testWidgets('every step fits the minimum window (1100×700)', (tester) async {
     for (final step in ProjectStep.values) {

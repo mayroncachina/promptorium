@@ -62,7 +62,9 @@ void main() {
     await c.read(autopilotProvider.notifier).restore();
     expect(c.read(autopilotProvider), isEmpty);
     c.dispose();
-  });
+    // Real database and file IO: with the full suite in parallel it can pass
+    // the default 30 s.
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   test('review draft: comments and accepted hunks come back', () async {
     var c = open();
