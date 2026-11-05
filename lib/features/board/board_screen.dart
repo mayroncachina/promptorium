@@ -231,6 +231,23 @@ bool needsAttention(
         changedOnDisk ||
         duelReady);
 
+/// The spec has a session running or a step under way (SPEC-036 R12). A step
+/// that waits for the person is still under way (R13).
+bool isSpecRunning(SpecCardData d, {required bool Function(String id) alive}) =>
+    d.spec.stage != SpecStage.done &&
+    (d.steps.any(
+          (s) =>
+              s.status == StepStatus.running ||
+              s.status == StepStatus.verifying ||
+              s.status == StepStatus.needsInput,
+        ) ||
+        d.sessions.any(
+          (s) =>
+              alive(s.id) &&
+              (s.status == SessionStatus.running ||
+                  s.status == SessionStatus.waitingApproval),
+        ));
+
 /// Shared attention text; all waiting steps belong to the same session.
 String boardAttentionReason(
   SpecCardData d, {

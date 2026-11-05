@@ -237,7 +237,13 @@ class StageEdge {
 /// spec that depends on it, directly or not (SPEC-036 R9).
 @immutable
 class StageLayout {
-  const StageLayout(this.levels, this.edges);
+  const StageLayout(this.levels, this.edges, {this.running = false});
+
+  /// The specs in execution, side by side and without a root (R12).
+  StageLayout.runningSpecs(List<Spec> specs)
+    : this([specs], const [], running: true);
+
+  final bool running;
 
   /// `levels[0]` is the root alone; a spec is in the level of the longest
   /// path from the root.

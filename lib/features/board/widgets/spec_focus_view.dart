@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../sessions/session_manager.dart';
 import '../board_rules.dart';
 import '../board_screen.dart';
 import 'canvas_view_controller.dart';
@@ -88,6 +90,10 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
 
   int? _rootId;
 
+  /// "Executando" is on the stage (R12), with these specs.
+  bool _running = false;
+  Set<int> _runningShown = const {};
+
   @override
   void initState() {
     super.initState();
@@ -114,7 +120,31 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
     for (final d in widget.all) d.spec.id: d,
   };
 
-  StageGeometry? _geometryOf(int? rootId, Map<int, SpecCardData> byId) {
+  List<Spec> _runningSpecs() {
+    final manager = ref.read(sessionManagerProvider);
+    return [
+      for (final d in widget.all)
+        if (isSpecRunning(d, alive: manager.isAlive)) d.spec,
+    ]..sort(compareNewestFirst);
+  }
+
+  StageGeometry? _geometryOf(
+    int? rootId,
+    bool running,
+    Map<int, SpecCardData> byId,
+  ) {
+    if (running) {
+      final specs = _runningSpecs();
+      if (specs.isEmpty) return null;
+      return stageGeometry(
+        StageLayout.runningSpecs(specs),
+        (s) => stageCardSizeOf(
+          root: false,
+          running: true,
+          attention: widget.attention(byId[s.id]!),
+        ),
+      );
+    }
     final root = byId[rootId];
     if (root == null) return null;
     final layout = stageLayout(root.spec, widget.all.map((d) => d.spec));
@@ -148,9 +178,26 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
     _focus.requestFocus();
   }
 
+  void _toggleRunning() {
+    _select(null);
+    _show(null, running: !_running);
+    _focus.requestFocus();
+  }
+
+  @override
+  void didUpdateWidget(covariant SpecFocusView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_running) return;
+    // A spec left execution: its card goes back to the folder (R13).
+    final now = {for (final s in _runningSpecs()) s.id};
+    if (!setEquals(now, _runningShown)) {
+      _show(null, running: now.isNotEmpty, force: true);
+    }
+  }
+
   /// Everything goes from where it is on screen to its new place.
-  void _show(int? rootId) {
-    if (rootId == _rootId) return;
+  void _show(int? rootId, {bool running = false, bool force = false}) {
+    if (!force && rootId == _rootId && running == _running) return;
     final layer = _layer.currentContext?.findRenderObject() as RenderBox?;
     final stage = _stage.currentState, folder = _folder.currentState;
     if (layer == null ||
@@ -159,7 +206,10 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
         !AppMotion.animate(context)) {
       _flights.clear();
       _clock.stop();
-      setState(() => _rootId = rootId);
+      setState(() {
+        _rootId = rootId;
+        _running = running;
+      });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _stage.currentState?.frame();
       });
@@ -167,8 +217,8 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
     }
     final byId = _byId;
     final ms = _ms;
-    final next = _geometryOf(rootId, byId);
-    final was = _geometryOf(_rootId, byId);
+    final next = _geometryOf(rootId, running, byId);
+    final was = stage.widget.geometry;
     final shown = stage.screenRects(layer);
     final flights = <int, _Flight>{};
     // In the air or on the stage: starts from where it is painted now.
@@ -194,6 +244,7 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
     _landing.clear();
     setState(() {
       _rootId = rootId;
+      _running = running;
       _flights
         ..clear()
         ..addAll(flights);
@@ -270,7 +321,7 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
     }
     if (ref.read(boardSelectedSpecProvider) != null) {
       _select(null);
-    } else if (_rootId != null) {
+    } else if (_rootId != null || _running) {
       _back();
     } else {
       return KeyEventResult.ignored;
@@ -321,6 +372,9 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
                 reason: widget.attention(f.data)
                     ? specAttentionReason(ref, f.data)
                     : null,
+                footer: _running && !f.leaving
+                    ? StageRunningLine(data: f.data)
+                    : null,
                 onTap: () {},
               ),
             ),
@@ -336,9 +390,11 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
       // Selected elsewhere (the palette, a link): goes to the center.
       if (next != null && next != _rootId) _show(next);
     });
+    ref.watch(sessionManagerProvider);
     final byId = _byId;
-    final geometry = _geometryOf(_rootId, byId);
+    final geometry = _geometryOf(_rootId, _running, byId);
     final onStage = geometry?.rects.keys.toSet() ?? const <int>{};
+    _runningShown = _running ? onStage : const {};
     return CallbackShortcuts(
       bindings: geometry == null ? const {} : _view.zoomShortcuts,
       child: Focus(
@@ -377,6 +433,8 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
                           _select(null);
                           _focus.requestFocus();
                         },
+                        runningCount: _runningSpecs().length,
+                        onRunning: _toggleRunning,
                         clock: _clock,
                         inFlight: _inFlight,
                         arrowProgress: _landing.isEmpty ? null : _arrowProgress,
