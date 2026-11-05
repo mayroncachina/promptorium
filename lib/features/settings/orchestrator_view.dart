@@ -4,22 +4,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
+import 'orchestrator_history.dart';
 import 'settings_choices.dart';
 
-/// Configurações → Orquestrador (SPEC-035 R6): the rule of each kind of
-/// step and the options of Automático.
-class OrchestratorView extends StatelessWidget {
+/// Configurações → Orquestrador (SPEC-035 R6, R17): the rule of each kind
+/// of step, the options of Automático and the Histórico. "Ver regra" of the
+/// Histórico scrolls to the line of the rule and marks it.
+class OrchestratorView extends StatefulWidget {
   const OrchestratorView({super.key});
 
   @override
-  Widget build(BuildContext context) => const Column(
+  State<OrchestratorView> createState() => _OrchestratorViewState();
+}
+
+class _OrchestratorViewState extends State<OrchestratorView> {
+  final _rows = {for (final k in StepKind.values) k: GlobalKey()};
+  StepKind? _shown;
+
+  void _showRule(StepKind k) {
+    setState(() => _shown = k);
+    final context = _rows[k]!.currentContext;
+    if (context != null) {
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.2,
+        duration: const Duration(milliseconds: 250),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      OrchestratorRulesCard(),
-      SizedBox(height: 16),
-      OrchestratorOptionsCard(),
-      // Histórico por tipo de etapa (SPEC-035 T7, R17 e R18) entra aqui,
-      // depois das opções.
+      OrchestratorRulesCard(rowKeys: _rows, highlight: _shown),
+      const SizedBox(height: 16),
+      const OrchestratorOptionsCard(),
+      const SizedBox(height: 16),
+      OrchestratorHistoryCard(onShowRule: _showRule),
     ],
   );
 }
@@ -44,7 +66,17 @@ const _sub = TextStyle(fontSize: 11, color: AppColors.textSecondary);
 
 /// The table of R2: model and effort of each [StepKind], editable.
 class OrchestratorRulesCard extends ConsumerWidget {
-  const OrchestratorRulesCard({super.key});
+  const OrchestratorRulesCard({
+    super.key,
+    this.rowKeys = const {},
+    this.highlight,
+  });
+
+  /// Keys of the line of each kind ("Ver regra" scrolls to it).
+  final Map<StepKind, GlobalKey> rowKeys;
+
+  /// The line "Ver regra" pointed to, marked in amber.
+  final StepKind? highlight;
 
   static const _kindWidth = 190.0;
 
@@ -72,61 +104,70 @@ class OrchestratorRulesCard extends ConsumerWidget {
             padding: EdgeInsets.symmetric(vertical: 10),
             child: Divider(height: 1, color: AppColors.border),
           ),
-          Row(
-            key: ValueKey('orchestrator-rule-${k.name}'),
-            children: [
-              SizedBox(
-                width: _kindWidth,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        k.label,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
+          Container(
+            key: rowKeys[k],
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: highlight == k ? AppColors.amber : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              key: ValueKey('orchestrator-rule-${k.name}'),
+              children: [
+                SizedBox(
+                  width: _kindWidth,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          k.label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        k.hint,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: _sub,
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          k.hint,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: _sub,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                flex: 3,
-                child: choices(
-                  keyPrefix: 'orchestrator-model-${k.name}',
-                  values: [
-                    for (final m in orchestratorModels) m,
-                    if (!orchestratorModels.any(
-                      (m) => m.$1 == prefs.rule(k).model,
-                    ))
-                      (prefs.rule(k).model, prefs.rule(k).model),
-                  ],
-                  selected: prefs.rule(k).model,
-                  onTap: (v) => ctl.setModel(k, v),
+                Expanded(
+                  flex: 3,
+                  child: choices(
+                    keyPrefix: 'orchestrator-model-${k.name}',
+                    values: [
+                      for (final m in orchestratorModels) m,
+                      if (!orchestratorModels.any(
+                        (m) => m.$1 == prefs.rule(k).model,
+                      ))
+                        (prefs.rule(k).model, prefs.rule(k).model),
+                    ],
+                    selected: prefs.rule(k).model,
+                    onTap: (v) => ctl.setModel(k, v),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 5,
-                child: choices(
-                  keyPrefix: 'orchestrator-effort-${k.name}',
-                  values: [for (final e in orchestratorEfforts) (e, e)],
-                  selected: prefs.rule(k).effort,
-                  onTap: (v) => ctl.setEffort(k, v),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 5,
+                  child: choices(
+                    keyPrefix: 'orchestrator-effort-${k.name}',
+                    values: [for (final e in orchestratorEfforts) (e, e)],
+                    selected: prefs.rule(k).effort,
+                    onTap: (v) => ctl.setEffort(k, v),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
         const SizedBox(height: 12),

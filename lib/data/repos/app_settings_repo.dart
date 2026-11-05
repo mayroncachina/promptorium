@@ -77,6 +77,11 @@ abstract final class AppSettingKeys {
   static String orchestratorReviewOf(int specId) =>
       'orchestrator.review.$specId';
 
+  /// "Ignorar" of the suggestion of the Histórico for a `StepKind`
+  /// (SPEC-035 R18): ISO time of the newest escalation seen then.
+  static String orchestratorHistoryIgnored(String kind) =>
+      'orchestrator.historyIgnored.$kind';
+
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 
