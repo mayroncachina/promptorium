@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Hoje: um modelo para a spec inteira</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+button{font-family:inherit;transition:background-color .12s ease-out,filter .12s ease-out}
+button:hover{filter:brightness(1.12)}
+button:active{filter:brightness(.88)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b,strong{font-weight:600}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.board{background-color:#0E1014;background-image:radial-gradient(#232833 1.2px,transparent 1.3px);background-size:24px 24px}
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.62);z-index:5}
+.modal{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:min(780px,calc(100% - 24px));max-height:calc(100% - 24px);background:#14171D;border:1px solid #2E3542;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.sel{height:32px;background:#0E1014;color:#E7E9EE;border:1px solid #2E3542;border-radius:6px;padding:0 8px;font-family:inherit;font-size:13px}
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid #2E3542;background:transparent;color:#E7E9EE;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#14171D;font-weight:600}
+.seg{height:30px;padding:0 12px;border:none;border-radius:6px;background:transparent;color:#A0A8B6;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg.on{background:#1F2430;color:#E7E9EE}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+.sk{display:block;border-radius:4px;background:#2E3542;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+@keyframes ev-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ev{animation:ev-in .16s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.sk,.ev{animation:none}button{transition:none}}
+@media (max-width: 640px){nav button,main button{min-height:44px;min-width:44px}.chip,.hide-s{display:none !important}.row2{flex-direction:column;align-items:stretch !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 700px; height: 700px; position: relative; overflow: hidden; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+<nav aria-label="Seções" style="width: 52px; flex: none; background: #14171D; border-right: 1px solid #252B35; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 12px"><button type="button" aria-label="Prompt" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg></button><button type="button" aria-label="Quadro" aria-current="page" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: #2A2418; color: #F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg></button><button type="button" aria-label="Specs" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></button><button type="button" aria-label="Review" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button></nav>
+<main class="board" aria-label="Quadro" style="flex: 1; min-width: 0; position: relative; overflow: hidden">
+<h1 class="vh">Hoje: um modelo para a spec inteira</h1>
+<div class="chip" style="position: absolute; top: 16px; left: 20px; padding: 8px 12px; background: #14171D; border: 1px solid #252B35; border-radius: 10px; z-index: 3"><div style="font-weight: 600; font-size: 14px">Specs</div><div style="font-size: 12px; color: #A0A8B6">ddocker · 3 specs</div></div>
+<div class="scrim"></div>
+<div class="modal" role="dialog" aria-label="Executar SPEC-012"><div style="padding: 16px 20px 12px; border-bottom: 1px solid #252B35"><div style="font-size: 15px; font-weight: 600">Executar SPEC-012</div><div style="font-size: 12px; color: #A0A8B6">Exportar relatório de uso · 5 etapas</div></div><div style="padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 12px"><div style="display: flex; gap: 12px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; font-size: 12px; color: #A0A8B6">Provedor<select class="sel" style="width: 100%"><option>Claude Code</option></select></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; font-size: 12px; color: #A0A8B6">Agente (--agent)<select class="sel" style="width: 100%"><option>nenhum</option></select></label></div><div style="display: flex; gap: 12px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; font-size: 12px; color: #A0A8B6">Modelo<select class="sel" style="width: 100%"><option>Sonnet</option></select></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; font-size: 12px; color: #A0A8B6">Esforço<select class="sel" style="width: 100%"><option>medium</option></select></label></div><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; font-size: 12px; color: #A0A8B6">Modo de permissão<select class="sel" style="width: 100%"><option>Aceitar edições</option></select></label><div style="font-size: 12px; color: #A0A8B6">O mesmo modelo roda as 5 etapas, da mais simples à mais arriscada.</div></div><div style="padding: 12px 20px; border-top: 1px solid #252B35; display: flex; justify-content: flex-end; gap: 8px"><button type="button" class="btn">Cancelar</button><button type="button" class="btn pri">Executar</button></div></div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
