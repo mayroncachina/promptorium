@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -30,7 +28,7 @@ const _cardSize = Size(250, 116);
 const _attentionCardSize = Size(250, 134);
 const _waveX = 380.0, _originX = 60.0, _originY = 110.0, _rowGap = 54.0;
 const _refRow = 56.0, _refHeight = 40.0, _refCap = 3, _refsPerRow = 3;
-const _panelWidth = 290.0;
+const canvasPanelWidth = 290.0;
 
 class SpecCanvas extends ConsumerStatefulWidget {
   const SpecCanvas({
@@ -77,23 +75,6 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
     _pulse?.dispose();
     _view.dispose();
     super.dispose();
-  }
-
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (event is PointerScaleEvent) {
-      _view.zoomTo(_view.scale * event.scale);
-    } else if (event is PointerScrollEvent) {
-      if (HardwareKeyboard.instance.isControlPressed) {
-        if (event.scrollDelta.dy < 0) {
-          _view.zoomIn();
-        } else if (event.scrollDelta.dy > 0) {
-          _view.zoomOut();
-        }
-      } else if (event.kind != PointerDeviceKind.trackpad) {
-        // InteractiveViewer already pans on trackpad scroll.
-        _view.panBy(-event.scrollDelta);
-      }
-    }
   }
 
   /// Rows of [names] centered under [card], from row [row0].
@@ -236,31 +217,11 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
           ..padding = EdgeInsets.fromLTRB(
             24,
             80,
-            selected == null ? 24 : _panelWidth + 48,
+            selected == null ? 24 : canvasPanelWidth + 48,
             70,
           );
         return CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.equal, control: true):
-                _view.zoomIn,
-            const SingleActivator(
-              LogicalKeyboardKey.equal,
-              control: true,
-              shift: true,
-            ): _view.zoomIn,
-            const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true):
-                _view.zoomIn,
-            const SingleActivator(LogicalKeyboardKey.minus, control: true):
-                _view.zoomOut,
-            const SingleActivator(
-              LogicalKeyboardKey.numpadSubtract,
-              control: true,
-            ): _view.zoomOut,
-            const SingleActivator(LogicalKeyboardKey.digit0, control: true):
-                _view.reset,
-            const SingleActivator(LogicalKeyboardKey.numpad0, control: true):
-                _view.reset,
-          },
+          bindings: _view.zoomShortcuts,
           child: Focus(
             autofocus: true,
             child: ColoredBox(
@@ -269,12 +230,12 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                 children: [
                   Positioned.fill(
                     child: RepaintBoundary(
-                      child: CustomPaint(painter: _DotGrid(_view)),
+                      child: CustomPaint(painter: CanvasDotGrid(_view)),
                     ),
                   ),
                   Positioned.fill(
                     child: Listener(
-                      onPointerSignal: _onPointerSignal,
+                      onPointerSignal: _view.onPointerSignal,
                       child: GestureDetector(
                         onTap: () => select(null),
                         child: InteractiveViewer(
@@ -407,7 +368,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                   Positioned(
                     left: 24,
                     top: 20,
-                    child: _Floating(
+                    child: CanvasFloating(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 8,
@@ -441,12 +402,12 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                     right: 24,
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: _Floating(
+                      child: CanvasFloating(
                         padding: const EdgeInsets.all(6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-attention-next'),
                               leading: const AttentionBubble(size: 14),
                               // With the selected spec in the queue: its
@@ -472,7 +433,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                       _view.fitSelection(rects[id]!);
                                     },
                             ),
-                            const _BarDivider(),
+                            const CanvasBarDivider(),
                             const Padding(
                               padding: EdgeInsets.only(left: 8, right: 6),
                               child: Text(
@@ -483,7 +444,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                 ),
                               ),
                             ),
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-layer-agents'),
                               label: 'Agentes',
                               color: CanvasColors.agent,
@@ -492,7 +453,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                               onTap: () => setState(() => _agents = !_agents),
                             ),
                             const SizedBox(width: 8),
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-layer-skills'),
                               label: 'Skills',
                               color: CanvasColors.skill,
@@ -503,7 +464,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                             const SizedBox(width: 8),
                             // Same state as the header chip (SPEC-019 R7):
                             // on = concluded specs shown.
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-hide-done'),
                               label: 'Concluídas',
                               icon: hideDone
@@ -519,8 +480,8 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                   .read(boardHideDoneProvider.notifier)
                                   .toggle(),
                             ),
-                            const _BarDivider(),
-                            _ZoomMenu(
+                            const CanvasBarDivider(),
+                            CanvasZoomMenu(
                               view: _view,
                               onFit: () => _view.fit(
                                 Rect.fromLTRB(
@@ -548,7 +509,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                           200,
                           box.maxWidth -
                               48 -
-                              (selected == null ? 0 : _panelWidth + 24),
+                              (selected == null ? 0 : canvasPanelWidth + 24),
                         ),
                       ),
                       child: const _Legend(key: ValueKey('canvas-legend')),
@@ -558,12 +519,12 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                     Positioned(
                       top: 90,
                       right: 24,
-                      width: _panelWidth,
+                      width: canvasPanelWidth,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: math.max(120, box.maxHeight - 114),
                         ),
-                        child: _Inspector(
+                        child: SpecInspector(
                           key: const ValueKey('canvas-panel'),
                           data: selected,
                           attention: widget.attention(selected)
@@ -983,8 +944,8 @@ class AttentionHalo extends StatelessWidget {
 // --------------------------------------------------------------- pintores
 
 /// Background dots that follow pan and zoom.
-class _DotGrid extends CustomPainter {
-  _DotGrid(this.view) : super(repaint: view);
+class CanvasDotGrid extends CustomPainter {
+  CanvasDotGrid(this.view) : super(repaint: view);
   final CanvasViewController view;
   @override
   void paint(Canvas canvas, Size size) {
@@ -1001,7 +962,7 @@ class _DotGrid extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DotGrid old) => old.view != view;
+  bool shouldRepaint(covariant CanvasDotGrid old) => old.view != view;
 }
 
 /// One (dependency, dependent) pair per `depends-on` between specs on the
@@ -1156,8 +1117,8 @@ class DashedBorderPainter extends CustomPainter {
 
 // ------------------------------------------------------- barra e legenda
 
-class _Floating extends StatelessWidget {
-  const _Floating({required this.child, required this.padding});
+class CanvasFloating extends StatelessWidget {
+  const CanvasFloating({super.key, required this.child, required this.padding});
   final Widget child;
   final EdgeInsets padding;
   @override
@@ -1179,8 +1140,8 @@ class _Floating extends StatelessWidget {
   );
 }
 
-class _BarDivider extends StatelessWidget {
-  const _BarDivider();
+class CanvasBarDivider extends StatelessWidget {
+  const CanvasBarDivider({super.key});
   @override
   Widget build(BuildContext context) => Container(
     width: 1,
@@ -1190,8 +1151,8 @@ class _BarDivider extends StatelessWidget {
   );
 }
 
-class _BarButton extends StatelessWidget {
-  const _BarButton({
+class CanvasBarButton extends StatelessWidget {
+  const CanvasBarButton({
     super.key,
     required this.label,
     required this.color,
@@ -1270,8 +1231,9 @@ class _BarButton extends StatelessWidget {
   }
 }
 
-class _ZoomMenu extends StatelessWidget {
-  const _ZoomMenu({
+class CanvasZoomMenu extends StatelessWidget {
+  const CanvasZoomMenu({
+    super.key,
     required this.view,
     required this.onFit,
     required this.onFitSelection,
@@ -1463,8 +1425,8 @@ class _LegendLine extends CustomPainter {
 
 // ---------------------------------------------------------------- inspetor
 
-class _Inspector extends ConsumerWidget {
-  const _Inspector({
+class SpecInspector extends ConsumerWidget {
+  const SpecInspector({
     super.key,
     required this.data,
     required this.attention,

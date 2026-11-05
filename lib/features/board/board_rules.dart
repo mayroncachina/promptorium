@@ -222,6 +222,89 @@ String folderStatusLabel(FolderStatus s) => switch (s) {
   FolderStatus.backlog => 'Backlog',
 };
 
+/// A dependency drawn on the stage: [to] depends on [from].
+@immutable
+class StageEdge {
+  const StageEdge(this.from, this.to, {required this.skips});
+
+  final Spec from, to;
+
+  /// Jumps over at least one level (SPEC-036 R10).
+  final bool skips;
+}
+
+/// What the stage shows of a spec: the spec at the top and, below it, every
+/// spec that depends on it, directly or not (SPEC-036 R9).
+@immutable
+class StageLayout {
+  const StageLayout(this.levels, this.edges);
+
+  /// `levels[0]` is the root alone; a spec is in the level of the longest
+  /// path from the root.
+  final List<List<Spec>> levels;
+  final List<StageEdge> edges;
+
+  Spec get root => levels.first.first;
+  int get dependents => levels.skip(1).fold(0, (n, l) => n + l.length);
+  Iterable<Spec> get specs => levels.expand((l) => l);
+}
+
+/// Places [root] and what depends on it. Codes that are not in [specs] are
+/// ignored, and a dependency that closes a cycle is left out.
+StageLayout stageLayout(Spec root, Iterable<Spec> specs) {
+  final dependents = <String, List<Spec>>{};
+  for (final s in specs) {
+    for (final code in s.dependsOn) {
+      dependents.putIfAbsent(code, () => []).add(s);
+    }
+  }
+  final order = <Spec>[];
+  final open = <String>{}, seen = <String>{};
+  final kept = <(Spec, Spec)>[];
+  void visit(Spec s) {
+    seen.add(s.code);
+    open.add(s.code);
+    for (final d in dependents[s.code] ?? const <Spec>[]) {
+      if (open.contains(d.code)) continue;
+      kept.add((s, d));
+      if (!seen.contains(d.code)) visit(d);
+    }
+    open.remove(s.code);
+    order.add(s);
+  }
+
+  visit(root);
+  final level = {root.code: 0};
+  final out = <String, List<Spec>>{};
+  for (final (from, to) in kept) {
+    out.putIfAbsent(from.code, () => []).add(to);
+  }
+  for (final s in order.reversed) {
+    for (final d in out[s.code] ?? const <Spec>[]) {
+      final next = level[s.code]! + 1;
+      if (next > (level[d.code] ?? 0)) level[d.code] = next;
+    }
+  }
+  final levels = <List<Spec>>[
+    for (var i = 0; i <= level.values.fold(0, (a, b) => a > b ? a : b); i++) [],
+  ];
+  for (final s in order) {
+    levels[level[s.code]!].add(s);
+  }
+  for (final l in levels) {
+    l.sort((a, b) => compareNewestFirst(b, a));
+  }
+  return StageLayout(levels, [
+    for (final (from, to) in kept)
+      StageEdge(from, to, skips: level[to.code]! - level[from.code]! > 1),
+  ]);
+}
+
+/// When a card of the stage leaves the folder: 90 ms per level and 45 ms per
+/// card of the level (SPEC-036 R9).
+Duration stageCardDelay(int level, int index) =>
+    Duration(milliseconds: 90 * level + 45 * index);
+
 /// Labels of the columns.
 String specStageLabel(SpecStage s) => switch (s) {
   SpecStage.backlog => 'Backlog',

@@ -62,6 +62,8 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     onKeyEvent: _onSearchKey,
   );
 
+  final _listKey = GlobalKey();
+
   /// Result the search keys act on (R7).
   int _active = 0;
   List<SpecCardData> _results = const [];
@@ -83,6 +85,23 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
   }
 
   bool get _searching => _search.text.trim().isNotEmpty;
+
+  /// Where the line of [id] is, in the coordinates of [layer], inside the list
+  /// even when it was scrolled away; the list when the line is not in it. By
+  /// position, as a line out of view is not built.
+  Rect listRect(int id, RenderBox layer) {
+    final box = _listKey.currentContext!.findRenderObject()! as RenderBox;
+    final list = box.localToGlobal(Offset.zero, ancestor: layer) & box.size;
+    final at = _results.indexWhere((d) => d.spec.id == id);
+    if (at < 0 || !_scroll.hasClients) {
+      return Rect.fromLTWH(list.left + 8, list.top, list.width - 16, 40);
+    }
+    final y = (list.top + at * folderRowStride - _scroll.offset).clamp(
+      list.top - folderRowHeight,
+      list.bottom,
+    );
+    return Rect.fromLTWH(list.left + 8, y, list.width - 16, folderRowHeight);
+  }
 
   /// `/`, `Ctrl+F` or the magnifier: opens the folder and focuses the field.
   void focusSearch() {
@@ -125,6 +144,8 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     } else if (key == LogicalKeyboardKey.arrowUp) {
       _moveActive(-1);
     } else if (e is KeyDownEvent && key == LogicalKeyboardKey.escape) {
+      // An empty field lets `Esc` go on to the stage.
+      if (!_searching) return KeyEventResult.ignored;
       _clearSearch();
     } else if (e is KeyDownEvent &&
         (key == LogicalKeyboardKey.enter ||
@@ -259,6 +280,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
                   _searchBox(collapsed),
                   _arrow('up', Icons.keyboard_arrow_up, _canGoUp, -1),
                   SizedBox(
+                    key: _listKey,
                     height: rows * folderRowStride,
                     child: cards.isEmpty && _searching
                         ? _noResult()
@@ -478,8 +500,12 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
                 );
                 return at < 0 ? null : at;
               },
-              itemBuilder: (_, i) =>
-                  _row(cards[i], collapsed, active: _searching && i == _active),
+              itemBuilder: (_, i) => _row(
+                cards[i],
+                i,
+                collapsed,
+                active: _searching && i == _active,
+              ),
             ),
           ),
         ),
@@ -487,11 +513,18 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     );
   }
 
-  Widget _row(SpecCardData d, bool collapsed, {required bool active}) {
+  Widget _row(
+    SpecCardData d,
+    int index,
+    bool collapsed, {
+    required bool active,
+  }) {
     final id = d.spec.id;
     return _FolderRow(
       key: ValueKey('folder-row-${d.spec.code}'),
       data: d,
+      index: index,
+      slides: !_searching,
       attention: widget.attention(d),
       collapsed: collapsed,
       expanded:
@@ -521,6 +554,8 @@ class _FolderRow extends ConsumerStatefulWidget {
   const _FolderRow({
     super.key,
     required this.data,
+    required this.index,
+    required this.slides,
     required this.attention,
     required this.collapsed,
     required this.expanded,
@@ -530,6 +565,12 @@ class _FolderRow extends ConsumerStatefulWidget {
   });
 
   final SpecCardData data;
+
+  /// Position in the list; a change closes or opens a gap (R8).
+  final int index;
+
+  /// False while the search rewrites the list.
+  final bool slides;
   final bool attention, collapsed, expanded;
   final ValueChanged<bool> onHover, onFocus;
   final VoidCallback onOpen;
@@ -538,9 +579,21 @@ class _FolderRow extends ConsumerStatefulWidget {
   ConsumerState<_FolderRow> createState() => _FolderRowState();
 }
 
-class _FolderRowState extends ConsumerState<_FolderRow> {
+class _FolderRowState extends ConsumerState<_FolderRow>
+    with SingleTickerProviderStateMixin {
   final _portal = OverlayPortalController();
   final _link = LayerLink();
+
+  /// The line goes straight to its new place and is painted coming from the
+  /// old one: only a transformation, the list keeps its layout (R15).
+  late final _slide = AnimationController(vsync: this, value: 1);
+  double _slideFrom = 0;
+
+  @override
+  void dispose() {
+    _slide.dispose();
+    super.dispose();
+  }
 
   void _syncPortal() {
     final show = widget.collapsed && widget.expanded;
@@ -559,6 +612,14 @@ class _FolderRowState extends ConsumerState<_FolderRow> {
   @override
   void didUpdateWidget(covariant _FolderRow old) {
     super.didUpdateWidget(old);
+    final moved = old.index - widget.index;
+    final duration = AppMotion.duration(context, AppMotion.emphasis);
+    if (moved != 0 && widget.slides && duration > Duration.zero) {
+      _slideFrom = moved * folderRowStride;
+      _slide
+        ..duration = duration
+        ..forward(from: 0);
+    }
     // Showing the portal marks this element dirty, so not during a build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _syncPortal();
@@ -655,7 +716,7 @@ class _FolderRowState extends ConsumerState<_FolderRow> {
   Widget build(BuildContext context) {
     final grown = widget.expanded && !widget.collapsed;
     final spec = widget.data.spec;
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: folderRowGap),
       child: Focus(
         onFocusChange: widget.onFocus,
@@ -691,6 +752,17 @@ class _FolderRowState extends ConsumerState<_FolderRow> {
             ),
           ),
         ),
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _slide,
+      child: row,
+      builder: (_, child) => Transform.translate(
+        offset: Offset(
+          0,
+          _slideFrom * (1 - AppMotion.enter.transform(_slide.value)),
+        ),
+        child: child,
       ),
     );
   }
