@@ -1,6 +1,6 @@
 ---
 id: SPEC-035
-status: rascunho
+status: em-revisao
 depende-de: SPEC-033
 ---
 
@@ -163,24 +163,36 @@ A branch pai é `spec/035-orquestrador`. Cada tarefa tem sua branch e vira um PR
 
 ## Critérios de aceite
 
-- [ ] Executar abre em Manual, com os campos de hoje; com a preferência ligada, abre em Automático [R1] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] A classificação devolve um tipo por etapa, e um tipo desconhecido vira Implementação [R2] [R3] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
-- [ ] Reabrir Executar sem mudar o requisito não chama nova classificação; mudar o texto chama [R3] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
-- [ ] Trocar o modelo de uma linha mostra "você escolheu" e a reclassificação não muda a escolha [R4] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] O plano conta uma sessão por grupo de etapas vizinhas iguais [R5] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] A seção Orquestrador edita regras, opções e "Restaurar padrão", e a mudança não altera execuções já iniciadas [R6] [R7] verificar: flutter test test/features/settings/orchestrator_view_test.dart
-- [ ] Cada etapa roda com o modelo e o esforço do plano, sempre no Claude Code; vizinhas iguais ficam na mesma sessão, e diferentes abrem sessão nova na mesma worktree [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] Subetapas herdam o tipo da mãe, `REV<n>` usa Implementação e a revisão automática usa a regra Revisão [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] Reprovar depois dos reenvios sobe um degrau, com sessão nova no início da etapa e o relatório e o diff no prompt; com 0 escaladas, nada muda [R9] [R10] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] O progresso mostra a escada, e a linha do tempo registra reprovação, reenvio e escalada [R11] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] Com a opção ligada, a etapa pergunta antes do Opus [R12] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] A etapa seguinte a uma escalada volta ao modelo do plano [R13] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] Falha na classificação mostra "Tentar de novo" e "Executar com <modelo>" [R14] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] Sem o Claude Code, Automático fica desabilitado com o motivo e "Abrir Provedores" [R15] verificar: flutter test test/features/board/run_spec_dialog_test.dart
-- [ ] No topo da escada, a etapa fica em "aguardando você" com o relatório da última tentativa [R16] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
-- [ ] O Histórico soma por tipo e período, e a sugestão só aparece com 5 etapas e 20% de escaladas [R17] [R18] verificar: flutter test test/features/settings/orchestrator_history_test.dart
-- [ ] O piloto automático segue a preferência, e a falha de classificação não para a spec [R19] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
-- [ ] Duelo e "Refazer etapa" mantêm o modelo usado por último [R20] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] Executar abre em Manual, com os campos de hoje; com a preferência ligada, abre em Automático [R1] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] A classificação devolve um tipo por etapa, e um tipo desconhecido vira Implementação [R2] [R3] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
+- [x] Reabrir Executar sem mudar o requisito não chama nova classificação; mudar o texto chama [R3] verificar: flutter test test/features/board/orchestrator/step_classifier_test.dart
+- [x] Trocar o modelo de uma linha mostra "você escolheu" e a reclassificação não muda a escolha [R4] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] O plano conta uma sessão por grupo de etapas vizinhas iguais [R5] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] A seção Orquestrador edita regras, opções e "Restaurar padrão", e a mudança não altera execuções já iniciadas [R6] [R7] verificar: flutter test test/features/settings/orchestrator_view_test.dart
+- [x] Cada etapa roda com o modelo e o esforço do plano, sempre no Claude Code; vizinhas iguais ficam na mesma sessão, e diferentes abrem sessão nova na mesma worktree [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] Subetapas herdam o tipo da mãe, `REV<n>` usa Implementação e a revisão automática usa a regra Revisão [R8] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] Reprovar depois dos reenvios sobe um degrau, com sessão nova no início da etapa e o relatório e o diff no prompt; com 0 escaladas, nada muda [R9] [R10] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] O progresso mostra a escada, e a linha do tempo registra reprovação, reenvio e escalada [R11] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] Com a opção ligada, a etapa pergunta antes do Opus [R12] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] A etapa seguinte a uma escalada volta ao modelo do plano [R13] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] Falha na classificação mostra "Tentar de novo" e "Executar com <modelo>" [R14] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] Sem o Claude Code, Automático fica desabilitado com o motivo e "Abrir Provedores" [R15] verificar: flutter test test/features/board/run_spec_dialog_test.dart
+- [x] No topo da escada, a etapa fica em "aguardando você" com o relatório da última tentativa [R16] verificar: flutter test test/features/board/orchestrator/escalation_test.dart
+- [x] O Histórico soma por tipo e período, e a sugestão só aparece com 5 etapas e 20% de escaladas [R17] [R18] verificar: flutter test test/features/settings/orchestrator_history_test.dart
+- [x] O piloto automático segue a preferência, e a falha de classificação não para a spec [R19] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+- [x] Duelo e "Refazer etapa" mantêm o modelo usado por último [R20] verificar: flutter test test/features/board/spec_runner_orchestrator_test.dart
+
+## Desvios da implementação
+
+- "Executar" fica habilitado enquanto classifica, como no mockup: ao clicar, o diálogo espera a classificação e executa com o plano; se ela falhar, mostra a falha (R14) sem executar.
+- O seletor de cada linha tem só Haiku · low, Sonnet · medium e Opus · high, mais a regra personalizada (ou a escolha atual) quando ela é outra combinação.
+- Cada tarefa virou um commit na branch do PR #65 (`spec/035-orquestrador`), em vez de uma branch e um PR próprios.
+- `REV<n>` e subetapas criadas durante a execução gravam o plano na primeira vez que rodam.
+- A escalada de um grupo de etapas na mesma sessão volta ao início da primeira etapa do grupo e conta para todas.
+- A regra Revisão escolhida no diálogo fica em `app_settings` (`orchestrator.review.<specId>`), não em `spec_steps`.
+- "Refazer etapa" em Manual usa o modelo da sessão da etapa.
+- O custo por etapa no Histórico é o custo da sessão dividido pelo número de etapas dela (estimativa).
+- O motivo da classificação fica em `spec_steps.plan_reason` (schema 19), para voltar depois de reiniciar o app.
 
 ## Decisões
 
@@ -189,6 +201,7 @@ A branch pai é `spec/035-orquestrador`. Cada tarefa tem sua branch e vira um PR
 - D4 · A regra Revisão controla o `auto_reviewer`, que aparece como última linha do plano. A revisão não vira etapa da fila, e as correções `REV<n>` usam a regra Implementação (P1).
 - D5 · O Codex fica fora por enquanto: o Orquestrador usa só o Claude Code, e a regra Revisão passa a Sonnet · medium. O canvas ainda mostra Codex nas regras, no plano e no estado "Sem provedor" (P2).
 - D3 · Mudança no canvas: a sugestão do Histórico não propõe "Crie um tipo próprio", porque tipos próprios estão fora do escopo, nem cita o motivo das escaladas, que exigiria analisar o diff.
+- D6 · "Executar <spec>" da paleta de comandos segue a preferência Automático, como o piloto automático e "Executar tudo" (R19).
 
 ## Perguntas em aberto
 
