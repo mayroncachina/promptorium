@@ -607,6 +607,11 @@ class SpecRunner {
 
   final Ref _ref;
 
+  /// A project command at least this slow goes to the memory (F8). Tests
+  /// lower it so a real command does not have to take 5 s.
+  @visibleForTesting
+  static int slowCommandSeconds = 5;
+
   SessionManager get _manager => _ref.read(sessionManagerProvider.notifier);
 
   /// Opens the session of the next steps of [specId] and returns its id.
@@ -1646,7 +1651,7 @@ class SpecRunner {
         for (final c in report.checks) {
           if (c.command == null || c.name == 'verificar') continue;
           final secs = c.duration.inSeconds;
-          if (secs < 5) continue;
+          if (secs < slowCommandSeconds) continue;
           await ProjectMemory.record(
             ws.path,
             MemoryEntry(
