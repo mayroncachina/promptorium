@@ -53,7 +53,7 @@ String specStatusLabel(SpecStatus s) => switch (s) {
 };
 
 /// Lower case without accents (section names).
-String _fold(String s) => s
+String foldText(String s) => s
     .toLowerCase()
     .replaceAll(RegExp('[áàâã]'), 'a')
     .replaceAll(RegExp('[éê]'), 'e')
@@ -234,12 +234,12 @@ class SpecDocument {
     String name, {
     int from = 0,
   }) {
-    final want = _fold(name);
+    final want = foldText(name);
     final lines = text.split('\n');
     for (var i = from; i < lines.length; i++) {
       final h = RegExp(r'^##\s+(.+?)\s*#*\s*$')
           .firstMatch(lines[i].trimRight());
-      if (h == null || !_fold(h.group(1)!).startsWith(want)) continue;
+      if (h == null || !foldText(h.group(1)!).startsWith(want)) continue;
       var j = i + 1;
       while (j < lines.length && !RegExp(r'^##\s').hasMatch(lines[j])) {
         j++;
@@ -293,7 +293,7 @@ class SpecDocument {
       final indent = m.group(1)!.replaceAll('\t', '  ').length;
       var content = m.group(2)!;
       final label = _labelRe.firstMatch(content);
-      final kind = label == null ? null : _fold(label.group(1)!);
+      final kind = label == null ? null : foldText(label.group(1)!);
       if (label != null) content = content.substring(label.end).trim();
       if (indent >= 2) {
         // A subitem: the suggestion, or more text of the question.

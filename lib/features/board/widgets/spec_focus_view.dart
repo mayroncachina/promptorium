@@ -6,7 +6,7 @@ import 'spec_folder.dart';
 
 /// The Foco view of the Quadro (SPEC-036): the folder of specs on the left and
 /// the stage on the rest of the screen.
-class SpecFocusView extends StatelessWidget {
+class SpecFocusView extends StatefulWidget {
   const SpecFocusView({
     super.key,
     required this.cards,
@@ -18,14 +18,41 @@ class SpecFocusView extends StatelessWidget {
   final bool Function(SpecCardData) attention;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: AppColors.background,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SpecFolder(cards: cards, attention: attention, onOpen: (_) {}),
-        const Expanded(child: _StageHint()),
-      ],
+  State<SpecFocusView> createState() => SpecFocusViewState();
+}
+
+class SpecFocusViewState extends State<SpecFocusView> {
+  final _focus = FocusNode(debugLabel: 'spec-focus-view');
+  final _folder = GlobalKey<SpecFolderState>();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// Focuses the search of the folder (R6).
+  void focusSearch() => _folder.currentState?.focusSearch();
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    focusNode: _focus,
+    autofocus: true,
+    child: ColoredBox(
+      color: AppColors.background,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SpecFolder(
+            key: _folder,
+            cards: widget.cards,
+            attention: widget.attention,
+            onOpen: (_) {},
+            onSearchDone: _focus.requestFocus,
+          ),
+          const Expanded(child: _StageHint()),
+        ],
+      ),
     ),
   );
 }

@@ -51,6 +51,10 @@ const shortcutGroups = [
     ShortcutEntry('Só sessões', ':'),
     ShortcutEntry('Navegar · executar', '↑↓ · Enter'),
   ]),
+  ShortcutGroup('Quadro (Foco)', [
+    ShortcutEntry('Buscar spec na pasta', '/ · Ctrl+F'),
+    ShortcutEntry('Navegar · abrir · limpar a busca', '↑↓ · Enter · Esc'),
+  ]),
   ShortcutGroup('Editor (Specs e Código)', [
     ShortcutEntry('Salvar', 'Ctrl+S'),
     ShortcutEntry('Fechar aba (Código)', 'Ctrl+W'),
