@@ -429,7 +429,12 @@ class BoardScreen extends ConsumerWidget {
             attentionCount: attentionCount,
           )
         : view == BoardView.focus
-        ? SpecFocusView(key: _focusView, cards: visible, attention: attention)
+        ? SpecFocusView(
+            key: _focusView,
+            cards: visible,
+            all: cards,
+            attention: attention,
+          )
         : _Board(
             cards: visible,
             all: [for (final d in cards) d.spec],
