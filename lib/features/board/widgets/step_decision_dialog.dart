@@ -14,6 +14,7 @@ import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/session_manager.dart';
 import '../board_rules.dart';
 import '../board_screen.dart' show openSession, specStepsProvider;
+import '../spec_runner.dart' show pendingEscalationProvider, specRunnerProvider;
 import '../step_decision.dart';
 import '../step_decision_apply.dart';
 import '../step_decision_choices.dart';
@@ -513,6 +514,24 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
     }
   }
 
+  var _escalating = false;
+
+  /// "Escalar para Opus" (SPEC-035 R12): the step goes up one rung, in a new
+  /// session at its start, and the modal closes.
+  Future<void> _escalate() async {
+    _advance?.cancel();
+    setState(() => _escalating = true);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final runner = ref.read(specRunnerProvider);
+    try {
+      await runner.escalate(_spec.id, _step.id);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) setState(() => _escalating = false);
+      messenger?.showAppToast(SnackBar(content: Text('$e')));
+    }
+  }
+
   void _openSession() {
     final id = _step.sessionId;
     if (id == null) return;
@@ -766,6 +785,14 @@ class _StepDecisionDialogState extends ConsumerState<StepDecisionDialog>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (ref.watch(pendingEscalationProvider(_target)).value
+                        case final rung?) ...[
+                      StepDecisionEscalateRow(
+                        rung: rung,
+                        onTap: _escalating ? null : _escalate,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     if (state.status == StepDecisionStatus.loading) ...[
                       const StepDecisionGenerating(),
                       const SizedBox(height: 8),

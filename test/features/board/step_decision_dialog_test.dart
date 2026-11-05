@@ -208,6 +208,7 @@ class FakeRunner extends SpecRunner {
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
     String? previousAttempt,
+    String? previousAttemptHeading,
     String? context,
     bool duel = false,
     bool keepModel = false,

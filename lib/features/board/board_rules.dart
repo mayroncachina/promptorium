@@ -18,6 +18,9 @@ class StepView {
     this.sessionId,
     this.gate,
     this.startSha,
+    this.planModel,
+    this.planEffort,
+    this.escalations = 0,
   });
 
   /// `R1`; `R3.1` for a sub-step of `R3` (SPEC-033 R16).
@@ -31,6 +34,13 @@ class StepView {
 
   /// HEAD when its last session started (checkpoint).
   final String? startSha;
+
+  /// Model and effort of the Orquestrador's plan (null = Manual, SPEC-035).
+  final String? planModel;
+  final String? planEffort;
+
+  /// Rungs of the ladder climbed after failed gates (SPEC-035 R9).
+  final int escalations;
 
   bool get isDone => status == StepStatus.done;
 
@@ -55,6 +65,9 @@ List<StepView> stepsOf(Spec spec, Iterable<SpecStep> rows) {
     sessionId: byStep[id]?.sessionId,
     gate: GateReport.decode(byStep[id]?.gateReport),
     startSha: byStep[id]?.startSha,
+    planModel: byStep[id]?.planModel,
+    planEffort: byStep[id]?.planEffort,
+    escalations: byStep[id]?.escalations ?? 0,
   );
   // Steps added by the app (the reviewer's corrections), after the file's.
   final extra = [

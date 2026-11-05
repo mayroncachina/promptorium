@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../sessions/widgets/session_style.dart';
 import '../board_rules.dart';
+import '../orchestrator/escalation.dart';
+import '../orchestrator/orchestrator_rules.dart';
 import '../step_decision.dart';
 import '../step_gate.dart';
 import 'spec_canvas.dart' show DashedBorderPainter;
@@ -868,4 +871,50 @@ class StepDecisionGateSummary extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "Escalar para Opus" (SPEC-035 R12): the step failed the gate in
+/// Automático and waits before the next rung of the ladder.
+class StepDecisionEscalateRow extends StatelessWidget {
+  const StepDecisionEscalateRow({
+    super.key,
+    required this.rung,
+    required this.onTap,
+  });
+
+  final EscalationRung rung;
+  final VoidCallback? onTap;
+
+  /// `Escalar para Opus`.
+  static String labelOf(EscalationRung rung) =>
+      'Escalar para ${orchestratorModelLabel(rung.rule.model)}';
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.amberTint,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.trending_up, size: 16, color: AppColors.amber),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'A verificação reprovou depois dos reenvios. Subir para '
+            '${rung.rule.label} abre uma sessão nova no início da etapa.',
+            style: const TextStyle(fontSize: 12, color: AppColors.text),
+          ),
+        ),
+        const SizedBox(width: 10),
+        AmberButton(
+          key: const ValueKey('step-decision-escalate'),
+          label: labelOf(rung),
+          onTap: onTap,
+        ),
+      ],
+    ),
+  );
 }

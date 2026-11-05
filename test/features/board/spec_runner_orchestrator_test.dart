@@ -175,6 +175,13 @@ void main() {
         ('R3', 'sonnet', 'medium', 'claude'),
         ('R4', 'opus', 'high', 'claude'),
       ]);
+      // One attempt per finished step (no gate in the project).
+      final runs = await f.c.read(stepRunsRepoProvider).bySpec(f.spec.id);
+      expect(runs.map((r) => (r.step, r.kind, r.model, r.result)), [
+        ('R1', 'mecanica', 'haiku', StepRunResult.passed),
+        ('R2', 'mecanica', 'haiku', StepRunResult.passed),
+        ('R3', 'implementacao', 'sonnet', StepRunResult.passed),
+      ]);
     });
 
     test('a small untouched spec groups only the first equal plans', () async {

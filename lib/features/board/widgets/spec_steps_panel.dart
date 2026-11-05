@@ -10,6 +10,7 @@ import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
+import '../orchestrator/escalation.dart';
 import '../spec_runner.dart';
 import 'gate_report_view.dart';
 import 'subagent_status.dart';
@@ -554,6 +555,17 @@ class _StepRow extends ConsumerWidget {
                 color: step.isDone ? AppColors.textSecondary : AppColors.text,
               ),
             ),
+            if (stepLadderLabel(step) case final ladder?) ...[
+              const SizedBox(height: 2),
+              Text(
+                ladder,
+                key: ValueKey('step-ladder-${step.id}'),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
             if (step.gate case final g?) ...[
               const SizedBox(height: 4),
               GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),
