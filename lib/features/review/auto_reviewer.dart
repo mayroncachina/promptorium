@@ -12,6 +12,8 @@ import '../../core/git/git_service.dart';
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
 import '../board/board_rules.dart';
+import '../board/orchestrator/orchestrator_rules.dart';
+import '../board/orchestrator/step_plan.dart';
 import '../board/spec_runner.dart';
 import '../board/step_gate.dart';
 import '../project/project_config.dart';
@@ -297,13 +299,26 @@ class AutoReviewer {
     final criteria = parseCriteria(text);
     final ownAgent = File('${ws.path}/.claude/agents/spec-reviewer.md')
         .existsSync();
+    // SPEC-035 R8: a spec run in Automático (its steps have a plan) is
+    // reviewed with the rule Revisão (the line of the plan); in Manual, with
+    // the model of the project.
+    final rule = runsInAuto(rows)
+        ? reviewRuleOf(
+            _ref.read(appSettingsProvider),
+            specId,
+            _ref.read(orchestratorPrefsProvider),
+          )
+        : null;
     final r = await runReadOnlyClaude(
       _ref,
       workspaceId: ws.id,
       cwd: spec.worktreePath!,
       timeout: timeout,
+      // The Orquestrador only uses the Claude Code (D5).
+      providerId: rule == null ? null : 'claude',
       options: ClaudeOptions(
-        model: config.reviewer.model,
+        model: rule?.model ?? config.reviewer.model,
+        effort: rule?.effort,
         agent: ownAgent ? 'spec-reviewer' : null,
         appendSystemPrompt: ownAgent ? null : builtinReviewerPrompt,
         permissionMode: ClaudePermissionMode.defaultMode,

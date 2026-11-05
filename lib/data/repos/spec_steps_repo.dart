@@ -130,6 +130,52 @@ class SpecStepsRepo {
         }
       });
 
+  /// Splits the execution of [parent] (SPEC-033 R16): one pending row per
+  /// text of [bodies] (`R3.1`, `R3.2`…, returned in order), in place of any
+  /// earlier split. The requirement's row stays, pending and without gate.
+  Future<List<String>> addSubSteps(
+    int specId,
+    String parent,
+    List<String> bodies,
+  ) => _db.transaction(() async {
+    await _deleteSubSteps(specId, parent);
+    await set(specId, parent, StepStatus.pending);
+    await reset(specId, [parent]);
+    final ids = [for (var i = 1; i <= bodies.length; i++) '$parent.$i'];
+    for (final (i, id) in ids.indexed) {
+      await addExtra(specId, id, bodies[i]);
+    }
+    return ids;
+  });
+
+  /// Undoes [addSubSteps]: the sub-step rows of [parent] go away and, with
+  /// [previous] (its row before the split), the requirement is as it was.
+  Future<void> removeSubSteps(
+    int specId,
+    String parent, {
+    SpecStep? previous,
+  }) => _db.transaction(() async {
+    await _deleteSubSteps(specId, parent);
+    if (previous == null) return;
+    await (_db.update(_t)
+          ..where((s) => s.specId.equals(specId) & s.step.equals(parent)))
+        .write(previous.toCompanion(false));
+  });
+
+  /// The steps of [specId] are exactly [rows] again, as read by [bySpec]:
+  /// the rows written since then go away ("Desfazer", SPEC-033 R10).
+  Future<void> restore(int specId, List<SpecStep> rows) =>
+      _db.transaction(() async {
+        await (_db.delete(_t)..where((s) => s.specId.equals(specId))).go();
+        for (final row in rows) {
+          await _db.into(_t).insert(row.toCompanion(false));
+        }
+      });
+
+  Future<void> _deleteSubSteps(int specId, String parent) => (_db.delete(
+    _t,
+  )..where((s) => s.specId.equals(specId) & s.step.like('$parent.%'))).go();
+
   /// A step that is not in the file ([body] = its text): pending.
   Future<void> addExtra(int specId, String step, String body) => _db
       .into(_t)
@@ -141,4 +187,90 @@ class SpecStepsRepo {
           body: Value(body),
         ),
       );
+
+  /// The row of [step] (null = no row yet: pending, no plan).
+  Future<SpecStep?> byStep(int specId, String step) =>
+      (_db.select(_t)
+            ..where((s) => s.specId.equals(specId) & s.step.equals(step)))
+          .getSingleOrNull();
+
+  /// Stores the Orquestrador's plan of [step] (SPEC-035): [kind]
+  /// (`StepKind.name`), the model and effort copied from the rules, the
+  /// [hash] and [reason] of the classification and whether the user picked the model.
+  /// The status and the gate of the step do not change.
+  Future<void> setPlan(
+    int specId,
+    String step, {
+    required String? kind,
+    required String model,
+    required String? effort,
+    String? hash,
+    String? reason,
+    bool userPicked = false,
+  }) {
+    final plan = SpecStepsCompanion(
+      kind: Value(kind),
+      planModel: Value(model),
+      planEffort: Value(effort),
+      planHash: Value(hash),
+      planReason: Value(reason),
+      userPicked: Value(userPicked),
+    );
+    return _db
+        .into(_t)
+        .insert(
+          plan.copyWith(specId: Value(specId), step: Value(step)),
+          onConflict: DoUpdate((old) => plan),
+        );
+  }
+
+  /// Removes the plan of [steps]: they run with the model of the form again
+  /// (Manual).
+  Future<void> clearPlan(int specId, Iterable<String> steps) =>
+      _db.transaction(() async {
+        for (final step in steps) {
+          await (_db.update(
+            _t,
+          )..where((s) => s.specId.equals(specId) & s.step.equals(step))).write(
+            const SpecStepsCompanion(
+              kind: Value(null),
+              planModel: Value(null),
+              planEffort: Value(null),
+              planHash: Value(null),
+              planReason: Value(null),
+              userPicked: Value(false),
+              escalations: Value(0),
+            ),
+          );
+        }
+      });
+
+  /// One more rung climbed by [step] (R9); returns the new count.
+  Future<int> incrementEscalations(int specId, String step) =>
+      _db.transaction(() async {
+        final now = (await byStep(specId, step))?.escalations ?? 0;
+        await _db
+            .into(_t)
+            .insert(
+              SpecStepsCompanion.insert(
+                specId: specId,
+                step: step,
+                escalations: Value(now + 1),
+              ),
+              onConflict: DoUpdate(
+                (old) => SpecStepsCompanion(escalations: Value(now + 1)),
+              ),
+            );
+        return now + 1;
+      });
+
+  /// A new execution of [steps] starts from the bottom of the ladder.
+  Future<void> resetEscalations(int specId, Iterable<String> steps) =>
+      _db.transaction(() async {
+        for (final step in steps) {
+          await (_db.update(_t)
+                ..where((s) => s.specId.equals(specId) & s.step.equals(step)))
+              .write(const SpecStepsCompanion(escalations: Value(0)));
+        }
+      });
 }

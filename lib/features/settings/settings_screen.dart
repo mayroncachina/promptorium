@@ -8,12 +8,15 @@ import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
+import '../board/orchestrator/orchestrator_rules.dart';
 import '../project/project_config.dart';
 import '../project/widgets/project_config_view.dart';
 import '../sessions/widgets/session_style.dart';
 import 'automations_view.dart';
 import 'backups_view.dart';
+import 'orchestrator_view.dart';
 import 'providers_view.dart';
+import 'settings_choices.dart';
 import 'settings_sections.dart';
 
 /// Models offered as defaults (`inherit` = the CLI's default model).
@@ -160,6 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               key: ValueKey('settings-section-${selected.name}'),
               child: switch (selected) {
                 SettingsSection.consumption => const _ConsumptionSection(),
+                SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
                 SettingsSection.automations => const _Page(
@@ -458,6 +462,33 @@ class _ConsumptionSection extends ConsumerWidget {
       ),
     ],
   );
+}
+
+/// Rules and options of the Orquestrador (SPEC-035 R6, R7).
+class _OrchestratorSection extends ConsumerWidget {
+  const _OrchestratorSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(orchestratorPrefsProvider);
+    return _Page(
+      title: 'Orquestrador',
+      intro:
+          'Em Automático, cada etapa roda com o modelo e o esforço do tipo '
+          'dela. Valem para todos os projetos, a partir da próxima execução: '
+          'uma spec já em andamento mantém o plano com que começou.',
+      trailing: SmallButton(
+        key: const ValueKey('settings-reset-orchestrator'),
+        label: 'Restaurar padrão',
+        onTap: () => ref.read(orchestratorPrefsProvider.notifier).reset(),
+      ),
+      effect: _Effect(
+        orchestratorEffect(prefs),
+        key: const ValueKey('settings-orchestrator-effect'),
+      ),
+      children: const [OrchestratorView()],
+    );
+  }
 }
 
 class _SessionsSection extends ConsumerWidget {
@@ -760,38 +791,3 @@ class _Effect extends StatelessWidget {
     child: Text(text, style: const TextStyle(fontSize: 12)),
   );
 }
-
-/// Row of toggles (one per value).
-Widget choices({
-  required String keyPrefix,
-  required List<(String, String)> values,
-  required String selected,
-  required ValueChanged<String> onTap,
-}) => Row(
-  children: [
-    for (final (id, label) in values)
-      Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: ToggleBox(
-            key: ValueKey('$keyPrefix-$id'),
-            on: selected == id,
-            height: 32,
-            onTap: () => onTap(id),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: AppFonts.mono,
-                fontSize: 12,
-                color: selected == id
-                    ? AppColors.amber
-                    : AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ),
-      ),
-  ],
-);

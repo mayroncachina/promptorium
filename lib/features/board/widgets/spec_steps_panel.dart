@@ -10,11 +10,13 @@ import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
+import '../orchestrator/escalation.dart';
 import '../spec_runner.dart';
 import 'gate_report_view.dart';
 import 'subagent_status.dart';
 import '../board_screen.dart';
 import 'run_spec_dialog.dart';
+import 'step_decision_dialog.dart';
 import 'step_status_motion.dart';
 
 final _specProvider = StreamProvider.family<Spec?, int>(
@@ -484,21 +486,37 @@ class _StepRow extends ConsumerWidget {
     final selected =
         !inDialog &&
         ref.watch(selectedStepProvider) == (specId: spec.id, step: step.id);
-    return InkWell(
-      key: ValueKey('step-${step.id}'),
-      onTap: inDialog
-          ? null
-          : () {
-              final n = ref.read(selectedStepProvider.notifier);
-              selected ? n.clear() : n.select(spec.id, step.id);
-            },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: selected ? SessionColors.selectedBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+    final waiting = step.status == StepStatus.needsInput;
+    return StepFocusAnchor(
+      builder: (context, focus) => InkWell(
+        key: ValueKey('step-${step.id}'),
+        focusNode: focus,
+        onTap: inDialog && !waiting
+            ? null
+            : () {
+                if (!inDialog) {
+                  final n = ref.read(selectedStepProvider.notifier);
+                  // The trace stays selected behind the modal (SPEC-033 R1).
+                  selected && !waiting ? n.clear() : n.select(spec.id, step.id);
+                }
+                if (waiting) {
+                  openStep(
+                    context,
+                    spec,
+                    step,
+                    stepOrigin(context),
+                    returnFocus: focus,
+                  );
+                }
+              },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected ? SessionColors.selectedBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: _row(context, ref),
         ),
-        child: _row(context, ref),
       ),
     );
   }
@@ -537,6 +555,17 @@ class _StepRow extends ConsumerWidget {
                 color: step.isDone ? AppColors.textSecondary : AppColors.text,
               ),
             ),
+            if (stepLadderLabel(step) case final ladder?) ...[
+              const SizedBox(height: 2),
+              Text(
+                ladder,
+                key: ValueKey('step-ladder-${step.id}'),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
             if (step.gate case final g?) ...[
               const SizedBox(height: 4),
               GateChips(report: g, keyPrefix: 'step-gate-${step.id}'),

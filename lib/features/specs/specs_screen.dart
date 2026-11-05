@@ -973,9 +973,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (_actions.current != null) return;
     await _runAction(SpecActionKind.clone, spec, (a) async {
       final rows = await ref.read(specStepsRepoProvider).bySpec(spec.id);
+      // The rows, not the visible steps: a split requirement is hidden
+      // behind its sub-steps, and the clone removes requirements.
       final done = {
-        for (final s in stepsOf(spec, rows))
-          if (s.isDone) s.id,
+        for (final r in rows)
+          if (r.status == StepStatus.done) r.step,
       };
       final created = await ref
           .read(specServiceProvider)
