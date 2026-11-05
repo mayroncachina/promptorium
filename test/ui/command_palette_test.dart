@@ -4,10 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
+import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/ui/shell/command_palette.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 
 import '../features/board/board_screen_test.dart' show pumpBoard, pumpFor;
+
+/// Records how the palette starts a spec instead of running it.
+class _RunRecorder extends SpecRunner {
+  _RunRecorder(super.ref);
+
+  final calls = <String>[];
+
+  @override
+  Future<String> runAuto(int specId, {bool reviewUnblocks = false}) async {
+    calls.add('runAuto $specId $reviewUnblocks');
+    return 's-auto';
+  }
+}
 
 void main() {
   test('fuzzy filter: every char in order, best match first', () {
@@ -105,5 +119,31 @@ void main() {
     commands.firstWhere((x) => x.label == 'Ir para Review').run();
     expect(c.read(navigationProvider), AppSection.review);
     expect(LogicalKeyboardKey.keyK, isNotNull);
+  });
+
+  testWidgets('"Executar SPEC" follows the preference Automático, as the '
+      'autopilot does (SPEC-035 R19, D6)', (tester) async {
+    late _RunRecorder runner;
+    final (c, _) = await pumpBoard(
+      tester,
+      overrides: [
+        specRunnerProvider.overrideWith((ref) => runner = _RunRecorder(ref)),
+      ],
+    );
+    final element = tester.element(find.byType(BoardScreen));
+    final commands = paletteCommands(
+      element,
+      element as WidgetRef,
+      onNavigate: (s) => c.read(navigationProvider.notifier).go(s),
+    );
+    final spec = c
+        .read(specsProvider(1))
+        .value!
+        .firstWhere((s) => s.code == 'SPEC-003');
+    commands.firstWhere((x) => x.label == 'Executar SPEC-003').run();
+    await pumpFor(tester, 2);
+    // runAuto classifies with the preference on and is runNext with it off.
+    expect(runner.calls, ['runAuto ${spec.id} true']);
+    expect(c.read(navigationProvider), AppSection.tasks);
   });
 }
