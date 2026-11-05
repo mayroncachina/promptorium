@@ -195,6 +195,12 @@ A branch pai é `spec/036-pasta-e-palco`. Cada tarefa tem sua branch e vira um P
 - D7 · Clicar na spec central abre o painel lateral que o Canvas já tem. O protótipo não mostra esse painel nem a linha do D6 (P3).
 - D4 · No app, o texto "Em execução" hoje é laranja; o protótipo usa amarelo. Esta spec segue o protótipo só no ícone de loading da pasta e nos cards do palco.
 
+- D8 · A escolha da visão fica em memória durante a sessão, como já era: não havia valor salvo para ler, e a visão volta a Colunas ao reabrir o app (R1).
+- D9 · O widget do palco se chama `FocusStage`, porque `SpecStage` já é o enum das colunas. O arquivo continua `spec_stage.dart`.
+- D10 · O card da pasta recolhida usa `OverlayPortal`, como `CanvasDetailCard`, em vez de um `OverlayEntry` manual (R5).
+- D11 · O botão "Canvas" do Quadro passa a se chamar "Grafo", como no R1.
+- D12 · As setas de rolagem da pasta ficam fora da ordem do `Tab`: o teclado já rola com `↑`/`↓`, e a parada na seta interrompia a passagem pelas linhas (R3).
+
 ## Perguntas em aberto
 
 Nenhuma.

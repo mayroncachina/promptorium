@@ -5,9 +5,9 @@ Um cartão por spec aprovada ou concluída, em **Backlog · Em execução · Rev
 ## Barra
 
 - "Precisam de mim · N": filtra o que espera por você.
-- **Ocultar concluídas · N**: esconde os cartões em Feito, nas Colunas e no Canvas. A escolha é lembrada por projeto.
+- **Ocultar concluídas · N**: esconde os cartões em Feito, nas Colunas, no Grafo e na pasta do Foco. A escolha é lembrada por projeto.
 - Filtros por Fase e Agente.
-- **Colunas / Canvas**.
+- **Colunas / Grafo / Foco**.
 - **Agendar**: Autopilot diário, com horário e orçamento.
 - **Executar tudo / Parar**: liga ou para o Autopilot, que executa as specs prontas respeitando dependências e o limite de paralelismo (`autopilot.paralelo`).
 
@@ -43,7 +43,7 @@ O início de cada etapa é guardado numa ref (`refs/promptorium/SPEC-x/Rn-inicio
 
 ## Canvas
 
-A visão Canvas mostra as specs como nós em ondas ("ONDA N · PRÓXIMA"), com as dependências e as referências a agentes e skills.
+A visão Grafo mostra as specs como nós em ondas ("ONDA N · PRÓXIMA"), com as dependências e as referências a agentes e skills.
 
 - Atenção · N, Camadas (Agentes, Skills, Concluídas), zoom (Aproximar, Afastar, 100%, Ajustar à tela, Ajustar à seleção) e Legenda.
 - O inspetor da spec selecionada mostra de que ela depende, o que desbloqueia, as etapas e as referências, com "Abrir spec", "Ver nas colunas", "Marcar como finalizada" e "Reabrir".
@@ -51,3 +51,14 @@ A visão Canvas mostra as specs como nós em ondas ("ONDA N · PRÓXIMA"), com a
 ## Tarefas antigas
 
 Tarefas de versões anteriores, sem spec, aparecem num aviso com "Virar spec" ou "Descartar".
+
+## Foco
+
+A visão Foco mostra uma spec de cada vez. As specs ficam na pasta à esquerda, da mais nova para a mais antiga, e a seta do cabeçalho recolhe a pasta até sobrarem só os números.
+
+- **Passar o mouse** numa linha mostra o card completo.
+- **Buscar**: `/` ou `Ctrl+F` focam a busca, que compara número e título. `↑`/`↓` escolhem o resultado, `Enter` abre e `Esc` limpa.
+- **Clicar numa spec** leva a spec ao palco, com as specs que dependem dela abaixo. Acima do card aparece de quem ela depende, e cada código leva aquela spec ao centro.
+- **Clicar na spec do centro** abre o painel de detalhes.
+- **Executando · N** mostra as specs em execução lado a lado, com a etapa atual de cada uma.
+- **Voltar à pasta** ou `Esc` esvaziam o palco. Com o painel aberto, `Esc` fecha primeiro o painel.
