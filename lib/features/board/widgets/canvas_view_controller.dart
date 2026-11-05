@@ -42,9 +42,10 @@ class CanvasViewController extends TransformationController {
     _center(bounds.center, s < vertical ? s : vertical.toDouble());
   }
 
-  /// Shows [bounds] at 100% when it fits, from the top and centered across;
-  /// else zooms out until it does (SPEC-036 R11).
-  void frame(Rect bounds) {
+  /// Shows [bounds] at 100% when it fits, from the top and centered across
+  /// ([middle]: centered both ways); else zooms out until it does
+  /// (SPEC-036 R11).
+  void frame(Rect bounds, {bool middle = false}) {
     final free = _free;
     if (free.isEmpty || bounds.isEmpty) return;
     final s = math.max(
@@ -60,7 +61,9 @@ class CanvasViewController extends TransformationController {
     value = Matrix4.identity()
       ..translateByDouble(
         free.center.dx - bounds.center.dx * s,
-        free.top + 20 - bounds.top * s,
+        middle
+            ? free.center.dy - bounds.center.dy * s
+            : free.top + 20 - bounds.top * s,
         0,
         1,
       )

@@ -123,6 +123,7 @@ class SpecNode extends StatelessWidget {
     required this.onTap,
     this.pulse,
     this.fitContent = false,
+    this.footer,
   });
   final SpecCardData data;
   final bool selected;
@@ -135,6 +136,9 @@ class SpecNode extends StatelessWidget {
   /// Takes the height of its content, with the whole title, instead of
   /// filling a fixed size (the card of the folder, SPEC-036 R4).
   final bool fitContent;
+
+  /// Goes above the steps (the current step on the stage, SPEC-036 R13).
+  final Widget? footer;
   bool get attention => reason != null;
   @override
   Widget build(BuildContext context) {
@@ -222,6 +226,7 @@ class SpecNode extends StatelessWidget {
                       color: AppColors.text,
                     ),
                   ),
+                ?footer,
                 Row(
                   children: [
                     Expanded(

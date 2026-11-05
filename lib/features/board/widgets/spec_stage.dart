@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
+import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
 import '../board_rules.dart';
 import '../board_screen.dart';
@@ -15,6 +16,7 @@ import 'spec_node.dart';
 
 /// Sizes of the stage (docs/mockups/spec-036/Main.dc.html).
 const stageRootSize = Size(330, 150), stageCardSize = Size(250, 116);
+const stageRunningSize = Size(320, 206);
 
 /// A card that needs the person has one more line (SPEC-030 R4).
 const _reasonHeight = 18.0;
@@ -49,8 +51,16 @@ class StageGeometry {
 }
 
 /// Size of a card of the stage.
-Size stageCardSizeOf({required bool root, required bool attention}) {
-  final size = root ? stageRootSize : stageCardSize;
+Size stageCardSizeOf({
+  required bool root,
+  required bool attention,
+  bool running = false,
+}) {
+  final size = running
+      ? stageRunningSize
+      : root
+      ? stageRootSize
+      : stageCardSize;
   return attention ? Size(size.width, size.height + _reasonHeight) : size;
 }
 
@@ -80,7 +90,7 @@ StageGeometry stageGeometry(StageLayout layout, Size Function(Spec) sizeOf) {
   final levelOf = <int, int>{};
   final bottoms = <double>[];
   // The line of dependencies wraps when there are many (R17).
-  final deps = layout.root.dependsOn.length;
+  final deps = layout.running ? 0 : layout.root.dependsOn.length;
   var y = _rootTop + 20.0 * math.max(0, deps - 1);
   for (final (i, level) in layout.levels.indexed) {
     final sizes = [for (final s in level) sizeOf(s)];
@@ -214,6 +224,8 @@ class FocusStage extends ConsumerStatefulWidget {
     required this.onOpen,
     required this.onBack,
     required this.onBackgroundTap,
+    required this.runningCount,
+    required this.onRunning,
     this.clock,
     this.inFlight,
     this.arrowProgress,
@@ -230,6 +242,10 @@ class FocusStage extends ConsumerStatefulWidget {
   final bool Function(SpecCardData) attention;
   final ValueChanged<int> onOpen;
   final VoidCallback onBack, onBackgroundTap;
+
+  /// N of "Executando"; at zero the button is off (R12).
+  final int runningCount;
+  final VoidCallback onRunning;
 
   /// Ticks during the flights.
   final Listenable? clock;
@@ -273,7 +289,7 @@ class FocusStageState extends ConsumerState<FocusStage>
   /// (R11).
   void frame() {
     final g = widget.geometry;
-    if (g != null) _view.frame(g.bounds);
+    if (g != null) _view.frame(g.bounds, middle: g.layout.running);
   }
 
   /// The cards on screen, in the coordinates of [layer].
@@ -300,7 +316,7 @@ class FocusStageState extends ConsumerState<FocusStage>
 
   Widget _card(StageGeometry g, Spec spec, int? selectedId) {
     final d = widget.cards[spec.id]!;
-    final root = spec.id == g.layout.root.id;
+    final root = !g.layout.running && spec.id == g.layout.root.id;
     final attention = widget.attention(d);
     final node = RepaintBoundary(
       child: AttentionHalo(
@@ -311,6 +327,7 @@ class FocusStageState extends ConsumerState<FocusStage>
           selected: root,
           reason: attention ? specAttentionReason(ref, d) : null,
           pulse: _pulse,
+          footer: g.layout.running ? StageRunningLine(data: d) : null,
           onTap: () => widget.onOpen(spec.id),
         ),
       ),
@@ -356,6 +373,7 @@ class FocusStageState extends ConsumerState<FocusStage>
       .id;
 
   Widget _world(StageGeometry g, int? selectedId) {
+    final running = g.layout.running;
     final root = g.layout.root;
     final rootRect = g.rects[root.id]!;
     final width = g.bounds.right + _pad;
@@ -377,7 +395,7 @@ class FocusStageState extends ConsumerState<FocusStage>
               ),
             ),
           ),
-          if (root.dependsOn.isNotEmpty)
+          if (!running && root.dependsOn.isNotEmpty)
             Positioned(
               left: rootRect.left,
               width: rootRect.width,
@@ -404,7 +422,7 @@ class FocusStageState extends ConsumerState<FocusStage>
                   ),
                 ),
               ),
-          if (g.layout.dependents == 0)
+          if (!running && g.layout.dependents == 0)
             Positioned(
               left: rootRect.left,
               width: rootRect.width,
@@ -425,6 +443,10 @@ class FocusStageState extends ConsumerState<FocusStage>
   }
 
   String _crumb(StageLayout layout) {
+    if (layout.running) {
+      final n = layout.levels.first.length;
+      return n == 1 ? '1 spec em execução' : '$n specs em execução';
+    }
     final n = layout.dependents;
     final code = layout.root.code;
     return switch (n) {
@@ -438,7 +460,9 @@ class FocusStageState extends ConsumerState<FocusStage>
   Widget build(BuildContext context) {
     final g = widget.geometry;
     final selectedId = ref.watch(boardSelectedSpecProvider);
-    final root = g == null ? null : widget.cards[g.layout.root.id];
+    final root = g == null || g.layout.running
+        ? null
+        : widget.cards[g.layout.root.id];
     final panel = root != null && selectedId == root.spec.id ? root : null;
     _syncPulse(
       g != null &&
@@ -485,13 +509,13 @@ class FocusStageState extends ConsumerState<FocusStage>
                   ),
                 ),
               ),
-              Positioned(
-                top: 16,
-                left: 24,
-                right: panel == null ? 24 : canvasPanelWidth + 48,
-                child: Center(child: _bar(g)),
-              ),
             ],
+            Positioned(
+              top: 16,
+              left: 24,
+              right: panel == null ? 24 : canvasPanelWidth + 48,
+              child: Center(child: _bar(g)),
+            ),
             if (panel != null)
               Positioned(
                 top: 16,
@@ -524,7 +548,7 @@ class FocusStageState extends ConsumerState<FocusStage>
     );
   }
 
-  Widget _bar(StageGeometry g) => FittedBox(
+  Widget _bar(StageGeometry? g) => FittedBox(
     fit: BoxFit.scaleDown,
     child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -537,59 +561,124 @@ class FocusStageState extends ConsumerState<FocusStage>
             spacing: 6,
             children: [
               CanvasBarButton(
-                key: const ValueKey('stage-fit'),
-                label: 'Ajustar',
-                tooltip: 'Enquadrar o que está no palco',
-                color: AppColors.textSecondary,
-                active: false,
-                onTap: frame,
+                key: const ValueKey('stage-running'),
+                label: 'Executando · ${widget.runningCount}',
+                tooltip: widget.runningCount == 0
+                    ? 'Nenhuma spec em execução'
+                    : 'Ver as specs em execução',
+                color: AppColors.amber,
+                active: g?.layout.running ?? false,
+                toggle: true,
+                onTap: widget.runningCount == 0 ? null : widget.onRunning,
               ),
-              CanvasZoomMenu(view: _view, onFit: frame, onFitSelection: null),
+              if (g != null) ...[
+                const CanvasBarDivider(),
+                CanvasBarButton(
+                  key: const ValueKey('stage-fit'),
+                  label: 'Ajustar',
+                  tooltip: 'Enquadrar o que está no palco',
+                  color: AppColors.textSecondary,
+                  active: false,
+                  onTap: frame,
+                ),
+                CanvasZoomMenu(view: _view, onFit: frame, onFitSelection: null),
+              ],
             ],
           ),
         ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: 10,
-          children: [
-            OutlinedButton(
-              key: const ValueKey('stage-back'),
-              onPressed: widget.onBack,
-              style: OutlinedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.text,
-                side: const BorderSide(color: AppColors.border),
-              ),
-              child: const Text.rich(
-                TextSpan(
-                  text: 'Voltar à pasta ',
-                  style: TextStyle(fontSize: 13),
-                  children: [
-                    TextSpan(
-                      text: 'Esc',
-                      style: TextStyle(
-                        fontFamily: AppFonts.mono,
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
+        if (g != null)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 10,
+            children: [
+              OutlinedButton(
+                key: const ValueKey('stage-back'),
+                onPressed: widget.onBack,
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: AppColors.text,
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                child: const Text.rich(
+                  TextSpan(
+                    text: 'Voltar à pasta ',
+                    style: TextStyle(fontSize: 13),
+                    children: [
+                      TextSpan(
+                        text: 'Esc',
+                        style: TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Text(
-              _crumb(g.layout),
-              key: const ValueKey('stage-crumb'),
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
+              Text(
+                _crumb(g.layout),
+                key: const ValueKey('stage-crumb'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+      ],
+    ),
+  );
+}
+
+/// "Etapa 3 de 8 · rodando" and the activity bar of a card of "Executando". A
+/// step that waits for the person stops the bar (R13).
+class StageRunningLine extends StatelessWidget {
+  const StageRunningLine({super.key, required this.data});
+
+  final SpecCardData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = data.spec.code;
+    final step = data.current;
+    final waiting = step?.status == StepStatus.needsInput;
+    final moving = !waiting && AppMotion.animate(context);
+    final at = step == null ? 0 : data.steps.indexOf(step) + 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      spacing: 6,
+      children: [
+        Row(
+          spacing: 6,
+          children: [
+            if (waiting)
+              AttentionBubble(key: ValueKey('stage-balloon-$code'), size: 14),
+            Expanded(
+              child: Text(
+                'Etapa $at de ${data.steps.length} · '
+                '${stepStatusLabel(step?.status ?? StepStatus.running)}',
+                key: ValueKey('stage-step-$code'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: AppColors.amber),
               ),
             ),
           ],
         ),
+        LinearProgressIndicator(
+          key: ValueKey('stage-activity-$code'),
+          minHeight: 3,
+          borderRadius: BorderRadius.circular(2),
+          // Stopped when it waits and with animations off (R14).
+          value: moving ? null : .34,
+          color: waiting ? AppColors.textMuted : AppColors.amber,
+          backgroundColor: AppColors.border,
+        ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class _DependencyLink extends StatelessWidget {
