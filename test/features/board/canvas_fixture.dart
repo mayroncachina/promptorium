@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -146,7 +147,14 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
     }
   }
   final c = ProviderContainer(
-    overrides: [databaseOverride(db), ...?overrides?.call(db)],
+    overrides: [
+      databaseOverride(db),
+      // Executar asks for the Claude Code (SPEC-035 R15): never the real CLI.
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async => const ProviderAvailability(ProviderStatus.ready, ''),
+      ),
+      ...?overrides?.call(db),
+    ],
   );
   addTearDown(c.dispose);
   await c.read(appSettingsProvider.notifier).load();

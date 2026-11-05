@@ -225,7 +225,9 @@ class Autopilot extends Notifier<Set<int>> {
       }
       if (specBlockers(s, byCode, reviewUnblocks: true).isNotEmpty) continue;
       try {
-        await ref.read(specRunnerProvider).runNext(s.id, reviewUnblocks: true);
+        // With "Abrir Executar em Automático" on, in Automático
+        // (SPEC-035 R19).
+        await ref.read(specRunnerProvider).runAuto(s.id, reviewUnblocks: true);
         started++;
         running++;
       } catch (e) {

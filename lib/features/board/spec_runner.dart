@@ -24,6 +24,10 @@ import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'orchestrator/escalation.dart';
+import 'orchestrator/orchestrator_rules.dart';
+import 'orchestrator/step_classifier.dart';
+import 'orchestrator/step_plan.dart';
 import 'step_gate.dart';
 import 'test_count.dart';
 
@@ -215,7 +219,8 @@ List<String> stepVerifyCommands(String specText, List<String> steps) {
 }
 
 /// Steps listed in the **last** `ETAPA CONCLUÍDA: R1, R2` line of [text]
-/// (accents and case tolerated; "R1 e R2" too). Empty = no marker.
+/// (accents and case tolerated; "R1 e R2" and the sub-step `R3.1` too).
+/// Empty = no marker.
 Set<String> parseStepMarker(String? text) {
   if (text == null) return const {};
   final re = RegExp(
@@ -226,7 +231,7 @@ Set<String> parseStepMarker(String? text) {
   if (m == null) return const {};
   return {
     for (final r in RegExp(
-      r'\b(?:REV|R)\d+\b',
+      r'\b(?:REV\d+|R\d+(?:\.\d+)?)\b',
       caseSensitive: false,
     ).allMatches(m.group(1)!))
       r.group(0)!.toUpperCase(),
@@ -264,9 +269,41 @@ void _writePrototypes(StringBuffer b, String specText, List<String> todo) {
   }
 }
 
+/// What a sub-step's session must know (SPEC-033 R16): the requirement,
+/// which stays as it is, and the sub-steps with the finished ones checked.
+void _writeSubSteps(
+  StringBuffer b,
+  String id,
+  String? parentText,
+  List<StepView> steps,
+) {
+  final parent = parentOf(id);
+  b
+    ..writeln()
+    ..writeln('Esta etapa é uma subetapa do requisito $parent, que não muda:')
+    ..writeln('- $parent · ${parentText ?? '(fora da spec)'}')
+    ..writeln()
+    ..writeln('Subetapas de $parent:');
+  for (final s in steps) {
+    if (!isSubStep(s.id) || parentOf(s.id) != parent) continue;
+    b.writeln(
+      '- [${s.isDone ? 'x' : ' '}] ${s.id} · ${s.text}'
+      '${s.id == id ? ' (agora)' : ''}',
+    );
+  }
+  b.writeln(
+    closesRequirement(id, steps)
+        ? 'É a última subetapa: ao concluí-la, o Promptorium verifica os '
+              'critérios de $parent.'
+        : 'Faça só esta subetapa: os critérios de $parent são verificados '
+              'quando a última subetapa terminar.',
+  );
+}
+
 /// First message of a step session: the spec itself (the file may not be
 /// committed, so it is not read from the worktree), what is done, what to do
-/// now and how to finish.
+/// now and how to finish. A sub-step reads the spec through its requirement:
+/// the file does not know it.
 String specStepPrompt({
   required Spec spec,
   required String specText,
@@ -275,6 +312,8 @@ String specStepPrompt({
   List<SpecSubagent> subagents = const [],
   String? testCommand,
   String? previousAttempt,
+  String? previousAttemptHeading,
+  String? context,
   String? memory,
 }) {
   String line(StepView s) => '${s.id} · ${s.text}';
@@ -291,6 +330,9 @@ String specStepPrompt({
       if (!s.isDone && !todo.contains(s.id)) s.id,
   ];
   final ids = todo.join(', ');
+  final requirements = SpecDocument.parse(specText).requirements;
+  final specTodo = {for (final t in todo) parentOf(t)}.toList();
+  final specIds = specTodo.join(', ');
   final b = StringBuffer()
     ..writeln(
       todo.length == 1
@@ -318,6 +360,10 @@ String specStepPrompt({
       '${later.join(', ')}.',
     );
   }
+  for (final t in todo.where(isSubStep)) {
+    final parent = requirements.where((r) => r.id == parentOf(t)).firstOrNull;
+    _writeSubSteps(b, t, parent?.text, steps);
+  }
   final plan = subagentPlan(subagents, steps: steps, todo: todo);
   if (plan.isNotEmpty) {
     b
@@ -339,13 +385,24 @@ String specStepPrompt({
     b
       ..writeln()
       ..writeln(
-        'Tentativa anterior desta etapa (descartada pelo usuário; o código '
-        'voltou ao início da etapa):',
+        previousAttemptHeading ??
+            'Tentativa anterior desta etapa (descartada pelo usuário; o código '
+                'voltou ao início da etapa):',
       )
       ..writeln('<tentativa-anterior>')
       ..writeln(previousAttempt.trim())
       ..writeln('</tentativa-anterior>')
       ..writeln('Faça diferente do que não funcionou.');
+  }
+  if (context != null && context.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln(
+        'Decisão da pessoa sobre a etapa que parou (siga esta decisão):',
+      )
+      ..writeln('<decisao>')
+      ..writeln(context.trim())
+      ..writeln('</decisao>');
   }
   if (memory != null && memory.trim().isNotEmpty) {
     b
@@ -356,39 +413,60 @@ String specStepPrompt({
       )
       ..writeln(memory.trim());
   }
-  _writePrototypes(b, specText, todo);
-  final focused = focusedSpecText(specText, steps: steps, todo: todo);
+  _writePrototypes(b, specText, specTodo);
+  final focused = focusedSpecText(
+    specText,
+    steps: [
+      ...steps,
+      for (final r in requirements)
+        if (specTodo.contains(r.id) && !todo.contains(r.id))
+          StepView(id: r.id, text: r.text),
+    ],
+    todo: specTodo,
+  );
   b
     ..writeln()
     ..writeln(
       focused == null
           ? 'Spec (${spec.path}):'
-          : 'Trecho da spec ligado a $ids (a spec inteira está em '
+          : 'Trecho da spec ligado a $specIds (a spec inteira está em '
                 '${spec.path}, se precisar):',
     )
     ..writeln('<spec>')
     ..writeln((focused ?? specText).trimRight())
     ..writeln('</spec>')
     ..writeln();
-  _writeFinish(b, spec, specText, todo, testCommand);
+  // Before the last sub-step the requirement's checks cannot pass yet.
+  final closing = todo.every(
+    (t) => !isSubStep(t) || closesRequirement(t, steps),
+  );
+  _writeFinish(
+    b,
+    spec,
+    specText,
+    todo,
+    testCommand,
+    checks: closing ? specTodo : todo,
+  );
   return b.toString().trimRight();
 }
 
-/// "Ao terminar" of a step prompt: focused tests, commit, learning,
-/// suggestion and the step marker.
+/// "Ao terminar" of a step prompt: focused tests of [checks] ([todo] when
+/// null), commit, learning, suggestion and the step marker.
 void _writeFinish(
   StringBuffer b,
   Spec spec,
   String specText,
   List<String> todo,
-  String? testCommand,
-) {
+  String? testCommand, {
+  List<String>? checks,
+}) {
   final ids = todo.join(', ');
   b
     ..writeln('Ao terminar:')
     ..writeln(
       focusedTestsStep(
-        focusedChecks(specText, todo: todo, suite: testCommand),
+        focusedChecks(specText, todo: checks ?? todo, suite: testCommand),
         testCommand,
       ),
     )
@@ -473,6 +551,12 @@ List<String> subagentPlan(
   );
   final startsSpec = todo.contains(steps.first.id) && untouched;
   final finishesSpec = todo.contains(steps.last.id);
+  // A subagent tied to a split requirement runs with its last sub-step.
+  final finishing = {
+    ...todo,
+    for (final t in todo)
+      if (closesRequirement(t, steps)) parentOf(t),
+  };
   final ids = todo.join(', ');
   String extra(SpecSubagent a) =>
       a.instruction == null ? '' : ' Instrução: ${a.instruction}';
@@ -485,7 +569,7 @@ List<String> subagentPlan(
           '${a.agent}: antes de implementar $ids.${extra(a)}',
         SubagentWhen.afterEach =>
           '${a.agent}: depois de implementar $ids, antes do commit.${extra(a)}',
-        SubagentWhen.atStep when a.step != null && todo.contains(a.step) =>
+        SubagentWhen.atStep when a.step != null && finishing.contains(a.step) =>
           '${a.agent}: ao terminar ${a.step}, antes do commit.${extra(a)}',
         SubagentWhen.specEnd when finishesSpec =>
           '${a.agent}: ao terminar tudo (é a última etapa), antes do '
@@ -607,11 +691,25 @@ class SpecRunner {
 
   final Ref _ref;
 
+  /// A project command at least this slow goes to the memory (F8). Tests
+  /// lower it so a real command does not have to take 5 s.
+  @visibleForTesting
+  static int slowCommandSeconds = 5;
+
   SessionManager get _manager => _ref.read(sessionManagerProvider.notifier);
 
   /// Opens the session of the next steps of [specId] and returns its id.
   /// [mode] / [model] / [effort] null = those of the spec's last session,
-  /// else the defaults. [agent] is stored on the spec.
+  /// else the defaults. [agent] is stored on the spec. [context] goes into
+  /// the prompt of the step: what the person decided (SPEC-033 R10).
+  ///
+  /// In Automático (the steps have a plan, SPEC-035 R8) the session runs
+  /// with the model and effort of the plan of its first step, always in the
+  /// Claude Code, and only neighbours with the same plan go with it; the
+  /// [model] / [effort] given are ignored, unless [keepModel] (the
+  /// escalation, "Refazer etapa"). A duel keeps the model the step used last
+  /// (R20). [previousAttemptHeading] replaces the line before the previous
+  /// attempt in the prompt.
   Future<String> runNext(
     int specId, {
     ClaudePermissionMode? mode,
@@ -622,7 +720,10 @@ class SpecRunner {
     bool ignoreBlockers = false,
     bool reviewUnblocks = false,
     String? previousAttempt,
+    String? previousAttemptHeading,
+    String? context,
     bool duel = false,
+    bool keepModel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -716,15 +817,19 @@ class SpecRunner {
       );
     }
     final prefs = _ref.read(runPrefsProvider);
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
+      plans: _plans(steps, rows, orchestrator),
     );
     if (todo.isEmpty) {
       throw SpecRunException(
         'Todas as etapas de ${spec.code} já estão feitas.',
       );
     }
+    final plan = stepRunPlan(todo.first, rows, orchestrator);
+    if (plan != null) await _freezePlan(specId, todo, rows, orchestrator);
 
     if (agent != null) {
       await specs.setAgent(specId, agent);
@@ -748,6 +853,33 @@ class SpecRunner {
     await _markStart(spec, wt.path, todo);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
+    // The Orquestrador only uses the Claude Code (D5).
+    final String runProvider = plan != null
+        ? 'claude'
+        : last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id));
+    String runModel;
+    String? runEffort;
+    if (plan == null) {
+      runModel =
+          model ??
+          last?.model ??
+          (runProvider != 'claude' ? 'inherit' : prefs.model(RunKind.session));
+      runEffort = effort ?? last?.effort;
+    } else if (keepModel && model != null) {
+      runModel = model;
+      runEffort = effort;
+    } else if (duel) {
+      // R20: the model the step used last, else its plan.
+      final own = rows.where((r) => r.step == todo.first).firstOrNull;
+      final used = sessions
+          .where((x) => x.id == own?.sessionId && x.provider == 'claude')
+          .firstOrNull;
+      runModel = used?.model ?? plan.rule.model;
+      runEffort = used == null ? plan.rule.effort : used.effort;
+    } else {
+      runModel = plan.rule.model;
+      runEffort = plan.rule.effort;
+    }
     NewSessionRequest request({
       required String path,
       required String branch,
@@ -756,8 +888,7 @@ class SpecRunner {
       Map<String, String>? environment,
     }) => NewSessionRequest(
       workspace: ws,
-      provider:
-          last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id)),
+      provider: runProvider,
       title: '${specSessionTitle(spec!, steps, todo)}$suffix',
       prompt: specStepPrompt(
         spec: spec,
@@ -770,30 +901,18 @@ class SpecRunner {
         ),
         testCommand: config.testCommand,
         previousAttempt: previousAttempt,
+        previousAttemptHeading: previousAttemptHeading,
+        context: context,
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
       agent: spec.agentName ?? config.agent,
-      model:
-          model ??
-          last?.model ??
-          ((last?.provider ??
-                      provider ??
-                      _ref.read(defaultAgentProvider(ws.id))) !=
-                  'claude'
-              ? 'inherit'
-              : prefs.model(RunKind.session)),
-      effort: effort ?? last?.effort,
+      model: runModel,
+      effort: runEffort,
       permissionMode:
           mode ??
           ClaudePermissionMode.fromCli(last?.permissionMode) ??
           ClaudePermissionMode.fromCli(
-            settings.get(
-              permissionModePreferenceKey(
-                last?.provider ??
-                    provider ??
-                    _ref.read(defaultAgentProvider(ws.id)),
-              ),
-            ),
+            settings.get(permissionModePreferenceKey(runProvider)),
           ) ??
           ClaudePermissionMode.defaultMode,
       specId: specId,
@@ -815,6 +934,104 @@ class SpecRunner {
       todo: todo,
       request: request,
     );
+  }
+
+  /// Model and effort of the plan of each of [steps] (empty in Manual).
+  static Map<String, StepRule?> _plans(
+    List<StepView> steps,
+    Iterable<SpecStep> rows,
+    OrchestratorPrefs prefs,
+  ) => runsInAuto(rows)
+      ? {for (final s in steps) s.id: stepRunPlan(s.id, rows, prefs)?.rule}
+      : const {};
+
+  /// A step of [todo] without a plan of its own (a sub-step, a `REV<n>`)
+  /// keeps the one it runs with now: a rule changed later does not touch
+  /// it (R7), and the next steps compare with it.
+  Future<void> _freezePlan(
+    int specId,
+    List<String> todo,
+    List<SpecStep> rows,
+    OrchestratorPrefs prefs,
+  ) async {
+    final repo = _ref.read(specStepsRepoProvider);
+    for (final step in todo) {
+      final own = rows.where((r) => r.step == step).firstOrNull;
+      if (own?.planModel != null) continue;
+      final p = stepRunPlan(step, rows, prefs);
+      if (p == null) continue;
+      await repo.setPlan(
+        specId,
+        step,
+        kind: p.kind.name,
+        model: p.rule.model,
+        effort: p.rule.effort,
+      );
+    }
+  }
+
+  /// "Executar tudo" and the autopilot (SPEC-035 R19): with "Abrir Executar
+  /// em Automático" on, the steps are classified and the plan is stored
+  /// before the run; when the classification fails the spec runs with the
+  /// model of Sessões and its timeline says why. Off = [runNext], as before.
+  Future<String> runAuto(int specId, {bool reviewUnblocks = false}) async {
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final spec = orchestrator.autoByDefault
+        ? await _ref.read(specsRepoProvider).getById(specId)
+        : null;
+    if (spec == null) {
+      return runNext(specId, reviewUnblocks: reviewUnblocks);
+    }
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = await repo.bySpec(specId);
+    final steps = stepsOf(spec, rows);
+    final classifier = _ref.read(stepClassifierProvider.notifier);
+    StepClassifierResult result;
+    try {
+      result = await classifier.classify(spec, steps, rows: rows);
+    } finally {
+      classifier.cancel(specId);
+    }
+    if (result.error == null) {
+      await storePlanEntries(
+        repo,
+        specId,
+        buildStepPlan(
+          spec: spec,
+          steps: steps,
+          kinds: result.kinds,
+          prefs: orchestrator,
+        ),
+      );
+      await storeReviewRule(
+        _ref.read(appSettingsProvider.notifier),
+        specId,
+        null,
+      );
+      return runNext(
+        specId,
+        reviewUnblocks: reviewUnblocks,
+        provider: 'claude',
+      );
+    }
+    await clearStoredPlan(repo, specId);
+    final prefs = _ref.read(runPrefsProvider);
+    final model = prefs.model(RunKind.session);
+    final effort = prefs.effort(RunKind.session);
+    final id = await runNext(
+      specId,
+      reviewUnblocks: reviewUnblocks,
+      provider: 'claude',
+      model: model,
+      effort: effort.isEmpty ? null : effort,
+    );
+    await _manager.note(
+      id,
+      'Orquestrador: não deu para classificar as etapas (${result.error}); '
+      'a spec roda com o modelo de Sessões ($model).',
+      error: true,
+    );
+    return id;
   }
 
   // --- best-of-N (F15) -------------------------------------------------------
@@ -963,6 +1180,10 @@ class SpecRunner {
     final config = await _config(s.workspaceId);
     final spec = await _ref.read(specsRepoProvider).getById(duel.specId);
     if (spec == null) return;
+    final views = stepsOf(
+      spec,
+      await _ref.read(specStepsRepoProvider).bySpec(spec.id),
+    );
     GateReport report;
     if (!steps.every(marked.contains)) {
       report = GateReport(
@@ -975,7 +1196,9 @@ class SpecRunner {
           ),
         ],
       );
-    } else if (config != null && config.gateEnabled) {
+    } else if (config != null &&
+        config.gateEnabled &&
+        !steps.any((x) => _skipsGate(x, views))) {
       await _manager.note(s.id, 'Verificando a tentativa ${isA ? 'A' : 'B'}…');
       report =
           await StepGate(
@@ -1073,6 +1296,7 @@ class SpecRunner {
     for (final step in steps) {
       await repo.set(spec.id, step, StepStatus.done, sessionId: session);
     }
+    await _closeRequirements(spec.id, steps, sessionId: session);
     for (final id in [duel.sessionA, duel.sessionB]) {
       if (id == null) continue;
       await _ref
@@ -1284,7 +1508,8 @@ class SpecRunner {
 
   /// "Voltar ao início da etapa": stops the spec's live session, resets the
   /// worktree to the step's start (plus the changes that were uncommitted
-  /// then) and turns [step] and the later steps back to pending.
+  /// then) and turns [step] and the later steps back to pending, with the
+  /// requirements of the sub-steps among them.
   Future<void> rewind(int specId, String step) async {
     final (spec, after, row) = await _rewindTarget(specId, step);
     for (final s in await _ref.read(sessionsRepoProvider).bySpec(specId)) {
@@ -1302,20 +1527,24 @@ class SpecRunner {
     } on GitException catch (e) {
       throw SpecRunException('Falha ao voltar o worktree: $e');
     }
-    await _ref.read(specStepsRepoProvider).reset(specId, [
-      for (final s in after) s.id,
-    ]);
+    await _ref.read(specStepsRepoProvider).reset(specId, {
+      for (final s in after) ...[s.id, parentOf(s.id)],
+    });
     if (spec.stage == SpecStage.review) {
       await _ref.read(specsRepoProvider).setStage(specId, SpecStage.running);
     }
   }
 
   /// "Refazer etapa": [rewind], then a new session for the step with the
-  /// previous attempt (last answer and gate) in the prompt.
+  /// previous attempt (last answer and gate) in the prompt, with the model
+  /// the step used last (an escalated one included, SPEC-035 R20).
   Future<String> redo(int specId, String step) async {
     final previous = await _previousAttempt(specId, step);
-    final last = (await _ref.read(sessionsRepoProvider).bySpec(specId))
-        .lastOrNull;
+    final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
+    final row = await _ref.read(specStepsRepoProvider).byStep(specId, step);
+    final last =
+        sessions.where((s) => s.id == row?.sessionId).firstOrNull ??
+        sessions.lastOrNull;
     await rewind(specId, step);
     return runNext(
       specId,
@@ -1324,12 +1553,21 @@ class SpecRunner {
       effort: last?.effort,
       ignoreBlockers: true,
       previousAttempt: previous,
+      keepModel: last?.provider == 'claude',
     );
   }
 
+  /// Most characters of the diff of a failed attempt sent to the next rung.
+  static const escalationDiffChars = 12000;
+
   /// Last answer of the step's session and its last gate, for the prompt of
-  /// "Refazer etapa".
-  Future<String?> _previousAttempt(int specId, String step) async {
+  /// "Refazer etapa"; with [diff], also what the attempt changed since the
+  /// start of the step (the escalation, SPEC-035 R10).
+  Future<String?> _previousAttempt(
+    int specId,
+    String step, {
+    bool diff = false,
+  }) async {
     final row = (await _ref.read(specStepsRepoProvider).bySpec(specId))
         .where((r) => r.step == step)
         .firstOrNull;
@@ -1361,6 +1599,26 @@ class SpecRunner {
         b
           ..writeln('${c.label}:')
           ..writeln(tailLines(c.output, 20));
+      }
+    }
+    final spec = diff && row.startSha != null
+        ? await _ref.read(specsRepoProvider).getById(specId)
+        : null;
+    if (spec?.worktreePath case final path?) {
+      try {
+        final d = await _ref
+            .read(gitServiceFactoryProvider)(path)
+            .diff(base: row.startSha);
+        if (d.trim().isNotEmpty) {
+          b
+            ..writeln()
+            ..writeln('Diff da tentativa (contra o início da etapa):')
+            ..writeln('```diff')
+            ..writeln(_clip(d.trimRight(), escalationDiffChars))
+            ..writeln('```');
+        }
+      } on GitException catch (e) {
+        debugPrint('${spec!.code} $step: diff da tentativa não lido — $e');
       }
     }
     final text = b.toString().trim();
@@ -1400,8 +1658,9 @@ class SpecRunner {
 
   /// End of a turn: steps named in `ETAPA CONCLUÍDA` are done (after the
   /// gate, when the project has one), the others of the session wait for
-  /// the user. All steps done → Review; this session's steps done and
-  /// auto-advance on → next session.
+  /// the user. A sub-step skips the gate unless it is the last of its
+  /// requirement (SPEC-033 R16). All steps done → Review; this session's
+  /// steps done and auto-advance on → next session.
   Future<void> onResult(
     String sessionId,
     Result r,
@@ -1420,6 +1679,10 @@ class SpecRunner {
     final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
     final config = await _config(s.workspaceId);
     final gated = config != null && config.gateEnabled;
+    final spec = await _ref.read(specsRepoProvider).getById(specId);
+    final views = spec == null
+        ? const <StepView>[]
+        : stepsOf(spec, rows.values);
     for (final text in parseSuggestions(r.result)) {
       await _ref
           .read(specSuggestionsRepoProvider)
@@ -1432,7 +1695,6 @@ class SpecRunner {
     }
     if (parseLearning(r.isSuccess ? r.result : null) case final l?) {
       final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
-      final spec = await _ref.read(specsRepoProvider).getById(specId);
       if (ws != null) {
         await ProjectMemory.record(
           ws.path,
@@ -1445,29 +1707,59 @@ class SpecRunner {
       }
     }
     final toVerify = <String>[];
+    final passed = <String>[];
     for (final step in mine) {
       if (rows[step]?.status == StepStatus.done) continue;
       final ok = marked.contains(step);
-      if (ok && gated) toVerify.add(step);
+      final verify = ok && gated && !_skipsGate(step, views);
+      if (verify) toVerify.add(step);
+      if (ok && !verify) passed.add(step);
       await repo.set(
         specId,
         step,
         !ok
             ? StepStatus.needsInput
-            : gated
+            : verify
             ? StepStatus.verifying
             : StepStatus.done,
         sessionId: sessionId,
       );
     }
+    await _recordRuns(s, passed, StepRunResult.passed);
     if (toVerify.isNotEmpty) {
       // Outside the session's event queue: the gate may take minutes and
       // its retry message goes through that queue.
       unawaited(Future<void>.microtask(() => _verify(s, toVerify, config!)));
       return;
     }
+    await _closeRequirements(specId, mine, sessionId: sessionId);
     await _continue(s);
   });
+
+  /// A sub-step with others still open concludes without the gate: the
+  /// requirement is verified as a whole, with the last one (SPEC-033 R16).
+  static bool _skipsGate(String step, List<StepView> steps) =>
+      isSubStep(step) && !closesRequirement(step, steps);
+
+  /// The requirements of the sub-steps in [steps] whose sub-steps are all
+  /// done are done too.
+  Future<void> _closeRequirements(
+    int specId,
+    List<String> steps, {
+    String? sessionId,
+  }) async {
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = subStepRows(await repo.bySpec(specId));
+    for (final parent in {
+      for (final s in steps)
+        if (isSubStep(s)) parentOf(s),
+    }) {
+      final own = rows.where((r) => parentOf(r.step) == parent);
+      if (own.every((r) => r.status == StepStatus.done)) {
+        await repo.set(specId, parent, StepStatus.done, sessionId: sessionId);
+      }
+    }
+  }
 
   Future<ProjectConfig?> _config(int workspaceId) async {
     final ws = await _ref.read(workspacesRepoProvider).getById(workspaceId);
@@ -1519,24 +1811,33 @@ class SpecRunner {
 
   /// Sends the next step to [s] itself when its context is below the
   /// limit, it is alive, it is Claude and its gate passed at the first try
-  /// (SPEC-017 R4); the decision goes to its timeline. False = a new
-  /// session (as before).
+  /// (SPEC-017 R4), unless a sub-step is involved: each one has its own
+  /// session (SPEC-033 R16). The decision goes to its timeline. False = a
+  /// new session (as before).
   Future<bool> _continueHere(Session s, Spec spec, List<StepView> steps) async {
     final prefs = _ref.read(runPrefsProvider);
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final stored = await _ref.read(specStepsRepoProvider).bySpec(spec.id);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
+      plans: _plans(steps, stored, orchestrator),
     );
     if (todo.isEmpty) return false;
     final ids = todo.join(', ');
     final limit = prefs.continueContextTokens;
     final context = _manager.contextTokens(s.id);
-    final rows = {
-      for (final x in await _ref.read(specStepsRepoProvider).bySpec(spec.id))
-        x.step: x,
-    };
+    final rows = {for (final x in stored) x.step: x};
+    // SPEC-035 R8 / R13: another model or effort is another session (an
+    // escalated session goes back to the plan too).
+    final plan = stepRunPlan(todo.first, stored, orchestrator)?.rule;
+    final current = StepRule(s.model, s.effort ?? '');
     String k(int tokens) => '${(tokens / 1000).round()} mil';
-    final why = limit <= 0
+    final why = [...todo, ...parseSessionSteps(s.steps)].any(isSubStep)
+        ? 'cada subetapa roda numa sessão própria'
+        : plan != null && plan != current
+        ? 'o plano muda de ${current.label} para ${plan.label}'
+        : limit <= 0
         ? 'continuar na mesma sessão está desligado'
         : s.provider != 'claude'
         ? 'só sessões do Claude continuam'
@@ -1597,12 +1898,18 @@ class SpecRunner {
 
   /// Runs the gate of [steps] (marked by the agent) in the spec's worktree:
   /// passed → done; failed with attempts left → the failure goes back to
-  /// the same session; else the steps wait for the user.
+  /// the same session; else the steps wait for the user. The last sub-step
+  /// of a requirement brings its commit; the commands and the criteria are
+  /// the requirement's, which is done when the gate passes (SPEC-033 R16).
+  /// In Automático, with the resends used up, the steps go up a rung of the
+  /// ladder before waiting ([_afterFailure], SPEC-035 R9); [escalate] false
+  /// ("Verificar de novo") only waits.
   Future<void> _verify(
     Session s,
     List<String> steps,
-    ProjectConfig config,
-  ) async {
+    ProjectConfig config, {
+    bool escalate = true,
+  }) async {
     final specId = s.specId!;
     if (!_gates.add(specId)) return;
     try {
@@ -1612,6 +1919,7 @@ class SpecRunner {
       final rows = {for (final x in await repo.bySpec(specId)) x.step: x};
       final first = rows[steps.first];
       final attempts = first?.gateAttempts ?? 0;
+      final requirements = {for (final st in steps) parentOf(st)}.toList();
       await _manager.note(s.id, 'Verificando ${steps.join(', ')}…');
       final ws = await _ref
           .read(workspacesRepoProvider)
@@ -1632,7 +1940,7 @@ class SpecRunner {
             baseline: await testBaseline(specId),
             extraCommands: text == null
                 ? const []
-                : stepVerifyCommands(text, steps),
+                : stepVerifyCommands(text, requirements),
             environment: ws == null
                 ? null
                 : worktreeEnvironment(
@@ -1646,7 +1954,7 @@ class SpecRunner {
         for (final c in report.checks) {
           if (c.command == null || c.name == 'verificar') continue;
           final secs = c.duration.inSeconds;
-          if (secs < 5) continue;
+          if (secs < slowCommandSeconds) continue;
           await ProjectMemory.record(
             ws.path,
             MemoryEntry(
@@ -1658,13 +1966,17 @@ class SpecRunner {
           );
         }
       }
-      if (report.ok && text != null) await _checkCriteria(spec, text, steps);
+      if (report.ok && text != null) {
+        await _checkCriteria(spec, text, requirements);
+      }
       await repo.setGate(specId, steps, report: report.encode());
       await _manager.note(s.id, gateNote(report), error: !report.ok);
       if (report.ok) {
         for (final step in steps) {
           await repo.set(specId, step, StepStatus.done, sessionId: s.id);
         }
+        await _recordRuns(s, steps, StepRunResult.passed);
+        await _closeRequirements(specId, steps, sessionId: s.id);
         await _continue(s);
         return;
       }
@@ -1676,12 +1988,18 @@ class SpecRunner {
           attempts: attempts + 1,
         );
         await _ref.read(specsRepoProvider).countGateResend(specId);
+        await _manager.note(
+          s.id,
+          'Reenvio ${attempts + 1} de ${config.gate.attempts}: a falha de '
+          '${steps.join(', ')} volta para esta sessão.',
+        );
         await _manager.send(s.id, gateRetryMessage(report, steps));
         return;
       }
       for (final step in steps) {
         await repo.set(specId, step, StepStatus.needsInput, sessionId: s.id);
       }
+      await _afterFailure(s, steps, escalate: escalate);
     } catch (e) {
       debugPrint('spec $specId: verificação não concluída — $e');
       for (final step in steps) {
@@ -1691,6 +2009,192 @@ class SpecRunner {
       }
     } finally {
       _gates.remove(specId);
+    }
+  }
+
+  // --- escalation (SPEC-035 R9–R13, R16) -------------------------------------
+
+  /// Model and effort [s] runs with (the effort of [plan] when it has none).
+  static StepRule _ruleOf(Session s, StepRule plan) =>
+      StepRule(s.model, s.effort ?? plan.effort);
+
+  /// [steps] failed the gate with no resend left and wait for the person.
+  /// In Automático, with a rung left, they go up the ladder (R9), or wait
+  /// for "Escalar para Opus" (R12); at the top, or with no escalation left,
+  /// they keep waiting with the report of the last attempt (R16). With 0
+  /// escalations nothing changes.
+  Future<void> _afterFailure(
+    Session s,
+    List<String> steps, {
+    required bool escalate,
+  }) async {
+    final specId = s.specId!;
+    final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final plan = stepRunPlan(steps.first, rows, orchestrator);
+    if (plan == null || !escalate || orchestrator.maxEscalations == 0) {
+      await _recordRuns(s, steps, StepRunResult.failed);
+      return;
+    }
+    final session = await _ref.read(sessionsRepoProvider).getById(s.id) ?? s;
+    final current = _ruleOf(session, plan.rule);
+    final escalations =
+        rows.where((r) => r.step == steps.first).firstOrNull?.escalations ?? 0;
+    final rung = nextRung(current, escalations, orchestrator);
+    final ids = steps.join(', ');
+    if (rung == null) {
+      await _recordRuns(s, steps, StepRunResult.failed);
+      await _manager.note(
+        s.id,
+        '$ids aguarda você: ${escalationStopReason(current, escalations)}.',
+      );
+      return;
+    }
+    if (rung.ask) {
+      await _manager.note(
+        s.id,
+        '$ids aguarda você antes de escalar de ${current.label} para '
+        '${rung.rule.label} ("Escalar para Opus").',
+      );
+      return;
+    }
+    // The next session needs the gate free.
+    _gates.remove(specId);
+    await _escalate(session, steps, rung, from: current);
+  }
+
+  /// The rung a step waiting after a failed gate in Automático can go to
+  /// ("Escalar para Opus" of the modal, R12); null = none.
+  Future<EscalationRung?> pendingEscalation(int specId, String step) async {
+    try {
+      final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+      final row = rows.where((r) => r.step == step).firstOrNull;
+      if (row == null ||
+          row.status != StepStatus.needsInput ||
+          row.sessionId == null) {
+        return null;
+      }
+      final gate = GateReport.decode(row.gateReport);
+      if (gate == null || gate.ok) return null;
+      final orchestrator = _ref.read(orchestratorPrefsProvider);
+      final plan = stepRunPlan(step, rows, orchestrator);
+      if (plan == null) return null;
+      final session = await _ref
+          .read(sessionsRepoProvider)
+          .getById(row.sessionId!);
+      if (session == null) return null;
+      return nextRung(
+        _ruleOf(session, plan.rule),
+        row.escalations,
+        orchestrator,
+      );
+    } catch (e) {
+      debugPrint('spec $specId: escalada de $step não lida — $e');
+      return null;
+    }
+  }
+
+  /// "Escalar para Opus" (R12): [step], waiting after a failed gate, goes up
+  /// one rung; returns the new session's id.
+  Future<String> escalate(int specId, String step) async {
+    final rung = await pendingEscalation(specId, step);
+    final row = await _ref.read(specStepsRepoProvider).byStep(specId, step);
+    final session = row?.sessionId == null
+        ? null
+        : await _ref.read(sessionsRepoProvider).getById(row!.sessionId!);
+    if (rung == null || session == null) {
+      throw SpecRunException('$step não tem para onde escalar.');
+    }
+    if (_ref.read(gateRunningProvider).contains(specId)) {
+      throw const SpecRunException('A verificação ainda está rodando.');
+    }
+    final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+    final plan = stepRunPlan(step, rows, _ref.read(orchestratorPrefsProvider));
+    return _escalate(session, [step], rung, from: _ruleOf(session, plan!.rule));
+  }
+
+  /// R10: a new session with the model of [rung], back at the start of the
+  /// first of [steps], with the report and the diff of the attempt of
+  /// [failed] in the prompt. The plan does not change: the next step goes
+  /// back to it (R13).
+  Future<String> _escalate(
+    Session failed,
+    List<String> steps,
+    EscalationRung rung, {
+    required StepRule from,
+  }) async {
+    final specId = failed.specId!;
+    final first = steps.first;
+    final repo = _ref.read(specStepsRepoProvider);
+    final previous = await _previousAttempt(specId, first, diff: true);
+    await _recordRuns(failed, steps, StepRunResult.escalated);
+    for (final step in steps) {
+      await repo.incrementEscalations(specId, step);
+    }
+    final max = _ref.read(orchestratorPrefsProvider).maxEscalations;
+    final row = await repo.byStep(specId, first);
+    final plan = row?.planModel == null
+        ? from
+        : StepRule(row!.planModel!, row.planEffort ?? from.effort);
+    final trail = escalationTrailLabel(
+      escalationTrail(plan, row?.escalations ?? rung.number),
+    );
+    final note =
+        'Escalada ${rung.number} de $max: '
+        '$first sobe de ${from.label} para ${rung.rule.label} ($trail), numa '
+        'sessão nova no início da etapa.';
+    await _manager.note(failed.id, note);
+    await rewind(specId, first);
+    final id = await runNext(
+      specId,
+      mode: ClaudePermissionMode.fromCli(failed.permissionMode),
+      model: rung.rule.model,
+      effort: rung.rule.effort,
+      keepModel: true,
+      ignoreBlockers: true,
+      previousAttempt: previous,
+      previousAttemptHeading:
+          'Tentativa anterior desta etapa, com ${from.label}: a verificação '
+          'reprovou depois dos reenvios, o código voltou ao início da etapa e '
+          'ela passou para ${rung.rule.label}. Use o relatório e o diff como '
+          'informação, não como ponto de partida:',
+    );
+    await _manager.note(id, note);
+    return id;
+  }
+
+  /// One `step_runs` row per step of [steps] for the end of an attempt in
+  /// [s] (SPEC-035 R17): kind of the plan (null in Manual), model, effort
+  /// and the session's cost split evenly among the session's steps.
+  Future<void> _recordRuns(
+    Session s,
+    List<String> steps,
+    StepRunResult result,
+  ) async {
+    if (steps.isEmpty) return;
+    try {
+      final specId = s.specId!;
+      final session = await _ref.read(sessionsRepoProvider).getById(s.id) ?? s;
+      final rows = await _ref.read(specStepsRepoProvider).bySpec(specId);
+      final orchestrator = _ref.read(orchestratorPrefsProvider);
+      final count = parseSessionSteps(session.steps).length;
+      final share = session.costUsd / (count < 1 ? 1 : count);
+      for (final step in steps) {
+        await _ref
+            .read(stepRunsRepoProvider)
+            .add(
+              specId: specId,
+              step: step,
+              kind: stepRunPlan(step, rows, orchestrator)?.kind.name,
+              model: session.model,
+              effort: session.effort,
+              sessionId: session.id,
+              result: result,
+              costUsd: share,
+            );
+      }
+    } catch (e) {
+      debugPrint('sessão ${s.id}: tentativa não gravada — $e');
     }
   }
 
@@ -1762,7 +2266,7 @@ class SpecRunner {
     for (final step in steps) {
       await repo.set(specId, step, StepStatus.verifying);
     }
-    await _verify(s, steps, config);
+    await _verify(s, steps, config, escalate: false);
   }
 
   /// "Corrigir e verificar": the steps the last gate refused go back to
@@ -1857,10 +2361,13 @@ class SpecRunner {
     final text = ws == null
         ? null
         : await _ref.read(specServiceProvider).read(ws, spec);
-    if (text != null) await _checkCriteria(spec, text, steps);
+    if (text != null) {
+      await _checkCriteria(spec, text, [for (final st in steps) parentOf(st)]);
+    }
     for (final step in steps) {
       await repo.set(specId, step, StepStatus.done, sessionId: s.id);
     }
+    await _closeRequirements(specId, steps, sessionId: s.id);
     await _continue(s);
   }
 
@@ -1895,11 +2402,16 @@ class SpecRunner {
         return;
       }
       await _manager.release(done.id);
+      // In Automático the next step runs with its own plan (SPEC-035 R8),
+      // not with the model of this session (maybe escalated, R13).
+      final auto = runsInAuto(
+        await _ref.read(specStepsRepoProvider).bySpec(done.specId!),
+      );
       await runNext(
         done.specId!,
         mode: ClaudePermissionMode.fromCli(done.permissionMode),
-        model: done.model,
-        effort: done.effort,
+        model: auto ? null : done.model,
+        effort: auto ? null : done.effort,
         // Already started (maybe with a dependency still in Review).
         ignoreBlockers: true,
       );
@@ -1918,3 +2430,11 @@ class SpecRunner {
 }
 
 final specRunnerProvider = Provider(SpecRunner.new);
+
+/// The rung a step waiting after a failed gate can go to ("Escalar para
+/// Opus" of the modal, SPEC-035 R12), by `(spec id, step id)`.
+final pendingEscalationProvider = FutureProvider.autoDispose
+    .family<EscalationRung?, (int, String)>(
+      (ref, target) =>
+          ref.read(specRunnerProvider).pendingEscalation(target.$1, target.$2),
+    );

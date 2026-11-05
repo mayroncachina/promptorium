@@ -51,7 +51,7 @@ commit_preprocessors = [
 
 # A ordem dos prefixos numéricos define a ordem das seções.
 commit_parsers = [
-  # O commit de versão e changelog do "Preparar release" não entra.
+  # O commit de versão e changelog do "Criar Release" não entra.
   { message = "^chore\\(release\\)", skip = true },
   { message = "^feat", group = "<!-- 0 -->Funcionalidades" },
   { message = "^fix", group = "<!-- 1 -->Correções" },

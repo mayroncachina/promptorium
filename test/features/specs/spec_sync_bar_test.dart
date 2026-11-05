@@ -83,12 +83,15 @@ Future<void> _unmount(
   m.tmp.deleteSync(recursive: true);
 }
 
+/// Short real laps: each step of the verifier's git chain only moves while
+/// [WidgetTester.runAsync] lets the real event loop run. After the first
+/// laps the clock moves no faster than real time (no timer runs out early).
 Future<void> _until(WidgetTester tester, bool Function() done) async {
-  for (var i = 0; i < 500; i++) {
+  for (var i = 0; i < 2500; i++) {
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      () => Future<void>.delayed(const Duration(milliseconds: 4)),
     );
-    await tester.pump(const Duration(milliseconds: 20));
+    await tester.pump(Duration(milliseconds: i < 6 ? 20 : 4));
     if (done()) return;
   }
   fail('UI did not update');
@@ -147,11 +150,11 @@ void main() {
         ),
       );
       Future<void> until(bool Function() done) async {
-        for (var i = 0; i < 1500; i++) {
+        for (var i = 0; i < 7500; i++) {
           await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+            () => Future<void>.delayed(const Duration(milliseconds: 4)),
           );
-          await tester.pump(const Duration(milliseconds: 20));
+          await tester.pump(Duration(milliseconds: i < 6 ? 20 : 4));
           if (done()) return;
         }
         fail('UI did not update');
@@ -228,14 +231,14 @@ void main() {
       });
       await tester.tap(find.byKey(const ValueKey('specs-sync')));
       Spec? found;
-      for (var i = 0; i < 500 && found == null; i++) {
+      for (var i = 0; i < 2500 && found == null; i++) {
         await tester.runAsync(() async {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
+          await Future<void>.delayed(const Duration(milliseconds: 4));
           found = await m.c
               .read(specsRepoProvider)
               .getByCode(m.ws.id, 'SPEC-002');
         });
-        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump(Duration(milliseconds: i < 6 ? 20 : 4));
       }
       expect(found!.stage, SpecStage.done);
       await _until(

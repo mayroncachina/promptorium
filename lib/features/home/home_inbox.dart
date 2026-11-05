@@ -47,6 +47,8 @@ class InboxItem {
     this.approval,
     this.specId,
     this.specCode,
+    this.spec,
+    this.step,
   });
 
   final InboxKind kind;
@@ -63,6 +65,10 @@ class InboxItem {
   final PendingApproval? approval;
   final int? specId;
   final String? specCode;
+
+  /// The stopped step of a [InboxKind.needsAnswer] item.
+  final Spec? spec;
+  final StepView? step;
 }
 
 @immutable
@@ -178,6 +184,8 @@ List<InboxGroup> buildInbox({
           sessionId: st.sessionId,
           specId: spec.id,
           specCode: spec.code,
+          spec: spec,
+          step: st,
         ),
       );
     }

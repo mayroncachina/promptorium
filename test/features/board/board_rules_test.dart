@@ -27,8 +27,14 @@ Spec spec(
   rejectedHunks: 0,
 );
 
-SpecStep row(int spec, String step, StepStatus status) =>
-    SpecStep(specId: spec, step: step, status: status, gateAttempts: 0);
+SpecStep row(int spec, String step, StepStatus status) => SpecStep(
+  specId: spec,
+  step: step,
+  status: status,
+  gateAttempts: 0,
+  userPicked: false,
+  escalations: 0,
+);
 
 void main() {
   test('steps follow the file; state comes from the rows', () {

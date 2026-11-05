@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Histórico do Orquestrador</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+button{font-family:inherit;transition:background-color .12s ease-out,filter .12s ease-out}
+button:hover{filter:brightness(1.12)}
+button:active{filter:brightness(.88)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b,strong{font-weight:600}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.board{background-color:#0E1014;background-image:radial-gradient(#232833 1.2px,transparent 1.3px);background-size:24px 24px}
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.62);z-index:5}
+.modal{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:min(780px,calc(100% - 24px));max-height:calc(100% - 24px);background:#14171D;border:1px solid #2E3542;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.sel{height:32px;background:#0E1014;color:#E7E9EE;border:1px solid #2E3542;border-radius:6px;padding:0 8px;font-family:inherit;font-size:13px}
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid #2E3542;background:transparent;color:#E7E9EE;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#14171D;font-weight:600}
+.seg{height:30px;padding:0 12px;border:none;border-radius:6px;background:transparent;color:#A0A8B6;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg.on{background:#1F2430;color:#E7E9EE}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+.sk{display:block;border-radius:4px;background:#2E3542;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+@keyframes ev-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ev{animation:ev-in .16s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.sk,.ev{animation:none}button{transition:none}}
+@media (max-width: 640px){nav button,main button{min-height:44px;min-width:44px}.chip,.hide-s{display:none !important}.row2{flex-direction:column;align-items:stretch !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 700px; height: 700px; position: relative; overflow: hidden; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+<nav aria-label="Seções" style="width: 52px; flex: none; background: #14171D; border-right: 1px solid #252B35; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 12px"><button type="button" aria-label="Prompt" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg></button><button type="button" aria-label="Quadro" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg></button><button type="button" aria-label="Specs" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></button><button type="button" aria-label="Review" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button></nav>
+<main aria-label="Histórico do Orquestrador" style="flex: 1; min-width: 0; padding: 18px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+<div><h1 style="margin: 0; font-size: 16px; font-weight: 600">Histórico do Orquestrador</h1><div style="font-size: 12px; color: #A0A8B6">Configurações → Orquestrador. US$ é estimativa do CLI; no plano Max não é cobrança.</div></div>
+<div role="group" aria-label="Período" style="display: inline-flex; gap: 2px; padding: 3px; background: #14171D; border: 1px solid #252B35; border-radius: 8px">
+<sc-for list="{{periods}}" as="p" hint-placeholder-count="3"><button type="button" class="{{p.cls}}" aria-pressed="{{p.on}}" onClick="{{p.pick}}">{{p.label}}</button></sc-for>
+</div>
+</div>
+<div style="background: #14171D; border: 1px solid #252B35; border-radius: 10px; overflow-x: auto">
+<div style="min-width: 620px">
+<div style="display: grid; grid-template-columns: 130px 100px minmax(0, 1fr) 80px 80px; gap: 12px; padding: 8px 14px; font-size: 12px; color: #A0A8B6; border-bottom: 1px solid #252B35"><span>Tipo de etapa</span><span>Modelo</span><span>Passou de primeira</span><span style="text-align: right">Escalou</span><span style="text-align: right">Estimativa</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 130px 100px minmax(0, 1fr) 80px 80px; gap: 12px; padding: 9px 14px; align-items: center; border-bottom: 1px solid #1F2430">
+<span style="font-weight: 500">{{r.name}}</span><span style="color: #A0A8B6">{{r.model}}</span>
+<div style="display: flex; align-items: center; gap: 8px"><div aria-hidden="true" style="flex: 1; height: 6px; background: #252B35; border-radius: 3px; overflow: hidden"><div style="{{r.bar}}"></div></div><span class="mono" style="width: 52px; text-align: right">{{r.pass}}</span></div>
+<span class="mono" style="text-align: right">{{r.esc}}</span><span class="mono" style="text-align: right">{{r.cost}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{showTip}}" hint-placeholder-val="{{ true }}">
+<div class="row2" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #2A2418; border: 1px solid #5A4520; border-radius: 10px">
+<div style="flex: 1; min-width: 0"><div style="font-weight: 600">Sugestão para a regra Implementação</div><div style="color: #E7E9EE; font-size: 12px">{{tip}}</div></div>
+<button type="button" class="btn" onClick="{{dismiss}}">Ignorar</button><a href="Regras.dc.html" class="btn pri" style="display: inline-flex; align-items: center; text-decoration: none">Ver regra</a>
+</div>
+</sc-if>
+<div style="font-size: 12px; color: #A0A8B6">Dados de exemplo.</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+
+renderVals() {
+
+const p = this.state?.p ?? 1;
+const k = [0.3, 1, 2.4][p];
+const n = (x) => Math.max(1, Math.round(x * k));
+const data = [
+  ['Mecânica','Haiku',20,19,1,0.4],['Implementação','Sonnet',31,23,6,6.2],['Alto risco','Opus',9,8,1,5.1],['Documentação','Haiku',14,14,0,0.2],['Revisão','Codex',12,12,0,1.3],
+];
+const rows = data.map(([name, model, total, pass, esc, cost]) => {
+  const T = n(total), P = Math.min(T, n(pass));
+  return { name, model, pass: P + ' de ' + T, esc: String(Math.min(T - P, Math.round(esc * k))), cost: 'US$ ' + (cost * k).toFixed(2).replace('.', ','), bar: 'height: 100%; background: #A0A8B6; width: ' + Math.round(P / T * 100) + '%' };
+});
+const periods = ['7 dias','30 dias','90 dias'].map((label, i) => ({ label, on: i === p, cls: i === p ? 'seg on' : 'seg', pick: () => this.setState({ p: i }) }));
+return {
+  rows, periods, showTip: !(this.state?.hide),
+  tip: 'As etapas escaladas tocavam em tela com muitos testes. Crie um tipo próprio ou suba o esforço para high.',
+  dismiss: () => this.setState({ hide: true }),
+};
+
+}
+}
+</script>
+</body>
+</html>

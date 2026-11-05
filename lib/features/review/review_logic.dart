@@ -52,7 +52,8 @@ bool isAwaitingReview({
 }
 
 /// Commits of a spec's branch by step: a subject `SPEC-003 R2, R3: …` goes
-/// to R2 and R3 (`REV1` too); other commits are left out.
+/// to R2 and R3 (`REV1` and the sub-step `R3.1` too); other commits are left
+/// out.
 Map<String, List<GitLogEntry>> commitsByStep(
   String specCode,
   List<GitLogEntry> commits,
@@ -61,7 +62,7 @@ Map<String, List<GitLogEntry>> commitsByStep(
   for (final c in commits) {
     if (!c.subject.toUpperCase().startsWith(specCode.toUpperCase())) continue;
     final head = c.subject.split(':').first;
-    for (final m in RegExp(r'\b(?:REV|R)\d+\b').allMatches(head)) {
+    for (final m in RegExp(r'\b(?:REV\d+|R\d+(?:\.\d+)?)\b').allMatches(head)) {
       out.putIfAbsent(m.group(0)!, () => []).add(c);
     }
   }

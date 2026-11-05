@@ -1,14 +1,24 @@
 name: Release
 
-# Criar uma release no GitHub (Releases → Draft a new release, com tag nova
-# vX.Y.Z) compila, testa, empacota (.deb + .tar.gz no Linux, .zip no Windows)
-# e anexa os arquivos a ela.
+# Compila, testa, empacota (.deb + .tar.gz no Linux, .zip no Windows) e
+# anexa os arquivos à release da tag vX.Y.Z. É chamado pelo Criar Release
+# (create-release.yml) e também roda ao publicar uma release à mão
+# (Releases → Draft a new release).
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag da release (vX.Y.Z)
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.event.release.tag_name }}
 
 jobs:
   package:
@@ -18,12 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ env.TAG }}
           fetch-depth: 0
 
       - name: Versão a partir da tag
         id: version
         run: |
-          tag="${GITHUB_REF_NAME}"
+          tag="${TAG}"
           version="${tag#v}"
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.+~-][0-9A-Za-z.+~-]*)?$ ]]; then
             echo "Tag '$tag' inválida: use vX.Y.Z (ex.: v0.1.0)." >&2
@@ -32,7 +43,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       # A tag precisa estar num commit com a mesma versão no pubspec.yaml
-      # (o PR do "Preparar release"), senão o repositório fica para trás.
+      # (o commit do "Criar Release"), senão o repositório fica para trás.
       - name: Versão do pubspec.yaml confere com a tag
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -40,7 +51,7 @@ jobs:
           pubspec="$(sed -nE 's/^version:[[:space:]]*([^[:space:]#+]+).*/\1/p' pubspec.yaml)"
           if [ "$pubspec" != "$VERSION" ]; then
             echo "O pubspec.yaml está na versão '$pubspec', mas a tag é v$VERSION." >&2
-            echo "Rode Actions → Preparar release, mescle o PR e crie a tag no commit do merge." >&2
+            echo "Rode Actions → Criar Release, que cria a tag no commit da versão." >&2
             exit 1
           fi
 
@@ -58,14 +69,14 @@ jobs:
           git cliff --latest --strip header -o notes.md
           printf '\n**Changelog completo**: %s/%s/compare/%s...%s\n' \
             "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" \
-            "$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || echo "$GITHUB_REF_NAME")" \
-            "$GITHUB_REF_NAME" >> notes.md
-          gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
+            "$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "$TAG")" \
+            "$TAG" >> notes.md
+          gh release edit "$TAG" --notes-file notes.md
 
       - name: Anexar à release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+        run: gh release upload "$TAG" dist/* --clobber
 
   windows:
     runs-on: windows-latest
@@ -74,11 +85,13 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
 
       - name: Versão a partir da tag
         id: version
         run: |
-          tag="${GITHUB_REF_NAME}"
+          tag="${TAG}"
           version="${tag#v}"
           if ! [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)([.+~-][0-9A-Za-z.+~-]*)?$ ]]; then
             echo "Tag '$tag' inválida: use vX.Y.Z (ex.: v0.1.0)." >&2
@@ -96,4 +109,4 @@ jobs:
       - name: Anexar à release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+        run: gh release upload "$TAG" dist/*.zip --clobber

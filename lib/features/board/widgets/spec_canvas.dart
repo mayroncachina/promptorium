@@ -24,7 +24,7 @@ import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
 import 'gate_fix_badge.dart';
-import 'step_live_dialog.dart';
+import 'step_decision_dialog.dart';
 import 'wave_graph.dart';
 import 'duel_dialog.dart' show openDuelsProvider;
 
@@ -341,7 +341,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                           ? 1
                                           : .45,
                                       child: RepaintBoundary(
-                                        child: _AttentionHalo(
+                                        child: AttentionHalo(
                                           enabled: widget.attention(d),
                                           pulse: pulse,
                                           child: _SpecNode(
@@ -825,42 +825,30 @@ class _SpecNode extends StatelessWidget {
                                     reason: reason,
                                     clickable: true,
                                   ),
-                                  child: MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: GestureDetector(
-                                      key: ValueKey(
-                                        'canvas-step-${data.spec.code}-${step.id}',
+                                  child: _StepDotButton(
+                                    spec: data.spec,
+                                    step: step,
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        1,
+                                        4,
+                                        5,
+                                        4,
                                       ),
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () => showStepLiveDialog(
-                                        context,
-                                        spec: data.spec,
-                                        step: step.id,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          1,
-                                          4,
-                                          5,
-                                          4,
+                                      child: CanvasStepDot(
+                                        key: ValueKey(
+                                          'canvas-dot-${data.spec.code}-${step.id}',
                                         ),
-                                        child: CanvasStepDot(
-                                          key: ValueKey(
-                                            'canvas-dot-${data.spec.code}-${step.id}',
-                                          ),
-                                          status: step.status,
-                                          pulse:
-                                              step.status ==
-                                                  StepStatus.needsInput
-                                              ? pulse
-                                              : null,
-                                          semanticLabel:
-                                              step.status ==
-                                                  StepStatus.needsInput
-                                              ? 'Etapa ${step.id}: '
-                                                    'aguardando você'
-                                              : null,
-                                        ),
+                                        status: step.status,
+                                        pulse:
+                                            step.status == StepStatus.needsInput
+                                            ? pulse
+                                            : null,
+                                        semanticLabel:
+                                            step.status == StepStatus.needsInput
+                                            ? 'Etapa ${step.id}: '
+                                                  'aguardando você'
+                                            : null,
                                       ),
                                     ),
                                   ),
@@ -1095,7 +1083,7 @@ class _MoreNode extends StatelessWidget {
     button: true,
     expanded: expanded,
     child: CustomPaint(
-      foregroundPainter: _DashedBorder(
+      foregroundPainter: DashedBorderPainter(
         radius: kind == 'agent' ? 8 : 20,
         color: AppColors.textMuted,
       ),
@@ -1124,6 +1112,65 @@ class _MoreNode extends StatelessWidget {
 // ---------------------------------------------------------------- bolinhas
 
 const _dotSize = 10.0, _bubbleSize = 14.0;
+
+/// A step of the card opens on a click; the balloon also takes the focus, so
+/// it opens from the keyboard and the modal can give the focus back to it
+/// (SPEC-033 R15). Only the balloon: the other dots are not tab stops.
+class _StepDotButton extends StatelessWidget {
+  const _StepDotButton({
+    required this.spec,
+    required this.step,
+    required this.child,
+  });
+  final Spec spec;
+  final StepView step;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => StepFocusAnchor(
+    builder: (context, focus) {
+      void open() => openStep(
+        context,
+        spec,
+        step,
+        stepOrigin(context),
+        returnFocus: focus,
+      );
+      return FocusableActionDetector(
+        focusNode: focus,
+        enabled: step.status == StepStatus.needsInput,
+        mouseCursor: SystemMouseCursors.click,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              open();
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          key: ValueKey('canvas-step-${spec.code}-${step.id}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: open,
+          child: ListenableBuilder(
+            listenable: focus,
+            child: child,
+            builder: (_, child) => DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                border: focus.hasFocus
+                    ? Border.all(color: AppColors.amber)
+                    : null,
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 
 /// Period of the shared attention pulse (SPEC-030 R2): well under one blink
 /// per second, far from the 3 per second of WCAG 2.3.1 (R9).
@@ -1333,15 +1380,18 @@ class _DotPainter extends CustomPainter {
 /// The card's ring while it needs the person: on the canvas's shared clock
 /// it opens from 0 to 10 px while fading (R2); with no clock (animations
 /// off, R6) it stays as a still 3 px glow.
-class _AttentionHalo extends StatelessWidget {
-  const _AttentionHalo({
+class AttentionHalo extends StatelessWidget {
+  const AttentionHalo({
+    super.key,
     required this.enabled,
     required this.pulse,
     required this.child,
+    this.radius = 12,
   });
   final bool enabled;
   final Animation<double>? pulse;
   final Widget child;
+  final double radius;
   static const _curve = Cubic(.2, .6, .4, 1);
 
   /// Spread and alpha of the ring at [t] of the cycle: it opens over the
@@ -1356,7 +1406,7 @@ class _AttentionHalo extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!enabled) return child;
     BoxDecoration glow(double spread, double alpha) => BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(radius),
       boxShadow: [
         BoxShadow(
           color: AppColors.amber.withValues(alpha: alpha),
@@ -1530,8 +1580,8 @@ Path _dash(Path source, {double on = 6, double off = 6}) {
   return out;
 }
 
-class _DashedBorder extends CustomPainter {
-  _DashedBorder({required this.radius, required this.color});
+class DashedBorderPainter extends CustomPainter {
+  DashedBorderPainter({required this.radius, required this.color});
   final double radius;
   final Color color;
   @override
@@ -1553,7 +1603,7 @@ class _DashedBorder extends CustomPainter {
   );
 
   @override
-  bool shouldRepaint(covariant _DashedBorder old) =>
+  bool shouldRepaint(covariant DashedBorderPainter old) =>
       old.radius != radius || old.color != color;
 }
 
