@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../../data/db/app_database.dart';
+import '../../../data/repos/spec_steps_repo.dart';
 import '../board_rules.dart';
 import 'orchestrator_rules.dart';
 import 'step_classifier.dart';
@@ -127,3 +128,80 @@ List<StepRule> stepPlanChoices([StepRule? current]) => [
           orchestratorEfforts.contains(current.effort)))
     current,
 ];
+
+/// Kind and rule a step runs with in Automático (SPEC-035 R8).
+typedef StepRunPlan = ({StepKind kind, StepRule rule});
+
+/// The spec runs in Automático: some step has a plan in `spec_steps`
+/// (Executar in Manual removes them, [clearStoredPlan]).
+bool runsInAuto(Iterable<SpecStep> rows) =>
+    rows.any((r) => r.planModel != null);
+
+StepRunPlan? _own(SpecStep? r, OrchestratorPrefs prefs) {
+  final model = r?.planModel;
+  if (model == null) return null;
+  final kind = StepKind.parse(r!.kind);
+  return (
+    kind: kind,
+    rule: StepRule(model, r.planEffort ?? prefs.rule(kind).effort),
+  );
+}
+
+/// The plan of [step] among the [rows] of its spec, or null (Manual: the
+/// step runs with the model of the form). A step without its own row in a
+/// spec that runs in Automático gets one from [prefs]: a sub-step takes the
+/// plan of its requirement (or the kind of a planned sibling), a `REV<n>`
+/// and anything else the rule Implementação (R8).
+StepRunPlan? stepRunPlan(
+  String step,
+  Iterable<SpecStep> rows,
+  OrchestratorPrefs prefs,
+) {
+  final byStep = {for (final r in rows) r.step: r};
+  if (_own(byStep[step], prefs) case final p?) return p;
+  if (!runsInAuto(rows)) return null;
+  if (isSubStep(step)) {
+    final parent = parentOf(step);
+    if (_own(byStep[parent], prefs) case final p?) return p;
+    for (final r in rows) {
+      if (!isSubStep(r.step) || parentOf(r.step) != parent) continue;
+      if (_own(r, prefs) case final p?) {
+        return (kind: p.kind, rule: prefs.rule(p.kind));
+      }
+    }
+  }
+  const kind = StepKind.implementacao;
+  return (kind: kind, rule: prefs.rule(kind));
+}
+
+/// Copies the [plan] to `spec_steps`: each step gets its kind, model,
+/// effort, hash and "você escolheu", and starts from the bottom of the
+/// ladder.
+Future<void> storePlanEntries(
+  SpecStepsRepo repo,
+  int specId,
+  List<StepPlanEntry> plan,
+) async {
+  for (final e in plan) {
+    await repo.setPlan(
+      specId,
+      e.step,
+      kind: e.kind.name,
+      model: e.rule.model,
+      effort: e.rule.effort,
+      hash: e.hash,
+      userPicked: e.userPicked,
+    );
+  }
+  await repo.resetEscalations(specId, [for (final e in plan) e.step]);
+}
+
+/// Removes the plan left by an earlier run in Automático: the steps run
+/// with the model of the form again.
+Future<void> clearStoredPlan(SpecStepsRepo repo, int specId) async {
+  final planned = [
+    for (final r in await repo.bySpec(specId))
+      if (r.kind != null || r.planModel != null) r.step,
+  ];
+  if (planned.isNotEmpty) await repo.clearPlan(specId, planned);
+}

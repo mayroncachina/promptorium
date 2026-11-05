@@ -200,3 +200,33 @@ final orchestratorPrefsProvider =
     NotifierProvider<OrchestratorPrefsController, OrchestratorPrefs>(
       OrchestratorPrefsController.new,
     );
+
+/// Stores [rule], the line "Revisão" of the plan of [specId] (null = the
+/// spec runs in Manual, or the reviewer is off): the automatic reviewer
+/// reads it with [reviewRuleOf].
+Future<void> storeReviewRule(
+  AppSettingsController settings,
+  int specId,
+  StepRule? rule,
+) {
+  final key = AppSettingKeys.orchestratorReviewOf(specId);
+  return rule == null
+      ? settings.remove(key)
+      : settings.set(key, '${rule.model}|${rule.effort}');
+}
+
+/// The rule of the automatic reviewer of a spec run in Automático (R8): the
+/// line "Revisão" chosen in Executar, else the rule Revisão of [prefs].
+StepRule reviewRuleOf(
+  Map<String, String> settings,
+  int specId,
+  OrchestratorPrefs prefs,
+) {
+  final parts = settings[AppSettingKeys.orchestratorReviewOf(specId)]?.split(
+    '|',
+  );
+  if (parts != null && parts.length == 2 && parts[0].isNotEmpty) {
+    return StepRule(parts[0], parts[1]);
+  }
+  return prefs.rule(StepKind.revisao);
+}

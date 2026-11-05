@@ -24,6 +24,9 @@ import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
+import 'orchestrator/orchestrator_rules.dart';
+import 'orchestrator/step_classifier.dart';
+import 'orchestrator/step_plan.dart';
 import 'step_gate.dart';
 import 'test_count.dart';
 
@@ -691,6 +694,13 @@ class SpecRunner {
   /// [mode] / [model] / [effort] null = those of the spec's last session,
   /// else the defaults. [agent] is stored on the spec. [context] goes into
   /// the prompt of the step: what the person decided (SPEC-033 R10).
+  ///
+  /// In Automático (the steps have a plan, SPEC-035 R8) the session runs
+  /// with the model and effort of the plan of its first step, always in the
+  /// Claude Code, and only neighbours with the same plan go with it; the
+  /// [model] / [effort] given are ignored, unless [keepModel] (the
+  /// escalation, "Refazer etapa"). A duel keeps the model the step used last
+  /// (R20).
   Future<String> runNext(
     int specId, {
     ClaudePermissionMode? mode,
@@ -703,6 +713,7 @@ class SpecRunner {
     String? previousAttempt,
     String? context,
     bool duel = false,
+    bool keepModel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -796,15 +807,19 @@ class SpecRunner {
       );
     }
     final prefs = _ref.read(runPrefsProvider);
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
+      plans: _plans(steps, rows, orchestrator),
     );
     if (todo.isEmpty) {
       throw SpecRunException(
         'Todas as etapas de ${spec.code} já estão feitas.',
       );
     }
+    final plan = stepRunPlan(todo.first, rows, orchestrator);
+    if (plan != null) await _freezePlan(specId, todo, rows, orchestrator);
 
     if (agent != null) {
       await specs.setAgent(specId, agent);
@@ -828,6 +843,33 @@ class SpecRunner {
     await _markStart(spec, wt.path, todo);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
+    // The Orquestrador only uses the Claude Code (D5).
+    final String runProvider = plan != null
+        ? 'claude'
+        : last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id));
+    String runModel;
+    String? runEffort;
+    if (plan == null) {
+      runModel =
+          model ??
+          last?.model ??
+          (runProvider != 'claude' ? 'inherit' : prefs.model(RunKind.session));
+      runEffort = effort ?? last?.effort;
+    } else if (keepModel && model != null) {
+      runModel = model;
+      runEffort = effort;
+    } else if (duel) {
+      // R20: the model the step used last, else its plan.
+      final own = rows.where((r) => r.step == todo.first).firstOrNull;
+      final used = sessions
+          .where((x) => x.id == own?.sessionId && x.provider == 'claude')
+          .firstOrNull;
+      runModel = used?.model ?? plan.rule.model;
+      runEffort = used == null ? plan.rule.effort : used.effort;
+    } else {
+      runModel = plan.rule.model;
+      runEffort = plan.rule.effort;
+    }
     NewSessionRequest request({
       required String path,
       required String branch,
@@ -836,8 +878,7 @@ class SpecRunner {
       Map<String, String>? environment,
     }) => NewSessionRequest(
       workspace: ws,
-      provider:
-          last?.provider ?? provider ?? _ref.read(defaultAgentProvider(ws.id)),
+      provider: runProvider,
       title: '${specSessionTitle(spec!, steps, todo)}$suffix',
       prompt: specStepPrompt(
         spec: spec,
@@ -854,27 +895,13 @@ class SpecRunner {
         memory: ProjectMemory.loadSync(ws.path).toPrompt(),
       ),
       agent: spec.agentName ?? config.agent,
-      model:
-          model ??
-          last?.model ??
-          ((last?.provider ??
-                      provider ??
-                      _ref.read(defaultAgentProvider(ws.id))) !=
-                  'claude'
-              ? 'inherit'
-              : prefs.model(RunKind.session)),
-      effort: effort ?? last?.effort,
+      model: runModel,
+      effort: runEffort,
       permissionMode:
           mode ??
           ClaudePermissionMode.fromCli(last?.permissionMode) ??
           ClaudePermissionMode.fromCli(
-            settings.get(
-              permissionModePreferenceKey(
-                last?.provider ??
-                    provider ??
-                    _ref.read(defaultAgentProvider(ws.id)),
-              ),
-            ),
+            settings.get(permissionModePreferenceKey(runProvider)),
           ) ??
           ClaudePermissionMode.defaultMode,
       specId: specId,
@@ -896,6 +923,104 @@ class SpecRunner {
       todo: todo,
       request: request,
     );
+  }
+
+  /// Model and effort of the plan of each of [steps] (empty in Manual).
+  static Map<String, StepRule?> _plans(
+    List<StepView> steps,
+    Iterable<SpecStep> rows,
+    OrchestratorPrefs prefs,
+  ) => runsInAuto(rows)
+      ? {for (final s in steps) s.id: stepRunPlan(s.id, rows, prefs)?.rule}
+      : const {};
+
+  /// A step of [todo] without a plan of its own (a sub-step, a `REV<n>`)
+  /// keeps the one it runs with now: a rule changed later does not touch
+  /// it (R7), and the next steps compare with it.
+  Future<void> _freezePlan(
+    int specId,
+    List<String> todo,
+    List<SpecStep> rows,
+    OrchestratorPrefs prefs,
+  ) async {
+    final repo = _ref.read(specStepsRepoProvider);
+    for (final step in todo) {
+      final own = rows.where((r) => r.step == step).firstOrNull;
+      if (own?.planModel != null) continue;
+      final p = stepRunPlan(step, rows, prefs);
+      if (p == null) continue;
+      await repo.setPlan(
+        specId,
+        step,
+        kind: p.kind.name,
+        model: p.rule.model,
+        effort: p.rule.effort,
+      );
+    }
+  }
+
+  /// "Executar tudo" and the autopilot (SPEC-035 R19): with "Abrir Executar
+  /// em Automático" on, the steps are classified and the plan is stored
+  /// before the run; when the classification fails the spec runs with the
+  /// model of Sessões and its timeline says why. Off = [runNext], as before.
+  Future<String> runAuto(int specId, {bool reviewUnblocks = false}) async {
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final spec = orchestrator.autoByDefault
+        ? await _ref.read(specsRepoProvider).getById(specId)
+        : null;
+    if (spec == null) {
+      return runNext(specId, reviewUnblocks: reviewUnblocks);
+    }
+    final repo = _ref.read(specStepsRepoProvider);
+    final rows = await repo.bySpec(specId);
+    final steps = stepsOf(spec, rows);
+    final classifier = _ref.read(stepClassifierProvider.notifier);
+    StepClassifierResult result;
+    try {
+      result = await classifier.classify(spec, steps, rows: rows);
+    } finally {
+      classifier.cancel(specId);
+    }
+    if (result.error == null) {
+      await storePlanEntries(
+        repo,
+        specId,
+        buildStepPlan(
+          spec: spec,
+          steps: steps,
+          kinds: result.kinds,
+          prefs: orchestrator,
+        ),
+      );
+      await storeReviewRule(
+        _ref.read(appSettingsProvider.notifier),
+        specId,
+        null,
+      );
+      return runNext(
+        specId,
+        reviewUnblocks: reviewUnblocks,
+        provider: 'claude',
+      );
+    }
+    await clearStoredPlan(repo, specId);
+    final prefs = _ref.read(runPrefsProvider);
+    final model = prefs.model(RunKind.session);
+    final effort = prefs.effort(RunKind.session);
+    final id = await runNext(
+      specId,
+      reviewUnblocks: reviewUnblocks,
+      provider: 'claude',
+      model: model,
+      effort: effort.isEmpty ? null : effort,
+    );
+    await _manager.note(
+      id,
+      'Orquestrador: não deu para classificar as etapas (${result.error}); '
+      'a spec roda com o modelo de Sessões ($model).',
+      error: true,
+    );
+    return id;
   }
 
   // --- best-of-N (F15) -------------------------------------------------------
@@ -1400,11 +1525,15 @@ class SpecRunner {
   }
 
   /// "Refazer etapa": [rewind], then a new session for the step with the
-  /// previous attempt (last answer and gate) in the prompt.
+  /// previous attempt (last answer and gate) in the prompt, with the model
+  /// the step used last (an escalated one included, SPEC-035 R20).
   Future<String> redo(int specId, String step) async {
     final previous = await _previousAttempt(specId, step);
-    final last = (await _ref.read(sessionsRepoProvider).bySpec(specId))
-        .lastOrNull;
+    final sessions = await _ref.read(sessionsRepoProvider).bySpec(specId);
+    final row = await _ref.read(specStepsRepoProvider).byStep(specId, step);
+    final last =
+        sessions.where((s) => s.id == row?.sessionId).firstOrNull ??
+        sessions.lastOrNull;
     await rewind(specId, step);
     return runNext(
       specId,
@@ -1413,6 +1542,7 @@ class SpecRunner {
       effort: last?.effort,
       ignoreBlockers: true,
       previousAttempt: previous,
+      keepModel: last?.provider == 'claude',
     );
   }
 
@@ -1644,21 +1774,27 @@ class SpecRunner {
   /// new session (as before).
   Future<bool> _continueHere(Session s, Spec spec, List<StepView> steps) async {
     final prefs = _ref.read(runPrefsProvider);
+    final orchestrator = _ref.read(orchestratorPrefsProvider);
+    final stored = await _ref.read(specStepsRepoProvider).bySpec(spec.id);
     final todo = nextSteps(
       steps,
       singleSessionMax: prefs.singleSessionMaxSteps,
+      plans: _plans(steps, stored, orchestrator),
     );
     if (todo.isEmpty) return false;
     final ids = todo.join(', ');
     final limit = prefs.continueContextTokens;
     final context = _manager.contextTokens(s.id);
-    final rows = {
-      for (final x in await _ref.read(specStepsRepoProvider).bySpec(spec.id))
-        x.step: x,
-    };
+    final rows = {for (final x in stored) x.step: x};
+    // SPEC-035 R8 / R13: another model or effort is another session (an
+    // escalated session goes back to the plan too).
+    final plan = stepRunPlan(todo.first, stored, orchestrator)?.rule;
+    final current = StepRule(s.model, s.effort ?? '');
     String k(int tokens) => '${(tokens / 1000).round()} mil';
     final why = [...todo, ...parseSessionSteps(s.steps)].any(isSubStep)
         ? 'cada subetapa roda numa sessão própria'
+        : plan != null && plan != current
+        ? 'o plano muda de ${current.label} para ${plan.label}'
         : limit <= 0
         ? 'continuar na mesma sessão está desligado'
         : s.provider != 'claude'
@@ -2027,11 +2163,16 @@ class SpecRunner {
         return;
       }
       await _manager.release(done.id);
+      // In Automático the next step runs with its own plan (SPEC-035 R8),
+      // not with the model of this session (maybe escalated, R13).
+      final auto = runsInAuto(
+        await _ref.read(specStepsRepoProvider).bySpec(done.specId!),
+      );
       await runNext(
         done.specId!,
         mode: ClaudePermissionMode.fromCli(done.permissionMode),
-        model: done.model,
-        effort: done.effort,
+        model: auto ? null : done.model,
+        effort: auto ? null : done.effort,
         // Already started (maybe with a dependency still in Review).
         ignoreBlockers: true,
       );

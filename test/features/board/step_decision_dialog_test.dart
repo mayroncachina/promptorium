@@ -210,6 +210,7 @@ class FakeRunner extends SpecRunner {
     String? previousAttempt,
     String? context,
     bool duel = false,
+    bool keepModel = false,
   }) async {
     if (error case final e?) throw e;
     contexts.add(context);

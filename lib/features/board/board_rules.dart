@@ -134,8 +134,15 @@ bool isSpecBlocked(Spec spec, Map<String, Spec> byCode) =>
 /// Steps the next session should do: every step when nothing was done yet
 /// and the spec has at most [singleSessionMax] steps (small spec = one
 /// session), else the first step not done. A sub-step is never grouped
-/// (SPEC-033 R16). Empty = all done.
-List<String> nextSteps(List<StepView> steps, {required int singleSessionMax}) {
+/// (SPEC-033 R16). With the Orquestrador's [plans] (model + effort by step
+/// id, SPEC-035 R8), the group stops at the first step whose plan differs
+/// from the first one's: it never skips a step nor reorders. Empty = all
+/// done.
+List<String> nextSteps(
+  List<StepView> steps, {
+  required int singleSessionMax,
+  Map<String, Object?> plans = const {},
+}) {
   final open = steps.where((s) => !s.isDone).toList();
   if (open.isEmpty) return const [];
   final untouched =
@@ -143,7 +150,8 @@ List<String> nextSteps(List<StepView> steps, {required int singleSessionMax}) {
       steps.every((s) => s.status == StepStatus.pending);
   final split = steps.any((s) => isSubStep(s.id));
   if (untouched && !split && steps.length <= singleSessionMax) {
-    return [for (final s in steps) s.id];
+    final first = plans[steps.first.id];
+    return [for (final s in steps.takeWhile((s) => plans[s.id] == first)) s.id];
   }
   return [open.first.id];
 }

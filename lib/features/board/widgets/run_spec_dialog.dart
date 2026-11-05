@@ -60,25 +60,10 @@ Future<void> storeRunPlan(
   RunSpecOptions o,
 ) async {
   if (o.auto) {
-    for (final e in o.plan) {
-      await repo.setPlan(
-        specId,
-        e.step,
-        kind: e.kind.name,
-        model: e.rule.model,
-        effort: e.rule.effort,
-        hash: e.hash,
-        userPicked: e.userPicked,
-      );
-    }
-    await repo.resetEscalations(specId, [for (final e in o.plan) e.step]);
+    await storePlanEntries(repo, specId, o.plan);
     return;
   }
-  final planned = [
-    for (final r in await repo.bySpec(specId))
-      if (r.kind != null || r.planModel != null) r.step,
-  ];
-  if (planned.isNotEmpty) await repo.clearPlan(specId, planned);
+  await clearStoredPlan(repo, specId);
 }
 
 /// Whether running a spec should warn that it has no Design (SPEC-017 R3):
@@ -148,6 +133,12 @@ Future<void> runSpec(
   try {
     if (o != null) {
       await storeRunPlan(ref.read(specStepsRepoProvider), data.spec.id, o);
+      // The line "Revisão" of the plan, for the automatic reviewer (R4, R8).
+      await storeReviewRule(
+        ref.read(appSettingsProvider.notifier),
+        data.spec.id,
+        o.auto ? o.review : null,
+      );
     }
     final id = await ref
         .read(specRunnerProvider)

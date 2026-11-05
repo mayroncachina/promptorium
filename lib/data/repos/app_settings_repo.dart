@@ -72,6 +72,11 @@ abstract final class AppSettingKeys {
   /// "Classificar as etapas com": model alias (`haiku` / `sonnet`).
   static const orchestratorClassifierModel = 'orchestrator.classifierModel';
 
+  /// Model and effort of the line "Revisão" of the plan of a spec run in
+  /// Automático (`sonnet|medium`, SPEC-035 R4, R8).
+  static String orchestratorReviewOf(int specId) =>
+      'orchestrator.review.$specId';
+
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 
