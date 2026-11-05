@@ -212,6 +212,10 @@ class SpecSteps extends Table {
   /// Hash of the step's text when it was classified (cache of R3).
   TextColumn get planHash => text().nullable()();
 
+  /// Reason of the classification, in one sentence (R3): shown again when
+  /// the kind is reused from this row after a restart.
+  TextColumn get planReason => text().nullable()();
+
   /// The user changed the plan's model of the step ("você escolheu", R4):
   /// a new classification keeps it.
   BoolColumn get userPicked => boolean().withDefault(const Constant(false))();
@@ -920,6 +924,7 @@ class AppDatabase extends _$AppDatabase {
                 v.specSteps.planModel,
                 v.specSteps.planEffort,
                 v.specSteps.planHash,
+                v.specSteps.planReason,
                 v.specSteps.userPicked,
                 v.specSteps.escalations,
               ]) {

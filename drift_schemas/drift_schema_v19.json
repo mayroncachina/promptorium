@@ -538,6 +538,16 @@
             "dsl_features": []
           },
           {
+            "name": "plan_reason",
+            "getter_name": "planReason",
+            "moor_type": "string",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
+          },
+          {
             "name": "user_picked",
             "getter_name": "userPicked",
             "moor_type": "bool",
@@ -2911,7 +2921,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"spec_steps\" (\"spec_id\" INTEGER NOT NULL REFERENCES specs (id) ON DELETE CASCADE, \"step\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'pending', \"session_id\" TEXT NULL, \"done_at\" INTEGER NULL, \"start_sha\" TEXT NULL, \"start_stash\" TEXT NULL, \"gate_report\" TEXT NULL, \"gate_attempts\" INTEGER NOT NULL DEFAULT 0, \"body\" TEXT NULL, \"kind\" TEXT NULL, \"plan_model\" TEXT NULL, \"plan_effort\" TEXT NULL, \"plan_hash\" TEXT NULL, \"user_picked\" INTEGER NOT NULL DEFAULT 0 CHECK (\"user_picked\" IN (0, 1)), \"escalations\" INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (\"spec_id\", \"step\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"spec_steps\" (\"spec_id\" INTEGER NOT NULL REFERENCES specs (id) ON DELETE CASCADE, \"step\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'pending', \"session_id\" TEXT NULL, \"done_at\" INTEGER NULL, \"start_sha\" TEXT NULL, \"start_stash\" TEXT NULL, \"gate_report\" TEXT NULL, \"gate_attempts\" INTEGER NOT NULL DEFAULT 0, \"body\" TEXT NULL, \"kind\" TEXT NULL, \"plan_model\" TEXT NULL, \"plan_effort\" TEXT NULL, \"plan_hash\" TEXT NULL, \"plan_reason\" TEXT NULL, \"user_picked\" INTEGER NOT NULL DEFAULT 0 CHECK (\"user_picked\" IN (0, 1)), \"escalations\" INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (\"spec_id\", \"step\"));"
         }
       ]
     },

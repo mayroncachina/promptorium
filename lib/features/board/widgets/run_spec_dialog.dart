@@ -249,6 +249,13 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
   /// The picks stored by the last plan were read.
   bool _picksLoaded = false;
 
+  /// "Executar" was tapped while classifying: the dialog confirms with the
+  /// plan as soon as the classification ends (or shows the failure, R14).
+  bool _waiting = false;
+
+  /// The dialog is closing with the plan ([_waiting] ended).
+  bool _confirmed = false;
+
   @override
   void dispose() {
     if (_classifying) _classifier.cancel(widget.spec.id);
@@ -275,24 +282,35 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
 
   void _setAuto(bool on) => setState(() {
     _auto = on;
+    if (!on) _waiting = false;
     if (!on && _classifying) {
       _classifying = false;
       _classifier.cancel(widget.spec.id);
     }
   });
 
-  /// Why Automático is off (R15): the Claude Code is not available. Only
-  /// asked when it is already known (the footer checks it) or when
-  /// Automático is chosen, so Manual never probes the CLI.
-  String? _autoBlocked() {
-    final p = providerAvailabilityProvider('claude');
-    if (!_auto && !ref.exists(p)) return null;
-    return switch (ref.watch(p)) {
-      AsyncData(:final value) when !value.available =>
-        'Claude Code ${value.label}. ${value.message}',
-      AsyncError() => 'Não foi possível verificar o Claude Code.',
-      _ => null,
-    };
+  /// Status of the Claude Code for Automático (R15), asked when the dialog
+  /// opens (watching the provider starts the check when it is not known
+  /// yet): [checking] while it runs; [blocked] is why Automático is off.
+  /// Manual never waits for it.
+  ({bool checking, String? blocked}) _claudeStatus() {
+    final a = ref.watch(providerAvailabilityProvider('claude'));
+    final value = a.value;
+    if (value != null) {
+      return (
+        checking: false,
+        blocked: value.available
+            ? null
+            : 'Claude Code ${value.label}. ${value.message}',
+      );
+    }
+    if (a.hasError) {
+      return (
+        checking: false,
+        blocked: 'Não foi possível verificar o Claude Code.',
+      );
+    }
+    return (checking: true, blocked: null);
   }
 
   void _openSettings(SettingsSection section) {
@@ -328,8 +346,8 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     final steps = widget.spec.requirements.length;
     final runPrefs = ref.watch(runPrefsProvider);
     final single = steps <= runPrefs.singleSessionMaxSteps;
-    final blocked = _autoBlocked();
-    final auto = _auto && blocked == null;
+    final (:checking, :blocked) = _claudeStatus();
+    final auto = _auto && !checking && blocked == null;
 
     Widget field<T>(
       String label,
@@ -515,6 +533,27 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
               pick: _picks[StepPlanList.reviewStep],
             )
           : null;
+      RunSpecOptions confirm() => (
+        provider: 'claude',
+        agent: _agent ?? '',
+        // The first session starts with the first step's plan.
+        model: plan.firstOrNull?.rule.model ?? sessionModel,
+        effort: plan.firstOrNull?.rule.effort ?? sessionEffort,
+        mode: _mode,
+        auto: true,
+        plan: plan,
+        review: review?.rule,
+      );
+      // "Executar" tapped while classifying: confirm once the plan is in;
+      // a failure leaves the choice to the person (R14).
+      if (_waiting && status == StepClassifierStatus.failed) _waiting = false;
+      if (_waiting && status == StepClassifierStatus.ready && !_confirmed) {
+        _confirmed = true;
+        final options = confirm();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop(options);
+        });
+      }
       final rowsCount =
           (views?.where((s) => !s.isDone).length ?? steps) +
           (_reviewOn ? 1 : 0);
@@ -597,10 +636,12 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
             onTap: () => _setAuto(false),
           ),
           const SizedBox(width: 8),
-          const AmberButton(
-            key: ValueKey('run-spec-submit'),
+          // Enabled while classifying (mockup): waits for the plan.
+          AmberButton(
+            key: const ValueKey('run-spec-submit'),
             label: 'Executar',
-            onTap: null,
+            busy: _waiting,
+            onTap: () => setState(() => _waiting = true),
           ),
         ],
         StepClassifierStatus.failed => [
@@ -639,17 +680,8 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
           AmberButton(
             key: const ValueKey('run-spec-submit'),
             label: 'Executar',
-            onTap: () => Navigator.of(context).pop((
-              provider: 'claude',
-              agent: _agent ?? '',
-              // The first session starts with the first step's plan.
-              model: plan.firstOrNull?.rule.model ?? sessionModel,
-              effort: plan.firstOrNull?.rule.effort ?? sessionEffort,
-              mode: _mode,
-              auto: true,
-              plan: plan,
-              review: review?.rule,
-            )),
+            busy: _confirmed,
+            onTap: () => Navigator.of(context).pop(confirm()),
           ),
         ],
       };
@@ -700,9 +732,25 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                   children: [
                     _RunModeSwitch(
                       auto: auto,
-                      autoEnabled: blocked == null,
+                      autoEnabled: !checking && blocked == null,
                       onChanged: _setAuto,
                     ),
+                    if (checking) ...[
+                      const SizedBox(width: 10),
+                      const Flexible(
+                        flex: 4,
+                        child: Text(
+                          'Verificando o Claude Code…',
+                          key: ValueKey('run-spec-auto-checking'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     if (auto)
                       SmallButton(

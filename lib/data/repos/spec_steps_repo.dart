@@ -196,7 +196,7 @@ class SpecStepsRepo {
 
   /// Stores the Orquestrador's plan of [step] (SPEC-035): [kind]
   /// (`StepKind.name`), the model and effort copied from the rules, the
-  /// [hash] of the classified text and whether the user picked the model.
+  /// [hash] and [reason] of the classification and whether the user picked the model.
   /// The status and the gate of the step do not change.
   Future<void> setPlan(
     int specId,
@@ -205,6 +205,7 @@ class SpecStepsRepo {
     required String model,
     required String? effort,
     String? hash,
+    String? reason,
     bool userPicked = false,
   }) {
     final plan = SpecStepsCompanion(
@@ -212,6 +213,7 @@ class SpecStepsRepo {
       planModel: Value(model),
       planEffort: Value(effort),
       planHash: Value(hash),
+      planReason: Value(reason),
       userPicked: Value(userPicked),
     );
     return _db
@@ -235,6 +237,7 @@ class SpecStepsRepo {
               planModel: Value(null),
               planEffort: Value(null),
               planHash: Value(null),
+              planReason: Value(null),
               userPicked: Value(false),
               escalations: Value(0),
             ),

@@ -1789,6 +1789,17 @@ class $SpecStepsTable extends SpecSteps
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _planReasonMeta = const VerificationMeta(
+    'planReason',
+  );
+  @override
+  late final GeneratedColumn<String> planReason = GeneratedColumn<String>(
+    'plan_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _userPickedMeta = const VerificationMeta(
     'userPicked',
   );
@@ -1832,6 +1843,7 @@ class $SpecStepsTable extends SpecSteps
     planModel,
     planEffort,
     planHash,
+    planReason,
     userPicked,
     escalations,
   ];
@@ -1932,6 +1944,12 @@ class $SpecStepsTable extends SpecSteps
         planHash.isAcceptableOrUnknown(data['plan_hash']!, _planHashMeta),
       );
     }
+    if (data.containsKey('plan_reason')) {
+      context.handle(
+        _planReasonMeta,
+        planReason.isAcceptableOrUnknown(data['plan_reason']!, _planReasonMeta),
+      );
+    }
     if (data.containsKey('user_picked')) {
       context.handle(
         _userPickedMeta,
@@ -2014,6 +2032,10 @@ class $SpecStepsTable extends SpecSteps
         DriftSqlType.string,
         data['${effectivePrefix}plan_hash'],
       ),
+      planReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}plan_reason'],
+      ),
       userPicked: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}user_picked'],
@@ -2076,6 +2098,10 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
   /// Hash of the step's text when it was classified (cache of R3).
   final String? planHash;
 
+  /// Reason of the classification, in one sentence (R3): shown again when
+  /// the kind is reused from this row after a restart.
+  final String? planReason;
+
   /// The user changed the plan's model of the step ("você escolheu", R4):
   /// a new classification keeps it.
   final bool userPicked;
@@ -2097,6 +2123,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     this.planModel,
     this.planEffort,
     this.planHash,
+    this.planReason,
     required this.userPicked,
     required this.escalations,
   });
@@ -2141,6 +2168,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     if (!nullToAbsent || planHash != null) {
       map['plan_hash'] = Variable<String>(planHash);
     }
+    if (!nullToAbsent || planReason != null) {
+      map['plan_reason'] = Variable<String>(planReason);
+    }
     map['user_picked'] = Variable<bool>(userPicked);
     map['escalations'] = Variable<int>(escalations);
     return map;
@@ -2178,6 +2208,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       planHash: planHash == null && nullToAbsent
           ? const Value.absent()
           : Value(planHash),
+      planReason: planReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(planReason),
       userPicked: Value(userPicked),
       escalations: Value(escalations),
     );
@@ -2205,6 +2238,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       planModel: serializer.fromJson<String?>(json['planModel']),
       planEffort: serializer.fromJson<String?>(json['planEffort']),
       planHash: serializer.fromJson<String?>(json['planHash']),
+      planReason: serializer.fromJson<String?>(json['planReason']),
       userPicked: serializer.fromJson<bool>(json['userPicked']),
       escalations: serializer.fromJson<int>(json['escalations']),
     );
@@ -2229,6 +2263,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
       'planModel': serializer.toJson<String?>(planModel),
       'planEffort': serializer.toJson<String?>(planEffort),
       'planHash': serializer.toJson<String?>(planHash),
+      'planReason': serializer.toJson<String?>(planReason),
       'userPicked': serializer.toJson<bool>(userPicked),
       'escalations': serializer.toJson<int>(escalations),
     };
@@ -2249,6 +2284,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     Value<String?> planModel = const Value.absent(),
     Value<String?> planEffort = const Value.absent(),
     Value<String?> planHash = const Value.absent(),
+    Value<String?> planReason = const Value.absent(),
     bool? userPicked,
     int? escalations,
   }) => SpecStep(
@@ -2266,6 +2302,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     planModel: planModel.present ? planModel.value : this.planModel,
     planEffort: planEffort.present ? planEffort.value : this.planEffort,
     planHash: planHash.present ? planHash.value : this.planHash,
+    planReason: planReason.present ? planReason.value : this.planReason,
     userPicked: userPicked ?? this.userPicked,
     escalations: escalations ?? this.escalations,
   );
@@ -2293,6 +2330,9 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ? data.planEffort.value
           : this.planEffort,
       planHash: data.planHash.present ? data.planHash.value : this.planHash,
+      planReason: data.planReason.present
+          ? data.planReason.value
+          : this.planReason,
       userPicked: data.userPicked.present
           ? data.userPicked.value
           : this.userPicked,
@@ -2319,6 +2359,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           ..write('planModel: $planModel, ')
           ..write('planEffort: $planEffort, ')
           ..write('planHash: $planHash, ')
+          ..write('planReason: $planReason, ')
           ..write('userPicked: $userPicked, ')
           ..write('escalations: $escalations')
           ..write(')'))
@@ -2341,6 +2382,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
     planModel,
     planEffort,
     planHash,
+    planReason,
     userPicked,
     escalations,
   );
@@ -2362,6 +2404,7 @@ class SpecStep extends DataClass implements Insertable<SpecStep> {
           other.planModel == this.planModel &&
           other.planEffort == this.planEffort &&
           other.planHash == this.planHash &&
+          other.planReason == this.planReason &&
           other.userPicked == this.userPicked &&
           other.escalations == this.escalations);
 }
@@ -2381,6 +2424,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
   final Value<String?> planModel;
   final Value<String?> planEffort;
   final Value<String?> planHash;
+  final Value<String?> planReason;
   final Value<bool> userPicked;
   final Value<int> escalations;
   final Value<int> rowid;
@@ -2399,6 +2443,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.planModel = const Value.absent(),
     this.planEffort = const Value.absent(),
     this.planHash = const Value.absent(),
+    this.planReason = const Value.absent(),
     this.userPicked = const Value.absent(),
     this.escalations = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2418,6 +2463,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     this.planModel = const Value.absent(),
     this.planEffort = const Value.absent(),
     this.planHash = const Value.absent(),
+    this.planReason = const Value.absent(),
     this.userPicked = const Value.absent(),
     this.escalations = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2438,6 +2484,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Expression<String>? planModel,
     Expression<String>? planEffort,
     Expression<String>? planHash,
+    Expression<String>? planReason,
     Expression<bool>? userPicked,
     Expression<int>? escalations,
     Expression<int>? rowid,
@@ -2457,6 +2504,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       if (planModel != null) 'plan_model': planModel,
       if (planEffort != null) 'plan_effort': planEffort,
       if (planHash != null) 'plan_hash': planHash,
+      if (planReason != null) 'plan_reason': planReason,
       if (userPicked != null) 'user_picked': userPicked,
       if (escalations != null) 'escalations': escalations,
       if (rowid != null) 'rowid': rowid,
@@ -2478,6 +2526,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     Value<String?>? planModel,
     Value<String?>? planEffort,
     Value<String?>? planHash,
+    Value<String?>? planReason,
     Value<bool>? userPicked,
     Value<int>? escalations,
     Value<int>? rowid,
@@ -2497,6 +2546,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
       planModel: planModel ?? this.planModel,
       planEffort: planEffort ?? this.planEffort,
       planHash: planHash ?? this.planHash,
+      planReason: planReason ?? this.planReason,
       userPicked: userPicked ?? this.userPicked,
       escalations: escalations ?? this.escalations,
       rowid: rowid ?? this.rowid,
@@ -2550,6 +2600,9 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
     if (planHash.present) {
       map['plan_hash'] = Variable<String>(planHash.value);
     }
+    if (planReason.present) {
+      map['plan_reason'] = Variable<String>(planReason.value);
+    }
     if (userPicked.present) {
       map['user_picked'] = Variable<bool>(userPicked.value);
     }
@@ -2579,6 +2632,7 @@ class SpecStepsCompanion extends UpdateCompanion<SpecStep> {
           ..write('planModel: $planModel, ')
           ..write('planEffort: $planEffort, ')
           ..write('planHash: $planHash, ')
+          ..write('planReason: $planReason, ')
           ..write('userPicked: $userPicked, ')
           ..write('escalations: $escalations, ')
           ..write('rowid: $rowid')
@@ -15027,6 +15081,7 @@ typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> planModel,
   Value<String?> planEffort,
   Value<String?> planHash,
+  Value<String?> planReason,
   Value<bool> userPicked,
   Value<int> escalations,
   Value<int> rowid,
@@ -15046,6 +15101,7 @@ typedef $$SpecStepsTableUpdateCompanionBuilder = SpecStepsCompanion Function({
   Value<String?> planModel,
   Value<String?> planEffort,
   Value<String?> planHash,
+  Value<String?> planReason,
   Value<bool> userPicked,
   Value<int> escalations,
   Value<int> rowid,
@@ -15145,6 +15201,11 @@ class $$SpecStepsTableFilterComposer
 
   ColumnFilters<String> get planHash => $composableBuilder(
     column: $table.planHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get planReason => $composableBuilder(
+    column: $table.planReason,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15256,6 +15317,11 @@ class $$SpecStepsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get planReason => $composableBuilder(
+    column: $table.planReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get userPicked => $composableBuilder(
     column: $table.userPicked,
     builder: (column) => ColumnOrderings(column),
@@ -15346,6 +15412,11 @@ class $$SpecStepsTableAnnotationComposer
   GeneratedColumn<String> get planHash =>
       $composableBuilder(column: $table.planHash, builder: (column) => column);
 
+  GeneratedColumn<String> get planReason => $composableBuilder(
+    column: $table.planReason,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get userPicked => $composableBuilder(
     column: $table.userPicked,
     builder: (column) => column,
@@ -15422,6 +15493,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> planModel = const Value.absent(),
                 Value<String?> planEffort = const Value.absent(),
                 Value<String?> planHash = const Value.absent(),
+                Value<String?> planReason = const Value.absent(),
                 Value<bool> userPicked = const Value.absent(),
                 Value<int> escalations = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15440,6 +15512,7 @@ class $$SpecStepsTableTableManager
                 planModel: planModel,
                 planEffort: planEffort,
                 planHash: planHash,
+                planReason: planReason,
                 userPicked: userPicked,
                 escalations: escalations,
                 rowid: rowid,
@@ -15460,6 +15533,7 @@ class $$SpecStepsTableTableManager
                 Value<String?> planModel = const Value.absent(),
                 Value<String?> planEffort = const Value.absent(),
                 Value<String?> planHash = const Value.absent(),
+                Value<String?> planReason = const Value.absent(),
                 Value<bool> userPicked = const Value.absent(),
                 Value<int> escalations = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -15478,6 +15552,7 @@ class $$SpecStepsTableTableManager
                 planModel: planModel,
                 planEffort: planEffort,
                 planHash: planHash,
+                planReason: planReason,
                 userPicked: userPicked,
                 escalations: escalations,
                 rowid: rowid,

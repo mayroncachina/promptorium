@@ -16,6 +16,7 @@ import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/sessions/agent_names.dart';
 import 'package:promptorium/features/settings/settings_sections.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:promptorium/ui/widgets/app_dialog.dart';
@@ -151,6 +152,7 @@ void main() {
                 kind: StepKind.mecanica,
                 suggested: StepRule('haiku', 'low'),
                 hash: 'h1',
+                classReason: 'troca de nomes',
               ),
               StepPlanEntry(
                 step: 'R2',
@@ -171,15 +173,19 @@ void main() {
       (r1!.kind, r1.planModel, r1.planEffort, r1.planHash, r1.userPicked),
       ('mecanica', 'haiku', 'low', 'h1', false),
     );
+    expect((r1.planReason, r2!.planReason), ('troca de nomes', null));
     expect(
-      (r2!.kind, r2.planModel, r2.planEffort, r2.userPicked),
+      (r2.kind, r2.planModel, r2.planEffort, r2.userPicked),
       ('altoRisco', 'sonnet', 'high', true),
     );
 
     await storeRunPlan(repo, spec.id, options(auto: false));
     for (final id in ['R1', 'R2']) {
       final r = await repo.byStep(spec.id, id);
-      expect((r!.kind, r.planModel, r.userPicked), (null, null, false));
+      expect(
+        (r!.kind, r.planModel, r.planReason, r.userPicked),
+        (null, null, null, false),
+      );
     }
   });
 
@@ -198,6 +204,7 @@ void main() {
         'CLI instalado, autenticado e compatível.',
       ),
       bool knownAvailability = false,
+      Future<ProviderAvailability>? checking,
       Workspace? workspace,
     }) async {
       tester.view.physicalSize = const Size(1200, 1000);
@@ -216,7 +223,9 @@ void main() {
             (ref, ws) => Stream.value(const <SpecStep>[]),
           ),
           agentListProvider.overrideWith((ref, path) async => const []),
-          providerAvailabilityProvider.overrideWith((ref, id) async => claude),
+          providerAvailabilityProvider.overrideWith(
+            (ref, id) => checking ?? Future.value(claude),
+          ),
           if (workspace != null)
             activeWorkspaceProvider.overrideWithValue(workspace),
         ],
@@ -252,6 +261,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('open')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      // The check of the Claude Code (R15), then the classification.
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
     }
 
     Future<void> pump(WidgetTester tester) async {
@@ -485,6 +498,135 @@ void main() {
       await pump(tester);
       expect(result!.plan.map((e) => e.step), ['R1', 'R2', 'R3', 'R4']);
       expect(result!.review, const StepRule('sonnet', 'medium'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('R4: the selector offers Haiku · low, Sonnet · medium and '
+        'Opus · high, plus a rule changed in Configurações', (tester) async {
+      await open(
+        tester,
+        settings: {
+          AppSettingKeys.orchestratorAutoByDefault: '1',
+          AppSettingKeys.orchestratorModel('implementacao'): 'sonnet',
+          AppSettingKeys.orchestratorEffort('implementacao'): 'high',
+        },
+      );
+      await answer(tester, {
+        'R1': 'mecanica',
+        'R2': 'altoRisco',
+        'R3': 'implementacao',
+        'R4': 'implementacao',
+      });
+      expect(
+        stepPlanChoices(suggested: const StepRule('haiku', 'low')),
+        stepPlanRungs,
+      );
+      expect(
+        stepPlanChoices(
+          suggested: const StepRule('sonnet', 'high'),
+          current: const StepRule('opus', 'max'),
+        ),
+        [
+          ...stepPlanRungs,
+          const StepRule('sonnet', 'high'),
+          const StepRule('opus', 'max'),
+        ],
+      );
+
+      await tester.tap(key('step-plan-model-R3-Sonnet · high'));
+      await pump(tester);
+      final items = tester
+          .widgetList<DropdownMenuItem<StepRule>>(
+            find.byType(DropdownMenuItem<StepRule>),
+          )
+          .map((i) => i.value)
+          .toSet();
+      expect(items, {...stepPlanRungs, const StepRule('sonnet', 'high')});
+      expect(find.text('Haiku · medium'), findsNothing);
+      expect(find.text('Opus · max'), findsNothing);
+      await tester.tap(find.text('Opus · high').last);
+      await pump(tester);
+      expect(key('step-plan-picked-R3'), findsOneWidget);
+
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.plan[2].rule, const StepRule('opus', 'high'));
+      expect(result!.plan[3].rule, const StepRule('sonnet', 'high'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('R3: Executar works while classifying: it waits for the plan '
+        'and runs with it', (tester) async {
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+      );
+      expect(key('step-plan-skeleton'), findsOneWidget);
+      expect(
+        tester.widget<AmberButton>(key('run-spec-submit')).onTap,
+        isNotNull,
+      );
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(closed, isFalse);
+      expect(tester.widget<AmberButton>(key('run-spec-submit')).busy, isTrue);
+      expect(key('run-spec-use-manual'), findsOneWidget);
+
+      await answer(tester, {'R1': 'mecanica', 'R2': 'altoRisco'});
+      expect(closed, isTrue);
+      expect(result!.auto, isTrue);
+      expect(result!.plan.map((e) => e.step), ['R1', 'R2', 'R3', 'R4']);
+      expect(result!.plan[1].rule, const StepRule('opus', 'high'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('R14: a classification that fails while Executar waits shows '
+        'the failure and does not run', (tester) async {
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+      );
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      answers.last.completeError(const PlannerException('Falhou.'));
+      await pump(tester);
+      expect(closed, isFalse);
+      expect(key('run-spec-classify-failed'), findsOneWidget);
+      expect(key('run-spec-retry'), findsOneWidget);
+      expect(key('run-spec-submit'), findsNothing);
+    });
+
+    testWidgets('R15: while the Claude Code is checked, Automático is off '
+        'with "Verificando o Claude Code…"; Manual works', (tester) async {
+      final check = Completer<ProviderAvailability>();
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+        checking: check.future,
+      );
+      expect(key('run-spec-auto-checking'), findsOneWidget);
+      expect(find.text('Verificando o Claude Code…'), findsOneWidget);
+      expect(key('run-spec-model'), findsOneWidget);
+      await tester.tap(key('run-spec-auto'));
+      await pump(tester);
+      expect(key('step-plan-skeleton'), findsNothing);
+      expect(classifier.calls, 0);
+
+      check.complete(
+        const ProviderAvailability(ProviderStatus.ready, 'CLI ok.'),
+      );
+      await pump(tester);
+      expect(key('run-spec-auto-checking'), findsNothing);
+      expect(key('run-spec-auto-blocked'), findsNothing);
+      // The preference is on: Automático opens once the CLI is known.
+      expect(key('step-plan-skeleton'), findsOneWidget);
+      expect(classifier.calls, 1);
+      await tester.tap(key('run-spec-manual'));
+      await pump(tester);
+      expect(key('run-spec-model'), findsOneWidget);
+      await tester.tap(key('run-spec-submit'));
+      await pump(tester);
+      expect(result!.auto, isFalse);
       await tester.pumpAndSettle();
     });
   });

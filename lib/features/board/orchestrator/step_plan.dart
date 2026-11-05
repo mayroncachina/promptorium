@@ -20,6 +20,7 @@ class StepPlanEntry {
     this.reason = '',
     this.pick,
     this.hash,
+    this.classReason,
   });
 
   /// `R1`, `R3.1`, `REV1`.
@@ -39,6 +40,11 @@ class StepPlanEntry {
   /// [stepTextHash] of the classified text: the requirement's, for a
   /// sub-step; null for `REV<n>`, which is not classified.
   final String? hash;
+
+  /// Reason given by the classification (without "subetapa de"), stored in
+  /// `spec_steps.plan_reason` so a restart shows it again; null for
+  /// `REV<n>` and when the classification gave none.
+  final String? classReason;
 
   /// Model and effort the step runs with.
   StepRule get rule => pick ?? suggested;
@@ -98,6 +104,7 @@ StepPlanEntry _entry(
     suggested: prefs.rule(kind),
     pick: pick,
     hash: c?.hash,
+    classReason: c == null || c.reason.isEmpty ? null : c.reason,
   );
 }
 
@@ -118,16 +125,20 @@ String planSessionsLabel(int sessions) =>
     '${sessions == 1 ? '1 sessão' : '$sessions sessões'}: etapas vizinhas '
     'com o mesmo modelo seguem na mesma sessão';
 
-/// Choices of the selector of a line: every model of the ladder with every
-/// effort, plus [current] when it is not one of them.
-List<StepRule> stepPlanChoices([StepRule? current]) => [
-  for (final (m, _) in orchestratorModels)
-    for (final e in orchestratorEfforts) StepRule(m, e),
-  if (current != null &&
-      !(orchestratorModels.any((m) => m.$1 == current.model) &&
-          orchestratorEfforts.contains(current.effort)))
-    current,
+/// The three rungs of the ladder offered in a line of the plan (mockup):
+/// Haiku · low, Sonnet · medium, Opus · high.
+const stepPlanRungs = [
+  StepRule('haiku', 'low'),
+  StepRule('sonnet', 'medium'),
+  StepRule('opus', 'high'),
 ];
+
+/// Choices of the selector of a line: the [stepPlanRungs], plus the rule
+/// [suggested] by the preferences and the [current] choice when they are
+/// another combination (a rule changed in Configurações), so the selector
+/// never misses its value.
+List<StepRule> stepPlanChoices({StepRule? suggested, StepRule? current}) =>
+    {...stepPlanRungs, ?suggested, ?current}.toList();
 
 /// Kind and rule a step runs with in Automático (SPEC-035 R8).
 typedef StepRunPlan = ({StepKind kind, StepRule rule});
@@ -190,6 +201,7 @@ Future<void> storePlanEntries(
       model: e.rule.model,
       effort: e.rule.effort,
       hash: e.hash,
+      reason: e.classReason,
       userPicked: e.userPicked,
     );
   }

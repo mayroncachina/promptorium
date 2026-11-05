@@ -26,8 +26,8 @@ class StepClassification {
 
   final StepKind kind;
 
-  /// Empty when the kind came from `spec_steps` (only the kind is stored):
-  /// the plan shows the [StepKind.hint] then.
+  /// Empty when the classification gave none (or a row of `spec_steps`
+  /// stored before `plan_reason`): the plan shows the [StepKind.hint] then.
   final String reason;
 
   /// [stepTextHash] of the classified text.
@@ -262,7 +262,7 @@ class _ClassifierRun {
 /// run with `--json-schema` and the model of Configurações → Orquestrador,
 /// cached by spec and text of the step. The cache lives in memory while the
 /// app is open, and the kinds of a plan already confirmed come back from
-/// `spec_steps` (`kind` + `plan_hash`) after a restart.
+/// `spec_steps` (`kind` + `plan_reason` + `plan_hash`) after a restart.
 ///
 /// The dialog calls [classify] when Automático opens (never before) and
 /// [cancel] when it closes or goes to Manual, each once; [retry] is "Tentar
@@ -420,7 +420,11 @@ class StepClassifier extends Notifier<Map<int, StepClassifierState>> {
   StepClassification? _stored(String step, String hash, List<SpecStep> rows) {
     for (final r in rows) {
       if (parentOf(r.step) == step && r.kind != null && r.planHash == hash) {
-        return StepClassification(kind: StepKind.parse(r.kind), hash: hash);
+        return StepClassification(
+          kind: StepKind.parse(r.kind),
+          reason: r.planReason ?? '',
+          hash: hash,
+        );
       }
     }
     return null;

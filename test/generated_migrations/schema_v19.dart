@@ -438,6 +438,14 @@ class SpecSteps extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<String> planReason = GeneratedColumn<String>(
+    'plan_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   late final GeneratedColumn<int> userPicked = GeneratedColumn<int>(
     'user_picked',
     aliasedName,
@@ -472,6 +480,7 @@ class SpecSteps extends Table with TableInfo {
     planModel,
     planEffort,
     planHash,
+    planReason,
     userPicked,
     escalations,
   ];

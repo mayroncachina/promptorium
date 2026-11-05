@@ -126,7 +126,10 @@ class _PlanRow extends StatelessWidget {
                   ),
                 ),
                 items: [
-                  for (final r in stepPlanChoices(e.rule))
+                  for (final r in stepPlanChoices(
+                    suggested: e.suggested,
+                    current: e.rule,
+                  ))
                     DropdownMenuItem(
                       value: r,
                       child: Text(r.label, overflow: TextOverflow.ellipsis),

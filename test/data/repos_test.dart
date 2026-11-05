@@ -554,6 +554,7 @@ void main() {
         model: 'haiku',
         effort: 'low',
         hash: 'h1',
+        reason: 'troca de nomes',
       );
       // A step without a row gets one.
       await repo.setPlan(
@@ -571,6 +572,7 @@ void main() {
         (r1.kind, r1.planModel, r1.planEffort, r1.planHash, r1.userPicked),
         ('mecanica', 'haiku', 'low', 'h1', false),
       );
+      expect(r1.planReason, 'troca de nomes');
       expect(r1.escalations, 0);
       final r2 = (await repo.byStep(s.id, 'R2'))!;
       expect(

@@ -5979,6 +5979,7 @@ final class Schema19 extends i0.VersionedSchema {
         _column_127,
         _column_128,
         _column_129,
+        _column_130,
       ],
       attachedDatabase: database,
     ),
@@ -6332,8 +6333,8 @@ final class Schema19 extends i0.VersionedSchema {
         _column_38,
         _column_40,
         _column_21,
-        _column_130,
         _column_131,
+        _column_132,
         _column_3,
       ],
       attachedDatabase: database,
@@ -6372,6 +6373,8 @@ class Shape32 extends i0.VersionedTable {
       columnsByName['plan_effort']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get planHash =>
       columnsByName['plan_hash']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get planReason =>
+      columnsByName['plan_reason']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<int> get userPicked =>
       columnsByName['user_picked']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get escalations =>
@@ -6410,7 +6413,15 @@ i1.GeneratedColumn<String> _column_127(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
     );
-i1.GeneratedColumn<int> _column_128(String aliasedName) =>
+i1.GeneratedColumn<String> _column_128(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'plan_reason',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_129(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'user_picked',
       aliasedName,
@@ -6419,7 +6430,7 @@ i1.GeneratedColumn<int> _column_128(String aliasedName) =>
       $customConstraints: 'NOT NULL DEFAULT 0 CHECK (user_picked IN (0, 1))',
       defaultValue: const i1.CustomExpression('0'),
     );
-i1.GeneratedColumn<int> _column_129(String aliasedName) =>
+i1.GeneratedColumn<int> _column_130(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'escalations',
       aliasedName,
@@ -6453,7 +6464,7 @@ class Shape33 extends i0.VersionedTable {
       columnsByName['created_at']! as i1.GeneratedColumn<int>;
 }
 
-i1.GeneratedColumn<String> _column_130(String aliasedName) =>
+i1.GeneratedColumn<String> _column_131(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'result',
       aliasedName,
@@ -6461,7 +6472,7 @@ i1.GeneratedColumn<String> _column_130(String aliasedName) =>
       type: i1.DriftSqlType.string,
       $customConstraints: 'NOT NULL',
     );
-i1.GeneratedColumn<double> _column_131(String aliasedName) =>
+i1.GeneratedColumn<double> _column_132(String aliasedName) =>
     i1.GeneratedColumn<double>(
       'cost_usd',
       aliasedName,

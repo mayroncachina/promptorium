@@ -251,8 +251,8 @@ void main() {
     expect(r.kinds['R2']!.kind, StepKind.implementacao);
   });
 
-  test('the kinds of a confirmed plan in spec_steps are reused when the text '
-      'did not change', () async {
+  test('the kinds and reasons of a confirmed plan in spec_steps are reused '
+      'when the text did not change (after a restart)', () async {
     final repo = c.read(specStepsRepoProvider);
     for (final r in spec.requirements) {
       await repo.setPlan(
@@ -262,12 +262,16 @@ void main() {
         model: 'haiku',
         effort: 'low',
         hash: stepTextHash(r.text),
+        reason: r.id == 'R1' ? null : 'motivo salvo de ${r.id}',
       );
     }
     final rows = await repo.watchByWorkspace(spec.workspaceId).first;
     final r = await classifier().classify(spec, views(), rows: rows);
     expect(calls, isEmpty);
     expect(r.kinds['R3']!.kind, StepKind.documentacao);
+    expect(r.kinds['R3']!.reason, 'motivo salvo de R3');
+    // A row without a reason: the plan shows the hint of the kind.
+    expect(r.kinds['R1']!.reason, isEmpty);
     classifier().cancel(spec.id);
     await settle();
 

@@ -44,8 +44,14 @@ void main() {
     expect(row.status, StepStatus.done);
     expect(row.gateAttempts, 1);
     expect(
-      (row.kind, row.planModel, row.userPicked, row.escalations),
-      (null, null, false, 0),
+      (
+        row.kind,
+        row.planModel,
+        row.planReason,
+        row.userPicked,
+        row.escalations,
+      ),
+      (null, null, null, false, 0),
     );
     expect(await db.select(db.stepRuns).get(), isEmpty);
     await db.close();
