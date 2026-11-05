@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
@@ -289,6 +290,28 @@ List<int> moveInColumn(List<int> order, int id, int neighbor, int delta) {
   return ids..insert(delta > 0 ? at + 1 : at, id);
 }
 
+/// `/` or `Ctrl+F`: focuses the search of the folder (SPEC-036 R6).
+class _FolderSearchIntent extends Intent {
+  const _FolderSearchIntent();
+}
+
+/// Not enabled inside a text field, so that the key reaches it.
+class _FolderSearchAction extends Action<_FolderSearchIntent> {
+  @override
+  bool isEnabled(_FolderSearchIntent intent) =>
+      _focusView.currentState != null &&
+      primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() ==
+          null;
+
+  @override
+  Object? invoke(_FolderSearchIntent intent) {
+    _focusView.currentState?.focusSearch();
+    return null;
+  }
+}
+
+final _focusView = GlobalKey<SpecFocusViewState>();
+
 /// Quadro: one card per approved spec; its requirements are the steps
 /// (docs/plano-specs-no-quadro.md).
 class BoardScreen extends ConsumerWidget {
@@ -406,80 +429,98 @@ class BoardScreen extends ConsumerWidget {
             attentionCount: attentionCount,
           )
         : view == BoardView.focus
-        ? SpecFocusView(cards: visible, attention: attention)
+        ? SpecFocusView(key: _focusView, cards: visible, attention: attention)
         : _Board(
             cards: visible,
             all: [for (final d in cards) d.spec],
             attention: attention,
             parallel: parallel,
           );
-    return ColoredBox(
-      color: AppColors.background,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SpecSyncBar(workspace: ws, specs: specs, selected: selected?.spec),
-          _Header(
-            workspaceId: ws.id,
-            workspacePath: ws.path,
-            total: cards.length,
-            drafts: drafts,
-            cards: cards,
-            attentionCount: attentionCount,
-            hiddenDone: hiddenDone,
-            parallel: parallel,
-          ),
-          if (legacy.isNotEmpty)
-            _LegacyBanner(
-              count: legacy.length,
-              onOpen: () => showLegacyTasksDialog(context, ws, legacy),
-            ),
-          Expanded(
-            child: selected == null || view != BoardView.columns
-                ? body
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: body),
-                      Container(
-                        key: const ValueKey('board-side-panel'),
-                        width: 360,
-                        padding: const EdgeInsets.all(16),
-                        decoration: const BoxDecoration(
-                          color: AppColors.panel,
-                          border: Border(
-                            left: BorderSide(color: AppColors.border),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: IconButton(
-                                key: const ValueKey('board-side-close'),
-                                tooltip: 'Fechar',
-                                iconSize: 16,
-                                visualDensity: VisualDensity.compact,
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: AppColors.textSecondary,
-                                ),
-                                onPressed: () => ref
-                                    .read(boardSelectedSpecProvider.notifier)
-                                    .select(null),
+    return Shortcuts(
+      shortcuts: const {
+        CharacterActivator('/'): _FolderSearchIntent(),
+        SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _FolderSearchIntent(),
+      },
+      child: Actions(
+        actions: {_FolderSearchIntent: _FolderSearchAction()},
+        child: ColoredBox(
+          color: AppColors.background,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SpecSyncBar(
+                workspace: ws,
+                specs: specs,
+                selected: selected?.spec,
+              ),
+              _Header(
+                workspaceId: ws.id,
+                workspacePath: ws.path,
+                total: cards.length,
+                drafts: drafts,
+                cards: cards,
+                attentionCount: attentionCount,
+                hiddenDone: hiddenDone,
+                parallel: parallel,
+              ),
+              if (legacy.isNotEmpty)
+                _LegacyBanner(
+                  count: legacy.length,
+                  onOpen: () => showLegacyTasksDialog(context, ws, legacy),
+                ),
+              Expanded(
+                child: selected == null || view != BoardView.columns
+                    ? body
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: body),
+                          Container(
+                            key: const ValueKey('board-side-panel'),
+                            width: 360,
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              color: AppColors.panel,
+                              border: Border(
+                                left: BorderSide(color: AppColors.border),
                               ),
                             ),
-                            Expanded(
-                              child: SpecStepsPanel(specId: selected.spec.id),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: IconButton(
+                                    key: const ValueKey('board-side-close'),
+                                    tooltip: 'Fechar',
+                                    iconSize: 16,
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    onPressed: () => ref
+                                        .read(
+                                          boardSelectedSpecProvider.notifier,
+                                        )
+                                        .select(null),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: SpecStepsPanel(
+                                    specId: selected.spec.id,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

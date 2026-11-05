@@ -9,6 +9,7 @@ import '../../../ui/theme/tokens.dart';
 import '../board_rules.dart';
 import '../board_screen.dart';
 import 'spec_canvas.dart' show AttentionBubble;
+import 'spec_folder_search.dart';
 import 'spec_node.dart';
 
 /// Size of the folder and its lines (docs/mockups/spec-036/Main.dc.html).
@@ -21,6 +22,7 @@ const folderMaxRows = 15;
 const folderArrowRows = 4;
 
 const _margin = 12.0, _tabHeight = 33.0, _arrowHeight = 26.0;
+const _searchHeight = 44.0;
 
 /// Room after the last line, so that it grows without being cut (R3).
 const _endRoom = 150.0;
@@ -36,12 +38,16 @@ class SpecFolder extends ConsumerStatefulWidget {
     required this.cards,
     required this.attention,
     required this.onOpen,
+    this.onSearchDone,
   });
 
   /// Cards of the folder, in any order.
   final List<SpecCardData> cards;
   final bool Function(SpecCardData) attention;
   final ValueChanged<int> onOpen;
+
+  /// The search closed by `Esc` or `Enter`: the focus should go elsewhere.
+  final VoidCallback? onSearchDone;
 
   @override
   ConsumerState<SpecFolder> createState() => SpecFolderState();
@@ -50,6 +56,15 @@ class SpecFolder extends ConsumerStatefulWidget {
 class SpecFolderState extends ConsumerState<SpecFolder> {
   final _scroll = ScrollController();
   final _focus = FocusNode(debugLabel: 'spec-folder');
+  final _search = TextEditingController();
+  late final _searchFocus = FocusNode(
+    debugLabel: 'spec-folder-search',
+    onKeyEvent: _onSearchKey,
+  );
+
+  /// Result the search keys act on (R7).
+  int _active = 0;
+  List<SpecCardData> _results = const [];
 
   /// Where the arrows are taking the list: clicks in a row add up.
   double? _target;
@@ -62,7 +77,66 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
   void dispose() {
     _scroll.dispose();
     _focus.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  bool get _searching => _search.text.trim().isNotEmpty;
+
+  /// `/`, `Ctrl+F` or the magnifier: opens the folder and focuses the field.
+  void focusSearch() {
+    ref.read(boardFolderCollapsedProvider.notifier).set(false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocus.requestFocus();
+    });
+  }
+
+  void _clearSearch() {
+    _search.clear();
+    setState(() => _active = 0);
+    widget.onSearchDone?.call();
+  }
+
+  void _moveActive(int delta) {
+    if (_results.isEmpty) return;
+    setState(() {
+      _active = (_active + delta).clamp(0, _results.length - 1);
+    });
+    if (!_scroll.hasClients) return;
+    // Lines before the active one are never grown during a search.
+    final p = _scroll.position;
+    final top = _active * folderRowStride;
+    final bottom = top + folderRowStride;
+    if (top < p.pixels) {
+      _scroll.jumpTo(top);
+    } else if (bottom > p.pixels + p.viewportDimension) {
+      _scroll.jumpTo(
+        (bottom - p.viewportDimension).clamp(0, p.maxScrollExtent),
+      );
+    }
+  }
+
+  KeyEventResult _onSearchKey(FocusNode _, KeyEvent e) {
+    if (e is KeyUpEvent) return KeyEventResult.ignored;
+    final key = e.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      _moveActive(1);
+    } else if (key == LogicalKeyboardKey.arrowUp) {
+      _moveActive(-1);
+    } else if (e is KeyDownEvent && key == LogicalKeyboardKey.escape) {
+      _clearSearch();
+    } else if (e is KeyDownEvent &&
+        (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter)) {
+      if (!_searching || _results.isEmpty) return KeyEventResult.handled;
+      final id = _results[_active].spec.id;
+      _clearSearch();
+      widget.onOpen(id);
+    } else {
+      return KeyEventResult.ignored;
+    }
+    return KeyEventResult.handled;
   }
 
   bool _onScroll(ScrollMetrics m) {
@@ -117,8 +191,10 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
   @override
   Widget build(BuildContext context) {
     final collapsed = ref.watch(boardFolderCollapsedProvider);
-    final cards = [...widget.cards]
+    final all = [...widget.cards]
       ..sort((a, b) => compareNewestFirst(a.spec, b.spec));
+    final cards = _results = searchFolder(all, _search.text);
+    if (_active >= cards.length) _active = 0;
     final width = collapsed ? folderCollapsedWidth : folderWidth;
     return AnimatedContainer(
       key: const ValueKey('spec-folder'),
@@ -134,7 +210,8 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
           minWidth: width,
           maxWidth: width,
           child: LayoutBuilder(
-            builder: (context, box) => _content(cards, collapsed, box),
+            builder: (context, box) =>
+                _content(cards, all.length, collapsed, box),
           ),
         ),
       ),
@@ -143,6 +220,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
 
   Widget _content(
     List<SpecCardData> cards,
+    int total,
     bool collapsed,
     BoxConstraints box,
   ) {
@@ -151,7 +229,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _tab(cards.length, collapsed),
+        _tab(_searching ? '${cards.length} de $total' : '$total', collapsed),
         Focus(
           focusNode: _focus,
           onKeyEvent: _onKey,
@@ -178,10 +256,13 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _searchBox(collapsed),
                   _arrow('up', Icons.keyboard_arrow_up, _canGoUp, -1),
                   SizedBox(
                     height: rows * folderRowStride,
-                    child: _list(cards, collapsed),
+                    child: cards.isEmpty && _searching
+                        ? _noResult()
+                        : _list(cards, collapsed),
                   ),
                   _arrow('down', Icons.keyboard_arrow_down, _canGoDown, 1),
                 ],
@@ -193,7 +274,93 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     );
   }
 
-  Widget _tab(int count, bool collapsed) => Container(
+  Widget _noResult() => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Text(
+      'Nenhuma spec com "${_search.text.trim()}"',
+      key: const ValueKey('folder-no-result'),
+      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+    ),
+  );
+
+  Widget _searchBox(bool collapsed) => SizedBox(
+    height: _searchHeight,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: collapsed
+          ? Tooltip(
+              message: 'Buscar spec',
+              child: InkWell(
+                key: const ValueKey('folder-search-open'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: focusSearch,
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: SessionColors.selectedBorder),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    spacing: 6,
+                    children: [
+                      Icon(
+                        Icons.search,
+                        size: 15,
+                        color: AppColors.textSecondary,
+                      ),
+                      Text(
+                        '/',
+                        style: TextStyle(
+                          fontFamily: AppFonts.mono,
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : TextField(
+              key: const ValueKey('folder-search'),
+              controller: _search,
+              focusNode: _searchFocus,
+              onChanged: (_) => setState(() {
+                _active = 0;
+                if (_scroll.hasClients) _scroll.jumpTo(0);
+              }),
+              style: const TextStyle(fontSize: 13, color: AppColors.text),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Buscar por número ou título',
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textMuted,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  size: 15,
+                  color: AppColors.textSecondary,
+                ),
+                prefixIconConstraints: const BoxConstraints(minWidth: 32),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: SessionColors.selectedBorder,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.amber),
+                ),
+              ),
+            ),
+    ),
+  );
+
+  Widget _tab(String count, bool collapsed) => Container(
     height: _tabHeight,
     width: collapsed ? folderCollapsedWidth : 190,
     padding: const EdgeInsets.only(left: 12, right: 4),
@@ -222,7 +389,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
             ),
           ),
           Text(
-            '$count',
+            count,
             key: const ValueKey('folder-count'),
             style: const TextStyle(
               fontFamily: AppFonts.mono,
@@ -247,21 +414,25 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     ),
   );
 
+  /// For the mouse: out of the `Tab` order, which goes through the lines and
+  /// would stop here halfway, as the lines below the list come after it.
   Widget _arrow(String name, IconData icon, bool enabled, int direction) =>
       SizedBox(
         height: _arrowHeight,
         width: double.infinity,
-        child: IconButton(
-          key: ValueKey('folder-scroll-$name'),
-          tooltip: direction < 0 ? 'Rolar para cima' : 'Rolar para baixo',
-          iconSize: 18,
-          padding: EdgeInsets.zero,
-          color: AppColors.textSecondary,
-          disabledColor: AppColors.border,
-          icon: Icon(icon),
-          onPressed: enabled
-              ? () => _scrollRows(direction * folderArrowRows)
-              : null,
+        child: ExcludeFocus(
+          child: IconButton(
+            key: ValueKey('folder-scroll-$name'),
+            tooltip: direction < 0 ? 'Rolar para cima' : 'Rolar para baixo',
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            color: AppColors.textSecondary,
+            disabledColor: AppColors.border,
+            icon: Icon(icon),
+            onPressed: enabled
+                ? () => _scrollRows(direction * folderArrowRows)
+                : null,
+          ),
         ),
       );
 
@@ -307,7 +478,8 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
                 );
                 return at < 0 ? null : at;
               },
-              itemBuilder: (_, i) => _row(cards[i], collapsed),
+              itemBuilder: (_, i) =>
+                  _row(cards[i], collapsed, active: _searching && i == _active),
             ),
           ),
         ),
@@ -315,14 +487,15 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     );
   }
 
-  Widget _row(SpecCardData d, bool collapsed) {
+  Widget _row(SpecCardData d, bool collapsed, {required bool active}) {
     final id = d.spec.id;
     return _FolderRow(
       key: ValueKey('folder-row-${d.spec.code}'),
       data: d,
       attention: widget.attention(d),
       collapsed: collapsed,
-      expanded: _hovered == id || (_hovered == null && _focused == id),
+      expanded:
+          _hovered == id || (_hovered == null && (_focused == id || active)),
       onHover: (on) => setState(() {
         if (on) {
           _hovered = id;
@@ -583,6 +756,8 @@ int folderVisibleRows(double available) => math.min(
   folderMaxRows,
   math.max(
     1,
-    ((available - _tabHeight - 2 * _arrowHeight - 2) / folderRowStride).floor(),
+    ((available - _tabHeight - _searchHeight - 2 * _arrowHeight - 2) /
+            folderRowStride)
+        .floor(),
   ),
 );
