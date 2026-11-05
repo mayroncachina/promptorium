@@ -347,7 +347,10 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
     final runPrefs = ref.watch(runPrefsProvider);
     final single = steps <= runPrefs.singleSessionMaxSteps;
     final (:checking, :blocked) = _claudeStatus();
-    final auto = _auto && !checking && blocked == null;
+    // With Automático chosen, the dialog stays in it while the CLI is
+    // checked (no Manual in between) and only falls back to Manual when the
+    // Claude Code is not available (R15).
+    final auto = _auto && blocked == null;
 
     Widget field<T>(
       String label,
@@ -503,7 +506,33 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
         onTap: submitManual,
       ),
     ];
-    if (auto) {
+    if (auto && checking) {
+      children = [
+        const SizedBox(height: 12),
+        const Text(
+          'Verificando o Claude Code…',
+          key: ValueKey('run-spec-auto-checking'),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 8),
+        StepPlanSkeleton(rows: steps + (_reviewOn ? 1 : 0)),
+        modeField('claude'),
+        bypass('claude'),
+      ];
+      actions = [
+        SmallButton(
+          key: const ValueKey('run-spec-use-manual'),
+          label: 'Usar Manual',
+          onTap: () => _setAuto(false),
+        ),
+        const SizedBox(width: 8),
+        const AmberButton(
+          key: ValueKey('run-spec-submit'),
+          label: 'Executar',
+          onTap: null,
+        ),
+      ];
+    } else if (auto) {
       final rowsValue = ref.watch(specStepsProvider(widget.spec.workspaceId));
       final rows = rowsValue.value;
       final views = rows == null ? null : stepsOf(widget.spec, rows);
@@ -735,7 +764,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
                       autoEnabled: !checking && blocked == null,
                       onChanged: _setAuto,
                     ),
-                    if (checking) ...[
+                    if (checking && !auto) ...[
                       const SizedBox(width: 10),
                       const Flexible(
                         flex: 4,
@@ -848,10 +877,10 @@ class _RunModeSwitch extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    color: onTap == null
-                        ? AppColors.textDisabled
-                        : on
+                    color: on
                         ? AppColors.text
+                        : onTap == null
+                        ? AppColors.textDisabled
                         : AppColors.textSecondary,
                   ),
                 ),

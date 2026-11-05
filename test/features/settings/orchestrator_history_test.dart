@@ -97,6 +97,21 @@ void main() {
     expect(newer.lastEscalation, at(90));
     expect(showHistorySuggestion(newer, at(0)), isTrue);
     expect(showHistorySuggestion(newer, at(90)), isFalse);
+
+    expect(historyUsd(6.2), 'US\$ 6,20');
+    expect(
+      historySuggestionText(five, 30, const StepRule('sonnet', 'medium')),
+      '1 de 5 etapas escalaram nos últimos 30 dias. Suba o modelo para Opus '
+      'ou o esforço para high.',
+    );
+    expect(
+      historySuggestionText(five, 7, const StepRule('opus', 'max')),
+      endsWith('A regra já está no topo (Opus · max).'),
+    );
+    expect(
+      historySuggestionText(five, 7, const StepRule('opus', 'high')),
+      endsWith('Suba o esforço para xhigh.'),
+    );
   });
 
   testWidgets('the Histórico reads step_runs of the period; "Ver regra" marks '
@@ -172,16 +187,49 @@ void main() {
       matching: find.text(text),
     );
     // 30 days by default: 6 steps, 2 escalated (33%).
-    expect(inRow('6'), findsOneWidget);
-    expect(inRow('US\$ 6.00'), findsOneWidget);
+    for (final h in [
+      'Tipo de etapa',
+      'Modelo',
+      'Passou de primeira',
+      'Escalou',
+      'Estimativa',
+    ]) {
+      expect(
+        find.descendant(
+          of: key('orchestrator-history'),
+          matching: find.text(h),
+        ),
+        findsOneWidget,
+      );
+    }
+    expect(find.text('Etapas'), findsNothing);
+    expect(inRow('4 de 6'), findsOneWidget);
+    expect(inRow('2'), findsOneWidget);
+    expect(inRow('US\$ 6,00'), findsOneWidget);
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(
+            key('orchestrator-history-bar-altoRisco'),
+          )
+          .value,
+      closeTo(4 / 6, 1e-9),
+    );
+    expect(find.text('Sugestão para a regra Alto risco'), findsOneWidget);
+    expect(
+      find.text(
+        '2 de 6 etapas escalaram nos últimos 30 dias. Suba o esforço para '
+        'xhigh.',
+      ),
+      findsOneWidget,
+    );
     expect(key('orchestrator-history-suggestion-altoRisco'), findsOneWidget);
     expect(find.textContaining('não é cobrança'), findsOneWidget);
 
     await tester.tap(key('orchestrator-history-days-7'));
     await settle();
-    expect(inRow('5'), findsOneWidget);
-    expect(inRow('3'), findsOneWidget);
+    expect(inRow('3 de 5'), findsOneWidget);
     expect(inRow('2'), findsOneWidget);
+    expect(find.textContaining('nos últimos 7 dias'), findsOneWidget);
 
     await tester.tap(key('orchestrator-history-show-altoRisco'));
     await tester.pumpAndSettle();

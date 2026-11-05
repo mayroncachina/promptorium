@@ -596,8 +596,8 @@ void main() {
       expect(key('run-spec-submit'), findsNothing);
     });
 
-    testWidgets('R15: while the Claude Code is checked, Automático is off '
-        'with "Verificando o Claude Code…"; Manual works', (tester) async {
+    testWidgets('R15: with the preference on, it opens in Automático while '
+        'the Claude Code is checked, never in Manual', (tester) async {
       final check = Completer<ProviderAvailability>();
       await open(
         tester,
@@ -606,10 +606,13 @@ void main() {
       );
       expect(key('run-spec-auto-checking'), findsOneWidget);
       expect(find.text('Verificando o Claude Code…'), findsOneWidget);
-      expect(key('run-spec-model'), findsOneWidget);
-      await tester.tap(key('run-spec-auto'));
-      await pump(tester);
-      expect(key('step-plan-skeleton'), findsNothing);
+      expect(key('step-plan-skeleton'), findsOneWidget);
+      expect(key('run-spec-rules'), findsOneWidget);
+      expect(key('run-spec-model'), findsNothing);
+      expect(key('run-spec-provider'), findsNothing);
+      expect(key('run-spec-use-manual'), findsOneWidget);
+      expect(tester.widget<AmberButton>(key('run-spec-submit')).onTap, isNull);
+      // The classification waits for the CLI.
       expect(classifier.calls, 0);
 
       check.complete(
@@ -618,8 +621,7 @@ void main() {
       await pump(tester);
       expect(key('run-spec-auto-checking'), findsNothing);
       expect(key('run-spec-auto-blocked'), findsNothing);
-      // The preference is on: Automático opens once the CLI is known.
-      expect(key('step-plan-skeleton'), findsOneWidget);
+      expect(find.text('Classificando as etapas com Haiku…'), findsOneWidget);
       expect(classifier.calls, 1);
       await tester.tap(key('run-spec-manual'));
       await pump(tester);
@@ -628,6 +630,48 @@ void main() {
       await pump(tester);
       expect(result!.auto, isFalse);
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('R15: when the check finds no Claude Code, it falls back to '
+        'Manual with the reason and "Abrir Provedores"', (tester) async {
+      final check = Completer<ProviderAvailability>();
+      await open(
+        tester,
+        settings: {AppSettingKeys.orchestratorAutoByDefault: '1'},
+        checking: check.future,
+      );
+      expect(key('run-spec-model'), findsNothing);
+      check.complete(
+        const ProviderAvailability(ProviderStatus.missing, 'CLI ausente.'),
+      );
+      await pump(tester);
+      expect(key('run-spec-auto-blocked'), findsOneWidget);
+      expect(find.textContaining('CLI ausente.'), findsOneWidget);
+      expect(key('run-spec-open-providers'), findsOneWidget);
+      expect(key('run-spec-model'), findsOneWidget);
+      expect(key('step-plan-skeleton'), findsNothing);
+      expect(classifier.calls, 0);
+    });
+
+    testWidgets('R15: in Manual, Automático is off while the Claude Code is '
+        'checked', (tester) async {
+      final check = Completer<ProviderAvailability>();
+      await open(tester, checking: check.future);
+      expect(key('run-spec-auto-checking'), findsOneWidget);
+      expect(key('run-spec-model'), findsOneWidget);
+      await tester.tap(key('run-spec-auto'));
+      await pump(tester);
+      expect(key('step-plan-skeleton'), findsNothing);
+      expect(classifier.calls, 0);
+      check.complete(
+        const ProviderAvailability(ProviderStatus.ready, 'CLI ok.'),
+      );
+      await pump(tester);
+      expect(key('run-spec-auto-checking'), findsNothing);
+      await tester.tap(key('run-spec-auto'));
+      await pump(tester);
+      expect(key('step-plan-skeleton'), findsOneWidget);
+      expect(classifier.calls, 1);
     });
   });
 }
