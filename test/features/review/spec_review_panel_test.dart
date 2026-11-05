@@ -153,7 +153,7 @@ void batchTests() {
   Future<void> settle(WidgetTester tester, [_Panel? p]) async {
     Future<void> round() async {
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        () => Future<void>.delayed(const Duration(milliseconds: 4)),
       );
       await tester.pump();
     }
@@ -451,7 +451,10 @@ void batchTests() {
     );
     await tester.pump(const Duration(seconds: 1));
     undo.onPressed();
-    await settle(tester, p);
+    // The panel is gone: waiting for it to show the marks would only run
+    // out the deadline. The fixed rounds let a (wrong) undo reach the
+    // database.
+    await settle(tester);
     expect(await marksOf(tester, p), {'a': 'humano', 'b': 'humano'});
   });
 

@@ -1228,9 +1228,12 @@ status: aprovada
       File('$repo/.promptorium/memoria.md')
           .writeAsStringSync('- Use drift  <!-- você, 2026-10-01 -->\n');
       File('$repo/.promptorium/config.yml').writeAsStringSync(
-        'testes: sleep 5\nverificacao:\n  exigir-commit: false\n'
+        'testes: sleep 1\nverificacao:\n  exigir-commit: false\n'
         '  exigir-arvore-limpa: false\n',
       );
+      // A 1 s command stands for a slow one (5 s in the app).
+      SpecRunner.slowCommandSeconds = 1;
+      addTearDown(() => SpecRunner.slowCommandSeconds = 5);
       final runner = c.read(specRunnerProvider);
       await runner.runNext(spec.id);
       await settle();
@@ -1247,7 +1250,7 @@ status: aprovada
       expect(m.entries.map((e) => e.text), [
         'Use drift',
         'o build precisa de -j1',
-        '`sleep 5` (testes) passa em ~5 s',
+        '`sleep 1` (testes) passa em ~1 s',
       ]);
       expect(m.entries[1].origin, 'SPEC-001 R1');
     }, timeout: const Timeout(Duration(seconds: 60)));

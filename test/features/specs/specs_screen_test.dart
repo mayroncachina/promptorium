@@ -46,11 +46,15 @@ Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
   // Each lap moves the real IO a little: with the full suite in parallel a
   // chain of them passed 20 s.
   final end = DateTime.now().add(const Duration(seconds: 45));
+  // Without [until] the fixed laps are the wait: keep them 20 ms of real
+  // time. With it the condition decides, so short laps only stop sooner.
+  final lap = Duration(milliseconds: until == null ? 20 : 4);
   for (var i = 0; DateTime.now().isBefore(end); i++) {
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await tester.pump(const Duration(milliseconds: 20));
+    await tester.runAsync(() => Future<void>.delayed(lap));
+    // The first laps move the clock 120 ms as before; then it moves no
+    // faster than real time, so a slow IO does not run out a timer (a
+    // toast) before the condition holds.
+    await tester.pump(i < 6 ? const Duration(milliseconds: 20) : lap);
     if (i >= 5 && (until?.call() ?? true)) return;
   }
 }
