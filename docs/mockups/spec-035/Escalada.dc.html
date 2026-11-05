@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Escalada: a verificação reprovou e a etapa subiu de modelo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+html,body{overflow-x:clip}
+button{font-family:inherit;transition:background-color .12s ease-out,filter .12s ease-out}
+button:hover{filter:brightness(1.12)}
+button:active{filter:brightness(.88)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+b,strong{font-weight:600}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.board{background-color:#0E1014;background-image:radial-gradient(#232833 1.2px,transparent 1.3px);background-size:24px 24px}
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.62);z-index:5}
+.modal{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:min(780px,calc(100% - 24px));max-height:calc(100% - 24px);background:#14171D;border:1px solid #2E3542;border-radius:14px;box-shadow:0 24px 64px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.sel{height:32px;background:#0E1014;color:#E7E9EE;border:1px solid #2E3542;border-radius:6px;padding:0 8px;font-family:inherit;font-size:13px}
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid #2E3542;background:transparent;color:#E7E9EE;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#14171D;font-weight:600}
+.seg{height:30px;padding:0 12px;border:none;border-radius:6px;background:transparent;color:#A0A8B6;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg.on{background:#1F2430;color:#E7E9EE}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+.sk{display:block;border-radius:4px;background:#2E3542;animation:shimmer 1.4s ease-in-out infinite}
+@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+@keyframes ev-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ev{animation:ev-in .16s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion: reduce){.sk,.ev{animation:none}button{transition:none}}
+@media (max-width: 640px){nav button,main button{min-height:44px;min-width:44px}.chip,.hide-s{display:none !important}.row2{flex-direction:column;align-items:stretch !important}}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 700px; height: 700px; position: relative; overflow: hidden; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+<nav aria-label="Seções" style="width: 52px; flex: none; background: #14171D; border-right: 1px solid #252B35; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 12px"><button type="button" aria-label="Prompt" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg></button><button type="button" aria-label="Quadro" aria-current="page" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: #2A2418; color: #F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="11" rx="1.5"/></svg></button><button type="button" aria-label="Specs" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></button><button type="button" aria-label="Review" aria-current="false" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: none; cursor: pointer; background: transparent; color: #A0A8B6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button></nav>
+<main class="board" aria-label="Etapas da spec" style="flex: 1; min-width: 0; position: relative; overflow: hidden; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box">
+<h1 class="vh">Escalada: a verificação reprovou e a etapa subiu de modelo</h1>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+<div><div style="font-weight: 600; font-size: 14px">SPEC-012 · Exportar relatório de uso</div><div style="font-size: 12px; color: #A0A8B6">Automático</div></div>
+<div role="group" aria-label="Momento da escalada" style="display: inline-flex; gap: 2px; padding: 3px; background: #14171D; border: 1px solid #252B35; border-radius: 8px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" class="{{t.cls}}" aria-pressed="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+</div>
+</div>
+<div class="row2" style="flex: 1; min-height: 0; display: flex; gap: 12px">
+<div style="width: 360px; flex: none; background: #14171D; border: 1px solid #252B35; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<div style="{{s.rowStyle}}">
+<span class="mono" style="width: 26px; flex: none; color: #A0A8B6">{{s.id}}</span>
+<div style="flex: 1; min-width: 0"><div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.title}}</div><div style="font-size: 12px; color: #A0A8B6">{{s.model}}</div></div>
+<span style="{{s.statusStyle}}">{{s.status}}</span>
+</div>
+</sc-for>
+</div>
+<div style="flex: 1; min-width: 0; background: #14171D; border: 1px solid #252B35; border-radius: 10px; padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px">
+<div style="font-weight: 600">R3 · Tela de filtros do relatório</div>
+<sc-for list="{{events}}" as="e" hint-placeholder-count="3">
+<div class="ev" style="display: flex; gap: 10px"><span class="mono" style="flex: none; color: #A0A8B6">{{e.t}}</span><div style="min-width: 0"><div style="{{e.style}}">{{e.title}}</div><div style="font-size: 12px; color: #A0A8B6">{{e.body}}</div></div></div>
+</sc-for>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":700}}'>
+class Component extends DCLogic {
+
+renderVals() {
+
+const at = this.state?.at ?? 0;
+const labels = ['Rodando', 'Reprovou', 'Escalou', 'Aprovou'];
+const tabs = labels.map((label, i) => ({ label, on: i === at, cls: i === at ? 'seg on' : 'seg', pick: () => this.setState({ at: i }) }));
+const all = [
+  {at:0, t:'14:02', title:'Sonnet · medium começou a etapa', body:'Sessão nova: R2 usou outro modelo.'},
+  {at:1, t:'14:09', title:'Verificação reprovou', body:'2 testes falharam em filtros_test.dart.'},
+  {at:1, t:'14:09', title:'Reenvio automático ao mesmo modelo', body:'Sonnet recebe o relatório da verificação.'},
+  {at:1, t:'14:15', title:'Verificação reprovou de novo', body:'1 teste falhou em filtros_test.dart.'},
+  {at:2, t:'14:15', title:'Escalou para Opus · high', body:'Sessão nova, de volta ao início da etapa. Recebe a spec, o relatório e o diff da tentativa.', hi:true},
+  {at:3, t:'14:24', title:'Verificação aprovou', body:'Sonnet → Opus fica no histórico da regra Implementação.'},
+];
+const events = all.filter((e) => e.at <= at).map((e) => ({ ...e, style: e.hi ? 'color: #F2A541; font-weight: 600' : 'font-weight: 500' }));
+const r3 = [['Sonnet · medium','rodando'],['Sonnet · medium','reprovou'],['Sonnet → Opus · high','rodando'],['Sonnet → Opus · high','concluída']][at];
+const row = (on) => 'display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; background: ' + (on ? '#1F2430' : 'transparent');
+const st = (s) => 'font-size: 12px; white-space: nowrap; color: ' + (s === 'reprovou' ? '#F2A541' : s === 'pendente' ? '#A0A8B6' : '#E7E9EE');
+const steps = [
+  {id:'R1', title:'Renomear as constantes', model:'Haiku · low', status:'concluída'},
+  {id:'R2', title:'Criar a tabela de relatórios', model:'Opus · high', status:'concluída'},
+  {id:'R3', title:'Tela de filtros do relatório', model:r3[0], status:r3[1], on:true},
+  {id:'R4', title:'Exportar para CSV', model:'Sonnet · medium', status:'pendente'},
+  {id:'R5', title:'Texto de ajuda da tela', model:'Haiku · low', status:'pendente'},
+].map((s) => ({ ...s, rowStyle: row(s.on), statusStyle: st(s.status) }));
+return { tabs, events, steps };
+
+}
+}
+</script>
+</body>
+</html>

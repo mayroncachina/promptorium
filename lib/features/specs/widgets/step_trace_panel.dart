@@ -22,14 +22,16 @@ import '../spec_file.dart';
 /// criteria of the step with who checked them, its gate, the design it
 /// used, its commits and its session, plus the ways to act on it.
 
-/// Criteria of [text] that cite [step] (`[R2]`).
+/// Criteria of [text] that cite [step] (`[R2]`); a sub-step has those of
+/// its requirement.
 List<SpecCriterion> criteriaOfStep(String text, String step) => [
   for (final c in parseCriteria(text))
-    if (c.requirements.contains(step)) c,
+    if (c.requirements.contains(parentOf(step))) c,
 ];
 
-/// Paragraphs of the `## Design` section that mention [step]; when none
-/// does, the beginning of the section (null = no design).
+/// Paragraphs of the `## Design` section that mention [step] (a sub-step:
+/// its requirement); when none does, the beginning of the section (null = no
+/// design).
 String? designExcerpt(String? design, String step, {int max = 320}) {
   if (design == null || design.trim().isEmpty) return null;
   final paras = design
@@ -39,7 +41,7 @@ String? designExcerpt(String? design, String step, {int max = 320}) {
       .toList();
   final hits = [
     for (final p in paras)
-      if (RegExp('\\b${RegExp.escape(step)}\\b').hasMatch(p)) p,
+      if (RegExp('\\b${RegExp.escape(parentOf(step))}\\b').hasMatch(p)) p,
   ];
   final out = (hits.isEmpty ? paras : hits).join('\n\n');
   return out.length > max ? '${out.substring(0, max).trimRight()}…' : out;

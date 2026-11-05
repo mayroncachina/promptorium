@@ -67,3 +67,15 @@ enum AgentScope { global, project }
 
 /// Rule for one MCP tool (Fase 11): `--allowedTools` / ask / `--disallowedTools`.
 enum McpRule { allow, ask, block }
+
+/// Outcome of one attempt of a step (`step_runs`, schema v19; SPEC-035).
+enum StepRunResult {
+  /// The gate passed.
+  passed,
+
+  /// The gate failed and the step stopped (waits for the user).
+  failed,
+
+  /// The gate failed and the step went up a rung of the ladder.
+  escalated,
+}

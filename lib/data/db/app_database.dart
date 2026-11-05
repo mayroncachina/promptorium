@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 18;
+const appSchemaVersion = 19;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -194,11 +194,61 @@ class SpecSteps extends Table {
   IntColumn get gateAttempts => integer().withDefault(const Constant(0))();
 
   /// Text of a step that is not in the file (schema v10): `REV1`, the
-  /// corrections asked by the automatic reviewer.
+  /// corrections asked by the automatic reviewer, or `R3.1`, a sub-step of
+  /// a split requirement (SPEC-033 R16).
   TextColumn get body => text().nullable()();
+
+  // --- plan of the Orquestrador (schema v19, SPEC-035) -----------------------
+
+  /// `StepKind.name` given by the classification (null = no plan: the step
+  /// runs with the model of the Executar form).
+  TextColumn get kind => text().nullable()();
+
+  /// Model alias and `--effort` of the plan, copied from the rules when the
+  /// execution starts: changing a rule later does not touch them (R7).
+  TextColumn get planModel => text().nullable()();
+  TextColumn get planEffort => text().nullable()();
+
+  /// Hash of the step's text when it was classified (cache of R3).
+  TextColumn get planHash => text().nullable()();
+
+  /// Reason of the classification, in one sentence (R3): shown again when
+  /// the kind is reused from this row after a restart.
+  TextColumn get planReason => text().nullable()();
+
+  /// The user changed the plan's model of the step ("você escolheu", R4):
+  /// a new classification keeps it.
+  BoolColumn get userPicked => boolean().withDefault(const Constant(false))();
+
+  /// Rungs climbed after failed gates in the current execution (R9).
+  IntColumn get escalations => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {specId, step};
+}
+
+/// End of one attempt of a step (schema v19, SPEC-035 R17): the Histórico
+/// of the Orquestrador sums them by kind and period.
+@DataClassName('StepRun')
+class StepRuns extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// Requirement id (`R2`, `R3.1`, `REV1`).
+  TextColumn get step => text()();
+
+  /// `StepKind.name` (null = the step ran without a plan, in Manual).
+  TextColumn get kind => text().nullable()();
+  TextColumn get model => text()();
+  TextColumn get effort => text().nullable()();
+  TextColumn get sessionId => text().nullable()();
+  TextColumn get result => textEnum<StepRunResult>()();
+
+  /// Share of the session's cost (estimate of the CLI; split evenly when the
+  /// session ran several steps).
+  RealColumn get costUsd => real().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Autopilot of the Quadro switched on for a workspace (schema v9): turned
@@ -632,6 +682,7 @@ class AppSettings extends Table {
     SpecSuggestions,
     Notifications,
     SpecDuels,
+    StepRuns,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -863,6 +914,26 @@ class AppDatabase extends _$AppDatabase {
                 v.conversations.refineBaseText,
               );
             }
+          },
+          // v19: plan of the Orquestrador per step and attempts history
+          // (SPEC-035).
+          from18To19: (m, v) async {
+            if (await _hasTable('spec_steps')) {
+              for (final c in [
+                v.specSteps.kind,
+                v.specSteps.planModel,
+                v.specSteps.planEffort,
+                v.specSteps.planHash,
+                v.specSteps.planReason,
+                v.specSteps.userPicked,
+                v.specSteps.escalations,
+              ]) {
+                if (!await _hasColumn('spec_steps', c.name)) {
+                  await m.addColumn(v.specSteps, c);
+                }
+              }
+            }
+            if (await _hasTable('specs')) await m.createTable(v.stepRuns);
           },
           from14To15: (m, v) async {
             if (await _hasTable('sessions')) {

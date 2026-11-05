@@ -95,12 +95,15 @@ class _DiffViewState extends State<DiffView> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       child: Row(
         children: [
-          Text(
-            '± $label',
-            style: const TextStyle(
-              fontFamily: AppFonts.mono,
-              fontSize: 12,
-              color: AppColors.textDisabled,
+          Flexible(
+            child: Text(
+              '± $label',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 12,
+                color: AppColors.textDisabled,
+              ),
             ),
           ),
           const SizedBox(width: 6),

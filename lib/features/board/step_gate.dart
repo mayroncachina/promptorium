@@ -280,7 +280,10 @@ class StepGate {
     final missing = [
       for (final st in steps)
         if (!mine.any(
-          (s) => RegExp('\\b$st\\b', caseSensitive: false).hasMatch(s),
+          (s) => RegExp(
+            '\\b${RegExp.escape(st)}\\b',
+            caseSensitive: false,
+          ).hasMatch(s),
         ))
           st,
     ];

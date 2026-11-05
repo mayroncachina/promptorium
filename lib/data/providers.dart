@@ -20,6 +20,7 @@ import 'repos/spec_duels_repo.dart';
 import 'repos/spec_steps_repo.dart';
 import 'repos/spec_suggestions_repo.dart';
 import 'repos/specs_repo.dart';
+import 'repos/step_runs_repo.dart';
 import 'repos/tasks_repo.dart';
 import 'repos/workspaces_repo.dart';
 
@@ -80,6 +81,9 @@ final notificationsRepoProvider = Provider(
 );
 final specDuelsRepoProvider = Provider(
   (ref) => SpecDuelsRepo(ref.watch(appDatabaseProvider)),
+);
+final stepRunsRepoProvider = Provider(
+  (ref) => StepRunsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

@@ -1,0 +1,85 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-04T16:30:00Z"
+ },
+ "title": "Promptorium · Orquestrador de modelos",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "0 · Hoje: um modelo para a spec inteira"
+  },
+  "Executar.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 0,
+   "w": 1100,
+   "h": 700,
+   "title": "1 · Executar em Automático",
+   "is_interactive": true
+  },
+  "Regras.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "2 · Regras do Orquestrador",
+   "is_interactive": true
+  },
+  "Escalada.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 900,
+   "w": 1100,
+   "h": 700,
+   "title": "3 · Escalada de modelo",
+   "is_interactive": true
+  },
+  "Estados.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "4 · Estados",
+   "is_interactive": true
+  },
+  "Historico.dc.html": {
+   "expand": "fill",
+   "x": 1180,
+   "y": 1800,
+   "w": 1100,
+   "h": 700,
+   "title": "5 · Histórico por tipo de etapa",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Executar.dc.html",
+  "Regras.dc.html",
+  "Escalada.dc.html",
+  "Estados.dc.html",
+  "Historico.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -260,
+   "text": "Orquestrador: o modelo certo para cada etapa da spec",
+   "kind": "title1",
+   "maxW": 2280
+  }
+ },
+ "designSystems": []
+}

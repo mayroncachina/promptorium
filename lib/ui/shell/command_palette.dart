@@ -271,9 +271,11 @@ List<PaletteCommand> paletteCommands(
           group: 'Ações',
           run: () async {
             try {
+              // Follows "Abrir Executar em Automático", like the autopilot
+              // and "Executar tudo" (SPEC-035 R19, D6).
               await ref
                   .read(specRunnerProvider)
-                  .runNext(s.id, reviewUnblocks: true);
+                  .runAuto(s.id, reviewUnblocks: true);
               onNavigate(AppSection.tasks);
             } catch (e) {
               toast('$e');

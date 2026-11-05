@@ -96,10 +96,12 @@ class SmallButton extends StatelessWidget {
     this.focusColor,
     this.icon,
     this.trailing,
+    this.fontWeight,
   });
 
   final String label;
   final VoidCallback? onTap;
+  final FontWeight? fontWeight;
 
   /// Optional icon before the label and widget after it (`Ctrl+S`).
   final IconData? icon;
@@ -125,7 +127,11 @@ class SmallButton extends StatelessWidget {
       label,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(fontSize: fontSize, color: color),
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      ),
     );
     final button = Opacity(
       opacity: enabled ? 1 : 0.5,
@@ -188,7 +194,8 @@ class SmallButton extends StatelessWidget {
   }
 }
 
-/// Amber primary button (Enviar, Aprovar, Criar).
+/// Amber primary button (Enviar, Aprovar, Criar). [busy] shows a spinner
+/// before the label and ignores taps, without the disabled look.
 class AmberButton extends StatelessWidget {
   const AmberButton({
     super.key,
@@ -196,27 +203,42 @@ class AmberButton extends StatelessWidget {
     required this.onTap,
     this.height = 30,
     this.expand = false,
+    this.focusNode,
+    this.busy = false,
   });
 
   final String label;
   final VoidCallback? onTap;
   final double height;
   final bool expand;
+  final FocusNode? focusNode;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(6);
+    final tap = busy ? null : onTap;
+    final text = Text(
+      label,
+      maxLines: 1,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.onAmber,
+      ),
+    );
     return Opacity(
-      opacity: onTap == null ? 0.5 : 1,
+      opacity: onTap == null && !busy ? 0.5 : 1,
       child: AppPressable(
-        enabled: onTap != null,
+        enabled: tap != null,
         borderRadius: radius,
         hoverTint: AppPressable.primaryTint,
         child: Material(
           color: AppColors.amber,
           shape: RoundedRectangleBorder(borderRadius: radius),
           child: InkWell(
-            onTap: onTap,
+            onTap: tap,
+            focusNode: focusNode,
             borderRadius: radius,
             hoverColor: Colors.transparent,
             child: Container(
@@ -224,15 +246,23 @@ class AmberButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.center,
               width: expand ? double.infinity : null,
-              child: Text(
-                label,
-                maxLines: 1,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onAmber,
-                ),
-              ),
+              child: busy
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.onAmber,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        text,
+                      ],
+                    )
+                  : text,
             ),
           ),
         ),

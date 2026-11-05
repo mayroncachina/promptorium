@@ -2473,9 +2473,11 @@ class ReviewService {
         await sessions.setMerged(x.id, commit);
       }
     }
-    await _ref
-        .read(specStepsRepoProvider)
-        .setAll(spec.id, spec.requirements.map((r) => r.id), StepStatus.done);
+    final stepsRepo = _ref.read(specStepsRepoProvider);
+    await stepsRepo.setAll(spec.id, {
+      ...spec.requirements.map((r) => r.id),
+      for (final r in subStepRows(await stepsRepo.bySpec(spec.id))) r.step,
+    }, StepStatus.done);
     final repo = _ref.read(specsRepoProvider);
     // Specs stacked on this one now merge where this one went.
     if (spec.branch != null) {

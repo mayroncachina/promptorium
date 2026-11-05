@@ -529,24 +529,28 @@ void main() {
         matching: find.byKey(const ValueKey('spec-action-cancel')),
       ),
     );
+    // The notice lasts 4 s of test time: on a busy machine it can come and go
+    // before the rest settles, so remember that it showed.
+    var noticed = false;
     await settleIo(
       tester,
-      until: () =>
-          stopped &&
-          c.read(prototypeJobsProvider).isEmpty &&
-          card.evaluate().isEmpty &&
-          find
-              .text('Geração cancelada. A spec não foi alterada.')
-              .evaluate()
-              .isNotEmpty,
+      until: () {
+        noticed =
+            noticed ||
+            find
+                .text('Geração cancelada. A spec não foi alterada.')
+                .evaluate()
+                .isNotEmpty;
+        return stopped &&
+            c.read(prototypeJobsProvider).isEmpty &&
+            card.evaluate().isEmpty &&
+            noticed;
+      },
     );
     expect(stopped, isTrue);
     expect(card, findsNothing);
     expect(c.read(specActionProvider), isNull);
-    expect(
-      find.text('Geração cancelada. A spec não foi alterada.'),
-      findsOneWidget,
-    );
+    expect(noticed, isTrue);
     expect(specFile(), spec);
   });
 

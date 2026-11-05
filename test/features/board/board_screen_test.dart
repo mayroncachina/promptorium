@@ -314,6 +314,9 @@ void main() {
       ..remove(2)
       ..remove(3);
     await pumpFor(tester);
+    // Waiting for the person it opens the decision modal (SPEC-033 R1).
+    await c.read(specStepsRepoProvider).set(2, 'R2', StepStatus.running);
+    await pumpFor(tester);
     await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R2')));
     await pumpFor(tester);
     expect(text(tester, 'step-live-status'), 'verificação falhou');
@@ -400,15 +403,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a segment of the bar opens the step followed live; "Abrir '
-      'sessão" goes to its session; a step without session says so', (
-    tester,
-  ) async {
+  testWidgets('a segment waiting for the person opens the decision modal; '
+      'any other opens the step followed live; "Abrir sessão" goes to its '
+      'session; a step without session says so', (tester) async {
     final (c, _) = await pumpBoard(tester);
     await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R2')));
     await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-decision-dialog')), findsOneWidget);
+    expect(find.byKey(const ValueKey('step-live-dialog')), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('step-decision-dialog')), findsNothing);
+
+    await c.read(specStepsRepoProvider).set(2, 'R2', StepStatus.running);
+    await pumpFor(tester);
+    await tester.tap(find.byKey(const ValueKey('board-step-SPEC-002-R2')));
+    await pumpFor(tester);
     expect(find.byKey(const ValueKey('step-live-dialog')), findsOneWidget);
-    expect(text(tester, 'step-live-status'), 'aguardando você');
+    expect(text(tester, 'step-live-status'), 'rodando');
     expect(find.byKey(const ValueKey('timeline-s-old')), findsOneWidget);
     // No live process: no message field, only the way to the session.
     expect(find.byKey(const ValueKey('step-live-input')), findsNothing);

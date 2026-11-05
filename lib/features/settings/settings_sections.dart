@@ -5,6 +5,7 @@ import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
+import '../board/orchestrator/orchestrator_rules.dart';
 import '../project/project_config.dart';
 
 /// Sections of Configurações (UX v2, U9; docs/mockups/v2/Configuracoes.dc.html):
@@ -24,6 +25,18 @@ enum SettingsSection {
     'sonnet',
     'haiku',
     'custo',
+  ]),
+  orchestrator('Orquestrador', SettingsGroup.app, [
+    'orquestrador',
+    'automático',
+    'regras',
+    'tipo',
+    'escalada',
+    'escalar',
+    'classificar',
+    'opus',
+    'sonnet',
+    'haiku',
   ]),
   specRuns('Execução de specs', SettingsGroup.app, [
     'etapas',
@@ -127,6 +140,7 @@ bool sectionChanged(
                 now.effort(k) != defaults.effort(k),
           ) ||
           now.autocompact != defaults.autocompact,
+    SettingsSection.orchestrator => !OrchestratorPrefs(settings).isDefault,
     SettingsSection.specRuns =>
       now.singleSessionMaxSteps != defaults.singleSessionMaxSteps ||
           now.continueContextTokens != defaults.continueContextTokens ||
