@@ -46,6 +46,10 @@ abstract final class AppSettingKeys {
   /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
   static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';
 
+  /// Quadro: the folder of the Foco view is collapsed (`1` / `0`; SPEC-036 R5).
+  static String boardFolderCollapsed(int workspaceId) =>
+      'board.folderCollapsed.$workspaceId';
+
   /// Worktree selected in the Code screen for a workspace (path).
   static String codeWorktree(int workspaceId) => 'code.worktree.$workspaceId';
 

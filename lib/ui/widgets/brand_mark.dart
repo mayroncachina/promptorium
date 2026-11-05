@@ -104,6 +104,7 @@ class BrandMarkPainter extends CustomPainter {
   static final _prompt = parseSvgPath(
     'M94 184 L114 198 L94 212 M126 212 L158 212',
   );
+
   /// The still liquid's sides and bottom, carried up to the neck: the wave
   /// fills the same shape as the still mark.
   static final _liquidBounds = parseSvgPath(

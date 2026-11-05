@@ -15,6 +15,9 @@ abstract final class AppMotion {
   static const emphasis = Duration(milliseconds: 220);
   static const emphasisExit = Duration(milliseconds: 150);
 
+  /// Long trips, between the folder and the stage (SPEC-036 R8).
+  static const stage = Duration(milliseconds: 420);
+
   /// Section change and the sidebar highlight; the old screen leaves at once.
   static const section = Duration(milliseconds: 640);
 

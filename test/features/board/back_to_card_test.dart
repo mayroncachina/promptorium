@@ -108,7 +108,7 @@ void main() {
     );
     await c.read(appSettingsProvider.notifier).load();
     c.read(navigationProvider.notifier).go(AppSection.prompt);
-    c.read(boardGraphViewProvider.notifier).set(true);
+    c.read(boardGraphViewProvider.notifier).set(BoardView.graph);
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: c,
@@ -132,7 +132,7 @@ void main() {
 
     expect(specs.syncs, greaterThanOrEqualTo(1));
     expect(c.read(navigationProvider), AppSection.tasks);
-    expect(c.read(boardGraphViewProvider), isFalse);
+    expect(c.read(boardGraphViewProvider), BoardView.columns);
     expect(c.read(boardSelectedSpecProvider), spec.id);
     expect(c.read(boardFocusSpecProvider), isNull); // consumed by the card
     expect(find.byKey(const ValueKey('board-side-panel')), findsOneWidget);

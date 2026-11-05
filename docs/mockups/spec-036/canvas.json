@@ -1,0 +1,58 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-04T18:30:00Z"
+ },
+ "title": "Promptorium · Canvas de specs (estudo)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · A pasta: passe o mouse e clique",
+   "is_interactive": true
+  },
+  "Aberta.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Spec aberta, com as dependentes",
+   "is_interactive": true
+  },
+  "Recolhida.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Pasta recolhida: só os números",
+   "is_interactive": true
+  },
+  "Executando.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Specs em execução",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Aberta.dc.html",
+  "Recolhida.dc.html",
+  "Executando.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
@@ -36,6 +37,7 @@ import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
+import 'widgets/spec_focus_view.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
 /// Step rows of every spec of a workspace.
@@ -181,6 +183,37 @@ final boardHideDoneProvider = NotifierProvider<BoardHideDone, bool>(
   BoardHideDone.new,
 );
 
+/// Folder of the Foco view collapsed to the numbers (SPEC-036 R5). Saved per
+/// workspace, like "Ocultar concluídas"; open when nothing was saved.
+class BoardFolderCollapsed extends Notifier<bool> {
+  int? _workspaceId;
+
+  @override
+  bool build() {
+    _workspaceId = ref.watch(activeWorkspaceProvider.select((w) => w?.id));
+    final id = _workspaceId;
+    if (id == null) return false;
+    return ref
+            .read(appSettingsProvider.notifier)
+            .get(AppSettingKeys.boardFolderCollapsed(id)) ==
+        '1';
+  }
+
+  Future<void> set(bool collapsed) async {
+    state = collapsed;
+    final id = _workspaceId;
+    if (id == null) return;
+    await ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.boardFolderCollapsed(id), collapsed ? '1' : '0');
+  }
+
+  Future<void> toggle() => set(!state);
+}
+
+final boardFolderCollapsedProvider =
+    NotifierProvider<BoardFolderCollapsed, bool>(BoardFolderCollapsed.new);
+
 /// Whether the card waits for the user: a step in `needs_input`, a pending
 /// approval, a failed worktree preparation, the spec changed on disk or an
 /// A/B ready to compare.
@@ -197,6 +230,23 @@ bool needsAttention(
         prepFailed ||
         changedOnDisk ||
         duelReady);
+
+/// The spec has a session running or a step under way (SPEC-036 R12). A step
+/// that waits for the person is still under way (R13).
+bool isSpecRunning(SpecCardData d, {required bool Function(String id) alive}) =>
+    d.spec.stage != SpecStage.done &&
+    (d.steps.any(
+          (s) =>
+              s.status == StepStatus.running ||
+              s.status == StepStatus.verifying ||
+              s.status == StepStatus.needsInput,
+        ) ||
+        d.sessions.any(
+          (s) =>
+              alive(s.id) &&
+              (s.status == SessionStatus.running ||
+                  s.status == SessionStatus.waitingApproval),
+        ));
 
 /// Shared attention text; all waiting steps belong to the same session.
 String boardAttentionReason(
@@ -219,15 +269,18 @@ String boardAttentionReason(
   return waiting.length == 1 ? '$ids aguardando você' : '$ids aguardam você';
 }
 
-/// "Grafo" (dependency waves) instead of the columns.
-class BoardGraphView extends Notifier<bool> {
-  @override
-  bool build() => false;
+/// The three ways of seeing the Quadro: the columns, the dependency waves
+/// and the folder with the stage (SPEC-036 R1).
+enum BoardView { columns, graph, focus }
 
-  void set(bool graph) => state = graph;
+class BoardGraphView extends Notifier<BoardView> {
+  @override
+  BoardView build() => BoardView.columns;
+
+  void set(BoardView view) => state = view;
 }
 
-final boardGraphViewProvider = NotifierProvider<BoardGraphView, bool>(
+final boardGraphViewProvider = NotifierProvider<BoardGraphView, BoardView>(
   BoardGraphView.new,
 );
 
@@ -253,6 +306,28 @@ List<int> moveInColumn(List<int> order, int id, int neighbor, int delta) {
   if (at < 0) return order;
   return ids..insert(delta > 0 ? at + 1 : at, id);
 }
+
+/// `/` or `Ctrl+F`: focuses the search of the folder (SPEC-036 R6).
+class _FolderSearchIntent extends Intent {
+  const _FolderSearchIntent();
+}
+
+/// Not enabled inside a text field, so that the key reaches it.
+class _FolderSearchAction extends Action<_FolderSearchIntent> {
+  @override
+  bool isEnabled(_FolderSearchIntent intent) =>
+      _focusView.currentState != null &&
+      primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() ==
+          null;
+
+  @override
+  Object? invoke(_FolderSearchIntent intent) {
+    _focusView.currentState?.focusSearch();
+    return null;
+  }
+}
+
+final _focusView = GlobalKey<SpecFocusViewState>();
 
 /// Quadro: one card per approved spec; its requirements are the steps
 /// (docs/plano-specs-no-quadro.md).
@@ -337,6 +412,7 @@ class BoardScreen extends ConsumerWidget {
         ?.autopilot
         .parallel;
     final selectedId = ref.watch(boardSelectedSpecProvider);
+    final view = ref.watch(boardGraphViewProvider);
     final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
     final body = cards.isEmpty
         ? _Empty(
@@ -360,7 +436,7 @@ class BoardScreen extends ConsumerWidget {
           )
         : visible.isEmpty
         ? const _Empty('Nenhum cartão passa pelos filtros.')
-        : ref.watch(boardGraphViewProvider)
+        : view == BoardView.graph
         ? SpecCanvas(
             cards: visible,
             attention: attention,
@@ -369,79 +445,104 @@ class BoardScreen extends ConsumerWidget {
             ),
             attentionCount: attentionCount,
           )
+        : view == BoardView.focus
+        ? SpecFocusView(
+            key: _focusView,
+            cards: visible,
+            all: cards,
+            attention: attention,
+          )
         : _Board(
             cards: visible,
             all: [for (final d in cards) d.spec],
             attention: attention,
             parallel: parallel,
           );
-    return ColoredBox(
-      color: AppColors.background,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SpecSyncBar(workspace: ws, specs: specs, selected: selected?.spec),
-          _Header(
-            workspaceId: ws.id,
-            workspacePath: ws.path,
-            total: cards.length,
-            drafts: drafts,
-            cards: cards,
-            attentionCount: attentionCount,
-            hiddenDone: hiddenDone,
-            parallel: parallel,
-          ),
-          if (legacy.isNotEmpty)
-            _LegacyBanner(
-              count: legacy.length,
-              onOpen: () => showLegacyTasksDialog(context, ws, legacy),
-            ),
-          Expanded(
-            child: selected == null || ref.watch(boardGraphViewProvider)
-                ? body
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: body),
-                      Container(
-                        key: const ValueKey('board-side-panel'),
-                        width: 360,
-                        padding: const EdgeInsets.all(16),
-                        decoration: const BoxDecoration(
-                          color: AppColors.panel,
-                          border: Border(
-                            left: BorderSide(color: AppColors.border),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: IconButton(
-                                key: const ValueKey('board-side-close'),
-                                tooltip: 'Fechar',
-                                iconSize: 16,
-                                visualDensity: VisualDensity.compact,
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: AppColors.textSecondary,
-                                ),
-                                onPressed: () => ref
-                                    .read(boardSelectedSpecProvider.notifier)
-                                    .select(null),
+    return Shortcuts(
+      shortcuts: const {
+        CharacterActivator('/'): _FolderSearchIntent(),
+        SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _FolderSearchIntent(),
+      },
+      child: Actions(
+        actions: {_FolderSearchIntent: _FolderSearchAction()},
+        child: ColoredBox(
+          color: AppColors.background,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SpecSyncBar(
+                workspace: ws,
+                specs: specs,
+                selected: selected?.spec,
+              ),
+              _Header(
+                workspaceId: ws.id,
+                workspacePath: ws.path,
+                total: cards.length,
+                drafts: drafts,
+                cards: cards,
+                attentionCount: attentionCount,
+                hiddenDone: hiddenDone,
+                parallel: parallel,
+              ),
+              if (legacy.isNotEmpty)
+                _LegacyBanner(
+                  count: legacy.length,
+                  onOpen: () => showLegacyTasksDialog(context, ws, legacy),
+                ),
+              Expanded(
+                child: selected == null || view != BoardView.columns
+                    ? body
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: body),
+                          Container(
+                            key: const ValueKey('board-side-panel'),
+                            width: 360,
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              color: AppColors.panel,
+                              border: Border(
+                                left: BorderSide(color: AppColors.border),
                               ),
                             ),
-                            Expanded(
-                              child: SpecStepsPanel(specId: selected.spec.id),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: IconButton(
+                                    key: const ValueKey('board-side-close'),
+                                    tooltip: 'Fechar',
+                                    iconSize: 16,
+                                    visualDensity: VisualDensity.compact,
+                                    icon: const Icon(
+                                      Icons.close,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                    onPressed: () => ref
+                                        .read(
+                                          boardSelectedSpecProvider.notifier,
+                                        )
+                                        .select(null),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: SpecStepsPanel(
+                                    specId: selected.spec.id,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -710,20 +811,24 @@ class _Header extends ConsumerWidget {
               ),
             ),
           const SizedBox(width: 12),
-          for (final (graph, label) in [(false, 'Colunas'), (true, 'Canvas')])
+          for (final (view, label) in const [
+            (BoardView.columns, 'Colunas'),
+            (BoardView.graph, 'Grafo'),
+            (BoardView.focus, 'Foco'),
+          ])
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: ToggleBox(
-                key: ValueKey('board-view-${graph ? 'graph' : 'columns'}'),
-                on: ref.watch(boardGraphViewProvider) == graph,
+                key: ValueKey('board-view-${view.name}'),
+                on: ref.watch(boardGraphViewProvider) == view,
                 height: 28,
                 onTap: () =>
-                    ref.read(boardGraphViewProvider.notifier).set(graph),
+                    ref.read(boardGraphViewProvider.notifier).set(view),
                 child: Text(
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: ref.watch(boardGraphViewProvider) == graph
+                    color: ref.watch(boardGraphViewProvider) == view
                         ? AppColors.amber
                         : AppColors.textSecondary,
                   ),

@@ -1,9 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -17,16 +15,11 @@ import '../../review/widgets/spec_review_panel.dart'
 import '../../agents/agent_file.dart';
 import '../board_rules.dart' show StepView;
 import '../board_screen.dart';
-import '../spec_runner.dart' show worktreePrepProvider;
-import '../../sessions/session_manager.dart';
-import '../../specs/workspace_watcher.dart';
 import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
-import 'gate_fix_badge.dart';
-import 'step_decision_dialog.dart';
+import 'spec_node.dart';
 import 'wave_graph.dart';
-import 'duel_dialog.dart' show openDuelsProvider;
 
 /// Node size, wave spacing and reference rows (Quadro-Canvas.dc.html).
 const _cardSize = Size(250, 116);
@@ -35,7 +28,7 @@ const _cardSize = Size(250, 116);
 const _attentionCardSize = Size(250, 134);
 const _waveX = 380.0, _originX = 60.0, _originY = 110.0, _rowGap = 54.0;
 const _refRow = 56.0, _refHeight = 40.0, _refCap = 3, _refsPerRow = 3;
-const _panelWidth = 290.0;
+const canvasPanelWidth = 290.0;
 
 class SpecCanvas extends ConsumerStatefulWidget {
   const SpecCanvas({
@@ -82,23 +75,6 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
     _pulse?.dispose();
     _view.dispose();
     super.dispose();
-  }
-
-  void _onPointerSignal(PointerSignalEvent event) {
-    if (event is PointerScaleEvent) {
-      _view.zoomTo(_view.scale * event.scale);
-    } else if (event is PointerScrollEvent) {
-      if (HardwareKeyboard.instance.isControlPressed) {
-        if (event.scrollDelta.dy < 0) {
-          _view.zoomIn();
-        } else if (event.scrollDelta.dy > 0) {
-          _view.zoomOut();
-        }
-      } else if (event.kind != PointerDeviceKind.trackpad) {
-        // InteractiveViewer already pans on trackpad scroll.
-        _view.panBy(-event.scrollDelta);
-      }
-    }
   }
 
   /// Rows of [names] centered under [card], from row [row0].
@@ -241,31 +217,11 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
           ..padding = EdgeInsets.fromLTRB(
             24,
             80,
-            selected == null ? 24 : _panelWidth + 48,
+            selected == null ? 24 : canvasPanelWidth + 48,
             70,
           );
         return CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.equal, control: true):
-                _view.zoomIn,
-            const SingleActivator(
-              LogicalKeyboardKey.equal,
-              control: true,
-              shift: true,
-            ): _view.zoomIn,
-            const SingleActivator(LogicalKeyboardKey.numpadAdd, control: true):
-                _view.zoomIn,
-            const SingleActivator(LogicalKeyboardKey.minus, control: true):
-                _view.zoomOut,
-            const SingleActivator(
-              LogicalKeyboardKey.numpadSubtract,
-              control: true,
-            ): _view.zoomOut,
-            const SingleActivator(LogicalKeyboardKey.digit0, control: true):
-                _view.reset,
-            const SingleActivator(LogicalKeyboardKey.numpad0, control: true):
-                _view.reset,
-          },
+          bindings: _view.zoomShortcuts,
           child: Focus(
             autofocus: true,
             child: ColoredBox(
@@ -274,12 +230,12 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                 children: [
                   Positioned.fill(
                     child: RepaintBoundary(
-                      child: CustomPaint(painter: _DotGrid(_view)),
+                      child: CustomPaint(painter: CanvasDotGrid(_view)),
                     ),
                   ),
                   Positioned.fill(
                     child: Listener(
-                      onPointerSignal: _onPointerSignal,
+                      onPointerSignal: _view.onPointerSignal,
                       child: GestureDetector(
                         onTap: () => select(null),
                         child: InteractiveViewer(
@@ -344,11 +300,11 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                         child: AttentionHalo(
                                           enabled: widget.attention(d),
                                           pulse: pulse,
-                                          child: _SpecNode(
+                                          child: SpecNode(
                                             data: d,
                                             selected: d.spec.id == selectedId,
                                             reason: widget.attention(d)
-                                                ? _attentionReason(d)
+                                                ? specAttentionReason(ref, d)
                                                 : null,
                                             pulse: pulse,
                                             onTap: () => select(d.spec.id),
@@ -366,7 +322,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                       child: IgnorePointer(
                                         child: Align(
                                           alignment: Alignment.centerRight,
-                                          child: _AttentionBadge(
+                                          child: AttentionBadge(
                                             key: ValueKey(
                                               'canvas-attention-${d.spec.code}',
                                             ),
@@ -412,7 +368,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                   Positioned(
                     left: 24,
                     top: 20,
-                    child: _Floating(
+                    child: CanvasFloating(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 8,
@@ -446,12 +402,12 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                     right: 24,
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
-                      child: _Floating(
+                      child: CanvasFloating(
                         padding: const EdgeInsets.all(6),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-attention-next'),
                               leading: const AttentionBubble(size: 14),
                               // With the selected spec in the queue: its
@@ -477,7 +433,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                       _view.fitSelection(rects[id]!);
                                     },
                             ),
-                            const _BarDivider(),
+                            const CanvasBarDivider(),
                             const Padding(
                               padding: EdgeInsets.only(left: 8, right: 6),
                               child: Text(
@@ -488,7 +444,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                 ),
                               ),
                             ),
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-layer-agents'),
                               label: 'Agentes',
                               color: CanvasColors.agent,
@@ -497,7 +453,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                               onTap: () => setState(() => _agents = !_agents),
                             ),
                             const SizedBox(width: 8),
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-layer-skills'),
                               label: 'Skills',
                               color: CanvasColors.skill,
@@ -508,7 +464,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                             const SizedBox(width: 8),
                             // Same state as the header chip (SPEC-019 R7):
                             // on = concluded specs shown.
-                            _BarButton(
+                            CanvasBarButton(
                               key: const ValueKey('canvas-hide-done'),
                               label: 'Concluídas',
                               icon: hideDone
@@ -524,8 +480,8 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                   .read(boardHideDoneProvider.notifier)
                                   .toggle(),
                             ),
-                            const _BarDivider(),
-                            _ZoomMenu(
+                            const CanvasBarDivider(),
+                            CanvasZoomMenu(
                               view: _view,
                               onFit: () => _view.fit(
                                 Rect.fromLTRB(
@@ -553,7 +509,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                           200,
                           box.maxWidth -
                               48 -
-                              (selected == null ? 0 : _panelWidth + 24),
+                              (selected == null ? 0 : canvasPanelWidth + 24),
                         ),
                       ),
                       child: const _Legend(key: ValueKey('canvas-legend')),
@@ -563,16 +519,16 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                     Positioned(
                       top: 90,
                       right: 24,
-                      width: _panelWidth,
+                      width: canvasPanelWidth,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxHeight: math.max(120, box.maxHeight - 114),
                         ),
-                        child: _Inspector(
+                        child: SpecInspector(
                           key: const ValueKey('canvas-panel'),
                           data: selected,
                           attention: widget.attention(selected)
-                              ? _attentionReason(selected)
+                              ? specAttentionReason(ref, selected)
                               : null,
                           unlocks: unlocks,
                           references: references[selected.spec.id],
@@ -587,108 +543,9 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
       },
     );
   }
-
-  String _attentionReason(SpecCardData d) {
-    final last = d.lastSession;
-    final waitingApproval =
-        last != null &&
-        last.status == SessionStatus.waitingApproval &&
-        ref.watch(sessionManagerProvider.select((m) => m.isAlive(last.id)));
-    final prep = ref.watch(worktreePrepProvider.select((m) => m[d.spec.id]));
-    final changed = ref.watch(
-      workspaceWatcherProvider.select((s) => s.contains(d.spec.id)),
-    );
-    final duelReady =
-        (ref.watch(openDuelsProvider(d.spec.workspaceId)).value ?? <SpecDuel>[])
-            .any((duel) => duel.specId == d.spec.id && duel.state == 'pronto');
-    return boardAttentionReason(
-      d,
-      waitingApproval: waitingApproval,
-      prepFailed: prep?.error != null,
-      changedOnDisk: changed,
-      duelReady: duelReady,
-    );
-  }
 }
 
 // ---------------------------------------------------------------- estados
-
-/// Label and colour of the spec's stage pill.
-(String, Color) _stagePill(SpecStage s) => switch (s) {
-  SpecStage.done => ('Feito', CanvasColors.done),
-  SpecStage.running => ('Em execução', CanvasColors.running),
-  SpecStage.review => ('Review', CanvasColors.review),
-  SpecStage.backlog => ('Backlog', AppColors.textSecondary),
-};
-
-String _stepLabel(StepView s) => switch (s.status) {
-  StepStatus.done => 'feita',
-  StepStatus.running => 'em execução',
-  StepStatus.needsInput =>
-    s.gateFailed ? 'aguardando você · verificação falhou' : 'aguardando você',
-  StepStatus.verifying => 'verificando',
-  StepStatus.pending => 'pendente',
-};
-
-class _Pill extends StatelessWidget {
-  const _Pill(this.stage, {super.key, this.neutral = false});
-  final SpecStage stage;
-
-  /// On a card that needs the person, so amber is only the attention signal.
-  final bool neutral;
-  @override
-  Widget build(BuildContext context) {
-    final (label, stageColor) = _stagePill(stage);
-    final color = neutral ? AppColors.textSecondary : stageColor;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .15),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-/// Never blinks (R3): the dark text keeps its contrast on amber.
-class _AttentionBadge extends StatelessWidget {
-  const _AttentionBadge({super.key});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(6, 2, 9, 2),
-    decoration: BoxDecoration(
-      color: AppColors.amber,
-      borderRadius: BorderRadius.circular(11),
-      boxShadow: const [
-        BoxShadow(color: AppColors.background, spreadRadius: 3),
-      ],
-    ),
-    child: const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AttentionBubble(size: 13, color: AppColors.onAmber),
-        SizedBox(width: 5),
-        Text(
-          'Precisa de você',
-          softWrap: false,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.onAmber,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 class _WaveLabel extends StatelessWidget {
   const _WaveLabel({super.key, required this.wave, required this.next});
@@ -707,296 +564,6 @@ class _WaveLabel extends StatelessWidget {
 }
 
 // -------------------------------------------------------------------- nós
-
-class _SpecNode extends StatelessWidget {
-  const _SpecNode({
-    required this.data,
-    required this.selected,
-    required this.reason,
-    required this.onTap,
-    this.pulse,
-  });
-  final SpecCardData data;
-  final bool selected;
-
-  /// Why the spec needs the person; null when it does not.
-  final String? reason;
-  final Animation<double>? pulse;
-  final VoidCallback onTap;
-  bool get attention => reason != null;
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
-    final done = data.steps.where((s) => s.isDone).length;
-    final node = DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: radius,
-        border: Border.all(
-          width: selected || attention ? 2 : 1,
-          color: selected
-              ? AppColors.text
-              : attention
-              ? AppColors.amber
-              : AppColors.border,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: selected ? .5 : .25),
-            blurRadius: selected ? 24 : 2,
-            offset: Offset(0, selected ? 8 : 1),
-          ),
-        ],
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          key: ValueKey('board-open-${data.spec.code}'),
-          borderRadius: radius,
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        data.spec.code,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: AppFonts.mono,
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    GateFixBadge(data: data, fontSize: 11),
-                    const SizedBox(width: 6),
-                    _Pill(
-                      data.spec.stage,
-                      key: ValueKey('canvas-pill-${data.spec.code}'),
-                      neutral: attention,
-                    ),
-                  ],
-                ),
-                Text(
-                  data.spec.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    height: 1.3,
-                    color: AppColors.text,
-                  ),
-                ),
-                if (reason != null)
-                  Text(
-                    reason!,
-                    key: ValueKey('canvas-reason-${data.spec.code}'),
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.text,
-                    ),
-                  ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, box) {
-                          final shown = _fittingSteps(data.steps, box.maxWidth);
-                          return Row(
-                            children: [
-                              for (final step in shown)
-                                CanvasDetailCard(
-                                  focusable: false,
-                                  width: 250,
-                                  details: _StepDetails(
-                                    step: step,
-                                    reason: reason,
-                                    clickable: true,
-                                  ),
-                                  child: _StepDotButton(
-                                    spec: data.spec,
-                                    step: step,
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        1,
-                                        4,
-                                        5,
-                                        4,
-                                      ),
-                                      child: CanvasStepDot(
-                                        key: ValueKey(
-                                          'canvas-dot-${data.spec.code}-${step.id}',
-                                        ),
-                                        status: step.status,
-                                        pulse:
-                                            step.status == StepStatus.needsInput
-                                            ? pulse
-                                            : null,
-                                        semanticLabel:
-                                            step.status == StepStatus.needsInput
-                                            ? 'Etapa ${step.id}: '
-                                                  'aguardando você'
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              if (shown.length < data.steps.length)
-                                Text(
-                                  '+${data.steps.length - shown.length}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    Text(
-                      '$done/${data.steps.length}',
-                      key: ValueKey('board-progress-${data.spec.code}'),
-                      style: const TextStyle(
-                        fontFamily: AppFonts.mono,
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-    if (reason == null) return node;
-    return Semantics(
-      key: ValueKey('canvas-semantics-${data.spec.code}'),
-      container: true,
-      label:
-          '${data.spec.code} · ${data.spec.title} · precisa de você: $reason',
-      child: node,
-    );
-  }
-}
-
-/// Width a step takes in the card row: its dot plus the 1 + 5 px padding.
-double _stepWidth(StepView s) =>
-    (s.status == StepStatus.needsInput ? _bubbleSize : _dotSize) + 6;
-
-/// The steps that fit in [maxWidth], leaving room for "+N" when some don't.
-List<StepView> _fittingSteps(List<StepView> steps, double maxWidth) {
-  final total = steps.fold<double>(0, (w, s) => w + _stepWidth(s));
-  if (total <= maxWidth) return steps;
-  final out = <StepView>[];
-  var used = 0.0;
-  for (final s in steps) {
-    if (used + _stepWidth(s) > maxWidth - 16) break;
-    used += _stepWidth(s);
-    out.add(s);
-  }
-  return out.isEmpty ? [steps.first] : out;
-}
-
-class _StepDetails extends StatelessWidget {
-  const _StepDetails({required this.step, this.reason, this.clickable = false});
-  final StepView step;
-
-  /// What is missing, for a step that waits for the person (R7).
-  final String? reason;
-
-  /// The step opens on click (the card's dots, not the panel's list).
-  final bool clickable;
-  @override
-  Widget build(BuildContext context) {
-    if (step.status == StepStatus.needsInput) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const AttentionBubble(size: 14),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  'Etapa ${step.id} · aguardando você',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: Text(
-              step.gateFailed
-                  ? 'A verificação falhou.'
-                  : step.text.isNotEmpty
-                  ? step.text
-                  : reason ?? _stepLabel(step),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          if (clickable)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text(
-                'Clique para abrir a etapa',
-                style: TextStyle(color: AppColors.amber),
-              ),
-            ),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          step.id,
-          style: const TextStyle(
-            fontFamily: AppFonts.mono,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Text(
-            _stepLabel(step),
-            style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-          ),
-        ),
-        if (step.text.isNotEmpty)
-          Text(
-            step.text,
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-      ],
-    );
-  }
-}
 
 Color _refColor(String kind) =>
     kind == 'agent' ? CanvasColors.agent : CanvasColors.skill;
@@ -1111,66 +678,7 @@ class _MoreNode extends StatelessWidget {
 
 // ---------------------------------------------------------------- bolinhas
 
-const _dotSize = 10.0, _bubbleSize = 14.0;
-
-/// A step of the card opens on a click; the balloon also takes the focus, so
-/// it opens from the keyboard and the modal can give the focus back to it
-/// (SPEC-033 R15). Only the balloon: the other dots are not tab stops.
-class _StepDotButton extends StatelessWidget {
-  const _StepDotButton({
-    required this.spec,
-    required this.step,
-    required this.child,
-  });
-  final Spec spec;
-  final StepView step;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => StepFocusAnchor(
-    builder: (context, focus) {
-      void open() => openStep(
-        context,
-        spec,
-        step,
-        stepOrigin(context),
-        returnFocus: focus,
-      );
-      return FocusableActionDetector(
-        focusNode: focus,
-        enabled: step.status == StepStatus.needsInput,
-        mouseCursor: SystemMouseCursors.click,
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              open();
-              return null;
-            },
-          ),
-        },
-        child: GestureDetector(
-          key: ValueKey('canvas-step-${spec.code}-${step.id}'),
-          behavior: HitTestBehavior.opaque,
-          onTap: open,
-          child: ListenableBuilder(
-            listenable: focus,
-            child: child,
-            builder: (_, child) => DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: focus.hasFocus
-                    ? Border.all(color: AppColors.amber)
-                    : null,
-              ),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    },
-  );
-}
+const stepDotSize = 10.0, stepBubbleSize = 14.0;
 
 /// Period of the shared attention pulse (SPEC-030 R2): well under one blink
 /// per second, far from the 3 per second of WCAG 2.3.1 (R9).
@@ -1253,7 +761,7 @@ class _CanvasStepDotState extends State<CanvasStepDot>
     final bubble = widget.status == StepStatus.needsInput;
     final Widget dot = RepaintBoundary(
       child: CustomPaint(
-        size: Size.square(bubble ? _bubbleSize : _dotSize),
+        size: Size.square(bubble ? stepBubbleSize : stepDotSize),
         painter: _DotPainter(
           widget.status,
           bubble ? (widget.animate ? widget.pulse : null) : _animation,
@@ -1290,7 +798,7 @@ Path attentionBubblePath(double size) {
 class AttentionBubble extends StatelessWidget {
   const AttentionBubble({
     super.key,
-    this.size = _bubbleSize,
+    this.size = stepBubbleSize,
     this.color = CanvasColors.needsInput,
   });
   final double size;
@@ -1436,8 +944,8 @@ class AttentionHalo extends StatelessWidget {
 // --------------------------------------------------------------- pintores
 
 /// Background dots that follow pan and zoom.
-class _DotGrid extends CustomPainter {
-  _DotGrid(this.view) : super(repaint: view);
+class CanvasDotGrid extends CustomPainter {
+  CanvasDotGrid(this.view) : super(repaint: view);
   final CanvasViewController view;
   @override
   void paint(Canvas canvas, Size size) {
@@ -1454,7 +962,7 @@ class _DotGrid extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DotGrid old) => old.view != view;
+  bool shouldRepaint(covariant CanvasDotGrid old) => old.view != view;
 }
 
 /// One (dependency, dependent) pair per `depends-on` between specs on the
@@ -1609,8 +1117,8 @@ class DashedBorderPainter extends CustomPainter {
 
 // ------------------------------------------------------- barra e legenda
 
-class _Floating extends StatelessWidget {
-  const _Floating({required this.child, required this.padding});
+class CanvasFloating extends StatelessWidget {
+  const CanvasFloating({super.key, required this.child, required this.padding});
   final Widget child;
   final EdgeInsets padding;
   @override
@@ -1632,8 +1140,8 @@ class _Floating extends StatelessWidget {
   );
 }
 
-class _BarDivider extends StatelessWidget {
-  const _BarDivider();
+class CanvasBarDivider extends StatelessWidget {
+  const CanvasBarDivider({super.key});
   @override
   Widget build(BuildContext context) => Container(
     width: 1,
@@ -1643,8 +1151,8 @@ class _BarDivider extends StatelessWidget {
   );
 }
 
-class _BarButton extends StatelessWidget {
-  const _BarButton({
+class CanvasBarButton extends StatelessWidget {
+  const CanvasBarButton({
     super.key,
     required this.label,
     required this.color,
@@ -1723,8 +1231,9 @@ class _BarButton extends StatelessWidget {
   }
 }
 
-class _ZoomMenu extends StatelessWidget {
-  const _ZoomMenu({
+class CanvasZoomMenu extends StatelessWidget {
+  const CanvasZoomMenu({
+    super.key,
     required this.view,
     required this.onFit,
     required this.onFitSelection,
@@ -1916,8 +1425,8 @@ class _LegendLine extends CustomPainter {
 
 // ---------------------------------------------------------------- inspetor
 
-class _Inspector extends ConsumerWidget {
-  const _Inspector({
+class SpecInspector extends ConsumerWidget {
+  const SpecInspector({
     super.key,
     required this.data,
     required this.attention,
@@ -2016,7 +1525,7 @@ class _Inspector extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    _Pill(spec.stage),
+                    StagePill(spec.stage),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -2136,7 +1645,7 @@ class _Inspector extends ConsumerWidget {
                         label: 'Ver nas colunas',
                         onTap: () => ref
                             .read(boardGraphViewProvider.notifier)
-                            .set(false),
+                            .set(BoardView.columns),
                       ),
                     ),
                   ],
@@ -2174,7 +1683,7 @@ class _StepRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              step.text.isEmpty ? _stepLabel(step) : step.text,
+              step.text.isEmpty ? stepStatusText(step) : step.text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 13, color: AppColors.text),
@@ -2186,7 +1695,7 @@ class _StepRow extends StatelessWidget {
     if (step.text.isEmpty) return row;
     return CanvasDetailCard(
       width: 254,
-      details: _StepDetails(step: step),
+      details: StepDetails(step: step),
       child: row,
     );
   }
