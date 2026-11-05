@@ -100,7 +100,8 @@ Future<void> until(Future<bool> Function() cond) async {
   final end = DateTime.now().add(const Duration(seconds: 15));
   while (!await cond()) {
     if (DateTime.now().isAfter(end)) fail('condição não atingida');
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    // Short polls: the deadline, not the interval, bounds the wait.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
   }
   await settle();
 }
