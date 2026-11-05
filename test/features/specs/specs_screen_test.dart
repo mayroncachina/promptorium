@@ -51,7 +51,10 @@ Future<void> settleIo(WidgetTester tester, {bool Function()? until}) async {
   final lap = Duration(milliseconds: until == null ? 20 : 4);
   for (var i = 0; DateTime.now().isBefore(end); i++) {
     await tester.runAsync(() => Future<void>.delayed(lap));
-    await tester.pump(const Duration(milliseconds: 20));
+    // The first laps move the clock 120 ms as before; then it moves no
+    // faster than real time, so a slow IO does not run out a timer (a
+    // toast) before the condition holds.
+    await tester.pump(i < 6 ? const Duration(milliseconds: 20) : lap);
     if (i >= 5 && (until?.call() ?? true)) return;
   }
 }
