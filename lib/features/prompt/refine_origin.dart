@@ -9,6 +9,7 @@ import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../board/board_screen.dart'
     show
+        BoardView,
         boardFocusSpecProvider,
         boardGraphViewProvider,
         boardSelectedSpecProvider;
@@ -139,7 +140,7 @@ Future<void> backToSpec(
       // The Specs screen is mounted again and its `_load` reads the file.
       nav.go(AppSection.specs);
     case RefineSource.board:
-      ref.read(boardGraphViewProvider.notifier).set(false);
+      ref.read(boardGraphViewProvider.notifier).set(BoardView.columns);
       ref.read(boardSelectedSpecProvider.notifier).select(spec.id);
       ref.read(boardFocusSpecProvider.notifier).select(spec.id);
       nav.go(AppSection.tasks);

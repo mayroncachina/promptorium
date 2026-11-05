@@ -36,6 +36,7 @@ import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
+import 'widgets/spec_focus_view.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
 /// Step rows of every spec of a workspace.
@@ -181,6 +182,37 @@ final boardHideDoneProvider = NotifierProvider<BoardHideDone, bool>(
   BoardHideDone.new,
 );
 
+/// Folder of the Foco view collapsed to the numbers (SPEC-036 R5). Saved per
+/// workspace, like "Ocultar concluídas"; open when nothing was saved.
+class BoardFolderCollapsed extends Notifier<bool> {
+  int? _workspaceId;
+
+  @override
+  bool build() {
+    _workspaceId = ref.watch(activeWorkspaceProvider.select((w) => w?.id));
+    final id = _workspaceId;
+    if (id == null) return false;
+    return ref
+            .read(appSettingsProvider.notifier)
+            .get(AppSettingKeys.boardFolderCollapsed(id)) ==
+        '1';
+  }
+
+  Future<void> set(bool collapsed) async {
+    state = collapsed;
+    final id = _workspaceId;
+    if (id == null) return;
+    await ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.boardFolderCollapsed(id), collapsed ? '1' : '0');
+  }
+
+  Future<void> toggle() => set(!state);
+}
+
+final boardFolderCollapsedProvider =
+    NotifierProvider<BoardFolderCollapsed, bool>(BoardFolderCollapsed.new);
+
 /// Whether the card waits for the user: a step in `needs_input`, a pending
 /// approval, a failed worktree preparation, the spec changed on disk or an
 /// A/B ready to compare.
@@ -219,15 +251,18 @@ String boardAttentionReason(
   return waiting.length == 1 ? '$ids aguardando você' : '$ids aguardam você';
 }
 
-/// "Grafo" (dependency waves) instead of the columns.
-class BoardGraphView extends Notifier<bool> {
-  @override
-  bool build() => false;
+/// The three ways of seeing the Quadro: the columns, the dependency waves
+/// and the folder with the stage (SPEC-036 R1).
+enum BoardView { columns, graph, focus }
 
-  void set(bool graph) => state = graph;
+class BoardGraphView extends Notifier<BoardView> {
+  @override
+  BoardView build() => BoardView.columns;
+
+  void set(BoardView view) => state = view;
 }
 
-final boardGraphViewProvider = NotifierProvider<BoardGraphView, bool>(
+final boardGraphViewProvider = NotifierProvider<BoardGraphView, BoardView>(
   BoardGraphView.new,
 );
 
@@ -337,6 +372,7 @@ class BoardScreen extends ConsumerWidget {
         ?.autopilot
         .parallel;
     final selectedId = ref.watch(boardSelectedSpecProvider);
+    final view = ref.watch(boardGraphViewProvider);
     final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
     final body = cards.isEmpty
         ? _Empty(
@@ -360,7 +396,7 @@ class BoardScreen extends ConsumerWidget {
           )
         : visible.isEmpty
         ? const _Empty('Nenhum cartão passa pelos filtros.')
-        : ref.watch(boardGraphViewProvider)
+        : view == BoardView.graph
         ? SpecCanvas(
             cards: visible,
             attention: attention,
@@ -369,6 +405,8 @@ class BoardScreen extends ConsumerWidget {
             ),
             attentionCount: attentionCount,
           )
+        : view == BoardView.focus
+        ? SpecFocusView(cards: visible, attention: attention)
         : _Board(
             cards: visible,
             all: [for (final d in cards) d.spec],
@@ -397,7 +435,7 @@ class BoardScreen extends ConsumerWidget {
               onOpen: () => showLegacyTasksDialog(context, ws, legacy),
             ),
           Expanded(
-            child: selected == null || ref.watch(boardGraphViewProvider)
+            child: selected == null || view != BoardView.columns
                 ? body
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -710,20 +748,24 @@ class _Header extends ConsumerWidget {
               ),
             ),
           const SizedBox(width: 12),
-          for (final (graph, label) in [(false, 'Colunas'), (true, 'Canvas')])
+          for (final (view, label) in const [
+            (BoardView.columns, 'Colunas'),
+            (BoardView.graph, 'Grafo'),
+            (BoardView.focus, 'Foco'),
+          ])
             Padding(
               padding: const EdgeInsets.only(right: 4),
               child: ToggleBox(
-                key: ValueKey('board-view-${graph ? 'graph' : 'columns'}'),
-                on: ref.watch(boardGraphViewProvider) == graph,
+                key: ValueKey('board-view-${view.name}'),
+                on: ref.watch(boardGraphViewProvider) == view,
                 height: 28,
                 onTap: () =>
-                    ref.read(boardGraphViewProvider.notifier).set(graph),
+                    ref.read(boardGraphViewProvider.notifier).set(view),
                 child: Text(
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: ref.watch(boardGraphViewProvider) == graph
+                    color: ref.watch(boardGraphViewProvider) == view
                         ? AppColors.amber
                         : AppColors.textSecondary,
                   ),

@@ -191,7 +191,7 @@ void main() {
       expect(scaleOf(tester), closeTo(1.1, .001));
       await ctrl(tester, LogicalKeyboardKey.digit0);
       expect(scaleOf(tester), 1);
-      c.read(boardGraphViewProvider.notifier).set(false);
+      c.read(boardGraphViewProvider.notifier).set(BoardView.columns);
       await pumpFor(tester);
       await ctrl(tester, LogicalKeyboardKey.equal);
       expect(byKey('board-graph'), findsNothing);
@@ -369,10 +369,10 @@ void main() {
 
       await tester.tap(inPanel('Ver nas colunas'));
       await pumpFor(tester);
-      expect(c.read(boardGraphViewProvider), false);
+      expect(c.read(boardGraphViewProvider), BoardView.columns);
       expect(c.read(boardSelectedSpecProvider), id);
 
-      c.read(boardGraphViewProvider.notifier).set(true);
+      c.read(boardGraphViewProvider.notifier).set(BoardView.graph);
       await pumpFor(tester);
       await tester.tap(inPanel('Abrir spec'));
       await pumpFor(tester);
@@ -485,7 +485,7 @@ void main() {
       expect(find.text('Atenção · 0'), findsOneWidget);
       await setSteps(StepStatus.needsInput);
       expect(byKey('canvas-attention-SPEC-001'), findsOneWidget);
-      expect(c.read(boardGraphViewProvider), true);
+      expect(c.read(boardGraphViewProvider), BoardView.graph);
     });
 
     testWidgets('"Atenção" selects the next spec in turn and is disabled '

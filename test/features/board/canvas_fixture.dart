@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,7 @@ import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
+import 'package:promptorium/ui/theme/tokens.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -42,6 +45,29 @@ class CanvasSpec {
       steps.any((s) => s != StepStatus.pending);
 }
 
+/// Smallest window (1100×700) without the rail and the title bar.
+const minimumBoard = Size(1044, 660);
+
+/// The app's fonts: the default of the tests is much wider, and a width
+/// check with it says nothing (SPEC-036 R16).
+Future<void> loadAppFonts() async {
+  Future<void> family(String name, List<String> files) async {
+    final loader = FontLoader(name);
+    for (final f in files) {
+      final bytes = File('assets/fonts/$f').readAsBytesSync();
+      loader.addFont(Future.value(ByteData.sublistView(bytes)));
+    }
+    await loader.load();
+  }
+
+  await family(AppFonts.sans, [
+    'IBMPlexSans-Regular.ttf',
+    'IBMPlexSans-Medium.ttf',
+    'IBMPlexSans-SemiBold.ttf',
+  ]);
+  await family(AppFonts.mono, ['JetBrainsMono-Regular.ttf']);
+}
+
 Future<void> pumpFor(WidgetTester tester, [int times = 10]) async {
   for (var i = 0; i < times; i++) {
     await tester.pump(const Duration(milliseconds: 20));
@@ -56,6 +82,7 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
   List<CanvasSpec> specs, {
   String path = '/work/repo',
   Size size = const Size(1440, 900),
+  BoardView view = BoardView.graph,
   List<Override> Function(AppDatabase db)? overrides,
 }) async {
   tester.view.physicalSize = size;
@@ -158,7 +185,7 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
   );
   addTearDown(c.dispose);
   await c.read(appSettingsProvider.notifier).load();
-  c.read(boardGraphViewProvider.notifier).set(true);
+  c.read(boardGraphViewProvider.notifier).set(view);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: c,
