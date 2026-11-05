@@ -95,7 +95,7 @@ void main() {
           expect(await db.select(db.specSteps).get(), isEmpty);
         });
         // Canvas: the same specs show the "Feito" stage.
-        c.read(boardGraphViewProvider.notifier).set(true);
+        c.read(boardGraphViewProvider.notifier).set(BoardView.graph);
         for (var i = 0; i < 10; i++) {
           await tester.pump(const Duration(milliseconds: 20));
         }

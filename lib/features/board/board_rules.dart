@@ -186,6 +186,42 @@ bool canDeleteSpec(Spec spec) =>
 bool canArchiveSpec(Spec spec) =>
     spec.stage == SpecStage.done && spec.status != SpecStatus.archived;
 
+/// Number of a spec: the last digits of its code (`SPEC-035` → 35; 0 = none).
+int specNumber(String code) =>
+    int.tryParse(RegExp(r'(\d+)(?!.*\d)').firstMatch(code)?[1] ?? '') ?? 0;
+
+/// `035` of `SPEC-035`, or the whole code when it has no number.
+String specShortCode(String code) =>
+    RegExp(r'(\d+)(?!.*\d)').firstMatch(code)?[1] ?? code;
+
+/// Newest spec first: by number, then by code.
+int compareNewestFirst(Spec a, Spec b) {
+  final byNumber = specNumber(b.code).compareTo(specNumber(a.code));
+  return byNumber != 0 ? byNumber : b.code.compareTo(a.code);
+}
+
+/// Status of a line of the folder (SPEC-036 R2).
+enum FolderStatus { attention, done, running, review, backlog }
+
+/// "Aguardando você" comes before the stage of the spec.
+FolderStatus folderStatus(SpecStage stage, {required bool attention}) =>
+    attention
+    ? FolderStatus.attention
+    : switch (stage) {
+        SpecStage.done => FolderStatus.done,
+        SpecStage.running => FolderStatus.running,
+        SpecStage.review => FolderStatus.review,
+        SpecStage.backlog => FolderStatus.backlog,
+      };
+
+String folderStatusLabel(FolderStatus s) => switch (s) {
+  FolderStatus.attention => 'Aguardando você',
+  FolderStatus.done => 'Feito',
+  FolderStatus.running => 'Em execução',
+  FolderStatus.review => 'Review',
+  FolderStatus.backlog => 'Backlog',
+};
+
 /// Labels of the columns.
 String specStageLabel(SpecStage s) => switch (s) {
   SpecStage.backlog => 'Backlog',

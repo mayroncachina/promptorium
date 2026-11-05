@@ -413,10 +413,10 @@ void main() {
     await b.move(0, SpecStage.running);
     await pumpChange(tester, () => flight(b.ids[0]).evaluate().isNotEmpty);
     await tester.pump(_frame);
-    b.container.read(boardGraphViewProvider.notifier).set(true);
+    b.container.read(boardGraphViewProvider.notifier).set(BoardView.graph);
     await tester.pump();
     expect(find.byType(BoardFlights), findsNothing);
-    b.container.read(boardGraphViewProvider.notifier).set(false);
+    b.container.read(boardGraphViewProvider.notifier).set(BoardView.columns);
     await tester.pump();
     expect(flight(b.ids[0]), findsNothing);
     expect(inColumn('running', card(0)), findsOneWidget);
