@@ -12,6 +12,7 @@ import 'package:promptorium/features/specs/spec_action.dart';
 import 'package:promptorium/features/specs/spec_design.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/features/specs/specs_screen.dart';
+import 'package:promptorium/features/project/spec_auto_planner.dart';
 import 'package:promptorium/features/specs/widgets/spec_header.dart';
 import 'package:promptorium/features/specs/workspace_watcher.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -440,4 +441,174 @@ void main() {
     designer.next.complete(sample);
     await settleIo(tester, until: () => editorOf(tester).readOnly != true);
   }, variant: desktop);
+
+  group('SPEC-037 R10, R13: the automatic plan holds the spec', () {
+    const lock = AutoPlanState(replanning: {});
+    Future<(ProviderContainer, SeededPlanner, int)> pumpHeld(
+      WidgetTester tester,
+    ) async {
+      late SeededPlanner planner;
+      final c = await pumpSpecs(
+        tester,
+        tmp,
+        designer: make,
+        reduceMotion: true,
+        overrides: [
+          specAutoPlannerProvider.overrideWith(
+            () => planner = SeededPlanner(lock),
+          ),
+        ],
+      );
+      c.read(specAutoPlannerProvider);
+      final specs = await tester.runAsync(
+        () => c.read(specsRepoProvider).watchByWorkspace(1).first,
+      );
+      return (c, planner, specs!.firstWhere((s) => s.code == 'SPEC-002').id);
+    }
+
+    AutoPlanState queued(int id) => AutoPlanState(
+      queues: {
+        1: AutoPlanQueue(
+          active: {id},
+          items: [
+            const AutoPlanItem(
+              specId: 900,
+              code: 'SPEC-001',
+              title: 'Base',
+              path: 'specs/a.md',
+              dependsOn: [],
+              status: AutoPlanStatus.planning,
+            ),
+            AutoPlanItem(
+              specId: id,
+              code: 'SPEC-002',
+              title: 'Sessões',
+              path: 'specs/b.md',
+              dependsOn: const [],
+            ),
+          ],
+        ),
+      },
+    );
+
+    testWidgets('in the queue: read-only, "Na fila", the strip with the '
+        'position, and the actions off with the reason', (tester) async {
+      final (_, planner, id) = await pumpHeld(tester);
+      expect(editorOf(tester).readOnly, isFalse);
+      planner.seed(queued(id));
+      await tester.pump();
+      await tester.pump();
+      expect(editorOf(tester).readOnly, isTrue);
+      expect(find.text('Na fila'), findsOneWidget);
+      expect(
+        find.text(
+          'Planejando as specs do projeto · 1 de 2, em SPEC-001. Esta spec '
+          'fica bloqueada até a fila passar por ela.',
+        ),
+        findsOneWidget,
+      );
+      final design = tester.widget<SpecActionButton>(
+        find.byWidgetPredicate(
+          (w) => w is SpecActionButton && w.action.id == 'design',
+        ),
+      );
+      expect(design.action.onTap, isNull);
+      expect(design.action.unavailableReason, autoPlanQueueReason);
+
+      // Ctrl+S writes nothing while held.
+      final before = File(specPath(tmp)).readAsStringSync();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(File(specPath(tmp)).readAsStringSync(), before);
+    });
+
+    testWidgets('R11: the reason and the strip fit at 1100×700', (
+      tester,
+    ) async {
+      late SeededPlanner planner;
+      final c = await pumpSpecs(
+        tester,
+        tmp,
+        designer: make,
+        reduceMotion: true,
+        size: const Size(1048, 640),
+        overrides: [
+          specAutoPlannerProvider.overrideWith(
+            () => planner = SeededPlanner(lock),
+          ),
+        ],
+      );
+      c.read(specAutoPlannerProvider);
+      final specs = await tester.runAsync(
+        () => c.read(specsRepoProvider).watchByWorkspace(1).first,
+      );
+      planner.seed(queued(specs!.firstWhere((s) => s.code == 'SPEC-002').id));
+      await tester.pump();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      final strip = key('spec-plan-lock');
+      expect(strip, findsOneWidget);
+      expect(find.text(autoPlanQueueReason), findsOneWidget);
+    });
+
+    testWidgets('when the round ends the editor shows what the agent wrote', (
+      tester,
+    ) async {
+      final (_, planner, id) = await pumpHeld(tester);
+      planner.seed(AutoPlanState(replanning: {id}));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(autoPlanUpdateReason), findsOneWidget);
+      expect(editorOf(tester).readOnly, isTrue);
+      final written = sample.replaceFirst('# Sessões', '# Pelo agente');
+      File(specPath(tmp)).writeAsStringSync(written);
+      planner.seed(const AutoPlanState());
+      await settleIo(
+        tester,
+        until: () => editorOf(tester).controller!.text == written,
+      );
+      expect(editorOf(tester).readOnly, isFalse);
+    });
+
+    testWidgets('saving by hand takes out `plano: automatico`', (tester) async {
+      final marked = SpecDocument.parse(sample).withAutoPlan(true);
+      File(specPath(tmp)).writeAsStringSync(marked);
+      await pumpHeld(tester);
+      expect(
+        SpecDocument.parse(editorOf(tester).controller!.text).autoPlanned,
+        isTrue,
+      );
+      await tester.tap(find.byType(CodeEditor));
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await settleIo(
+        tester,
+        until: () =>
+            !SpecDocument.parse(File(specPath(tmp)).readAsStringSync())
+                .autoPlanned,
+      );
+      expect(
+        SpecDocument.parse(File(specPath(tmp)).readAsStringSync()).autoPlanned,
+        isFalse,
+      );
+      await settleIo(tester);
+      expect(key('spec-unsaved'), findsNothing);
+    });
+  });
+}
+
+/// [SpecAutoPlanner] with a state the test sets.
+class SeededPlanner extends SpecAutoPlanner {
+  SeededPlanner(this._seed);
+
+  final AutoPlanState _seed;
+
+  @override
+  AutoPlanState build() => _seed;
+
+  void seed(AutoPlanState value) => state = value;
 }

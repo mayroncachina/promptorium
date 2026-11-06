@@ -14,6 +14,7 @@ import '../../../core/providers/provider_preferences.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../project/spec_auto_planner.dart';
 import '../../project/project_config.dart';
 import '../../review/auto_reviewer.dart' show reviewerApplies;
 import '../../settings/settings_sections.dart';
@@ -85,6 +86,13 @@ Future<void> runSpec(
   bool ask = false,
 }) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  // SPEC-037 R10, R13: every way in, not only the card's button.
+  if (ref.read(specAutoPlannerProvider).lockOf(data.spec.id) case final lock?) {
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showAppToast(SnackBar(content: Text('${lock.reason}.')));
+    return;
+  }
   // The card (and its `ref`) may be gone when the user taps the snackbar
   // action: it moves to another column as soon as the session starts.
   final container = ProviderScope.containerOf(context, listen: false);

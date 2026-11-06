@@ -426,6 +426,7 @@ class SpecHeader extends StatelessWidget {
     this.onSave,
     this.zoom,
     this.lockLabel,
+    this.statusLabel,
     this.lockAlert = false,
   });
 
@@ -450,6 +451,9 @@ class SpecHeader extends StatelessWidget {
   /// An action holds the spec (SPEC-025 R6): replaces the save state with
   /// "Somente leitura enquanto aprova"; [lockAlert] = amber (long action).
   final String? lockLabel;
+
+  /// Takes the place of the status next to the title (SPEC-037 R10).
+  final String? statusLabel;
   final bool lockAlert;
 
   @override
@@ -487,7 +491,7 @@ class SpecHeader extends StatelessWidget {
             ),
             if (status != null) ...[
               const SizedBox(width: 10),
-              StatusBadge(status: status!, locked: locked),
+              StatusBadge(status: status!, locked: locked, label: statusLabel),
             ],
           ],
         ),
@@ -654,15 +658,28 @@ class SpecHeader extends StatelessWidget {
 /// Status of the spec next to the title, with the texts of the list (R1);
 /// a lock when the execution started (R5).
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.status, this.locked = false});
+  const StatusBadge({
+    super.key,
+    required this.status,
+    this.locked = false,
+    this.label,
+  });
 
   final SpecStatus status;
   final bool locked;
 
+  /// Takes the place of the status: "Na fila" (SPEC-037 R10).
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
-    final approved = status == SpecStatus.approved;
-    final color = approved ? AppColors.teal : AppColors.textSecondary;
+    final queued = label != null;
+    final approved = status == SpecStatus.approved && !queued;
+    final color = queued
+        ? AppColors.amber
+        : approved
+        ? AppColors.teal
+        : AppColors.textSecondary;
     final icon = locked
         ? Icons.lock_outline
         : approved
@@ -673,10 +690,18 @@ class StatusBadge extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: approved ? SessionColors.runningToolBg : AppColors.surfaceRaised,
+        color: queued
+            ? SessionColors.approvalBg
+            : approved
+            ? SessionColors.runningToolBg
+            : AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
-          color: approved ? SessionColors.runningToolBorder : AppColors.border,
+          color: queued
+              ? SessionColors.approvalBorder
+              : approved
+              ? SessionColors.runningToolBorder
+              : AppColors.border,
         ),
       ),
       child: Row(
@@ -692,7 +717,7 @@ class StatusBadge extends StatelessWidget {
             const SizedBox(width: 5),
           ],
           Text(
-            specStatusLabel(status),
+            label ?? specStatusLabel(status),
             maxLines: 1,
             softWrap: false,
             style: TextStyle(

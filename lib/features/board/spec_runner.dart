@@ -17,6 +17,7 @@ import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
+import '../project/spec_auto_planner.dart';
 import '../project/project_config.dart';
 import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
@@ -732,6 +733,7 @@ class SpecRunner {
         .read(workspacesRepoProvider)
         .getById(spec.workspaceId);
     if (ws == null) throw const SpecRunException('Workspace não encontrado.');
+    _checkPlanLock(spec);
     final service = _ref.read(specServiceProvider);
     await service.sync(ws);
     spec = (await specs.getById(specId))!;
@@ -851,6 +853,8 @@ class SpecRunner {
     );
     if (spec.preparedAt == null) await _prepare(spec, ws, wt.path, config, env);
     await _markStart(spec, wt.path, todo);
+    // "Plano anterior" lasts until the spec starts (SPEC-037 R13).
+    _ref.read(specAutoPlannerProvider.notifier).clearFailure(specId);
     final last = sessions.isEmpty ? null : sessions.last;
     final settings = _ref.read(appSettingsProvider.notifier);
     // The Orquestrador only uses the Claude Code (D5).
@@ -936,6 +940,14 @@ class SpecRunner {
     );
   }
 
+  /// Executar waits while the agent writes the plan (SPEC-037 R10, R13).
+  void _checkPlanLock(Spec spec) {
+    final lock = _ref.read(specAutoPlannerProvider).lockOf(spec.id);
+    if (lock != null) {
+      throw SpecRunException('${spec.code} aguarda: ${lock.reason}.');
+    }
+  }
+
   /// Model and effort of the plan of each of [steps] (empty in Manual).
   static Map<String, StepRule?> _plans(
     List<StepView> steps,
@@ -982,6 +994,7 @@ class SpecRunner {
     if (spec == null) {
       return runNext(specId, reviewUnblocks: reviewUnblocks);
     }
+    _checkPlanLock(spec);
     final repo = _ref.read(specStepsRepoProvider);
     final rows = await repo.bySpec(specId);
     final steps = stepsOf(spec, rows);
