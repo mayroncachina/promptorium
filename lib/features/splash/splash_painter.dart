@@ -12,7 +12,11 @@ import '../../ui/widgets/svg_path.dart';
 /// once at [introSpeed]× (≈2.6 s) and only the ambient parts loop (wave,
 /// bubbles, caret, glow pulse) in real time.
 class SplashTimeline {
-  const SplashTimeline({required this.elapsed, this.reducedMotion = false});
+  const SplashTimeline({
+    required this.elapsed,
+    this.reducedMotion = false,
+    this.loop = true,
+  });
 
   /// Real seconds since the splash appeared.
   final double elapsed;
@@ -20,13 +24,24 @@ class SplashTimeline {
   /// `MediaQuery.disableAnimations`: everything in its final state.
   final bool reducedMotion;
 
+  /// Whether the ambient parts go on after the intro. Without it they fade
+  /// into the same still frame as [reducedMotion] (SPEC-038 R2).
+  final bool loop;
+
   static const cycle = 7.0; // mockup loop length (s)
   static const introEnd = 4.48; // 64% of 7 s: last keyframe (links) done
   static const introSpeed = 1.75;
+  static const introSeconds = introEnd / introSpeed;
+
+  /// Last stretch of the intro where the bubbles leave, when not looping.
+  static const _bubblesFade = 0.4;
 
   /// Real duration of the intro.
   static Duration get introDuration =>
       Duration(milliseconds: (introEnd / introSpeed * 1000).round());
+
+  /// The final frame: nothing here depends on [elapsed] any more.
+  bool get _still => reducedMotion || (!loop && elapsed >= introSeconds);
 
   /// Time in mockup seconds, clamped to the end of the intro.
   double get _t =>
@@ -50,7 +65,8 @@ class SplashTimeline {
   double get liquidDy => 62 * (1 - _seg(14, 42, const Cubic(.3, .7, .2, 1)));
 
   // .pm-wave: translateX 0→-60 every 2.2 s, linear
-  double get waveDx => reducedMotion ? 0 : -60 * ((elapsed % 2.2) / 2.2);
+  double get waveDx =>
+      -60 * (((_still ? introSeconds : elapsed) % 2.2) / 2.2);
 
   // .pm-title 24%→34%
   double get titleOpacity => _seg(24, 34);
@@ -77,17 +93,17 @@ class SplashTimeline {
   /// .pm-glow 40%→60%: 0→.55, then a slow pulse instead of fading out.
   double get glowOpacity {
     final rise = _seg(40, 60, Curves.easeInOut) * 0.55;
-    if (reducedMotion || _t < introEnd) return rise;
+    if (_still || _t < introEnd) return rise;
     final since = elapsed - introDuration.inMilliseconds / 1000;
     return 0.45 + 0.10 * math.cos(since * 2 * math.pi / 3.5);
   }
 
   /// .pm-caret: steps(1) blink, 1 s period.
-  double get caretOpacity => reducedMotion || (elapsed % 1.0) < 0.5 ? 1 : 0;
+  double get caretOpacity => _still || (elapsed % 1.0) < 0.5 ? 1 : 0;
 
   /// .pm-bubble i: 2.4 s ease-in; delays 0, .8, 1.6 s.
   ({double dy, double scale, double opacity}) bubble(int i) {
-    if (reducedMotion) return (dy: 0, scale: 1, opacity: 1);
+    if (_still) return (dy: 0, scale: .6, opacity: 0);
     final t = elapsed - i * 0.8;
     if (t < 0) return (dy: 0, scale: .6, opacity: 0);
     final p = (t % 2.4) / 2.4;
@@ -99,6 +115,9 @@ class SplashTimeline {
       opacity = 1 - .1 * Curves.easeIn.transform((p - .2) / .6);
     } else {
       opacity = .9 * (1 - Curves.easeIn.transform((p - .8) / .2));
+    }
+    if (!loop) {
+      opacity *= ((introSeconds - elapsed) / _bubblesFade).clamp(0.0, 1.0);
     }
     return (dy: -46 * e, scale: .6 + .4 * e, opacity: opacity);
   }

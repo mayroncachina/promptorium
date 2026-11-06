@@ -92,11 +92,12 @@ class UpdatesCard extends ConsumerStatefulWidget {
 
 class _UpdatesCardState extends ConsumerState<UpdatesCard> {
   bool _busy = false;
-  bool _checked = false;
 
   @override
   Widget build(BuildContext context) {
     final update = ref.watch(updateCheckerProvider);
+    final outcome = ref.watch(lastCheckProvider)?.outcome;
+    final noResponse = update == null && outcome == UpdateCheckOutcome.failed;
     final settings = ref.watch(appSettingsProvider);
     final on = settings[UpdateChecker.enabledKey] != '0';
     final version = ref.watch(appVersionProvider).value;
@@ -128,13 +129,17 @@ class _UpdatesCardState extends ConsumerState<UpdatesCard> {
               child: Text(
                 update != null
                     ? 'Versão ${update.version} disponível.'
-                    : _checked
+                    : noResponse
+                    ? 'Não foi possível verificar atualizações.'
+                    : outcome == UpdateCheckOutcome.upToDate
                     ? 'Você está na versão mais recente.'
                     : '',
                 key: const ValueKey('update-status'),
                 style: TextStyle(
                   fontSize: 12,
-                  color: update != null ? AppColors.amber : AppColors.textMuted,
+                  color: update != null || noResponse
+                      ? AppColors.amber
+                      : AppColors.textMuted,
                 ),
               ),
             ),
@@ -160,12 +165,7 @@ class _UpdatesCardState extends ConsumerState<UpdatesCard> {
                       await ref
                           .read(updateCheckerProvider.notifier)
                           .check(force: true);
-                      if (mounted) {
-                        setState(() {
-                          _busy = false;
-                          _checked = true;
-                        });
-                      }
+                      if (mounted) setState(() => _busy = false);
                     },
             ),
           ],

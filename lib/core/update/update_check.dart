@@ -91,24 +91,42 @@ List<ReleaseAsset> parseReleaseAssets(Object? raw) {
   ];
 }
 
-/// Reads the latest release (null = none / offline / not a JSON).
+/// The query didn't get an answer it can use (SPEC-038 R10): the network, a
+/// timeout and a bad response end up here, never as "no release".
+class ReleaseFetchException implements Exception {
+  const ReleaseFetchException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'ReleaseFetchException: $message';
+}
+
+/// Reads the latest release: null when the project has none; throws when the
+/// query fails.
 typedef ReleaseFetcher = Future<Map<String, dynamic>?> Function(
   String appVersion,
 );
 
-Future<Map<String, dynamic>?> fetchLatestRelease(String appVersion) async {
+Future<Map<String, dynamic>?> fetchLatestRelease(
+  String appVersion, {
+  String url = releasesApi,
+}) async {
+  const timeout = Duration(seconds: 10);
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
   try {
-    final req = await client.getUrl(Uri.parse(releasesApi));
+    final req = await client.getUrl(Uri.parse(url));
     req.headers.set('Accept', 'application/vnd.github+json');
     req.headers.set('User-Agent', 'promptorium/$appVersion');
-    final res = await req.close().timeout(const Duration(seconds: 10));
-    if (res.statusCode != 200) return null;
-    final body = await res.transform(utf8.decoder).join();
+    final res = await req.close().timeout(timeout);
+    if (res.statusCode == HttpStatus.notFound) return null;
+    if (res.statusCode != HttpStatus.ok) {
+      throw ReleaseFetchException('HTTP ${res.statusCode}');
+    }
+    final body = await res.transform(utf8.decoder).join().timeout(timeout);
     final j = jsonDecode(body);
-    return j is Map<String, dynamic> ? j : null;
-  } catch (_) {
-    return null;
+    if (j is Map<String, dynamic>) return j;
+    throw const ReleaseFetchException('resposta inválida');
   } finally {
     client.close(force: true);
   }
@@ -118,11 +136,38 @@ final releaseFetcherProvider = Provider<ReleaseFetcher>(
   (ref) => fetchLatestRelease,
 );
 
+/// How the last query ended.
+enum UpdateCheckOutcome { upToDate, found, failed }
+
+/// Result of the last query, kept in the settings so a restart within the 24 h
+/// without a query doesn't turn it into "versão mais recente" (SPEC-038 R10).
+@immutable
+class UpdateCheckResult {
+  const UpdateCheckResult(this.outcome, this.at);
+
+  final UpdateCheckOutcome outcome;
+  final DateTime at;
+
+  String encode() => '${outcome.name} ${at.toIso8601String()}';
+
+  /// Null when [raw] is absent or unreadable.
+  static UpdateCheckResult? parse(String? raw) {
+    final parts = raw?.split(' ') ?? const [];
+    if (parts.length != 2) return null;
+    final outcome = UpdateCheckOutcome.values.asNameMap()[parts.first];
+    final at = DateTime.tryParse(parts.last);
+    return outcome == null || at == null
+        ? null
+        : UpdateCheckResult(outcome, at);
+  }
+}
+
 /// "Aviso de versão nova" (F18): once a day (Configurações can turn it off)
 /// the latest GitHub release is compared with [appVersionProvider].
 class UpdateChecker extends Notifier<AvailableUpdate?> {
   static const enabledKey = 'update.check';
   static const lastKey = 'update.lastCheck';
+  static const resultKey = 'update.lastResult';
 
   @override
   AvailableUpdate? build() => null;
@@ -146,11 +191,18 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
     }
     await settings.set(lastKey, at.toIso8601String());
     final String current = version ?? await ref.read(appVersionProvider.future);
-    final r = await ref.read(releaseFetcherProvider)(current);
-    final tag = '${r?['tag_name'] ?? ''}';
-    if (r == null || r['draft'] == true || !isNewer(tag, current)) {
-      return state = null;
+    final Map<String, dynamic>? r;
+    try {
+      r = await ref.read(releaseFetcherProvider)(current);
+    } catch (e) {
+      debugPrint('atualização: $e');
+      return _failed(at);
     }
+    if (r == null || r['draft'] == true) return _upToDate(at);
+    final tag = '${r['tag_name'] ?? ''}';
+    if (parseVersion(tag) == null) return _failed(at);
+    if (!isNewer(tag, current)) return _upToDate(at);
+    await _record(UpdateCheckOutcome.found, at);
     return state = AvailableUpdate(
       version: tag.replaceFirst(RegExp('^v'), ''),
       url:
@@ -160,8 +212,32 @@ class UpdateChecker extends Notifier<AvailableUpdate?> {
       assets: parseReleaseAssets(r['assets']),
     );
   }
+
+  Future<AvailableUpdate?> _upToDate(DateTime at) async {
+    await _record(UpdateCheckOutcome.upToDate, at);
+    return state = null;
+  }
+
+  /// [state] stays: an update already found is still there (R10).
+  Future<AvailableUpdate?> _failed(DateTime at) async {
+    await _record(UpdateCheckOutcome.failed, at);
+    return state;
+  }
+
+  Future<void> _record(UpdateCheckOutcome outcome, DateTime at) => ref
+      .read(appSettingsProvider.notifier)
+      .set(resultKey, UpdateCheckResult(outcome, at).encode());
 }
 
 final updateCheckerProvider = NotifierProvider<UpdateChecker, AvailableUpdate?>(
   UpdateChecker.new,
+);
+
+/// How the last query ended; null when none is on record.
+final lastCheckProvider = Provider<UpdateCheckResult?>(
+  (ref) => UpdateCheckResult.parse(
+    ref.watch(
+      appSettingsProvider.select((s) => s[UpdateChecker.resultKey]),
+    ),
+  ),
 );

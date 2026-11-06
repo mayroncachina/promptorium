@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -165,6 +166,36 @@ void main() {
       expect(root.listSync(), isEmpty);
       expect(await run(s, a, siblings: [sum('good')]), isNull);
     });
+  });
+
+  test('SPEC-038 R8: cancelling the download deletes the partial file', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final data = List<int>.filled(200000, 7);
+    server.listen((req) async {
+      req.response.contentLength = data.length * 2;
+      req.response.add(data);
+      await req.response.flush();
+      // Never sends the rest.
+    });
+    final root = await Directory.systemTemp.createTemp('inst-test-');
+    addTearDown(() => root.delete(recursive: true));
+
+    final partial = Completer<void>();
+    final sub = UpdateInstaller(tempRoot: root, skipUrlCheck: true)
+        .download(
+          ReleaseAsset(
+            name: 'p.deb',
+            url: 'http://127.0.0.1:${server.port}/p.deb',
+          ),
+        )
+        .listen((p) {
+          if (p.received > 0 && !partial.isCompleted) partial.complete();
+        });
+    await partial.future;
+    expect(root.listSync(), hasLength(1));
+    await sub.cancel();
+    expect(root.listSync(), isEmpty);
   });
 
   test('download writes to a new temp dir and emits progress 0..1', () async {

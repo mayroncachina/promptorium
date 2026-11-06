@@ -50,9 +50,13 @@ Clicar no ícone mostra ou esconde a janela (no GNOME, duplo clique; é preciso 
 
 ## Sobre e atualizações
 
-**F1** abre o Sobre: versão, repositório e "Novidades" (o CHANGELOG, disponível offline).
+**F1** abre o Sobre, em duas colunas. À esquerda ficam a animação de abertura, que toca uma vez e para, a versão instalada e os links Repositório e Histórico completo. À direita ficam o cartão de atualização e as novidades da última versão, só Funcionalidades e Correções, disponíveis offline. Com atualização disponível, as novidades são as da versão nova.
 
-O app verifica uma vez por dia se há release nova no GitHub e avisa. "Atualizar agora" baixa o pacote só de github.com por HTTPS, confere o `.sha256` quando a release o publica, instala (`.deb` com `pkexec` para a cópia em `/opt/promptorium`; `.tar.gz` por cima das demais) e reinicia. O aviso diário pode ser desligado em Configurações › Atualizações.
+O app verifica uma vez por dia se há release nova no GitHub e avisa. O cartão mostra um estado por vez: em dia, verificando, disponível, baixando, instalando, falhou ou sem resposta. Quando a consulta falha, ele diz que não foi possível verificar e oferece "Tentar de novo".
+
+"Atualizar agora" já começa, tudo dentro do cartão: baixa o pacote só de github.com por HTTPS, confere o `.sha256` quando a release o publica, instala (`.deb` com `pkexec` para a cópia em `/opt/promptorium`; `.tar.gz` por cima das demais) e reinicia. Com sessão em execução, o cartão pergunta antes, porque reiniciar encerra as sessões. "Cancelar" interrompe o download e descarta o que veio. Fechar o Sobre durante o download pede o cancelamento, e durante a instalação ele não fecha.
+
+O aviso diário pode ser desligado em Configurações › Atualizações.
 
 ## Splash
 

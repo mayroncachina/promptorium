@@ -32,7 +32,7 @@ Lista os backups `.bak` criados antes de cada migração do banco, com "Restaura
 
 ### Atualizações
 
-Aviso diário de versão nova (pode ser desligado), "Verificar agora", "Abrir página" e Sobre.
+Aviso diário de versão nova (pode ser desligado), "Verificar agora", "Abrir página" e Sobre. Quando a consulta falha, o cartão diz que não foi possível verificar, e uma versão já encontrada continua disponível.
 
 ## Workspace
 

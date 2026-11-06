@@ -1,13 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_info.dart';
 import '../../core/update/update_check.dart';
 import '../../ui/theme/tokens.dart';
-import 'splash_painter.dart';
+import 'splash_stage.dart';
 import 'startup_controller.dart';
 
 /// Splash (docs/mockups/Splash.dc.html): animated flask + progress bar bound
@@ -29,10 +28,7 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  final _elapsed = ValueNotifier<double>(0);
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   final _clock = Stopwatch();
   Timer? _finishTimer;
   bool _finished = false;
@@ -41,8 +37,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   void initState() {
     super.initState();
     _clock.start();
-    _ticker = createTicker((d) => _elapsed.value = d.inMicroseconds / 1e6)
-      ..start();
     ref.listenManual(startupControllerProvider, (prev, next) {
       if (next.status == StartupStatus.done) _scheduleFinish();
     });
@@ -68,22 +62,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void dispose() {
     _finishTimer?.cancel();
-    _ticker.dispose();
-    _elapsed.dispose();
     super.dispose();
   }
-
-  bool _reducedMotion = false;
-
-  SplashTimeline _timeline() =>
-      SplashTimeline(elapsed: _elapsed.value, reducedMotion: _reducedMotion);
 
   @override
   Widget build(BuildContext context) {
     // The version of the installed package (`--build-name` of the release),
     // as in "Sobre": never a constant to keep in sync by hand.
     final version = ref.watch(appVersionProvider).value;
-    _reducedMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final startup = ref.watch(startupControllerProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -109,7 +95,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _Stage(elapsed: _elapsed, timeline: _timeline),
+                        const SplashStage(),
                         const SizedBox(height: 24),
                         _Progress(state: startup),
                       ],
@@ -148,70 +134,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Icon + title, with the stage fade/scale-in.
-class _Stage extends StatelessWidget {
-  const _Stage({required this.elapsed, required this.timeline});
-
-  final ValueNotifier<double> elapsed;
-  final SplashTimeline Function() timeline;
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = RepaintBoundary(
-      child: CustomPaint(
-        size: const Size.square(168),
-        painter: SplashPainter(timeline: timeline, repaint: elapsed),
-      ),
-    );
-    const title = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'Promptorium',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
-            color: AppColors.text,
-            height: 1.2,
-          ),
-        ),
-        SizedBox(height: 2),
-        Text(
-          'o laboratório de onde operam seus agentes',
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-      ],
-    );
-    return ValueListenableBuilder<double>(
-      valueListenable: elapsed,
-      builder: (context, _, _) {
-        final tl = timeline();
-        return Opacity(
-          opacity: tl.stageOpacity,
-          child: Transform.scale(
-            scale: tl.stageScale,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(height: 10),
-                Opacity(
-                  opacity: tl.titleOpacity,
-                  child: Transform.translate(
-                    offset: Offset(0, tl.titleDy),
-                    child: title,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

@@ -1,0 +1,78 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-06T02:10:00Z"
+ },
+ "title": "Promptorium · Tela Sobre (SPEC-038)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Abertura: em dia. Clique em Verificar agora",
+   "is_interactive": true
+  },
+  "Disponivel.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Atualização disponível",
+   "is_interactive": true
+  },
+  "Sessoes.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Com sessões em execução",
+   "is_interactive": true
+  },
+  "Baixando.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Baixando: Fechar pede o cancelamento",
+   "is_interactive": true
+  },
+  "Falha.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "5 · Falha na atualização",
+   "is_interactive": true
+  },
+  "SemResposta.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "6 · Sem resposta do GitHub",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Disponivel.dc.html",
+  "Sessoes.dc.html",
+  "Baixando.dc.html",
+  "Falha.dc.html",
+  "SemResposta.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

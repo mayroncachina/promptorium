@@ -97,11 +97,13 @@ class SmallButton extends StatelessWidget {
     this.icon,
     this.trailing,
     this.fontWeight,
+    this.focusNode,
   });
 
   final String label;
   final VoidCallback? onTap;
   final FontWeight? fontWeight;
+  final FocusNode? focusNode;
 
   /// Optional icon before the label and widget after it (`Ctrl+S`).
   final IconData? icon;
@@ -148,6 +150,7 @@ class SmallButton extends StatelessWidget {
           ),
           child: InkWell(
             onTap: onTap,
+            focusNode: focusNode,
             borderRadius: radius,
             focusColor: focusColor,
             hoverColor: Colors.transparent,
@@ -205,6 +208,7 @@ class AmberButton extends StatelessWidget {
     this.expand = false,
     this.focusNode,
     this.busy = false,
+    this.fontSize = 12,
   });
 
   final String label;
@@ -213,6 +217,7 @@ class AmberButton extends StatelessWidget {
   final bool expand;
   final FocusNode? focusNode;
   final bool busy;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -221,8 +226,8 @@ class AmberButton extends StatelessWidget {
     final text = Text(
       label,
       maxLines: 1,
-      style: const TextStyle(
-        fontSize: 12,
+      style: TextStyle(
+        fontSize: fontSize,
         fontWeight: FontWeight.w600,
         color: AppColors.onAmber,
       ),
