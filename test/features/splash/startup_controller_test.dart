@@ -10,6 +10,7 @@ import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/splash/splash_screen.dart';
+import 'package:promptorium/features/splash/splash_stage.dart';
 import 'package:promptorium/features/splash/startup_controller.dart';
 import 'package:promptorium/ui/shell/footer_stats.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -197,6 +198,8 @@ void main() {
     testWidgets('shows the version of the installed package', (tester) async {
       await tester.pumpWidget(app(missing, () {}));
       await tester.pump(const Duration(milliseconds: 100));
+      // SPEC-038 R2: the same stage as Sobre, the one that keeps looping.
+      expect(tester.widget<SplashStage>(find.byType(SplashStage)).loop, isTrue);
       expect(
         tester
             .widget<Text>(find.byKey(const ValueKey('splash-app-version')))

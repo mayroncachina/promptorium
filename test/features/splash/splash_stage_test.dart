@@ -5,15 +5,17 @@ import 'package:promptorium/features/splash/splash_painter.dart';
 import 'package:promptorium/features/splash/splash_stage.dart';
 import 'package:promptorium/ui/theme/motion.dart';
 
-SplashTimeline _timeline(WidgetTester tester) => (tester
-        .widget<CustomPaint>(
-          find.descendant(
-            of: find.byType(SplashStage),
-            matching: find.byType(CustomPaint),
-          ),
-        )
-        .painter! as SplashPainter)
-    .timeline();
+SplashTimeline _timeline(WidgetTester tester) =>
+    (tester
+                .widget<CustomPaint>(
+                  find.descendant(
+                    of: find.byType(SplashStage),
+                    matching: find.byType(CustomPaint),
+                  ),
+                )
+                .painter!
+            as SplashPainter)
+        .timeline();
 
 void main() {
   group('SplashTimeline', () {
@@ -83,7 +85,9 @@ void main() {
     Widget stage({required bool loop, bool reduced = false}) => MaterialApp(
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: reduced),
-        child: Scaffold(body: Center(child: SplashStage(loop: loop))),
+        child: Scaffold(
+          body: Center(child: SplashStage(loop: loop)),
+        ),
       ),
     );
 

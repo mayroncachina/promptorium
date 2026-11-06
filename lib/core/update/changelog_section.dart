@@ -94,11 +94,7 @@ ChangelogSection latestChanges(String markdown, {String? version}) {
   );
 }
 
-ChangelogSection _parse(
-  List<String> lines, {
-  String? version,
-  DateTime? date,
-}) {
+ChangelogSection _parse(List<String> lines, {String? version, DateTime? date}) {
   final groups = <String, List<String>>{};
   List<String>? current;
   for (final line in lines) {

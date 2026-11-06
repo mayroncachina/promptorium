@@ -75,7 +75,9 @@ void main() {
     });
 
     test('a heading without a date has a null date', () {
-      final s = latestChanges('## [1.0.0]\n\n### Correções\n\n- Algo (abcdef0)');
+      final s = latestChanges(
+        '## [1.0.0]\n\n### Correções\n\n- Algo (abcdef0)',
+      );
       expect(s.version, '1.0.0');
       expect(s.date, isNull);
     });
