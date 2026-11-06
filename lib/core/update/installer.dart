@@ -76,6 +76,9 @@ class DownloadProgress {
 }
 
 class UpdateInstaller {
+  /// A download silent for this long has failed.
+  static const stallTimeout = Duration(seconds: 30);
+
   const UpdateInstaller({
     this.tempRoot,
     this.skipUrlCheck = false,
@@ -173,13 +176,17 @@ class UpdateInstaller {
     }
   }
 
-  /// Opens the release page in the browser (fallback when the update fails).
+  /// Opens [url] in the browser (the release page, the links of Sobre).
   /// Errors only log.
   Future<void> openReleasePage(String url) async {
     try {
-      await Process.run('xdg-open', [url]);
+      if (Platform.isWindows) {
+        await Process.run('rundll32', ['url.dll,FileProtocolHandler', url]);
+      } else {
+        await Process.run('xdg-open', [url]);
+      }
     } catch (e) {
-      debugPrint('xdg-open $url: $e');
+      debugPrint('abrir $url: $e');
     }
   }
 
@@ -257,7 +264,8 @@ class UpdateInstaller {
   /// progress; the last event carries the file. [releaseAssets] is searched for
   /// a `<name>.sha256` to check the digest. Aborts (deleting the download,
   /// throwing [FileSystemException]) when the URL, the name, the size or the
-  /// digest doesn't check out.
+  /// digest doesn't check out. Cancelling the subscription deletes it too, by
+  /// the next chunk or by [stallTimeout].
   Stream<DownloadProgress> download(
     ReleaseAsset asset, {
     List<ReleaseAsset> releaseAssets = const [],
@@ -268,6 +276,7 @@ class UpdateInstaller {
     final file = File('${dir.path}/${asset.name.split('/').last}');
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 15);
+    var delivered = false;
     try {
       final expectedSha = await _expectedSha256(client, asset, releaseAssets);
       final res = await _open(client, Uri.parse(asset.url));
@@ -278,7 +287,7 @@ class UpdateInstaller {
       var received = 0;
       try {
         yield DownloadProgress(received: 0, total: total);
-        await for (final chunk in res) {
+        await for (final chunk in res.timeout(stallTimeout)) {
           sink.add(chunk);
           digest.add(chunk);
           received += chunk.length;
@@ -297,12 +306,15 @@ class UpdateInstaller {
       if (expectedSha != null && digestOut.hex != expectedSha) {
         throw const FileSystemException('SHA-256 do download não confere.');
       }
+      delivered = true;
       yield DownloadProgress(received: received, total: total, file: file);
-    } catch (_) {
-      await dir.delete(recursive: true).catchError((_) => dir);
-      rethrow;
     } finally {
+      // `finally` and not `catch`: a cancelled subscription ends the generator
+      // at a `yield`, without an exception.
       client.close(force: true);
+      if (!delivered) {
+        await dir.delete(recursive: true).catchError((_) => dir);
+      }
     }
   }
 }
