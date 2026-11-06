@@ -92,7 +92,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/ReTbbrQhZicdwdktur5
 
 ## Plano
 
-<!-- Como implementar: componentes, arquivos e decisões. Use "Planejar". -->
+- `spec_drafts` (schema v20): um rascunho por workspace, com a conversa e o rascunho em JSON (`SpecDraftData`) e a sessão do planner.
+- `SpecPlanner` (`lib/features/specs/spec_planner.dart`): a conversa da etapa Visão aplicada a uma spec, com o mesmo limite de custo e as mesmas ferramentas de leitura.
+- `NewSpecView` (`lib/features/specs/new_spec_view.dart`): a tela de ideia e o mini planejamento, dentro da tela Specs. `NewSpecFlow` guarda em que ponto o fluxo está, então trocar de seção não fecha a conversa.
+- `newSpecMarkdown` recebe o que o rascunho tem, e o que faltar sai igual ao modelo vazio.
+- "Criar e planejar" usa `pendingDesignProvider`: a tela Specs abre a spec e inicia Planejar, com o andamento e o bloqueio de hoje.
 
 ## Critérios de aceite
 
@@ -113,6 +117,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/ReTbbrQhZicdwdktur5
 - [ ] O rascunho nunca passa de 6 requisitos, e o excesso vai para Fora do escopo [R10] verificar: flutter test test/features/specs/spec_planner_test.dart
 - [ ] Refinar com IA e Planejar seguem funcionando na spec criada [R11] verificar: flutter test test/features/specs
 - [ ] A tela cabe em 1100×700 sem truncar textos, com o campo de resposta e Criar à vista [R12] verificar: flutter test test/features/specs/new_spec_flow_test.dart
+
+## Decisões
+
+- D1 · A falha do planner não é gravada. Uma mensagem da pessoa sem resposta, com nada rodando, já é a falha. Assim, fechar o app no meio de uma resposta também mostra **Tentar de novo**.
+- D2 · Se a pessoa escrever outra mensagem em vez de usar **Tentar de novo**, as duas vão juntas para o planner, para a sessão não perder o que ficou sem resposta.
+- D3 · **Planejar** fica em destaque em toda spec sem Plano, e não só nas que vieram do mini planejamento. A regra olha o texto da spec, sem guardar a origem. Em janelas estreitas, **Aprovar** é quem vai para o menu primeiro.
+- D4 · "Rascunho guardado" fica acima da lista de specs, e não no estado vazio do mockup. A tela sempre abre uma spec quando existe alguma, então o estado vazio quase nunca apareceria. O cartão abre "Nova spec".
+- D5 · Sem o Claude Code, **Continuar** fica indisponível, porque retoma o planner, e **Descartar** continua disponível, porque só apaga o rascunho local.
+- D6 · O botão "Nova spec" do Quadro também leva à tela Specs, porque a tela de ideia ocupa a área principal.
+- D7 · Trocar de workspace fecha "Nova spec". O rascunho continua guardado no workspace em que foi feito.
+- D8 · Se a escrita do arquivo falhar, o arquivo vazio é apagado. Sem isso, a nova tentativa pegaria o código seguinte.
+- D9 · O rótulo do botão continua **Aprovar**, como definiu a SPEC-024. O texto desta spec e o mockup dizem "Aprovar spec".
 
 ## Perguntas em aberto
 
