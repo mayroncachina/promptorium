@@ -43,3 +43,15 @@ Ctrl+Enter envia. `@` insere um arquivo, `/` um prompt salvo, "Anexar spec" inse
 ## Suspender e retomar
 
 Uma sessão parada há algum tempo (padrão 15 min; Configurações › Sessões) é suspensa para liberar recursos. "Retomar" continua de onde parou. Sessões vivas quando o app foi fechado aparecem como "interrompidas" ao reabrir.
+
+## Ditado por voz
+
+O botão de microfone fica à esquerda de **Enviar** no composer de Sessões e do Prompt, na etapa Visão, em Nova spec e nas respostas de perguntas. Só existe nos pacotes `.deb` e `.tar.gz` para Linux.
+
+No primeiro uso, o app pede para baixar o modelo de voz, uma vez só. O download pode continuar em segundo plano, e o botão mostra a porcentagem.
+
+Clique no microfone ou use `Ctrl+Shift+M` para gravar. O mesmo atalho para e transcreve, e `Esc` cancela. A gravação para sozinha em 5 minutos. O texto entra na posição do cursor e nunca é enviado sozinho: revise e clique em **Enviar**.
+
+Se a transcrição falhar, o áudio fica guardado até você usar **Tentar de novo** ou **Descartar áudio**. Enquanto isso, o microfone fica indisponível.
+
+Se o app disser "Nenhuma fala detectada", confira o volume do microfone no sistema. Um volume baixo faz a voz não ser reconhecida.

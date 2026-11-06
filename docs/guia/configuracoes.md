@@ -37,3 +37,7 @@ Aviso diário de versão nova (pode ser desligado), "Verificar agora", "Abrir p�
 ## Workspace
 
 **Configuração do projeto**: editor do `.promptorium/config.yml` ([detalhes](projeto.md#promptoriumconfigyml)), com o resumo do que o gate exige ("A etapa só passa se: ✓ testes · …").
+
+## Ditado por voz
+
+Escolha o modelo ("Melhor qualidade", 190 MB, ou "Mais rápido", 60 MB), o idioma e o microfone. Um modelo ainda não baixado aparece como "Não instalado", e o atual segue em uso até o novo terminar de baixar. A transcrição roda neste computador, e o áudio não sai da máquina (veja [Ditado por voz](sessoes.md#ditado-por-voz)).

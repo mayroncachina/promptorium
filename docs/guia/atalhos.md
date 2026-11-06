@@ -33,3 +33,10 @@ Ctrl+/ abre a folha de atalhos dentro do app, com filtro.
 | `@` | Inserir arquivo |
 | `/` | Inserir prompt salvo |
 | ↑ / ↓, Enter / Tab, Esc | Navegar, escolher e fechar as listas de `@` e `/` |
+
+## Ditado por voz
+
+| Atalho | Ação |
+|---|---|
+| `Ctrl+Shift+M` | Grava no campo em foco. Durante a gravação, para e transcreve |
+| `Esc` | Cancela a gravação ou a transcrição |

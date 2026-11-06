@@ -97,7 +97,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/LA2UneaMELRuqtkwhuX
 
 ## Plano
 
-<!-- Como implementar: componentes, arquivos e decisões. Use "Planejar". -->
+- `lib/features/dictation/`: `voice_model.dart` (modelos, URL fixa na revisão e `sha256`), `model_store.dart` (download com retomada e conferência), `voice_io.dart` (`arecord` e `whisper-cli`), `dictation_controller.dart` (estado do download e da gravação) e `dictation_widgets.dart` (botão, linha de gravação, avisos, diálogo do modelo, `DictationHost` e cartão de Configurações).
+- Cada campo cria um `DictationTarget` com o controller e o foco, e usa `DictationNotices`, `DictationActions` e `DictationButton`. Campos pequenos usam `DictationBar`.
+- `DictationHost` fica na `AppShell` e cuida de `Ctrl+Shift+M`, de `Esc`, dos toasts e dos avisos do download em segundo plano.
+- `scripts/build-whisper.sh` compila o `whisper-cli` v1.9.5, e `scripts/package.sh` o coloca no bundle antes de gerar o `.deb` e o `.tar.gz`.
 
 ## Critérios de aceite
 
@@ -120,6 +123,17 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/LA2UneaMELRuqtkwhuX
 - [ ] O `.deb` traz o `whisper-cli` e declara `libgomp1` e `alsa-utils` [R8] verificar: scripts/package.sh
 - [ ] Sem o `whisper-cli`, o botão não aparece [R8] verificar: flutter test test/features/dictation/dictation_button_test.dart
 - [ ] O composer cabe em 1100×700 gravando e com erro [R9] verificar: flutter test test/features/dictation/dictation_button_test.dart
+
+## Decisões
+
+- D1 · O áudio vem do `arecord`, e o nível é lido do fim do arquivo que está sendo gravado. Assim o app não precisa de plugin nativo de áudio.
+- D2 · A URL dos modelos fica presa a uma revisão do repositório, para o `sha256` nunca mudar sob o app.
+- D3 · **Cancelar** apaga o arquivo parcial. Falha e fechar o app mantêm o arquivo, e o próximo download continua de onde parou.
+- D4 · Um download sem dados por 30 s falha, como na SPEC-038.
+- D5 · O botão aparece no campo da conversa do mini planejamento além da tela de ideia, porque ele também conversa com o Claude.
+- D6 · O `whisper-cli` é compilado com AVX2, sem otimizar para a máquina de build. Um processador sem AVX2 cai em "Não foi possível transcrever".
+- D7 · Sem o `whisper-cli`, a seção de Configurações continua na lista e explica que esta instalação não tem o ditado.
+- D8 · `Remover modelo` apaga os modelos e os arquivos parciais.
 
 ## Perguntas em aberto
 
