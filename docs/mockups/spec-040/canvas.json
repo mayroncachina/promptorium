@@ -172,22 +172,31 @@
    "title": "18 · Configurações: modelo, idioma e microfone",
    "is_interactive": true
   },
-  "RemoverModelo.dc.html": {
+  "TrocarModelo.dc.html": {
    "expand": "fill",
    "x": 0,
    "y": 6120,
    "w": 1440,
    "h": 900,
-   "title": "19 · Remover modelo pede confirmação",
+   "title": "19 · Trocar o modelo: o atual segue em uso até baixar",
+   "is_interactive": true
+  },
+  "RemoverModelo.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 6120,
+   "w": 1440,
+   "h": 900,
+   "title": "20 · Remover modelo pede confirmação",
    "is_interactive": true
   },
   "Compacta.dc.html": {
    "expand": "fill",
-   "x": 1520,
+   "x": 3040,
    "y": 6120,
    "w": 1100,
    "h": 700,
-   "title": "20 · Janela mínima 1100×700, gravando",
+   "title": "21 · Janela mínima 1100×700, gravando",
    "is_interactive": true
   }
  },
@@ -210,6 +219,7 @@
   "DescartarAudio.dc.html",
   "Visao.dc.html",
   "Configuracoes.dc.html",
+  "TrocarModelo.dc.html",
   "RemoverModelo.dc.html",
   "Compacta.dc.html"
  ],

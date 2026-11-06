@@ -55,14 +55,16 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/LA2UneaMELRuqtkwhuX
   - o foco volta ao campo, e o envio continua sendo uma ação da pessoa;
   - **Enviar** fica indisponível por 800 ms depois de inserir o texto, para um clique atrasado não enviar sem revisão.
 - R6 · Falhas não devem perder o que foi falado:
-  - sem microfone, o campo mostra "Nenhum microfone encontrado", com **Tentar de novo**;
-  - uma gravação sem fala mostra "Nenhuma fala detectada";
+  - sem microfone, o campo mostra "Nenhum microfone encontrado", com **Abrir Configurações** e **Tentar de novo**;
+  - uma gravação sem fala mostra "Nenhuma fala detectada", com **Tentar de novo**;
   - uma falha ao transcrever mostra "Não foi possível transcrever", guarda o áudio e oferece **Tentar de novo** e **Descartar áudio**;
   - com áudio guardado, o microfone fica indisponível, para uma nova gravação não apagar o anterior;
   - **Descartar áudio** pede confirmação, com o foco em **Manter gravação**, e `Esc` mantém;
   - o texto que já estava no campo continua lá em todos os casos.
 - R7 · As Configurações devem ter a seção "Ditado por voz":
   - modelo: "Melhor qualidade" (190 MB, padrão) ou "Mais rápido" (60 MB);
+  - escolher um modelo ainda não baixado mostra "Não instalado", com **Baixar modelo**, e nunca finge que ele já está instalado;
+  - o modelo atual segue em uso até o novo terminar de baixar, e só então é apagado;
   - idioma: Português (padrão) ou detectar automaticamente;
   - microfone: padrão do sistema ou um dos encontrados;
   - mostra se o modelo está instalado, com **Remover modelo** ou **Baixar modelo**;
@@ -109,11 +111,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/LA2UneaMELRuqtkwhuX
 - [ ] A gravação para sozinha em 5 minutos e transcreve [R3] verificar: flutter test test/features/dictation/dictation_flow_test.dart
 - [ ] O áudio temporário é apagado depois da transcrição e do descarte [R4] verificar: flutter test test/features/dictation/dictation_flow_test.dart
 - [ ] O texto entra no cursor, mantém o que havia e não é enviado sozinho [R5] verificar: flutter test test/features/dictation/dictation_flow_test.dart
-- [ ] Sem microfone, sem fala e falha ao transcrever mantêm o texto do campo [R6] verificar: flutter test test/features/dictation/dictation_flow_test.dart
+- [ ] Sem microfone, sem fala e falha ao transcrever mantêm o texto do campo e oferecem o próximo passo [R6] verificar: flutter test test/features/dictation/dictation_flow_test.dart
 - [ ] Uma falha ao transcrever guarda o áudio, trava o microfone e só descarta com confirmação [R6] verificar: flutter test test/features/dictation/dictation_flow_test.dart
 - [ ] Enviar não aceita clique nos 800 ms depois de inserir o texto [R5] verificar: flutter test test/features/dictation/dictation_flow_test.dart
 - [ ] Uma conferência que passa de 30 segundos vira falha no download [R2] verificar: flutter test test/features/dictation/model_store_test.dart
 - [ ] As Configurações trocam modelo, idioma e microfone, e removem o modelo só com confirmação [R7] verificar: flutter test test/features/settings
+- [ ] Trocar de modelo baixa o novo, mantém o atual em uso e o apaga só no fim [R7] verificar: flutter test test/features/dictation/model_store_test.dart
 - [ ] O `.deb` traz o `whisper-cli` e declara `libgomp1` e `alsa-utils` [R8] verificar: scripts/package.sh
 - [ ] Sem o `whisper-cli`, o botão não aparece [R8] verificar: flutter test test/features/dictation/dictation_button_test.dart
 - [ ] O composer cabe em 1100×700 gravando e com erro [R9] verificar: flutter test test/features/dictation/dictation_button_test.dart
