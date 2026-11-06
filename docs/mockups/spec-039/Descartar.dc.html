@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Descartar rascunho</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+button:disabled{cursor:not-allowed}
+h1,h2,h3,p,ul{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.nv{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#A0A8B6}
+.nv.on{background:#2A2418;color:#F2A541}
+.nv:hover{background:#1F2430;color:#E7E9EE}
+.btn{height:36px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #2E3542;border-radius:6px;background:#1A1E26;color:#E7E9EE;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#3A4250}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.pri:hover{background:#F5B35E;border-color:#F5B35E}
+.btn:disabled,.btn.pri:disabled{background:#14171D;border-color:#252B35;color:#8A93A3;font-weight:500}
+.btn.sm{height:32px;padding:0 10px;font-size:12px}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid #2E3542;color:#A0A8B6;white-space:nowrap}
+.field{width:100%;background:#0E1014;border:1px solid #626C7C;border-radius:6px;color:#E7E9EE;font:inherit;font-size:13px;line-height:1.5;padding:10px 12px;resize:none}
+.field::placeholder{color:#8A93A3}
+.field:disabled{background:#14171D;color:#8A93A3;cursor:not-allowed}
+.btn.dng{border-color:#5A2E2A;color:#F27A6E}
+.btn.dng:hover{border-color:#F27A6E}
+.scrim{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.6)}
+.me{align-self:flex-end;max-width:72%;background:#1F2430;border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.5;white-space:pre-wrap}
+.pl{align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55}
+.who{font-size:11px;font-weight:600;color:#A0A8B6}
+.note{font-size:11px;color:#4FD1B5}
+.sug{height:32px;padding:0 10px;border:1px solid #5C4520;border-radius:6px;background:#241E12;color:#F2A541;font-size:12px;white-space:nowrap}
+.sug:hover{background:#2E2616}
+.sg{display:flex;flex-direction:column;gap:6px}
+.lab{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#A0A8B6}
+.it{display:flex;gap:6px;font-size:13px;line-height:1.5;color:#E7E9EE}
+.it .c{flex:none;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:19.5px;color:#A0A8B6}
+.new{font-size:10px;padding:0 6px;height:16px;line-height:15px;border-radius:8px;border:1px solid #1F5A4C;color:#4FD1B5;flex:none;margin-top:2px}
+.emp{font-size:12px;color:#8A93A3}
+.sugg{font-size:12px;color:#A0A8B6;padding-left:26px}
+.chk{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#E7E9EE;cursor:pointer}
+.chk input{margin:2px 0 0;width:15px;height:15px;accent-color:#F2A541}
+.hint{display:block;font-size:11px;color:#A0A8B6;margin-top:2px}
+.card{background:#14171D;border:1px solid #252B35;border-radius:8px;padding:12px 14px}
+.card.hl{border-color:#5C4520;background:#241E12}
+.card.bad{border-color:#5A2E2A}
+.lnk{font-size:12px;color:#F2A541;text-decoration:underline;text-underline-offset:2px}
+.lst{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:6px;font-size:12px;color:#A0A8B6;white-space:nowrap;overflow:hidden}
+.lst.on{background:#1F2430;color:#E7E9EE}
+.md{font-variant-ligatures:none;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;color:#A0A8B6;white-space:pre-wrap}
+.md b{color:#F2A541;font-weight:500}
+.spin{animation:sp 1s linear infinite;transform-origin:50% 50%}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</helmet>
+<div style="position:relative;display:flex;width:100%;height:100vh;min-height:600px;overflow:hidden;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<nav aria-label="Seções" style="flex:none;width:52px;background:#14171D;border-right:1px solid #252B35;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:12px"><button type="button" class="nv" aria-label="Projeto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"></path><path d="M6 10v10h12V10"></path></svg></button><button type="button" class="nv" aria-label="Prompt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6"></path><path d="M12 19h8"></path></svg></button><button type="button" class="nv" aria-label="Quadro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5"></rect><rect x="14" y="3" width="7" height="11" rx="1.5"></rect></svg></button><button type="button" class="nv on" aria-label="Specs" onClick="{{back}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path><path d="M14 3v6h6"></path></svg></button><button type="button" class="nv" aria-label="Review"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button></nav>
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="flex:none;display:flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-bottom:1px solid #252B35;font-size:12px;color:#A0A8B6"><button type="button" onClick="{{back}}" style="color:#A0A8B6">Specs</button><sc-if value="{{hasCrumb}}" hint-placeholder-val="{{true}}"><span aria-hidden="true">/</span><span style="color:#E7E9EE;font-weight:600">{{crumb}}</span></sc-if><span style="flex:1"></span><sc-if value="{{isPlanner}}" hint-placeholder-val="{{true}}"><span class="tag">planner · somente leitura</span></sc-if></div>
+
+<sc-if value="{{isIdea}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:24px">
+<div style="width:100%;max-width:640px;display:flex;flex-direction:column;gap:12px">
+<sc-if value="{{hasDraft}}" hint-placeholder-val="{{false}}">
+<div class="card hl" style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0"><h2 style="font-size:14px;font-weight:600">Você tem um rascunho</h2><p style="font-size:12px;color:#A0A8B6">{{draftLine}}</p></div><button type="button" class="btn sm" onClick="{{discard}}">Descartar</button><button type="button" class="btn sm pri" onClick="{{resume}}">Continuar</button></div>
+</sc-if>
+<sc-if value="{{noCli}}" hint-placeholder-val="{{false}}">
+<div class="card bad" style="display:flex;align-items:flex-start;gap:10px"><span style="flex:none;margin-top:2px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h2 style="font-size:13px;font-weight:600">Claude Code CLI não encontrado</h2><p style="font-size:12px;color:#A0A8B6;margin-top:2px">O planner precisa dele para ler o repositório. Conecte o Claude Code e verifique de novo, ou crie a spec em branco.</p></div><button type="button" class="btn sm" onClick="{{recheck}}">Verificar de novo</button></div>
+</sc-if>
+<div><h1 style="font-size:18px;font-weight:600">Conte a ideia</h1><p style="font-size:12px;color:#A0A8B6;margin-top:4px">Uma ou duas frases: o que muda e para quem. O planner lê o repositório, faz poucas perguntas e monta a spec com você.</p></div>
+<textarea class="field" rows="5" aria-label="Ideia da spec" placeholder="Avisar o paciente antes da consulta, para reduzir as faltas…" value="{{idea}}" disabled="{{noCli}}" onChange="{{setIdea}}"></textarea>
+<div style="display:flex;align-items:center;gap:10px"><button type="button" class="btn pri" disabled="{{noIdea}}" onClick="{{start}}">Planejar a spec</button><button type="button" class="btn" onClick="{{blank}}">Criar em branco</button><span style="font-size:11px;color:#A0A8B6">{{ideaHint}}</span></div>
+</div></div>
+</sc-if>
+
+<sc-if value="{{isBlank}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:24px"><div class="card" style="width:460px;padding:20px;display:flex;flex-direction:column;gap:12px"><div><h1 style="font-size:16px;font-weight:600">Criar em branco</h1><p style="font-size:12px;color:#A0A8B6;margin-top:4px">Cria specs/SPEC-NNN-&lt;titulo&gt;.md com status rascunho.</p></div><input class="field" aria-label="Título da spec" placeholder="Ex.: Kanban de tarefas" value="{{blankTitle}}" onChange="{{setBlank}}"><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{toIdea}}">Voltar</button><button type="button" class="btn pri" disabled="{{noBlank}}" onClick="{{createBlank}}">Criar spec</button></div></div></div>
+</sc-if>
+
+<sc-if value="{{isChat}}" hint-placeholder-val="{{true}}">
+<div style="flex:1;min-height:0;display:flex">
+<section aria-label="Conversa com o planner" style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="flex:none;padding:16px 20px 12px;border-bottom:1px solid #252B35"><h1 style="font-size:18px;font-weight:600">Mini planejamento</h1><p style="font-size:13px;color:#A0A8B6;margin-top:2px">Converse com o planner. O rascunho à direita é preenchido a cada resposta.</p></div>
+<div ref="{{chatRef}}" style="flex:1;min-height:0;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{msgs}}" as="m" hint-placeholder-count="3">
+<sc-if value="{{m.mine}}" hint-placeholder-val="{{false}}"><div class="me">{{m.text}}</div></sc-if>
+<sc-if value="{{m.theirs}}" hint-placeholder-val="{{true}}"><div class="pl"><span class="who">Planner</span><span>{{m.text}}</span><sc-if value="{{m.hasNote}}" hint-placeholder-val="{{true}}"><span class="note">{{m.note}}</span></sc-if></div></sc-if>
+</sc-for>
+<sc-if value="{{hasSug}}" hint-placeholder-val="{{true}}"><div style="display:flex;flex-wrap:wrap;gap:8px"><sc-for list="{{sugs}}" as="s" hint-placeholder-count="3"><button type="button" class="sug" onClick="{{s.pick}}">{{s.text}}</button></sc-for></div></sc-if>
+<sc-if value="{{isBusy}}" hint-placeholder-val="{{false}}"><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A0A8B6"><svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"></path></svg><span>{{busyText}}</span></div></sc-if>
+<sc-if value="{{isFail}}" hint-placeholder-val="{{false}}"><div class="card bad" style="display:flex;align-items:flex-start;gap:10px;max-width:560px"><span style="flex:none;margin-top:2px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h2 style="font-size:13px;font-weight:600">O planner não respondeu</h2><p style="font-size:12px;color:#A0A8B6;margin-top:2px">Sua conversa e o rascunho continuam aqui. Tente de novo ou crie a spec com o que já tem.</p><div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="btn sm" onClick="{{retry}}">Tentar de novo</button></div></div></div></sc-if>
+</div>
+<div style="flex:none;display:flex;gap:8px;align-items:flex-end;padding:12px 20px;border-top:1px solid #252B35"><textarea class="field" rows="2" aria-label="Sua resposta" placeholder="Responda ou descreva mais sobre a ideia…" value="{{reply}}" onChange="{{setReply}}"></textarea><button type="button" class="btn pri" disabled="{{noSend}}" onClick="{{send}}">Enviar</button></div>
+</section>
+<aside aria-label="Rascunho da spec" style="flex:none;width:420px;background:#14171D;border-left:1px solid #252B35;display:flex;flex-direction:column">
+<div style="flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px 10px"><h2 style="font-size:14px;font-weight:600">Rascunho da spec</h2><span style="flex:1"></span><span class="mono" style="font-size:12px;color:#A0A8B6">SPEC-008</span><span class="tag">rascunho</span></div>
+<div style="flex:1;min-height:0;overflow:auto;padding:2px 16px 16px;display:flex;flex-direction:column;gap:14px">
+<div class="sg"><label class="lab" for="ttl">Título</label><input id="ttl" class="field" style="padding:7px 10px" value="{{title}}" onChange="{{setTitle}}" placeholder="O planner sugere depois da primeira resposta"></div>
+<div class="sg"><span class="lab">Objetivo</span><sc-if value="{{hasObj}}" hint-placeholder-val="{{true}}"><p style="font-size:13px;line-height:1.5">{{obj}}</p></sc-if><sc-if value="{{noObj}}" hint-placeholder-val="{{false}}"><span class="emp">Ainda vazio</span></sc-if></div>
+<div class="sg"><span class="lab">Requisitos<span style="flex:1"></span><span style="font-weight:400">{{reqCount}}</span></span><sc-for list="{{reqs}}" as="r" hint-placeholder-count="3"><div class="it"><span class="c">{{r.id}}</span><span style="flex:1;min-width:0">{{r.text}}</span><sc-if value="{{r.isNew}}" hint-placeholder-val="{{false}}"><span class="new">novo</span></sc-if></div></sc-for><sc-if value="{{noReq}}" hint-placeholder-val="{{false}}"><span class="emp">Ainda vazio</span></sc-if></div>
+<div class="sg"><span class="lab">Fora do escopo</span><sc-for list="{{outs}}" as="o" hint-placeholder-count="1"><div class="it"><span style="flex:1;min-width:0">{{o.text}}</span><sc-if value="{{o.isNew}}" hint-placeholder-val="{{false}}"><span class="new">novo</span></sc-if></div></sc-for><sc-if value="{{noOut}}" hint-placeholder-val="{{false}}"><span class="emp">Ainda vazio</span></sc-if></div>
+<div class="sg"><span class="lab">Depende de</span><sc-if value="{{hasDep}}" hint-placeholder-val="{{true}}"><div class="it"><span class="c">SPEC-005</span><span>Agenda de consultas</span></div></sc-if><sc-if value="{{noDep}}" hint-placeholder-val="{{false}}"><span class="emp">Nenhuma spec</span></sc-if></div>
+<div class="sg"><span class="lab">Perguntas em aberto</span><sc-for list="{{qs}}" as="q" hint-placeholder-count="1"><div class="it"><span class="c">{{q.id}}</span><span style="flex:1;min-width:0">{{q.text}}</span></div><sc-if value="{{q.hasS}}" hint-placeholder-val="{{false}}"><span class="sugg">Sugestão: {{q.s}}</span></sc-if></sc-for><sc-if value="{{noQ}}" hint-placeholder-val="{{false}}"><span class="emp">Nenhuma</span></sc-if></div>
+</div>
+<div style="flex:none;padding:12px 16px;border-top:1px solid #252B35;display:flex;flex-direction:column;gap:10px">
+<sc-if value="{{saveFail}}" hint-placeholder-val="{{false}}"><div class="card bad" role="alert" style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px"><span style="flex:none;margin-top:2px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Não foi possível criar a spec</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">A pasta specs/ não aceitou o arquivo. A conversa e o rascunho continuam aqui. Corrija a pasta e crie de novo.</p></div></div></sc-if>
+<label class="chk"><input type="checkbox" checked="{{plan}}" onChange="{{togglePlan}}"><span>Escrever o Plano em seguida<span class="hint">Depois de criar, lê o código e grava ## Plano e ## Etapas.</span></span></label>
+<div style="display:flex;align-items:center;gap:8px"><button type="button" class="btn" onClick="{{leave}}">Sair e guardar</button><span style="flex:1"></span><button type="button" class="btn pri" disabled="{{noCreate}}" onClick="{{create}}">{{createLabel}}</button></div>
+</div>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{isSpecs}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;display:flex">
+<aside aria-label="Specs" style="flex:none;width:260px;background:#14171D;border-right:1px solid #252B35;padding:10px;display:flex;flex-direction:column;gap:2px">
+<div class="lst"><span class="mono">SPEC-005</span><span>Agenda de consultas</span></div>
+<div class="lst"><span class="mono">SPEC-006</span><span>Lembrete interno</span></div>
+<div class="lst"><span class="mono">SPEC-007</span><span>Painel do dia</span></div>
+<sc-if value="{{hasMade}}" hint-placeholder-val="{{false}}"><div class="lst"><span class="mono">SPEC-008</span><span>{{madeTitle}}</span></div></sc-if>
+</aside>
+<section aria-label="Lista de specs" style="flex:1;min-width:0;display:flex;align-items:center;justify-content:center;padding:24px">
+<div style="width:100%;max-width:460px;display:flex;flex-direction:column;gap:12px">
+<sc-if value="{{hasDraft}}" hint-placeholder-val="{{true}}"><div class="card hl"><h2 style="font-size:14px;font-weight:600">Rascunho guardado</h2><p style="font-size:12px;color:#A0A8B6;margin-top:2px">{{draftLine}}</p></div></sc-if>
+<div style="display:flex;align-items:center;gap:12px"><p style="flex:1;min-width:0;font-size:13px;color:#A0A8B6">Selecione uma spec na lista ou abra Nova spec.</p><button type="button" class="btn pri" onClick="{{newSpec}}">Nova spec</button></div>
+</div>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{isCreated}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;display:flex">
+<aside aria-label="Specs" style="flex:none;width:260px;background:#14171D;border-right:1px solid #252B35;padding:10px;display:flex;flex-direction:column;gap:2px">
+<div class="lst"><span class="mono">SPEC-005</span><span>Agenda de consultas</span></div>
+<div class="lst"><span class="mono">SPEC-006</span><span>Lembrete interno</span></div>
+<div class="lst"><span class="mono">SPEC-007</span><span>Painel do dia</span></div>
+<div class="lst on"><span class="mono">SPEC-008</span><span>{{madeTitle}}</span></div>
+</aside>
+<section aria-label="Spec criada" style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="flex:none;display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid #252B35"><span class="mono" style="font-size:12px;color:#A0A8B6">SPEC-008</span><h1 style="font-size:16px;font-weight:600">{{madeTitle}}</h1><span class="tag">rascunho</span><span style="flex:1"></span><button type="button" class="btn sm" disabled="{{planning}}">Refinar com IA</button><button type="button" class="btn sm {{planCls}}" disabled="{{planning}}" onClick="{{doPlan}}">{{planLabel}}</button><button type="button" class="btn sm {{approveCls}}" disabled="{{planning}}">Aprovar spec</button></div>
+<sc-if value="{{planning}}" hint-placeholder-val="{{true}}"><div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 20px;background:#241E12;border-bottom:1px solid #5C4520;font-size:12px"><svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"></path></svg><span>Planejando SPEC-008…</span><span style="flex:1"></span><button type="button" class="btn sm" onClick="{{cancelPlan}}">Cancelar</button></div></sc-if>
+<sc-if value="{{planned}}" hint-placeholder-val="{{false}}"><div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid #252B35;font-size:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5BC88A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg><span>Plano pronto. Revise e salve.</span><span style="flex:1"></span><button type="button" class="btn sm pri" onClick="{{savePlan}}">Salvar</button></div></sc-if>
+<sc-if value="{{planSaved}}" hint-placeholder-val="{{false}}"><div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid #252B35;font-size:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5BC88A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg><span>Plano salvo na SPEC-008.</span></div></sc-if>
+<sc-if value="{{planFailed}}" hint-placeholder-val="{{false}}"><div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid #5A2E2A;font-size:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg><span>Não foi possível planejar. A SPEC-008 continua salva, e o botão Planejar tenta de novo.</span></div></sc-if>
+<sc-if value="{{planCancelled}}" hint-placeholder-val="{{false}}"><div style="flex:none;display:flex;align-items:center;gap:8px;padding:8px 20px;border-bottom:1px solid #252B35;font-size:12px;color:#A0A8B6"><span>Planejamento cancelado. A SPEC-008 continua salva.</span></div></sc-if>
+<div style="flex:1;min-height:0;overflow:auto;padding:16px 20px"><sc-if value="{{isBlankDoc}}" hint-placeholder-val="{{false}}"><div class="md">---
+id: SPEC-008
+status: rascunho
+---
+
+<b># {{madeTitle}}</b>
+
+<b>## Objetivo</b>
+
+Descreva o problema e o resultado esperado.
+
+<b>## Requisitos</b>
+
+- R1 ·
+
+<b>## Fora do escopo</b>
+
+<b>## Plano</b>
+
+{{planText}}
+
+<b>## Critérios de aceite</b>
+
+- [ ]
+
+<b>## Perguntas em aberto</b></div></sc-if><sc-if value="{{isRichDoc}}" hint-placeholder-val="{{true}}"><div class="md">---
+id: SPEC-008
+status: rascunho
+depende-de: [SPEC-005]
+---
+
+<b># {{madeTitle}}</b>
+
+<b>## Objetivo</b>
+
+Avisar o paciente por e-mail antes da consulta, para reduzir as faltas.
+
+<b>## Requisitos</b>
+
+- R1 · Quando uma consulta for marcada, o sistema deve agendar um lembrete.
+- R2 · Quando a consulta for remarcada ou cancelada, o sistema deve atualizar o lembrete.
+- R3 · Quando faltarem 24 h para a consulta, o sistema deve enviar um e-mail ao paciente.
+- R4 · Quando o envio falhar, o sistema deve registrar o erro na consulta.
+
+<b>## Fora do escopo</b>
+
+- WhatsApp e SMS.
+
+<b>## Plano</b>
+
+{{planText}}
+
+<b>## Perguntas em aberto</b>
+
+- P1 · O paciente pode cancelar pelo e-mail?
+  - Sugestão: não nesta spec; o e-mail traz só o telefone da clínica.</div></sc-if></div>
+</section>
+</div>
+</sc-if>
+</main>
+<sc-if value="{{confirm}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="dialog" aria-modal="true" aria-labelledby="dsc" class="card" style="width:100%;max-width:420px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{dlgKey}}"><div><h2 id="dsc" style="font-size:16px;font-weight:600">Descartar o rascunho?</h2><p style="font-size:13px;color:#A0A8B6;margin-top:6px">{{discardLine}} Isso não pode ser desfeito.</p></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn dng" onClick="{{discardYes}}">Descartar</button><button type="button" class="btn pri" autofocus ref="{{keepRef}}" onClick="{{discardNo}}">Manter rascunho</button></div></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const STAGES = [
+  { obj: '', reqs: [], outs: [], dep: false, qs: [] },
+  { obj: 'Avisar o paciente antes da consulta, para reduzir as faltas.',
+    reqs: ['Quando uma consulta for marcada, o sistema deve agendar um lembrete.', 'Quando a consulta for remarcada ou cancelada, o sistema deve atualizar o lembrete.'],
+    outs: [], dep: true,
+    qs: [{ id: 'P1', text: 'Por qual canal sai o aviso?' }, { id: 'P2', text: 'Com quanta antecedência?' }] },
+  { obj: 'Avisar o paciente por e-mail antes da consulta, para reduzir as faltas.',
+    reqs: ['Quando uma consulta for marcada, o sistema deve agendar um lembrete.', 'Quando a consulta for remarcada ou cancelada, o sistema deve atualizar o lembrete.', 'Quando chegar a hora do lembrete, o sistema deve enviar um e-mail ao paciente.'],
+    outs: ['WhatsApp e SMS.'], dep: true,
+    qs: [{ id: 'P1', text: 'Com quanta antecedência?' }] },
+  { obj: 'Avisar o paciente por e-mail antes da consulta, para reduzir as faltas.',
+    reqs: ['Quando uma consulta for marcada, o sistema deve agendar um lembrete.', 'Quando a consulta for remarcada ou cancelada, o sistema deve atualizar o lembrete.', 'Quando faltarem 24 h para a consulta, o sistema deve enviar um e-mail ao paciente.', 'Quando o envio falhar, o sistema deve registrar o erro na consulta.'],
+    outs: ['WhatsApp e SMS.'], dep: true,
+    qs: [{ id: 'P1', text: 'O paciente pode cancelar pelo e-mail?', s: 'não nesta spec; o e-mail traz só o telefone da clínica.' }] },
+  { obj: 'Avisar o paciente por e-mail antes da consulta, para reduzir as faltas.',
+    reqs: ['Quando uma consulta for marcada, o sistema deve agendar um lembrete.', 'Quando a consulta for remarcada ou cancelada, o sistema deve atualizar o lembrete.', 'Quando faltarem 24 h para a consulta, o sistema deve enviar um e-mail ao paciente.', 'Quando o envio falhar, o sistema deve registrar o erro na consulta.', 'Quando o paciente confirmar pelo e-mail, o sistema deve marcar a consulta como confirmada.', 'Quando o paciente não tiver e-mail, o sistema deve avisar a recepção.'],
+    outs: ['WhatsApp e SMS.', 'Painel de faltas por clínica: sugestão de próxima spec.', 'Relatório mensal de lembretes: sugestão de próxima spec.'], dep: true,
+    qs: [{ id: 'P1', text: 'O paciente pode cancelar pelo e-mail?', s: 'não nesta spec; o e-mail traz só o telefone da clínica.' }] },
+];
+const IDEA = 'Quero avisar o paciente antes da consulta, para reduzir as faltas.';
+const TURNS = [
+  null,
+  { text: 'Li a Agenda de consultas (SPEC-005): a consulta já tem data e paciente. Por qual canal sai o aviso?', note: 'Rascunho atualizado · Título · Objetivo · Requisitos +2', sugs: ['Só e-mail', 'E-mail e WhatsApp', 'Decidir depois'] },
+  { text: 'Fica só e-mail, e WhatsApp vai para Fora do escopo. Com quanta antecedência?', note: 'Rascunho atualizado · Objetivo · Requisitos +1 · Fora do escopo +1', sugs: ['24 h antes', '24 h e 2 h antes', 'A clínica escolhe'] },
+  { text: 'Deixei uma dúvida em Perguntas em aberto, porque ela não impede começar. A spec já pode ser criada.', note: 'Rascunho atualizado · Requisitos +1 · Perguntas 1', sugs: [] },
+  { text: 'A ideia passou de 6 requisitos. Mantive os 6 que mais reduzem as faltas e mandei 2 para Fora do escopo, como sugestão de próxima spec.', note: 'Rascunho atualizado · Requisitos +2 · Fora do escopo +2', sugs: [] },
+];
+const START = {"phase": "idea", "stage": 3, "msgs": [{"me": true, "text": "Quero avisar o paciente antes da consulta, para reduzir as faltas."}, {"me": false, "text": "Li a Agenda de consultas (SPEC-005): a consulta já tem data e paciente. Por qual canal sai o aviso?", "note": "Rascunho atualizado · Título · Objetivo · Requisitos +2"}, {"me": true, "text": "Só e-mail"}, {"me": false, "text": "Fica só e-mail, e WhatsApp vai para Fora do escopo. Com quanta antecedência?", "note": "Rascunho atualizado · Objetivo · Requisitos +1 · Fora do escopo +1"}, {"me": true, "text": "24 h antes"}, {"me": false, "text": "Deixei uma dúvida em Perguntas em aberto, porque ela não impede começar. A spec já pode ser criada.", "note": "Rascunho atualizado · Requisitos +1 · Perguntas 1"}], "idea": "", "title": "Lembretes de consulta", "draft": true, "confirm": true};
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { phase: START.phase, stage: START.stage, msgs: START.msgs.slice(), busy: false, fail: START.fail || false, idea: START.idea, reply: '', plan: true, title: START.title, draft: START.draft || false, draftWhen: 'ontem às 18:20', confirm: START.confirm || false, noCli: START.noCli || false, saveFail: START.saveFail || false, planState: START.planState || 'idle', planSaved: false, blankDoc: false, blankTitle: '', made: START.phase === 'created' ? START.title : '' };
+    this.timer = null;
+  }
+  componentDidMount() { if (this.state.planState === 'running') this.runPlan(); }
+  componentWillUnmount() { clearTimeout(this.timer); }
+  runPlan() { clearTimeout(this.timer); this.timer = setTimeout(() => this.setState({ planState: 'done' }), 3000); }
+  answer(msgs) {
+    this.timer = setTimeout(() => {
+      const stage = this.state.stage;
+      if (stage >= 3) { this.setState({ busy: false, msgs: msgs.concat([{ me: false, text: 'Anotei. O rascunho não mudou, e a spec já pode ser criada.' }]) }); return; }
+      const t = TURNS[stage + 1];
+      this.setState({ busy: false, stage: stage + 1, title: this.state.title || 'Lembretes de consulta', msgs: msgs.concat([{ me: false, text: t.text, note: t.note }]) });
+    }, 1100);
+  }
+  advance(text) {
+    const msgs = this.state.msgs.concat([{ me: true, text }]);
+    this.setState({ msgs, reply: '', busy: true, fail: false });
+    this.answer(msgs);
+  }
+  clean() { return { stage: 0, msgs: [], title: '', draft: false, idea: '', reply: '', fail: false, busy: false, saveFail: false }; }
+  renderVals() {
+    const { phase, stage, msgs, busy, fail, idea, reply, plan, title, draft, draftWhen, confirm, noCli, saveFail, planState, planSaved, blankDoc, blankTitle, made } = this.state;
+    const s = STAGES[stage], prev = STAGES[Math.max(0, stage - 1)];
+    const chat = phase === 'chat', created = phase === 'created';
+    const turn = TURNS[stage];
+    const last = msgs[msgs.length - 1];
+    const waiting = chat && !busy && !fail && turn && last && !last.me;
+    const sugs = waiting ? turn.sugs : [];
+    const n = s.reqs.length;
+    const reqWord = n === 1 ? '1 requisito' : n + ' requisitos';
+    const name = title || 'Sem título';
+    const guard = () => this.setState({ phase: 'specs', draft: true, draftWhen: 'agora há pouco' });
+    return {
+      crumb: created ? 'SPEC-008' : 'Nova spec', hasCrumb: phase !== 'specs',
+      isPlanner: chat, isIdea: phase === 'idea', isBlank: phase === 'blank', isChat: chat, isCreated: created, isSpecs: phase === 'specs',
+      hasDraft: draft, draftLine: name + ' · ' + reqWord + ' · ' + draftWhen,
+      idea, noIdea: !idea.trim() || draft || noCli, noCli,
+      ideaHint: noCli ? 'Em branco abre o modelo de sempre.' : draft ? 'Continue ou descarte o rascunho para planejar outra ideia.' : 'Em branco abre o modelo de sempre, sem chamar o planner.',
+      recheck: () => this.setState({ noCli: false }),
+      setIdea: (e) => this.setState({ idea: e.target.value }),
+      discard: () => { if (n > 0) this.setState({ confirm: true }); else this.setState(this.clean()); },
+      confirm, discardLine: name + ' tem ' + reqWord + ' e a conversa com o planner.',
+      discardYes: () => this.setState(Object.assign(this.clean(), { confirm: false })),
+      discardNo: () => this.setState({ confirm: false }),
+      dlgKey: (e) => { if (e.key === 'Escape') this.setState({ confirm: false }); },
+      chatRef: (el) => { if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 0); },
+      planCls: planState === 'done' ? '' : 'pri', approveCls: planState === 'done' && planSaved ? 'pri' : '',
+      keepRef: (el) => { if (el) setTimeout(() => el.focus(), 0); },
+      resume: () => this.setState({ phase: 'chat', draft: false }),
+      start: () => { this.setState({ phase: 'chat' }); this.advance(idea); },
+      blank: () => this.setState({ phase: 'blank' }), toIdea: () => this.setState({ phase: 'idea' }),
+      blankTitle, noBlank: !blankTitle.trim(), setBlank: (e) => this.setState({ blankTitle: e.target.value }),
+      createBlank: () => this.setState({ phase: 'created', blankDoc: true, made: blankTitle, planState: 'idle', planSaved: false }),
+      back: () => { if (chat) guard(); else this.setState({ phase: 'specs' }); },
+      leave: guard,
+      newSpec: () => this.setState({ phase: 'idea' }),
+      hasMade: !!made, madeTitle: made,
+      msgs: msgs.map((m) => ({ text: m.text, mine: !!m.me, theirs: !m.me, hasNote: !!m.note, note: m.note })),
+      hasSug: sugs.length > 0,
+      sugs: sugs.map((text) => ({ text, pick: () => this.advance(text) })),
+      isBusy: busy, busyText: stage === 0 ? 'O planner está lendo o repositório…' : 'O planner está respondendo…',
+      isFail: fail, retry: () => { this.setState({ fail: false, busy: true }); this.answer(msgs); },
+      reply, setReply: (e) => this.setState({ reply: e.target.value }), noSend: !reply.trim() || busy,
+      send: () => this.advance(reply),
+      title, setTitle: (e) => this.setState({ title: e.target.value }),
+      hasObj: !!s.obj, noObj: !s.obj, obj: s.obj,
+      reqCount: n + ' · máximo 6',
+      reqs: s.reqs.map((text, i) => ({ id: 'R' + (i + 1), text, isNew: !prev.reqs.includes(text) && stage > 0 })),
+      noReq: n === 0,
+      outs: s.outs.map((text) => ({ text, isNew: !prev.outs.includes(text) })), noOut: s.outs.length === 0,
+      hasDep: s.dep, noDep: !s.dep,
+      qs: s.qs.map((q) => ({ id: q.id, text: q.text, s: q.s, hasS: !!q.s })), noQ: s.qs.length === 0,
+      plan, togglePlan: () => this.setState({ plan: !plan }),
+      noCreate: stage === 0 || busy || !title.trim(), createLabel: plan ? 'Criar e planejar' : 'Criar spec',
+      saveFail,
+      create: () => {
+        this.setState(Object.assign(this.clean(), { phase: 'created', made: title, blankDoc: false, planState: plan ? 'running' : 'idle', planSaved: false }));
+        if (plan) this.runPlan();
+      },
+      isBlankDoc: blankDoc, isRichDoc: !blankDoc,
+      planning: planState === 'running',
+      planned: planState === 'done' && !planSaved, planSaved: planState === 'done' && planSaved,
+      planFailed: planState === 'failed', planCancelled: planState === 'cancelled',
+      doPlan: () => { this.setState({ planState: 'running', planSaved: false }); this.runPlan(); },
+      cancelPlan: () => { clearTimeout(this.timer); this.setState({ planState: 'cancelled' }); },
+      savePlan: () => this.setState({ planSaved: true }),
+      planLabel: planState === 'done' ? 'Planejar de novo' : 'Planejar',
+      planText: planState === 'done' ? 'Plano escrito pelo agente a partir do código atual, com "O que já existe".' : planState === 'running' ? '…' : 'Como implementar: componentes, arquivos e decisões. Use "Planejar".',
+    };
+  }
+}
+</script>
+</body>
+</html>
