@@ -595,6 +595,11 @@ class SpecDocument {
     return out;
   }
 
+  /// Text with `## <name>` set to [content], added after `## <after>` when
+  /// absent.
+  String withSection(String name, String content, {required String after}) =>
+      _withSection(text, name, content.trim(), after: after);
+
   /// `## Protótipo` (SPEC-022 R9): `- R1 → docs/mockups/spec-022/R1-x.html`,
   /// one approved screen per requirement.
   Map<String, String> get prototypes {
@@ -895,9 +900,13 @@ String cloneSpecText(
   required String originalCode,
   required Set<String> doneIds,
 }) {
-  final meta = SpecDocument.parse(
-    text,
-  ).withMeta(id: newCode, status: SpecStatus.draft, dependsOn: [originalCode]);
+  // A clone is the person's draft: the automatic plan does not touch it.
+  final meta = SpecDocument.parse(text).withMeta(
+    id: newCode,
+    status: SpecStatus.draft,
+    dependsOn: [originalCode],
+    fields: const {SpecDocument.autoPlanKey: null},
+  );
   final doc = SpecDocument.parse(meta);
   final lines = doc.body.split('\n');
   final out = <String>[];
