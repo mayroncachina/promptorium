@@ -32,6 +32,10 @@ if [[ ! -x "$BUNDLE/$NAME" ]]; then
 fi
 command -v dpkg-deb >/dev/null || { echo "dpkg-deb não encontrado." >&2; exit 1; }
 
+# SPEC-040 R8: o ditado por voz usa o whisper-cli ao lado do executável, no
+# .deb e no .tar.gz. O modelo não entra no pacote.
+"$ROOT/scripts/build-whisper.sh" "$BUNDLE"
+
 mkdir -p "$OUT"
 WORK="$(mktemp -d)"
 trap 'rm -rf -- "$WORK"' EXIT
@@ -63,7 +67,7 @@ Architecture: $ARCH
 Installed-Size: $SIZE_KB
 Maintainer: Mayron Cachina <mayroncachina@users.noreply.github.com>
 Homepage: https://github.com/mayroncachina/promptorium
-Depends: libc6 (>= 2.35), libstdc++6, libgtk-3-0 (>= 3.22), libnotify4, libx11-6, libxi6, git
+Depends: libc6 (>= 2.35), libstdc++6, libgtk-3-0 (>= 3.22), libnotify4, libx11-6, libxi6, libgomp1, alsa-utils, git
 Recommends: gh
 Description: IDE para o Claude Code CLI
  Gerencia sessões, specs, agentes, skills e servidores MCP do Claude Code,
