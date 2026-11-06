@@ -1,0 +1,75 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-05T14:00:00Z"
+ },
+ "title": "Promptorium · Planejar e fila automática (SPEC-037)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Revisar e criar: clique em Criar projeto",
+   "is_interactive": true
+  },
+  "Andamento.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Fila em andamento (R8)",
+   "is_interactive": true
+  },
+  "Falha.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Fim da fila com falha (R9, R12)",
+   "is_interactive": true
+  },
+  "Spec.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Botão Planejar e seção Plano (R1, R3)"
+  },
+  "SpecFila.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "5 · Spec bloqueada pela fila (R10)"
+  },
+  "Quadro.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "6 · Replanejar no Quadro (R13)"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Andamento.dc.html",
+  "Falha.dc.html",
+  "Spec.dc.html",
+  "SpecFila.dc.html",
+  "Quadro.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}
