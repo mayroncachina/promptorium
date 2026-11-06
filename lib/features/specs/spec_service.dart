@@ -545,8 +545,8 @@ final selectedSpecProvider = NotifierProvider<SelectedSpec, int?>(
   SelectedSpec.new,
 );
 
-/// Spec whose design the Specs screen generates as soon as it opens it
-/// ("Gerar design" of the Quadro's warning, SPEC-017 R3).
+/// Spec whose plan the Specs screen generates as soon as it opens it
+/// ("Planejar" of the Quadro's warning, SPEC-017 R3).
 final pendingDesignProvider = NotifierProvider<SelectedSpec, int?>(
   SelectedSpec.new,
 );

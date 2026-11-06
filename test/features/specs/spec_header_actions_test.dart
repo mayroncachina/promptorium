@@ -10,7 +10,21 @@ SpecActionEmphasis emphasisOf(List<SpecAction> l, String id) =>
 
 void main() {
   group('specHeaderActions', () {
-    test('R3: draft in the backlog: Refinar com IA, Gerar design, Aprovar '
+    test('SPEC-037 R1: Planejar, "Planejar de novo" with a plan, and the '
+        'tooltip', () {
+      String label({required bool hasPlan}) =>
+          specHeaderActions(SpecHeaderState(hasPlan: hasPlan))
+              .firstWhere((a) => a.id == 'design')
+              .label;
+      expect(label(hasPlan: false), 'Planejar');
+      expect(label(hasPlan: true), 'Planejar de novo');
+      expect(
+        designTooltip,
+        'Escreve o plano de implementação a partir do código atual',
+      );
+    });
+
+    test('R3: draft in the backlog: Refinar com IA, Planejar, Aprovar '
         '(primary) and the menu, in this order', () {
       final l = specHeaderActions(
         const SpecHeaderState(
@@ -23,7 +37,7 @@ void main() {
       expect(ids(l), ['refine', 'design', 'approve', 'delete']);
       expect(
         [for (final a in l) a.label],
-        ['Refinar com IA', 'Gerar design', 'Aprovar', 'Excluir…'],
+        ['Refinar com IA', 'Planejar', 'Aprovar', 'Excluir…'],
       );
       expect(
         [for (final a in l) a.emphasis],
@@ -153,7 +167,7 @@ void main() {
       _ => 90,
     };
 
-    test('"Gerar design" goes to the menu first, then "Refinar com IA"; the '
+    test('"Planejar" goes to the menu first, then "Refinar com IA"; the '
         'primary never', () {
       // Everything: 130+8 + 115+8 + 90+8 = 359 (no menu button needed).
       var r = layoutSpecActions(draft, width, 359);

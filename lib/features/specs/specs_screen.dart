@@ -255,7 +255,7 @@ String namedWarnings(List<SpecWarning> warnings, {int max = 3}) {
 
 /// "Aprovar spec" with open questions (SPEC-023 R6, SPEC-028 R4) or
 /// structure warnings (SPEC-023 R10): the questions with their suggestions
-/// and the warnings by name, before the Design dialog. Null = closed (same
+/// and the warnings by name, before the Plano dialog. Null = closed (same
 /// as cancel).
 Future<ApproveCheck?> showApproveChecksDialog(
   BuildContext context, {
@@ -880,7 +880,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   /// Approving with open questions or structure warnings asks first
-  /// (SPEC-023 R6, R10); approving needs a `## Design` or "sem design (spec
+  /// (SPEC-023 R6, R10); approving needs a `## Plano` or "sem plano (spec
   /// trivial)" (F7).
   Future<void> _approve(Workspace ws, Spec spec) async {
     final c = _controller;
@@ -923,14 +923,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           key: const ValueKey('spec-no-design-dialog'),
           backgroundColor: AppColors.panel,
           title: const Text(
-            'A spec não tem Design',
+            'A spec não tem Plano',
             style: TextStyle(fontSize: 16),
           ),
           content: const SizedBox(
             width: 440,
             child: Text(
-              'As sessões recebem o trecho do Design ligado a cada etapa. '
-              'Gere o design agora ou aprove sem ele, se a spec for trivial.',
+              'As sessões recebem o trecho do Plano ligado a cada etapa. '
+              'Planeje agora ou aprove sem ele, se a spec for trivial.',
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -942,12 +942,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             TextButton(
               key: const ValueKey('spec-approve-no-design'),
               onPressed: () => Navigator.of(ctx).pop('trivial'),
-              child: const Text('Aprovar sem design (spec trivial)'),
+              child: const Text('Aprovar sem plano (spec trivial)'),
             ),
             TextButton(
               key: const ValueKey('spec-approve-design'),
               onPressed: () => Navigator.of(ctx).pop('design'),
-              child: const Text('Gerar design'),
+              child: const Text('Planejar'),
             ),
           ],
         ),
@@ -987,7 +987,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     });
   }
 
-  /// "Gerar design": the read-only planner writes `## Design` and
+  /// "Planejar": the read-only planner writes `## Plano` and
   /// `## Etapas` into the editor (saved by the user).
   /// The spec is held meanwhile (SPEC-025 R1, R3).
   Future<void> _design(Workspace ws, Spec spec) async {
@@ -1003,13 +1003,13 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       // R7: the result never goes to another spec.
       if (!mounted || _loadedSpecId != spec.id || _controller == null) {
         debugPrint(
-          'Gerar design: resultado de ${spec.code} descartado (a spec aberta '
+          'Planejar: resultado de ${spec.code} descartado (a spec aberta '
           'mudou).',
         );
         return;
       }
       _controller!.text = text;
-      _snack('Design gerado. Revise e salve.');
+      _snack('Plano pronto. Revise e salve.');
     });
   }
 
@@ -1691,6 +1691,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                       : SpecHeaderState(
                           locked: locked,
                           approved: doc.status == SpecStatus.approved,
+                          hasPlan: doc.design != null,
                           prototype: proto,
                           archived: spec.status == SpecStatus.archived,
                           unavailableReason: !ready ? notReadyReason : null,

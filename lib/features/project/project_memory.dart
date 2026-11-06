@@ -28,7 +28,7 @@ class MemoryEntry {
 
 /// Learned facts of the project (F8), versioned with the repository at
 /// `.promptorium/memoria.md` and sent in the prompt of every step session,
-/// the automatic reviewer and "Gerar design". At most [maxEntries] lines:
+/// the automatic reviewer and "Planejar". At most [maxEntries] lines:
 /// the oldest go first.
 @immutable
 class ProjectMemory {

@@ -294,10 +294,10 @@ void main() {
         if (!inBar.contains('spec-design')) {
           await tester.tap(key('spec-more'));
           await tester.pumpAndSettle();
-          expect(find.text('Gerar design'), findsOneWidget);
+          expect(find.text('Planejar'), findsOneWidget);
           expectNoOverflow(tester);
         }
-        // "Gerar design" leaves before "Refinar com IA".
+        // "Planejar" leaves before "Refinar com IA".
         if (inBar.contains('spec-design')) {
           expect(inBar, contains('spec-refine'));
         }

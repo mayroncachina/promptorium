@@ -46,14 +46,14 @@ void main() {
         theme: AppTheme.dark(),
         home: Scaffold(
           body: SpecActionBanner(
-            title: 'Gerando o design de SPEC-024…',
+            title: 'Planejando SPEC-024…',
             startedAt: DateTime.now().subtract(const Duration(seconds: 72)),
             onCancel: () => cancelled++,
           ),
         ),
       ),
     );
-    expect(find.text('Gerando o design de SPEC-024…'), findsOneWidget);
+    expect(find.text('Planejando SPEC-024…'), findsOneWidget);
     expect(find.text(SpecActionBanner.reason), findsOneWidget);
     expect(
       SpecActionBanner.reason,
@@ -80,13 +80,13 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('R3, R6: "Gerar design" shows the strip; a short action '
+  testWidgets('R3, R6: "Planejar" shows the strip; a short action '
       '("Aprovar") only the button in progress and "Somente leitura enquanto '
       'aprova"', (tester) async {
     final c = await pumpSpecs(tester, tmp, designer: make);
     await startDesign(tester, () => designer);
     expect(key('spec-action-banner'), findsOneWidget);
-    expect(find.text('Gerando o design de SPEC-002…'), findsOneWidget);
+    expect(find.text('Planejando SPEC-002…'), findsOneWidget);
     expect(find.text(SpecActionBanner.reason), findsOneWidget);
     expect(key('spec-action-elapsed'), findsOneWidget);
     expect(key('spec-action-cancel'), findsOneWidget);
@@ -141,7 +141,7 @@ void main() {
       tester,
       until: () => key('spec-action-error').evaluate().isNotEmpty,
     );
-    expect(find.text('Não foi possível gerar o design.'), findsOneWidget);
+    expect(find.text('Não foi possível planejar.'), findsOneWidget);
     expect(
       tester.widget<Text>(key('spec-action-error-cause')).data,
       'O Claude Code encerrou sem responder (código de saída 1). A spec não '
@@ -198,7 +198,7 @@ void main() {
     expect(key('spec-action-spinner-still'), findsNWidgets(2));
 
     final status = tester
-        .getSemantics(find.bySemanticsLabel(RegExp('^Gerando o design')))
+        .getSemantics(find.bySemanticsLabel(RegExp('^Planejando SPEC')))
         .getSemanticsData();
     expect(status.role, SemanticsRole.status);
 

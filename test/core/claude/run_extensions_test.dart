@@ -226,7 +226,7 @@ void main() {
   });
 
   test(
-    'a read-only Claude run ("Gerar design", reviewer) gets it too',
+    'a read-only Claude run ("Planejar", reviewer) gets it too',
     () async {
       final cli = FakeCli();
       final c = ProviderContainer(

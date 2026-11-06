@@ -11,10 +11,10 @@ import '../project/project_memory.dart';
 import 'spec_action.dart';
 import 'spec_file.dart';
 
-/// Instructions of "Gerar design" (read-only run in the repository).
+/// Instructions of "Planejar" (read-only run in the repository).
 const designPrompt = '''
 Você é o planner do Promptorium. Leia a spec abaixo e o repositório (somente
-leitura) e escreva a seção Design: como implementar cada requisito neste código —
+leitura) e escreva a seção Plano: como implementar cada requisito neste código —
 componentes e arquivos que mudam ou nascem, decisões e alternativas descartadas,
 riscos. Cite os requisitos (R1, R2…) em cada parte. Comece com a subseção
 "### O que já existe": os arquivos, classes e funções do repositório que a
@@ -52,10 +52,10 @@ final designSchema = {
   },
 };
 
-/// Text of the spec with the generated `## Design` / `## Etapas` (F7).
+/// Text of the spec with the generated `## Plano` / `## Etapas` (F7).
 String applyDesignAnswer(String specText, Object? data) {
   if (data is! Map || '${data['design'] ?? ''}'.trim().isEmpty) {
-    throw const PlannerException('O planner não devolveu um design.');
+    throw const PlannerException('O planner não devolveu um plano.');
   }
   final plans = <String, StepPlan>{
     for (final e in (data['etapas'] as List? ?? const []))
@@ -75,7 +75,7 @@ String applyDesignAnswer(String specText, Object? data) {
       .withDesign('${data['design']}'.trim(), plans: plans);
 }
 
-/// "Gerar design" of the Specs screen.
+/// "Planejar" of the Specs screen.
 class SpecDesigner {
   SpecDesigner(this._ref);
 
@@ -83,7 +83,7 @@ class SpecDesigner {
 
   static const budgetUsd = 1.0;
 
-  /// Returns [specText] with the generated design (not saved: the user
+  /// Returns [specText] with the generated plan (not saved: the user
   /// reviews it in the editor). Completing [cancelled] stops the agent and
   /// throws [SpecActionCancelled] (SPEC-025 R5).
   Future<String> generate(

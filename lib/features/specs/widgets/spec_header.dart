@@ -109,6 +109,7 @@ class SpecHeaderState {
   const SpecHeaderState({
     this.locked = false,
     this.approved = false,
+    this.hasPlan = false,
     this.prototype = false,
     this.archived = false,
     this.onRefine,
@@ -132,6 +133,9 @@ class SpecHeaderState {
 
   /// `status: aprovada`: no "Aprovar" (R4).
   final bool approved;
+
+  /// The spec has a plan: "Planejar de novo" (SPEC-037 R1).
+  final bool hasPlan;
 
   /// Protótipo mode (R6).
   final bool prototype;
@@ -173,7 +177,8 @@ const runningReason = 'Aguarde a ação em andamento terminar.';
 const refineTooltip =
     'Abre uma conversa com a IA para escrever objetivo, requisitos e '
     'critérios a partir do que você já tem.';
-const designTooltip = 'Escreve a seção Design a partir do código atual.';
+const designTooltip =
+    'Escreve o plano de implementação a partir do código atual';
 const approveTooltip = 'Marca a spec como pronta para virar etapas no Quadro.';
 const answerTooltip =
     'Responde as perguntas em aberto uma por vez, com opções, e revisa o que '
@@ -281,8 +286,8 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
     SpecAction(
       id: 'design',
       keyName: 'spec-design',
-      label: 'Gerar design',
-      icon: Icons.integration_instructions_outlined,
+      label: s.hasPlan ? 'Planejar de novo' : 'Planejar',
+      icon: Icons.checklist,
       emphasis: SpecActionEmphasis.secondary,
       tooltip: designTooltip,
       onTap: s.onDesign,
@@ -315,7 +320,7 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
 
 /// How many of the secondary actions, in order, fit in [available] pixels
 /// ([widths] = natural width of each one, its gap included). The ones left
-/// out go to "Mais ações" from the last one back (R9: "Gerar design", then
+/// out go to "Mais ações" from the last one back (R9: "Planejar", then
 /// "Refinar com IA"); the primary never enters this list.
 int fitActions(List<double> widths, double available) {
   var used = 0.0;

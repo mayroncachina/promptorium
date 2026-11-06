@@ -63,9 +63,9 @@ List<String> parseSuggestions(String? text) => [
 
 /// The part of the spec a session needs (F7): objective, its requirements,
 /// its `## Fora do escopo` and `## Premissas` (SPEC-023 R13), the blocks of
-/// `## Design` that mention its steps (or the files of its
+/// `## Plano` (or the old `## Design`) that mention its steps (or the files of its
 /// steps in `## Etapas`), its plan lines and its acceptance criteria. Null
-/// = no `## Objetivo` / `## Design`, or no design block tied to the steps:
+/// = no `## Objetivo` / plan section, or no plan block tied to the steps:
 /// the whole spec goes.
 /// Commands that check only the steps in [todo] (SPEC-017 R1): the
 /// `verificar` of each in `## Etapas` and the `verificar:` of their
@@ -172,7 +172,7 @@ String? focusedSpecText(
   }
   b
     ..writeln()
-    ..writeln('## Design (trecho ligado a $ids)')
+    ..writeln('## Plano (trecho ligado a $ids)')
     ..writeln()
     ..writeln(linked.join('\n\n'));
   final myPlans = [

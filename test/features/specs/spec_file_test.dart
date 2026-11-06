@@ -132,7 +132,7 @@ void main() {
         'Objetivo',
         'Requisitos',
         'Fora do escopo',
-        'Design',
+        'Plano',
         'Critérios de aceite',
         'Perguntas em aberto',
       ]);

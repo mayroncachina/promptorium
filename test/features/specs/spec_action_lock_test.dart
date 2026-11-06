@@ -23,7 +23,7 @@ import '../sessions/session_test_utils.dart';
 import 'spec_file_test.dart' show sample;
 import 'specs_screen_test.dart' show QuietWorkspaceWatcher, settleIo;
 
-/// "Gerar design" without the CLI: the test decides when (and how) it ends.
+/// "Planejar" without the CLI: the test decides when (and how) it ends.
 class FakeDesigner extends SpecDesigner {
   FakeDesigner(super.ref);
 
@@ -133,7 +133,7 @@ Finder key(String k) => find.byKey(ValueKey(k));
 CodeEditor editorOf(WidgetTester tester) =>
     tester.widget<CodeEditor>(find.byType(CodeEditor));
 
-/// Taps "Gerar design" until the action starts.
+/// Taps "Planejar" until the action starts.
 Future<void> startDesign(WidgetTester tester, FakeDesigner Function() d) async {
   final before = d().calls.length;
   for (var i = 0; i < 5 && d().calls.length == before; i++) {
@@ -167,7 +167,7 @@ void main() {
 
   FakeDesigner make(Ref ref) => designer = FakeDesigner(ref);
 
-  testWidgets('R1: with "Gerar design" running, typing, pasting, undoing '
+  testWidgets('R1: with "Planejar" running, typing, pasting, undoing '
       'and Ctrl+S change neither the text nor the file', (tester) async {
     await pumpSpecs(tester, tmp, designer: make);
     // An unsaved edit from before the action: Ctrl+S must not write it.
@@ -213,7 +213,7 @@ void main() {
     expect(key('spec-save'), findsNothing);
     expect(
       tester.widget<Text>(key('spec-action-lock')).data,
-      'Bloqueada: gerando o design',
+      'Bloqueada: planejando',
     );
     designer.next.complete(edited);
     await settleIo(tester, until: () => editorOf(tester).readOnly != true);
@@ -229,11 +229,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     final design = tester.widget<SpecActionButton>(key('spec-design'));
     expect(design.action.busy, isTrue);
-    expect(design.action.label, 'Gerando design…');
+    expect(design.action.label, 'Planejando…');
     expect(
       find.descendant(
         of: key('spec-design'),
-        matching: find.text('Gerando design…'),
+        matching: find.text('Planejando…'),
       ),
       findsOneWidget,
     );
@@ -258,7 +258,7 @@ void main() {
       until: () =>
           tester.widget<SpecActionButton>(key('spec-design')).onTap != null,
     );
-    expect(find.text('Gerar design'), findsOneWidget);
+    expect(find.text('Planejar'), findsOneWidget);
     expect(tester.widget<InkWell>(key('spec-more')).onTap, isNotNull);
   }, variant: desktop);
 

@@ -66,7 +66,7 @@ Future<void> storeRunPlan(
   await clearStoredPlan(repo, specId);
 }
 
-/// Whether running a spec should warn that it has no Design (SPEC-017 R3):
+/// Whether running a spec should warn that it has no Plano (SPEC-017 R3):
 /// without it every step gets the whole spec and explores the code again,
 /// which only pays off for a spec small enough for one session.
 bool needsDesignWarning(String? specText, {required int maxSingleSession}) {
@@ -77,7 +77,7 @@ bool needsDesignWarning(String? specText, {required int maxSingleSession}) {
 
 /// "Executar" of a card: the first run (or [ask]) opens [RunSpecDialog];
 /// later runs reuse the last session's mode / model / effort. A first run of
-/// a spec without Design and with many steps warns first (SPEC-017 R3).
+/// a spec without Plano and with many steps warns first (SPEC-017 R3).
 Future<void> runSpec(
   BuildContext context,
   WidgetRef ref,
@@ -912,7 +912,7 @@ class _RunModeSwitch extends StatelessWidget {
   }
 }
 
-/// "SPEC-NNN não tem Design" (SPEC-017 R3): returns `design`, `run` or null.
+/// "SPEC-NNN não tem Plano" (SPEC-017 R3): returns `design`, `run` or null.
 class _NoDesignDialog extends StatelessWidget {
   const _NoDesignDialog({required this.spec, required this.steps});
 
@@ -924,15 +924,15 @@ class _NoDesignDialog extends StatelessWidget {
     key: const ValueKey('run-no-design-dialog'),
     backgroundColor: AppColors.panel,
     title: Text(
-      '${spec.code} não tem Design',
+      '${spec.code} não tem Plano',
       style: const TextStyle(fontSize: 16),
     ),
     content: SizedBox(
       width: 460,
       child: Text(
-        'Sem Design, cada etapa recebe a spec inteira e explora o código do '
+        'Sem Plano, cada etapa recebe a spec inteira e explora o código do '
         'zero. Com $steps etapas, isso se repete $steps vezes.\n\n'
-        '"Gerar design" lê o repositório uma vez e escreve o que já existe e '
+        '"Planejar" lê o repositório uma vez e escreve o que já existe e '
         'os arquivos de cada etapa; as sessões passam a receber só o trecho '
         'delas.',
         style: const TextStyle(fontSize: 13),
@@ -951,7 +951,7 @@ class _NoDesignDialog extends StatelessWidget {
       TextButton(
         key: const ValueKey('run-no-design-generate'),
         onPressed: () => Navigator.of(context).pop('design'),
-        child: const Text('Gerar design'),
+        child: const Text('Planejar'),
       ),
     ],
   );

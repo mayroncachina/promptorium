@@ -641,7 +641,7 @@ class _SpecRunsSection extends ConsumerWidget {
           children: [
             Text(
               'Desligado aqui, o plugin não carrega quando o Promptorium abre '
-              'o Claude Code (sessões, conversas, "Gerar design" e revisor). '
+              'o Claude Code (sessões, conversas, Planejar e revisor). '
               'O Claude Code no seu terminal não muda.',
               style: sub,
             ),

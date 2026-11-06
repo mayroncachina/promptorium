@@ -111,7 +111,7 @@ void main() {
     );
   });
 
-  test('withDesign replaces or inserts Design and Etapas; the generator '
+  test('withDesign replaces or inserts Plano and Etapas; the generator '
       'answer becomes the sections', () {
     const plain =
         '# A\n\n## Requisitos\n\n- R1 · x\n\n## Critérios de aceite\n\n- [ ] ok\n';
@@ -130,10 +130,10 @@ void main() {
     expect(d.design, '### R1\n\nFaça em lib/a.dart.');
     expect(d.stepPlans.keys, ['R1']);
     expect(d.stepPlans['R1']!.verify, 'make t');
-    expect(out.indexOf('## Design') < out.indexOf('## Critérios'), isTrue);
+    expect(out.indexOf('## Plano') < out.indexOf('## Critérios'), isTrue);
     final again = SpecDocument.parse(out).withDesign('Novo.');
     expect(SpecDocument.parse(again).design, 'Novo.');
-    expect('## Design'.allMatches(again), hasLength(1));
+    expect('## Plano'.allMatches(again), hasLength(1));
     expect(() => applyDesignAnswer(plain, {'design': ' '}), throwsA(anything));
   });
 }

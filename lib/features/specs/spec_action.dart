@@ -7,9 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum SpecActionKind {
   design(
     headerId: 'design',
-    running: 'Gerando design…',
-    lockLabel: 'Bloqueada: gerando o design',
-    failure: 'Não foi possível gerar o design.',
+    running: 'Planejando…',
+    lockLabel: 'Bloqueada: planejando',
+    failure: 'Não foi possível planejar.',
     long: true,
   ),
   approve(
@@ -75,14 +75,14 @@ enum SpecActionKind {
   String title(String code) => switch (this) {
     screens => 'Gerando as telas de $code…',
     answers => 'Atualizando requisitos de $code com as respostas…',
-    _ => 'Gerando o design de $code…',
+    _ => 'Planejando $code…',
   };
 
   /// What is still running, in the leave dialog (R7).
   String get stillRunning => switch (this) {
     screens => 'As telas ainda estão sendo geradas.',
     answers => 'As respostas ainda estão sendo aplicadas.',
-    _ => 'O design ainda está sendo gerado.',
+    _ => 'O plano ainda está sendo escrito.',
   };
 }
 
