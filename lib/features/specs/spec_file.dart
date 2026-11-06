@@ -848,27 +848,45 @@ const dependsOnKey = 'depende-de';
 /// Frontmatter key of the subagents of the spec.
 const subagentsKey = 'subagentes';
 
-/// Markdown of a new spec ("Nova spec").
-String newSpecMarkdown({required String code, required String title}) =>
-    '''
+/// Markdown of a new spec ("Nova spec"). What is not given stays as in the
+/// empty template (SPEC-039 R6).
+String newSpecMarkdown({
+  required String code,
+  required String title,
+  String objective = '',
+  List<String> requirements = const [],
+  List<String> outOfScope = const [],
+  List<String> dependsOn = const [],
+  List<({String text, String suggestion})> questions = const [],
+}) {
+  final requirementLines = [
+    for (final (i, r) in requirements.indexed) '- R${i + 1} · $r',
+  ].join('\n');
+  final questionLines = [
+    for (final (i, q) in questions.indexed) ...[
+      '- P${i + 1} · ${q.text}',
+      if (q.suggestion.isNotEmpty) '  - Sugestão: ${q.suggestion}',
+    ],
+  ].join('\n');
+  return '''
 ---
 id: $code
 status: ${specStatusValue(SpecStatus.draft)}
----
+${dependsOn.isEmpty ? '' : '$dependsOnKey: [${dependsOn.join(', ')}]\n'}---
 
 # $title
 
 ## Objetivo
 
-Descreva o problema e o resultado esperado.
+${objective.isEmpty ? 'Descreva o problema e o resultado esperado.' : objective}
 
 ## Requisitos
 
-- R1 ·
+${requirements.isEmpty ? '- R1 ·' : requirementLines}
 
 ## Fora do escopo
 
-<!-- O que esta spec não faz (as sessões de etapa recebem esta lista). -->
+${outOfScope.isEmpty ? '<!-- O que esta spec não faz (as sessões de etapa recebem esta lista). -->' : outOfScope.map((o) => '- $o').join('\n')}
 
 ## Plano
 
@@ -880,11 +898,15 @@ Descreva o problema e o resultado esperado.
 
 ## Perguntas em aberto
 
+${questions.isEmpty ? _questionsHint : questionLines}
+''';
+}
+
+const _questionsHint = '''
 <!-- Dúvidas sem resposta, uma por item, no formato:
 - P1 · <pergunta>
   - Sugestão: <resposta sugerida, quando houver>
-Responda antes de aprovar ("Responder perguntas"). -->
-''';
+Responda antes de aprovar ("Responder perguntas"). -->''';
 
 final _requirementLine = RegExp(
   r'^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?\**(R\d+)\**\b',
