@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -289,6 +290,202 @@ void main() {
     expect(u.notes, '');
     expect(u.publishedAt, isNull);
     expect(u.assets, isEmpty);
+  });
+
+  group('SPEC-038 R10 · consulta que falha', () {
+    const release = {'tag_name': 'v9.0.0', 'html_url': 'https://x/r'};
+
+    /// Answers with the next item of [answers]: a map, null, or a throw.
+    Future<ProviderContainer> container(List<Object?> answers) async {
+      final queue = [...answers];
+      final c = ProviderContainer(
+        overrides: [
+          databaseOverride(memoryDatabase()),
+          appVersionProvider.overrideWith((ref) async => '1.0.0'),
+          releaseFetcherProvider.overrideWithValue((_) async {
+            final a = queue.removeAt(0);
+            if (a is Exception) throw a;
+            return a as Map<String, dynamic>?;
+          }),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(appSettingsProvider.notifier).load();
+      return c;
+    }
+
+    Future<AvailableUpdate?> check(ProviderContainer c) =>
+        c.read(updateCheckerProvider.notifier).check(force: true);
+
+    final failures = <String, Object?>{
+      'rede': const SocketException('sem rede'),
+      'tempo esgotado': TimeoutException('lento'),
+      'resposta inválida': const ReleaseFetchException('resposta inválida'),
+      'sem tag': <String, dynamic>{'html_url': 'https://x/r'},
+      'tag sem versão': <String, dynamic>{'tag_name': 'nightly'},
+    };
+    for (final e in failures.entries) {
+      test('${e.key} fica registrado como falha, não como em dia', () async {
+        final c = await container([e.value]);
+        expect(await check(c), isNull);
+        expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.failed);
+      });
+    }
+
+    test('sem release e versão igual contam como em dia', () async {
+      final c = await container([
+        null,
+        <String, dynamic>{'tag_name': 'v1.0.0'},
+      ]);
+      await check(c);
+      expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.upToDate);
+      await check(c);
+      expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.upToDate);
+    });
+
+    test('a atualização já encontrada continua depois de uma falha', () async {
+      final c = await container([release, const SocketException('sem rede')]);
+      await check(c);
+      expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.found);
+      final u = await check(c);
+      expect(u?.version, '9.0.0');
+      expect(c.read(updateCheckerProvider)?.version, '9.0.0');
+      expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.failed);
+    });
+
+    test('uma consulta boa depois da falha limpa o estado', () async {
+      final c = await container([
+        release,
+        const SocketException('sem rede'),
+        <String, dynamic>{'tag_name': 'v1.0.0'},
+      ]);
+      await check(c);
+      await check(c);
+      expect(await check(c), isNull);
+      expect(c.read(lastCheckProvider)?.outcome, UpdateCheckOutcome.upToDate);
+    });
+
+    test('o resultado sobrevive ao reinício e lixo vira null', () {
+      final r = UpdateCheckResult(
+        UpdateCheckOutcome.failed,
+        DateTime(2026, 11, 5, 14, 32),
+      );
+      final back = UpdateCheckResult.parse(r.encode());
+      expect(back?.outcome, UpdateCheckOutcome.failed);
+      expect(back?.at, r.at);
+      expect(UpdateCheckResult.parse(null), isNull);
+      expect(UpdateCheckResult.parse('lixo'), isNull);
+      expect(UpdateCheckResult.parse('outro 2026-11-05'), isNull);
+    });
+
+    group('fetchLatestRelease', () {
+      // The widget binding answers every request with a fake 400.
+      final overrides = HttpOverrides.current;
+      setUp(() => HttpOverrides.global = null);
+      tearDown(() => HttpOverrides.global = overrides);
+
+      /// A local server that answers [status] with [body].
+      Future<String> serve(int status, String body) async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        server.listen((req) {
+          req.response
+            ..statusCode = status
+            ..write(body)
+            ..close();
+        });
+        return 'http://127.0.0.1:${server.port}/latest';
+      }
+
+      test('404 é "sem release"', () async {
+        final url = await serve(404, '{}');
+        expect(await fetchLatestRelease('1.0.0', url: url), isNull);
+      });
+
+      test('200 devolve o JSON', () async {
+        final url = await serve(200, '{"tag_name": "v2.0.0"}');
+        final r = await fetchLatestRelease('1.0.0', url: url);
+        expect(r?['tag_name'], 'v2.0.0');
+      });
+
+      for (final (status, body) in [
+        (500, 'erro'),
+        (403, '{"message": "rate limit"}'),
+        (200, 'isto não é json'),
+        (200, '[1, 2]'),
+      ]) {
+        test('$status com "$body" é falha', () async {
+          final url = await serve(status, body);
+          await expectLater(
+            fetchLatestRelease('1.0.0', url: url),
+            throwsA(anything),
+          );
+        });
+      }
+
+      test('sem rede é falha', () async {
+        final closed = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        final url = 'http://127.0.0.1:${closed.port}/latest';
+        await closed.close(force: true);
+        await expectLater(
+          fetchLatestRelease('1.0.0', url: url),
+          throwsA(isA<SocketException>()),
+        );
+      });
+    });
+
+    group('UpdatesCard', () {
+      Future<void> pump(WidgetTester tester, ProviderContainer c) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: c,
+            child: const MaterialApp(home: Scaffold(body: UpdatesCard())),
+          ),
+        );
+        await tester.pump();
+      }
+
+      String status(WidgetTester tester) => tester
+          .widget<Text>(find.byKey(const ValueKey('update-status')))
+          .data!;
+
+      Future<void> tapCheck(WidgetTester tester) async {
+        await tester.tap(find.byKey(const ValueKey('update-check-now')));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+        await tester.pump();
+      }
+
+      testWidgets('a falha não vira "versão mais recente"', (tester) async {
+        final c = (await tester.runAsync(
+          () => container([
+            const SocketException('sem rede'),
+            <String, dynamic>{'tag_name': 'v1.0.0'},
+          ]),
+        ))!;
+        await pump(tester, c);
+        expect(status(tester), '');
+        await tapCheck(tester);
+        expect(status(tester), 'Não foi possível verificar atualizações.');
+        await tapCheck(tester);
+        expect(status(tester), 'Você está na versão mais recente.');
+      });
+
+      testWidgets('depois de uma falha, a versão encontrada continua', (
+        tester,
+      ) async {
+        final c = (await tester.runAsync(
+          () => container([release, const SocketException('sem rede')]),
+        ))!;
+        await pump(tester, c);
+        await tapCheck(tester);
+        expect(status(tester), 'Versão 9.0.0 disponível.');
+        await tapCheck(tester);
+        expect(status(tester), 'Versão 9.0.0 disponível.');
+      });
+    });
   });
 
   group('PackageInfo falha', () {
