@@ -43,7 +43,7 @@ Há um manifesto em `linux/flatpak/`, ainda não testado. Ver [flatpak.md](../fl
 
 ## Atualizações
 
-O app verifica uma vez por dia se há release nova e avisa. "Atualizar agora" (no Sobre, F1) baixa o pacote de github.com, confere o `.sha256` quando existe, instala e reinicia:
+O app verifica uma vez por dia se há release nova e avisa. "Atualizar agora" (no cartão do Sobre, F1) baixa o pacote de github.com, confere o `.sha256` quando existe, instala e reinicia:
 
 - cópia instalada pelo `.deb` em `/opt/promptorium`: instala o `.deb` com `pkexec`;
 - outras cópias (`.tar.gz`, `install.sh`): extrai o `.tar.gz` por cima delas.

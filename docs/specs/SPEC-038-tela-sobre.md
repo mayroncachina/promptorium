@@ -151,6 +151,14 @@ Riscos:
 - D5 · Documentação, Testes e Manutenção ficam fora, mesmo com o pedido de mostrar o último changelog, porque não dizem nada a quem usa o app. O texto completo continua em Histórico completo.
 
 - D6 · O aviso de sessões aparece só ao clicar em "Atualizar agora", e não em repouso. Ele importa na hora de atualizar, não de quem só abriu o Sobre.
+- D7 · Sem consulta registrada, o cartão mostra "Ainda não verificado" com "Verificar agora", e não **Em dia**. Isso acontece na primeira abertura, com o aviso diário desligado e depois de reiniciar o app com uma versão nova já encontrada, porque a atualização não fica salva e a consulta só volta em 24 h. Dizer "versão mais recente" nesses casos repetiria o defeito do R10, e abrir o Sobre não pode consultar por conta própria.
+- D8 · O resultado da última consulta fica salvo em `update.lastResult`, e não só em memória. Sem isso, uma falha viraria **Em dia** ao reiniciar. O horário de "Verificado" é o dessa consulta.
+- D9 · Com atualização já encontrada e consulta que falhou, o cartão fica em **Disponível**, não em **Sem resposta**: a atualização continua valendo (R10). **Sem resposta** é só para quando não há atualização conhecida.
+- D10 · Para o R10, 404 conta como "sem release". Qualquer outro status, JSON inválido, resposta sem `tag_name` e tag que não é versão contam como falha.
+- D11 · Um download sem dados por 30 s falha. Sem esse limite, um cancelamento com a conexão parada nunca apagaria o arquivo parcial, porque o stream só termina no próximo pedaço. O cartão não espera por isso e volta para **Disponível** na hora.
+- D12 · `openReleasePage` ganha o caminho do Windows (`rundll32`), senão os links do Sobre continuariam só no `xdg-open`. "Abrir página" em Configurações não mudou.
+- D13 · As novidades são renderizadas como Markdown, para manter negrito e código das linhas. Referências como `(SPEC-024)` ficam: o R6 só tira hash e escopo. Desempenho, Refatoração e Reversões ficam de fora, como manda o R6.
+- D14 · Na falha, o motivo fica em uma linha, porque os botões ocupam o resto do cartão. Um motivo longo é cortado, e o texto inteiro aparece no tooltip e no leitor de tela.
 
 ## Perguntas em aberto
 
