@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
+import '../../dictation/dictation_controller.dart';
+import '../../dictation/dictation_widgets.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
@@ -346,28 +348,36 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _Composer extends StatefulWidget {
+class _Composer extends ConsumerStatefulWidget {
   const _Composer({required this.enabled, required this.onSend});
 
   final bool enabled;
   final ValueChanged<String> onSend;
 
   @override
-  State<_Composer> createState() => _ComposerState();
+  ConsumerState<_Composer> createState() => _ComposerState();
 }
 
-class _ComposerState extends State<_Composer> {
+class _ComposerState extends ConsumerState<_Composer> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
+  late final _dictation = DictationTarget(
+    id: 'vision',
+    controller: _text,
+    focusNode: _focus,
+  );
 
   @override
   void dispose() {
     _text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   void _send() {
     final t = _text.text.trim();
     if (!widget.enabled || t.isEmpty) return;
+    if (ref.read(dictationProvider).sendHeldIn == _dictation.id) return;
     _text.clear();
     widget.onSend(t);
   }
@@ -388,44 +398,58 @@ class _ComposerState extends State<_Composer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          DictationNotices(target: _dictation),
           CallbackShortcuts(
             bindings: {
               const SingleActivator(LogicalKeyboardKey.enter, control: true):
                   _send,
             },
-            child: TextField(
-              key: const ValueKey('project-composer'),
-              controller: _text,
-              minLines: 2,
-              maxLines: 6,
-              style: const TextStyle(fontSize: 13, color: AppColors.text),
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'Responda ou descreva mais sobre o projeto…',
-                hintStyle: TextStyle(color: AppColors.textMuted),
+            child: DictationLock(
+              id: _dictation.id,
+              builder: (locked) => TextField(
+                key: const ValueKey('project-composer'),
+                controller: _text,
+                focusNode: _focus,
+                readOnly: locked,
+                minLines: 2,
+                maxLines: 6,
+                style: const TextStyle(fontSize: 13, color: AppColors.text),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: 'Responda ou descreva mais sobre o projeto…',
+                  hintStyle: TextStyle(color: AppColors.textMuted),
+                ),
               ),
             ),
           ),
-          Row(
-            children: [
-              const Text(
-                'Ctrl+Enter envia',
-                style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-              ),
-              const Spacer(),
-              ListenableBuilder(
-                listenable: _text,
-                builder: (_, _) => AmberButton(
-                  key: const ValueKey('project-send'),
-                  label: 'Enviar',
-                  height: 28,
-                  onTap: widget.enabled && _text.text.trim().isNotEmpty
-                      ? _send
-                      : null,
+          DictationActions(
+            target: _dictation,
+            child: Row(
+              children: [
+                const Text(
+                  'Ctrl+Enter envia',
+                  style: TextStyle(fontSize: 11, color: AppColors.textMuted),
                 ),
-              ),
-            ],
+                const Spacer(),
+                DictationButton(target: _dictation, size: 28),
+                const SizedBox(width: 6),
+                ListenableBuilder(
+                  listenable: _text,
+                  builder: (_, _) => AmberButton(
+                    key: const ValueKey('project-send'),
+                    label: 'Enviar',
+                    height: 28,
+                    onTap:
+                        widget.enabled &&
+                            _text.text.trim().isNotEmpty &&
+                            !sendHeld(ref, _dictation.id)
+                        ? _send
+                        : null,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

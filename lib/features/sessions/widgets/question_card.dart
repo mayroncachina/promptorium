@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../dictation/dictation_controller.dart';
+import '../../dictation/dictation_widgets.dart';
 import 'session_style.dart';
 
 /// One question of the `AskUserQuestion` tool.
@@ -85,11 +87,26 @@ class _QuestionCardState extends State<QuestionCard> {
   late final List<TextEditingController> _text = [
     for (final _ in widget.questions) TextEditingController(),
   ];
+  late final List<FocusNode> _focus = [
+    for (final _ in widget.questions) FocusNode(),
+  ];
+  late final List<DictationTarget> _dictation = [
+    for (final (i, c) in _text.indexed)
+      DictationTarget(
+        id: 'question-$i',
+        controller: c,
+        focusNode: _focus[i],
+        onInserted: () => setState(() {}),
+      ),
+  ];
 
   @override
   void dispose() {
     for (final c in _text) {
       c.dispose();
+    }
+    for (final f in _focus) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -271,18 +288,29 @@ class _QuestionCardState extends State<QuestionCard> {
                   if (_other[qi])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: TextField(
-                        key: ValueKey('question-$qi-other-text'),
-                        controller: _text[qi],
-                        autofocus: true,
-                        minLines: 1,
-                        maxLines: 4,
-                        style: const TextStyle(fontSize: 12),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: 'Escreva a sua resposta',
-                        ),
-                        onChanged: (_) => setState(() {}),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          DictationLock(
+                            id: _dictation[qi].id,
+                            builder: (locked) => TextField(
+                              key: ValueKey('question-$qi-other-text'),
+                              controller: _text[qi],
+                              focusNode: _focus[qi],
+                              readOnly: locked,
+                              autofocus: true,
+                              minLines: 1,
+                              maxLines: 4,
+                              style: const TextStyle(fontSize: 12),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                hintText: 'Escreva a sua resposta',
+                              ),
+                              onChanged: (_) => setState(() {}),
+                            ),
+                          ),
+                          DictationBar(target: _dictation[qi]),
+                        ],
                       ),
                     ),
                 ],

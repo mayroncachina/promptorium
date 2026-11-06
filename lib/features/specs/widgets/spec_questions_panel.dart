@@ -9,6 +9,8 @@ import '../../../core/text/line_diff.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/app_theme.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../dictation/dictation_controller.dart';
+import '../../dictation/dictation_widgets.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../spec_answers.dart';
@@ -114,6 +116,21 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   Map<String, Answer> _appliedAnswers = const {};
   bool _saving = false;
   final _other = TextEditingController();
+  final _otherFocus = FocusNode(debugLabel: 'spec-question-other-text');
+  late final _dictation = DictationTarget(
+    id: 'spec-question',
+    controller: _other,
+    focusNode: _otherFocus,
+    onInserted: () {
+      final q = _dictatedQuestion;
+      if (q != null) {
+        _store(q, Answer(option: AnswerOption.other, text: _other.text.trim()));
+      }
+    },
+  );
+
+  /// The question open when the field took dictation.
+  OpenQuestion? _dictatedQuestion;
   final _options = {
     for (final o in AnswerOption.values)
       o: FocusNode(debugLabel: 'spec-question-${o.name}'),
@@ -146,6 +163,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   @override
   void dispose() {
     _other.dispose();
+    _otherFocus.dispose();
     for (final f in _options.values) {
       f.dispose();
     }
@@ -590,21 +608,40 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                       AnswerOption.other,
                       selected,
                       title: 'Outra resposta',
-                      field: TextField(
-                        key: const ValueKey('spec-question-other-text'),
-                        controller: _other,
-                        textInputAction: TextInputAction.next,
-                        style: const TextStyle(fontSize: 13),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: 'Escreva a sua resposta',
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (v) => _store(
-                          q,
-                          Answer(option: AnswerOption.other, text: v.trim()),
-                        ),
-                        onSubmitted: (_) => _next(),
+                      field: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          DictationLock(
+                            id: _dictation.id,
+                            builder: (locked) => TextField(
+                              key: const ValueKey('spec-question-other-text'),
+                              controller: _other,
+                              focusNode: _otherFocus,
+                              readOnly: locked,
+                              textInputAction: TextInputAction.next,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                hintText: 'Escreva a sua resposta',
+                                border: OutlineInputBorder(),
+                              ),
+                              onChanged: (v) => _store(
+                                q,
+                                Answer(
+                                  option: AnswerOption.other,
+                                  text: v.trim(),
+                                ),
+                              ),
+                              onSubmitted: (_) => _next(),
+                            ),
+                          ),
+                          Builder(
+                            builder: (_) {
+                              _dictatedQuestion = q;
+                              return DictationBar(target: _dictation);
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],

@@ -6,6 +6,8 @@ import '../../../core/claude/claude_args.dart';
 import '../../../data/providers.dart';
 import '../../../core/providers/permission_policy.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../dictation/dictation_controller.dart';
+import '../../dictation/dictation_widgets.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../prompt/prompt_actions.dart'
     show
@@ -127,6 +129,11 @@ class _DraftNote extends StatelessWidget {
 class _SessionComposerState extends ConsumerState<SessionComposer> {
   final _text = TextEditingController();
   final _focus = FocusNode();
+  late final _dictation = DictationTarget(
+    id: 'session',
+    controller: _text,
+    focusNode: _focus,
+  );
   bool _busy = false;
   ComposerTrigger? _trigger;
   int _highlight = 0;
@@ -270,6 +277,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
   Future<void> _send() async {
     final msg = _text.text.trim();
     if (msg.isEmpty || _busy) return;
+    if (ref.read(dictationProvider).sendHeldIn == _dictation.id) return;
     final blocked = widget.canSend?.call();
     if (blocked != null) {
       _snack(blocked);
@@ -384,104 +392,114 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
               const SizedBox(height: 8),
             ],
             if (_fromDraft) ...[const _DraftNote(), const SizedBox(height: 8)],
+            DictationNotices(target: _dictation),
             CallbackShortcuts(
               bindings: bindings,
-              child: TextField(
-                key: const ValueKey('composer-field'),
-                controller: _text,
-                focusNode: _focus,
-                minLines: 2,
-                maxLines: 6,
-                style: const TextStyle(fontSize: 13, color: AppColors.text),
-                decoration: const InputDecoration.collapsed(
-                  hintText:
-                      'Envie uma mensagem para a sessão…  @ arquivo  '
-                      '/ prompt salvo  (Ctrl+Enter envia)',
-                  hintStyle: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textMuted,
+              child: DictationLock(
+                id: _dictation.id,
+                builder: (locked) => TextField(
+                  key: const ValueKey('composer-field'),
+                  controller: _text,
+                  focusNode: _focus,
+                  readOnly: locked,
+                  minLines: 2,
+                  maxLines: 6,
+                  style: const TextStyle(fontSize: 13, color: AppColors.text),
+                  decoration: const InputDecoration.collapsed(
+                    hintText:
+                        'Envie uma mensagem para a sessão…  @ arquivo  '
+                        '/ prompt salvo  (Ctrl+Enter envia)',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Flexible(
-                  child: PopupMenuButton<ClaudePermissionMode>(
-                    tooltip: widget.provider == 'codex'
-                        ? 'Aplica ao retomar a sessão'
-                        : alive
-                        ? 'Muda já na sessão em andamento'
-                        : 'Modo de permissão ao retomar',
-                    color: AppColors.panel,
-                    onSelected: (m) async {
-                      final messenger = ScaffoldMessenger.maybeOf(context);
-                      try {
-                        await ref
-                            .read(sessionManagerProvider.notifier)
-                            .setPermissionMode(widget.sessionId, m);
-                      } on SessionException catch (e) {
-                        messenger?.showAppToast(
-                          SnackBar(content: Text(e.message)),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      for (final m in uiPermissionModes)
-                        PopupMenuItem(
-                          value: m,
-                          child: Text(
-                            permissionLabel(m, provider: widget.provider),
-                            style: const TextStyle(fontSize: 12),
+            DictationActions(
+              target: _dictation,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: PopupMenuButton<ClaudePermissionMode>(
+                      tooltip: widget.provider == 'codex'
+                          ? 'Aplica ao retomar a sessão'
+                          : alive
+                          ? 'Muda já na sessão em andamento'
+                          : 'Modo de permissão ao retomar',
+                      color: AppColors.panel,
+                      onSelected: (m) async {
+                        final messenger = ScaffoldMessenger.maybeOf(context);
+                        try {
+                          await ref
+                              .read(sessionManagerProvider.notifier)
+                              .setPermissionMode(widget.sessionId, m);
+                        } on SessionException catch (e) {
+                          messenger?.showAppToast(
+                            SnackBar(content: Text(e.message)),
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        for (final m in uiPermissionModes)
+                          PopupMenuItem(
+                            value: m,
+                            child: Text(
+                              permissionLabel(m, provider: widget.provider),
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ),
+                      ],
+                      child: Container(
+                        height: 28,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.border),
                         ),
-                    ],
-                    child: Container(
-                      height: 28,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceRaised,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        'Permissão: ${permissionLabel(mode, provider: widget.provider)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
+                        child: Text(
+                          'Permissão: ${permissionLabel(mode, provider: widget.provider)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(child: _AttachSpecButton(onPick: _attach)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: alive
-                      ? const SizedBox()
-                      : const Text(
-                          'retoma a sessão ao enviar',
-                          textAlign: TextAlign.right,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textMuted,
+                  const SizedBox(width: 8),
+                  Flexible(child: _AttachSpecButton(onPick: _attach)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: alive
+                        ? const SizedBox()
+                        : const Text(
+                            'retoma a sessão ao enviar',
+                            textAlign: TextAlign.right,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
                           ),
-                        ),
-                ),
-                const SizedBox(width: 10),
-                AmberButton(
-                  key: const ValueKey('composer-send'),
-                  label: _busy ? 'Enviando…' : 'Enviar',
-                  onTap: _busy ? null : _send,
-                ),
-              ],
+                  ),
+                  const SizedBox(width: 10),
+                  DictationButton(target: _dictation),
+                  const SizedBox(width: 8),
+                  AmberButton(
+                    key: const ValueKey('composer-send'),
+                    label: _busy ? 'Enviando…' : 'Enviar',
+                    onTap: _busy || sendHeld(ref, _dictation.id) ? null : _send,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
