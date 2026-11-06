@@ -2,6 +2,95 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.10.0] - 2026-11-06
+
+### Funcionalidades
+
+- **motion:** Tokens AppMotion, MotionEnter e animações desligadas na suíte (SPEC-034 T1) (9f4bb53)
+- **motion:** Transição de seção e destaque deslizante na barra lateral (SPEC-034 T2) (2618783)
+- **motion:** AppPressable com hover e press em cards, linhas e botões (SPEC-034 T4) (d56c65e)
+- **motion:** Eventos novos na timeline e status da etapa com check (SPEC-034 T6) (5a642ca)
+- **motion:** Bola da etapa no espaço do ponto antigo, sem quebrar o texto (SPEC-034 T6) (946420b)
+- **motion:** Diálogos e toasts com o ritmo do app (SPEC-034 T3) (5660af8)
+- **motion:** Skeleton ao abrir uma spec, com o documento atual nos primeiros 300 ms (SPEC-034 T7) (5bfe894)
+- **motion:** Card desliza até a coluna nova no Quadro (SPEC-034 T5) (86f4774)
+- **motion:** Toast flutuante, teste de R13 e spec atualizada (SPEC-034 T8) (611f236)
+- **board:** Subetapas na fila, verificação do requisito na última (SPEC-033 T2) (0bd9f70)
+- **board:** Opções do modal de decisão da etapa (SPEC-033 T1) (65561c6)
+- **board:** Modal de decisão até a escolha (SPEC-033 T3) (8d5fb8e)
+- **board:** Fase Compilar do modal de decisão (SPEC-033 T4) (b2b0a80)
+- **orquestrador:** Regras e dados do orquestrador (SPEC-035 T1) (475514f)
+- **settings:** Seção Orquestrador (SPEC-035 T2) (81e9275)
+- **orquestrador:** Classificação das etapas (SPEC-035 T3) (5677b25)
+- **board:** Executar em Automático com o plano por etapa (SPEC-035 T4) (5a0c982)
+- **board:** Cada etapa com o modelo do plano (SPEC-035 T5) (37dba07)
+- **orquestrador:** Escalada de modelo quando a verificação reprova (SPEC-035 T6) (12268bb)
+- **settings:** Histórico do orquestrador (SPEC-035 T7) (79d74e8)
+- **board:** Paleta segue o Automático (SPEC-035 R19) (990817d)
+- **board:** Visão Foco com a pasta de specs (SPEC-036 T1) (36a59e2)
+- **board:** Busca na pasta de specs (SPEC-036 T2) (ce85c8c)
+- **board:** Palco do Foco com dependentes e setas (SPEC-036 T3) (d584983)
+- **board:** Specs em execução no palco (SPEC-036 T4) (bb8f4ec)
+- **specs:** Ação Planejar e seção ## Plano, com leitura de ## Design (SPEC-037 R1-R4) (45faf08)
+- **specs:** Rodada que refina e planeja, com as regras do R12 (SPEC-037 R6, R12) (2bcb2a5)
+- **project:** Fila que refina e planeja as specs ao criar o projeto (SPEC-037 R5-R9, R11) (9db8a66)
+- **specs:** Specs da fila bloqueadas e marca retirada ao salvar (SPEC-037 R10, R13) (c47c6be)
+- **board:** Executar e autopilot esperam o plano, com Plano anterior no cartão (SPEC-037 R13) (8a51382)
+- **update:** Só as novidades da última versão, sem hash e sem escopo (SPEC-038 R5, R6) (254ce87)
+- **splash:** SplashStage público, com loop opcional e estado final sem bolhas (SPEC-038 R2, R3) (eccc9ae)
+- **shell:** UpdateFlow, a atualização inteira num estado selado (SPEC-038 R7, R8) (c35bc09)
+- **shell:** Sobre em duas colunas, com o cartão de atualização e só a última novidade (SPEC-038 R1, R4, R5, R7-R9, R11, R12) (f64b895)
+
+### Correções
+
+- **board:** Executar em Automático igual ao mockup (SPEC-035) (ab39516)
+- **settings:** Histórico e Executar iguais ao mockup (SPEC-035) (b2a152c)
+- **update:** Consulta que falha não parece mais versão mais recente (SPEC-038 R10) (4cc6216)
+- **update:** Cancelar o download apaga o arquivo parcial e os links abrem no Windows (SPEC-038 R8) (2c8a955)
+
+### Documentação
+
+- **spec:** SPEC-033 decidir a etapa que precisa de você pelo modal do balão (06ee3fe)
+- **spec:** SPEC-033 decisões P1, P3, P4 e P5; P2 com a sugestão do desenvolvimento guiado por spec (d761101)
+- **spec:** SPEC-034 motion e fluidez, com canvas interativo e validação (da09ffa)
+- **spec:** SPEC-034 canvas aprovado, troca de seção em 640 ms (c0bd200)
+- **spec:** SPEC-034 P1 decidida: T3 troca todos os diálogos (d696afb)
+- **spec:** SPEC-036 pasta de specs e palco no Canvas do Quadro (56d1258)
+- **spec:** SPEC-036 P1, P2 e P3 decididas: Foco como terceira visão, linha de dependências e painel de detalhes (a225d1f)
+- **spec:** SPEC-035 orquestrador de modelos por etapa (100e391)
+- **spec:** SPEC-035 P1 e P2 decididas: revisão pelo auto_reviewer, Codex fora por enquanto (d5a3654)
+- **spec:** SPEC-033 P2 decidida: Dividir cria subetapas R3.1/R3.2 na fila, sem mudar o requisito (fd393b5)
+- **spec:** SPEC-035 critérios e status (SPEC-035) (198eb4e)
+- **mockups:** Telas da SPEC-035 (canvas e PNGs) (b621b64)
+- Guia da visão Foco, decisões e capturas da SPEC-036 (3888ee3)
+- **spec:** SPEC-037 Planejar, refino e plano automáticos, com mockups (949d732)
+- Guia de Planejar e decisões da SPEC-037 (10aa816)
+- **specs:** SPEC-038 tela Sobre, com mockups validados (9d539c8)
+- Guia do Sobre e decisões da SPEC-038 (4ffa257)
+
+### Testes
+
+- Prazo real nos testes com IO que estouravam com a suíte inteira (b5da378)
+- Prazos reais nos testes que estouravam com a suíte inteira (ec80793)
+- Painel de revisão não espera o prazo de 30 s sem o painel e rodadas de 4 ms (3da7717)
+- SettleIo com condição usa voltas de 4 ms (sem condição mantém 20 ms) (67b3119)
+- Memória do gate com comando de 1 s (limite de lentidão injetável no SpecRunner) (740aa88)
+- Barra de sync espera a condição em voltas de 4 ms (4eceeae)
+- Until dos testes de sessão consulta a cada 5 ms (o prazo continua 15 s) (2cc8848)
+- SettleIo e barra de sync não adiantam o relógio falso mais que o real após as voltas iniciais (78294b6)
+- Prazo real no drainUntil e aviso do SPEC-025 R9 sem depender da carga da máquina (SPEC-033 T5) (87a1cfe)
+- Prazo real no salvar de project_config_test (SPEC-033 T5) (4f5f9d6)
+- **splash:** O splash segue em loop no mesmo SplashStage do Sobre (SPEC-038 R2) (5f3d66a)
+
+### Build e CI
+
+- CI só nos PRs e Criar Release com tag, release e pacotes (a135a91)
+
+### Manutenção
+
+- **hook:** Stop compara o conteúdo do código, não o commit (dc98ebf)
+- Remove o hook de Stop que rodava analyze e testes a cada turno (f6efe6c)
+
 ## [0.8.0] - 2026-11-03
 
 ### Funcionalidades
