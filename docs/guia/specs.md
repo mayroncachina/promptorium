@@ -30,6 +30,19 @@ depende-de: [SPEC-019]
 - `plano: automatico` no frontmatter marca um plano escrito pelo próprio app. Salvar a spec à mão retira a marca (veja [Refino e plano automáticos](projeto.md#refino-e-plano-automáticos)).
 - Os **critérios de aceite** com `verificar:` são checados pelo gate e podem ser marcados automaticamente.
 
+## Nova spec
+
+**Nova spec** abre a tela "Conte a ideia". Você escreve a ideia em uma ou duas frases e escolhe:
+
+- **Planejar a spec**: abre o mini planejamento. O planner lê o repositório sem alterar nada, faz poucas perguntas e preenche o rascunho ao lado a cada resposta. A marca "novo" mostra o que entrou na última resposta.
+- **Criar em branco**: pede só o título e cria o modelo vazio, sem chamar o planner. Funciona sem o Claude Code.
+
+O rascunho tem no máximo 6 requisitos. O que passar disso vai para Fora do escopo, como sugestão de próxima spec. Uma dúvida sem resposta vira item de Perguntas em aberto e não impede criar.
+
+**Criar spec** grava o que o rascunho tem. Com **Escrever o Plano em seguida** ligada, o botão diz **Criar e planejar**, e Planejar começa assim que a spec abre. O Plano fica no editor para revisar e salvar. Uma falha ou Cancelar em Planejar não desfaz a spec.
+
+**Sair e guardar**, trocar de seção ou fechar o app mantém a conversa e o rascunho, um por workspace. Eles ficam no banco do app, não no repositório. A tela Specs mostra "Rascunho guardado", e **Nova spec** oferece **Continuar** ou **Descartar**. Se o planner não responder, **Tentar de novo** reenvia a mensagem, e a conversa fica como estava.
+
 ## Editor
 
 Modos **Editar**, **Dividido** e **Visualizar**, com realce, números de linha, busca e substituição (Ctrl+F/Ctrl+H) e zoom (Ctrl+= / Ctrl+- / Ctrl+0), salvo por tela. Ctrl+S salva.
@@ -37,7 +50,7 @@ Modos **Editar**, **Dividido** e **Visualizar**, com realce, números de linha, 
 Ações da spec:
 
 - **Refinar com IA**: abre uma conversa de refino no [Prompt](prompt.md). Cada edição do agente pede aprovação, e "Voltar à spec" traz você de volta com o arquivo recarregado.
-- **Planejar**: o agente lê o repositório (somente leitura) e escreve `## Plano`, com "O que já existe", e `## Etapas`. Numa spec com `## Design`, essa seção vira `## Plano`. Numa spec que já tem plano, o botão diz **Planejar de novo**.
+- **Planejar**: o agente lê o repositório (somente leitura) e escreve `## Plano`, com "O que já existe", e `## Etapas`. Numa spec com `## Design`, essa seção vira `## Plano`. Numa spec que já tem plano, o botão diz **Planejar de novo**. Enquanto a spec não tem Plano, esta é a ação em destaque.
 - **Aprovar spec**: sem Plano, oferece "Aprovar sem plano (spec trivial)" ou "Planejar". Aprovada, a spec vai para o Backlog do [Quadro](quadro.md).
 - **Clonar para alterar**: uma spec já iniciada não é editável; clonar cria uma nova.
 - **Arquivar** e **Excluir** (vai para a lixeira; só para spec nunca executada).

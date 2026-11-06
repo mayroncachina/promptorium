@@ -13,6 +13,7 @@ import 'repos/durable_state_repo.dart';
 import 'repos/mcp_tool_rules_repo.dart';
 import 'repos/notifications_repo.dart';
 import 'repos/project_plans_repo.dart';
+import 'repos/spec_drafts_repo.dart';
 import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
@@ -70,6 +71,9 @@ final appSettingsRepoProvider = Provider(
 final projectPlansRepoProvider = Provider(
   (ref) => ProjectPlansRepo(ref.watch(appDatabaseProvider)),
 );
+final specDraftsRepoProvider = Provider(
+  (ref) => SpecDraftsRepo(ref.watch(appDatabaseProvider)),
+);
 final reviewCommentsRepoProvider = Provider(
   (ref) => ReviewCommentsRepo(ref.watch(appDatabaseProvider)),
 );
@@ -108,6 +112,10 @@ final tasksProvider = StreamProvider.family<List<Task>, int>(
 /// Planning draft of a workspace (null = never planned).
 final projectPlanProvider = StreamProvider.family<ProjectPlan?, int>(
   (ref, workspaceId) => ref.watch(projectPlansRepoProvider).watch(workspaceId),
+);
+
+final specDraftProvider = StreamProvider.family<SpecDraft?, int>(
+  (ref, workspaceId) => ref.watch(specDraftsRepoProvider).watch(workspaceId),
 );
 
 final sessionsProvider = StreamProvider.family<List<Session>, int>(

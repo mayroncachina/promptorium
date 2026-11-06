@@ -7,8 +7,8 @@ import '../../ui/widgets/app_dialog.dart';
 import '../sessions/widgets/session_style.dart';
 import 'spec_service.dart';
 
-/// "Nova spec" (title bar of the Specs screen): asks the title, writes
-/// `specs/SPEC-NNN-<slug>.md` from the template and selects it.
+/// "Criar em branco" (SPEC-039 R2): asks the title and writes
+/// `specs/SPEC-NNN-<slug>.md` from the template.
 Future<Spec?> showNewSpecDialog(BuildContext context) => showAppDialog<Spec>(
   context: context,
   barrierColor: AppColors.scrim,
@@ -47,7 +47,6 @@ class _NewSpecDialogState extends ConsumerState<NewSpecDialog> {
       final spec = await ref
           .read(specServiceProvider)
           .create(ws, title: _title.text);
-      ref.read(selectedSpecProvider.notifier).select(spec.id);
       if (mounted) Navigator.of(context).pop(spec);
     } on SpecException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -78,7 +77,7 @@ class _NewSpecDialogState extends ConsumerState<NewSpecDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Nova spec',
+                  'Criar em branco',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
@@ -119,7 +118,7 @@ class _NewSpecDialogState extends ConsumerState<NewSpecDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     SmallButton(
-                      label: 'Cancelar',
+                      label: 'Voltar',
                       onTap: _busy ? null : () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 8),

@@ -38,6 +38,7 @@ Future<void> loadFonts() async {
 }
 
 const draft = SpecHeaderState(
+  hasPlan: true,
   onRefine: _noop,
   onDesign: _noop,
   onApprove: _noop,
@@ -294,7 +295,7 @@ void main() {
         if (!inBar.contains('spec-design')) {
           await tester.tap(key('spec-more'));
           await tester.pumpAndSettle();
-          expect(find.text('Planejar'), findsOneWidget);
+          expect(find.text('Planejar de novo'), findsOneWidget);
           expectNoOverflow(tester);
         }
         // "Planejar" leaves before "Refinar com IA".

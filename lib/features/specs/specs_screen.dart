@@ -26,11 +26,13 @@ import 'spec_action.dart';
 import 'spec_answers.dart';
 import 'spec_design.dart';
 import '../project/spec_auto_planner.dart';
+import 'new_spec_view.dart';
 import 'prototype/prototype_delete.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
 import 'prototype/prototype_view.dart';
 import 'spec_lint.dart';
+import 'spec_planner.dart';
 import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
@@ -756,6 +758,17 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     ref.read(selectedSpecProvider.notifier).select(spec.id);
   }
 
+  /// "Nova spec" ended in [spec] (SPEC-039 R6, R7): it opens in the editor
+  /// and, with [plan], Planejar starts as soon as it loads. What was left
+  /// unsaved in the open spec goes through the usual conflict dialog.
+  void _onSpecCreated(Spec spec, {required bool plan}) {
+    final id = _loadedSpecId, text = _controller?.text;
+    if (id != null && text != null && _dirty) _unsaved.keep(id, text);
+    ref.read(selectedSpecProvider.notifier).select(spec.id);
+    if (plan) ref.read(pendingDesignProvider.notifier).select(spec.id);
+    ref.read(newSpecFlowProvider.notifier).close();
+  }
+
   /// Leaving the Specs screen during a generation (R7).
   Future<bool> _guardLeave(AppSection to) async {
     final a = _actions.current;
@@ -1468,10 +1481,17 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       );
     }
     if (_syncedWorkspace != ws.id) {
+      // SPEC-039 R8: the draft belongs to the workspace it was made in.
+      if (_syncedWorkspace != null) {
+        Future.microtask(ref.read(newSpecFlowProvider.notifier).close);
+      }
       _syncedWorkspace = ws.id;
       _loadedSpecId = null;
       _shownBody = null;
       Future.microtask(() => _sync(ws));
+    }
+    if (ref.watch(newSpecFlowProvider) != NewSpecStage.closed) {
+      return NewSpecView(workspace: ws, onCreated: _onSpecCreated);
     }
     final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
     final showArchived = ref.watch(showArchivedProvider);
@@ -1682,16 +1702,24 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           children: [
             SizedBox(
               width: listW,
-              child: SpecList(
-                specs: specs,
-                folder: ProjectConfig.loadSync(ws.path).specsDir,
-                selectedId: spec?.id,
-                stepRows: stepRows,
-                onSelect: _select,
-                archived: archivedCount,
-                showArchived: showArchived,
-                onToggleArchived: () =>
-                    ref.read(showArchivedProvider.notifier).toggle(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SavedDraftCard(workspace: ws),
+                  Expanded(
+                    child: SpecList(
+                      specs: specs,
+                      folder: ProjectConfig.loadSync(ws.path).specsDir,
+                      selectedId: spec?.id,
+                      stepRows: stepRows,
+                      onSelect: _select,
+                      archived: archivedCount,
+                      showArchived: showArchived,
+                      onToggleArchived: () =>
+                          ref.read(showArchivedProvider.notifier).toggle(),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
