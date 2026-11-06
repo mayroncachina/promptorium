@@ -216,9 +216,10 @@ class SpecDocument {
   }
 
   /// Text of the `## <name>` section (accents / case tolerated; up to the
-  /// next `##`), or null when the spec has none.
-  String? section(String name) {
-    final r = _sectionRange(text, name, from: _bodyLine);
+  /// next `##`), or null when the spec has none. Without [exact], a heading
+  /// that starts with [name] also counts.
+  String? section(String name, {bool exact = false}) {
+    final r = _sectionRange(text, name, from: _bodyLine, exact: exact);
     if (r == null) return null;
     final lines = text.split('\n');
     return lines.sublist(r.start + 1, r.end).join('\n').trim();
@@ -233,13 +234,16 @@ class SpecDocument {
     String text,
     String name, {
     int from = 0,
+    bool exact = false,
   }) {
     final want = foldText(name);
     final lines = text.split('\n');
     for (var i = from; i < lines.length; i++) {
       final h = RegExp(r'^##\s+(.+?)\s*#*\s*$')
           .firstMatch(lines[i].trimRight());
-      if (h == null || !foldText(h.group(1)!).startsWith(want)) continue;
+      if (h == null) continue;
+      final found = foldText(h.group(1)!);
+      if (exact ? found != want : !found.startsWith(want)) continue;
       var j = i + 1;
       while (j < lines.length && !RegExp(r'^##\s').hasMatch(lines[j])) {
         j++;
@@ -487,16 +491,41 @@ class SpecDocument {
   static const assumptionsSection = 'Premissas';
   static const decisionsSection = 'Decisões';
   static const outOfScopeSection = 'Fora do escopo';
+  static const criteriaSection = 'Critérios de aceite';
+
+  /// The section "Planejar" writes, and the name it had (SPEC-037 R3, R4).
+  static const planSection = 'Plano';
+  static const legacyPlanSection = 'Design';
+
+  /// Frontmatter mark of a plan written by the automatic queue.
+  static const autoPlanKey = 'plano';
+  static const autoPlanValue = 'automatico';
 
   /// `## Objetivo`.
   String? get objective => section('Objetivo');
 
-  /// `## Design` without HTML comments (the template's hint); null when
-  /// absent or empty.
+  /// The only reader of the plan (SPEC-037 R4): `## Plano`, else the old
+  /// `## Design`, without HTML comments (the template's hint); null when
+  /// absent or empty. `## Plano` only matches exactly: `## Plano de testes`
+  /// is another section.
   String? get design {
-    final d = section('Design')?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
-    return d == null || d.trim().isEmpty ? null : d.trim();
+    String? clean(String? s) {
+      final d = s?.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '').trim();
+      return d == null || d.isEmpty ? null : d;
+    }
+
+    return clean(section(planSection, exact: true)) ??
+        clean(section(legacyPlanSection));
   }
+
+  /// Frontmatter `plano: automatico`: the plan was written by the automatic
+  /// queue and no one saved the spec since (SPEC-037 R13, D7).
+  bool get autoPlanned =>
+      '${frontmatter[autoPlanKey] ?? ''}'.trim().toLowerCase() == autoPlanValue;
+
+  /// Text with the `plano: automatico` mark set or removed.
+  String withAutoPlan(bool on) =>
+      withMeta(fields: {autoPlanKey: on ? autoPlanValue : null});
 
   /// Frontmatter `design: dispensado` (a trivial spec approved without it).
   bool get designWaived =>
@@ -533,20 +562,43 @@ class SpecDocument {
     return out;
   }
 
-  /// Text with the `## Design` section set to [design] (added after the
-  /// requirements when absent) and, when given, `## Etapas` to [plans].
+  /// Text with the `## Plano` section set to [design] (added after the
+  /// requirements when absent) and, when given, `## Etapas` to [plans]. An
+  /// old `## Design` gives its place to `## Plano`: the two never stay
+  /// (SPEC-037 R4).
   String withDesign(String design, {Map<String, StepPlan>? plans}) {
-    var out = _withSection(text, 'Design', design.trim(), after: 'Requisitos');
+    final legacy = _sectionRange(text, legacyPlanSection, from: _bodyLine);
+    var source = text;
+    if (legacy != null) {
+      final lines = text.split('\n');
+      if (section(planSection, exact: true) == null) {
+        lines[legacy.start] = '## $planSection';
+      } else {
+        lines.removeRange(legacy.start, legacy.end);
+      }
+      source = lines.join('\n');
+    }
+    var out = _withSection(
+      source,
+      planSection,
+      design.trim(),
+      after: 'Requisitos',
+    );
     if (plans != null && plans.isNotEmpty) {
       final lines = [
         for (final MapEntry(:key, :value) in plans.entries)
           '- $key → ${value.files.join(', ')}'
               '${value.verify == null ? '' : ' · verificar: `${value.verify}`'}',
       ];
-      out = _withSection(out, 'Etapas', lines.join('\n'), after: 'Design');
+      out = _withSection(out, 'Etapas', lines.join('\n'), after: planSection);
     }
     return out;
   }
+
+  /// Text with `## <name>` set to [content], added after `## <after>` when
+  /// absent.
+  String withSection(String name, String content, {required String after}) =>
+      _withSection(text, name, content.trim(), after: after);
 
   /// `## Protótipo` (SPEC-022 R9): `- R1 → docs/mockups/spec-022/R1-x.html`,
   /// one approved screen per requirement.
@@ -580,8 +632,10 @@ class SpecDocument {
         : keys.map((k) => '- $k → ${all[k]}').join('\n');
     final after = section('Etapas') != null
         ? 'Etapas'
-        : section('Design') != null
-        ? 'Design'
+        : section(planSection, exact: true) != null
+        ? planSection
+        : section(legacyPlanSection) != null
+        ? legacyPlanSection
         : 'Requisitos';
     return _withSection(text, 'Protótipo', content, after: after);
   }
@@ -593,8 +647,9 @@ class SpecDocument {
     required String after,
   }) {
     final lines = text.split('\n');
+    // `## Plano de testes` is not the plan.
     bool isHeading(String l, String n) => RegExp(
-      '^##\\s+${RegExp.escape(n)}\\b',
+      '^##\\s+${RegExp.escape(n)}${n == planSection ? r'\s*#*$' : r'\b'}',
       caseSensitive: false,
     ).hasMatch(l.trimRight());
     final i = lines.indexWhere((l) => isHeading(l, name));
@@ -815,9 +870,9 @@ Descreva o problema e o resultado esperado.
 
 <!-- O que esta spec não faz (as sessões de etapa recebem esta lista). -->
 
-## Design
+## Plano
 
-<!-- Como implementar: componentes, arquivos e decisões. Use "Gerar design". -->
+<!-- Como implementar: componentes, arquivos e decisões. Use "Planejar". -->
 
 ## Critérios de aceite
 
@@ -845,9 +900,13 @@ String cloneSpecText(
   required String originalCode,
   required Set<String> doneIds,
 }) {
-  final meta = SpecDocument.parse(
-    text,
-  ).withMeta(id: newCode, status: SpecStatus.draft, dependsOn: [originalCode]);
+  // A clone is the person's draft: the automatic plan does not touch it.
+  final meta = SpecDocument.parse(text).withMeta(
+    id: newCode,
+    status: SpecStatus.draft,
+    dependsOn: [originalCode],
+    fields: const {SpecDocument.autoPlanKey: null},
+  );
   final doc = SpecDocument.parse(meta);
   final lines = doc.body.split('\n');
   final out = <String>[];

@@ -23,6 +23,24 @@ O planejamento tem quatro etapas:
 
 O planner roda somente leitura. O rascunho do plano fica salvo no app até você criar ou descartar.
 
+## Refino e plano automáticos
+
+A etapa **Revisar e criar** traz a opção "Refinar e planejar as specs automaticamente", ligada por padrão. Com ela, logo depois de "Criar projeto" o app passa as specs do roadmap por uma fila, uma de cada vez, na ordem de execução. Uma spec vem sempre depois das specs de que depende e recebe o plano delas, porque esse código ainda não existe.
+
+- Cada rodada refina a spec com as regras de Refinar com IA e escreve `## Plano` e `## Etapas`. A spec é salva na hora, continua aprovada e ganha `plano: automatico`.
+- Um requisito existente mantém o número, e o limite de 6 requisitos continua valendo. Uma dúvida sem resposta vira item de "Perguntas em aberto" e não para a fila. Uma resposta fora dessas regras conta como falha, e a spec fica como estava.
+- No fim, um commit "Plano das specs" grava as specs planejadas, se a opção de commit estiver ligada.
+- Pode sair da tela: a fila continua, e voltar mostra o estado atual. Fechar o app deixa as specs restantes sem plano, e Planejar continua disponível nelas.
+- **Parar a fila** encerra a rodada atual e commita o que já ficou pronto. As specs restantes aparecem como "Sem plano", e **Retomar a fila** continua por elas.
+- Uma falha não para as outras specs. Quem depende da spec com falha aparece como "Plano parcial". **Tentar de novo** refaz a spec e as dependentes, com um novo commit só delas.
+- Enquanto a fila roda, Executar, Planejar e o editor ficam bloqueados nessas specs. A sessão da primeira etapa abre quando a fila termina, mesmo com falhas, e não abre se você parou a fila.
+
+### Atualização do plano
+
+Quando a última dependência de uma spec termina, o app refina e planeja essa spec de novo, agora lendo o código real. Isso vale só para spec com `plano: automatico` que ainda está no Backlog, e roda uma vez por spec. O fim commita só o arquivo da spec, como "Plano atualizado: SPEC-NNN".
+
+Salvar a spec à mão, ou abrir uma conversa de Refinar com IA, retira a marca, e o app não sobrescreve mais o que você escreveu. Uma edição feita fora do app não é detectada: tire a linha `plano: automatico` do frontmatter para proteger a spec.
+
 ## Repositório existente
 
 Num repositório que já tem código, a tela Projeto mostra quatro abas:

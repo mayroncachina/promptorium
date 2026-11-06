@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +16,8 @@ import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
 import '../project_service.dart';
+import '../spec_auto_planner.dart';
+import 'plan_queue_view.dart';
 import 'project_widgets.dart';
 
 /// Step 5 · Revisar e criar: what will be written (files, commit, tasks,
@@ -41,6 +45,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
   late bool _writeClaudeMd = !_claudeMdExists;
   bool _commit = true;
   bool _runFirst = true;
+  bool _autoPlan = true;
   bool _busy = false;
   String? _error;
   String? _commitError;
@@ -53,6 +58,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
       _busy = true;
       _error = null;
     });
+    // The screen may be gone when "Criar projeto" ends.
+    final queue = ref.read(specAutoPlannerProvider.notifier);
     final MaterializeOutcome out;
     try {
       out = await ref
@@ -71,13 +78,28 @@ class _CreateStepState extends ConsumerState<CreateStep> {
       }
       return;
     }
+    final autoPlan = _autoPlan && out.specs.isNotEmpty;
+    if (autoPlan) {
+      // Before the rebuild: the screen goes straight to the queue. The first
+      // session waits for the end of it (SPEC-037 R10, D4).
+      unawaited(
+        queue.start(
+          widget.workspace,
+          out.specs,
+          commit: _commit,
+          wroteClaudeMd: out.files.contains('CLAUDE.md'),
+          initialCommitError: out.commitError,
+          firstRunSpecId: _runFirst ? out.firstSpec?.id : null,
+        ),
+      );
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
       _commitError = out.commitError;
     });
     final spec = out.firstSpec;
-    if (_runFirst && spec != null) {
+    if (!autoPlan && _runFirst && spec != null) {
       // Asks agent / model / mode, then opens the session of the first step.
       await runSpec(
         context,
@@ -94,6 +116,10 @@ class _CreateStepState extends ConsumerState<CreateStep> {
 
   @override
   Widget build(BuildContext context) {
+    final queue = ref.watch(
+      specAutoPlannerProvider.select((s) => s.queues[widget.workspace.id]),
+    );
+    if (queue != null) return _queueView(queue);
     final done = widget.plan.materializedAt != null;
     final planner = ref.read(projectPlannerProvider.notifier);
     final roadmap = _roadmap;
@@ -210,18 +236,38 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                         ),
                       ),
                     ),
+                    if (!done)
+                      _Section(
+                        icon: AppIcons.tasks,
+                        title: 'Refinar e planejar',
+                        highlight: _autoPlan,
+                        child: _Check(
+                          key: const ValueKey('project-auto-plan'),
+                          value: _autoPlan,
+                          label: 'Refinar e planejar as specs automaticamente',
+                          hint:
+                              'Uma rodada do agente por spec, na ordem do '
+                              'roadmap. Cada spec é refinada e ganha Plano e '
+                              'Etapas.',
+                          onChanged: (v) => setState(() => _autoPlan = v),
+                        ),
+                      ),
                     if (!done && first != null)
                       _Section(
                         icon: AppIcons.sessions,
                         title: 'Primeira sessão',
-                        highlight: _runFirst,
+                        highlight: _runFirst && !_autoPlan,
                         child: _Check(
                           key: const ValueKey('project-run-first'),
                           value: _runFirst,
-                          label: 'Abrir a sessão de “${first.title}” ao criar',
-                          hint:
-                              'Abre o diálogo de nova sessão já preenchido '
-                              '(agente, modelo e permissões).',
+                          label: _autoPlan
+                              ? 'Abrir a sessão de “${first.title}” quando a '
+                                    'fila terminar'
+                              : 'Abrir a sessão de “${first.title}” ao criar',
+                          hint: _autoPlan
+                              ? 'A sessão parte do plano da spec.'
+                              : 'Abre o diálogo de nova sessão já preenchido '
+                                    '(agente, modelo e permissões).',
                           onChanged: (v) => setState(() => _runFirst = v),
                         ),
                       ),
@@ -310,13 +356,147 @@ class _CreateStepState extends ConsumerState<CreateStep> {
         SidePanel(
           title: done ? 'Feito' : 'O que acontece',
           width: 320,
-          child: _Steps(
-            done: done,
-            writeClaudeMd: hasClaudeMd && _writeClaudeMd,
-            commit: _commit,
-            specs: roadmap.specs.length,
-            first: _runFirst ? first : null,
+          child: !done && _autoPlan
+              ? PlanQueueSteps(
+                  rows: planQueuePreview(
+                    specs: roadmap.specs.length,
+                    writeClaudeMd: hasClaudeMd && _writeClaudeMd,
+                    commit: _commit,
+                    firstRun: _runFirst && first != null,
+                  ),
+                )
+              : _Steps(
+                  done: done,
+                  writeClaudeMd: hasClaudeMd && _writeClaudeMd,
+                  commit: _commit,
+                  specs: roadmap.specs.length,
+                  first: _runFirst ? first : null,
+                ),
+        ),
+      ],
+    );
+  }
+
+  /// "Projeto criado" with the queue (SPEC-037 R8, R9): the queue lives in
+  /// [SpecAutoPlanner], so coming back shows where it is.
+  Widget _queueView(AutoPlanQueue queue) {
+    final ws = widget.workspace;
+    final notifier = ref.read(specAutoPlannerProvider.notifier);
+    final navigation = ref.read(navigationProvider.notifier);
+    final initialError = _commitError ?? queue.initialCommitError;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              StepHeader(
+                title: planQueueTitle(queue),
+                subtitle: planQueueSubtitle(queue),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  children: [
+                    PlanQueueProgress(queue: queue),
+                    const SizedBox(height: 12),
+                    PlanQueueList(
+                      queue: queue,
+                      onRetry: (i) =>
+                          unawaited(notifier.retry(ws, specId: i.specId)),
+                    ),
+                    if (initialError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: NoticeBox.warning(
+                          text:
+                              'Arquivos e tarefas criados, mas o commit '
+                              'falhou: $initialError Faça o commit pelo '
+                              'terminal antes de executar as tarefas.',
+                        ),
+                      ),
+                    if (queue.commitError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: NoticeBox.warning(
+                          key: const ValueKey('project-queue-commit-error'),
+                          text:
+                              'Os planos ficaram gravados, mas o commit '
+                              '“$specPlansCommitMessage” falhou: '
+                              '${queue.commitError} Faça o commit pelo '
+                              'terminal antes de executar as tarefas.',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                // The buttons go to a second line when they do not fit
+                // (R11).
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (queue.running)
+                      SmallButton(
+                        key: const ValueKey('project-queue-stop'),
+                        label: 'Parar a fila',
+                        height: 36,
+                        onTap: queue.stopping
+                            ? null
+                            : () => notifier.stop(ws.id),
+                      )
+                    else if (queue.phase == AutoPlanPhase.stopped)
+                      SmallButton(
+                        key: const ValueKey('project-queue-resume'),
+                        label: 'Retomar a fila',
+                        height: 36,
+                        onTap: () => unawaited(notifier.resume(ws)),
+                      )
+                    else if (queue.hasFailures)
+                      SmallButton(
+                        key: const ValueKey('project-queue-retry-all'),
+                        label: 'Tentar de novo',
+                        height: 36,
+                        onTap: () => unawaited(notifier.retry(ws)),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    if (!queue.running)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SmallButton(
+                            key: const ValueKey('project-go-specs'),
+                            label: 'Ver specs',
+                            height: 36,
+                            onTap: () => navigation.go(AppSection.specs),
+                          ),
+                          const SizedBox(width: 8),
+                          AmberButton(
+                            key: const ValueKey('project-go-tasks'),
+                            label: 'Ver quadro',
+                            height: 36,
+                            onTap: () => navigation.go(AppSection.tasks),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        ),
+        SidePanel(
+          title: planQueuePanelTitle(queue),
+          width: 320,
+          child: PlanQueueSteps(rows: planQueueRows(queue)),
         ),
       ],
     );

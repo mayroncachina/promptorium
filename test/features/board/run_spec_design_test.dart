@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/board_rules.dart' show StepView;
 import 'package:promptorium/features/board/board_screen.dart';
+import 'package:promptorium/features/board/spec_runner.dart'
+    show focusedSpecText;
 import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
@@ -47,10 +50,26 @@ void main() {
     expect(needsDesignWarning(null, maxSingleSession: 3), isFalse);
   });
 
-  testWidgets('"Executar" without Design: Cancelar does nothing, "Gerar '
-      'design" opens Specs on the spec to generate it (SPEC-017 R3)', (
-    tester,
-  ) async {
+  test('SPEC-037 R4: an old ## Design and a ## Plano both silence the warning '
+      'and give the sessions the excerpt under ## Plano', () {
+    for (final heading in ['## Design', '## Plano']) {
+      final text = _noDesign.replaceFirst(
+        '## Requisitos',
+        '$heading\n\n### R1 · A\n\nEm lib/a.dart.\n\n## Requisitos',
+      );
+      expect(needsDesignWarning(text, maxSingleSession: 3), isFalse);
+      final excerpt = focusedSpecText(
+        text,
+        steps: const [StepView(id: 'R1', text: 'a')],
+        todo: const ['R1'],
+      )!;
+      expect(excerpt, contains('## Plano (trecho ligado a R1)'));
+      expect(excerpt, contains('### R1 · A'));
+    }
+  });
+
+  testWidgets('"Executar" without Plano: Cancelar does nothing, "Planejar" '
+      'opens Specs on the spec to generate it (SPEC-017 R3)', (tester) async {
     final tmp = Directory.systemTemp.createTempSync('promptorium-nodesign-');
     addTearDown(() => tmp.deleteSync(recursive: true));
     Directory('${tmp.path}/specs').createSync();

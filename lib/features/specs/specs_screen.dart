@@ -25,6 +25,7 @@ import '../project/project_config.dart';
 import 'spec_action.dart';
 import 'spec_answers.dart';
 import 'spec_design.dart';
+import '../project/spec_auto_planner.dart';
 import 'prototype/prototype_delete.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
@@ -52,15 +53,8 @@ import '../board/widgets/spec_steps_panel.dart';
 /// First message of "Refinar com IA" (Prompt screen, mode
 /// [PromptMode.refine]: edits ask for approval inline — DT-35).
 String refineSpecPrompt(Spec spec) =>
-    'Refine a spec @${spec.path} (${spec.code}). Melhore o objetivo, '
-    'deixe os requisitos verificáveis (um por linha, no formato '
-    '"- R1 · texto", de preferência no estilo EARS: "Quando <gatilho>, o '
-    'sistema deve <resposta>"), complete os critérios de aceite (marque o '
-    'requisito de cada um, ex.: [R2], e um "verificar: <comando>" quando '
-    'houver), escreva a seção "Fora do escopo" com o que a spec não faz e '
-    'deixe as dúvidas sem resposta como itens de "Perguntas em aberto", em '
-    'vez de transformá-las em requisitos ($openQuestionsFormatHint; a '
-    'sugestão nunca é um item próprio). Edite somente esse arquivo e '
+    'Refine a spec @${spec.path} (${spec.code}). $specRefineRules '
+    'Edite somente esse arquivo e '
     'mantenha o frontmatter (id, status). Antes de editar, resuma o que '
     'pretende mudar.';
 
@@ -255,7 +249,7 @@ String namedWarnings(List<SpecWarning> warnings, {int max = 3}) {
 
 /// "Aprovar spec" with open questions (SPEC-023 R6, SPEC-028 R4) or
 /// structure warnings (SPEC-023 R10): the questions with their suggestions
-/// and the warnings by name, before the Design dialog. Null = closed (same
+/// and the warnings by name, before the Plano dialog. Null = closed (same
 /// as cancel).
 Future<ApproveCheck?> showApproveChecksDialog(
   BuildContext context, {
@@ -717,6 +711,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // R1: nothing is written while an action holds the spec.
     if (_held(spec.id)) return null;
     try {
+      // Saved by hand, the text is the person's: the second round of the
+      // automatic plan no longer touches it (SPEC-037 R13, D7).
+      final doc = SpecDocument.parse(c.text);
+      if (doc.autoPlanned) c.text = doc.withAutoPlan(false);
       final text = c.text;
       final saved = await ref.read(specServiceProvider).save(ws, spec, text);
       if (!mounted || _docSpecId != spec.id) return saved;
@@ -728,6 +726,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _snack('Falha ao salvar: $e');
       return null;
     }
+  }
+
+  /// The agent wrote the open spec (SPEC-037 R10): the editor shows the new
+  /// text; what was left unsaved goes through the usual conflict dialog.
+  Future<void> _reloadPlanned(Workspace ws, Spec spec) async {
+    final text = _controller?.text;
+    if (text != null && _dirty) _unsaved.keep(spec.id, text);
+    await _load(ws, spec);
   }
 
   Future<void> _select(Spec spec) async {
@@ -766,7 +772,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   /// An action is running on [specId] (R1).
-  bool _held(int specId) => _actions.current?.specId == specId;
+  bool _held(int specId) =>
+      _actions.current?.specId == specId ||
+      ref.read(specAutoPlannerProvider).lockOf(specId) != null;
 
   /// Runs [body] as [kind] on [spec] (R1–R8): the spec is held until it
   /// ends; a cancel shows the R5 notice, a failure the R8 alert.
@@ -880,7 +888,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   }
 
   /// Approving with open questions or structure warnings asks first
-  /// (SPEC-023 R6, R10); approving needs a `## Design` or "sem design (spec
+  /// (SPEC-023 R6, R10); approving needs a `## Plano` or "sem plano (spec
   /// trivial)" (F7).
   Future<void> _approve(Workspace ws, Spec spec) async {
     final c = _controller;
@@ -923,14 +931,14 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           key: const ValueKey('spec-no-design-dialog'),
           backgroundColor: AppColors.panel,
           title: const Text(
-            'A spec não tem Design',
+            'A spec não tem Plano',
             style: TextStyle(fontSize: 16),
           ),
           content: const SizedBox(
             width: 440,
             child: Text(
-              'As sessões recebem o trecho do Design ligado a cada etapa. '
-              'Gere o design agora ou aprove sem ele, se a spec for trivial.',
+              'As sessões recebem o trecho do Plano ligado a cada etapa. '
+              'Planeje agora ou aprove sem ele, se a spec for trivial.',
               style: TextStyle(fontSize: 13),
             ),
           ),
@@ -942,12 +950,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             TextButton(
               key: const ValueKey('spec-approve-no-design'),
               onPressed: () => Navigator.of(ctx).pop('trivial'),
-              child: const Text('Aprovar sem design (spec trivial)'),
+              child: const Text('Aprovar sem plano (spec trivial)'),
             ),
             TextButton(
               key: const ValueKey('spec-approve-design'),
               onPressed: () => Navigator.of(ctx).pop('design'),
-              child: const Text('Gerar design'),
+              child: const Text('Planejar'),
             ),
           ],
         ),
@@ -987,12 +995,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     });
   }
 
-  /// "Gerar design": the read-only planner writes `## Design` and
+  /// "Planejar": the read-only planner writes `## Plano` and
   /// `## Etapas` into the editor (saved by the user).
   /// The spec is held meanwhile (SPEC-025 R1, R3).
   Future<void> _design(Workspace ws, Spec spec) async {
     final c = _controller;
-    if (c == null || _actions.current != null) return;
+    if (c == null || _actions.current != null || _held(spec.id)) return;
     final source = c.text;
     final designer = ref.read(specDesignerProvider);
     await _runAction(SpecActionKind.design, spec, (a) async {
@@ -1003,20 +1011,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       // R7: the result never goes to another spec.
       if (!mounted || _loadedSpecId != spec.id || _controller == null) {
         debugPrint(
-          'Gerar design: resultado de ${spec.code} descartado (a spec aberta '
+          'Planejar: resultado de ${spec.code} descartado (a spec aberta '
           'mudou).',
         );
         return;
       }
       _controller!.text = text;
-      _snack('Design gerado. Revise e salve.');
+      _snack('Plano pronto. Revise e salve.');
     });
   }
 
   /// Holds the spec only until the conversation opens.
   Future<void> _refine(Workspace ws, Spec spec) async {
     if (_actions.current != null) return;
-    if (_dirty && await _save(ws, spec) == null) return;
+    // A conversation is the person's edit too (D7): saving drops the mark.
+    final marked = SpecDocument.parse(_controller?.text ?? '').autoPlanned;
+    if ((_dirty || marked) && await _save(ws, spec) == null) return;
     await _runAction(SpecActionKind.refine, spec, (a) async {
       final id = await ref
           .read(conversationManagerProvider.notifier)
@@ -1111,6 +1121,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   Future<bool> _saveAnswers(Workspace ws, Spec spec, String text) async {
     final c = _controller;
     if (c == null || _held(spec.id) || _loadedSpecId != spec.id) return false;
+    text = SpecDocument.parse(text).withAutoPlan(false);
     try {
       await ref.read(specServiceProvider).save(ws, spec, text);
     } catch (e) {
@@ -1390,6 +1401,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     required SpecActionState? action,
     required bool proto,
     required SpecActionFailure? failure,
+    required SpecPlanLock? planLock,
     required Widget child,
   }) {
     final strip =
@@ -1414,6 +1426,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                     onCancel: _actions.cancel,
                     cancelFocus: _cancelFocus,
                   )
+                : planLock != null
+                ? _PlanLockStrip(text: planLock.strip)
                 : failure != null && spec != null
                 ? SpecActionError(
                     title: failure.kind.failure,
@@ -1504,9 +1518,23 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     // SPEC-025 R1: an action in progress holds the spec too.
     final action = ref.watch(specActionProvider);
     final held = spec != null && action?.specId == spec.id;
+    // SPEC-037 R10, R13: so does the automatic plan.
+    final planLock = spec == null
+        ? null
+        : ref.watch(specAutoPlannerProvider.select((s) => s.lockOf(spec.id)));
+    if (spec != null) {
+      ref.listen(specAutoPlannerProvider, (previous, next) {
+        if (spec.id != _loadedSpecId) return;
+        final was = previous?.lockOf(spec.id), now = next.lockOf(spec.id);
+        if (was?.writing == true && now?.writing != true) {
+          unawaited(_reloadPlanned(ws, spec));
+        }
+      });
+    }
     final readOnly =
         spec != null &&
-        specLocked(specId: spec.id, stageLocked: locked, action: action);
+        (planLock != null ||
+            specLocked(specId: spec.id, stageLocked: locked, action: action));
     final failure = spec != null && _failure?.specId == spec.id
         ? _failure
         : null;
@@ -1683,17 +1711,21 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   showSaveState: ready,
                   dirty: _dirty,
                   onSave: ready && !readOnly ? () => _save(ws, spec) : null,
-                  lockLabel: held ? action!.kind.lockLabel : null,
-                  lockAlert: held && action!.kind.long,
+                  lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
+                  statusLabel: planLock?.chip,
+                  lockAlert: (held && action!.kind.long) || planLock != null,
                   zoom: const ZoomControl(editorKey: SpecsScreen.editorKey),
                   actions: spec == null
                       ? null
                       : SpecHeaderState(
                           locked: locked,
                           approved: doc.status == SpecStatus.approved,
+                          hasPlan: doc.design != null,
                           prototype: proto,
                           archived: spec.status == SpecStatus.archived,
-                          unavailableReason: !ready ? notReadyReason : null,
+                          unavailableReason:
+                              planLock?.reason ??
+                              (!ready ? notReadyReason : null),
                           // R2: the running action shows its gerund label;
                           // one on another spec only disables these.
                           runningId: action == null
@@ -1715,29 +1747,39 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                                   restore: spec.status == SpecStatus.archived,
                                 )
                               : null,
-                          onDelete: canDeleteSpec(spec)
+                          onDelete: canDeleteSpec(spec) && planLock == null
                               ? () => deleteSpecAction(context, ref, spec)
                               : null,
                           onAnswer:
                               ready &&
                                   !locked &&
                                   action == null &&
+                                  planLock == null &&
                                   questions.isNotEmpty
                               ? _openQuestions
                               : null,
                           onClone: ready && locked && action == null
                               ? () => _clone(ws, spec)
                               : null,
-                          onRefine: ready && !locked && action == null
+                          onRefine:
+                              ready &&
+                                  !locked &&
+                                  action == null &&
+                                  planLock == null
                               ? () => _refine(ws, spec)
                               : null,
-                          onDesign: ready && !locked && action == null
+                          onDesign:
+                              ready &&
+                                  !locked &&
+                                  action == null &&
+                                  planLock == null
                               ? () => _design(ws, spec)
                               : null,
                           onApprove:
                               ready &&
                                   !locked &&
                                   action == null &&
+                                  planLock == null &&
                                   doc.status != SpecStatus.approved
                               ? () => _approve(ws, spec)
                               : null,
@@ -1770,6 +1812,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   action: held ? action : null,
                   proto: proto,
                   failure: failure,
+                  planLock: planLock,
                   child: spec == null
                       ? const Center(
                           child: Text(
@@ -2086,6 +2129,35 @@ class _EditorBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Why the spec is held by the automatic plan (SPEC-037 R10, R13).
+class _PlanLockStrip extends StatelessWidget {
+  const _PlanLockStrip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('spec-plan-lock'),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    decoration: const BoxDecoration(
+      color: AppColors.amberTint,
+      border: Border(bottom: BorderSide(color: SessionColors.approvalBorder)),
+    ),
+    child: Row(
+      children: [
+        const ActionSpinner(),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 12, color: AppColors.amber),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// "Em 'Perguntas em aberto', N itens são sugestões…" (SPEC-028 R3), above

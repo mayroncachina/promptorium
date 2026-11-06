@@ -19,7 +19,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
 
 /// Rastreabilidade de uma etapa (UX v2, U5; docs/mockups/v2/Specs.dc.html):
-/// criteria of the step with who checked them, its gate, the design it
+/// criteria of the step with who checked them, its gate, the plan it
 /// used, its commits and its session, plus the ways to act on it.
 
 /// Criteria of [text] that cite [step] (`[R2]`); a sub-step has those of
@@ -29,7 +29,7 @@ List<SpecCriterion> criteriaOfStep(String text, String step) => [
     if (c.requirements.contains(parentOf(step))) c,
 ];
 
-/// Paragraphs of the `## Design` section that mention [step] (a sub-step:
+/// Paragraphs of the plan section that mention [step] (a sub-step:
 /// its requirement); when none does, the beginning of the section (null = no
 /// design).
 String? designExcerpt(String? design, String step, {int max = 320}) {
@@ -171,7 +171,7 @@ class StepTracePanel extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
         const SizedBox(height: 12),
-        _title('Design usado', ''),
+        _title('Plano usado', ''),
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -182,8 +182,8 @@ class StepTracePanel extends ConsumerWidget {
           child: Text(
             design ??
                 (doc.designWaived
-                    ? 'Design dispensado nesta spec.'
-                    : 'A spec não tem seção Design.'),
+                    ? 'Plano dispensado nesta spec.'
+                    : 'A spec não tem seção Plano.'),
             key: const ValueKey('step-trace-design'),
             style: const TextStyle(
               fontSize: 12,

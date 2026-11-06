@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -18,6 +20,9 @@ import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
 import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import '../project/project_config.dart' show projectConfigProvider;
+import '../project/spec_auto_planner.dart';
+import '../../ui/widgets/app_icon.dart';
+import '../specs/widgets/spec_action_banner.dart' show ActionSpinner;
 import 'autopilot.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart'
@@ -345,6 +350,13 @@ class BoardScreen extends ConsumerWidget {
     final sessions =
         ref.watch(sessionsProvider(ws.id)).value ?? const <Session>[];
     final legacy = ref.watch(legacyTasksProvider(ws.id)).value ?? const [];
+    final replanFailures = [
+      for (final f
+          in ref
+              .watch(specAutoPlannerProvider.select((s) => s.failures))
+              .values)
+        if (f.workspaceId == ws.id) f,
+    ];
     final byCode = specsByCode(specs);
     final cards = [
       for (final s in specs)
@@ -486,6 +498,8 @@ class BoardScreen extends ConsumerWidget {
                 hiddenDone: hiddenDone,
                 parallel: parallel,
               ),
+              for (final f in replanFailures)
+                _ReplanWarning(workspace: ws, failure: f),
               if (legacy.isNotEmpty)
                 _LegacyBanner(
                   count: legacy.length,
@@ -867,6 +881,60 @@ class _Header extends ConsumerWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A round of SPEC-037 R13 that failed: the spec kept its plan and can run.
+class _ReplanWarning extends ConsumerWidget {
+  const _ReplanWarning({required this.workspace, required this.failure});
+
+  final Workspace workspace;
+  final ReplanFailure failure;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = failure.commitFailed
+        ? 'O plano de ${failure.code} foi atualizado, mas o commit falhou: '
+              '${failure.cause} Sem o commit, a worktree da execução parte do '
+              'plano antigo.'
+        : 'Não foi possível atualizar o plano de ${failure.code}. A spec '
+              'manteve o plano anterior e pode ser executada.';
+    return Container(
+      key: ValueKey('board-replan-warning-${failure.code}'),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      decoration: const BoxDecoration(
+        color: AppColors.amberTint,
+        border: Border(bottom: BorderSide(color: SessionColors.approvalBorder)),
+      ),
+      child: Row(
+        children: [
+          AppIcon(AppIcons.warning, size: 15, color: AppColors.amber),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Tooltip(
+              message: failure.cause,
+              child: Text(
+                text,
+                style: const TextStyle(fontSize: 12, color: AppColors.text),
+              ),
+            ),
+          ),
+          if (!failure.commitFailed) ...[
+            const SizedBox(width: 10),
+            SmallButton(
+              key: ValueKey('board-replan-retry-${failure.code}'),
+              label: 'Tentar de novo',
+              height: 30,
+              onTap: () => unawaited(
+                ref
+                    .read(specAutoPlannerProvider.notifier)
+                    .retryReplan(workspace, failure.specId),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1385,10 +1453,15 @@ class SpecCard extends ConsumerWidget {
     final gate = ref.watch(
       gateRunningProvider.select((g) => g.contains(spec.id)),
     );
+    final planLock = ref.watch(
+      specAutoPlannerProvider.select((s) => s.lockOf(spec.id)),
+    );
+    if (planLock != null) border = SessionColors.approvalBorder;
     final canRun =
         !busy &&
         !gate &&
         !blocked &&
+        planLock == null &&
         total > 0 &&
         done < total &&
         spec.stage != SpecStage.done;
@@ -1615,9 +1688,29 @@ class BoardSpecAction extends ConsumerWidget {
         total > 0 &&
         done < total &&
         spec.stage != SpecStage.done;
+    final planLock = ref.watch(
+      specAutoPlannerProvider.select((s) => s.lockOf(spec.id)),
+    );
+    final previousPlan = ref.watch(
+      specAutoPlannerProvider.select(
+        (s) => s.failures[spec.id]?.commitFailed == false,
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (planLock != null)
+          _PlanLine(
+            key: ValueKey('board-plan-lock-${spec.code}'),
+            text: planLock.reason,
+            icon: const ActionSpinner(),
+          )
+        else if (previousPlan)
+          _PlanLine(
+            key: ValueKey('board-plan-previous-${spec.code}'),
+            text: 'Plano anterior',
+            icon: AppIcon(AppIcons.warning, size: 14, color: AppColors.amber),
+          ),
         if (alive && last.status == SessionStatus.waitingApproval)
           _ActionButton(
             height: height,
@@ -1685,7 +1778,9 @@ class BoardSpecAction extends ConsumerWidget {
               label: data.sessions.isEmpty
                   ? 'Executar'
                   : 'Continuar · ${current?.id ?? ''}',
-              onTap: () => runSpec(context, ref, data),
+              onTap: planLock != null
+                  ? null
+                  : () => runSpec(context, ref, data),
             ),
           ] else if (spec.stage == SpecStage.review) ...[
             const SizedBox(height: 8),
@@ -1718,6 +1813,31 @@ void openSession(WidgetRef ref, String sessionId, {String? draft}) {
 void openSessionIn(ProviderContainer container, String sessionId) {
   container.read(selectedSessionProvider.notifier).select(sessionId);
   container.read(navigationProvider.notifier).go(AppSection.sessions);
+}
+
+/// Line of the card about its plan (SPEC-037 R13).
+class _PlanLine extends StatelessWidget {
+  const _PlanLine({super.key, required this.text, required this.icon});
+
+  final String text;
+  final Widget icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      children: [
+        icon,
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 11, color: AppColors.amber),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Chip extends StatelessWidget {
@@ -1866,7 +1986,9 @@ class _ActionButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onTap;
+
+  /// Null: disabled, in the panel's colors.
+  final VoidCallback? onTap;
   final double height;
 
   @override
@@ -1875,9 +1997,9 @@ class _ActionButton extends StatelessWidget {
     height: height,
     fontSize: height > 30 ? 13 : 12,
     expand: true,
-    color: AppColors.amber,
-    border: SessionColors.approvalBorder,
-    background: SessionColors.approvalBg,
+    color: onTap == null ? AppColors.textDisabled : AppColors.amber,
+    border: onTap == null ? AppColors.border : SessionColors.approvalBorder,
+    background: onTap == null ? AppColors.panel : SessionColors.approvalBg,
     onTap: onTap,
   );
 }

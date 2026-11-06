@@ -236,7 +236,7 @@ void main() {
     expect(find.byKey(const ValueKey('step-trace-R2')), findsOneWidget);
     expect(find.text('Eventos persistidos no SQLite'), findsWidgets);
     expect(find.textContaining('Nenhum critério cita'), findsOneWidget);
-    expect(find.text('A spec não tem seção Design.'), findsOneWidget);
+    expect(find.text('A spec não tem seção Plano.'), findsOneWidget);
     expect(find.text('A etapa ainda não rodou.'), findsOneWidget);
     expect(find.text('Sem sessão para esta etapa.'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -360,7 +360,7 @@ void main() {
     testWidgets('R3, R8: a spec just created by "Nova spec" opens with '
         '"Salvo", the "Rascunho" badge and the R3 actions', (tester) async {
       // Wide: the test font is wider than IBM Plex Sans and would move
-      // "Gerar design" to the menu (R9, covered in spec_header_test).
+      // "Planejar" to the menu (R9, covered in spec_header_test).
       final c = await pump(tester, const Size(1920, 1000));
       final ws = c.read(activeWorkspaceProvider)!;
       final spec = await tester.runAsync(
@@ -785,7 +785,7 @@ void main() {
     String editorText(WidgetTester tester) =>
         tester.widget<CodeEditor>(find.byType(CodeEditor)).controller!.text;
 
-    testWidgets('choosing another spec during "Gerar design" asks first; '
+    testWidgets('choosing another spec during "Planejar" asks first; '
         '"Continuar aqui" and Esc keep the spec; the other option cancels '
         'and opens the chosen one', (tester) async {
       await pumpDesign(tester);
@@ -799,7 +799,7 @@ void main() {
       expect(find.text('Sair da SPEC-002 durante a geração?'), findsOneWidget);
       expect(
         find.text(
-          'O design ainda está sendo gerado. Se você abrir a SPEC-003 agora, '
+          'O plano ainda está sendo escrito. Se você abrir a SPEC-003 agora, '
           'a geração é cancelada e a SPEC-002 não muda.',
         ),
         findsOneWidget,

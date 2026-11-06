@@ -109,6 +109,7 @@ class SpecHeaderState {
   const SpecHeaderState({
     this.locked = false,
     this.approved = false,
+    this.hasPlan = false,
     this.prototype = false,
     this.archived = false,
     this.onRefine,
@@ -132,6 +133,9 @@ class SpecHeaderState {
 
   /// `status: aprovada`: no "Aprovar" (R4).
   final bool approved;
+
+  /// The spec has a plan: "Planejar de novo" (SPEC-037 R1).
+  final bool hasPlan;
 
   /// Protótipo mode (R6).
   final bool prototype;
@@ -173,7 +177,8 @@ const runningReason = 'Aguarde a ação em andamento terminar.';
 const refineTooltip =
     'Abre uma conversa com a IA para escrever objetivo, requisitos e '
     'critérios a partir do que você já tem.';
-const designTooltip = 'Escreve a seção Design a partir do código atual.';
+const designTooltip =
+    'Escreve o plano de implementação a partir do código atual';
 const approveTooltip = 'Marca a spec como pronta para virar etapas no Quadro.';
 const answerTooltip =
     'Responde as perguntas em aberto uma por vez, com opções, e revisa o que '
@@ -281,8 +286,8 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
     SpecAction(
       id: 'design',
       keyName: 'spec-design',
-      label: 'Gerar design',
-      icon: Icons.integration_instructions_outlined,
+      label: s.hasPlan ? 'Planejar de novo' : 'Planejar',
+      icon: Icons.checklist,
       emphasis: SpecActionEmphasis.secondary,
       tooltip: designTooltip,
       onTap: s.onDesign,
@@ -315,7 +320,7 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
 
 /// How many of the secondary actions, in order, fit in [available] pixels
 /// ([widths] = natural width of each one, its gap included). The ones left
-/// out go to "Mais ações" from the last one back (R9: "Gerar design", then
+/// out go to "Mais ações" from the last one back (R9: "Planejar", then
 /// "Refinar com IA"); the primary never enters this list.
 int fitActions(List<double> widths, double available) {
   var used = 0.0;
@@ -421,6 +426,7 @@ class SpecHeader extends StatelessWidget {
     this.onSave,
     this.zoom,
     this.lockLabel,
+    this.statusLabel,
     this.lockAlert = false,
   });
 
@@ -445,6 +451,9 @@ class SpecHeader extends StatelessWidget {
   /// An action holds the spec (SPEC-025 R6): replaces the save state with
   /// "Somente leitura enquanto aprova"; [lockAlert] = amber (long action).
   final String? lockLabel;
+
+  /// Takes the place of the status next to the title (SPEC-037 R10).
+  final String? statusLabel;
   final bool lockAlert;
 
   @override
@@ -482,7 +491,7 @@ class SpecHeader extends StatelessWidget {
             ),
             if (status != null) ...[
               const SizedBox(width: 10),
-              StatusBadge(status: status!, locked: locked),
+              StatusBadge(status: status!, locked: locked, label: statusLabel),
             ],
           ],
         ),
@@ -649,15 +658,28 @@ class SpecHeader extends StatelessWidget {
 /// Status of the spec next to the title, with the texts of the list (R1);
 /// a lock when the execution started (R5).
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({super.key, required this.status, this.locked = false});
+  const StatusBadge({
+    super.key,
+    required this.status,
+    this.locked = false,
+    this.label,
+  });
 
   final SpecStatus status;
   final bool locked;
 
+  /// Takes the place of the status: "Na fila" (SPEC-037 R10).
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
-    final approved = status == SpecStatus.approved;
-    final color = approved ? AppColors.teal : AppColors.textSecondary;
+    final queued = label != null;
+    final approved = status == SpecStatus.approved && !queued;
+    final color = queued
+        ? AppColors.amber
+        : approved
+        ? AppColors.teal
+        : AppColors.textSecondary;
     final icon = locked
         ? Icons.lock_outline
         : approved
@@ -668,10 +690,18 @@ class StatusBadge extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: approved ? SessionColors.runningToolBg : AppColors.surfaceRaised,
+        color: queued
+            ? SessionColors.approvalBg
+            : approved
+            ? SessionColors.runningToolBg
+            : AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(11),
         border: Border.all(
-          color: approved ? SessionColors.runningToolBorder : AppColors.border,
+          color: queued
+              ? SessionColors.approvalBorder
+              : approved
+              ? SessionColors.runningToolBorder
+              : AppColors.border,
         ),
       ),
       child: Row(
@@ -687,7 +717,7 @@ class StatusBadge extends StatelessWidget {
             const SizedBox(width: 5),
           ],
           Text(
-            specStatusLabel(status),
+            label ?? specStatusLabel(status),
             maxLines: 1,
             softWrap: false,
             style: TextStyle(

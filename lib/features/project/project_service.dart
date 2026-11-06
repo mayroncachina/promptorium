@@ -14,6 +14,7 @@ import '../specs/spec_service.dart';
 import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_templates.dart';
+import 'spec_auto_planner.dart';
 
 class ProjectException implements Exception {
   const ProjectException(this.message);
@@ -159,6 +160,7 @@ class ProjectService {
     if (isUnsafeProjectPath(ws.path)) {
       throw ProjectException('Por segurança, ${ws.path} não pode ser apagada.');
     }
+    _ref.read(specAutoPlannerProvider.notifier).forget(ws.id);
     final sessions = await _ref
         .read(sessionsRepoProvider)
         .watchByWorkspace(ws.id)

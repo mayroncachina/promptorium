@@ -16,7 +16,7 @@ depende-de: [SPEC-019]
 ## Objetivo
 ## Requisitos
 - R1 · Quando …, o sistema deve …
-## Design
+## Plano
 ## Etapas
 - R1 → arquivos · verificar: `comando`
 ## Critérios de aceite
@@ -25,7 +25,9 @@ depende-de: [SPEC-019]
 
 - **Status**: ideia, rascunho, em-revisao, aprovada, concluida, arquivada.
 - Cada **requisito** é uma etapa de execução no Quadro.
-- `## Design` diz como implementar; `## Etapas` liga cada requisito aos arquivos e ao comando que o verifica. As sessões recebem só a parte da spec relevante para a etapa.
+- `## Plano` diz como implementar; `## Etapas` liga cada requisito aos arquivos e ao comando que o verifica. As sessões recebem só a parte da spec relevante para a etapa.
+- Specs antigas com `## Design` continuam funcionando, sem migração. Quando a spec tem as duas seções, `## Plano` vale.
+- `plano: automatico` no frontmatter marca um plano escrito pelo próprio app. Salvar a spec à mão retira a marca (veja [Refino e plano automáticos](projeto.md#refino-e-plano-automáticos)).
 - Os **critérios de aceite** com `verificar:` são checados pelo gate e podem ser marcados automaticamente.
 
 ## Editor
@@ -35,8 +37,8 @@ Modos **Editar**, **Dividido** e **Visualizar**, com realce, números de linha, 
 Ações da spec:
 
 - **Refinar com IA**: abre uma conversa de refino no [Prompt](prompt.md). Cada edição do agente pede aprovação, e "Voltar à spec" traz você de volta com o arquivo recarregado.
-- **Gerar design**: o agente lê o repositório (somente leitura) e escreve `## Design`, com "O que já existe", e `## Etapas`.
-- **Aprovar spec**: sem Design, oferece "Aprovar sem design (spec trivial)" ou "Gerar design". Aprovada, a spec vai para o Backlog do [Quadro](quadro.md).
+- **Planejar**: o agente lê o repositório (somente leitura) e escreve `## Plano`, com "O que já existe", e `## Etapas`. Numa spec com `## Design`, essa seção vira `## Plano`. Numa spec que já tem plano, o botão diz **Planejar de novo**.
+- **Aprovar spec**: sem Plano, oferece "Aprovar sem plano (spec trivial)" ou "Planejar". Aprovada, a spec vai para o Backlog do [Quadro](quadro.md).
 - **Clonar para alterar**: uma spec já iniciada não é editável; clonar cria uma nova.
 - **Arquivar** e **Excluir** (vai para a lixeira; só para spec nunca executada).
 - Se o arquivo mudar no disco com alterações não salvas, o app pergunta: "Carregar do disco" ou "Manter minhas alterações".

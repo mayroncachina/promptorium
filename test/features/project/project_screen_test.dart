@@ -1,21 +1,32 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_cli.dart';
+import 'package:promptorium/core/claude/readonly_run.dart'
+    show PlannerException;
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
+import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
 import 'package:promptorium/features/project/project_screen.dart';
+import 'package:promptorium/features/project/spec_auto_planner.dart';
+import 'package:promptorium/features/project/widgets/first_run_host.dart';
+import 'package:promptorium/features/specs/spec_action.dart';
+import 'package:promptorium/features/specs/spec_design.dart';
+import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
 import '../../ui/preferences_test.dart' show unmount;
 import '../sessions/session_test_utils.dart' show FakeCli;
+import 'spec_auto_planner_test.dart' show answerFor;
 
 const vision = VisionPlan(
   name: 'Receitas da família',
@@ -125,6 +136,175 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
   );
   await tester.pumpAndSettle();
   return (c, db);
+}
+
+/// The agent of the queue, whose rounds a test can hold or fail.
+class QueueDesigner extends SpecDesigner {
+  QueueDesigner(super.ref);
+
+  final calls = <String>[];
+  final gates = <String, Completer<void>>{};
+  final failures = <String>{};
+
+  /// Requirements and questions a round adds, by code.
+  final extras = <String, ({int requirements, int questions})>{};
+
+  @override
+  Future<AutoPlanAnswer> refineAndPlan(
+    Workspace ws,
+    String specText, {
+    Map<String, String> dependencyPlans = const {},
+    Future<void>? cancelled,
+  }) async {
+    final code = SpecDocument.parse(specText).id!;
+    calls.add(code);
+    var stopped = false;
+    final gate = gates[code];
+    if (gate != null) {
+      await Future.any([
+        gate.future,
+        if (cancelled != null) cancelled.then((_) => stopped = true),
+      ]);
+    }
+    if (stopped) throw const SpecActionCancelled();
+    if (failures.contains(code)) {
+      throw const PlannerException(
+        'A resposta removeu o requisito R3. A spec ficou como estava.',
+      );
+    }
+    final extra = extras[code];
+    return applyAutoPlanAnswer(
+      specText,
+      answerFor(
+        specText,
+        extra: extra?.requirements ?? 0,
+        questions: extra?.questions ?? 0,
+      ),
+    );
+  }
+}
+
+/// "Revisar e criar" on a real repository [tmp], with the queue on and
+/// without animations (the spinner would never settle).
+class QueueScreen {
+  QueueScreen(this.tester, this.tmp);
+
+  final WidgetTester tester;
+  final Directory tmp;
+  late ProviderContainer c;
+  late QueueDesigner designer;
+  final visible = ValueNotifier(true);
+
+  Finder key(String k) => find.byKey(ValueKey(k));
+
+  Future<void> pump({Size size = const Size(1440, 900)}) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    c = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        currentBranchProvider.overrideWith((ref, root) async => 'main'),
+        claudeProcessStarterProvider.overrideWithValue(FakeCli().start),
+        specDesignerProvider.overrideWith(
+          (ref) => designer = QueueDesigner(ref),
+        ),
+      ],
+    );
+    c.read(specDesignerProvider);
+    await tester.runAsync(() async {
+      for (final args in [
+        ['init', '-q'],
+        ['config', 'user.email', 't@t'],
+        ['config', 'user.name', 't'],
+        ['commit', '-q', '--allow-empty', '-m', 'inicio'],
+      ]) {
+        await Process.run('git', args, workingDirectory: tmp.path);
+      }
+      final ws = await db
+          .into(db.workspaces)
+          .insertReturning(
+            WorkspacesCompanion.insert(path: tmp.path, name: 'r'),
+          );
+      await AppSettingsRepo(db).setInt(AppSettingKeys.activeWorkspace, ws.id);
+      await db
+          .into(db.projectPlans)
+          .insert(
+            ProjectPlansCompanion.insert(
+              workspaceId: Value(ws.id),
+              step: Value(ProjectStep.create.name),
+              data: Value(
+                const ProjectPlanData(
+                  vision: vision,
+                  stack: stack,
+                  roadmap: roadmap,
+                ).encode(),
+              ),
+            ),
+          );
+      await c.read(appSettingsProvider.notifier).load();
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                ValueListenableBuilder(
+                  valueListenable: visible,
+                  builder: (_, shown, _) =>
+                      shown ? const ProjectScreen() : const SizedBox(),
+                ),
+                const FirstRunHost(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await until(() => key('project-create').evaluate().isNotEmpty);
+    addTearDown(() => unmount(tester, c));
+  }
+
+  /// Real IO does not run under FakeAsync: lets it run until [cond].
+  Future<void> until(bool Function() cond) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 45));
+    for (var i = 0; DateTime.now().isBefore(deadline); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 4)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      if (i >= 2 && cond()) return;
+    }
+    fail('condição não atingida');
+  }
+
+  Future<void> create() async {
+    await tester.ensureVisible(key('project-create'));
+    await tester.tap(key('project-create'));
+    await tester.pump();
+  }
+
+  AutoPlanQueue? get queue =>
+      c.read(specAutoPlannerProvider).queues.values.firstOrNull;
+
+  Future<void> finished() =>
+      until(() => queue?.phase == AutoPlanPhase.finished);
+
+  String headline() =>
+      tester.widget<Text>(key('project-queue-headline')).data ?? '';
+
+  String status(String code) =>
+      tester.widget<Text>(key('project-queue-status-$code')).data ?? '';
 }
 
 Future<ProjectPlanData> stored(AppDatabase db) async {
@@ -552,5 +732,260 @@ void main() {
     expect(await db.select(db.projectPlans).get(), isEmpty);
     expect(find.text('Planejar r'), findsOneWidget);
     await unmount(tester, c);
+  });
+
+  group('SPEC-037: the queue of "Criar projeto"', () {
+    late Directory tmp;
+
+    setUp(() {
+      tmp = Directory.systemTemp.createTempSync('promptorium-queue-');
+    });
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    testWidgets('R5: the option comes on; off, the creation works as before '
+        'and no spec is planned', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      expect(
+        find.text('Refinar e planejar as specs automaticamente'),
+        findsOneWidget,
+      );
+      expect(find.text('Commit “Plano das specs”'), findsOneWidget);
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.descendant(
+                of: q.key('project-auto-plan'),
+                matching: find.byType(CheckboxListTile),
+              ),
+            )
+            .value,
+        isTrue,
+      );
+      await tester.tap(q.key('project-auto-plan'));
+      await tester.pump();
+      expect(find.text('Commit “Plano das specs”'), findsNothing);
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      await q.create();
+      await q.until(() => find.text('Ver quadro').evaluate().isNotEmpty);
+      expect(q.queue, isNull);
+      expect(q.designer.calls, isEmpty);
+    });
+
+    testWidgets('R8: the progress stays right after leaving the screen and '
+        'coming back', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      final gate = Completer<void>();
+      q.designer.gates['SPEC-002'] = gate;
+      await q.create();
+      await q.until(() => q.designer.calls.contains('SPEC-002'));
+      expect(q.headline(), 'Planejando 2 de 3 · SPEC-002');
+      expect(
+        find.text('Pode sair desta tela: a fila continua'),
+        findsOneWidget,
+      );
+      expect(q.status('SPEC-001'), 'Pronta');
+      expect(q.status('SPEC-002'), 'Refinando e planejando');
+      expect(q.status('SPEC-003'), 'Na fila');
+      expect(find.text('EM ANDAMENTO'), findsOneWidget);
+      expect(find.text('Projeto criado'), findsOneWidget);
+      expect(q.key('project-queue-stop'), findsOneWidget);
+
+      q.visible.value = false;
+      await tester.pump();
+      expect(q.key('project-queue-headline'), findsNothing);
+      q.visible.value = true;
+      await q.until(
+        () => q.key('project-queue-headline').evaluate().isNotEmpty,
+      );
+      expect(q.headline(), 'Planejando 2 de 3 · SPEC-002');
+
+      q.visible.value = false;
+      await tester.pump();
+      gate.complete();
+      await q.finished();
+      q.visible.value = true;
+      await q.until(
+        () => q.key('project-queue-headline').evaluate().isNotEmpty,
+      );
+      expect(q.headline(), '3 de 3 planejadas');
+      expect(q.status('SPEC-003'), 'Pronta');
+      expect(find.text('FEITO'), findsOneWidget);
+      expect(find.text('Refina e planeja as 3 specs'), findsOneWidget);
+      expect(q.key('project-queue-stop'), findsNothing);
+    });
+
+    testWidgets('R8: "Parar a fila", the end of it and "Retomar a fila"', (
+      tester,
+    ) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      q.designer.gates['SPEC-002'] = Completer<void>();
+      await q.create();
+      await q.until(() => q.designer.calls.contains('SPEC-002'));
+      await tester.tap(q.key('project-queue-stop'));
+      await q.until(() => q.queue?.phase == AutoPlanPhase.stopped);
+      expect(find.text('Fila parada'), findsOneWidget);
+      expect(find.text('FILA PARADA'), findsOneWidget);
+      expect(q.headline(), '1 de 3 planejadas · fila parada');
+      expect(q.status('SPEC-002'), 'Sem plano');
+      expect(q.status('SPEC-003'), 'Sem plano');
+      expect(find.text('Refina e planeja: 1 de 3'), findsOneWidget);
+      expect(q.key('project-queue-step-2-pending'), findsOneWidget);
+
+      q.designer.gates.clear();
+      await tester.tap(q.key('project-queue-resume'));
+      await q.finished();
+      await tester.pump();
+      expect(q.headline(), '3 de 3 planejadas');
+    });
+
+    testWidgets('R9: a spec without its dependency plan is "Plano parcial", '
+        'and the panel shows N de M with an alert', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      q.designer.failures.add('SPEC-002');
+      q.designer.extras['SPEC-003'] = (requirements: 1, questions: 1);
+      await q.create();
+      await q.finished();
+      await tester.pump();
+      expect(find.text('Concluído com pendências'), findsOneWidget);
+      expect(find.text('COM PENDÊNCIAS'), findsOneWidget);
+      expect(q.headline(), '2 de 3 planejadas');
+      expect(q.status('SPEC-002'), 'Falhou');
+      expect(
+        find.text(
+          'A resposta removeu o requisito R3. A spec ficou como estava.',
+        ),
+        findsOneWidget,
+      );
+      expect(q.status('SPEC-003'), 'Plano parcial');
+      expect(find.text('Planejada sem o plano de SPEC-002'), findsOneWidget);
+      expect(find.text('+1 requisito'), findsOneWidget);
+      expect(find.text('1 pergunta'), findsOneWidget);
+      expect(find.text('1 pergunta em aberto nas specs'), findsOneWidget);
+      expect(find.text('Refina e planeja: 2 de 3'), findsOneWidget);
+      expect(q.key('project-queue-step-2-alert'), findsOneWidget);
+      expect(q.key('project-queue-step-2-done'), findsNothing);
+      expect(q.key('project-queue-retry-SPEC-002'), findsOneWidget);
+      expect(q.key('project-queue-retry-all'), findsOneWidget);
+
+      q.designer.failures.clear();
+      q.designer.calls.clear();
+      await tester.tap(q.key('project-queue-retry-SPEC-002'));
+      await q.until(
+        () =>
+            q.designer.calls.length == 2 &&
+            q.queue?.phase == AutoPlanPhase.finished,
+      );
+      await tester.pump();
+      expect(q.status('SPEC-002'), 'Pronta');
+      expect(q.status('SPEC-003'), 'Pronta');
+      expect(find.text('Projeto criado'), findsOneWidget);
+    });
+
+    testWidgets('R10: the first session opens only after the queue, and the '
+        'specs are held until then', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      final gate = Completer<void>();
+      q.designer.gates['SPEC-002'] = gate;
+      await q.create();
+      await q.until(() => q.designer.calls.contains('SPEC-002'));
+      expect(find.byType(RunSpecDialog), findsNothing);
+      final queue = q.queue!;
+      for (final i in queue.items) {
+        expect(
+          q.c.read(specAutoPlannerProvider).lockOf(i.specId)?.reason,
+          autoPlanQueueReason,
+        );
+      }
+      gate.complete();
+      await q.until(() => find.byType(RunSpecDialog).evaluate().isNotEmpty);
+      expect(q.queue?.phase, AutoPlanPhase.finished);
+      expect(
+        q.c.read(specAutoPlannerProvider).lockOf(queue.items.first.specId),
+        isNull,
+      );
+      // The dialog's probe of the CLI.
+      await tester.pump(const Duration(seconds: 9));
+    });
+
+    testWidgets('R10: with the queue stopped the session does not open; with '
+        'failures it does', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      await q.pump();
+      q.designer.gates['SPEC-002'] = Completer<void>();
+      await q.create();
+      await q.until(() => q.designer.calls.contains('SPEC-002'));
+      await tester.tap(q.key('project-queue-stop'));
+      await q.until(() => q.queue?.phase == AutoPlanPhase.stopped);
+      await tester.pump();
+      expect(find.byType(RunSpecDialog), findsNothing);
+      q.designer.gates.clear();
+      await tester.tap(q.key('project-queue-resume'));
+      await q.finished();
+      await tester.pump();
+      expect(find.byType(RunSpecDialog), findsNothing);
+      await unmount(tester, q.c);
+
+      final other = Directory.systemTemp.createTempSync('promptorium-queue-');
+      addTearDown(() => other.deleteSync(recursive: true));
+      final f = QueueScreen(tester, other);
+      await f.pump();
+      f.designer.failures.add('SPEC-002');
+      await f.create();
+      await f.until(() => find.byType(RunSpecDialog).evaluate().isNotEmpty);
+      expect(f.queue?.withPending, isTrue);
+      // The dialog's probe of the CLI.
+      await tester.pump(const Duration(seconds: 9));
+    });
+
+    testWidgets('R11: nothing overflows at 1100×700, before and during the '
+        'queue and with the worst line', (tester) async {
+      final q = QueueScreen(tester, tmp);
+      // 1100×700 less the shell (sidebar, title bar and footer).
+      await q.pump(size: const Size(1048, 640));
+      expect(tester.takeException(), isNull);
+      await tester.drag(find.text('Repositório'), const Offset(0, -500));
+      await tester.pump();
+      await tester.tap(q.key('project-run-first'));
+      await tester.pump();
+      q.designer.gates['SPEC-002'] = Completer<void>();
+      await q.create();
+      await q.until(() => q.designer.calls.contains('SPEC-002'));
+      expect(tester.takeException(), isNull);
+      q.designer.failures.add('SPEC-002');
+      q.designer.extras['SPEC-003'] = (requirements: 2, questions: 2);
+      q.designer.gates['SPEC-002']!.complete();
+      await q.finished();
+      await tester.pump();
+      expect(find.text('Concluído com pendências'), findsOneWidget);
+      expect(q.status('SPEC-003'), 'Plano parcial');
+      expect(tester.takeException(), isNull);
+      // Every new text fits: none of them is cut.
+      final texts = find.descendant(
+        of: find
+            .ancestor(
+              of: q.key('project-queue-progress'),
+              matching: find.byType(ListView),
+            )
+            .first,
+        matching: find.byType(RichText),
+      );
+      expect(texts, findsWidgets);
+      for (final e in texts.evaluate()) {
+        final p = e.renderObject! as RenderParagraph;
+        expect(p.didExceedMaxLines, isFalse, reason: p.text.toPlainText());
+      }
+    });
   });
 }

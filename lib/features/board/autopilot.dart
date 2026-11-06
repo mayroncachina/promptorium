@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../project/project_config.dart';
+import '../project/spec_auto_planner.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import 'board_rules.dart';
@@ -216,6 +217,7 @@ class Autopilot extends Notifier<Set<int>> {
     final byCode = specsByCode(all);
     var running = all.where((s) => s.stage == SpecStage.running).length;
     var started = 0;
+    var waiting = false;
     for (final s in all) {
       if (parallel != null && running >= parallel) break;
       if (!isOnBoard(s) ||
@@ -224,6 +226,11 @@ class Autopilot extends Notifier<Set<int>> {
         continue;
       }
       if (specBlockers(s, byCode, reviewUnblocks: true).isNotEmpty) continue;
+      // SPEC-037 R13: the end of the round calls this again.
+      if (ref.read(specAutoPlannerProvider).lockOf(s.id) != null) {
+        waiting = true;
+        continue;
+      }
       try {
         // With "Abrir Executar em Automático" on, in Automático
         // (SPEC-035 R19).
@@ -237,7 +244,9 @@ class Autopilot extends Notifier<Set<int>> {
     // Nothing started now and nothing running: the last spec is finished
     // (or what is left cannot start by itself), so the autopilot turns off.
     final now = await specs.watchByWorkspace(workspaceId).first;
-    if (started == 0 && !now.any((s) => s.stage == SpecStage.running)) {
+    if (started == 0 &&
+        !waiting &&
+        !now.any((s) => s.stage == SpecStage.running)) {
       _off(workspaceId);
     }
   }

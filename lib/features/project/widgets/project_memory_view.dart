@@ -63,8 +63,8 @@ class _ProjectMemoryViewState extends ConsumerState<ProjectMemoryView> {
             const SizedBox(height: 4),
             Text(
               'Fica em ${ProjectMemory.filePath} (faça commit). Vai no '
-              'prompt de cada etapa, do revisor automático e do Gerar '
-              'design. As sessões acrescentam linhas com APRENDIZADO: e a '
+              'prompt de cada etapa, do revisor automático e do Planejar. '
+              'As sessões acrescentam linhas com APRENDIZADO: e a '
               'verificação anota quanto os comandos demoram. Máximo de '
               '${ProjectMemory.maxEntries} linhas.',
               style: const TextStyle(
