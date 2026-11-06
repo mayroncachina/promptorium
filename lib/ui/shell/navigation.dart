@@ -117,11 +117,14 @@ class NavigationController extends Notifier<AppSection> {
   Future<bool> Function(AppSection to)? leaveGuard;
 
   /// Goes to [section] after [leaveGuard] agrees (sidebar, palette,
-  /// shortcuts).
-  Future<void> request(AppSection section) async {
+  /// shortcuts). False = the guard kept the current section.
+  Future<bool> request(AppSection section) async {
     final guard = leaveGuard;
-    if (guard != null && section != state && !await guard(section)) return;
+    if (guard != null && section != state && !await guard(section)) {
+      return false;
+    }
     go(section);
+    return true;
   }
 
   void go(AppSection section) {

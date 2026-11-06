@@ -12,7 +12,7 @@ import '../../features/prompt/conversation_manager.dart';
 import '../../features/review/review_service.dart' show selectedReviewProvider;
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/session_manager.dart';
-import '../../features/specs/new_spec_dialog.dart';
+import '../../features/specs/new_spec_view.dart';
 import '../../features/specs/spec_service.dart' show selectedSpecProvider;
 
 import '../theme/tokens.dart';
@@ -244,7 +244,7 @@ List<PaletteCommand> paletteCommands(
     PaletteCommand(
       label: 'Nova spec',
       group: 'Ações',
-      run: () => showNewSpecDialog(context),
+      run: () => openNewSpec(ref),
     ),
     PaletteCommand(
       label: 'Atalhos de teclado',
