@@ -11,6 +11,7 @@ import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/board/widgets/card_extras.dart';
 import 'package:promptorium/features/board/widgets/wave_graph.dart';
+import 'package:promptorium/features/project/spec_auto_planner.dart';
 import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/prompt/refine_origin.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
@@ -143,6 +144,60 @@ void main() {
         await settle();
       }
       expect(cli.processes, hasLength(3));
+    });
+
+    test('SPEC-037 R13: Executar and the autopilot wait for the round, and '
+        'the end of it starts them', () async {
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('autopilot:\n  paralelo: 1\n');
+      final specs = await c
+          .read(specsRepoProvider)
+          .watchByWorkspace(ws.id)
+          .first;
+      final planner = c.read(specAutoPlannerProvider.notifier);
+      final held = specs.first;
+      // Mark the spec and let a real second round hold it.
+      final file = File('$repo/${held.path}');
+      file.writeAsStringSync(
+        SpecDocument.parse(file.readAsStringSync()).withAutoPlan(true),
+      );
+      await gitIn(repo, ['commit', '-q', '-am', 'marca']);
+      final others = specs.skip(1).toList();
+      for (final o in others) {
+        await c.read(specsRepoProvider).setStage(o.id, SpecStage.done);
+      }
+      final round = planner.retryReplan(ws, held.id);
+      await until(() async => cli.processes.isNotEmpty);
+      expect(
+        c.read(specAutoPlannerProvider).lockOf(held.id)?.reason,
+        autoPlanUpdateReason,
+      );
+      await expectLater(
+        c.read(specRunnerProvider).runNext(held.id),
+        throwsA(
+          isA<SpecRunException>().having(
+            (e) => e.message,
+            'message',
+            contains(autoPlanUpdateReason),
+          ),
+        ),
+      );
+      final before = cli.processes.length;
+      await c.read(autopilotProvider.notifier).start(ws.id);
+      await settle();
+      expect(cli.processes, hasLength(before));
+      // Waiting is not "nothing to do": it stays on.
+      expect(c.read(autopilotProvider), contains(ws.id));
+
+      cli.last.emit(resultLine('falhou'));
+      await round;
+      await until(() async => cli.processes.length > before);
+      // The failure freed the spec: the autopilot started it.
+      expect(c.read(specAutoPlannerProvider).lockOf(held.id), isNull);
+      final after = await c.read(specsRepoProvider).getById(held.id);
+      expect(after!.stage, SpecStage.running);
+      // It started: no more "Plano anterior".
+      expect(c.read(specAutoPlannerProvider).failures, isEmpty);
     });
 
     test('orcamento-dia: spent → off with a notification; nothing new '

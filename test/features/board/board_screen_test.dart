@@ -12,6 +12,8 @@ import 'package:promptorium/features/board/spec_runner.dart'
 import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/sessions/session_manager.dart'
     show selectedSessionProvider;
+import 'package:promptorium/features/project/spec_auto_planner.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
@@ -659,4 +661,112 @@ void main() {
     expect(moved!.stage, isNot(SpecStage.backlog));
     expect(tester.takeException(), isNull);
   });
+
+  group('SPEC-037 R13: planning again', () {
+    testWidgets('during the round Executar waits, with the reason', (
+      tester,
+    ) async {
+      final (c, db) = await pumpBoard(
+        tester,
+        overrides: [specAutoPlannerProvider.overrideWith(SeededPlanner.new)],
+      );
+      final spec = await (db.select(
+        db.specs,
+      )..where((t) => t.code.equals('SPEC-003'))).getSingle();
+      expect(find.text(autoPlanUpdateReason), findsNothing);
+      (c.read(specAutoPlannerProvider.notifier) as SeededPlanner).seed(
+        AutoPlanState(replanning: {spec.id}),
+      );
+      await pumpFor(tester);
+      expect(
+        find.byKey(const ValueKey('board-plan-lock-SPEC-003')),
+        findsOneWidget,
+      );
+      expect(find.text(autoPlanUpdateReason), findsOneWidget);
+      final run = tester.widget<SmallButton>(
+        find.descendant(
+          of: find.byKey(const ValueKey('board-run-SPEC-003')),
+          matching: find.byType(SmallButton),
+        ),
+      );
+      expect(run.onTap, isNull);
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      await tester.pump(Duration.zero);
+    });
+
+    testWidgets('a failed round: the warning, "Plano anterior" on the card, '
+        'Executar free, and "Tentar de novo"', (tester) async {
+      final (c, db) = await pumpBoard(
+        tester,
+        overrides: [specAutoPlannerProvider.overrideWith(SeededPlanner.new)],
+      );
+      final spec = await (db.select(
+        db.specs,
+      )..where((t) => t.code.equals('SPEC-003'))).getSingle();
+      final planner = c.read(specAutoPlannerProvider.notifier) as SeededPlanner;
+      planner.seed(
+        AutoPlanState(
+          failures: {
+            spec.id: ReplanFailure(
+              workspaceId: spec.workspaceId,
+              specId: spec.id,
+              code: 'SPEC-003',
+              cause: 'Sem saldo.',
+            ),
+          },
+        ),
+      );
+      await pumpFor(tester);
+      expect(find.text('Plano anterior'), findsOneWidget);
+      expect(
+        find.text(
+          'Não foi possível atualizar o plano de SPEC-003. A spec manteve o '
+          'plano anterior e pode ser executada.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('board-replan-retry-SPEC-003')),
+        findsOneWidget,
+      );
+      final run = tester.widget<SmallButton>(
+        find.descendant(
+          of: find.byKey(const ValueKey('board-run-SPEC-003')),
+          matching: find.byType(SmallButton),
+        ),
+      );
+      expect(run.onTap, isNotNull);
+
+      // A commit that failed: no "Plano anterior", no second round.
+      planner.seed(
+        AutoPlanState(
+          failures: {
+            spec.id: ReplanFailure(
+              workspaceId: spec.workspaceId,
+              specId: spec.id,
+              code: 'SPEC-003',
+              cause: 'Sem identidade.',
+              commitFailed: true,
+            ),
+          },
+        ),
+      );
+      await pumpFor(tester);
+      expect(find.text('Plano anterior'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('board-replan-retry-SPEC-003')),
+        findsNothing,
+      );
+      expect(find.textContaining('o commit falhou'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      await tester.pump(Duration.zero);
+    });
+  });
+}
+
+/// [SpecAutoPlanner] with a state the test sets.
+class SeededPlanner extends SpecAutoPlanner {
+  void seed(AutoPlanState value) => state = value;
 }
