@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Atualização disponível</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0B0E}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+button:disabled{cursor:not-allowed}
+h1,h2,h3,p,ul{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.btn{height:32px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;border:1px solid #2E3542;border-radius:6px;background:#1A1E26;color:#E7E9EE;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#3A4250}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.pri:hover{background:#F5B35E;border-color:#F5B35E}
+.lnk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#F2A541;text-decoration:none;border-bottom:1px solid transparent}
+.lnk:hover{border-bottom-color:#F2A541}
+.x{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:#A0A8B6}
+.x:hover{background:#1F2430;color:#E7E9EE}
+.x:disabled{color:#4A5260;background:none}
+.card{flex:none;border:1px solid #252B35;border-radius:8px;background:#1A1E26;padding:12px 14px;height:112px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.card.hl{border-color:#5C4520;background:#241E12}
+.card.bad{border-color:#5A2E2A}
+.top{display:flex;align-items:center;gap:10px}
+.ttl{font-size:14px;font-weight:600;color:#E7E9EE}
+.sub{font-size:12px;color:#A0A8B6}
+.acts{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.acts2{display:flex;justify-content:flex-end;gap:8px}
+.spin{animation:sp 1s linear infinite;transform-origin:50% 50%}
+@keyframes sp{to{transform:rotate(360deg)}}
+.track{height:6px;border-radius:3px;background:#252B35;overflow:hidden}
+.fill{height:6px;background:#F2A541;transition:width 180ms linear}
+.grp{font-size:12px;font-weight:600;color:#A0A8B6;margin:12px 0 6px}
+.li{list-style:none;display:flex;gap:8px;font-size:13px;line-height:1.5;color:#E7E9EE;padding:3px 0}
+.dot{flex:none;width:4px;height:4px;border-radius:50%;background:#7C8595;margin-top:8px}
+.sc{color:#A0A8B6}
+.pm-stage{animation:pm-stage 4s ease-in-out forwards}
+.pm-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:pm-draw 4s ease-out forwards}
+.pm-liquid{animation:pm-rise 4s cubic-bezier(.3,.7,.2,1) forwards}
+.pm-wave{animation:pm-wave 2.2s linear 2}
+.pm-bubble{transform-box:fill-box;transform-origin:center;opacity:0;animation:pm-bubble 2.4s ease-in 1}
+.pm-b2{animation-delay:.8s}.pm-b3{animation-delay:1.6s}
+.pm-node{transform-box:fill-box;transform-origin:center;transform:scale(0);animation:pm-pop 4s ease-out forwards}
+.pm-n2{animation-delay:.1s}.pm-n3{animation-delay:.2s}
+.pm-link{stroke-dasharray:1;stroke-dashoffset:1;animation:pm-link 4s ease-out forwards}
+.pm-chev{opacity:0;animation:pm-chev 4s ease-out forwards}
+.pm-caret{animation:pm-blink 1s steps(1) 3}
+.pm-title{opacity:0;animation:pm-title 4s ease-out forwards}
+.pm-glow{opacity:0;animation:pm-glow 4s ease-in-out forwards}
+@keyframes pm-stage{0%{opacity:0;transform:scale(.96)}5%,100%{opacity:1;transform:scale(1)}}
+@keyframes pm-draw{0%{stroke-dashoffset:1}20%,100%{stroke-dashoffset:0}}
+@keyframes pm-rise{0%,14%{transform:translateY(62px)}42%,100%{transform:translateY(0)}}
+@keyframes pm-wave{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+@keyframes pm-bubble{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}80%{opacity:.9}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+@keyframes pm-pop{0%,46%{transform:scale(0)}53%{transform:scale(1.18)}57%,100%{transform:scale(1)}}
+@keyframes pm-link{0%,55%{stroke-dashoffset:1}64%,100%{stroke-dashoffset:0}}
+@keyframes pm-chev{0%,40%{opacity:0;transform:translateX(-6px)}48%,100%{opacity:1;transform:translateX(0)}}
+@keyframes pm-blink{0%{opacity:1}50%{opacity:0}}
+@keyframes pm-title{0%,24%{opacity:0;transform:translateY(6px)}34%,100%{opacity:1;transform:translateY(0)}}
+@keyframes pm-glow{0%,40%{opacity:0}60%,100%{opacity:.5}}
+@media (prefers-reduced-motion: reduce){.pm-stage,.pm-draw,.pm-liquid,.pm-wave,.pm-bubble,.pm-node,.pm-link,.pm-chev,.pm-caret,.pm-title,.pm-glow,.spin{animation:none!important}.pm-stage,.pm-chev,.pm-title{opacity:1!important}.pm-bubble{opacity:0!important}.pm-glow{opacity:.5!important}.pm-node,.pm-chev,.pm-title,.pm-liquid,.pm-stage{transform:none!important}.pm-draw,.pm-link{stroke-dashoffset:0!important}}
+</style>
+</helmet>
+<div style="position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:900px;overflow:hidden;background:#0A0B0E;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<sc-if value="{{closed}}" hint-placeholder-val="{{false}}"><button type="button" class="btn" onClick="{{open}}">Abrir o Sobre de novo (F1)</button></sc-if>
+<sc-if value="{{isOpen}}" hint-placeholder-val="{{true}}">
+<div role="dialog" aria-label="Sobre o Promptorium" style="position:relative;display:flex;width:820px;height:560px;max-width:100%;background:#14171D;border:1px solid #2E3542;border-radius:12px;overflow:hidden">
+<section style="flex:none;width:300px;background:#0E1014;border-right:1px solid #252B35;display:flex;flex-direction:column;align-items:center;padding:28px 20px 18px">
+<div style="flex:1;display:flex;align-items:center"><div class="pm-stage" style="display:flex;flex-direction:column;align-items:center;gap:6px"><div style="position:relative;width:148px;height:148px"><div class="pm-glow" style="position:absolute;inset:22px;border-radius:50%;background:#4FD1B5;filter:blur(38px)"></div>
+<svg width="148" height="148" viewBox="0 0 200 200" role="img" aria-label="Ícone do Promptorium" style="position:relative"><defs><clipPath id="pm-inside"><path d="M91 78 V104 L52 162 Q47 170 57 170 H143 Q153 170 148 162 L109 104 V78 Z"></path></clipPath></defs>
+<g clip-path="url(#pm-inside)"><g class="pm-liquid"><g class="pm-wave"><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124 V200 H0 Z" fill="#0E5E55"></path><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124" fill="none" stroke="#4FD1B5" stroke-width="3"></path></g></g><circle class="pm-bubble" cx="100" cy="118" r="5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b2" cx="94" cy="122" r="3.5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b3" cx="104" cy="120" r="2.5" fill="#7FE6D2"></circle></g>
+<g class="pm-chev"><path d="M78 136 L92 145 L78 154" fill="none" stroke="#B8FFF2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></path></g><rect class="pm-caret" x="98" y="151" width="22" height="5" rx="2" fill="#B8FFF2"></rect>
+<path class="pm-draw" pathLength="1" d="M84 70 H116 M91 72 V104 L50 164 Q44 176 58 176 H142 Q156 176 150 164 L109 104 V72" fill="none" stroke="#F2A541" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"></path>
+<line class="pm-link" pathLength="1" x1="89" y1="47" x2="109" y2="35" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line><line class="pm-link" pathLength="1" x1="118" y1="42" x2="116" y2="52" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line>
+<circle class="pm-node" cx="82" cy="51" r="9" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle class="pm-node pm-n2" cx="119" cy="30" r="12" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle class="pm-node pm-n3" cx="115" cy="58" r="6.5" fill="#0E5E55" stroke="#F2A541" stroke-width="4"></circle></svg></div>
+<div class="pm-title" style="text-align:center"><h1 style="font-size:24px;font-weight:600;letter-spacing:.3px;line-height:1.2">Promptorium</h1><p style="font-size:12.5px;color:#A0A8B6;margin-top:4px">o laboratório de onde operam seus agentes</p></div></div></div>
+<p class="mono" style="font-size:12px;color:#A0A8B6">v0.8.0 · Linux</p>
+<div style="display:flex;gap:16px;margin-top:10px"><a class="lnk" href="https://github.com/mayroncachina/promptorium">Repositório<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5"></path><path d="M19 5l-8 8"></path><path d="M18 14v5H5V6h5"></path></svg></a><a class="lnk" href="https://github.com/mayroncachina/promptorium/blob/main/CHANGELOG.md">Histórico completo<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 5h5v5"></path><path d="M19 5l-8 8"></path><path d="M18 14v5H5V6h5"></path></svg></a></div>
+</section>
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 16px 0 20px">
+<div style="flex:none;display:flex;align-items:center;justify-content:space-between;height:36px;margin-bottom:6px"><h2 style="font-size:15px;font-weight:600">Sobre</h2><button type="button" class="x" aria-label="{{closeLabel}}" title="{{closeLabel}}" disabled="{{isInstall}}" onClick="{{close}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button></div>
+<sc-if value="{{isOk}}" hint-placeholder-val="{{false}}"><div class="card" role="status"><div class="top"><span style="flex:none;display:flex;color:#5BC88A"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span><div style="min-width:0"><p class="ttl">Você está na versão mais recente</p><p class="sub">Verificado hoje às 14:32</p></div><div class="acts"><button type="button" class="btn" onClick="{{check}}">Verificar agora</button></div></div></div></sc-if><sc-if value="{{isChecking}}" hint-placeholder-val="{{false}}"><div class="card" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6"></path></svg></span><div style="min-width:0"><p class="ttl">Verificando…</p><p class="sub">Consultando as versões publicadas</p></div><div class="acts"><button type="button" class="btn" disabled="{{yes}}">Verificando…</button></div></div></div></sc-if><sc-if value="{{isOffline}}" hint-placeholder-val="{{false}}"><div class="card" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l16 16"></path><path d="M8.5 16.5a5 5 0 0 1 7 0"></path><path d="M5 12.6a10 10 0 0 1 5-2.6"></path><path d="M14 10a10 10 0 0 1 5 2.6"></path><path d="M12 20h.01"></path></svg></span><div style="min-width:0"><p class="ttl">Não foi possível verificar atualizações</p><p class="sub">O GitHub não respondeu. Veja sua conexão e tente de novo.</p></div><div class="acts"><button type="button" class="btn" onClick="{{check}}">Tentar de novo</button></div></div></div></sc-if><sc-if value="{{isAvail}}" hint-placeholder-val="{{false}}"><div class="card hl" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 11l5 5 5-5"></path><path d="M5 20h14"></path></svg></span><div style="min-width:0"><p class="ttl">Versão 0.9.0 disponível</p><p class="sub">Publicada em 05/11/2026 · 38 MB. Baixa, instala e reinicia o app.</p></div><div class="acts"><button type="button" class="btn pri" onClick="{{update}}">Atualizar agora</button></div></div></div></sc-if><sc-if value="{{isConfirm}}" hint-placeholder-val="{{false}}"><div class="card hl" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3z"></path><path d="M12 10v4"></path><path d="M12 17h.01"></path></svg></span><div style="min-width:0"><p class="ttl">2 sessões em execução serão encerradas</p><p class="sub">O app reinicia para instalar a 0.9.0.</p></div><div class="acts"></div></div><div class="acts2"><button type="button" class="btn" onClick="{{notNow}}">Agora não</button><button type="button" class="btn pri" onClick="{{download}}">Atualizar mesmo assim</button></div></div></sc-if><sc-if value="{{isDown}}" hint-placeholder-val="{{false}}"><div class="card hl" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7 11l5 5 5-5"></path><path d="M5 20h14"></path></svg></span><div style="min-width:0"><p class="ttl">Baixando a 0.9.0</p><p class="sub">{{pct}}% · {{mb}} de 38 MB</p></div><div class="acts"><button type="button" class="btn" onClick="{{cancel}}">Cancelar</button></div></div><div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{pct}}"><div class="fill" style="width:{{pct}}%"></div></div></div></sc-if><sc-if value="{{isInstall}}" hint-placeholder-val="{{false}}"><div class="card hl" role="status"><div class="top"><span style="flex:none;display:flex;color:#F2A541"><svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6"></path></svg></span><div style="min-width:0"><p class="ttl">Instalando e reiniciando…</p><p class="sub">O sistema pode pedir sua senha.</p></div><div class="acts"></div></div></div></sc-if><sc-if value="{{isErr}}" hint-placeholder-val="{{false}}"><div class="card bad" role="status"><div class="top"><span style="flex:none;display:flex;color:#F27A6E"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></span><div style="min-width:0"><p class="ttl">Não foi possível atualizar</p><p class="sub">O download parou no meio. Sua versão continua a mesma.</p></div><div class="acts"></div></div><div class="acts2"><button type="button" class="btn" onClick="{{openRelease}}">Abrir página da release</button><button type="button" class="btn pri" onClick="{{download}}">Tentar de novo</button></div></div></sc-if>
+<div style="flex:none;display:flex;align-items:baseline;gap:8px;margin-top:16px"><h3 style="font-size:14px;font-weight:600">{{notesTitle}}</h3><span class="sub">{{notesDate}}</span></div>
+<div style="flex:1;min-height:0;overflow:auto;padding:0 4px 16px 0">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="2"><p class="grp">{{g.name}}</p><ul><sc-for list="{{g.items}}" as="i" hint-placeholder-count="4"><li class="li"><span class="dot"></span><span>{{i.text}}</span></li></sc-for></ul></sc-for>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{askClose}}" hint-placeholder-val="{{false}}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)"><div role="alertdialog" aria-label="Cancelar o download" style="width:400px;background:#14171D;border:1px solid #2E3542;border-radius:10px;padding:18px"><p class="ttl">Cancelar o download?</p><p class="sub" style="margin-top:6px">O que já foi baixado será descartado.</p><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><button type="button" class="btn" onClick="{{cancelClose}}">Cancelar e fechar</button><button type="button" class="btn pri" onClick="{{keep}}">Continuar baixando</button></div></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const START = {"phase": "avail"};
+const CUR = { title: 'Novidades da 0.8.0', date: '03/11/2026', groups: [
+  { name: 'Funcionalidades', items: [
+    { scope: 'specs:', text: 'Cabeçalho da spec com ações por estado, menu Mais ações e abas de modo' },
+    { scope: 'specs:', text: 'Spec bloqueada durante ações, com faixa de status, cancelamento e aviso de falha' },
+    { scope: 'prompt:', text: 'Diff das edições, painel Spec em refino e resumo do turno' },
+    { scope: 'prototipo:', text: 'Apagar telas pelo cartão, pela seleção e pela aba Versões' },
+    { scope: 'specs:', text: 'Responder as perguntas em aberto numa sessão guiada' },
+    { scope: 'board:', text: 'Balão na etapa que espera você, com o motivo no card' },
+    { scope: 'shell:', text: 'Marca do sistema no cabeçalho, animada enquanto specs executam' },
+    { scope: 'review:', text: 'Fila em pilha, com merge que segue para a próxima spec' },
+  ] } ] };
+const NEW = { title: 'Novidades da 0.9.0', date: '05/11/2026', groups: [
+  { name: 'Funcionalidades', items: [
+    { scope: 'board:', text: 'Decidir a etapa pelo balão, sem sair do Quadro' },
+    { scope: 'ui:', text: 'Motion e fluidez em toda a interface' },
+    { scope: 'specs:', text: 'Orquestrador: o modelo certo para cada etapa da spec' },
+    { scope: 'board:', text: 'Visão Foco, com a pasta de specs e o palco' },
+  ] } ] };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { open: true, phase: START.phase, pct: START.pct || 0, ask: false };
+    this.t = null;
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  later(fn, ms) { clearTimeout(this.t); this.t = setTimeout(fn, ms); }
+  go(phase) { clearTimeout(this.t); this.setState({ phase }); }
+  tick() {
+    const pct = Math.min(100, this.state.pct + 7);
+    if (pct >= 100) { this.setState({ pct: 100, phase: 'install' }); return; }
+    this.setState({ pct });
+    this.later(() => this.tick(), 220);
+  }
+  renderVals() {
+    const { open, phase, pct, ask } = this.state;
+    const hasNew = ['avail', 'confirm', 'down', 'install', 'err'].includes(phase);
+    const n = hasNew ? NEW : CUR;
+    return {
+      yes: true, isOpen: open, closed: !open, askClose: ask,
+      isOk: phase === 'ok', isChecking: phase === 'checking', isOffline: phase === 'offline',
+      isAvail: phase === 'avail', isConfirm: phase === 'confirm', isDown: phase === 'down',
+      isInstall: phase === 'install', isErr: phase === 'err',
+      pct, mb: Math.round(38 * pct / 100),
+      notesTitle: n.title, notesDate: n.date, groups: n.groups,
+      closeLabel: phase === 'install' ? 'Aguarde a instalação terminar' : 'Fechar',
+      check: () => { this.go('checking'); this.later(() => this.setState({ phase: 'avail' }), 1200); },
+      update: () => { if (START.sessions) this.go('confirm'); else { this.setState({ phase: 'down', pct: 0 }); this.later(() => this.tick(), 220); } },
+      download: () => { this.setState({ phase: 'down', pct: 0 }); this.later(() => this.tick(), 220); },
+      notNow: () => this.go('avail'),
+      cancel: () => this.go('avail'),
+      openRelease: () => {},
+      close: () => { if (phase === 'down') { clearTimeout(this.t); this.setState({ ask: true }); } else this.go2(); },
+      keep: () => { this.setState({ ask: false }); this.later(() => this.tick(), 220); },
+      cancelClose: () => { this.setState({ ask: false, phase: 'avail' }); this.go2(); },
+      open: () => this.setState({ open: true }),
+    };
+  }
+  go2() { clearTimeout(this.t); this.setState({ open: false }); }
+}
+</script>
+</body>
+</html>
