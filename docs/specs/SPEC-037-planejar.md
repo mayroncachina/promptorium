@@ -202,6 +202,17 @@ Riscos:
 - D10 · Parar a fila não abre a primeira sessão: quem parou quer decidir o próximo passo (R10). Com falhas a sessão abre, porque a fila terminou.
 - D11 · A escala de espaçamento, o separador "·" e o texto de 11px seguem o app, mesmo com a validação apontando esses itens. Mudar só aqui criaria inconsistência.
 - D8 · O R13 commita sozinho, mesmo sem a opção de commit da criação, porque a execução parte do repositório. Se o arquivo da spec nunca foi commitado, o commit falha e isso aparece no aviso.
+- D12 · A rodada automática usa o mesmo limite de Planejar, US$ 1,00, como pede o R6. A constante própria (`SpecDesigner.autoPlanBudgetUsd`) permite mudar só esse valor. O limite é defensável porque a leitura do repositório domina o custo: na criação o repositório quase não tem código, e estourar o limite conta como falha (R9), sem gravar nada. Esse custo não foi medido com execução real.
+- D13 · Parar a fila cancela de vez a primeira sessão: retomar a fila não a abre (D10).
+- D14 · Executar e o editor ficam bloqueados até o fim da passada, inclusive nas specs já prontas, porque o commit só sai no fim. A faixa diz "até a fila passar por ela" nas specs que faltam e "até a fila terminar" nas prontas.
+- D15 · O aviso de spec concluída sai de `SpecService._upsert`, na mudança do status para concluída. Isso cobre `markDone`, o fim do review, a verificação da implementação e uma conclusão feita no arquivo.
+- D16 · "Uma vez por spec" e o aviso "Plano anterior" ficam em memória, como a fila. Reabrir o app apaga o aviso, e uma dependência reaberta e concluída de novo depois disso pode replanejar a spec.
+- D17 · Além do salvamento pelo editor, salvar as respostas das perguntas e abrir Refinar com IA retiram a marca, porque são edições da pessoa. Clonar uma spec não copia a marca. Uma edição feita fora do app não é detectada.
+- D18 · "Tentar de novo" não refaz uma dependente salva à mão ou já iniciada (D7). Ela fica como estava.
+- D19 · A rodada automática conta como falha uma resposta sem objetivo, requisitos, critérios, "Fora do escopo", plano ou etapas, ou com um título `##` dentro do texto, que abriria uma seção nova na spec (R12).
+- D20 · A primeira sessão abre por um widget do shell (`FirstRunHost`), porque a pessoa pode ter saído da tela: o diálogo aparece onde ela estiver.
+- D21 · Uma falha só no commit do R13 mostra o aviso, mas não marca "Plano anterior", porque o plano novo já está no arquivo. O aviso não oferece "Tentar de novo".
+- D22 · O arquivo gerado pelo roadmap não ganha o `## Plano` vazio do mockup 5, para que a criação com a opção desligada continue como hoje. O painel lateral mantém o título em maiúsculas de `SidePanel`, e a lista de arquivos da etapa mantém todas as specs, como antes.
 
 ## Perguntas em aberto
 

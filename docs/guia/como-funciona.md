@@ -5,7 +5,7 @@
 O Promptorium é uma interface para o **Claude Code CLI** (`claude`). Ele não chama a API: cada execução é um processo do CLI.
 
 - **Sessões e etapas de spec**: `claude -p --input-format stream-json --output-format stream-json`. A timeline é montada a partir do stream-json, e os pedidos de permissão chegam e são respondidos pela própria stdin/stdout (`--permission-prompt-tool stdio`).
-- **Planner, gerar design, verificar implementação, nova skill**: `claude -p` em modo somente leitura, com `--json-schema` quando o resultado precisa ser estruturado.
+- **Planner, Planejar, verificar implementação, nova skill**: `claude -p` em modo somente leitura, com `--json-schema` quando o resultado precisa ser estruturado.
 - **Terminal da sessão**: `claude --resume <id>` interativo, num PTY embutido.
 - **Servidores MCP**: lidos e alterados só pelos comandos `claude mcp list/add/remove`. O app nunca escreve `~/.claude.json` nem `.mcp.json`.
 

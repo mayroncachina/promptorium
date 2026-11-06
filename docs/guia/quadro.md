@@ -23,7 +23,9 @@ Menu do cartão: Executar com opções… (provedor, agente, modelo, esforço, m
 
 - Spec com até 3 requisitos (configurável) roda inteira numa sessão só.
 - Quando o gate passa de primeira, a próxima etapa continua na mesma sessão enquanto o contexto estiver abaixo do limite (padrão 60 mil tokens), o que economiza tokens.
-- Sem `## Design`, o app avisa antes: "Executar mesmo assim" ou "Gerar design".
+- Sem `## Plano`, o app avisa antes: "Executar mesmo assim" ou "Planejar".
+- Enquanto o app escreve o plano de uma spec, Executar e o autopilot esperam. O cartão mostra "Planejando as specs do projeto" ou "Atualizando o plano".
+- Quando a atualização do plano falha, a spec mantém o plano anterior e pode ser executada. O Quadro mostra um aviso com "Tentar de novo", e o cartão diz "Plano anterior" até uma nova rodada dar certo ou a spec começar.
 - Com avanço automático ligado, a próxima etapa abre sozinha; com todas feitas, a spec vai para Review.
 - Uma sessão por spec de cada vez; specs diferentes rodam em paralelo.
 
