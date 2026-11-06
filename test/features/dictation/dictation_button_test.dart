@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
@@ -139,8 +140,21 @@ void main() {
     expect(find.byIcon(Icons.mic_none), findsNothing);
   });
 
-  testWidgets('R9: the composer fits 1100×700 recording, transcribing and '
-      'with an error, and Tab reaches the microphone', (tester) async {
+  testWidgets('R9: Tab reaches the microphone', (tester) async {
+    await pump(tester, composer);
+    final icon = find.byIcon(Icons.mic_none);
+    var reached = false;
+    for (var i = 0; i < 12 && !reached; i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      reached = Focus.of(tester.element(icon)).hasPrimaryFocus;
+    }
+    expect(reached, isTrue);
+  });
+
+  testWidgets('R9: the composer fits 1100×700 recording and with an error', (
+    tester,
+  ) async {
     await pump(tester, composer);
     await tester.tap(key('dictation-button-session'));
     await settle(

@@ -26,10 +26,14 @@ class FakeRecorder implements VoiceRecorder {
   final started = <String>[];
   final recordings = <FakeRecording>[];
   bool noMicrophone = false;
+
+  /// Holds [start], as a slow `arecord` does.
+  Completer<void>? gate;
   List<MicDevice> mics = const [MicDevice('plughw:0,0', 'Microfone interno')];
 
   @override
   Future<VoiceRecording> start(String path, {String? device}) async {
+    await gate?.future;
     if (noMicrophone) throw const NoMicrophone();
     File(path).writeAsBytesSync([1, 2, 3]);
     started.add(path);

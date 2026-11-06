@@ -318,6 +318,9 @@ class DictationController extends Notifier<DictationState> {
   Timer? _timer;
   Timer? _hold;
   Completer<void>? _cancelRun;
+
+  /// "Parar" came before the recorder finished starting.
+  bool _stopWanted = false;
   VoidCallback? _watchEdit;
 
   @override
@@ -389,6 +392,7 @@ class DictationController extends Notifier<DictationState> {
   /// Starts recording into [id].
   Future<void> start(String id) async {
     if (state.phase != DictationPhase.idle || state.blocked) return;
+    _stopWanted = false;
     state = _with(
       phase: DictationPhase.recording,
       targetId: () => id,
@@ -427,6 +431,7 @@ class DictationController extends Notifier<DictationState> {
       state = _with(elapsed: elapsed, level: _recording?.level ?? 0);
       if (elapsed >= maxDuration) unawaited(stop());
     });
+    if (_stopWanted) unawaited(stop());
   }
 
   void _endTimer() {
@@ -437,10 +442,9 @@ class DictationController extends Notifier<DictationState> {
   /// "Parar e transcrever".
   Future<void> stop() async {
     final recording = _recording, path = _audio, id = state.targetId;
-    if (state.phase != DictationPhase.recording ||
-        recording == null ||
-        path == null ||
-        id == null) {
+    if (state.phase != DictationPhase.recording) return;
+    if (recording == null || path == null || id == null) {
+      _stopWanted = true; // the row is on screen, the recorder is on its way
       return;
     }
     _endTimer();

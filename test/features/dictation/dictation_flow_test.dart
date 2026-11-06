@@ -332,6 +332,23 @@ void main() {
       expect(recorder.recordings.last.stopped, isTrue);
     });
 
+    t('Parar before the recorder is up still stops and transcribes', (
+      tester,
+    ) async {
+      await pump(tester);
+      recorder.gate = Completer();
+      await tester.tap(key(mic));
+      await settle(
+        tester,
+        until: () => key('dictation-recording').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('dictation-stop'));
+      await tester.pump();
+      recorder.gate!.complete();
+      await settle(tester, until: () => transcriber.runs.isNotEmpty);
+      expect(recorder.recordings.single.stopped, isTrue);
+    });
+
     t('only one recording at a time', (tester) async {
       await pump(tester);
       await record(tester);
