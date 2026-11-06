@@ -11,6 +11,7 @@ import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/mcp_state.dart' show mcpListProvider;
 import '../../features/mcp/widgets/add_server_dialog.dart';
+import '../../features/project/widgets/first_run_host.dart';
 import '../../features/project/widgets/start_screen.dart'
     show startScreenProvider;
 import '../../features/project/project_screen.dart';
@@ -400,6 +401,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                             // Approvals of sessions / conversations that are
                             // not on screen, answerable from anywhere.
                             const Positioned.fill(child: GlobalApprovals()),
+                            const FirstRunHost(),
                           ],
                         ),
                       ),

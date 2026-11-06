@@ -12,6 +12,7 @@ import '../../data/repos/sessions_repo.dart';
 import '../../data/repos/specs_repo.dart';
 import '../project/project_service.dart' show TrashFolder, trashFolderProvider;
 import '../project/project_config.dart';
+import '../project/spec_auto_planner.dart';
 import '../sessions/session_manager.dart' show slugify;
 import 'spec_file.dart';
 
@@ -50,6 +51,7 @@ class SpecService {
     SessionsRepo? sessions,
     TrashFolder? trash,
     this.onIssues,
+    this.onDone,
   })
     // ignore: prefer_initializing_formals
     : _sessions = sessions,
@@ -57,6 +59,10 @@ class SpecService {
        _trash = trash;
 
   final void Function(int workspaceId, List<String> issues)? onIssues;
+
+  /// A spec reached "concluída", whatever the path: "Marcar como finalizada",
+  /// the end of the review, the verification or the file (SPEC-037 R13).
+  final Future<void> Function(Workspace ws, Spec spec)? onDone;
   Future<void> _syncTail = Future<void>.value();
   final Map<int, List<String>> issues = {};
   List<String>? _collecting;
@@ -229,7 +235,13 @@ class SpecService {
         ),
       );
     }
-    return (await _repo.getById(existing.id))!;
+    final saved = (await _repo.getById(existing.id))!;
+    if (status == SpecStatus.done &&
+        existing.status != SpecStatus.done &&
+        stage == SpecStage.done) {
+      await onDone?.call(ws, saved);
+    }
+    return saved;
   }
 
   static bool _sameReqs(List<SpecRequirement> a, List<SpecRequirement> b) {
@@ -516,6 +528,11 @@ final specServiceProvider = Provider(
     onIssues: (id, issues) {
       if (ref.mounted) {
         ref.read(specSyncIssuesProvider.notifier).set(id, issues);
+      }
+    },
+    onDone: (ws, spec) async {
+      if (ref.mounted) {
+        await ref.read(specAutoPlannerProvider.notifier).specFinished(ws, spec);
       }
     },
   ),
