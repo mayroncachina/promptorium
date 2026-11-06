@@ -288,7 +288,10 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
       keyName: 'spec-design',
       label: s.hasPlan ? 'Planejar de novo' : 'Planejar',
       icon: Icons.checklist,
-      emphasis: SpecActionEmphasis.secondary,
+      // SPEC-039 R7: without a Plano, planning comes before approving.
+      emphasis: s.hasPlan
+          ? SpecActionEmphasis.secondary
+          : SpecActionEmphasis.primary,
       tooltip: designTooltip,
       onTap: s.onDesign,
       unavailableReason: why,
@@ -299,7 +302,9 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
         keyName: 'spec-approve',
         label: 'Aprovar',
         icon: Icons.check,
-        emphasis: SpecActionEmphasis.primary,
+        emphasis: s.hasPlan
+            ? SpecActionEmphasis.primary
+            : SpecActionEmphasis.secondary,
         tooltip: approveTooltip,
         onTap: s.onApprove,
         unavailableReason: why,
@@ -363,8 +368,12 @@ int fitActions(List<double> widths, double available) {
   if (kept < secondary.length && menu.isEmpty) {
     kept = fitActions(widths, room - moreWidth - gap);
   }
+  final shown = {...secondary.take(kept), ...primary};
   return (
-    bar: [...secondary.take(kept), ...primary],
+    bar: [
+      for (final a in actions)
+        if (shown.contains(a)) a,
+    ],
     menu: [for (final a in secondary.skip(kept)) a.toMenu(), ...menu],
   );
 }
