@@ -300,6 +300,463 @@ class WorkspacesCompanion extends UpdateCompanion<Workspace> {
   }
 }
 
+class $SprintsTable extends Sprints with TableInfo<$SprintsTable, Sprint> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SprintsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _goalMeta = const VerificationMeta('goal');
+  @override
+  late final GeneratedColumn<String> goal = GeneratedColumn<String>(
+    'goal',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SprintState, String> state =
+      GeneratedColumn<String>(
+        'state',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(SprintState.planned.name),
+      ).withConverter<SprintState>($SprintsTable.$converterstate);
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _closedAtMeta = const VerificationMeta(
+    'closedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> closedAt = GeneratedColumn<DateTime>(
+    'closed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    name,
+    goal,
+    state,
+    position,
+    closedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sprints';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Sprint> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('goal')) {
+      context.handle(
+        _goalMeta,
+        goal.isAcceptableOrUnknown(data['goal']!, _goalMeta),
+      );
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('closed_at')) {
+      context.handle(
+        _closedAtMeta,
+        closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Sprint map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Sprint(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      goal: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}goal'],
+      ),
+      state: $SprintsTable.$converterstate.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}state'],
+        )!,
+      ),
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      closedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}closed_at'],
+      ),
+    );
+  }
+
+  @override
+  $SprintsTable createAlias(String alias) {
+    return $SprintsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SprintState, String, String> $converterstate =
+      const EnumNameConverter<SprintState>(SprintState.values);
+}
+
+class Sprint extends DataClass implements Insertable<Sprint> {
+  final int id;
+  final int workspaceId;
+  final String name;
+
+  /// What the sprint should deliver (optional).
+  final String? goal;
+  final SprintState state;
+
+  /// Position in the sprint list.
+  final int position;
+  final DateTime? closedAt;
+  const Sprint({
+    required this.id,
+    required this.workspaceId,
+    required this.name,
+    this.goal,
+    required this.state,
+    required this.position,
+    this.closedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || goal != null) {
+      map['goal'] = Variable<String>(goal);
+    }
+    {
+      map['state'] = Variable<String>(
+        $SprintsTable.$converterstate.toSql(state),
+      );
+    }
+    map['position'] = Variable<int>(position);
+    if (!nullToAbsent || closedAt != null) {
+      map['closed_at'] = Variable<DateTime>(closedAt);
+    }
+    return map;
+  }
+
+  SprintsCompanion toCompanion(bool nullToAbsent) {
+    return SprintsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      name: Value(name),
+      goal: goal == null && nullToAbsent ? const Value.absent() : Value(goal),
+      state: Value(state),
+      position: Value(position),
+      closedAt: closedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedAt),
+    );
+  }
+
+  factory Sprint.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Sprint(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      name: serializer.fromJson<String>(json['name']),
+      goal: serializer.fromJson<String?>(json['goal']),
+      state: $SprintsTable.$converterstate.fromJson(
+        serializer.fromJson<String>(json['state']),
+      ),
+      position: serializer.fromJson<int>(json['position']),
+      closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'name': serializer.toJson<String>(name),
+      'goal': serializer.toJson<String?>(goal),
+      'state': serializer.toJson<String>(
+        $SprintsTable.$converterstate.toJson(state),
+      ),
+      'position': serializer.toJson<int>(position),
+      'closedAt': serializer.toJson<DateTime?>(closedAt),
+    };
+  }
+
+  Sprint copyWith({
+    int? id,
+    int? workspaceId,
+    String? name,
+    Value<String?> goal = const Value.absent(),
+    SprintState? state,
+    int? position,
+    Value<DateTime?> closedAt = const Value.absent(),
+  }) => Sprint(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    name: name ?? this.name,
+    goal: goal.present ? goal.value : this.goal,
+    state: state ?? this.state,
+    position: position ?? this.position,
+    closedAt: closedAt.present ? closedAt.value : this.closedAt,
+  );
+  Sprint copyWithCompanion(SprintsCompanion data) {
+    return Sprint(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      name: data.name.present ? data.name.value : this.name,
+      goal: data.goal.present ? data.goal.value : this.goal,
+      state: data.state.present ? data.state.value : this.state,
+      position: data.position.present ? data.position.value : this.position,
+      closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Sprint(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('name: $name, ')
+          ..write('goal: $goal, ')
+          ..write('state: $state, ')
+          ..write('position: $position, ')
+          ..write('closedAt: $closedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, workspaceId, name, goal, state, position, closedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Sprint &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.name == this.name &&
+          other.goal == this.goal &&
+          other.state == this.state &&
+          other.position == this.position &&
+          other.closedAt == this.closedAt);
+}
+
+class SprintsCompanion extends UpdateCompanion<Sprint> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> name;
+  final Value<String?> goal;
+  final Value<SprintState> state;
+  final Value<int> position;
+  final Value<DateTime?> closedAt;
+  const SprintsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.goal = const Value.absent(),
+    this.state = const Value.absent(),
+    this.position = const Value.absent(),
+    this.closedAt = const Value.absent(),
+  });
+  SprintsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String name,
+    this.goal = const Value.absent(),
+    this.state = const Value.absent(),
+    this.position = const Value.absent(),
+    this.closedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       name = Value(name);
+  static Insertable<Sprint> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? name,
+    Expression<String>? goal,
+    Expression<String>? state,
+    Expression<int>? position,
+    Expression<DateTime>? closedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (name != null) 'name': name,
+      if (goal != null) 'goal': goal,
+      if (state != null) 'state': state,
+      if (position != null) 'position': position,
+      if (closedAt != null) 'closed_at': closedAt,
+    });
+  }
+
+  SprintsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? name,
+    Value<String?>? goal,
+    Value<SprintState>? state,
+    Value<int>? position,
+    Value<DateTime?>? closedAt,
+  }) {
+    return SprintsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      name: name ?? this.name,
+      goal: goal ?? this.goal,
+      state: state ?? this.state,
+      position: position ?? this.position,
+      closedAt: closedAt ?? this.closedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (goal.present) {
+      map['goal'] = Variable<String>(goal.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(
+        $SprintsTable.$converterstate.toSql(state.value),
+      );
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (closedAt.present) {
+      map['closed_at'] = Variable<DateTime>(closedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SprintsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('name: $name, ')
+          ..write('goal: $goal, ')
+          ..write('state: $state, ')
+          ..write('position: $position, ')
+          ..write('closedAt: $closedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -562,6 +1019,20 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _sprintIdMeta = const VerificationMeta(
+    'sprintId',
+  );
+  @override
+  late final GeneratedColumn<int> sprintId = GeneratedColumn<int>(
+    'sprint_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sprints (id) ON DELETE SET NULL',
+    ),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -587,6 +1058,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     boardOrder,
     gateResends,
     rejectedHunks,
+    sprintId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -746,6 +1218,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('sprint_id')) {
+      context.handle(
+        _sprintIdMeta,
+        sprintId.isAcceptableOrUnknown(data['sprint_id']!, _sprintIdMeta),
+      );
+    }
     return context;
   }
 
@@ -859,6 +1337,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.int,
         data['${effectivePrefix}rejected_hunks'],
       )!,
+      sprintId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sprint_id'],
+      ),
     );
   }
 
@@ -940,6 +1422,10 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// Hunks rejected in the Review.
   final int rejectedHunks;
+
+  /// Sprint of the spec (null = "Sem sprint"). Not in the file: a sync of the
+  /// spec never touches it.
+  final int? sprintId;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -964,6 +1450,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.boardOrder,
     required this.gateResends,
     required this.rejectedHunks,
+    this.sprintId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1025,6 +1512,9 @@ class Spec extends DataClass implements Insertable<Spec> {
     }
     map['gate_resends'] = Variable<int>(gateResends);
     map['rejected_hunks'] = Variable<int>(rejectedHunks);
+    if (!nullToAbsent || sprintId != null) {
+      map['sprint_id'] = Variable<int>(sprintId);
+    }
     return map;
   }
 
@@ -1073,6 +1563,9 @@ class Spec extends DataClass implements Insertable<Spec> {
           : Value(boardOrder),
       gateResends: Value(gateResends),
       rejectedHunks: Value(rejectedHunks),
+      sprintId: sprintId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sprintId),
     );
   }
 
@@ -1111,6 +1604,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       boardOrder: serializer.fromJson<int?>(json['boardOrder']),
       gateResends: serializer.fromJson<int>(json['gateResends']),
       rejectedHunks: serializer.fromJson<int>(json['rejectedHunks']),
+      sprintId: serializer.fromJson<int?>(json['sprintId']),
     );
   }
   @override
@@ -1146,6 +1640,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       'boardOrder': serializer.toJson<int?>(boardOrder),
       'gateResends': serializer.toJson<int>(gateResends),
       'rejectedHunks': serializer.toJson<int>(rejectedHunks),
+      'sprintId': serializer.toJson<int?>(sprintId),
     };
   }
 
@@ -1173,6 +1668,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<int?> boardOrder = const Value.absent(),
     int? gateResends,
     int? rejectedHunks,
+    Value<int?> sprintId = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1201,6 +1697,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     boardOrder: boardOrder.present ? boardOrder.value : this.boardOrder,
     gateResends: gateResends ?? this.gateResends,
     rejectedHunks: rejectedHunks ?? this.rejectedHunks,
+    sprintId: sprintId.present ? sprintId.value : this.sprintId,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1253,6 +1750,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       rejectedHunks: data.rejectedHunks.present
           ? data.rejectedHunks.value
           : this.rejectedHunks,
+      sprintId: data.sprintId.present ? data.sprintId.value : this.sprintId,
     );
   }
 
@@ -1281,7 +1779,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('mergeOverride: $mergeOverride, ')
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
-          ..write('rejectedHunks: $rejectedHunks')
+          ..write('rejectedHunks: $rejectedHunks, ')
+          ..write('sprintId: $sprintId')
           ..write(')'))
         .toString();
   }
@@ -1311,6 +1810,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     boardOrder,
     gateResends,
     rejectedHunks,
+    sprintId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1338,7 +1838,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.mergeOverride == this.mergeOverride &&
           other.boardOrder == this.boardOrder &&
           other.gateResends == this.gateResends &&
-          other.rejectedHunks == this.rejectedHunks);
+          other.rejectedHunks == this.rejectedHunks &&
+          other.sprintId == this.sprintId);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1365,6 +1866,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<int?> boardOrder;
   final Value<int> gateResends;
   final Value<int> rejectedHunks;
+  final Value<int?> sprintId;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1389,6 +1891,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.boardOrder = const Value.absent(),
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
+    this.sprintId = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1414,6 +1917,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.boardOrder = const Value.absent(),
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
+    this.sprintId = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1442,6 +1946,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<int>? boardOrder,
     Expression<int>? gateResends,
     Expression<int>? rejectedHunks,
+    Expression<int>? sprintId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1467,6 +1972,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (boardOrder != null) 'board_order': boardOrder,
       if (gateResends != null) 'gate_resends': gateResends,
       if (rejectedHunks != null) 'rejected_hunks': rejectedHunks,
+      if (sprintId != null) 'sprint_id': sprintId,
     });
   }
 
@@ -1494,6 +2000,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<int?>? boardOrder,
     Value<int>? gateResends,
     Value<int>? rejectedHunks,
+    Value<int?>? sprintId,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -1519,6 +2026,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       boardOrder: boardOrder ?? this.boardOrder,
       gateResends: gateResends ?? this.gateResends,
       rejectedHunks: rejectedHunks ?? this.rejectedHunks,
+      sprintId: sprintId ?? this.sprintId,
     );
   }
 
@@ -1602,6 +2110,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (rejectedHunks.present) {
       map['rejected_hunks'] = Variable<int>(rejectedHunks.value);
     }
+    if (sprintId.present) {
+      map['sprint_id'] = Variable<int>(sprintId.value);
+    }
     return map;
   }
 
@@ -1630,7 +2141,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('mergeOverride: $mergeOverride, ')
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
-          ..write('rejectedHunks: $rejectedHunks')
+          ..write('rejectedHunks: $rejectedHunks, ')
+          ..write('sprintId: $sprintId')
           ..write(')'))
         .toString();
   }
@@ -13120,6 +13632,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $WorkspacesTable workspaces = $WorkspacesTable(this);
+  late final $SprintsTable sprints = $SprintsTable(this);
   late final $SpecsTable specs = $SpecsTable(this);
   late final $SpecStepsTable specSteps = $SpecStepsTable(this);
   late final $TasksTable tasks = $TasksTable(this);
@@ -13153,6 +13666,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     workspaces,
+    sprints,
     specs,
     specSteps,
     tasks,
@@ -13183,7 +13697,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         'workspaces',
         limitUpdateKind: UpdateKind.delete,
       ),
+      result: [TableUpdate('sprints', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
       result: [TableUpdate('specs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sprints',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('specs', kind: UpdateKind.update)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -13337,6 +13865,25 @@ typedef $$WorkspacesTableUpdateCompanionBuilder = WorkspacesCompanion Function({
 final class $$WorkspacesTableReferences
     extends BaseReferences<_$AppDatabase, $WorkspacesTable, Workspace> {
   $$WorkspacesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$SprintsTable, List<Sprint>> _sprintsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.sprints,
+    aliasName: 'workspaces__id__sprints__workspace_id',
+  );
+
+  $$SprintsTableProcessedTableManager get sprintsRefs {
+    final manager = $$SprintsTableTableManager(
+      $_db,
+      $_db.sprints,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_sprintsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$SpecsTable, List<Spec>> _specsRefsTable(
     _$AppDatabase db,
@@ -13498,6 +14045,31 @@ class $$WorkspacesTableFilterComposer
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> sprintsRefs(
+    Expression<bool> Function($$SprintsTableFilterComposer f) f,
+  ) {
+    final $$SprintsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.sprints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SprintsTableFilterComposer(
+            $db: $db,
+            $table: $db.sprints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> specsRefs(
     Expression<bool> Function($$SpecsTableFilterComposer f) f,
@@ -13726,6 +14298,31 @@ class $$WorkspacesTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  Expression<T> sprintsRefs<T extends Object>(
+    Expression<T> Function($$SprintsTableAnnotationComposer a) f,
+  ) {
+    final $$SprintsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.sprints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SprintsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sprints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> specsRefs<T extends Object>(
     Expression<T> Function($$SpecsTableAnnotationComposer a) f,
   ) {
@@ -13916,6 +14513,7 @@ class $$WorkspacesTableTableManager
           (Workspace, $$WorkspacesTableReferences),
           Workspace,
           PrefetchHooks Function({
+            bool sprintsRefs,
             bool specsRefs,
             bool tasksRefs,
             bool sessionsRefs,
@@ -13970,6 +14568,7 @@ class $$WorkspacesTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
+                sprintsRefs = false,
                 specsRefs = false,
                 tasksRefs = false,
                 sessionsRefs = false,
@@ -13981,6 +14580,7 @@ class $$WorkspacesTableTableManager
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (sprintsRefs) db.sprints,
                     if (specsRefs) db.specs,
                     if (tasksRefs) db.tasks,
                     if (sessionsRefs) db.sessions,
@@ -13992,6 +14592,27 @@ class $$WorkspacesTableTableManager
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (sprintsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          Sprint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._sprintsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sprintsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (specsRefs)
                         await $_getPrefetchedData<
                           Workspace,
@@ -14160,6 +14781,7 @@ typedef $$WorkspacesTableProcessedTableManager =
       (Workspace, $$WorkspacesTableReferences),
       Workspace,
       PrefetchHooks Function({
+        bool sprintsRefs,
         bool specsRefs,
         bool tasksRefs,
         bool sessionsRefs,
@@ -14168,6 +14790,434 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool specDraftsRefs,
         bool autopilotStatesRefs,
       })
+    >;
+typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
+  Value<int> id,
+  required int workspaceId,
+  required String name,
+  Value<String?> goal,
+  Value<SprintState> state,
+  Value<int> position,
+  Value<DateTime?> closedAt,
+});
+typedef $$SprintsTableUpdateCompanionBuilder = SprintsCompanion Function({
+  Value<int> id,
+  Value<int> workspaceId,
+  Value<String> name,
+  Value<String?> goal,
+  Value<SprintState> state,
+  Value<int> position,
+  Value<DateTime?> closedAt,
+});
+
+final class $$SprintsTableReferences
+    extends BaseReferences<_$AppDatabase, $SprintsTable, Sprint> {
+  $$SprintsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('sprints__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<$SpecsTable, List<Spec>> _specsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.specs,
+    aliasName: 'sprints__id__specs__sprint_id',
+  );
+
+  $$SpecsTableProcessedTableManager get specsRefs {
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.sprintId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$SprintsTableFilterComposer
+    extends Composer<_$AppDatabase, $SprintsTable> {
+  $$SprintsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get goal => $composableBuilder(
+    column: $table.goal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SprintState, SprintState, String> get state =>
+      $composableBuilder(
+        column: $table.state,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get closedAt => $composableBuilder(
+    column: $table.closedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> specsRefs(
+    Expression<bool> Function($$SpecsTableFilterComposer f) f,
+  ) {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.sprintId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SprintsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SprintsTable> {
+  $$SprintsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get goal => $composableBuilder(
+    column: $table.goal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get closedAt => $composableBuilder(
+    column: $table.closedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SprintsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SprintsTable> {
+  $$SprintsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get goal =>
+      $composableBuilder(column: $table.goal, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SprintState, String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get closedAt =>
+      $composableBuilder(column: $table.closedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> specsRefs<T extends Object>(
+    Expression<T> Function($$SpecsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.sprintId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$SprintsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SprintsTable,
+          Sprint,
+          $$SprintsTableFilterComposer,
+          $$SprintsTableOrderingComposer,
+          $$SprintsTableAnnotationComposer,
+          $$SprintsTableCreateCompanionBuilder,
+          $$SprintsTableUpdateCompanionBuilder,
+          (Sprint, $$SprintsTableReferences),
+          Sprint,
+          PrefetchHooks Function({bool workspaceId, bool specsRefs})
+        > {
+  $$SprintsTableTableManager(_$AppDatabase db, $SprintsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SprintsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SprintsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SprintsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> goal = const Value.absent(),
+                Value<SprintState> state = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<DateTime?> closedAt = const Value.absent(),
+              }) => SprintsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                name: name,
+                goal: goal,
+                state: state,
+                position: position,
+                closedAt: closedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String name,
+                Value<String?> goal = const Value.absent(),
+                Value<SprintState> state = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<DateTime?> closedAt = const Value.absent(),
+              }) => SprintsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                name: name,
+                goal: goal,
+                state: state,
+                position: position,
+                closedAt: closedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SprintsTable, Sprint>(table),
+                  $$SprintsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false, specsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (specsRefs) db.specs],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$SprintsTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$SprintsTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (specsRefs)
+                    await $_getPrefetchedData<Sprint, $SprintsTable, Spec>(
+                      currentTable: table,
+                      referencedTable: $$SprintsTableReferences._specsRefsTable(
+                        db,
+                      ),
+                      managerFromTypedResult: (p0) =>
+                          $$SprintsTableReferences(db, table, p0).specsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.sprintId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SprintsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SprintsTable,
+      Sprint,
+      $$SprintsTableFilterComposer,
+      $$SprintsTableOrderingComposer,
+      $$SprintsTableAnnotationComposer,
+      $$SprintsTableCreateCompanionBuilder,
+      $$SprintsTableUpdateCompanionBuilder,
+      (Sprint, $$SprintsTableReferences),
+      Sprint,
+      PrefetchHooks Function({bool workspaceId, bool specsRefs})
     >;
 typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -14193,6 +15243,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int?> boardOrder,
   Value<int> gateResends,
   Value<int> rejectedHunks,
+  Value<int?> sprintId,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -14218,6 +15269,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int?> boardOrder,
   Value<int> gateResends,
   Value<int> rejectedHunks,
+  Value<int?> sprintId,
 });
 
 final class $$SpecsTableReferences
@@ -14235,6 +15287,23 @@ final class $$SpecsTableReferences
       $_db.workspaces,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SprintsTable _sprintIdTable(_$AppDatabase db) =>
+      db.sprints.createAlias('specs__sprint_id__sprints__id');
+
+  $$SprintsTableProcessedTableManager? get sprintId {
+    final $_column = $_itemColumn<int>('sprint_id');
+    if ($_column == null) return null;
+    final manager = $$SprintsTableTableManager(
+      $_db,
+      $_db.sprints,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sprintIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -14531,6 +15600,29 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$WorkspacesTableFilterComposer(
             $db: $db,
             $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SprintsTableFilterComposer get sprintId {
+    final $$SprintsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sprintId,
+      referencedTable: $db.sprints,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SprintsTableFilterComposer(
+            $db: $db,
+            $table: $db.sprints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14882,6 +15974,29 @@ class $$SpecsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SprintsTableOrderingComposer get sprintId {
+    final $$SprintsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sprintId,
+      referencedTable: $db.sprints,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SprintsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sprints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$SpecsTableAnnotationComposer
@@ -14998,6 +16113,29 @@ class $$SpecsTableAnnotationComposer
           }) => $$WorkspacesTableAnnotationComposer(
             $db: $db,
             $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SprintsTableAnnotationComposer get sprintId {
+    final $$SprintsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sprintId,
+      referencedTable: $db.sprints,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SprintsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sprints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -15223,6 +16361,7 @@ class $$SpecsTableTableManager
           Spec,
           PrefetchHooks Function({
             bool workspaceId,
+            bool sprintId,
             bool specStepsRefs,
             bool tasksRefs,
             bool sessionsRefs,
@@ -15270,6 +16409,7 @@ class $$SpecsTableTableManager
                 Value<int?> boardOrder = const Value.absent(),
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
+                Value<int?> sprintId = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -15294,6 +16434,7 @@ class $$SpecsTableTableManager
                 boardOrder: boardOrder,
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
+                sprintId: sprintId,
               ),
           createCompanionCallback:
               ({
@@ -15321,6 +16462,7 @@ class $$SpecsTableTableManager
                 Value<int?> boardOrder = const Value.absent(),
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
+                Value<int?> sprintId = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -15345,6 +16487,7 @@ class $$SpecsTableTableManager
                 boardOrder: boardOrder,
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
+                sprintId: sprintId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -15357,6 +16500,7 @@ class $$SpecsTableTableManager
           prefetchHooksCallback:
               ({
                 workspaceId = false,
+                sprintId = false,
                 specStepsRefs = false,
                 tasksRefs = false,
                 sessionsRefs = false,
@@ -15402,6 +16546,17 @@ class $$SpecsTableTableManager
                                 ._workspaceIdTable(db),
                             referencedColumn: $$SpecsTableReferences
                                 ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sprintId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sprintId,
+                            referencedTable: $$SpecsTableReferences
+                                ._sprintIdTable(db),
+                            referencedColumn: $$SpecsTableReferences
+                                ._sprintIdTable(db)
                                 .id,
                           ) as T;
                         }
@@ -15576,6 +16731,7 @@ typedef $$SpecsTableProcessedTableManager =
       Spec,
       PrefetchHooks Function({
         bool workspaceId,
+        bool sprintId,
         bool specStepsRefs,
         bool tasksRefs,
         bool sessionsRefs,
@@ -23880,6 +25036,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$WorkspacesTableTableManager get workspaces =>
       $$WorkspacesTableTableManager(_db, _db.workspaces);
+  $$SprintsTableTableManager get sprints =>
+      $$SprintsTableTableManager(_db, _db.sprints);
   $$SpecsTableTableManager get specs =>
       $$SpecsTableTableManager(_db, _db.specs);
   $$SpecStepsTableTableManager get specSteps =>

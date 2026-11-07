@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Grafo com dependências externas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Topo" vista="grafo" aviso="{{nao}}" hint-size="1384px,56px"></dc-import>
+    <div style="position: relative; flex-grow: 1">
+      <sc-for list="{{ondas}}" as="o" hint-placeholder-count="3">
+        <span style="position: absolute; left: {{o.x}}px; top: 28px; font-size: 13px; font-weight: 600; color: #A0A8B6">{{o.nome}}</span>
+      </sc-for>
+      <svg aria-hidden="true" width="1384" height="844" style="position: absolute; left: 0; top: 0" fill="none">
+        <sc-for list="{{setas}}" as="e" hint-placeholder-count="8">
+          <path d="{{e.d}}" stroke="{{e.cor}}" stroke-width="1.6" stroke-dasharray="{{e.traco}}"></path>
+        </sc-for>
+      </svg>
+      <sc-for list="{{nos}}" as="n" hint-placeholder-count="10">
+        <button style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 230px; height: 88px; box-sizing: border-box; padding: 10px 12px; background: {{n.bg}}; border: 1px {{n.linha}} {{n.borda}}; border-radius: 8px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; text-align: left; display: flex; flex-direction: column; gap: 4px">
+          <span style="width: 100%; display: flex; justify-content: space-between; font-size: 12px; color: #A0A8B6"><span style="font-family: 'JetBrains Mono', monospace">{{n.code}}</span><span style="color: {{n.corStatus}}">{{n.status}}</span></span>
+          <span style="font-size: 14px; font-weight: 600; color: {{n.corTitulo}}">{{n.title}}</span>
+          <span style="font-size: 12px; color: {{n.corNota}}">{{n.nota}}</span>
+        </button>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const no = (code, title, x, y, status, corStatus) => ({ code, title, x, y, status, corStatus, nota: '', corNota: '#A0A8B6', bg: '#1A1E26', borda: '#252B35', linha: 'solid', corTitulo: '#E7E9EE' });
+    const ext = (code, title, x, y, status, nota, corNota) => ({ ...no(code, title, x, y, status, '#A0A8B6'), nota, corNota, bg: 'transparent', borda: '#7C8595', linha: 'dashed', corTitulo: '#A0A8B6' });
+    const nos = [
+      ext('SPEC-034', 'Motion e fluidez', 40, 90, 'Feito', 'Sprint 2', '#A0A8B6'),
+      no('SPEC-036', 'Pasta e palco', 320, 90, 'Feito', '#4FD1B5'),
+      no('SPEC-038', 'Tela Sobre', 320, 230, 'Feito', '#4FD1B5'),
+      no('SPEC-040', 'Ditado por voz', 320, 370, 'Review', '#E58FB8'),
+      no('SPEC-037', 'Planejar', 640, 90, 'Feito', '#4FD1B5'),
+      no('SPEC-039', 'Nova spec com planejamento', 640, 230, 'Feito', '#4FD1B5'),
+      no('SPEC-041', 'Radar na bandeja', 640, 370, 'Feito', '#4FD1B5'),
+      no('SPEC-042', 'Sprints no Quadro', 960, 160, 'Em execução', '#F2A541'),
+      { ...no('SPEC-043', 'Ações rápidas na bandeja', 960, 370, 'Backlog', '#A0A8B6'), nota: 'Bloqueada por SPEC-045', corNota: '#F2A541' },
+      ext('SPEC-045', 'Fechar para a bandeja', 640, 540, 'Backlog', 'Sprint 4 · bloqueia SPEC-043', '#F2A541'),
+    ];
+    const by = Object.fromEntries(nos.map((n) => [n.code, n]));
+    const seta = (a, b, cor = '#3A4250', traco = '') => {
+      const x1 = by[a].x + 230, y1 = by[a].y + 44, x2 = by[b].x, y2 = by[b].y + 44, m = (x1 + x2) / 2;
+      return { d: `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`, cor, traco };
+    };
+    return {
+      nao: false,
+      ondas: [{ nome: 'Onda 1', x: 320 }, { nome: 'Onda 2', x: 640 }, { nome: 'Onda 3', x: 960 }],
+      nos,
+      setas: [
+        seta('SPEC-034', 'SPEC-036', '#7C8595', '5 5'),
+        seta('SPEC-036', 'SPEC-037'), seta('SPEC-038', 'SPEC-039'), seta('SPEC-040', 'SPEC-041'),
+        seta('SPEC-037', 'SPEC-042'), seta('SPEC-039', 'SPEC-042'), seta('SPEC-041', 'SPEC-043'),
+        seta('SPEC-045', 'SPEC-043', '#F2A541', '5 5'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Concluir sprint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <dc-import name="Main" aviso="{{nao}}" hint-size="1440px,900px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(6,7,10,0.72); display: flex; align-items: center; justify-content: center">
+    <div role="dialog" aria-label="Concluir Sprint 3" style="width: 560px; box-sizing: border-box; padding: 24px; background: #14171D; border: 1px solid #3A4250; border-radius: 12px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 600">Concluir Sprint 3</h1>
+        <p style="margin: 0; font-size: 14px; color: #A0A8B6">5 specs feitas ficam nesta sprint. 3 ainda não foram feitas.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; border: 1px solid #252B35; border-radius: 8px">
+        <sc-for list="{{pendentes}}" as="s" hint-placeholder-count="3">
+          <div style="min-height: 44px; box-sizing: border-box; padding: 8px 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">{{s.code}}</span>
+            <span style="flex-grow: 1; font-size: 14px">{{s.title}}</span>
+            <span style="font-size: 12px; color: {{s.cor}}">{{s.estado}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend style="padding: 0 0 8px; font-size: 14px; font-weight: 600">Mover as 3 specs para</legend>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="radio" name="destino" checked style="width: 16px; height: 16px; accent-color: #F2A541"><span>Sprint 4 <span style="color: #A0A8B6">Planejada, próxima da lista</span></span></label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="radio" name="destino" style="width: 16px; height: 16px; accent-color: #F2A541"><span>Sem sprint</span></label>
+      </fieldset>
+      <p style="margin: 0; font-size: 13px; line-height: 20px; color: #A0A8B6">SPEC-042 continua em execução depois de mudar de sprint.</p>
+      <label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #F2A541"><span>Ativar a Sprint 4 ao concluir</span></label>
+      <div style="display: flex; justify-content: flex-end; gap: 10px">
+        <button style="height: 36px; padding: 0 14px; background: transparent; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Cancelar</button>
+        <button style="height: 36px; padding: 0 14px; background: #F2A541; border: 0; border-radius: 6px; color: #1A1206; font: 600 13px 'IBM Plex Sans', sans-serif">Concluir sprint</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      nao: false,
+      pendentes: [
+        { code: 'SPEC-042', title: 'Sprints no Quadro', estado: 'Em execução', cor: '#F2A541' },
+        { code: 'SPEC-040', title: 'Ditado por voz', estado: 'Review', cor: '#E58FB8' },
+        { code: 'SPEC-043', title: 'Ações rápidas na bandeja', estado: 'Backlog', cor: '#A0A8B6' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

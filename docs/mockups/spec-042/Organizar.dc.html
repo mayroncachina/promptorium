@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Organizar sprints</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <dc-import name="Main" aviso="{{nao}}" hint-size="1440px,900px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(6,7,10,0.72); display: flex; align-items: center; justify-content: center">
+    <div role="dialog" aria-label="Organizar sprints" style="width: 760px; box-sizing: border-box; padding: 24px; background: #14171D; border: 1px solid #3A4250; border-radius: 12px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 600">Organizar sprints</h1>
+        <p style="margin: 0; font-size: 14px; color: #A0A8B6">Selecione as specs e escolha para onde elas vão.</p>
+      </div>
+      <div style="display: flex; gap: 10px">
+        <label style="position: relative; flex-grow: 1; display: flex"><span style="position: absolute; left: -9999px">Buscar specs</span><input placeholder="Buscar por número ou título" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif"><kbd style="position: absolute; right: 8px; top: 8px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; background: #1A1E26; border: 1px solid #3A4250; border-radius: 4px; color: #A0A8B6; font: 12px 'JetBrains Mono', monospace">/</kbd></label>
+        <button style="height: 36px; padding: 0 12px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Mostrando: Sem sprint</button>
+      </div>
+      <div style="display: flex; flex-direction: column; border: 1px solid #252B35; border-radius: 8px">
+        <sc-for list="{{specs}}" as="s" hint-placeholder-count="6">
+          <label style="height: 44px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35; background: {{s.bg}}">
+            <input type="checkbox" checked="{{s.on}}" style="width: 16px; height: 16px; accent-color: #F2A541">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">{{s.code}}</span>
+            <span style="flex-grow: 1; font-size: 14px">{{s.title}}</span>
+            <span style="font-size: 12px; color: #A0A8B6">{{s.coluna}}</span>
+          </label>
+        </sc-for>
+      </div>
+      <div style="padding: 10px 12px; background: #1F1B12; border: 1px solid #3A3220; border-radius: 8px; font-size: 13px; line-height: 20px">SPEC-047 depende de SPEC-050, que fica em Sem sprint. Dá para mover assim mesmo.</div>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="flex-grow: 1; font-size: 14px; color: #A0A8B6">3 selecionadas</span>
+        <button style="height: 36px; padding: 0 12px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Mover para: Sprint 4</button>
+        <button style="height: 36px; padding: 0 14px; background: transparent; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Cancelar</button>
+        <button style="height: 36px; padding: 0 14px; background: #F2A541; border: 0; border-radius: 6px; color: #1A1206; font: 600 13px 'IBM Plex Sans', sans-serif">Mover 3 specs</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = (code, title, coluna, on) => ({ code, title, coluna, on, bg: on ? '#2A2418' : 'transparent' });
+    return {
+      nao: false,
+      specs: [
+        s('SPEC-047', 'Exportar relatório de custo', 'Backlog', true),
+        s('SPEC-048', 'Atalhos por workspace', 'Backlog', true),
+        s('SPEC-049', 'Histórico de merges', 'Backlog', true),
+        s('SPEC-050', 'Custo por spec', 'Backlog', false),
+        s('SPEC-051', 'Filtro por agente no Foco', 'Backlog', false),
+        s('SPEC-052', 'Modelos de spec', 'Backlog', false),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

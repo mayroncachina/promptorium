@@ -13,13 +13,15 @@ import '../../specs/spec_service.dart';
 import '../../review/widgets/spec_review_panel.dart'
     show pendingCriteriaProvider;
 import '../../agents/agent_file.dart';
-import '../board_rules.dart' show StepView;
+import '../board_rules.dart' show StepView, specStageLabel, specsByCode;
 import '../board_screen.dart';
 import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
 import 'spec_node.dart';
 import 'wave_graph.dart';
+import '../sprint_rules.dart';
+import '../sprint_state.dart';
 
 /// Node size, wave spacing and reference rows (Quadro-Canvas.dc.html).
 const _cardSize = Size(250, 116);
@@ -29,6 +31,7 @@ const _attentionCardSize = Size(250, 134);
 const _waveX = 380.0, _originX = 60.0, _originY = 110.0, _rowGap = 54.0;
 const _refRow = 56.0, _refHeight = 40.0, _refCap = 3, _refsPerRow = 3;
 const canvasPanelWidth = 290.0;
+const _externalSize = Size(240, 88);
 
 class SpecCanvas extends ConsumerStatefulWidget {
   const SpecCanvas({
@@ -37,7 +40,12 @@ class SpecCanvas extends ConsumerStatefulWidget {
     required this.attention,
     required this.highlightNext,
     this.attentionCount,
+    this.all = const [],
   });
+
+  /// Every spec of the board: a dependency in another sprint is a dashed node
+  /// (SPEC-042 R7).
+  final List<Spec> all;
   final List<SpecCardData> cards;
   final bool Function(SpecCardData) attention;
   final bool highlightNext;
@@ -142,12 +150,30 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
     final agentRows = _rows(agentNames.length, 'agent');
     final refRows = agentRows + _rows(skillNames.length, 'skill');
 
+    final filter = ref.watch(boardSprintFilterProvider);
+    final allByCode = specsByCode(widget.all);
+    final externals = <Spec>{
+      for (final s in specs) ...externalDependencies(s, allByCode, filter),
+    }.toList()..sort((a, b) => a.code.compareTo(b.code));
+    final sprints = externals.isEmpty
+        ? const <Sprint>[]
+        : ref.watch(sprintsProvider(externals.first.workspaceId)).value ??
+              const <Sprint>[];
+    // The nodes of other sprints get a column before the first wave.
+    final shift = externals.isEmpty ? 0.0 : _waveX;
+    final externalRects = <int, Rect>{
+      for (final (i, s) in externals.indexed)
+        s.id:
+            Offset(_originX, _originY + i * (_externalSize.height + _rowGap)) &
+            _externalSize,
+    };
+
     final rects = <int, Rect>{};
     for (final entry in columns.entries) {
       var y = _originY;
       for (final d in entry.value) {
         final r =
-            Offset(_originX + entry.key * _waveX, y) &
+            Offset(_originX + shift + entry.key * _waveX, y) &
             (widget.attention(d) ? _attentionCardSize : _cardSize);
         rects[d.spec.id] = r;
         y = r.bottom + _rowGap;
@@ -163,10 +189,10 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
             ..._place(agentNames, 'agent', selectedRect, 0),
             ..._place(skillNames, 'skill', selectedRect, agentRows),
           ];
-    final bounds = rects.values.fold<Rect?>(
-      null,
-      (r, c) => r == null ? c : r.expandToInclude(c),
-    )!;
+    final bounds = [
+      ...rects.values,
+      ...externalRects.values,
+    ].fold<Rect?>(null, (r, c) => r == null ? c : r.expandToInclude(c))!;
     final world = sats.fold(bounds, (r, s) => r.expandToInclude(s.rect));
     final byCode = {for (final s in specs) s.code: s};
     final unlocks = selected == null
@@ -262,6 +288,17 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                       byCode: byCode,
                                       selected: selected?.spec.code,
                                       selectedRect: selectedRect,
+                                      externals: [
+                                        for (final s in specs)
+                                          for (final dep in externals)
+                                            if (s.dependsOn.contains(dep.code))
+                                              (
+                                                from: externalRects[dep.id]!,
+                                                to: rects[s.id]!,
+                                                blocking:
+                                                    dep.stage != SpecStage.done,
+                                              ),
+                                      ],
                                       refs: [
                                         for (final s in sats)
                                           if (!s.more) s,
@@ -271,7 +308,7 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                 ),
                                 for (final entry in columns.entries)
                                   Positioned(
-                                    left: _originX + entry.key * _waveX,
+                                    left: _originX + shift + entry.key * _waveX,
                                     top: _originY - 34,
                                     child: _WaveLabel(
                                       key: ValueKey('board-wave-${entry.key}'),
@@ -279,6 +316,20 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                       next:
                                           widget.highlightNext &&
                                           entry.key == next,
+                                    ),
+                                  ),
+                                for (final s in externals)
+                                  Positioned.fromRect(
+                                    rect: externalRects[s.id]!,
+                                    child: _ExternalNode(
+                                      spec: s,
+                                      sprint: sprintNameOf(s, sprints),
+                                      onTap: () {
+                                        ref
+                                            .read(boardSprintProvider.notifier)
+                                            .set(sprintFilterOf(s));
+                                        select(s.id);
+                                      },
                                     ),
                                   ),
                                 for (final d in cards)
@@ -965,6 +1016,73 @@ class CanvasDotGrid extends CustomPainter {
   bool shouldRepaint(covariant CanvasDotGrid old) => old.view != view;
 }
 
+/// A dependency in another sprint: a click goes there (SPEC-042 R7).
+class _ExternalNode extends StatelessWidget {
+  const _ExternalNode({
+    required this.spec,
+    required this.sprint,
+    required this.onTap,
+  });
+
+  final Spec spec;
+  final String sprint;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final blocking = spec.stage != SpecStage.done;
+    return Material(
+      key: ValueKey('canvas-external-${spec.code}'),
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: blocking ? AppColors.amber : AppColors.textMuted,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 2,
+            children: [
+              Text(
+                '${spec.code} · ${specStageLabel(spec.stage)}',
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                spec.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                sprint,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: blocking ? AppColors.amber : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One (dependency, dependent) pair per `depends-on` between specs on the
 /// canvas; dependencies outside it are left out.
 List<(String, String)> dependencyLinks(List<Spec> specs) {
@@ -995,7 +1113,9 @@ class _CanvasEdges extends CustomPainter {
     required this.selected,
     required this.selectedRect,
     required this.refs,
+    this.externals = const [],
   });
+  final List<({Rect from, Rect to, bool blocking})> externals;
   final List<Spec> specs;
   final Map<int, Rect> rects;
   final Map<String, Spec> byCode;
@@ -1057,6 +1177,18 @@ class _CanvasEdges extends CustomPainter {
             ? AppColors.text
             : AppColors.textMuted.withValues(alpha: .55),
         width: hot ? 2.5 : 1.5,
+      );
+    }
+    for (final e in externals) {
+      _link(
+        canvas,
+        e.from.centerRight,
+        e.to.centerLeft,
+        vertical: false,
+        arrow: true,
+        dashed: true,
+        color: e.blocking ? AppColors.amber : AppColors.textMuted,
+        width: 1.5,
       );
     }
     if (selectedRect case final card?) {

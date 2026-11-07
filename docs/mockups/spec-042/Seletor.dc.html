@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Seletor aberto</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <dc-import name="Main" hint-size="1440px,900px"></dc-import>
+  <div role="menu" aria-label="Sprints" style="position: absolute; left: 80px; top: 52px; width: 420px; box-sizing: border-box; padding: 8px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 2px">
+    <sc-for list="{{opcoes}}" as="o" hint-placeholder-count="4">
+      <button style="min-height: 56px; padding: 8px 12px; background: {{o.bg}}; border: 0; border-radius: 6px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; text-align: left; display: flex; flex-direction: column; gap: 3px">
+        <span style="width: 100%; display: flex; justify-content: space-between; font-size: 14px"><span style="font-weight: 600">{{o.nome}} <span style="font-weight: 400; color: {{o.corEstado}}">{{o.estado}}</span></span><span style="color: #A0A8B6">{{o.prog}}</span></span>
+        <span style="width: 100%; display: flex; gap: 12px; font-size: 12px; color: #A0A8B6">
+          <sc-if value="{{o.rodando}}" hint-placeholder-val="{{true}}"><span>{{o.rodando}}</span></sc-if>
+          <sc-if value="{{o.aguardando}}" hint-placeholder-val="{{true}}"><span style="color: #F2A541">{{o.aguardando}}</span></sc-if>
+          <sc-if value="{{o.nota}}" hint-placeholder-val="{{true}}"><span>{{o.nota}}</span></sc-if>
+        </span>
+      </button>
+    </sc-for>
+    <div style="height: 1px; background: #252B35; margin: 6px 4px"></div>
+    <button style="height: 40px; padding: 0 12px; background: transparent; border: 0; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif; text-align: left; display: flex; justify-content: space-between; align-items: center"><span>Concluídas</span><span style="color: #A0A8B6">2</span></button>
+    <div style="height: 1px; background: #252B35; margin: 6px 4px"></div>
+    <button style="height: 40px; padding: 0 12px; background: transparent; border: 0; color: #F2A541; font: 500 14px 'IBM Plex Sans', sans-serif; text-align: left">Nova sprint</button>
+    <button style="height: 40px; padding: 0 12px; background: transparent; border: 0; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif; text-align: left">Organizar sprints</button>
+    <button style="height: 40px; padding: 0 12px; background: transparent; border: 0; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif; text-align: left">Concluir Sprint 3</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const base = { bg: 'transparent', corEstado: '#A0A8B6', estado: '', rodando: '', aguardando: '', nota: '' };
+    return {
+      opcoes: [
+        { ...base, nome: 'Sprint 3', estado: 'Ativa', corEstado: '#4FD1B5', prog: '5 de 8', rodando: '1 em execução', bg: '#2A2418' },
+        { ...base, nome: 'Sprint 4', estado: 'Planejada', prog: '0 de 4', aguardando: '1 aguardando você' },
+        { ...base, nome: 'Sem sprint', prog: '10 specs', aguardando: '1 aguardando você' },
+        { ...base, nome: 'Todas', prog: '41 specs', nota: 'Como o Quadro é hoje' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

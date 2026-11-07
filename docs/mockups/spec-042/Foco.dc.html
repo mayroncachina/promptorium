@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Foco na sprint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Topo" vista="foco" aviso="{{nao}}" hint-size="1384px,56px"></dc-import>
+    <div style="flex-grow: 1; display: flex; gap: 24px; padding: 20px 24px; min-height: 0">
+      <div style="width: 340px; flex-shrink: 0; align-self: flex-start; box-sizing: border-box; padding: 12px; background: #14171D; border: 1px solid #252B35; border-radius: 10px; display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span style="font-weight: 600">Sprint 3</span><span style="color: #A0A8B6">8</span></div>
+        <label style="position: relative; display: flex; flex-direction: column"><span style="position: absolute; left: -9999px">Buscar na sprint</span><input placeholder="Buscar nesta sprint" style="height: 36px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif"><kbd style="position: absolute; right: 8px; top: 8px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; background: #1A1E26; border: 1px solid #3A4250; border-radius: 4px; color: #A0A8B6; font: 12px 'JetBrains Mono', monospace">/</kbd></label>
+        <sc-for list="{{specs}}" as="s" hint-placeholder-count="8">
+          <button style="height: 40px; padding: 0 10px; background: {{s.bg}}; border: 1px solid {{s.borda}}; border-radius: 7px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; display: flex; align-items: center; gap: 10px; text-align: left">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="{{s.cor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.icone}}"></path></svg>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">{{s.n}}</span>
+            <span style="font-size: 13px">{{s.title}}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 0; padding-top: 12px">
+        <div style="width: 340px; box-sizing: border-box; padding: 14px 16px; background: #1A1E26; border: 2px solid #F2A541; border-radius: 10px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; justify-content: space-between; font-size: 12px"><span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-042</span><span style="color: #F2A541">Em execução</span></div>
+          <span style="font-size: 18px; font-weight: 600">Sprints no Quadro</span>
+          <span style="font-size: 13px; color: #A0A8B6">4 de 13 etapas</span>
+        </div>
+        <div style="width: 2px; height: 40px; background: #F2A541"></div>
+        <div style="width: 322px; height: 2px; background: #F2A541"></div>
+        <div style="display: flex; gap: 60px">
+          <div style="display: flex; flex-direction: column; align-items: center">
+            <div style="width: 2px; height: 28px; background: #F2A541"></div>
+            <div style="width: 260px; box-sizing: border-box; padding: 12px 14px; background: #1A1E26; border: 1px solid #252B35; border-radius: 8px; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #A0A8B6"><span style="font-family: 'JetBrains Mono', monospace">SPEC-043</span><span>Backlog</span></div>
+              <span style="font-size: 14px; font-weight: 600">Ações rápidas na bandeja</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center">
+            <div style="width: 2px; height: 28px; background: #7C8595"></div>
+            <div style="width: 260px; box-sizing: border-box; padding: 12px 14px; background: transparent; border: 1px dashed #7C8595; border-radius: 8px; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #A0A8B6"><span style="font-family: 'JetBrains Mono', monospace">SPEC-046</span><span>Sprint 4</span></div>
+              <span style="font-size: 14px; font-weight: 600; color: #A0A8B6">Relatório da sprint</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const feito = { icone: 'M2.5 7.5 L5.5 10.5 L11.5 3.5', cor: '#4FD1B5' };
+    const rodando = { icone: 'M7 1.5 A5.5 5.5 0 1 1 1.5 7', cor: '#F2A541' };
+    const review = { icone: 'M7 5.5 A1.5 1.5 0 1 1 6.99 5.5', cor: '#E58FB8' };
+    const backlog = { icone: 'M7 1.5 A5.5 5.5 0 1 1 6.99 1.5', cor: '#A0A8B6' };
+    const s = (n, title, st, sel) => ({ n, title, ...st, bg: sel ? '#2A2418' : '#1A1E26', borda: sel ? '#F2A541' : '#252B35' });
+    return {
+      nao: false,
+      specs: [
+        s('043', 'Ações rápidas na bandeja', backlog),
+        s('042', 'Sprints no Quadro', rodando, true),
+        s('041', 'Radar na bandeja', feito),
+        s('040', 'Ditado por voz', review),
+        s('039', 'Nova spec com planejamento', feito),
+        s('038', 'Tela Sobre', feito),
+        s('037', 'Planejar', feito),
+        s('036', 'Pasta e palco no Canvas', feito),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

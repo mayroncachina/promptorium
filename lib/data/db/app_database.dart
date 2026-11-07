@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 20;
+const appSchemaVersion = 21;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -77,6 +77,24 @@ class Workspaces extends Table {
   TextColumn get path => text().unique()();
   TextColumn get name => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+/// A group of specs of a workspace (SPEC-042). Local to this machine: moving
+/// a spec changes no file.
+class Sprints extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+
+  /// What the sprint should deliver (optional).
+  TextColumn get goal => text().nullable()();
+  TextColumn get state =>
+      textEnum<SprintState>().withDefault(Constant(SprintState.planned.name))();
+
+  /// Position in the sprint list.
+  IntColumn get position => integer().withDefault(const Constant(0))();
+  DateTimeColumn get closedAt => dateTime().nullable()();
 }
 
 class Specs extends Table {
@@ -155,6 +173,16 @@ class Specs extends Table {
 
   /// Hunks rejected in the Review.
   IntColumn get rejectedHunks => integer().withDefault(const Constant(0))();
+
+  // --- sprint (schema v21) ---------------------------------------------------
+
+  /// Sprint of the spec (null = "Sem sprint"). Not in the file: a sync of the
+  /// spec never touches it.
+  IntColumn get sprintId => integer().nullable().references(
+    Sprints,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -680,6 +708,7 @@ class AppSettings extends Table {
 @DriftDatabase(
   tables: [
     Workspaces,
+    Sprints,
     Specs,
     SpecSteps,
     Tasks,
@@ -987,6 +1016,15 @@ class AppDatabase extends _$AppDatabase {
           // v20: draft of "Nova spec" (SPEC-039 R8).
           from19To20: (m, v) async {
             await m.createTable(v.specDrafts);
+          },
+          // v21: sprints of the Quadro (SPEC-042 R1).
+          from20To21: (m, v) async {
+            if (!await _hasTable('sprints')) await m.createTable(v.sprints);
+            // Already there when `specs` was created by the v1 → v8 upgrade.
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'sprint_id')) {
+              await m.addColumn(v.specs, v.specs.sprintId);
+            }
           },
         ),
       );

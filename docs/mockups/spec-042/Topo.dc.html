@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cabeçalho do Quadro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1384px; display: flex; flex-direction: column; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <div style="height: 56px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #252B35">
+    <button style="height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: #2A2418; border: 1px solid #F2A541; border-radius: 8px; color: #E7E9EE; font: 600 14px 'IBM Plex Sans', sans-serif">
+      <span>{{sprint}}</span>
+      <sc-if value="{{prog}}" hint-placeholder-val="{{true}}"><span style="font-weight: 400; color: #A0A8B6">{{prog}}</span></sc-if>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5 L6 7.5 L9 4.5"></path></svg>
+    </button>
+    <button style="height: 28px; margin-left: 8px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font: 12px 'IBM Plex Sans', sans-serif">Precisam de mim</button>
+    <button style="height: 28px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font: 12px 'IBM Plex Sans', sans-serif">Ocultar concluídas</button>
+    <button style="height: 28px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 6px; color: #A0A8B6; font: 12px 'IBM Plex Sans', sans-serif">Fase</button>
+    <span style="flex-grow: 1; text-align: right; font-size: 12px; color: #A0A8B6">1 em execução · 3 em rascunho fora do quadro</span>
+    <div style="display: flex; gap: 4px; margin-left: 12px">
+      <sc-for list="{{vistas}}" as="v" hint-placeholder-count="3">
+        <button style="height: 28px; padding: 0 10px; background: {{v.bg}}; border: 1px solid {{v.borda}}; border-radius: 6px; color: {{v.cor}}; font: 12px 'IBM Plex Sans', sans-serif">{{v.nome}}</button>
+      </sc-for>
+    </div>
+  </div>
+  <sc-if value="{{aviso}}" hint-placeholder-val="{{true}}">
+    <button style="height: 40px; box-sizing: border-box; width: 100%; padding: 0 24px; display: flex; align-items: center; gap: 10px; background: #1F1B12; border: 0; border-bottom: 1px solid #3A3220; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="#F2A541"><path d="M2 3.5 A1.5 1.5 0 0 1 3.5 2 H12.5 A1.5 1.5 0 0 1 14 3.5 V9.5 A1.5 1.5 0 0 1 12.5 11 H7 L4 14 V11 H3.5 A1.5 1.5 0 0 1 2 9.5 Z"></path></svg>
+      <span>2 em outras sprints precisam de você</span>
+      <span style="color: #F2A541; font-weight: 500">Ver em Todas</span>
+    </button>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"sprint":{"editor":null,"default":"Sprint 3"},"prog":{"editor":null,"default":"5 de 8"},"vista":{"editor":null,"default":"colunas"},"aviso":{"editor":null,"default":true},"$preview":{"width":1384,"height":96}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const vista = this.props.vista ?? 'colunas';
+    return {
+      sprint: this.props.sprint ?? 'Sprint 3',
+      prog: this.props.prog ?? '5 de 8',
+      aviso: this.props.aviso ?? true,
+      vistas: [['colunas', 'Colunas'], ['grafo', 'Grafo'], ['foco', 'Foco']].map(([id, nome]) => ({
+        nome,
+        bg: id === vista ? '#2A2418' : '#1A1E26',
+        borda: id === vista ? '#F2A541' : '#252B35',
+        cor: id === vista ? '#F2A541' : '#A0A8B6',
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

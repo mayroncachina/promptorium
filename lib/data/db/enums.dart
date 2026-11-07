@@ -18,6 +18,9 @@ enum TaskStatus { backlog, running, review, done }
 /// Column of a spec in the Quadro (schema v8).
 enum SpecStage { backlog, running, review, done }
 
+/// State of a sprint (schema v21): at most one is active per workspace.
+enum SprintState { planned, active, done }
+
 /// State of one step (requirement) of a spec (schema v8).
 enum StepStatus {
   pending,

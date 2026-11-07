@@ -1,0 +1,25 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-07T02:00:00Z" },
+  "title": "Promptorium · Sprints no Quadro",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "1 · Colunas na sprint ativa" },
+    "Seletor.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "2 · Seletor aberto" },
+    "Grafo.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 900, "title": "3 · Grafo com dependências externas" },
+    "Foco.dc.html": { "x": 0, "y": 1020, "w": 1440, "h": 900, "title": "4 · Foco na sprint" },
+    "Todas.dc.html": { "x": 1520, "y": 1020, "w": 1440, "h": 900, "title": "5 · Foco em Todas" },
+    "Organizar.dc.html": { "x": 3040, "y": 1020, "w": 1440, "h": 900, "title": "6 · Organizar sprints" },
+    "Concluir.dc.html": { "x": 0, "y": 2040, "w": 1440, "h": 900, "title": "7 · Concluir sprint" },
+    "Primeira.dc.html": { "x": 1520, "y": 2040, "w": 1440, "h": 900, "title": "8 · Primeira sprint" },
+    "Busca.dc.html": { "x": 0, "y": 3180, "w": 1440, "h": 900, "title": "9 · Busca sem resultado na sprint" },
+    "MenuCard.dc.html": { "x": 1520, "y": 3180, "w": 1440, "h": 900, "title": "10 · Mover para sprint" },
+    "Desfazer.dc.html": { "x": 3200, "y": 2256, "w": 1440, "h": 900, "title": "11 · Aviso com Desfazer" },
+    "Topo.dc.html": { "x": 3040, "y": 2040, "w": 1384, "h": 96, "title": "Componente · Cabeçalho do Quadro" },
+    "Lateral.dc.html": { "x": 3040, "y": 2256, "w": 56, "h": 900, "title": "Componente · Barra lateral" }
+  },
+  "order": ["Main.dc.html", "Seletor.dc.html", "Grafo.dc.html", "Foco.dc.html", "Todas.dc.html", "Organizar.dc.html", "Concluir.dc.html", "Primeira.dc.html", "Busca.dc.html", "MenuCard.dc.html", "Desfazer.dc.html", "Topo.dc.html", "Lateral.dc.html"],
+  "notes": {},
+  "designSystems": []
+}

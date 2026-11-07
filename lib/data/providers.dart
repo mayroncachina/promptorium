@@ -21,6 +21,7 @@ import 'repos/spec_duels_repo.dart';
 import 'repos/spec_steps_repo.dart';
 import 'repos/spec_suggestions_repo.dart';
 import 'repos/specs_repo.dart';
+import 'repos/sprints_repo.dart';
 import 'repos/step_runs_repo.dart';
 import 'repos/tasks_repo.dart';
 import 'repos/workspaces_repo.dart';
@@ -43,6 +44,9 @@ final workspacesRepoProvider = Provider(
 );
 final specsRepoProvider = Provider(
   (ref) => SpecsRepo(ref.watch(appDatabaseProvider)),
+);
+final sprintsRepoProvider = Provider(
+  (ref) => SprintsRepo(ref.watch(appDatabaseProvider)),
 );
 final specStepsRepoProvider = Provider(
   (ref) => SpecStepsRepo(ref.watch(appDatabaseProvider)),
@@ -102,6 +106,11 @@ final workspacesProvider = StreamProvider<List<Workspace>>(
 final specsProvider = StreamProvider.family<List<Spec>, int>(
   (ref, workspaceId) =>
       ref.watch(specsRepoProvider).watchByWorkspace(workspaceId),
+);
+
+final sprintsProvider = StreamProvider.family<List<Sprint>, int>(
+  (ref, workspaceId) =>
+      ref.watch(sprintsRepoProvider).watchByWorkspace(workspaceId),
 );
 
 final tasksProvider = StreamProvider.family<List<Task>, int>(
