@@ -165,6 +165,7 @@ void main() {
     expect(find.text('1 de 2'), findsWidgets);
     expect(find.text('0 de 1'), findsOneWidget);
     expect(find.text('4 specs'), findsOneWidget);
+    expect(find.text('1 spec'), findsOneWidget);
   });
 
   testWidgets('sem sprints abre em Todas e oferece só Nova sprint (R13)', (
@@ -287,5 +288,145 @@ void main() {
     await tester.enterText(byKey('sprint-organize-search'), 'zzz');
     await settle(tester);
     expect(find.text('Nenhuma spec para mostrar.'), findsOneWidget);
+  });
+
+  group('R9: pendências de outras sprints', () {
+    Future<void> needsInput(AppDatabase db, String code) async {
+      final spec = await (db.select(
+        db.specs,
+      )..where((s) => s.code.equals(code))).getSingle();
+      await (db.update(db.specs)..where((s) => s.id.equals(spec.id))).write(
+        const SpecsCompanion(
+          stage: Value(SpecStage.running),
+          requirements: Value([(id: 'R1', text: 'a')]),
+        ),
+      );
+      await db
+          .into(db.specSteps)
+          .insert(
+            SpecStepsCompanion.insert(
+              specId: spec.id,
+              step: 'R1',
+              status: const Value(StepStatus.needsInput),
+            ),
+          );
+    }
+
+    testWidgets('o aviso conta e abre Todas com o filtro de atenção', (
+      tester,
+    ) async {
+      final (c, db, _) = await pump(tester);
+      expect(byKey('board-sprint-notice'), findsNothing);
+      await needsInput(db, 'SPEC-003');
+      await settle(tester);
+      expect(find.text('1 em outra sprint precisa de você'), findsOneWidget);
+      await tester.tap(byKey('board-sprint-notice'));
+      await settle(tester);
+      expect(c.read(boardSprintFilterProvider), const SprintFilter.all());
+      expect(c.read(boardFilterProvider).attention, isTrue);
+      expectCards(['SPEC-003'], ['SPEC-001']);
+      expect(byKey('board-sprint-notice'), findsNothing);
+    });
+
+    testWidgets('pendência da própria sprint não gera o aviso', (tester) async {
+      final (_, db, _) = await pump(tester);
+      await needsInput(db, 'SPEC-002');
+      await settle(tester);
+      expect(byKey('board-sprint-notice'), findsNothing);
+    });
+
+    testWidgets('abrir uma spec de outra sprint troca o seletor', (
+      tester,
+    ) async {
+      final (c, db, _) = await pump(tester);
+      final spec = await (db.select(
+        db.specs,
+      )..where((s) => s.code.equals('SPEC-003'))).getSingle();
+      c.read(boardSelectedSpecProvider.notifier).select(spec.id);
+      await settle(tester);
+      expect(
+        c.read(boardSprintFilterProvider),
+        SprintFilter.sprint(spec.sprintId!),
+      );
+      expectCards(['SPEC-003'], ['SPEC-001']);
+    });
+
+    testWidgets('trocar o seletor com um card aberto não volta sozinho', (
+      tester,
+    ) async {
+      final (c, db, _) = await pump(tester);
+      final spec = await (db.select(
+        db.specs,
+      )..where((s) => s.code.equals('SPEC-002'))).getSingle();
+      c.read(boardSelectedSpecProvider.notifier).select(spec.id);
+      await settle(tester);
+      await pick(tester, 'none');
+      expect(c.read(boardSprintFilterProvider), const SprintFilter.none());
+      expect(c.read(boardSelectedSpecProvider), isNull);
+    });
+  });
+
+  group('R10: concluir sprint', () {
+    Future<void> openComplete(WidgetTester tester) async {
+      await openSelector(tester);
+      await tester.tap(byKey('sprint-action-complete'));
+      await settle(tester);
+    }
+
+    testWidgets('resume, sugere a próxima e move as não feitas', (
+      tester,
+    ) async {
+      final (c, db, _) = await pump(tester);
+      await openComplete(tester);
+      expect(
+        find.text('1 spec feita fica nesta sprint. 1 ainda não foi feita.'),
+        findsOneWidget,
+      );
+      expect(find.text('Sprint 2 · próxima da lista'), findsOneWidget);
+      await tester.tap(byKey('sprint-complete-confirm'));
+      await settle(tester);
+      final all = await db.select(db.sprints).get();
+      expect(all.first.state, SprintState.done);
+      expect(all.last.state, SprintState.planned);
+      final specs = await db.select(db.specs).get();
+      expect(specs.firstWhere((s) => s.code == 'SPEC-001').sprintId, all[0].id);
+      expect(specs.firstWhere((s) => s.code == 'SPEC-002').sprintId, all[1].id);
+      expect(c.read(boardSprintFilterProvider), SprintFilter.sprint(all[1].id));
+    });
+
+    testWidgets('Ativar a próxima é uma escolha', (tester) async {
+      final (_, db, _) = await pump(tester);
+      await openComplete(tester);
+      await tester.tap(byKey('sprint-complete-activate'));
+      await settle(tester);
+      await tester.tap(byKey('sprint-complete-confirm'));
+      await settle(tester);
+      expect(
+        (await db.select(db.sprints).get()).last.state,
+        SprintState.active,
+      );
+    });
+
+    testWidgets('pode mandar para Sem sprint', (tester) async {
+      final (_, db, _) = await pump(tester);
+      await openComplete(tester);
+      await tester.tap(byKey('sprint-complete-to-none'));
+      await settle(tester);
+      await tester.tap(byKey('sprint-complete-confirm'));
+      await settle(tester);
+      final specs = await db.select(db.specs).get();
+      expect(specs.firstWhere((s) => s.code == 'SPEC-002').sprintId, isNull);
+    });
+
+    testWidgets('uma sprint concluída sai da lista e fica em Concluídas', (
+      tester,
+    ) async {
+      final (_, _, _) = await pump(tester);
+      await openComplete(tester);
+      await tester.tap(byKey('sprint-complete-confirm'));
+      await settle(tester);
+      await openSelector(tester);
+      expect(find.text('Concluídas · 1'), findsOneWidget);
+    });
   });
 }

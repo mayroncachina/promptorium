@@ -73,6 +73,9 @@ class SprintProgress {
 
   /// `5 de 8`.
   String get label => '$done de $total';
+
+  /// `1 spec`, `10 specs`: where there is no "done" to count.
+  String get count => total == 1 ? '1 spec' : '$total specs';
 }
 
 SprintProgress sprintProgress(

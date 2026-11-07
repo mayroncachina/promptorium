@@ -4,12 +4,25 @@ Um cartão por spec aprovada ou concluída, em **Backlog · Em execução · Rev
 
 ## Barra
 
+- **Sprint**: escolhe o que Colunas, Grafo e Foco mostram. Veja [Sprints](#sprints).
 - "Precisam de mim · N": filtra o que espera por você.
 - **Ocultar concluídas · N**: esconde os cartões em Feito, nas Colunas, no Grafo e na pasta do Foco. A escolha é lembrada por projeto.
 - Filtros por Fase e Agente.
 - **Colunas / Grafo / Foco**.
 - **Agendar**: Autopilot diário, com horário e orçamento.
 - **Executar tudo / Parar**: liga ou para o Autopilot, que executa as specs prontas respeitando dependências e o limite de paralelismo (`autopilot.paralelo`).
+
+## Sprints
+
+Sprints separam as specs para o Quadro não virar uma lista longa. Elas não têm prazo e ficam só no banco local: mover uma spec não muda nenhum arquivo.
+
+- **Seletor**: mostra a sprint Ativa, as Planejadas, "Sem sprint" e "Todas", com o progresso de cada uma. A escolha é lembrada por projeto.
+- **Nova sprint**: a primeira já nasce Ativa. Só uma sprint fica Ativa por vez.
+- **Mover**: use "Mover para sprint" no menu do cartão ou "Organizar sprints" para mover várias de uma vez. Uma spec recém-aprovada entra em "Sem sprint".
+- **Outras sprints**: uma faixa avisa quando algo em outra sprint espera por você. Início, a bandeja e as notificações mostram tudo, sem filtro.
+- **Dependências**: no Grafo, uma dependência de outra sprint aparece tracejada, e em âmbar quando bloqueia. Clicar nela leva à sprint dela.
+- **Concluir sprint**: as specs feitas ficam, e as não feitas vão para a sprint escolhida. Quem estiver em execução continua rodando. A próxima sprint só é ativada se você marcar.
+- **Autopilot**: com uma sprint Ativa, ele só inicia specs dela. Executar manualmente continua possível em qualquer sprint.
 
 ## Cartão
 
@@ -60,6 +73,7 @@ A visão Foco mostra uma spec de cada vez. As specs ficam na pasta à esquerda, 
 
 - **Passar o mouse** numa linha mostra o card completo.
 - **Buscar**: `/` ou `Ctrl+F` focam a busca, que compara número e título. `↑`/`↓` escolhem o resultado, `Enter` abre e `Esc` limpa.
+- **Sprints**: a pasta mostra a sprint escolhida. Em "Todas", as specs ficam em seções recolhíveis. Uma busca sem resultado na sprint oferece "Buscar em todas", também por `Enter`.
 - **Clicar numa spec** leva a spec ao palco, com as specs que dependem dela abaixo. Acima do card aparece de quem ela depende, e cada código leva aquela spec ao centro.
 - **Clicar na spec do centro** abre o painel de detalhes.
 - **Executando · N** mostra as specs em execução lado a lado, com a etapa atual de cada uma.
