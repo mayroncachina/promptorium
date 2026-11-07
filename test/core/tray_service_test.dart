@@ -363,6 +363,18 @@ void main() {
       await tray.dispose();
     });
 
+    test('o sublinhado do rótulo não vira atalho no menu do painel', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      tray.update(
+        const TrayStatus(rows: [TrayRow('meu_repo · SPEC-001', id: 'a')]),
+      );
+      await settle();
+      expect(backend.menu.first.label, 'meu__repo · SPEC-001');
+      await tray.dispose();
+    });
+
     test('R6: o item traz a janela para a frente e depois abre', () async {
       final backend = _FakeBackend();
       final tray = radar(backend);

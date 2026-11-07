@@ -259,7 +259,8 @@ class TrayService {
         const TrayMenuEntry.separator()
       else
         TrayMenuEntry(
-          row.label,
+          // In DBusMenu a lone "_" marks a mnemonic and vanishes from the label.
+          row.label.replaceAll('_', '__'),
           row.id == null ? null : () => _openItem(row.id!),
         ),
     if (rows.isNotEmpty) const TrayMenuEntry.separator(),
