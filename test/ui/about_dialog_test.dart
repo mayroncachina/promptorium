@@ -552,14 +552,32 @@ void main() {
   });
 
   group('R7 · card', () {
+    test('the last check reads as today, yesterday or a date', () {
+      final at = DateTime(2026, 11, 6, 14, 32);
+      expect(
+        formatChecked(at, DateTime(2026, 11, 6, 23, 59)),
+        'Verificado hoje às 14:32',
+      );
+      expect(
+        formatChecked(at, DateTime(2026, 11, 7, 0, 0)),
+        'Verificado ontem às 14:32',
+      );
+      expect(
+        formatChecked(at, DateTime(2026, 11, 8, 12)),
+        'Verificado em 06/11/2026 às 14:32',
+      );
+    });
+
     final progress = const DownloadProgress(
       received: 24000000,
       total: 38000000,
     );
     final states = <String, (UpdateFlowState, List<String>, List<Key>)>{
       'Em dia': (
-        UpdateUpToDate(DateTime.now().copyWith(hour: 14, minute: 32)),
-        [_upToDate, 'Verificado hoje às 14:32'],
+        // A fixed past day: "hoje" would depend on the clock, and this table is
+        // built when the file loads, so a run across midnight would fail.
+        UpdateUpToDate(DateTime(2026, 1, 5, 14, 32)),
+        [_upToDate, 'Verificado em 05/01/2026 às 14:32'],
         [_checkNow],
       ),
       'Verificando': (
