@@ -99,6 +99,8 @@ void main() {
         sessionStatus: SessionStatus.waitingApproval,
       ),
     ]);
+    await tester.ensureVisible(byKey('board-filter-hide-done'));
+    await tester.pump();
     await tester.tap(byKey('board-filter-hide-done'));
     await pumpFor(tester, 20);
     expect(chipText(tester), 'Ocultar concluídas · 2');

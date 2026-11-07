@@ -29,6 +29,8 @@ import 'spec_runner.dart'
     show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
 import '../../ui/widgets/app_pressable.dart';
+import 'sprint_rules.dart';
+import 'sprint_state.dart';
 import 'widgets/board_card_flight.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
@@ -43,6 +45,8 @@ import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
 import 'widgets/spec_canvas.dart';
 import 'widgets/spec_focus_view.dart';
+import 'widgets/sprint_dialogs.dart';
+import 'widgets/sprint_selector.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
 /// Step rows of every spec of a workspace.
@@ -400,10 +404,12 @@ class BoardScreen extends ConsumerWidget {
     }
 
     final attentionCount = cards.where(attention).length;
+    final sprint = ref.watch(boardSprintFilterProvider);
     final hideDone = ref.watch(boardHideDoneProvider);
     final filtered = [
       for (final d in cards)
-        if ((!filter.attention || attention(d)) &&
+        if (sprint.matches(d.spec) &&
+            (!filter.attention || attention(d)) &&
             (filter.phase == null || d.spec.phase == filter.phase) &&
             (filter.agent == null || d.spec.agentName == filter.agent))
           d,
@@ -444,6 +450,20 @@ class BoardScreen extends ConsumerWidget {
               key: 'board-show-done',
               label: 'Mostrar concluídas',
               onTap: () => ref.read(boardHideDoneProvider.notifier).set(false),
+            ),
+          )
+        : !sprint.isAll && !cards.any((d) => sprint.matches(d.spec))
+        ? _Empty(
+            'Esta sprint ainda não tem specs.',
+            action: (
+              key: 'board-sprint-organize',
+              label: 'Organizar sprints',
+              onTap: () => showOrganizeSprintsDialog(
+                context,
+                ref,
+                specs: [for (final d in cards) d.spec],
+                sprints: ref.read(sprintsProvider(ws.id)).value ?? const [],
+              ),
             ),
           )
         : visible.isEmpty
@@ -497,6 +517,7 @@ class BoardScreen extends ConsumerWidget {
                 attentionCount: attentionCount,
                 hiddenDone: hiddenDone,
                 parallel: parallel,
+                attention: attention,
               ),
               for (final f in replanFailures)
                 _ReplanWarning(workspace: ws, failure: f),
@@ -610,8 +631,10 @@ class _Header extends ConsumerWidget {
     required this.attentionCount,
     required this.hiddenDone,
     required this.parallel,
+    required this.attention,
   });
 
+  final bool Function(SpecCardData) attention;
   final int workspaceId;
   final String workspacePath;
   final int total;
@@ -760,39 +783,59 @@ class _Header extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 14),
-          chip(
-            attentionCount == 0
-                ? 'Precisam de mim'
-                : 'Precisam de mim · $attentionCount',
-            filter.attention,
-            () => filters.set(filter.copyWith(attention: !filter.attention)),
-            'attention',
+          SprintSelector(
+            workspaceId: workspaceId,
+            specs: specs,
+            waiting: (s) => cards.any((d) => d.spec.id == s.id && attention(d)),
           ),
-          chip(
-            ref.watch(boardHideDoneProvider)
-                ? 'Ocultar concluídas · $hiddenDone'
-                : 'Ocultar concluídas',
-            ref.watch(boardHideDoneProvider),
-            () => ref.read(boardHideDoneProvider.notifier).toggle(),
-            'hide-done',
+          const SizedBox(width: 14),
+          // The filters give way first when the window is narrow.
+          Flexible(
+            flex: 12,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  chip(
+                    attentionCount == 0
+                        ? 'Precisam de mim'
+                        : 'Precisam de mim · $attentionCount',
+                    filter.attention,
+                    () => filters.set(
+                      filter.copyWith(attention: !filter.attention),
+                    ),
+                    'attention',
+                  ),
+                  chip(
+                    ref.watch(boardHideDoneProvider)
+                        ? 'Ocultar concluídas · $hiddenDone'
+                        : 'Ocultar concluídas',
+                    ref.watch(boardHideDoneProvider),
+                    () => ref.read(boardHideDoneProvider.notifier).toggle(),
+                    'hide-done',
+                  ),
+                  // A value set stays visible so it can be cleared.
+                  if (phases.isNotEmpty || filter.phase != null)
+                    menuChip(
+                      'Fase',
+                      filter.phase,
+                      phases,
+                      (v) => filters.set(filter.copyWith(phase: () => v)),
+                      'phase',
+                    ),
+                  if (agents.isNotEmpty || filter.agent != null)
+                    menuChip(
+                      'Agente',
+                      filter.agent,
+                      agents,
+                      (v) => filters.set(filter.copyWith(agent: () => v)),
+                      'agent',
+                    ),
+                ],
+              ),
+            ),
           ),
-          // A value set stays visible so it can be cleared.
-          if (phases.isNotEmpty || filter.phase != null)
-            menuChip(
-              'Fase',
-              filter.phase,
-              phases,
-              (v) => filters.set(filter.copyWith(phase: () => v)),
-              'phase',
-            ),
-          if (agents.isNotEmpty || filter.agent != null)
-            menuChip(
-              'Agente',
-              filter.agent,
-              agents,
-              (v) => filters.set(filter.copyWith(agent: () => v)),
-              'agent',
-            ),
           Expanded(
             flex: 3,
             child: Text(
@@ -2022,6 +2065,8 @@ class _CardMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final spec = data.spec;
+    final hasSprints =
+        ref.watch(sprintsProvider(spec.workspaceId)).value?.isNotEmpty ?? false;
     return SizedBox(
       width: 22,
       height: 18,
@@ -2054,6 +2099,8 @@ class _CardMenu extends ConsumerWidget {
               await onMove?.call(-1);
             case 'down':
               await onMove?.call(1);
+            case 'sprint':
+              if (context.mounted) await _moveToSprint(context, ref, spec);
             default:
               final s = SpecStage.values.asNameMap()[v];
               if (s != null) await repo.setStage(spec.id, s);
@@ -2108,8 +2155,61 @@ class _CardMenu extends ConsumerWidget {
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
+          if (hasSprints)
+            const PopupMenuItem(
+              value: 'sprint',
+              child: Text('Mover para sprint', style: TextStyle(fontSize: 12)),
+            ),
         ],
       ),
+    );
+  }
+
+  /// The sprints as a second menu, next to the card (SPEC-042 R5).
+  Future<void> _moveToSprint(
+    BuildContext context,
+    WidgetRef ref,
+    Spec spec,
+  ) async {
+    final sprints = ref.read(sprintsProvider(spec.workspaceId)).value;
+    if (sprints == null) return;
+    final box = context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final at = box.localToGlobal(box.size.bottomRight(Offset.zero));
+    final picked = await showMenu<int>(
+      context: context,
+      color: AppColors.panel,
+      position: RelativeRect.fromRect(
+        at & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final s in openSprints(sprints))
+          PopupMenuItem(
+            key: ValueKey('card-sprint-${s.id}'),
+            value: s.id,
+            enabled: s.id != spec.sprintId,
+            child: Text(
+              s.id == spec.sprintId ? '${s.name} · Atual' : s.name,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        PopupMenuItem(
+          key: const ValueKey('card-sprint-none'),
+          value: -1,
+          enabled: spec.sprintId != null,
+          child: const Text('Sem sprint', style: TextStyle(fontSize: 12)),
+        ),
+      ],
+    );
+    if (picked == null || !context.mounted) return;
+    await moveSpecsToSprint(
+      context,
+      ref,
+      specs: [spec],
+      target: sprints.where((s) => s.id == picked).firstOrNull,
+      sprints: sprints,
+      all: ref.read(specsProvider(spec.workspaceId)).value ?? [spec],
     );
   }
 }

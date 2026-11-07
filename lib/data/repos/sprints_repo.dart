@@ -10,17 +10,19 @@ class SprintsRepo {
 
   $SprintsTable get _t => _db.sprints;
 
+  SimpleSelectStatement<$SprintsTable, Sprint> _ofWorkspace(int workspaceId) =>
+      _db.select(_t)
+        ..where((s) => s.workspaceId.equals(workspaceId))
+        ..orderBy([
+          (s) => OrderingTerm.asc(s.position),
+          (s) => OrderingTerm.asc(s.id),
+        ]);
+
   Stream<List<Sprint>> watchByWorkspace(int workspaceId) =>
-      (_db.select(_t)
-            ..where((s) => s.workspaceId.equals(workspaceId))
-            ..orderBy([
-              (s) => OrderingTerm.asc(s.position),
-              (s) => OrderingTerm.asc(s.id),
-            ]))
-          .watch();
+      _ofWorkspace(workspaceId).watch();
 
   Future<List<Sprint>> byWorkspace(int workspaceId) =>
-      watchByWorkspace(workspaceId).first;
+      _ofWorkspace(workspaceId).get();
 
   Future<Sprint?> active(int workspaceId) =>
       (_db.select(_t)..where(
