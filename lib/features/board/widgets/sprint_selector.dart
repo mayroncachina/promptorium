@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../board_screen.dart' show boardSelectedSpecProvider;
 import '../sprint_rules.dart';
 import '../sprint_state.dart';
 import 'sprint_dialogs.dart';
@@ -15,7 +16,6 @@ class SprintSelector extends ConsumerWidget {
     required this.workspaceId,
     required this.specs,
     required this.waiting,
-    this.onComplete,
   });
 
   final int workspaceId;
@@ -23,9 +23,6 @@ class SprintSelector extends ConsumerWidget {
   /// The specs of the board, of every sprint.
   final List<Spec> specs;
   final bool Function(Spec) waiting;
-
-  /// "Concluir sprint" of the active sprint.
-  final void Function(Sprint sprint)? onComplete;
 
   SprintProgress _progress(SprintFilter filter) =>
       sprintProgress(specs.where(filter.matches), waiting: waiting);
@@ -45,9 +42,13 @@ class SprintSelector extends ConsumerWidget {
         ? ''
         : current != null
         ? _progress(filter).label
-        : '${_progress(filter).total} specs';
+        : _progress(filter).count;
 
-    void pick(SprintFilter f) => ref.read(boardSprintProvider.notifier).set(f);
+    void pick(SprintFilter f) {
+      // An open card would pull the Quadro back to its sprint (R9).
+      ref.read(boardSelectedSpecProvider.notifier).select(null);
+      ref.read(boardSprintProvider.notifier).set(f);
+    }
 
     Widget option(
       SprintFilter f,
@@ -162,12 +163,12 @@ class SprintSelector extends ConsumerWidget {
           option(
             const SprintFilter.none(),
             'Sem sprint',
-            count: '${_progress(const SprintFilter.none()).total} specs',
+            count: _progress(const SprintFilter.none()).count,
           ),
           option(
             const SprintFilter.all(),
             'Todas',
-            count: '${specs.length} specs',
+            count: _progress(const SprintFilter.all()).count,
           ),
           if (closed.isNotEmpty) ...[
             const Divider(height: 8),
@@ -214,8 +215,18 @@ class SprintSelector extends ConsumerWidget {
               'Ativar ${s.name}',
               () => ref.read(sprintsRepoProvider).activate(s.id),
             ),
-          if (s.state == SprintState.active && onComplete != null)
-            action('complete', 'Concluir ${s.name}', () => onComplete!(s)),
+          if (s.state == SprintState.active)
+            action(
+              'complete',
+              'Concluir ${s.name}',
+              () => showCompleteSprintDialog(
+                context,
+                ref,
+                sprint: s,
+                specs: specs,
+                sprints: sprints,
+              ),
+            ),
           if (s.state != SprintState.done)
             action(
               'edit',

@@ -9,6 +9,7 @@ import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_file.dart' show foldText;
 import '../board_rules.dart';
+import '../board_screen.dart' show boardSelectedSpecProvider;
 import '../sprint_rules.dart';
 import '../sprint_state.dart';
 
@@ -162,6 +163,11 @@ Future<void> moveSpecsToSprint(
   final repo = ref.read(sprintsRepoProvider);
   final previous = {for (final s in specs) s.id: s.sprintId};
   final warnings = moveWarnings(specs, target, specsByCode(all), sprints);
+  // A card left open would pull the Quadro after the spec (R9).
+  final selected = ref.read(boardSelectedSpecProvider);
+  if (previous.containsKey(selected)) {
+    ref.read(boardSelectedSpecProvider.notifier).select(null);
+  }
   await repo.moveSpecs(previous.keys, target?.id);
   final where = target?.name ?? 'Sem sprint';
   final moved = specs.length == 1
@@ -181,6 +187,209 @@ Future<void> moveSpecsToSprint(
       ),
     ),
   );
+}
+
+/// "Concluir sprint" (R10): what was not done goes to the sprint chosen, with
+/// the next planned one suggested; activating it is a choice.
+Future<void> showCompleteSprintDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  required Sprint sprint,
+  required List<Spec> specs,
+  required List<Sprint> sprints,
+}) => showAppDialog<void>(
+  context: context,
+  builder: (_) =>
+      _CompleteDialog(sprint: sprint, specs: specs, sprints: sprints),
+);
+
+class _CompleteDialog extends ConsumerStatefulWidget {
+  const _CompleteDialog({
+    required this.sprint,
+    required this.specs,
+    required this.sprints,
+  });
+
+  final Sprint sprint;
+  final List<Spec> specs;
+  final List<Sprint> sprints;
+
+  @override
+  ConsumerState<_CompleteDialog> createState() => _CompleteDialogState();
+}
+
+class _CompleteDialogState extends ConsumerState<_CompleteDialog> {
+  late final Sprint? _next = nextPlannedSprint(widget.sprint, widget.sprints);
+  late int? _target = _next?.id;
+  bool _activate = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final inSprint = [
+      for (final s in widget.specs)
+        if (s.sprintId == widget.sprint.id) s,
+    ];
+    final undone = [
+      for (final s in inSprint)
+        if (s.stage != SpecStage.done) s,
+    ];
+    final done = inSprint.length - undone.length;
+    final running = undone.where((s) => s.stage == SpecStage.running);
+    final next = _next;
+    return AlertDialog(
+      key: const ValueKey('sprint-complete'),
+      backgroundColor: AppColors.panel,
+      title: Text(
+        'Concluir ${widget.sprint.name}',
+        style: const TextStyle(fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 10,
+            children: [
+              Text(
+                '${done == 1 ? '1 spec feita fica' : '$done specs feitas ficam'} '
+                'nesta sprint. ${undone.isEmpty
+                    ? 'Nenhuma ficou por fazer.'
+                    : undone.length == 1
+                    ? '1 ainda não foi feita.'
+                    : '${undone.length} ainda não foram feitas.'}',
+                style: const TextStyle(fontSize: 13),
+              ),
+              for (final s in undone)
+                Row(
+                  children: [
+                    Text(
+                      s.code,
+                      style: const TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        s.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    Text(
+                      specStageLabel(s.stage),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              if (undone.isNotEmpty) ...[
+                Text(
+                  undone.length == 1
+                      ? 'Mover a spec para'
+                      : 'Mover as ${undone.length} specs para',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                RadioGroup<int?>(
+                  groupValue: _target,
+                  onChanged: (v) => setState(() => _target = v),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final s in openSprints(widget.sprints))
+                        if (s.id != widget.sprint.id)
+                          RadioListTile<int?>(
+                            key: ValueKey('sprint-complete-to-${s.id}'),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            value: s.id,
+                            title: Text(
+                              s.id == next?.id
+                                  ? '${s.name} · próxima da lista'
+                                  : s.name,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                      const RadioListTile<int?>(
+                        key: ValueKey('sprint-complete-to-none'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        value: null,
+                        title: Text(
+                          'Sem sprint',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              for (final s in running)
+                Text(
+                  '${s.code} continua em execução depois de mudar de sprint.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              if (next != null)
+                CheckboxListTile(
+                  key: const ValueKey('sprint-complete-activate'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _activate,
+                  onChanged: (v) => setState(() => _activate = v ?? false),
+                  title: Text(
+                    'Ativar a ${next.name} ao concluir',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        AmberButton(
+          key: const ValueKey('sprint-complete-confirm'),
+          label: 'Concluir sprint',
+          onTap: () async {
+            final navigator = Navigator.of(context);
+            await ref
+                .read(sprintsRepoProvider)
+                .complete(
+                  widget.sprint.id,
+                  moveTo: _target,
+                  activate: _activate ? next?.id : null,
+                );
+            // The Quadro goes where the work went.
+            final goTo = _activate ? next?.id : _target;
+            await ref
+                .read(boardSprintProvider.notifier)
+                .set(
+                  goTo == null
+                      ? const SprintFilter.all()
+                      : SprintFilter.sprint(goTo),
+                );
+            navigator.pop();
+          },
+        ),
+      ],
+    );
+  }
 }
 
 class _FocusSearchIntent extends Intent {

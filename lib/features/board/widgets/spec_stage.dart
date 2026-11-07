@@ -229,7 +229,11 @@ class FocusStage extends ConsumerStatefulWidget {
     this.clock,
     this.inFlight,
     this.arrowProgress,
+    this.sprintLabel,
   });
+
+  /// Name of the sprint of a spec outside the one on the Quadro (SPEC-042 R8).
+  final String? Function(Spec)? sprintLabel;
 
   /// Owned by the Foco view, where its shortcuts are.
   final CanvasViewController view;
@@ -334,13 +338,42 @@ class FocusStageState extends ConsumerState<FocusStage>
     );
     final clock = widget.clock;
     final inFlight = widget.inFlight;
+    final label = widget.sprintLabel?.call(spec);
+    final card = label == null
+        ? node
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(child: node),
+              Positioned(
+                right: 10,
+                bottom: -9,
+                child: Container(
+                  key: ValueKey('stage-sprint-${spec.code}'),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border.all(color: AppColors.textMuted),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
     return KeyedSubtree(
       key: ValueKey('stage-node-${spec.code}'),
       child: clock == null || inFlight == null
-          ? node
+          ? card
           : ListenableBuilder(
               listenable: clock,
-              child: node,
+              child: card,
               builder: (_, child) =>
                   Opacity(opacity: inFlight(spec.id) ? 0 : 1, child: child),
             ),
