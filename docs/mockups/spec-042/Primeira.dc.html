@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Primeira sprint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <dc-import name="Main" sprint="Sprints" prog="" aviso="{{nao}}" hint-size="1440px,900px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(6,7,10,0.72); display: flex; align-items: center; justify-content: center">
+    <div role="dialog" aria-label="Nova sprint" style="width: 480px; box-sizing: border-box; padding: 24px; background: #14171D; border: 1px solid #3A4250; border-radius: 12px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 600">Nova sprint</h1>
+        <p style="margin: 0; font-size: 14px; line-height: 20px; color: #A0A8B6">A primeira sprint já fica ativa. Depois, use Organizar sprints para escolher as specs dela.</p>
+      </div>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #A0A8B6">Nome<input value="Sprint 1" style="height: 38px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #F2A541; border-radius: 6px; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif"></label>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #A0A8B6">Objetivo (opcional)<textarea rows="3" placeholder="O que esta sprint precisa entregar" style="box-sizing: border-box; padding: 8px 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif; resize: none"></textarea></label>
+      <div style="display: flex; justify-content: flex-end; gap: 10px">
+        <button style="height: 36px; padding: 0 14px; background: transparent; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Cancelar</button>
+        <button style="height: 36px; padding: 0 14px; background: #F2A541; border: 0; border-radius: 6px; color: #1A1206; font: 600 13px 'IBM Plex Sans', sans-serif">Criar sprint</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return { nao: false }; }
+}
+</script>
+</body>
+</html>

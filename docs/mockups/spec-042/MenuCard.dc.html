@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mover para sprint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <dc-import name="Main" hint-size="1440px,900px"></dc-import>
+  <button aria-label="Mais ações de SPEC-043" style="position: absolute; left: 352px; top: 186px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; padding: 0; background: #2A2418; border: 1px solid #F2A541; border-radius: 6px">
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="#F2A541"><circle cx="3" cy="7" r="1.3"></circle><circle cx="7" cy="7" r="1.3"></circle><circle cx="11" cy="7" r="1.3"></circle></svg>
+  </button>
+  <div role="menu" aria-label="Ações de SPEC-043" style="position: absolute; left: 352px; top: 220px; width: 220px; box-sizing: border-box; padding: 6px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+    <button style="height: 36px; padding: 0 10px; background: transparent; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">Etapas e sessões</button>
+    <button style="height: 36px; padding: 0 10px; background: transparent; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">Subir na coluna</button>
+    <button style="height: 36px; padding: 0 10px; background: transparent; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">Descer na coluna</button>
+    <div style="height: 1px; background: #252B35; margin: 5px 4px"></div>
+    <button aria-haspopup="menu" aria-expanded="true" style="height: 36px; padding: 0 10px; background: #2A2418; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left; display: flex; align-items: center; justify-content: space-between">
+      <span>Mover para sprint</span>
+      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 3 L7.5 6 L4.5 9"></path></svg>
+    </button>
+  </div>
+  <div role="menu" aria-label="Sprints de destino" style="position: absolute; left: 576px; top: 338px; width: 250px; box-sizing: border-box; padding: 6px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column">
+    <button disabled style="height: 36px; padding: 0 10px; background: transparent; border: 0; border-radius: 5px; color: #A0A8B6; font: 13px 'IBM Plex Sans', sans-serif; text-align: left; display: flex; align-items: center; justify-content: space-between"><span>Sprint 3</span><span style="font-size: 12px">Atual</span></button>
+    <button style="height: 36px; padding: 0 10px; background: #252B35; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left; display: flex; align-items: center; justify-content: space-between"><span>Sprint 4</span><span style="font-size: 12px; color: #A0A8B6">Planejada</span></button>
+    <div style="height: 1px; background: #252B35; margin: 5px 4px"></div>
+    <button style="height: 36px; padding: 0 10px; background: transparent; border: 0; border-radius: 5px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">Sem sprint</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

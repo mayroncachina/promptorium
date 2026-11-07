@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Foco em Todas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Topo" sprint="Todas" prog="41 specs" vista="foco" aviso="{{nao}}" hint-size="1384px,56px"></dc-import>
+    <div style="flex-grow: 1; display: flex; gap: 24px; padding: 20px 24px; min-height: 0">
+      <div style="width: 340px; flex-shrink: 0; align-self: flex-start; box-sizing: border-box; padding: 12px; background: #14171D; border: 1px solid #252B35; border-radius: 10px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="font-weight: 600">specs/</span><span style="color: #A0A8B6">41</span></div>
+        <label style="position: relative; display: flex; flex-direction: column"><span style="position: absolute; left: -9999px">Buscar em todas</span><input placeholder="Buscar em todas" style="height: 36px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #252B35; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif"><kbd style="position: absolute; right: 8px; top: 8px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; background: #1A1E26; border: 1px solid #3A4250; border-radius: 4px; color: #A0A8B6; font: 12px 'JetBrains Mono', monospace">/</kbd></label>
+        <sc-for list="{{secoes}}" as="g" hint-placeholder-count="4">
+          <button aria-expanded="{{g.aberta}}" style="height: 36px; padding: 0 6px; background: transparent; border: 0; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; display: flex; align-items: center; gap: 8px">
+            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{g.seta}}"></path></svg>
+            <span style="font-size: 13px; font-weight: 600">{{g.nome}}</span>
+            <span style="font-size: 12px; color: {{g.corEstado}}">{{g.estado}}</span>
+            <span style="margin-left: auto; font-size: 12px; color: #A0A8B6">{{g.prog}}</span>
+          </button>
+          <sc-for list="{{g.specs}}" as="s" hint-placeholder-count="3">
+            <button style="height: 36px; margin-left: 12px; padding: 0 10px; background: #1A1E26; border: 1px solid #252B35; border-radius: 7px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; display: flex; align-items: center; gap: 10px; text-align: left">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="{{s.cor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.icone}}"></path></svg>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A0A8B6">{{s.n}}</span>
+              <span style="font-size: 13px">{{s.title}}</span>
+            </button>
+          </sc-for>
+        </sc-for>
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; color: #A0A8B6; font-size: 15px">Escolha uma spec na pasta</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const feito = { icone: 'M2.5 7.5 L5.5 10.5 L11.5 3.5', cor: '#4FD1B5' };
+    const rodando = { icone: 'M7 1.5 A5.5 5.5 0 1 1 1.5 7', cor: '#F2A541' };
+    const review = { icone: 'M7 5.5 A1.5 1.5 0 1 1 6.99 5.5', cor: '#E58FB8' };
+    const backlog = { icone: 'M7 1.5 A5.5 5.5 0 1 1 6.99 1.5', cor: '#A0A8B6' };
+    const aberta = 'M3 4.5 L6 7.5 L9 4.5', fechada = 'M4.5 3 L7.5 6 L4.5 9';
+    const g = (nome, estado, corEstado, prog, specs) => ({ nome, estado, corEstado, prog, specs, aberta: specs.length > 0 ? 'true' : 'false', seta: specs.length > 0 ? aberta : fechada });
+    return {
+      nao: false,
+      secoes: [
+        g('Sprint 3', 'Ativa', '#4FD1B5', '5 de 8', [
+          { n: '043', title: 'Ações rápidas na bandeja', ...backlog },
+          { n: '042', title: 'Sprints no Quadro', ...rodando },
+          { n: '041', title: 'Radar na bandeja', ...feito },
+          { n: '040', title: 'Ditado por voz', ...review },
+          { n: '039', title: 'Nova spec com planejamento', ...feito },
+          { n: '038', title: 'Tela Sobre', ...feito },
+          { n: '037', title: 'Planejar', ...feito },
+          { n: '036', title: 'Pasta e palco no Canvas', ...feito },
+        ]),
+        g('Sprint 4', 'Planejada', '#A0A8B6', '0 de 4', []),
+        g('Sem sprint', '', '#A0A8B6', '10', []),
+        g('Sprint 2', 'Concluída', '#A0A8B6', '9 de 9', []),
+        g('Sprint 1', 'Concluída', '#A0A8B6', '10 de 10', []),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

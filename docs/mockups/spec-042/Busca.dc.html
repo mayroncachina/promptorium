@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Busca sem resultado na sprint</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Topo" vista="foco" aviso="{{nao}}" hint-size="1384px,56px"></dc-import>
+    <div style="flex-grow: 1; display: flex; gap: 24px; padding: 20px 24px; min-height: 0">
+      <div style="width: 340px; flex-shrink: 0; align-self: flex-start; box-sizing: border-box; padding: 12px; background: #14171D; border: 1px solid #252B35; border-radius: 10px; display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span style="font-weight: 600">Sprint 3</span><span style="color: #A0A8B6">0 de 8</span></div>
+        <label style="position: relative; display: flex; flex-direction: column"><span style="position: absolute; left: -9999px">Buscar na sprint</span><input value="custo" style="height: 36px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #F2A541; border-radius: 6px; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif"><kbd style="position: absolute; right: 8px; top: 8px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; justify-content: center; background: #1A1E26; border: 1px solid #3A4250; border-radius: 4px; color: #A0A8B6; font: 12px 'JetBrains Mono', monospace">/</kbd></label>
+        <div style="padding: 20px 8px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center">
+          <span style="font-size: 14px; line-height: 20px">Nenhuma spec com "custo" na Sprint 3</span>
+          <span style="font-size: 13px; color: #A0A8B6">2 em outras sprints</span>
+          <button style="height: 36px; padding: 0 14px; background: #1A1E26; border: 1px solid #F2A541; border-radius: 6px; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif; display: flex; align-items: center; gap: 10px"><span>Buscar em todas</span><kbd style="height: 20px; box-sizing: border-box; padding: 0 5px; display: flex; align-items: center; background: #2A2418; border: 1px solid #5A4520; border-radius: 4px; color: #F2A541; font: 12px 'JetBrains Mono', monospace">Enter</kbd></button>
+        </div>
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; color: #A0A8B6; font-size: 15px">Escolha uma spec na pasta</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return { nao: false }; }
+}
+</script>
+</body>
+</html>
