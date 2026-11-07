@@ -17,6 +17,7 @@ import 'backups_view.dart';
 import 'orchestrator_view.dart';
 import 'providers_view.dart';
 import 'settings_choices.dart';
+import '../dictation/dictation_widgets.dart';
 import 'settings_sections.dart';
 
 /// Models offered as defaults (`inherit` = the CLI's default model).
@@ -163,6 +164,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               key: ValueKey('settings-section-${selected.name}'),
               child: switch (selected) {
                 SettingsSection.consumption => const _ConsumptionSection(),
+                SettingsSection.dictation => const _Page(
+                  title: 'Ditado por voz',
+                  intro:
+                      'A transcrição roda neste computador. O áudio não sai '
+                      'da máquina e é apagado depois de virar texto.',
+                  children: [DictationSettingsCard()],
+                ),
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),

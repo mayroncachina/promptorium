@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Falha no download</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #F2A541;outline-offset:2px}
+button:disabled{cursor:not-allowed}
+h1,h2,h3,p{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.nv{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:#A0A8B6}
+.nv.on{background:#2A2418;color:#F2A541}
+.nv:hover{background:#1F2430;color:#E7E9EE}
+.btn{height:36px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #2E3542;border-radius:6px;background:#1A1E26;color:#E7E9EE;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#3A4250}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:#F2A541;border-color:#F2A541;color:#1A1206;font-weight:600}
+.btn.pri:hover{background:#F5B35E;border-color:#F5B35E}
+.btn:disabled,.btn.pri:disabled{background:#14171D;border-color:#252B35;color:#8A93A3;font-weight:500}
+.btn.sm{height:32px;padding:0 10px;font-size:12px}
+.btn.ico{width:36px;padding:0}
+.btn.dng{border-color:#5A2E2A;color:#F27A6E}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid #2E3542;color:#A0A8B6;white-space:nowrap}
+.box{flex:none;margin:0 20px 16px;padding:10px 12px;background:#14171D;border:1px solid #626C7C;border-radius:8px;display:flex;flex-direction:column;gap:8px}
+.ta{width:100%;background:none;border:0;color:#E7E9EE;font:inherit;font-size:13px;line-height:1.5;resize:none;padding:0}
+.ta::placeholder{color:#8A93A3}
+.ta:focus-visible{outline:none}
+.box:focus-within{border-color:#F2A541}
+.me{align-self:flex-end;max-width:72%;background:#1F2430;border-radius:8px;padding:9px 12px;font-size:13px;line-height:1.5}
+.pl{align-self:flex-start;max-width:82%;display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.55}
+.who{font-size:11px;font-weight:600;color:#A0A8B6}
+.lst{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border-radius:6px;font-size:12px;color:#A0A8B6;white-space:nowrap;overflow:hidden}
+.lst.on{background:#1F2430;color:#E7E9EE}
+.card{background:#14171D;border:1px solid #252B35;border-radius:8px;padding:12px 14px}
+.card.bad{border-color:#5A2E2A}
+.card.in{background:#1A1E26;padding:10px 12px;display:flex;align-items:flex-start;gap:10px}
+.note{font-size:12px;color:#4FD1B5}
+.dot{width:10px;height:10px;border-radius:50%;background:#F27A6E;flex:none;animation:pu 1.2s ease-in-out infinite}
+.lv{display:flex;align-items:center;gap:2px;height:20px}
+.lv i{display:block;width:3px;height:100%;border-radius:2px;background:#F2A541;transform-origin:50% 50%;animation:lv 900ms ease-in-out infinite}
+.lv i:nth-child(2n){animation-delay:-300ms}.lv i:nth-child(3n){animation-delay:-600ms}.lv i:nth-child(5n){animation-delay:-150ms}
+.bar{height:6px;border-radius:3px;background:#252B35;overflow:hidden}
+.bar b{display:block;height:100%;background:#F2A541}
+.scrim{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.6)}
+.toast{position:absolute;top:8px;right:20px;z-index:4;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-radius:6px;background:#1F2430;border:1px solid #626C7C;font-size:12px;white-space:nowrap}
+.toast.bad{border-color:#F27A6E}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #252B35}
+.row .t{flex:1;min-width:0}
+.sel{height:32px;background:#0E1014;border:1px solid #626C7C;border-radius:6px;color:#E7E9EE;font:inherit;font-size:12px;padding:0 8px}
+.opt{display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer}
+.opt input{margin:2px 0 0;accent-color:#F2A541}
+.hint{display:block;font-size:11px;color:#A0A8B6;margin-top:2px}
+.spin{animation:sp 1s linear infinite;transform-origin:50% 50%}
+@keyframes sp{to{transform:rotate(360deg)}}
+@keyframes pu{50%{opacity:.35}}
+@keyframes lv{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.spin,.dot,.lv i{animation:none}.lv i{transform:scaleY(.6)}}
+</style>
+</helmet>
+<div style="position:relative;display:flex;width:100%;height:100vh;min-height:600px;overflow:hidden;background:#0E1014;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<nav aria-label="Seções" style="flex:none;width:52px;background:#14171D;border-right:1px solid #252B35;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:12px"><button type="button" class="nv {{navProjeto}}" aria-label="Projeto"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"></path><path d="M6 10v10h12V10"></path></svg></button><button type="button" class="nv {{navPrompt}}" aria-label="Prompt"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l6-6-6-6"></path><path d="M12 19h8"></path></svg></button><button type="button" class="nv" aria-label="Quadro"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5"></rect><rect x="14" y="3" width="7" height="11" rx="1.5"></rect></svg></button><button type="button" class="nv" aria-label="Specs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"></path><path d="M14 3v6h6"></path></svg></button><button type="button" class="nv" aria-label="Review"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg></button></nav>
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+<sc-if value="{{isSession}}" hint-placeholder-val="{{true}}">
+<div style="flex:1;min-height:0;display:flex">
+<aside aria-label="Sessões" style="flex:none;width:240px;background:#14171D;border-right:1px solid #252B35;padding:10px;display:flex;flex-direction:column;gap:2px"><div class="lst on">Lembretes de consulta</div><div class="lst">Agenda de consultas</div><div class="lst">Painel do dia</div></aside>
+<section aria-label="Sessão" style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="flex:none;display:flex;align-items:center;gap:8px;height:48px;padding:0 20px;border-bottom:1px solid #252B35"><h1 style="font-size:14px;font-weight:600">Lembretes de consulta</h1><span class="tag">ativa</span></div>
+<div ref="{{endRef}}" style="flex:1;min-height:0;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{msgs}}" as="m" hint-placeholder-count="2"><sc-if value="{{m.mine}}" hint-placeholder-val="{{true}}"><div class="me">{{m.text}}</div></sc-if><sc-if value="{{m.theirs}}" hint-placeholder-val="{{true}}"><div class="pl"><span class="who">Claude</span><span>{{m.text}}</span></div></sc-if></sc-for>
+</div>
+<div class="box" onKeyDown="{{boxKey}}">
+<sc-if value="{{isNoMic}}" hint-placeholder-val="{{false}}"><div class="card bad in" role="alert"><span style="flex:none;margin-top:1px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Nenhum microfone encontrado</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">Conecte um microfone ou escolha outro nas Configurações.</p></div><button type="button" class="btn sm" onClick="{{dismiss}}">Fechar</button><button type="button" class="btn sm" onClick="{{goSettings}}">Abrir Configurações</button><button type="button" class="btn sm" onClick="{{micAgain}}">Tentar de novo</button></div></sc-if>
+<sc-if value="{{isNoSpeech}}" hint-placeholder-val="{{false}}"><div class="card in" role="status"><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Nenhuma fala detectada</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">Fale mais perto do microfone e tente de novo.</p></div><button type="button" class="btn sm" onClick="{{dismiss}}">Fechar</button><button type="button" class="btn sm" onClick="{{micAgain}}">Tentar de novo</button></div></sc-if>
+<sc-if value="{{isTFail}}" hint-placeholder-val="{{false}}"><div class="card bad in" role="alert"><span style="flex:none;margin-top:1px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Não foi possível transcrever</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">A gravação continua guardada até você tentar de novo ou descartar.</p></div><button type="button" class="btn sm" onClick="{{askAudio}}">Descartar áudio</button><button type="button" class="btn sm" onClick="{{transAgain}}">Tentar de novo</button></div></sc-if>
+<textarea class="ta" rows="3" aria-label="Mensagem" placeholder="{{hint}}" value="{{text}}" disabled="{{isTrans}}" onChange="{{setText}}"></textarea>
+<sc-if value="{{isRec}}" hint-placeholder-val="{{false}}"><div style="display:flex;align-items:center;gap:10px" role="status" aria-label="Gravando"><span class="dot" aria-hidden="true"></span><span style="font-size:12px;font-weight:600">Gravando</span><span class="mono" style="font-size:12px;color:#A0A8B6">{{clock}}</span><span class="lv" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span style="flex:1"></span><button type="button" class="btn" onClick="{{cancelRec}}">Cancelar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{stopRec}}">Parar e transcrever</button></div></sc-if>
+<sc-if value="{{isTrans}}" hint-placeholder-val="{{false}}"><div style="display:flex;align-items:center;gap:8px;height:36px" role="status"><svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"></path></svg><span style="font-size:12px;color:#A0A8B6">Transcrevendo…</span><button type="button" class="btn sm" onClick="{{cancelTrans}}">Cancelar</button></div></sc-if>
+<sc-if value="{{isCalm}}" hint-placeholder-val="{{true}}"><div style="display:flex;align-items:center;gap:8px"><sc-if value="{{hasMode}}" hint-placeholder-val="{{true}}"><button type="button" class="btn sm">Permissões padrão</button><button type="button" class="btn sm">Anexar spec</button></sc-if><span style="flex:1"></span><sc-if value="{{isDone}}" hint-placeholder-val="{{false}}"><span class="note" role="status">Texto inserido. Revise e envie.</span></sc-if><sc-if value="{{isMicPlain}}" hint-placeholder-val="{{true}}"><button type="button" class="btn ico" aria-label="Ditar por voz (Ctrl+Shift+M)" title="{{micTip}}" disabled="{{micLocked}}" onClick="{{mic}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button></sc-if><sc-if value="{{isBgDown}}" hint-placeholder-val="{{false}}"><button type="button" class="btn" style="padding:0 10px" aria-label="Baixando o modelo de voz, {{pct}}%. Ver progresso" title="Baixando o modelo de voz. Clique para ver o progresso." onClick="{{mic}}"><svg width="18" height="18" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="#2E3542" stroke-width="5"></circle><circle cx="18" cy="18" r="15" fill="none" stroke="#F2A541" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="{{pct}} 100" transform="rotate(-90 18 18)"></circle></svg><span class="mono" style="font-size:12px">{{pct}}%</span></button></sc-if><sc-if value="{{isBgFail}}" hint-placeholder-val="{{false}}"><button type="button" class="btn ico dng" aria-label="O download do modelo falhou. Ver detalhes" title="O download do modelo falhou. Clique para ver." onClick="{{mic}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></button></sc-if><button type="button" class="btn pri" disabled="{{noSend}}" onClick="{{send}}">Enviar</button></div></sc-if>
+</div>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{isVision}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;display:flex">
+<section aria-label="Conversa da etapa Visão" style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="flex:none;padding:16px 20px 12px;border-bottom:1px solid #252B35"><h1 style="font-size:18px;font-weight:600">Visão do projeto</h1><p style="font-size:13px;color:#A0A8B6;margin-top:2px">Converse com o planner. O plano à direita é preenchido a cada resposta.</p></div>
+<div ref="{{endRef}}" style="flex:1;min-height:0;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px"><div class="pl"><span class="who">Planner</span><span>Quem vai usar o sistema no dia a dia?</span></div></div>
+<div class="box" onKeyDown="{{boxKey}}">
+<sc-if value="{{isNoMic}}" hint-placeholder-val="{{false}}"><div class="card bad in" role="alert"><span style="flex:none;margin-top:1px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Nenhum microfone encontrado</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">Conecte um microfone ou escolha outro nas Configurações.</p></div><button type="button" class="btn sm" onClick="{{dismiss}}">Fechar</button><button type="button" class="btn sm" onClick="{{goSettings}}">Abrir Configurações</button><button type="button" class="btn sm" onClick="{{micAgain}}">Tentar de novo</button></div></sc-if>
+<sc-if value="{{isNoSpeech}}" hint-placeholder-val="{{false}}"><div class="card in" role="status"><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Nenhuma fala detectada</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">Fale mais perto do microfone e tente de novo.</p></div><button type="button" class="btn sm" onClick="{{dismiss}}">Fechar</button><button type="button" class="btn sm" onClick="{{micAgain}}">Tentar de novo</button></div></sc-if>
+<sc-if value="{{isTFail}}" hint-placeholder-val="{{false}}"><div class="card bad in" role="alert"><span style="flex:none;margin-top:1px;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></span><div style="flex:1;min-width:0"><h3 style="font-size:13px;font-weight:600">Não foi possível transcrever</h3><p style="font-size:12px;color:#A0A8B6;margin-top:2px">A gravação continua guardada até você tentar de novo ou descartar.</p></div><button type="button" class="btn sm" onClick="{{askAudio}}">Descartar áudio</button><button type="button" class="btn sm" onClick="{{transAgain}}">Tentar de novo</button></div></sc-if>
+<textarea class="ta" rows="3" aria-label="Mensagem" placeholder="{{hint}}" value="{{text}}" disabled="{{isTrans}}" onChange="{{setText}}"></textarea>
+<sc-if value="{{isRec}}" hint-placeholder-val="{{false}}"><div style="display:flex;align-items:center;gap:10px" role="status" aria-label="Gravando"><span class="dot" aria-hidden="true"></span><span style="font-size:12px;font-weight:600">Gravando</span><span class="mono" style="font-size:12px;color:#A0A8B6">{{clock}}</span><span class="lv" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span style="flex:1"></span><button type="button" class="btn" onClick="{{cancelRec}}">Cancelar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{stopRec}}">Parar e transcrever</button></div></sc-if>
+<sc-if value="{{isTrans}}" hint-placeholder-val="{{false}}"><div style="display:flex;align-items:center;gap:8px;height:36px" role="status"><svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"></path></svg><span style="font-size:12px;color:#A0A8B6">Transcrevendo…</span><button type="button" class="btn sm" onClick="{{cancelTrans}}">Cancelar</button></div></sc-if>
+<sc-if value="{{isCalm}}" hint-placeholder-val="{{true}}"><div style="display:flex;align-items:center;gap:8px"><sc-if value="{{hasMode}}" hint-placeholder-val="{{true}}"><button type="button" class="btn sm">Permissões padrão</button><button type="button" class="btn sm">Anexar spec</button></sc-if><span style="flex:1"></span><sc-if value="{{isDone}}" hint-placeholder-val="{{false}}"><span class="note" role="status">Texto inserido. Revise e envie.</span></sc-if><sc-if value="{{isMicPlain}}" hint-placeholder-val="{{true}}"><button type="button" class="btn ico" aria-label="Ditar por voz (Ctrl+Shift+M)" title="{{micTip}}" disabled="{{micLocked}}" onClick="{{mic}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button></sc-if><sc-if value="{{isBgDown}}" hint-placeholder-val="{{false}}"><button type="button" class="btn" style="padding:0 10px" aria-label="Baixando o modelo de voz, {{pct}}%. Ver progresso" title="Baixando o modelo de voz. Clique para ver o progresso." onClick="{{mic}}"><svg width="18" height="18" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="#2E3542" stroke-width="5"></circle><circle cx="18" cy="18" r="15" fill="none" stroke="#F2A541" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="{{pct}} 100" transform="rotate(-90 18 18)"></circle></svg><span class="mono" style="font-size:12px">{{pct}}%</span></button></sc-if><sc-if value="{{isBgFail}}" hint-placeholder-val="{{false}}"><button type="button" class="btn ico dng" aria-label="O download do modelo falhou. Ver detalhes" title="O download do modelo falhou. Clique para ver." onClick="{{mic}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F27A6E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg></button></sc-if><button type="button" class="btn pri" disabled="{{noSend}}" onClick="{{send}}">Enviar</button></div></sc-if>
+</div>
+</section>
+<aside aria-label="Plano do projeto" style="flex:none;width:380px;background:#14171D;border-left:1px solid #252B35;padding:14px 16px"><h2 style="font-size:14px;font-weight:600">Plano do projeto</h2><p style="font-size:12px;color:#8A93A3;margin-top:8px">Ainda vazio</p></aside>
+</div>
+</sc-if>
+<sc-if value="{{isSettings}}" hint-placeholder-val="{{false}}">
+<div style="flex:1;min-height:0;overflow:auto;padding:24px"><div style="width:100%;max-width:640px;margin:0 auto">
+<h1 style="font-size:18px;font-weight:600">Configurações</h1>
+<h2 style="font-size:14px;font-weight:600;margin-top:18px">Ditado por voz</h2>
+<p style="font-size:12px;color:#A0A8B6;margin-top:2px">A transcrição roda neste computador. O áudio não sai da máquina e é apagado depois de virar texto.</p>
+<div style="margin-top:12px">
+<div class="row" style="align-items:flex-start"><div class="t"><span style="font-weight:500">Modelo de voz</span><span class="hint">{{modelState}}</span></div><div style="display:flex;flex-direction:column;gap:8px;width:280px"><label class="opt"><input type="radio" name="m" checked="{{isBest}}" onChange="{{pickBest}}"><span>Melhor qualidade<span class="hint">190 MB · mais lento</span></span></label><label class="opt"><input type="radio" name="m" checked="{{isFast}}" onChange="{{pickFast}}"><span>Mais rápido<span class="hint">60 MB · menos preciso</span></span></label></div></div>
+<div class="row"><div class="t"><label for="lg" style="font-weight:500">Idioma</label></div><select id="lg" class="sel" style="width:280px"><option>Português</option><option>Detectar automaticamente</option></select></div>
+<div class="row"><div class="t"><label for="mc" style="font-weight:500">Microfone</label></div><select id="mc" class="sel" style="width:280px"><option>Padrão do sistema</option><option>Microfone interno</option></select></div>
+<div class="row" style="justify-content:flex-end"><sc-if value="{{hasModel}}" hint-placeholder-val="{{true}}"><button type="button" class="btn dng" onClick="{{askModel}}">Remover modelo</button></sc-if><sc-if value="{{noModel}}" hint-placeholder-val="{{false}}"><button type="button" class="btn pri" onClick="{{getModel}}">{{modelAction}}</button></sc-if></div>
+</div></div></div>
+</sc-if>
+</main>
+<sc-if value="{{isAsk}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="dialog" aria-modal="true" aria-labelledby="d1" class="card" style="width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{dlgKey}}"><div><h2 id="d1" style="font-size:16px;font-weight:600">Ativar o ditado por voz</h2><p style="font-size:13px;color:#A0A8B6;margin-top:6px">Para transcrever sua voz neste computador, o app baixa uma vez o modelo de voz, de {{size}}. Depois disso, funciona sem internet, e o áudio não sai da máquina.</p></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{closeDlg}}">Agora não</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{download}}">Baixar modelo</button></div></div></div></sc-if>
+<sc-if value="{{isDown}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="dialog" aria-modal="true" aria-labelledby="d2" class="card" style="width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{bgKey}}"><h2 id="d2" style="font-size:16px;font-weight:600">Baixando o modelo de voz</h2><div class="bar" role="progressbar" aria-label="Download do modelo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{pct}}"><b style="width:{{pct}}%"></b></div><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A0A8B6"><span class="mono">{{downText}}</span><span style="flex:1"></span><span class="mono" style="color:#E7E9EE;font-weight:500">{{pct}}%</span></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{closeDlg}}">Cancelar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{toBg}}">Continuar em segundo plano</button></div></div></div></sc-if>
+<sc-if value="{{isVerify}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="dialog" aria-modal="true" aria-labelledby="d4" class="card" style="width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{bgKey}}"><h2 id="d4" style="font-size:16px;font-weight:600">Conferindo o arquivo</h2><div class="bar" aria-hidden="true"><b style="width:100%"></b></div><div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#A0A8B6" role="status"><svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"></path></svg><span>Falta pouco. O modelo foi baixado.</span></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{closeDlg}}">Cancelar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{toBg}}">Continuar em segundo plano</button></div></div></div></sc-if>
+<sc-if value="{{isAskAudio}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="alertdialog" aria-modal="true" aria-labelledby="d6" class="card" style="width:100%;max-width:420px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{noKey}}"><div><h2 id="d6" style="font-size:16px;font-weight:600">Descartar a gravação?</h2><p style="font-size:13px;color:#A0A8B6;margin-top:6px">A gravação guardada será apagada. Isso não pode ser desfeito.</p></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn dng" onClick="{{yesAudio}}">Descartar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{noConfirm}}">Manter gravação</button></div></div></div></sc-if>
+<sc-if value="{{isAskModel}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="alertdialog" aria-modal="true" aria-labelledby="d7" class="card" style="width:100%;max-width:420px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{noKey}}"><div><h2 id="d7" style="font-size:16px;font-weight:600">Remover o modelo de voz?</h2><p style="font-size:13px;color:#A0A8B6;margin-top:6px">O ditado para de funcionar até você baixar o modelo de novo, de {{size}}.</p></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn dng" onClick="{{yesModel}}">Remover</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{noConfirm}}">Manter modelo</button></div></div></div></sc-if>
+<sc-if value="{{isReady}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="dialog" aria-modal="true" aria-labelledby="d5" class="card" style="width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{dlgKey}}"><div style="display:flex;align-items:center;gap:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5BC88A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"></path></svg><h2 id="d5" style="font-size:16px;font-weight:600">Modelo pronto</h2></div><p style="font-size:13px;color:#A0A8B6">O ditado por voz já funciona, mesmo sem internet.</p><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{closeDlg}}">Fechar</button><sc-if value="{{canTalk}}" hint-placeholder-val="{{true}}"><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{micAgain}}">Falar agora</button></sc-if></div></div></div></sc-if>
+<sc-if value="{{isDownFail}}" hint-placeholder-val="{{false}}"><div class="scrim"><div role="alertdialog" aria-modal="true" aria-labelledby="d3" class="card bad" style="width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:12px" onKeyDown="{{dlgKey}}"><div><h2 id="d3" style="font-size:16px;font-weight:600">Não foi possível baixar o modelo</h2><p style="font-size:13px;color:#A0A8B6;margin-top:6px">Verifique a conexão e tente de novo. O download continua de onde parou.</p></div><div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onClick="{{closeDlg}}">Fechar</button><button type="button" class="btn pri" ref="{{focusRef}}" onClick="{{download}}">Tentar de novo</button></div></div></div></sc-if>
+<sc-if value="{{hasInfo}}" hint-placeholder-val="{{false}}"><div class="toast" role="status"><span>{{toast}}</span><button type="button" class="btn sm" onClick="{{closeToast}}">Fechar</button></div></sc-if>
+<sc-if value="{{hasBad}}" hint-placeholder-val="{{false}}"><div class="toast bad" role="alert"><span>{{toast}}</span><button type="button" class="btn sm" onClick="{{closeToast}}">Fechar</button><button type="button" class="btn sm" onClick="{{mic}}">Ver detalhes</button></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+const START = {"text": "Ajuste o lembrete para ", "model": false, "mic": "downfail"};
+const SAID = 'enviar 24 horas antes da consulta e registrar o erro quando o envio falhar.';
+const MSGS = [{ me: true, text: 'Adicione o lembrete por e-mail na agenda.' }, { me: false, text: 'Li a SPEC-005 e criei o agendamento do lembrete. Quer ajustar quando ele sai?' }];
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { screen: START.screen || 'session', mic: START.mic || 'idle', text: START.text || '', model: START.model !== false, secs: START.secs || 0, pct: START.pct || 0, toast: START.toast || '', toastBad: START.toastBad || false, msgs: MSGS, fast: START.fast || false, have: 'best', bg: START.bg || false, ask: START.ask || '', hold: false };
+    this.focusKey = '';
+    this.timer = null;
+  }
+  componentDidMount() { const m = this.state.mic; if (m === 'rec') this.tick(); if (m === 'trans') this.transcribe(); if (m === 'down') this.fetch(); if (m === 'verify') this.verify(); }
+  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.toastTimer); clearTimeout(this.holdTimer); }
+  componentDidUpdate(_, prev) { const { toast, toastBad } = this.state; if (prev && prev.toast !== toast) { clearTimeout(this.toastTimer); if (toast && !toastBad) this.toastTimer = setTimeout(() => this.setState({ toast: '' }), 6000); } }
+  tick() { clearTimeout(this.timer); this.timer = setTimeout(() => { if (this.state.mic === 'rec') { this.setState({ secs: this.state.secs + 1 }); this.tick(); } }, 1000); }
+  fetch() { clearTimeout(this.timer); this.timer = setTimeout(() => {
+    if (this.state.mic !== 'down') return;
+    const pct = this.state.pct + 12;
+    if (pct >= 100) { this.setState({ mic: 'verify', pct: 100 }); this.verify(); return; }
+    this.setState({ pct }); this.fetch(); }, this.state.bg ? 900 : 350); }
+  verify() { clearTimeout(this.timer); this.timer = setTimeout(() => {
+    if (this.state.bg) this.setState({ mic: 'idle', bg: false, pct: 0, model: true, have: this.state.fast ? 'fast' : 'best', toast: 'Modelo pronto. Clique no microfone para falar.' });
+    else this.setState({ mic: 'ready', pct: 0, model: true, have: this.state.fast ? 'fast' : 'best' }); }, 900); }
+  transcribe() { clearTimeout(this.timer); this.timer = setTimeout(() => {
+    const t = this.state.text; this.setState({ mic: 'done', hold: true, text: (t && !t.endsWith(' ') ? t + ' ' : t) + SAID }); this.holdTimer = setTimeout(() => this.setState({ hold: false }), 800); }, 1600); }
+  renderVals() {
+    const { screen, mic, text, model, secs, pct, toast, toastBad, msgs, fast, have, bg, ask, hold } = this.state;
+    const sel = fast ? 'fast' : 'best', selOk = model && have === sel;
+    const bgDown = bg && (mic === 'down' || mic === 'verify'), bgFail = mic === 'bgfail';
+    const size = fast ? '60 MB' : '190 MB', total = fast ? 60 : 190;
+    const calm = !['rec', 'trans'].includes(mic);
+    const pad = (n) => String(n).padStart(2, '0');
+    const fk = mic + '/' + ask + '/' + bg;
+    if (!['rec', 'ask', 'down', 'verify', 'ready', 'downfail'].includes(mic) && !ask) this.focusKey = '';
+    const focus = (el) => { if (el && this.focusKey !== fk) { this.focusKey = fk; setTimeout(() => el.focus(), 0); } };
+    const start = () => { this.setState({ mic: 'rec', secs: 0, toast: '' }); this.tick(); };
+    const close = () => { clearTimeout(this.timer); this.setState({ mic: 'idle', pct: 0, bg: false }); };
+    const cancelRec = () => { clearTimeout(this.timer); this.setState({ mic: 'idle', toast: 'Gravação cancelada.' }); };
+    return {
+      navPrompt: screen === 'session' ? 'on' : '', navProjeto: screen === 'vision' ? 'on' : '',
+      isSession: screen === 'session', isVision: screen === 'vision', isSettings: screen === 'settings', hasMode: screen === 'session',
+      msgs: msgs.map((m) => ({ text: m.text, mine: !!m.me, theirs: !m.me })),
+      endRef: (el) => { if (el) setTimeout(() => { el.scrollTop = el.scrollHeight; }, 0); },
+      hint: screen === 'vision' ? 'Responda ou descreva mais sobre o projeto…' : 'Envie uma mensagem para a sessão…  @ arquivo  / prompt salvo  (Ctrl+Enter envia)',
+      text, setText: (e) => this.setState({ text: e.target.value, mic: mic === 'done' ? 'idle' : mic }),
+      isRec: mic === 'rec', isTrans: mic === 'trans', isDone: mic === 'done', isCalm: calm,
+      isNoMic: mic === 'nomic', isNoSpeech: mic === 'nospeech', isTFail: mic === 'tfail',
+      isAsk: mic === 'ask', isDown: mic === 'down' && !bg, isVerify: mic === 'verify' && !bg, isReady: mic === 'ready', canTalk: screen !== 'settings', isDownFail: mic === 'downfail',
+      clock: pad(Math.floor(secs / 60)) + ':' + pad(secs % 60),
+      noSend: !text.trim() || hold, send: () => this.setState({ msgs: msgs.concat([{ me: true, text }]), text: '', mic: mic === 'done' ? 'idle' : mic }),
+      mic: () => { if (bgDown) this.setState({ bg: false }); else if (bgFail) this.setState({ mic: 'downfail', toast: '', toastBad: false }); else if (!model) this.setState({ mic: 'ask', toast: '' }); else start(); },
+      isMicPlain: !bgDown && !bgFail, isBgDown: bgDown, isBgFail: bgFail,
+      toBg: () => this.setState({ bg: true }),
+      modelAction: bgDown ? 'Ver progresso' : 'Baixar modelo',
+      micLocked: mic === 'tfail', micTip: mic === 'tfail' ? 'Há uma gravação guardada. Tente de novo ou descarte.' : 'Ditar por voz (Ctrl+Shift+M)',
+      askAudio: () => this.setState({ ask: 'audio' }), askModel: () => this.setState({ ask: 'model' }),
+      isAskAudio: ask === 'audio', isAskModel: ask === 'model',
+      noConfirm: () => this.setState({ ask: '' }), noKey: (e) => { if (e.key === 'Escape') this.setState({ ask: '' }); },
+      yesAudio: () => this.setState({ ask: '', mic: 'idle', toast: 'Gravação descartada.', toastBad: false }),
+      yesModel: () => this.setState({ ask: '', model: false, toast: 'Modelo removido.', toastBad: false }),
+      bgKey: (e) => { if (e.key === 'Escape') this.setState({ bg: true }); },
+      micAgain: start, dismiss: () => this.setState({ mic: 'idle' }),
+      cancelRec, stopRec: () => { clearTimeout(this.timer); this.setState({ mic: 'trans' }); this.transcribe(); },
+      cancelTrans: () => { clearTimeout(this.timer); this.setState({ mic: 'idle', toast: 'Transcrição cancelada.' }); },
+      transAgain: () => { this.setState({ mic: 'trans' }); this.transcribe(); },
+      boxKey: (e) => { if (e.key === 'Escape' && mic === 'rec') cancelRec(); },
+      size, pct, downText: Math.round(total * pct / 100) + ' MB de ' + total + ' MB',
+      download: () => { this.setState({ mic: 'down', bg: false }); this.fetch(); }, closeDlg: close,
+      dlgKey: (e) => { if (e.key === 'Escape') close(); }, focusRef: focus,
+      hasInfo: !!toast && !toastBad, hasBad: !!toast && toastBad, toast, closeToast: () => this.setState({ toast: '', toastBad: false }),
+      hasModel: selOk, noModel: !selOk, modelState: selOk ? 'Instalado · ' + size : bgDown ? 'Baixando · ' + pct + '%' : model ? 'Não instalado · em uso até baixar: ' + (have === 'fast' ? 'Mais rápido' : 'Melhor qualidade') : 'Não instalado',
+      getModel: () => { if (bgDown) this.setState({ bg: false }); else this.setState({ mic: 'ask', toast: '' }); },
+      goSettings: () => this.setState({ screen: 'settings', mic: 'idle' }),
+      isBest: !fast, isFast: fast, pickBest: () => this.setState({ fast: false }), pickFast: () => this.setState({ fast: true }),
+    };
+  }
+}
+</script>
+</body>
+</html>

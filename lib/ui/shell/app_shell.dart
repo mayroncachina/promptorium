@@ -25,6 +25,7 @@ import '../../features/sessions/sessions_screen.dart'
 import '../../features/settings/settings_screen.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
+import '../../features/dictation/dictation_widgets.dart';
 import '../../features/specs/new_spec_view.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/specs/workspace_watcher.dart';
@@ -371,43 +372,45 @@ class _AppShellState extends ConsumerState<AppShell> {
           autofocus: true,
           child: Scaffold(
             backgroundColor: AppColors.background,
-            body: Column(
-              children: [
-                TitleBar(
-                  section: section,
-                  onOpenPalette: _openPalette,
-                  onAction: () => _onAction(section),
-                  onWorkspace: () => showWorkspacePicker(context),
-                ),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SideBar(active: section, onSelect: _goNav),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: SectionTransition(
-                                section: section,
-                                child: KeyedSubtree(
-                                  key: ValueKey('screen-${section.name}'),
-                                  child: _screenFor(section),
+            body: DictationHost(
+              child: Column(
+                children: [
+                  TitleBar(
+                    section: section,
+                    onOpenPalette: _openPalette,
+                    onAction: () => _onAction(section),
+                    onWorkspace: () => showWorkspacePicker(context),
+                  ),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SideBar(active: section, onSelect: _goNav),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: SectionTransition(
+                                  section: section,
+                                  child: KeyedSubtree(
+                                    key: ValueKey('screen-${section.name}'),
+                                    child: _screenFor(section),
+                                  ),
                                 ),
                               ),
-                            ),
-                            // Approvals of sessions / conversations that are
-                            // not on screen, answerable from anywhere.
-                            const Positioned.fill(child: GlobalApprovals()),
-                            const FirstRunHost(),
-                          ],
+                              // Approvals of sessions / conversations that are
+                              // not on screen, answerable from anywhere.
+                              const Positioned.fill(child: GlobalApprovals()),
+                              const FirstRunHost(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const StatusFooter(),
-              ],
+                  const StatusFooter(),
+                ],
+              ),
             ),
           ),
         ),

@@ -9,6 +9,8 @@ import '../../ui/shell/footer_stats.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
+import '../dictation/dictation_controller.dart';
+import '../dictation/dictation_widgets.dart';
 import '../project/project_config.dart';
 import '../project/project_plan.dart' show PlanMessage;
 import '../project/widgets/project_widgets.dart';
@@ -160,11 +162,19 @@ class _Idea extends ConsumerStatefulWidget {
 
 class _IdeaState extends ConsumerState<_Idea> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
+  late final _dictation = DictationTarget(
+    id: 'new-spec-idea',
+    controller: _text,
+    focusNode: _focus,
+    onInserted: () => setState(() {}),
+  );
   bool _checking = false;
 
   @override
   void dispose() {
     _text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -307,20 +317,26 @@ class _IdeaState extends ConsumerState<_Idea> {
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('new-spec-idea'),
-                controller: _text,
-                autofocus: true,
-                minLines: 4,
-                maxLines: 8,
-                style: const TextStyle(fontSize: 13, color: AppColors.text),
-                decoration: _fieldDecoration(
-                  hint:
-                      'Avisar o paciente antes da consulta, para reduzir as '
-                      'faltas…',
+              DictationLock(
+                id: _dictation.id,
+                builder: (locked) => TextField(
+                  key: const ValueKey('new-spec-idea'),
+                  controller: _text,
+                  focusNode: _focus,
+                  readOnly: locked,
+                  autofocus: true,
+                  minLines: 4,
+                  maxLines: 8,
+                  style: const TextStyle(fontSize: 13, color: AppColors.text),
+                  decoration: _fieldDecoration(
+                    hint:
+                        'Avisar o paciente antes da consulta, para reduzir as '
+                        'faltas…',
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
+              DictationBar(target: _dictation),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
@@ -757,28 +773,36 @@ class _Message extends StatelessWidget {
 }
 
 /// Answer field, fixed under the conversation (R12).
-class _Composer extends StatefulWidget {
+class _Composer extends ConsumerStatefulWidget {
   const _Composer({required this.enabled, required this.onSend});
 
   final bool enabled;
   final ValueChanged<String> onSend;
 
   @override
-  State<_Composer> createState() => _ComposerState();
+  ConsumerState<_Composer> createState() => _ComposerState();
 }
 
-class _ComposerState extends State<_Composer> {
+class _ComposerState extends ConsumerState<_Composer> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
+  late final _dictation = DictationTarget(
+    id: 'new-spec-conversation',
+    controller: _text,
+    focusNode: _focus,
+  );
 
   @override
   void dispose() {
     _text.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   void _send() {
     final t = _text.text.trim();
     if (!widget.enabled || t.isEmpty) return;
+    if (ref.read(dictationProvider).sendHeldIn == _dictation.id) return;
     _text.clear();
     widget.onSend(t);
   }
@@ -789,38 +813,56 @@ class _ComposerState extends State<_Composer> {
     decoration: const BoxDecoration(
       border: Border(top: BorderSide(color: AppColors.border)),
     ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                  _send,
-            },
-            child: TextField(
-              key: const ValueKey('new-spec-composer'),
-              controller: _text,
-              autofocus: true,
-              minLines: 2,
-              maxLines: 4,
-              style: const TextStyle(fontSize: 13, color: AppColors.text),
-              decoration: _fieldDecoration(
-                hint: 'Responda ou descreva mais sobre a ideia…',
+        DictationNotices(target: _dictation),
+        DictationActions(
+          target: _dictation,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(
+                      LogicalKeyboardKey.enter,
+                      control: true,
+                    ): _send,
+                  },
+                  child: TextField(
+                    key: const ValueKey('new-spec-composer'),
+                    controller: _text,
+                    focusNode: _focus,
+                    autofocus: true,
+                    minLines: 2,
+                    maxLines: 4,
+                    style: const TextStyle(fontSize: 13, color: AppColors.text),
+                    decoration: _fieldDecoration(
+                      hint: 'Responda ou descreva mais sobre a ideia…',
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        ListenableBuilder(
-          listenable: _text,
-          builder: (_, _) => SmallButton(
-            key: const ValueKey('new-spec-send'),
-            label: 'Enviar',
-            height: 36,
-            onTap: widget.enabled && _text.text.trim().isNotEmpty
-                ? _send
-                : null,
+              const SizedBox(width: 8),
+              DictationButton(target: _dictation, size: 36),
+              const SizedBox(width: 8),
+              ListenableBuilder(
+                listenable: _text,
+                builder: (_, _) => SmallButton(
+                  key: const ValueKey('new-spec-send'),
+                  label: 'Enviar',
+                  height: 36,
+                  onTap:
+                      widget.enabled &&
+                          _text.text.trim().isNotEmpty &&
+                          !sendHeld(ref, _dictation.id)
+                      ? _send
+                      : null,
+                ),
+              ),
+            ],
           ),
         ),
       ],

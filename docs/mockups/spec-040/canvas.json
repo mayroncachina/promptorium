@@ -1,0 +1,228 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-06T19:00:00Z"
+ },
+ "title": "Promptorium · Ditado por voz (#87)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Microfone ao lado de Enviar",
+   "is_interactive": true
+  },
+  "Baixar.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Primeiro uso: baixar o modelo uma vez",
+   "is_interactive": true
+  },
+  "Baixando.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Download com progresso",
+   "is_interactive": true
+  },
+  "Conferindo.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Download completo: conferindo o arquivo",
+   "is_interactive": true
+  },
+  "ModeloPronto.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "5 · Fim do download: Modelo pronto",
+   "is_interactive": true
+  },
+  "FalhaDownload.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "6 · Download falhou",
+   "is_interactive": true
+  },
+  "SegundoPlano.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "7 · Segundo plano: progresso no botão, app livre",
+   "is_interactive": true
+  },
+  "FimSegundoPlano.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "8 · Fim em segundo plano: aviso sem interromper",
+   "is_interactive": true
+  },
+  "FalhaSegundoPlano.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "9 · Falha em segundo plano: aviso no botão",
+   "is_interactive": true
+  },
+  "Gravando.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "10 · Gravando: Parar, Cancelar ou Esc",
+   "is_interactive": true
+  },
+  "Transcrevendo.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "11 · Transcrevendo no computador",
+   "is_interactive": true
+  },
+  "Pronto.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "12 · Texto no cursor, sem enviar",
+   "is_interactive": true
+  },
+  "SemMicrofone.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 4080,
+   "w": 1440,
+   "h": 900,
+   "title": "13 · Nenhum microfone encontrado",
+   "is_interactive": true
+  },
+  "SemFala.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 4080,
+   "w": 1440,
+   "h": 900,
+   "title": "14 · Gravação sem fala",
+   "is_interactive": true
+  },
+  "FalhaTranscricao.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 4080,
+   "w": 1440,
+   "h": 900,
+   "title": "15 · Falha: a gravação continua guardada",
+   "is_interactive": true
+  },
+  "DescartarAudio.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 5100,
+   "w": 1440,
+   "h": 900,
+   "title": "16 · Descartar áudio pede confirmação",
+   "is_interactive": true
+  },
+  "Visao.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 5100,
+   "w": 1440,
+   "h": 900,
+   "title": "17 · O mesmo botão na etapa Visão",
+   "is_interactive": true
+  },
+  "Configuracoes.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 5100,
+   "w": 1440,
+   "h": 900,
+   "title": "18 · Configurações: modelo, idioma e microfone",
+   "is_interactive": true
+  },
+  "TrocarModelo.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 6120,
+   "w": 1440,
+   "h": 900,
+   "title": "19 · Trocar o modelo: o atual segue em uso até baixar",
+   "is_interactive": true
+  },
+  "RemoverModelo.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 6120,
+   "w": 1440,
+   "h": 900,
+   "title": "20 · Remover modelo pede confirmação",
+   "is_interactive": true
+  },
+  "Compacta.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 6120,
+   "w": 1100,
+   "h": 700,
+   "title": "21 · Janela mínima 1100×700, gravando",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Baixar.dc.html",
+  "Baixando.dc.html",
+  "Conferindo.dc.html",
+  "ModeloPronto.dc.html",
+  "FalhaDownload.dc.html",
+  "SegundoPlano.dc.html",
+  "FimSegundoPlano.dc.html",
+  "FalhaSegundoPlano.dc.html",
+  "Gravando.dc.html",
+  "Transcrevendo.dc.html",
+  "Pronto.dc.html",
+  "SemMicrofone.dc.html",
+  "SemFala.dc.html",
+  "FalhaTranscricao.dc.html",
+  "DescartarAudio.dc.html",
+  "Visao.dc.html",
+  "Configuracoes.dc.html",
+  "TrocarModelo.dc.html",
+  "RemoverModelo.dc.html",
+  "Compacta.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/agent_registry.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../dictation/dictation_controller.dart';
+import '../../dictation/dictation_widgets.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../attachments.dart' show imageMediaType;
@@ -110,6 +112,12 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
   /// Trigger the user closed with Esc (not reopened until it changes).
   int? _dismissedAt;
 
+  late final _dictation = DictationTarget(
+    id: 'prompt',
+    controller: widget.controller,
+    focusNode: widget.focusNode,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -209,7 +217,8 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
 
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
-        if (!widget.busy) widget.onSend();
+        final held = ref.read(dictationProvider).sendHeldIn == _dictation.id;
+        if (!widget.busy && !held) widget.onSend();
       },
       if (showing) ...{
         const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
@@ -298,94 +307,106 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                       ),
                       const SizedBox(height: 8),
                     ],
+                    DictationNotices(target: _dictation),
                     CallbackShortcuts(
                       bindings: bindings,
-                      child: TextField(
-                        key: const ValueKey('prompt-field'),
-                        controller: widget.controller,
-                        focusNode: widget.focusNode,
-                        minLines: 3,
-                        maxLines: 10,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          color: AppColors.text,
-                        ),
-                        decoration: const InputDecoration.collapsed(
-                          hintText:
-                              'Pergunte qualquer coisa…  @ anexa arquivo  '
-                              '/ usa um prompt salvo',
-                          hintStyle: TextStyle(
+                      child: DictationLock(
+                        id: _dictation.id,
+                        builder: (locked) => TextField(
+                          key: const ValueKey('prompt-field'),
+                          controller: widget.controller,
+                          focusNode: widget.focusNode,
+                          readOnly: locked,
+                          minLines: 3,
+                          maxLines: 10,
+                          style: const TextStyle(
                             fontSize: 14,
-                            color: AppColors.textMuted,
+                            height: 1.5,
+                            color: AppColors.text,
+                          ),
+                          decoration: const InputDecoration.collapsed(
+                            hintText:
+                                'Pergunte qualquer coisa…  @ anexa arquivo  '
+                                '/ usa um prompt salvo',
+                            hintStyle: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (widget.onPickFiles != null)
-                                IconButton(
-                                  key: const ValueKey('prompt-attach'),
-                                  tooltip:
-                                      'Anexar arquivos (ou arraste para cá)',
-                                  visualDensity: VisualDensity.compact,
-                                  iconSize: 18,
-                                  color: AppColors.textSecondary,
-                                  onPressed: widget.onPickFiles,
-                                  icon: const Icon(Icons.attach_file),
+                    DictationActions(
+                      target: _dictation,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if (widget.onPickFiles != null)
+                                  IconButton(
+                                    key: const ValueKey('prompt-attach'),
+                                    tooltip:
+                                        'Anexar arquivos (ou arraste para cá)',
+                                    visualDensity: VisualDensity.compact,
+                                    iconSize: 18,
+                                    color: AppColors.textSecondary,
+                                    onPressed: widget.onPickFiles,
+                                    icon: const Icon(Icons.attach_file),
+                                  ),
+                                _ProviderButton(
+                                  active: widget.provider,
+                                  onSelected: widget.onProvider,
                                 ),
-                              _ProviderButton(
-                                active: widget.provider,
-                                onSelected: widget.onProvider,
-                              ),
-                              _ModelButton(
-                                models: widget.provider.models,
-                                model: widget.model,
-                                onSelected: widget.onModel,
-                              ),
-                              _ModeSwitch(
-                                mode: widget.mode,
-                                onSelected: widget.onMode,
-                              ),
-                              Text(
-                                widget.mode.hint,
-                                key: const ValueKey('prompt-mode-hint'),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
+                                _ModelButton(
+                                  models: widget.provider.models,
+                                  model: widget.model,
+                                  onSelected: widget.onModel,
                                 ),
-                              ),
-                            ],
+                                _ModeSwitch(
+                                  mode: widget.mode,
+                                  onSelected: widget.onMode,
+                                ),
+                                Text(
+                                  widget.mode.hint,
+                                  key: const ValueKey('prompt-mode-hint'),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (widget.busy) ...[
-                          SmallButton(
-                            key: const ValueKey('prompt-stop'),
-                            label: 'Parar',
-                            color: AppColors.red,
-                            border: SessionColors.stopBorder,
-                            height: 32,
-                            onTap: widget.onStop,
-                          ),
+                          const SizedBox(width: 8),
+                          if (widget.busy) ...[
+                            SmallButton(
+                              key: const ValueKey('prompt-stop'),
+                              label: 'Parar',
+                              color: AppColors.red,
+                              border: SessionColors.stopBorder,
+                              height: 32,
+                              onTap: widget.onStop,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          DictationButton(target: _dictation, size: 32),
                           const SizedBox(width: 6),
+                          AmberButton(
+                            key: const ValueKey('prompt-send'),
+                            label: widget.busy ? 'Respondendo…' : 'Enviar',
+                            height: 32,
+                            onTap: widget.busy || sendHeld(ref, _dictation.id)
+                                ? null
+                                : widget.onSend,
+                          ),
                         ],
-                        AmberButton(
-                          key: const ValueKey('prompt-send'),
-                          label: widget.busy ? 'Respondendo…' : 'Enviar',
-                          height: 32,
-                          onTap: widget.busy ? null : widget.onSend,
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

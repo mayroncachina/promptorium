@@ -55,6 +55,14 @@ enum SettingsSection {
     'memória',
     'retomar',
   ]),
+  dictation('Ditado por voz', SettingsGroup.app, [
+    'ditado',
+    'voz',
+    'microfone',
+    'whisper',
+    'áudio',
+    'transcrição',
+  ]),
   automations('Automações (hooks)', SettingsGroup.app, [
     'hook',
     'formatar',
@@ -140,6 +148,10 @@ bool sectionChanged(
                 now.effort(k) != defaults.effort(k),
           ) ||
           now.autocompact != defaults.autocompact,
+    SettingsSection.dictation =>
+      settings.containsKey(AppSettingKeys.voiceModel) ||
+          settings.containsKey(AppSettingKeys.voiceLanguage) ||
+          settings.containsKey(AppSettingKeys.voiceDevice),
     SettingsSection.orchestrator => !OrchestratorPrefs(settings).isDefault,
     SettingsSection.specRuns =>
       now.singleSessionMaxSteps != defaults.singleSessionMaxSteps ||

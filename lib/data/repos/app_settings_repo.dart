@@ -21,6 +21,12 @@ abstract final class AppSettingKeys {
   /// Default `--effort` of a `RunKind` (`default` = CLI default).
   static String runEffort(String kind) => 'claude.effort.$kind';
 
+  /// Ditado por voz (SPEC-040 R7): `VoiceModel.name` chosen, `VoiceLanguage`
+  /// name and `arecord -D` device (absent = system default).
+  static const voiceModel = 'voice.model';
+  static const voiceLanguage = 'voice.language';
+  static const voiceDevice = 'voice.device';
+
   /// "Escrever o Plano em seguida" of "Nova spec" (`0` = off; SPEC-039 R7).
   static const specPlanNext = 'specs.planNext';
 

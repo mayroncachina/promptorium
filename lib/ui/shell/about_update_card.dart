@@ -18,7 +18,8 @@ String _two(int v) => v.toString().padLeft(2, '0');
 /// `05/11/2026`.
 String formatDate(DateTime d) => '${_two(d.day)}/${_two(d.month)}/${d.year}';
 
-String _formatChecked(DateTime at, DateTime now) {
+/// When the last check ran, seen from [now].
+String formatChecked(DateTime at, DateTime now) {
   final time = '${_two(at.hour)}:${_two(at.minute)}';
   final day = DateTime(at.year, at.month, at.day);
   final days = DateTime(now.year, now.month, now.day).difference(day).inDays;
@@ -88,7 +89,7 @@ class UpdateCard extends ConsumerWidget {
       UpdateUpToDate(:final checkedAt) => plain(
         icon(Icons.check, CanvasColors.done),
         'Você está na versão mais recente',
-        _formatChecked(checkedAt, DateTime.now()),
+        formatChecked(checkedAt, DateTime.now()),
       ),
       UpdateChecking() => plain(
         spinner,
