@@ -10,6 +10,7 @@ import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart';
+import 'sprint_rules.dart';
 
 /// "Agendar Autopilot" of a workspace (F17): every day at [hour]:[minute]
 /// (with the app open) it turns on, spending at most [budgetUsd] that day.
@@ -218,7 +219,10 @@ class Autopilot extends Notifier<Set<int>> {
     var running = all.where((s) => s.stage == SpecStage.running).length;
     var started = 0;
     var waiting = false;
-    for (final s in all) {
+    // Only the active sprint (SPEC-042 R11); a dependency outside it blocks,
+    // and is never pulled in.
+    final active = await ref.read(sprintsRepoProvider).active(workspaceId);
+    for (final s in autopilotScope(all, active)) {
       if (parallel != null && running >= parallel) break;
       if (!isOnBoard(s) ||
           s.stage != SpecStage.backlog ||

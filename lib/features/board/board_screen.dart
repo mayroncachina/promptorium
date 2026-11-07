@@ -432,6 +432,18 @@ class BoardScreen extends ConsumerWidget {
     final selectedId = ref.watch(boardSelectedSpecProvider);
     final view = ref.watch(boardGraphViewProvider);
     final selected = cards.where((d) => d.spec.id == selectedId).firstOrNull;
+    // A spec opened from Início, the palette or a notification (SPEC-042 R9).
+    if (selected != null && !sprint.matches(selected.spec)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ref
+            .read(boardSprintProvider.notifier)
+            .set(sprintFilterOf(selected.spec));
+      });
+    }
+    final elsewhere = sprint.isAll
+        ? 0
+        : cards.where((d) => !sprint.matches(d.spec) && attention(d)).length;
     final body = cards.isEmpty
         ? _Empty(
             drafts == 0
@@ -520,6 +532,18 @@ class BoardScreen extends ConsumerWidget {
                 parallel: parallel,
                 attention: attention,
               ),
+              if (elsewhere > 0)
+                _SprintNotice(
+                  count: elsewhere,
+                  onTap: () {
+                    ref
+                        .read(boardSprintProvider.notifier)
+                        .set(const SprintFilter.all());
+                    ref
+                        .read(boardFilterProvider.notifier)
+                        .set(filter.copyWith(attention: true));
+                  },
+                ),
               for (final f in replanFailures)
                 _ReplanWarning(workspace: ws, failure: f),
               if (legacy.isNotEmpty)
@@ -582,6 +606,50 @@ class BoardScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// What waits for the person in other sprints (SPEC-042 R9).
+class _SprintNotice extends StatelessWidget {
+  const _SprintNotice({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    key: const ValueKey('board-sprint-notice'),
+    color: AppColors.amberTint,
+    child: InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.border)),
+        ),
+        child: Row(
+          spacing: 10,
+          children: [
+            const Icon(Icons.chat_bubble, size: 14, color: AppColors.amber),
+            Text(
+              count == 1
+                  ? '1 em outra sprint precisa de você'
+                  : '$count em outras sprints precisam de você',
+              style: const TextStyle(fontSize: 12, color: AppColors.text),
+            ),
+            const Text(
+              'Ver em Todas',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.amber,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _Empty extends StatelessWidget {
