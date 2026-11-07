@@ -14,7 +14,7 @@ class NativeTrayBackend implements TrayBackend {
   // Kept for as long as the icon is shown: a collected wrapper removes it.
   tray.TrayIcon? _icon;
   tray.Menu? _menu;
-  final List<tray.MenuItem> _items = [];
+  List<tray.MenuItem> _items = [];
 
   @override
   Future<void> show({
@@ -34,21 +34,9 @@ class NativeTrayBackend implements TrayBackend {
     icon.icon = image;
     icon.setTooltip(tooltip);
 
-    final nativeMenu = tray.Menu.create();
-    if (nativeMenu == null) throw StateError('não foi possível criar o menu');
+    final (nativeMenu, items) = _build(menu);
     _menu = nativeMenu;
-    for (final entry in menu) {
-      final item = tray.MenuItem.createWithLabelAndType(
-        entry.label,
-        tray.MenuItemType.normal,
-      );
-      if (item == null) continue;
-      item.addListener((event) {
-        if (event is tray.MenuItemClickedEvent) unawaited(entry.onSelected());
-      });
-      nativeMenu.addItem(item);
-      _items.add(item);
-    }
+    _items = items;
     icon.setContextMenu(nativeMenu);
     // The panel opens the menu on a secondary click; a primary click (KDE) or
     // a double click (GNOME's AppIndicator extension) reaches [onActivate].
@@ -64,15 +52,69 @@ class NativeTrayBackend implements TrayBackend {
     }
   }
 
+  /// The new icon and menu are built before anything changes, so a failure
+  /// leaves the tray as it was; the old menu is freed only after the swap.
+  @override
+  Future<void> update({
+    required String iconAsset,
+    required String tooltip,
+    required List<TrayMenuEntry> menu,
+  }) async {
+    final icon = _icon;
+    if (icon == null) return;
+    final image = tray.ImageAsset.fromAsset(iconAsset);
+    if (image == null) throw TrayIconUnavailable(iconAsset);
+    final (nativeMenu, items) = _build(menu);
+    final oldMenu = _menu, oldItems = _items;
+    icon.icon = image;
+    icon.setTooltip(tooltip);
+    icon.setContextMenu(nativeMenu);
+    _menu = nativeMenu;
+    _items = items;
+    _free(oldMenu, oldItems);
+  }
+
+  (tray.Menu, List<tray.MenuItem>) _build(List<TrayMenuEntry> entries) {
+    final menu = tray.Menu.create();
+    if (menu == null) throw StateError('não foi possível criar o menu');
+    final items = <tray.MenuItem>[];
+    for (final entry in entries) {
+      if (entry.isSeparator) {
+        menu.addSeparator();
+        continue;
+      }
+      final item = tray.MenuItem.createWithLabelAndType(
+        entry.label,
+        tray.MenuItemType.normal,
+      );
+      if (item == null) continue;
+      final onSelected = entry.onSelected;
+      if (onSelected == null) {
+        item.isEnabled = false;
+      } else {
+        item.addListener((event) {
+          if (event is tray.MenuItemClickedEvent) unawaited(onSelected());
+        });
+      }
+      menu.addItem(item);
+      items.add(item);
+    }
+    return (menu, items);
+  }
+
+  void _free(tray.Menu? menu, List<tray.MenuItem> items) {
+    for (final item in items) {
+      item.dispose();
+    }
+    menu?.dispose();
+  }
+
   @override
   Future<void> dispose() async {
     _icon?.dispose();
     _icon = null;
-    for (final item in _items) {
-      item.dispose();
-    }
-    _items.clear();
-    _menu?.dispose();
+    _free(_menu, _items);
+    _items = [];
     _menu = null;
   }
 }

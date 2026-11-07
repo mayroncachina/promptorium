@@ -282,33 +282,42 @@ String approvalVerb(String tool) => switch (tool) {
 final inboxProvider = Provider.autoDispose<List<InboxGroup>>((ref) {
   final ws = ref.watch(activeWorkspaceProvider);
   if (ws == null) return const [];
-  final manager = ref.watch(sessionManagerProvider);
-  final conversations = ref.watch(conversationManagerProvider);
-  final sessions = ref.watch(sessionsProvider(ws.id)).value ?? const [];
-  // Live processes of every workspace: only this workspace's approvals.
-  final sessionIds = {for (final s in sessions) s.id};
-  final conversationIds = {
-    for (final c in ref.watch(conversationsProvider(ws.id)).value ?? const [])
-      c.id,
-  };
-  return buildInbox(
-    sessionApprovals: [
-      for (final a in manager.approvals)
-        if (sessionIds.contains(a.sessionId)) a,
-    ],
-    conversationApprovals: {
-      for (final e in conversations.live.entries)
-        if (e.value.approvals.isNotEmpty && conversationIds.contains(e.key))
-          e.key: e.value.approvals,
-    },
-    specs: ref.watch(specsProvider(ws.id)).value ?? const [],
-    stepRows: ref.watch(specStepsProvider(ws.id)).value ?? const [],
-    sessions: sessions,
-    reviewQueue: ref.watch(reviewQueueProvider(ws.id)).value ?? const [],
-    prWatches: ref.watch(prBabysitterProvider),
-    isAlive: manager.isAlive,
-  );
+  return ref.watch(workspaceInboxProvider(ws.id));
 });
+
+/// Inbox of one workspace (the tray radar reads all of them, SPEC-041 R3).
+final workspaceInboxProvider = Provider.autoDispose
+    .family<List<InboxGroup>, int>((ref, workspaceId) {
+      final manager = ref.watch(sessionManagerProvider);
+      final conversations = ref.watch(conversationManagerProvider);
+      final sessions =
+          ref.watch(sessionsProvider(workspaceId)).value ?? const [];
+      // Live processes of every workspace: only this workspace's approvals.
+      final sessionIds = {for (final s in sessions) s.id};
+      final conversationIds = {
+        for (final c
+            in ref.watch(conversationsProvider(workspaceId)).value ?? const [])
+          c.id,
+      };
+      return buildInbox(
+        sessionApprovals: [
+          for (final a in manager.approvals)
+            if (sessionIds.contains(a.sessionId)) a,
+        ],
+        conversationApprovals: {
+          for (final e in conversations.live.entries)
+            if (e.value.approvals.isNotEmpty && conversationIds.contains(e.key))
+              e.key: e.value.approvals,
+        },
+        specs: ref.watch(specsProvider(workspaceId)).value ?? const [],
+        stepRows: ref.watch(specStepsProvider(workspaceId)).value ?? const [],
+        sessions: sessions,
+        reviewQueue:
+            ref.watch(reviewQueueProvider(workspaceId)).value ?? const [],
+        prWatches: ref.watch(prBabysitterProvider),
+        isAlive: manager.isAlive,
+      );
+    });
 
 /// Counters of the sidebar (UX v2): what waits for the user, by screen.
 final navBadgesProvider = Provider.autoDispose<Map<AppSection, int>>((ref) {

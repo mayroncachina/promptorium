@@ -48,6 +48,17 @@ Pedidos de permissão de sessões e conversas que não estão na tela aparecem c
 
 Clicar no ícone mostra ou esconde a janela (no GNOME, duplo clique; é preciso a extensão AppIndicator). O menu tem "Abrir" e "Sair". Esconder a janela não para sessões, terminais nem agendamentos; "Sair" e o botão de fechar encerram tudo. Sem bandeja disponível, o app segue normalmente, sem ícone.
 
+O ícone também funciona como radar, em todos os workspaces, mesmo com a janela escondida:
+
+| Selo | Estado | Quando |
+|---|---|---|
+| Losango âmbar com exclamação | Precisa de você | Um agente espera aprovação ou resposta |
+| Quadrado vermelho com X | Problema | Um PR tem check falhando, conflito ou mudanças pedidas |
+| Círculo azul | Trabalhando | Alguma sessão está no meio de um turno |
+| Nenhum | Parado | Nenhum dos anteriores |
+
+O tooltip resume os números e o menu lista o que espera por você e o que está rodando. Clicar em um item traz a janela e abre o lugar certo, mas nunca aprova nem decide nada. Review e sessão interrompida aparecem no menu sem mudar o ícone.
+
 ## Sobre e atualizações
 
 **F1** abre o Sobre, em duas colunas. À esquerda ficam a animação de abertura, que toca uma vez e para, a versão instalada e os links Repositório e Histórico completo. À direita ficam o cartão de atualização e as novidades da última versão, só Funcionalidades e Correções, disponíveis offline. Com atualização disponível, as novidades são as da versão nova.

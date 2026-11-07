@@ -12,6 +12,7 @@ import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
 import 'features/board/autopilot.dart';
 import 'features/code/worktree_terminal.dart';
+import 'features/home/tray_radar.dart';
 import 'features/prompt/conversation_manager.dart';
 import 'features/review/pr_babysitter.dart';
 import 'features/sessions/session_manager.dart';
@@ -61,8 +62,16 @@ Future<void> main() async {
     backend: NativeTrayBackend.new,
     window: const WindowManagerTrayWindow(),
     onQuit: closeHandler.close,
+    onItem: (id) => openRadarItem(container, id),
   );
   unawaited(_tray!.start());
+  // The radar on the tray (SPEC-041): the listener also keeps it alive while
+  // the window is hidden.
+  container.listen(
+    trayRadarProvider,
+    (_, radar) => _tray?.update(radar.status),
+    fireImmediately: true,
+  );
   // Plan usage in the footer: `claude -p /usage` costs no tokens.
   final usage = container.read(usagePollerProvider);
   unawaited(usage.refresh());
