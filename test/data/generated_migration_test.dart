@@ -56,4 +56,20 @@ void main() {
     expect(await db.select(db.stepRuns).get(), isEmpty);
     await db.close();
   });
+
+  test('v20 → v21 keeps the specs, all in "Sem sprint"', () async {
+    final schema = await verifier.schemaAt(20);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-001', 'x', 'specs/x.md')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.specs).getSingle();
+    expect(row.code, 'SPEC-001');
+    expect(row.sprintId, equals(null));
+    expect(await db.select(db.sprints).get(), isEmpty);
+    await db.close();
+  });
 }

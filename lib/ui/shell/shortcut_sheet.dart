@@ -53,6 +53,8 @@ const shortcutGroups = [
   ]),
   ShortcutGroup('Quadro (Foco)', [
     ShortcutEntry('Buscar spec na pasta', '/ · Ctrl+F'),
+    ShortcutEntry('Buscar em todas, sem resultado na sprint', 'Enter'),
+    ShortcutEntry('Buscar em Organizar sprints', '/ · Ctrl+F'),
     ShortcutEntry('Navegar · abrir · limpar a busca', '↑↓ · Enter · Esc'),
     ShortcutEntry('Fechar o painel · voltar à pasta', 'Esc'),
   ]),
