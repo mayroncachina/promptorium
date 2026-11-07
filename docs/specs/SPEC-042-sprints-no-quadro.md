@@ -148,6 +148,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/N298EZ3f2z3VizDZ18s
 - **Pendências atravessam a separação.** Início, bandeja e notificações ignoram o seletor.
 - **Sprints no banco local.** Mover uma spec é instantâneo e não gera mudança no git nem conflito com worktrees em execução. O custo aceito é não acompanhar o repositório em outra máquina.
 - **Spec recém-aprovada entra em "Sem sprint".** A sprint não cresce sem planejamento, e o seletor mostra a contagem para ela não passar despercebida.
+- **Abrir um card puxa o seletor para a sprint dele; trocar o seletor ou mover o card fecha o card.** Sem isso, o Quadro voltaria sozinho para a sprint do card aberto.
 - **Atalhos da busca só no Foco.** Colunas e Grafo não têm campo de busca, e levar a pessoa ao Foco por um atalho mudaria a tela de repente.
 - **Conclusão não ativa a próxima sozinha.** Ativar pode iniciar o Autopilot em outro lote de specs, então a escolha é explícita.
 
@@ -162,24 +163,24 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/N298EZ3f2z3VizDZ18s
 
 ## Critérios de aceite
 
-- [ ] Um workspace não fica com duas sprints Ativas [R1] verificar: flutter test test/data/sprints_repo_test.dart
-- [ ] O seletor filtra Colunas, Grafo e Foco, e a escolha sobrevive a reabrir o app [R2, R6] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] Sem escolha salva, o Quadro abre na Ativa; sprint salva que sumiu cai na Ativa ou em "Todas" [R2] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] O seletor mostra feitas, total, em execução e aguardando [R3] verificar: flutter test test/features/board/sprint_rules_test.dart
-- [ ] A primeira sprint nasce Ativa e as seguintes, Planejadas [R4] verificar: flutter test test/data/sprints_repo_test.dart
-- [ ] Excluir uma sprint deixa as specs em "Sem sprint", sem apagar nenhuma [R4] verificar: flutter test test/data/sprints_repo_test.dart
-- [ ] Mover uma spec não altera coluna, etapas nem execução, e "Desfazer" devolve [R5] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] "Organizar sprints" move várias specs de uma vez, e `/` e `Ctrl+F` focam a busca dele [R5] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] O Grafo calcula as ondas só com a sprint e mostra a dependência externa esmaecida [R7] verificar: flutter test test/features/board/canvas_view_test.dart
-- [ ] Clicar no nó externo troca a sprint e seleciona a spec [R7] verificar: flutter test test/features/board/canvas_view_test.dart
-- [ ] A pasta do Foco mostra a sprint e, em "Todas", seções recolhíveis [R8] verificar: flutter test test/features/board/spec_folder_test.dart
-- [ ] Busca sem resultado oferece "Buscar em todas", também por `Enter` [R8] verificar: flutter test test/features/board/spec_folder_test.dart
-- [ ] Pendência de outra sprint gera o aviso, e o clique abre "Todas" com o filtro de atenção [R9] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] Início e a bandeja ignoram o seletor [R9] verificar: flutter test test/features/home
-- [ ] Abrir uma spec de outra sprint troca o seletor [R9] verificar: flutter test test/features/board/sprint_selector_test.dart
-- [ ] Concluir move as não feitas sem parar execução e não ativa a próxima sozinha [R10] verificar: flutter test test/features/board/sprint_rules_test.dart
-- [ ] Com sprint Ativa, o Autopilot só inicia specs dela e mostra o motivo do bloqueio [R11] verificar: flutter test test/features/board/autopilot_test.dart
-- [ ] Mover antes de uma dependência não feita mostra o aviso e permite a mudança [R12] verificar: flutter test test/features/board/sprint_rules_test.dart
-- [ ] Workspace sem sprints abre em "Todas", sem mudança nas visões [R13] verificar: flutter test test/features/board
-- [ ] A migração preserva as specs e deixa todas em "Sem sprint" [R13] verificar: flutter test test/data/sprints_repo_test.dart
-- [ ] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
+- [x] Um workspace não fica com duas sprints Ativas [R1] verificar: flutter test test/data/sprints_repo_test.dart
+- [x] O seletor filtra Colunas, Grafo e Foco, e a escolha sobrevive a reabrir o app [R2, R6] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] Sem escolha salva, o Quadro abre na Ativa; sprint salva que sumiu cai na Ativa ou em "Todas" [R2] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] O seletor mostra feitas, total, em execução e aguardando [R3] verificar: flutter test test/features/board/sprint_rules_test.dart
+- [x] A primeira sprint nasce Ativa e as seguintes, Planejadas [R4] verificar: flutter test test/data/sprints_repo_test.dart
+- [x] Excluir uma sprint deixa as specs em "Sem sprint", sem apagar nenhuma [R4] verificar: flutter test test/data/sprints_repo_test.dart
+- [x] Mover uma spec não altera coluna, etapas nem execução, e "Desfazer" devolve [R5] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] "Organizar sprints" move várias specs de uma vez, e `/` e `Ctrl+F` focam a busca dele [R5] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] O Grafo calcula as ondas só com a sprint e mostra a dependência externa esmaecida [R7] verificar: flutter test test/features/board/canvas_view_test.dart
+- [x] Clicar no nó externo troca a sprint e seleciona a spec [R7] verificar: flutter test test/features/board/canvas_view_test.dart
+- [x] A pasta do Foco mostra a sprint e, em "Todas", seções recolhíveis [R8] verificar: flutter test test/features/board/spec_folder_test.dart
+- [x] Busca sem resultado oferece "Buscar em todas", também por `Enter` [R8] verificar: flutter test test/features/board/spec_folder_test.dart
+- [x] Pendência de outra sprint gera o aviso, e o clique abre "Todas" com o filtro de atenção [R9] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] Início e a bandeja ignoram o seletor [R9] verificar: flutter test test/features/home
+- [x] Abrir uma spec de outra sprint troca o seletor [R9] verificar: flutter test test/features/board/sprint_selector_test.dart
+- [x] Concluir move as não feitas sem parar execução e não ativa a próxima sozinha [R10] verificar: flutter test test/features/board/sprint_rules_test.dart
+- [x] Com sprint Ativa, o Autopilot só inicia specs dela e mostra o motivo do bloqueio [R11] verificar: flutter test test/features/board/autopilot_test.dart
+- [x] Mover antes de uma dependência não feita mostra o aviso e permite a mudança [R12] verificar: flutter test test/features/board/sprint_rules_test.dart
+- [x] Workspace sem sprints abre em "Todas", sem mudança nas visões [R13] verificar: flutter test test/features/board
+- [x] A migração preserva as specs e deixa todas em "Sem sprint" [R13] verificar: flutter test test/data/sprints_repo_test.dart
+- [x] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
