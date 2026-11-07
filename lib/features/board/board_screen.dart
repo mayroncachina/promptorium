@@ -791,7 +791,7 @@ class _Header extends ConsumerWidget {
           const SizedBox(width: 14),
           // The filters give way first when the window is narrow.
           Flexible(
-            flex: 12,
+            flex: 1000,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
