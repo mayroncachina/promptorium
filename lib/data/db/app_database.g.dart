@@ -8359,6 +8359,424 @@ class ProjectPlansCompanion extends UpdateCompanion<ProjectPlan> {
   }
 }
 
+class $SpecDraftsTable extends SpecDrafts
+    with TableInfo<$SpecDraftsTable, SpecDraft> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecDraftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _plannerSessionIdMeta = const VerificationMeta(
+    'plannerSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> plannerSessionId = GeneratedColumn<String>(
+    'planner_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _costUsdMeta = const VerificationMeta(
+    'costUsd',
+  );
+  @override
+  late final GeneratedColumn<double> costUsd = GeneratedColumn<double>(
+    'cost_usd',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    workspaceId,
+    data,
+    plannerSessionId,
+    costUsd,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_drafts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecDraft> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    }
+    if (data.containsKey('planner_session_id')) {
+      context.handle(
+        _plannerSessionIdMeta,
+        plannerSessionId.isAcceptableOrUnknown(
+          data['planner_session_id']!,
+          _plannerSessionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('cost_usd')) {
+      context.handle(
+        _costUsdMeta,
+        costUsd.isAcceptableOrUnknown(data['cost_usd']!, _costUsdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {workspaceId};
+  @override
+  SpecDraft map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecDraft(
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      )!,
+      plannerSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}planner_session_id'],
+      ),
+      costUsd: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cost_usd'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecDraftsTable createAlias(String alias) {
+    return $SpecDraftsTable(attachedDatabase, alias);
+  }
+}
+
+class SpecDraft extends DataClass implements Insertable<SpecDraft> {
+  final int workspaceId;
+
+  /// JSON of `SpecDraftData` (conversation and draft).
+  final String data;
+
+  /// Claude session of the conversation (`--resume`).
+  final String? plannerSessionId;
+  final double costUsd;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SpecDraft({
+    required this.workspaceId,
+    required this.data,
+    this.plannerSessionId,
+    required this.costUsd,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['data'] = Variable<String>(data);
+    if (!nullToAbsent || plannerSessionId != null) {
+      map['planner_session_id'] = Variable<String>(plannerSessionId);
+    }
+    map['cost_usd'] = Variable<double>(costUsd);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SpecDraftsCompanion toCompanion(bool nullToAbsent) {
+    return SpecDraftsCompanion(
+      workspaceId: Value(workspaceId),
+      data: Value(data),
+      plannerSessionId: plannerSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(plannerSessionId),
+      costUsd: Value(costUsd),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SpecDraft.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecDraft(
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      data: serializer.fromJson<String>(json['data']),
+      plannerSessionId: serializer.fromJson<String?>(json['plannerSessionId']),
+      costUsd: serializer.fromJson<double>(json['costUsd']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'data': serializer.toJson<String>(data),
+      'plannerSessionId': serializer.toJson<String?>(plannerSessionId),
+      'costUsd': serializer.toJson<double>(costUsd),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SpecDraft copyWith({
+    int? workspaceId,
+    String? data,
+    Value<String?> plannerSessionId = const Value.absent(),
+    double? costUsd,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SpecDraft(
+    workspaceId: workspaceId ?? this.workspaceId,
+    data: data ?? this.data,
+    plannerSessionId: plannerSessionId.present
+        ? plannerSessionId.value
+        : this.plannerSessionId,
+    costUsd: costUsd ?? this.costUsd,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SpecDraft copyWithCompanion(SpecDraftsCompanion data) {
+    return SpecDraft(
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      data: data.data.present ? data.data.value : this.data,
+      plannerSessionId: data.plannerSessionId.present
+          ? data.plannerSessionId.value
+          : this.plannerSessionId,
+      costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDraft(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('data: $data, ')
+          ..write('plannerSessionId: $plannerSessionId, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    workspaceId,
+    data,
+    plannerSessionId,
+    costUsd,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecDraft &&
+          other.workspaceId == this.workspaceId &&
+          other.data == this.data &&
+          other.plannerSessionId == this.plannerSessionId &&
+          other.costUsd == this.costUsd &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SpecDraftsCompanion extends UpdateCompanion<SpecDraft> {
+  final Value<int> workspaceId;
+  final Value<String> data;
+  final Value<String?> plannerSessionId;
+  final Value<double> costUsd;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const SpecDraftsCompanion({
+    this.workspaceId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.plannerSessionId = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SpecDraftsCompanion.insert({
+    this.workspaceId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.plannerSessionId = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  static Insertable<SpecDraft> custom({
+    Expression<int>? workspaceId,
+    Expression<String>? data,
+    Expression<String>? plannerSessionId,
+    Expression<double>? costUsd,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (data != null) 'data': data,
+      if (plannerSessionId != null) 'planner_session_id': plannerSessionId,
+      if (costUsd != null) 'cost_usd': costUsd,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SpecDraftsCompanion copyWith({
+    Value<int>? workspaceId,
+    Value<String>? data,
+    Value<String?>? plannerSessionId,
+    Value<double>? costUsd,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return SpecDraftsCompanion(
+      workspaceId: workspaceId ?? this.workspaceId,
+      data: data ?? this.data,
+      plannerSessionId: plannerSessionId ?? this.plannerSessionId,
+      costUsd: costUsd ?? this.costUsd,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (plannerSessionId.present) {
+      map['planner_session_id'] = Variable<String>(plannerSessionId.value);
+    }
+    if (costUsd.present) {
+      map['cost_usd'] = Variable<double>(costUsd.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecDraftsCompanion(')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('data: $data, ')
+          ..write('plannerSessionId: $plannerSessionId, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AutopilotStatesTable extends AutopilotStates
     with TableInfo<$AutopilotStatesTable, AutopilotState> {
   @override
@@ -12715,6 +13133,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $McpToolRulesTable mcpToolRules = $McpToolRulesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $ProjectPlansTable projectPlans = $ProjectPlansTable(this);
+  late final $SpecDraftsTable specDrafts = $SpecDraftsTable(this);
   late final $AutopilotStatesTable autopilotStates = $AutopilotStatesTable(
     this,
   );
@@ -12746,6 +13165,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     mcpToolRules,
     appSettings,
     projectPlans,
+    specDrafts,
     autopilotStates,
     reviewDrafts,
     pendingNotices,
@@ -12841,6 +13261,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('project_plans', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_drafts', kind: UpdateKind.delete)],
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
@@ -12999,6 +13426,24 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_projectPlansRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SpecDraftsTable, List<SpecDraft>>
+  _specDraftsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specDrafts,
+    aliasName: 'workspaces__id__spec_drafts__workspace_id',
+  );
+
+  $$SpecDraftsTableProcessedTableManager get specDraftsRefs {
+    final manager = $$SpecDraftsTableTableManager(
+      $_db,
+      $_db.specDrafts,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specDraftsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -13170,6 +13615,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$ProjectPlansTableFilterComposer(
             $db: $db,
             $table: $db.projectPlans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> specDraftsRefs(
+    Expression<bool> Function($$SpecDraftsTableFilterComposer f) f,
+  ) {
+    final $$SpecDraftsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDrafts,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDraftsTableFilterComposer(
+            $db: $db,
+            $table: $db.specDrafts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -13381,6 +13851,31 @@ class $$WorkspacesTableAnnotationComposer
     return f(composer);
   }
 
+  Expression<T> specDraftsRefs<T extends Object>(
+    Expression<T> Function($$SpecDraftsTableAnnotationComposer a) f,
+  ) {
+    final $$SpecDraftsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specDrafts,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecDraftsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specDrafts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> autopilotStatesRefs<T extends Object>(
     Expression<T> Function($$AutopilotStatesTableAnnotationComposer a) f,
   ) {
@@ -13426,6 +13921,7 @@ class $$WorkspacesTableTableManager
             bool sessionsRefs,
             bool conversationsRefs,
             bool projectPlansRefs,
+            bool specDraftsRefs,
             bool autopilotStatesRefs,
           })
         > {
@@ -13479,6 +13975,7 @@ class $$WorkspacesTableTableManager
                 sessionsRefs = false,
                 conversationsRefs = false,
                 projectPlansRefs = false,
+                specDraftsRefs = false,
                 autopilotStatesRefs = false,
               }) {
                 return PrefetchHooks(
@@ -13489,6 +13986,7 @@ class $$WorkspacesTableTableManager
                     if (sessionsRefs) db.sessions,
                     if (conversationsRefs) db.conversations,
                     if (projectPlansRefs) db.projectPlans,
+                    if (specDraftsRefs) db.specDrafts,
                     if (autopilotStatesRefs) db.autopilotStates,
                   ],
                   addJoins: null,
@@ -13599,6 +14097,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (specDraftsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          SpecDraft
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._specDraftsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specDraftsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (autopilotStatesRefs)
                         await $_getPrefetchedData<
                           Workspace,
@@ -13646,6 +14165,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool sessionsRefs,
         bool conversationsRefs,
         bool projectPlansRefs,
+        bool specDraftsRefs,
         bool autopilotStatesRefs,
       })
     >;
@@ -19976,6 +20496,334 @@ typedef $$ProjectPlansTableProcessedTableManager =
       ProjectPlan,
       PrefetchHooks Function({bool workspaceId})
     >;
+typedef $$SpecDraftsTableCreateCompanionBuilder = SpecDraftsCompanion Function({
+  Value<int> workspaceId,
+  Value<String> data,
+  Value<String?> plannerSessionId,
+  Value<double> costUsd,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$SpecDraftsTableUpdateCompanionBuilder = SpecDraftsCompanion Function({
+  Value<int> workspaceId,
+  Value<String> data,
+  Value<String?> plannerSessionId,
+  Value<double> costUsd,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+final class $$SpecDraftsTableReferences
+    extends BaseReferences<_$AppDatabase, $SpecDraftsTable, SpecDraft> {
+  $$SpecDraftsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('spec_drafts__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecDraftsTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecDraftsTable> {
+  $$SpecDraftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get plannerSessionId => $composableBuilder(
+    column: $table.plannerSessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDraftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecDraftsTable> {
+  $$SpecDraftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get plannerSessionId => $composableBuilder(
+    column: $table.plannerSessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDraftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecDraftsTable> {
+  $$SpecDraftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<String> get plannerSessionId => $composableBuilder(
+    column: $table.plannerSessionId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get costUsd =>
+      $composableBuilder(column: $table.costUsd, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecDraftsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecDraftsTable,
+          SpecDraft,
+          $$SpecDraftsTableFilterComposer,
+          $$SpecDraftsTableOrderingComposer,
+          $$SpecDraftsTableAnnotationComposer,
+          $$SpecDraftsTableCreateCompanionBuilder,
+          $$SpecDraftsTableUpdateCompanionBuilder,
+          (SpecDraft, $$SpecDraftsTableReferences),
+          SpecDraft,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$SpecDraftsTableTableManager(_$AppDatabase db, $SpecDraftsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecDraftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecDraftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecDraftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<String?> plannerSessionId = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SpecDraftsCompanion(
+                workspaceId: workspaceId,
+                data: data,
+                plannerSessionId: plannerSessionId,
+                costUsd: costUsd,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> data = const Value.absent(),
+                Value<String?> plannerSessionId = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SpecDraftsCompanion.insert(
+                workspaceId: workspaceId,
+                data: data,
+                plannerSessionId: plannerSessionId,
+                costUsd: costUsd,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecDraftsTable, SpecDraft>(table),
+                  $$SpecDraftsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$SpecDraftsTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$SpecDraftsTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecDraftsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecDraftsTable,
+      SpecDraft,
+      $$SpecDraftsTableFilterComposer,
+      $$SpecDraftsTableOrderingComposer,
+      $$SpecDraftsTableAnnotationComposer,
+      $$SpecDraftsTableCreateCompanionBuilder,
+      $$SpecDraftsTableUpdateCompanionBuilder,
+      (SpecDraft, $$SpecDraftsTableReferences),
+      SpecDraft,
+      PrefetchHooks Function({bool workspaceId})
+    >;
 typedef $$AutopilotStatesTableCreateCompanionBuilder =
     AutopilotStatesCompanion Function({
       Value<int> workspaceId,
@@ -23056,6 +23904,8 @@ class $AppDatabaseManager {
       $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$ProjectPlansTableTableManager get projectPlans =>
       $$ProjectPlansTableTableManager(_db, _db.projectPlans);
+  $$SpecDraftsTableTableManager get specDrafts =>
+      $$SpecDraftsTableTableManager(_db, _db.specDrafts);
   $$AutopilotStatesTableTableManager get autopilotStates =>
       $$AutopilotStatesTableTableManager(_db, _db.autopilotStates);
   $$ReviewDraftsTableTableManager get reviewDrafts =>

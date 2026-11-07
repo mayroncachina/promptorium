@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/specs/spec_planner.dart';
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/shell/side_bar.dart';
@@ -114,6 +115,23 @@ void main() {
     expect(item(tester, AppSection.settings).active, isTrue);
     expect(find.text('Configurações'), findsOneWidget);
     expect(find.byKey(const ValueKey('title-action')), findsNothing);
+  });
+
+  testWidgets('SPEC-039 R1: "Nova spec" of the title bar opens the idea, also '
+      'from the Quadro', (tester) async {
+    await pumpShell(tester);
+    for (final nav in ['nav-specs', 'nav-tasks']) {
+      await tester.tap(find.byKey(ValueKey(nav)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('title-action')));
+      await tester.pumpAndSettle();
+      final c = ProviderScope.containerOf(
+        tester.element(find.byType(AppShell)),
+      );
+      expect(c.read(newSpecFlowProvider), NewSpecStage.idea, reason: nav);
+      expect(find.byKey(const ValueKey('screen-specs')), findsOneWidget);
+      c.read(newSpecFlowProvider.notifier).close();
+    }
   });
 
   testWidgets('Ctrl+1..9 switch screens and zoom shortcuts hit the editor', (

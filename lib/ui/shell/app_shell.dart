@@ -25,7 +25,7 @@ import '../../features/sessions/sessions_screen.dart'
 import '../../features/settings/settings_screen.dart';
 import '../../features/skills/skills_screen.dart';
 import '../../features/skills/widgets/skill_dialogs.dart';
-import '../../features/specs/new_spec_dialog.dart';
+import '../../features/specs/new_spec_view.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
@@ -261,10 +261,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       ref.read(selectedConversationProvider.notifier).select(null);
     } else if (section == AppSection.agents) {
       ref.read(selectedAgentProvider.notifier).newDraft();
-    } else if (section == AppSection.specs) {
-      showNewSpecDialog(context);
-    } else if (section == AppSection.tasks) {
-      showNewSpecDialog(context);
+    } else if (section == AppSection.specs || section == AppSection.tasks) {
+      openNewSpec(ref);
     } else if (section == AppSection.mcp) {
       showAddMcpServerDialog(context);
     } else if (section == AppSection.project) {

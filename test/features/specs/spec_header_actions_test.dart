@@ -24,10 +24,34 @@ void main() {
       );
     });
 
+    test('SPEC-039 R7: without a Plano, Planejar is the primary and Aprovar '
+        'is neutral, in the same order', () {
+      final l = specHeaderActions(
+        const SpecHeaderState(
+          onRefine: _noop,
+          onDesign: _noop,
+          onApprove: _noop,
+        ),
+      );
+      expect(ids(l), ['refine', 'design', 'approve']);
+      expect(
+        [for (final a in l) a.emphasis],
+        [
+          SpecActionEmphasis.secondary,
+          SpecActionEmphasis.primary,
+          SpecActionEmphasis.secondary,
+        ],
+      );
+      final r = layoutSpecActions(l, (_) => 100, 1000);
+      expect(ids(r.bar), ['refine', 'design', 'approve']);
+      expect(ids(layoutSpecActions(l, (_) => 100, 270).menu), ['approve']);
+    });
+
     test('R3: draft in the backlog: Refinar com IA, Planejar, Aprovar '
         '(primary) and the menu, in this order', () {
       final l = specHeaderActions(
         const SpecHeaderState(
+          hasPlan: true,
           onRefine: _noop,
           onDesign: _noop,
           onApprove: _noop,
@@ -37,7 +61,7 @@ void main() {
       expect(ids(l), ['refine', 'design', 'approve', 'delete']);
       expect(
         [for (final a in l) a.label],
-        ['Refinar com IA', 'Planejar', 'Aprovar', 'Excluir…'],
+        ['Refinar com IA', 'Planejar de novo', 'Aprovar', 'Excluir…'],
       );
       expect(
         [for (final a in l) a.emphasis],
@@ -59,6 +83,7 @@ void main() {
       final l = specHeaderActions(
         const SpecHeaderState(
           approved: true,
+          hasPlan: true,
           onRefine: _noop,
           onDesign: _noop,
           onDelete: _noop,
@@ -159,7 +184,12 @@ void main() {
     });
 
     final draft = specHeaderActions(
-      const SpecHeaderState(onRefine: _noop, onDesign: _noop, onApprove: _noop),
+      const SpecHeaderState(
+        hasPlan: true,
+        onRefine: _noop,
+        onDesign: _noop,
+        onApprove: _noop,
+      ),
     );
     double width(SpecAction a) => switch (a.id) {
       'refine' => 130,
@@ -190,6 +220,7 @@ void main() {
     test('the moved secondaries come before Arquivar / Excluir', () {
       final l = specHeaderActions(
         const SpecHeaderState(
+          hasPlan: true,
           onRefine: _noop,
           onDesign: _noop,
           onApprove: _noop,

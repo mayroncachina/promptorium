@@ -395,9 +395,14 @@ void main() {
           tester.getCenter(key(k)).dx,
       ];
       expect(xs, [...xs]..sort());
+      // SPEC-039 R7: a new spec has no Plano yet.
+      expect(
+        tester.widget<SpecActionButton>(key('spec-design')).action.emphasis,
+        SpecActionEmphasis.primary,
+      );
       expect(
         tester.widget<SpecActionButton>(key('spec-approve')).action.emphasis,
-        SpecActionEmphasis.primary,
+        SpecActionEmphasis.secondary,
       );
       expect(tester.takeException(), isNull);
     });

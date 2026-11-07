@@ -340,6 +340,7 @@ void main() {
   testWidgets('R6: an action shorter than 300 ms shows no spinner; a longer '
       'one does', (tester) async {
     var state = const SpecHeaderState(
+      hasPlan: true,
       runningId: 'approve',
       runningLabel: 'Aprovando…',
     );
@@ -364,13 +365,14 @@ void main() {
     expect(find.text('Aprovando…'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 200));
     expect(spinner(), findsNothing);
-    set(() => state = SpecHeaderState(onApprove: () {}));
+    set(() => state = SpecHeaderState(hasPlan: true, onApprove: () {}));
     await tester.pump(const Duration(milliseconds: 400));
     expect(spinner(), findsNothing);
     expect(find.text('Aprovar'), findsOneWidget);
 
     set(
       () => state = const SpecHeaderState(
+        hasPlan: true,
         runningId: 'approve',
         runningLabel: 'Aprovando…',
       ),

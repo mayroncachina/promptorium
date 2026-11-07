@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 19;
+const appSchemaVersion = 20;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -650,6 +650,24 @@ class ProjectPlans extends Table {
   Set<Column> get primaryKey => {workspaceId};
 }
 
+/// Mini planejamento of "Nova spec" (SPEC-039 R8): one draft per workspace.
+class SpecDrafts extends Table {
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// JSON of `SpecDraftData` (conversation and draft).
+  TextColumn get data => text().withDefault(const Constant('{}'))();
+
+  /// Claude session of the conversation (`--resume`).
+  TextColumn get plannerSessionId => text().nullable()();
+  RealColumn get costUsd => real().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {workspaceId};
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -674,6 +692,7 @@ class AppSettings extends Table {
     McpToolRules,
     AppSettings,
     ProjectPlans,
+    SpecDrafts,
     AutopilotStates,
     ReviewDrafts,
     PendingNotices,
@@ -964,6 +983,10 @@ class AppDatabase extends _$AppDatabase {
                 await m.addColumn(v.specs, c);
               }
             }
+          },
+          // v20: draft of "Nova spec" (SPEC-039 R8).
+          from19To20: (m, v) async {
+            await m.createTable(v.specDrafts);
           },
         ),
       );

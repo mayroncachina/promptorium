@@ -1,0 +1,148 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-06T13:40:00Z"
+ },
+ "title": "Promptorium · Nova spec com mini planejamento (#88)",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Nova spec: conte a ideia, ou crie em branco",
+   "is_interactive": true
+  },
+  "Conversa.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Mini planejamento: clique numa sugestão",
+   "is_interactive": true
+  },
+  "Pronta.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Rascunho pronto: Criar e planejar",
+   "is_interactive": true
+  },
+  "Criada.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Spec criada, com o Plano em andamento",
+   "is_interactive": true
+  },
+  "Falha.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "5 · Planner sem resposta: nada se perde",
+   "is_interactive": true
+  },
+  "Retomar.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "6 · Voltar a Nova spec com rascunho guardado",
+   "is_interactive": true
+  },
+  "Descartar.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "7 · Descartar pede confirmação",
+   "is_interactive": true
+  },
+  "SemClaude.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "8 · Sem Claude Code: só Criar em branco",
+   "is_interactive": true
+  },
+  "Limite.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 2040,
+   "w": 1440,
+   "h": 900,
+   "title": "9 · Mais de 6 requisitos: o excesso vai para Fora do escopo",
+   "is_interactive": true
+  },
+  "FalhaPlano.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "10 · Planejar falhou: a spec continua salva",
+   "is_interactive": true
+  },
+  "SemPlano.dc.html": {
+   "expand": "fill",
+   "x": 1520,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "11 · Criada sem o Plano: Planejar fica disponível",
+   "is_interactive": true
+  },
+  "FalhaGravar.dc.html": {
+   "expand": "fill",
+   "x": 3040,
+   "y": 3060,
+   "w": 1440,
+   "h": 900,
+   "title": "12 · Falha ao gravar: o rascunho continua aqui",
+   "is_interactive": true
+  },
+  "Compacta.dc.html": {
+   "expand": "fill",
+   "x": 0,
+   "y": 4080,
+   "w": 1100,
+   "h": 700,
+   "title": "13 · Janela mínima 1100×700: resposta e Criar à vista",
+   "is_interactive": true
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Conversa.dc.html",
+  "Pronta.dc.html",
+  "Criada.dc.html",
+  "Falha.dc.html",
+  "Retomar.dc.html",
+  "Descartar.dc.html",
+  "SemClaude.dc.html",
+  "Limite.dc.html",
+  "FalhaPlano.dc.html",
+  "SemPlano.dc.html",
+  "FalhaGravar.dc.html",
+  "Compacta.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

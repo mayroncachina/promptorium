@@ -21,6 +21,9 @@ abstract final class AppSettingKeys {
   /// Default `--effort` of a `RunKind` (`default` = CLI default).
   static String runEffort(String kind) => 'claude.effort.$kind';
 
+  /// "Escrever o Plano em seguida" of "Nova spec" (`0` = off; SPEC-039 R7).
+  static const specPlanNext = 'specs.planNext';
+
   /// Quadro: a spec with at most this many steps runs in one session.
   static const singleSessionSteps = 'board.singleSessionSteps';
 

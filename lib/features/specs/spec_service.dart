@@ -342,7 +342,13 @@ class SpecService {
     }
     final text =
         body ?? render?.call(code) ?? newSpecMarkdown(code: code, title: t);
-    await file.writeAsString(text);
+    try {
+      await file.writeAsString(text);
+    } on FileSystemException {
+      // SPEC-039 R6: an empty file would take the code of the next try.
+      await file.delete().catchError((Object _) => file);
+      rethrow;
+    }
     final doc = SpecDocument.parse(text);
     final existing = await _repo.getByCode(ws.id, code);
     if (existing != null) return _upsert(ws, code: code, rel: rel, doc: doc);

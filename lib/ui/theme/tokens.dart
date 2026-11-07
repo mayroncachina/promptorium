@@ -6,6 +6,9 @@ abstract final class AppColors {
   /// Window / page background.
   static const background = Color(0xFF0E1014);
 
+  /// Border of text fields: 3:1 against the background (SPEC-039 R12).
+  static const inputBorder = Color(0xFF626C7C);
+
   /// Panels, sidebars, cards.
   static const panel = Color(0xFF14171D);
 
