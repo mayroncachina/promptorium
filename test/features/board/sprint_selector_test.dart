@@ -165,6 +165,7 @@ void main() {
     expect(find.text('1 de 2'), findsWidgets);
     expect(find.text('0 de 1'), findsOneWidget);
     expect(find.text('4 specs'), findsOneWidget);
+    expect(find.text('1 spec'), findsOneWidget);
   });
 
   testWidgets('sem sprints abre em Todas e oferece só Nova sprint (R13)', (

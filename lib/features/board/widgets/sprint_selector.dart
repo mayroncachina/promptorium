@@ -42,7 +42,7 @@ class SprintSelector extends ConsumerWidget {
         ? ''
         : current != null
         ? _progress(filter).label
-        : '${_progress(filter).total} specs';
+        : _progress(filter).count;
 
     void pick(SprintFilter f) {
       // An open card would pull the Quadro back to its sprint (R9).
@@ -163,12 +163,12 @@ class SprintSelector extends ConsumerWidget {
           option(
             const SprintFilter.none(),
             'Sem sprint',
-            count: '${_progress(const SprintFilter.none()).total} specs',
+            count: _progress(const SprintFilter.none()).count,
           ),
           option(
             const SprintFilter.all(),
             'Todas',
-            count: '${specs.length} specs',
+            count: _progress(const SprintFilter.all()).count,
           ),
           if (closed.isNotEmpty) ...[
             const Divider(height: 8),
