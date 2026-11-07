@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/db/app_database.dart' show Spec;
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../sessions/widgets/session_style.dart';
 import '../board_rules.dart';
 import '../board_screen.dart';
 import 'spec_canvas.dart' show AttentionBubble;
@@ -32,6 +34,32 @@ const _overlayCardWidth = 300.0;
 
 /// The specs of the workspace, newest first, in a column that can be collapsed
 /// to the numbers (SPEC-036 R1–R5).
+/// A section of the folder in "Todas" (SPEC-042 R8).
+@immutable
+class FolderSection {
+  const FolderSection({
+    required this.key,
+    required this.name,
+    required this.matches,
+    this.state = '',
+    this.progress = '',
+    this.open = false,
+  });
+
+  final String key;
+  final String name;
+  final bool Function(Spec) matches;
+
+  /// `Ativa`, `Planejada`, `Concluída`.
+  final String state;
+
+  /// `5 de 8`.
+  final String progress;
+
+  /// Open until the person says otherwise.
+  final bool open;
+}
+
 class SpecFolder extends ConsumerStatefulWidget {
   const SpecFolder({
     super.key,
@@ -39,7 +67,23 @@ class SpecFolder extends ConsumerStatefulWidget {
     required this.attention,
     required this.onOpen,
     this.onSearchDone,
+    this.title = 'specs/',
+    this.sections,
+    this.outside = const [],
+    this.onSearchAll,
   });
+
+  /// `specs/`, or the name of the sprint on the Quadro.
+  final String title;
+
+  /// Groups the list; null = a plain list.
+  final List<FolderSection>? sections;
+
+  /// Cards of the other sprints: a search with no result counts them (R8).
+  final List<SpecCardData> outside;
+
+  /// "Buscar em todas".
+  final VoidCallback? onSearchAll;
 
   /// Cards of the folder, in any order.
   final List<SpecCardData> cards;
@@ -75,6 +119,12 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
   /// Lines grown by the pointer and by the keyboard (R4).
   int? _hovered, _focused;
 
+  /// Sections the person opened or closed, against [FolderSection.open].
+  final _toggled = <String>{};
+
+  /// Lines of the sectioned list: a [FolderSection] or a card.
+  List<Object> _entries = const [];
+
   @override
   void dispose() {
     _scroll.dispose();
@@ -92,7 +142,9 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
   Rect listRect(int id, RenderBox layer) {
     final box = _listKey.currentContext!.findRenderObject()! as RenderBox;
     final list = box.localToGlobal(Offset.zero, ancestor: layer) & box.size;
-    final at = _results.indexWhere((d) => d.spec.id == id);
+    final at = _entries.isEmpty
+        ? _results.indexWhere((d) => d.spec.id == id)
+        : _entries.indexWhere((e) => e is SpecCardData && e.spec.id == id);
     if (at < 0 || !_scroll.hasClients) {
       return Rect.fromLTWH(list.left + 8, list.top, list.width - 16, 40);
     }
@@ -150,6 +202,10 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     } else if (e is KeyDownEvent &&
         (key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter)) {
+      if (_searching && _results.isEmpty && _outsideMatches > 0) {
+        widget.onSearchAll?.call();
+        return KeyEventResult.handled;
+      }
       if (!_searching || _results.isEmpty) return KeyEventResult.handled;
       final id = _results[_active].spec.id;
       _clearSearch();
@@ -216,6 +272,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
       ..sort((a, b) => compareNewestFirst(a.spec, b.spec));
     final cards = _results = searchFolder(all, _search.text);
     if (_active >= cards.length) _active = 0;
+    _entries = _sectioned(cards, collapsed);
     final width = collapsed ? folderCollapsedWidth : folderWidth;
     return AnimatedContainer(
       key: const ValueKey('spec-folder'),
@@ -234,6 +291,82 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
             builder: (context, box) =>
                 _content(cards, all.length, collapsed, box),
           ),
+        ),
+      ),
+    );
+  }
+
+  int get _outsideMatches => searchFolder(widget.outside, _search.text).length;
+
+  bool _isOpen(FolderSection s) => s.open != _toggled.contains(s.key);
+
+  /// The lines of the sections; empty for a plain list. A search shows plain
+  /// results, and so does the folder collapsed to the numbers.
+  List<Object> _sectioned(List<SpecCardData> cards, bool collapsed) {
+    final sections = widget.sections;
+    if (sections == null || _searching || collapsed) return const [];
+    return [
+      for (final s in sections) ...[
+        s,
+        if (_isOpen(s))
+          for (final d in cards)
+            if (s.matches(d.spec)) d,
+      ],
+    ];
+  }
+
+  Widget _sectionHeader(FolderSection s) {
+    final open = _isOpen(s);
+    return SizedBox(
+      key: ValueKey('folder-section-${s.key}'),
+      height: folderRowStride,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => setState(() {
+          _toggled.contains(s.key)
+              ? _toggled.remove(s.key)
+              : _toggled.add(s.key);
+        }),
+        child: Row(
+          children: [
+            Icon(
+              open ? Icons.expand_more : Icons.chevron_right,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                s.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              s.state,
+              style: TextStyle(
+                fontSize: 11,
+                color: s.state == 'Ativa'
+                    ? AppColors.teal
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              s.progress,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
         ),
       ),
     );
@@ -296,14 +429,55 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     );
   }
 
-  Widget _noResult() => Padding(
-    padding: const EdgeInsets.all(16),
-    child: Text(
-      'Nenhuma spec com "${_search.text.trim()}"',
-      key: const ValueKey('folder-no-result'),
-      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-    ),
-  );
+  Widget _noResult() {
+    final others = _outsideMatches;
+    final inSprint = widget.onSearchAll != null;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        spacing: 10,
+        children: [
+          Text(
+            'Nenhuma spec com "${_search.text.trim()}"'
+            '${inSprint ? ' em ${widget.title}' : ''}',
+            key: const ValueKey('folder-no-result'),
+            textAlign: inSprint ? TextAlign.center : TextAlign.start,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          if (others > 0 && inSprint) ...[
+            Text(
+              others == 1 ? '1 em outra sprint' : '$others em outras sprints',
+              key: const ValueKey('folder-outside-count'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SmallButton(
+              key: const ValueKey('folder-search-all'),
+              label: 'Buscar em todas',
+              color: AppColors.amber,
+              border: AppColors.amber,
+              onTap: widget.onSearchAll,
+              trailing: const Text(
+                'Enter',
+                style: TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 11,
+                  color: AppColors.amber,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _searchBox(bool collapsed) => SizedBox(
     height: _searchHeight,
@@ -366,6 +540,21 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
                   color: AppColors.textSecondary,
                 ),
                 prefixIconConstraints: const BoxConstraints(minWidth: 32),
+                suffixIcon: const Center(
+                  widthFactor: 1,
+                  child: Padding(
+                    padding: EdgeInsets.only(right: 10),
+                    child: Text(
+                      '/',
+                      key: ValueKey('folder-search-hint'),
+                      style: TextStyle(
+                        fontFamily: AppFonts.mono,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -400,10 +589,13 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
         const Icon(Icons.folder_outlined, size: 16, color: AppColors.amber),
         if (!collapsed) ...[
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'specs/',
-              style: TextStyle(
+              widget.title,
+              key: const ValueKey('folder-title'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
                 color: AppColors.text,
@@ -493,19 +685,33 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
                 right: 8,
                 bottom: collapsed ? 0 : _endRoom,
               ),
-              itemCount: cards.length,
+              itemCount: _entries.isEmpty ? cards.length : _entries.length,
               findChildIndexCallback: (key) {
-                final at = cards.indexWhere(
-                  (d) => key == ValueKey('folder-row-${d.spec.code}'),
-                );
+                final at = _entries.isEmpty
+                    ? cards.indexWhere(
+                        (d) => key == ValueKey('folder-row-${d.spec.code}'),
+                      )
+                    : _entries.indexWhere(
+                        (e) =>
+                            e is SpecCardData &&
+                            key == ValueKey('folder-row-${e.spec.code}'),
+                      );
                 return at < 0 ? null : at;
               },
-              itemBuilder: (_, i) => _row(
-                cards[i],
-                i,
-                collapsed,
-                active: _searching && i == _active,
-              ),
+              itemBuilder: (_, i) {
+                if (_entries.isEmpty) {
+                  return _row(
+                    cards[i],
+                    i,
+                    collapsed,
+                    active: _searching && i == _active,
+                  );
+                }
+                final entry = _entries[i];
+                return entry is FolderSection
+                    ? _sectionHeader(entry)
+                    : _row(entry as SpecCardData, i, collapsed, active: false);
+              },
             ),
           ),
         ),

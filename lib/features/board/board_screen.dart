@@ -471,6 +471,7 @@ class BoardScreen extends ConsumerWidget {
         : view == BoardView.graph
         ? SpecCanvas(
             cards: visible,
+            all: [for (final d in cards) d.spec],
             attention: attention,
             highlightNext: ref.watch(
               autopilotProvider.select((s) => s.contains(ws.id)),

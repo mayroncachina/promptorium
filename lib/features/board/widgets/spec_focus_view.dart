@@ -11,6 +11,8 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/session_manager.dart';
 import '../board_rules.dart';
 import '../board_screen.dart';
+import '../sprint_rules.dart';
+import '../sprint_state.dart';
 import 'canvas_view_controller.dart';
 import 'spec_folder.dart';
 import 'spec_node.dart';
@@ -155,6 +157,50 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
         attention: widget.attention(byId[s.id]!),
       ),
     );
+  }
+
+  String _folderTitle(SprintFilter filter, List<Sprint> sprints) {
+    if (filter.isAll) return 'specs/';
+    if (filter.isNone) return 'Sem sprint';
+    for (final s in sprints) {
+      if (s.id == filter.sprintId) return s.name;
+    }
+    return 'specs/';
+  }
+
+  /// In "Todas" the folder follows the order of the selector (SPEC-042 R8).
+  List<FolderSection>? _sections(SprintFilter filter, List<Sprint> sprints) {
+    if (!filter.isAll || sprints.isEmpty) return null;
+    final specs = [for (final d in widget.all) d.spec];
+    FolderSection section(Sprint s) {
+      final f = SprintFilter.sprint(s.id);
+      return FolderSection(
+        key: '${s.id}',
+        name: s.name,
+        matches: f.matches,
+        state: switch (s.state) {
+          SprintState.active => 'Ativa',
+          SprintState.planned => 'Planejada',
+          SprintState.done => 'Concluída',
+        },
+        progress: sprintProgress(
+          specs.where(f.matches),
+          waiting: (_) => false,
+        ).label,
+        open: s.state == SprintState.active,
+      );
+    }
+
+    return [
+      for (final s in openSprints(sprints)) section(s),
+      FolderSection(
+        key: 'none',
+        name: 'Sem sprint',
+        matches: const SprintFilter.none().matches,
+        progress: '${specs.where(const SprintFilter.none().matches).length}',
+      ),
+      for (final s in closedSprints(sprints)) section(s),
+    ];
   }
 
   void _select(int? id) =>
@@ -391,6 +437,11 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
       if (next != null && next != _rootId) _show(next);
     });
     ref.watch(sessionManagerProvider);
+    final sprint = ref.watch(boardSprintFilterProvider);
+    final sprints = widget.all.isEmpty
+        ? const <Sprint>[]
+        : ref.watch(sprintsProvider(widget.all.first.spec.workspaceId)).value ??
+              const <Sprint>[];
     final byId = _byId;
     final geometry = _geometryOf(_rootId, _running, byId);
     final onStage = geometry?.rects.keys.toSet() ?? const <int>{};
@@ -419,6 +470,17 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
                       attention: widget.attention,
                       onOpen: _open,
                       onSearchDone: _focus.requestFocus,
+                      title: _folderTitle(sprint, sprints),
+                      sections: _sections(sprint, sprints),
+                      outside: [
+                        for (final d in widget.all)
+                          if (!sprint.matches(d.spec)) d,
+                      ],
+                      onSearchAll: sprint.isAll
+                          ? null
+                          : () => ref
+                                .read(boardSprintProvider.notifier)
+                                .set(const SprintFilter.all()),
                     ),
                     Expanded(
                       child: FocusStage(
@@ -427,6 +489,11 @@ class SpecFocusViewState extends ConsumerState<SpecFocusView>
                         geometry: geometry,
                         cards: byId,
                         attention: widget.attention,
+                        sprintLabel: sprint.isAll
+                            ? null
+                            : (spec) => sprint.matches(spec)
+                                  ? null
+                                  : sprintNameOf(spec, sprints),
                         onOpen: _open,
                         onBack: _back,
                         onBackgroundTap: () {
