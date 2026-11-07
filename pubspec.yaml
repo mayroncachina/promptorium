@@ -76,6 +76,7 @@ flutter:
   assets:
     - assets/icon/
     - assets/icon/mark/
+    - assets/icon/tray/
     - CHANGELOG.md
 
   fonts:

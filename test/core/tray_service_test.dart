@@ -27,11 +27,27 @@ class _FakeBackend implements TrayBackend {
     this.onActivate = onActivate;
   }
 
+  int updates = 0;
+  Object? updateError;
+
+  @override
+  Future<void> update({
+    required String iconAsset,
+    required String tooltip,
+    required List<TrayMenuEntry> menu,
+  }) async {
+    updates++;
+    if (updateError != null) throw updateError!;
+    this.iconAsset = iconAsset;
+    this.tooltip = tooltip;
+    this.menu = menu;
+  }
+
   @override
   Future<void> dispose() async => disposed = true;
 
   Future<void> select(String label) =>
-      menu.firstWhere((e) => e.label == label).onSelected();
+      menu.firstWhere((e) => e.label == label).onSelected!();
 }
 
 class _FakeWindow implements TrayWindow {
@@ -102,7 +118,7 @@ void main() {
         final tray = service(backend: () => backend);
         expect(await tray.start(), isTrue);
         expect(tray.isActive, isTrue);
-        expect(backend.iconAsset, 'assets/icon/mark/mark-24.png');
+        expect(backend.iconAsset, 'assets/icon/tray/tray-idle-24.png');
         expect(backend.tooltip, 'Promptorium');
         expect(backend.menu.map((e) => e.label), ['Abrir', 'Sair']);
         expect(logs, isEmpty);
@@ -111,14 +127,14 @@ void main() {
   });
 
   group('SPEC-029 R3/R6: marca na bandeja', () {
-    test('a bandeja usa a marca de 24 px', () async {
+    test('a bandeja usa o frasco de 24 px', () async {
       final backend = _FakeBackend();
       expect(await service(backend: () => backend).start(), isTrue);
       expect(backend.iconAsset, TrayService.iconAsset);
-      expect(TrayService.iconAsset, 'assets/icon/mark/mark-24.png');
+      expect(TrayService.iconAsset, 'assets/icon/tray/tray-idle-24.png');
     });
 
-    test('marca indisponível: volta ao icon-64.png e registra aviso', () async {
+    test('sem o ícone da bandeja: volta à marca e registra aviso', () async {
       final backends = <_FakeBackend>[];
       final tray = service(
         backend: () {
@@ -131,18 +147,38 @@ void main() {
       expect(tray.isActive, isTrue);
       expect(backends, hasLength(2));
       expect(backends.first.disposed, isTrue);
-      expect(backends.last.iconAsset, 'assets/icon/icon-64.png');
+      expect(backends.last.iconAsset, TrayService.markIconAsset);
       expect(logs.single, contains('marca indisponível'));
     });
 
-    test('sem marca e sem o ícone anterior: segue sem bandeja', () async {
+    test('sem a marca também: volta ao icon-64.png', () async {
+      final backends = <_FakeBackend>[];
+      final tray = service(
+        backend: () {
+          final b = _FakeBackend(
+            missing: {TrayService.iconAsset, TrayService.markIconAsset},
+          );
+          backends.add(b);
+          return b;
+        },
+      );
+      expect(await tray.start(), isTrue);
+      expect(backends, hasLength(3));
+      expect(backends.last.iconAsset, 'assets/icon/icon-64.png');
+    });
+
+    test('sem nenhum ícone: segue sem bandeja', () async {
       final tray = service(
         backend: () => _FakeBackend(
-          missing: {TrayService.iconAsset, TrayService.fallbackIconAsset},
+          missing: {
+            TrayService.iconAsset,
+            TrayService.markIconAsset,
+            TrayService.fallbackIconAsset,
+          },
         ),
       );
       expect(await tray.start(), isFalse);
-      expect(logs, hasLength(2));
+      expect(logs, hasLength(3));
       expect(logs.last, contains('bandeja indisponível'));
     });
   });
@@ -273,6 +309,168 @@ void main() {
         expect(window.calls, isEmpty);
       },
     );
+  });
+
+  group('SPEC-041: radar', () {
+    const interval = Duration(milliseconds: 30);
+    const attention = TrayStatus(
+      state: TrayState.attention,
+      tooltip: 'Promptorium · 1 precisa de você',
+      rows: [
+        TrayRow('1 precisa de você'),
+        TrayRow.separator(),
+        TrayRow('SPEC-001 · Aprovar', id: 'a'),
+      ],
+    );
+    const working = TrayStatus(
+      state: TrayState.working,
+      tooltip: 'Promptorium · 1 rodando',
+    );
+    final opened = <String>[];
+
+    TrayService radar(TrayBackend backend) => TrayService(
+      isLinux: true,
+      backend: () => backend,
+      window: window,
+      onQuit: () async => quits++,
+      onItem: (id) async => opened.add(id),
+      minInterval: interval,
+      log: logs.add,
+    );
+
+    Future<void> settle() => Future.delayed(interval * 3);
+
+    setUp(opened.clear);
+
+    test('mostra ícone, tooltip e linhas acima de Abrir e Sair', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      tray.update(attention);
+      await settle();
+      expect(backend.iconAsset, 'assets/icon/tray/tray-attention-24.png');
+      expect(backend.tooltip, 'Promptorium · 1 precisa de você');
+      expect(backend.menu.map((e) => e.label), [
+        '1 precisa de você',
+        '',
+        'SPEC-001 · Aprovar',
+        '',
+        'Abrir',
+        'Sair',
+      ]);
+      expect(backend.menu.first.onSelected, isNull);
+      expect(backend.menu[1].isSeparator, isTrue);
+      await tray.dispose();
+    });
+
+    test('R6: o item traz a janela para a frente e depois abre', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      window.visible = false;
+      tray.update(attention);
+      await settle();
+      await backend.select('SPEC-001 · Aprovar');
+      expect(window.calls, containsAllInOrder(['show', 'focus']));
+      expect(opened, ['a']);
+      await tray.dispose();
+    });
+
+    test('R8: mudanças seguidas viram no máximo uma atualização por '
+        'intervalo, e fica a última', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      tray.update(attention);
+      tray.update(working);
+      tray.update(attention);
+      tray.update(working);
+      await Future<void>.delayed(Duration.zero);
+      expect(backend.updates, 1);
+      await settle();
+      expect(backend.updates, 2);
+      expect(backend.tooltip, 'Promptorium · 1 rodando');
+      await tray.dispose();
+    });
+
+    test('R8: um estado igual não chama o backend', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      tray.update(const TrayStatus());
+      tray.update(attention);
+      await settle();
+      tray.update(attention);
+      tray.update(
+        const TrayStatus(
+          state: TrayState.attention,
+          tooltip: 'Promptorium · 1 precisa de você',
+          rows: [
+            TrayRow('1 precisa de você'),
+            TrayRow.separator(),
+            TrayRow('SPEC-001 · Aprovar', id: 'a'),
+          ],
+        ),
+      );
+      await settle();
+      expect(backend.updates, 1);
+      await tray.dispose();
+    });
+
+    test('R9: a falha mantém o que estava, registra e a próxima tenta de '
+        'novo', () async {
+      final backend = _FakeBackend()..updateError = StateError('sem menu');
+      final tray = radar(backend);
+      await tray.start();
+      tray.update(attention);
+      await settle();
+      expect(backend.iconAsset, TrayService.iconAsset);
+      expect(backend.menu.map((e) => e.label), ['Abrir', 'Sair']);
+      expect(logs.single, contains('sem menu'));
+      backend.updateError = null;
+      tray.update(working);
+      await settle();
+      expect(backend.iconAsset, TrayState.working.asset);
+      await tray.dispose();
+    });
+
+    test('R9: sem bandeja ou fora do Linux não chama o backend', () async {
+      var created = 0;
+      final tray = TrayService(
+        isLinux: false,
+        backend: () {
+          created++;
+          return _FakeBackend();
+        },
+        window: window,
+        onQuit: () async {},
+        minInterval: interval,
+      );
+      await tray.start();
+      tray.update(attention);
+      await settle();
+      expect(created, 0);
+    });
+
+    test('um estado anterior ao start aparece quando o ícone sobe', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      tray.update(attention);
+      await tray.start();
+      await settle();
+      expect(backend.iconAsset, TrayState.attention.asset);
+      await tray.dispose();
+    });
+
+    test('depois de remover o ícone não atualiza mais', () async {
+      final backend = _FakeBackend();
+      final tray = radar(backend);
+      await tray.start();
+      await tray.dispose();
+      tray.update(attention);
+      await settle();
+      expect(backend.updates, 0);
+    });
   });
 }
 
