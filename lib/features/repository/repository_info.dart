@@ -102,8 +102,9 @@ Future<RepositoryInfo> readRepositoryInfo(
         '--short',
         'refs/remotes/$remote/HEAD',
       ])).trim();
-      if (head.startsWith('$remote/'))
+      if (head.startsWith('$remote/')) {
         branch = head.substring(remote.length + 1);
+      }
     } on GitException {
       branch = null;
     }
