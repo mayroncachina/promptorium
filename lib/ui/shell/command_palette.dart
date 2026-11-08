@@ -9,6 +9,7 @@ import '../../features/board/spec_runner.dart';
 import '../../features/code/worktree_files.dart' show fuzzyScore;
 import '../../features/home/home_inbox.dart';
 import '../../features/prompt/conversation_manager.dart';
+import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_service.dart' show selectedReviewProvider;
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/session_manager.dart';
@@ -246,6 +247,18 @@ List<PaletteCommand> paletteCommands(
       group: 'Ações',
       run: () => openNewSpec(ref),
     ),
+    // SPEC-044 R10: the Releases tab, and its dialog opened on arrival.
+    PaletteCommand(
+      label: 'Criar release',
+      group: 'Ações',
+      run: () {
+        ref.read(repositoryTabProvider.notifier).select('releases');
+        ref
+            .read(repositoryActionProvider.notifier)
+            .request(RepositoryAction.createRelease);
+        onNavigate(AppSection.repository);
+      },
+    ),
     PaletteCommand(
       label: 'Atalhos de teclado',
       shortcut: 'Ctrl /',
@@ -293,6 +306,14 @@ List<PaletteCommand> paletteCommands(
         shortcut: s.shortcutLabel,
         run: () => onNavigate(s),
       ),
+    PaletteCommand(
+      label: 'Abrir Releases',
+      detail: 'Repositório',
+      run: () {
+        ref.read(repositoryTabProvider.notifier).select('releases');
+        onNavigate(AppSection.repository);
+      },
+    ),
     for (final s in specs)
       if (s.status != SpecStatus.archived)
         PaletteCommand(
