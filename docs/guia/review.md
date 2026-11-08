@@ -24,7 +24,30 @@ O painel da spec lista os critérios com quem os marcou. **Marcar N** marca de u
 
 ## Pronto para merge?
 
-Reúne tudo o que decide o merge: estado do revisor, critérios, verificações das etapas, checks e conflitos do PR, branch do repositório principal, alterações na raiz e specs empilhadas não mergeadas. Cada item aparece como Bloqueio, Aviso ou Não verificado, com a ação que o resolve e "Verificar de novo". "Mergear mesmo assim…" exige um motivo, que fica registrado na spec.
+Reúne tudo o que decide o merge: estado do revisor, critérios, verificações das etapas, resolução do conflito, checks e conflitos do PR, branch do repositório principal, alterações na raiz e specs empilhadas não mergeadas. Cada item aparece como Bloqueio, Aviso ou Não verificado, com a ação que o resolve e "Verificar de novo". "Mergear mesmo assim…" exige um motivo, que fica registrado na spec.
+
+## Conflito resolvido pelo agente
+
+Quando a spec conflita com a base, "Resolver com o agente" (no painel do conflito, no PR, depois de refazer a base de uma filha ou em "Passar para o agente", durante um rebase manual) guarda a ponta da branch em `refs/promptorium/<spec>/antes-da-resolucao` e pede ao agente que junte os dois lados e termine a resposta com `## Como resolvi`, uma linha por arquivo.
+
+Quando o agente termina, o app confere o resultado no worktree, fora do agente, com o **gate da resolução**, nesta ordem: árvore limpa, nenhum marcador `<<<<<<<`/`=======`/`>>>>>>>` nos arquivos que estavam em conflito, a branch contém a ponta atual da base, `testes:`, `lint:` e `build:` do projeto, os `verificar:` dos critérios (menos os manuais) e a contagem de testes comparada com o último gate aprovado da spec. O gate para na primeira falha.
+
+O card e o cabeçalho mostram o estado: "Agente resolvendo o conflito…", "Conferindo a resolução · testes", "Conflito resolvido · gate aprovado", "Resolução reprovada no gate · testes" ou "A base mudou · resolver de novo".
+
+- **Reprovada**: o relatório mostra o item que falhou e três saídas. **Corrigir e verificar** envia o relatório ao agente e roda o gate de novo quando ele terminar. **Desfazer a resolução** volta a branch ao SHA de antes; se o worktree tiver alterações não commitadas, nada é feito e o motivo aparece. **Resolver eu mesmo** desfaz e começa o rebase manual, parado nos conflitos.
+- **Aprovada**: "O que a resolução decidiu" mostra, para cada trecho, o lado da base, o lado da spec e o resultado do agente (`git show --remerge-diff` quando o agente fez um merge), ao lado da linha de `## Como resolvi` daquele arquivo. Sem a seção, aparece a resposta inteira. Em git anterior ao 2.36, a tela mostra `git show --cc` e avisa.
+- **Desatualizada**: a base andou enquanto o agente resolvia, enquanto o gate rodava ou depois dele. O gate não aprova esse resultado: use "Resolver de novo".
+
+Em "Pronto para merge?", o item **Resolução do conflito** bloqueia enquanto a resolução estiver em andamento, reprovada ou desatualizada, e passa quando o gate aprovou a ponta atual da branch. "Mergear mesmo assim…" continua disponível, com motivo. Cada resolução fica no histórico da spec (quem começou, arquivos, resultado de cada gate e SHA).
+
+### Resolução automática
+
+Com `review: resolver-conflitos: automatico` no `.promptorium/config.yml` (o padrão é `manual`), o app começa a resolução sozinho quando a previsão de conflito com a base acusa um conflito ou quando refazer a base de uma filha conflita: uma spec por vez, e só se não houver sessão rodando na spec. Se o gate reprovar a primeira resolução, o app pede "Corrigir e verificar" uma única vez; depois, as correções são com você. Uma notificação avisa o resultado. O merge nunca é feito sozinho.
+
+```yaml
+review:
+  resolver-conflitos: automatico
+```
 
 ## Merge local guiado
 

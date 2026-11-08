@@ -5,6 +5,7 @@ import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../auto_reviewer.dart' show ReviewPhase;
 import '../comment_anchor.dart';
+import '../conflict_resolution.dart';
 import '../merge_readiness.dart';
 import '../review_service.dart';
 import '../review_stack.dart';
@@ -70,7 +71,15 @@ MergeStatus watchMergeStatus(
     appSettingsProvider.select((m) => m[restackMarkKey(s.id)]),
   );
   final rebase = ref.watch(rebaseStatusProvider(s.id)).value;
+  final resolution = ref.watch(conflictResolutionProvider(s.id));
   return mergeStatusOf(
+    resolution: resolution?.state,
+    resolutionDetail: switch (resolution?.state) {
+      ResolutionState.conferindo when resolution!.running != null =>
+        gateItemLabel(resolution.running!),
+      ResolutionState.reprovada => resolution!.firstFailure?.label,
+      _ => null,
+    },
     rebaseStep: rebase?.inProgress ?? false
         ? '${rebase!.step} de ${rebase.total}'
         : null,
@@ -95,4 +104,9 @@ MergeStatus watchMergeStatus(
   MergeState.revisando => (Icons.rate_review_outlined, AppColors.blue),
   MergeState.pendencias => (Icons.error_outline, AppColors.amber),
   MergeState.rebaseManual => (Icons.schedule, AppColors.amber),
+  MergeState.resolvendo => (Icons.autorenew, AppColors.amber),
+  MergeState.conferindo => (Icons.speed, AppColors.blue),
+  MergeState.resolvida => (Icons.check, AppColors.teal),
+  MergeState.reprovada => (Icons.disabled_by_default_outlined, AppColors.red),
+  MergeState.resolucaoDesatualizada => (Icons.sync, AppColors.amber),
 };

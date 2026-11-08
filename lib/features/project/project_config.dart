@@ -41,6 +41,8 @@ import '../specs/spec_file.dart';
 /// autopilot:
 ///   paralelo: 3
 ///   orcamento-dia: 10
+/// review:
+///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
 /// ```
 ///
 /// Every key is optional; absent = the behaviour from before the key existed.
@@ -192,6 +194,7 @@ class ProjectConfig {
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
+    this.autoResolveConflicts = false,
   });
 
   static const defaultSpecsDir = 'specs';
@@ -231,6 +234,10 @@ class ProjectConfig {
   final String mergeMethod;
   final String? host, hostType;
 
+  /// `review: resolver-conflitos: automatico` (SPEC-043 R6): the app starts
+  /// the agent's conflict resolution by itself. Default `manual`.
+  final bool autoResolveConflicts;
+
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
 
@@ -265,6 +272,7 @@ class ProjectConfig {
     String? mergeMethod,
     String? host,
     String? hostType,
+    bool? autoResolveConflicts,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -284,6 +292,7 @@ class ProjectConfig {
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
+    autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -425,6 +434,8 @@ class ProjectConfig {
         parallel: integer(a['paralelo'], min: 1),
         dailyBudgetUsd: number(a['orcamento-dia']),
       ),
+      autoResolveConflicts:
+          '${map('review')['resolver-conflitos'] ?? ''}'.trim() == 'automatico',
     );
   }
 
@@ -511,6 +522,9 @@ class ProjectConfig {
       if (autopilot.dailyBudgetUsd != null) {
         b.writeln('  orcamento-dia: ${autopilot.dailyBudgetUsd}');
       }
+    }
+    if (autoResolveConflicts) {
+      b.writeln('review:\n  resolver-conflitos: automatico');
     }
     return b.toString();
   }

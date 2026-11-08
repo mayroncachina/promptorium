@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Conferindo a resolução do conflito</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <dc-import name="Fila" estado="conferindo" hint-size="340px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Cabecalho" tipo="conferindo" hint-size="1044px,96px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+      <p style="margin: 0; font-size: 15px; line-height: 24px; color: #C9CED8">O agente juntou a SPEC-042 com a main, que recebeu a SPEC-041 com mudanças em <code style="font-family: 'JetBrains Mono', monospace; font-size: 13px">lib/features/home/home_inbox.dart</code>. Agora o app confere o resultado no worktree, fora do agente. O merge fica bloqueado até o gate aprovar.</p>
+      <section aria-label="Gate da resolução" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+        <div style="height: 52px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between"><span style="font-size: 16px; font-weight: 600">Gate da resolução</span><span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">commit 4e1b7a2 · 1 min 12 s</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="flex: 1">Sem marcadores de conflito</span><span style="color: #A0A8B6; font-size: 13px">1 arquivo</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="flex: 1">A branch contém a ponta da main</span><span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">a408a2e</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px; background: rgba(142,197,255,.07)"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#8EC5FF" stroke-width="1.8" stroke-linecap="round"><path d="M7 1.5 A5.5 5.5 0 1 1 1.5 7"></path></svg><span style="flex: 1">testes · <code style="font: 13px 'JetBrains Mono', monospace">flutter test</code></span><span style="color: #8EC5FF; font-size: 13px">rodando · 1.112 de ~1.690</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#7C8595" stroke-width="1.6"><circle cx="7" cy="7" r="5"></circle></svg><span style="flex: 1; color: #A0A8B6">lint · <code style="font: 13px 'JetBrains Mono', monospace">flutter analyze</code></span><span style="color: #7C8595; font-size: 13px">na fila</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#7C8595" stroke-width="1.6"><circle cx="7" cy="7" r="5"></circle></svg><span style="flex: 1; color: #A0A8B6">verificar: dos critérios da spec</span><span style="color: #7C8595; font-size: 13px">8 comandos · na fila</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#7C8595" stroke-width="1.6"><circle cx="7" cy="7" r="5"></circle></svg><span style="flex: 1; color: #A0A8B6">contagem de testes</span><span style="color: #7C8595; font-size: 13px">contra o último gate aprovado: 1.684</span></div>
+      </section>
+      <p style="margin: 0; font-size: 13px; color: #A0A8B6">O projeto não tem <code style="font-family: 'JetBrains Mono', monospace">build:</code>, então esse item não aparece.</p>
+      <div role="status" style="position: absolute; right: 24px; bottom: 24px; width: 420px; box-sizing: border-box; padding: 14px 16px; display: flex; gap: 12px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.5)">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><path d="M7 1.5 A5.5 5.5 0 1 1 1.5 7"></path></svg>
+        <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 600">Resolução automática</span><span style="font-size: 13px; line-height: 19px; color: #C9CED8">A SPEC-038 tem conflito previsto com a main. O agente começou a resolver. Nada é mergeado sem você.</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

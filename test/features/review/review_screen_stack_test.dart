@@ -64,8 +64,14 @@ class _FakeReview extends ReviewService {
     const ConflictHunk(path: 'lib/a.dart', line: 3, base: ['Y'], spec: ['X']),
   ];
   @override
-  Future<void> resolveConflict(String sessionId) async =>
-      calls.add('agente $sessionId');
+  Future<List<String>> resolveConflict(
+    String sessionId, {
+    String origin = 'pessoa',
+  }) async {
+    calls.add('agente $sessionId');
+    return const [];
+  }
+
   @override
   Future<RebaseStatus> startRebase(String sessionId) async {
     calls.add('rebase $sessionId');

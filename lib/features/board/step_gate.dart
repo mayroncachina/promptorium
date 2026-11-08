@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import '../../core/git/git_service.dart';
 import '../../core/process/shell_runner.dart';
 import '../project/project_config.dart';
+import '../review/restack.dart' show countMarkers;
 import 'test_count.dart';
 
 /// One item of the step gate: the commit, the clean tree or a command.
@@ -19,8 +21,9 @@ class GateCheck {
     this.count,
   });
 
-  /// `commit`, `arvore`, `testes`, `contagem` (SPEC-023 R2), `lint`, `build`
-  /// or `verificar` (criteria).
+  /// `commit`, `arvore`, `testes`, `contagem` (SPEC-023 R2), `lint`, `build`,
+  /// `verificar` (criteria) or, in a conflict resolution (SPEC-043 R1),
+  /// `marcadores` and `base`.
   final String name;
   final bool ok;
   final String output;
@@ -36,6 +39,8 @@ class GateCheck {
     'commit' => 'commit',
     'arvore' => 'árvore limpa',
     'contagem' => 'contagem de testes',
+    'marcadores' => 'sem marcadores',
+    'base' => 'contém a base',
     _ => name,
   };
 
@@ -221,6 +226,130 @@ class StepGate {
       }
     }
     return GateReport(checks: checks, at: DateTime.now(), attempt: attempt);
+  }
+
+  /// Names of the items [runResolution] runs for [config], in order.
+  static List<String> resolutionPlan(
+    ProjectConfig config, {
+    int verifyCount = 0,
+  }) => [
+    'arvore',
+    'marcadores',
+    'base',
+    if (config.testCommand != null) 'testes',
+    if (config.lintCommand != null) 'lint',
+    if (config.buildCommand != null) 'build',
+    if (verifyCount > 0) 'verificar',
+    if (config.testCommand != null && config.gate.countTests) 'contagem',
+  ];
+
+  /// Gate of a conflict resolution (SPEC-043 R1), in the worktree and
+  /// outside the agent: clean tree, no conflict markers left in [files],
+  /// the branch contains [baseSha] (the tip of the base), then `testes:` /
+  /// `lint:` / `build:`, the criteria's `verificar:` ([extraCommands]) and
+  /// the test count against [baseline]. No step commit is required. Stops
+  /// at the first failure; [onProgress] gets the name of each item before
+  /// it runs.
+  Future<GateReport> runResolution({
+    required List<String> files,
+    required String baseSha,
+    required ProjectConfig config,
+    List<String> extraCommands = const [],
+    Map<String, String>? environment,
+    TestCount? baseline,
+    int attempt = 0,
+    void Function(String running, List<GateCheck> done)? onProgress,
+  }) async {
+    final checks = <GateCheck>[];
+    GateReport report() =>
+        GateReport(checks: checks, at: DateTime.now(), attempt: attempt);
+    bool step(GateCheck c) {
+      checks.add(c);
+      return c.ok;
+    }
+
+    onProgress?.call('arvore', checks);
+    if (!step(await _tree())) return report();
+    onProgress?.call('marcadores', checks);
+    if (!step(await _markers(files))) return report();
+    onProgress?.call('base', checks);
+    if (!step(await _containsBase(baseSha))) return report();
+    final commands = [
+      if (config.testCommand case final c?) ('testes', c),
+      if (config.lintCommand case final c?) ('lint', c),
+      if (config.buildCommand case final c?) ('build', c),
+      for (final c in extraCommands) ('verificar', c),
+    ];
+    TestCount? count;
+    String? testCommand;
+    for (final (name, cmd) in commands) {
+      onProgress?.call(name, checks);
+      final r = await shell(
+        cmd,
+        cwd: git.repoRoot,
+        timeout: config.gate.timeout,
+        environment: environment,
+      );
+      final parsed = name == 'testes' && r.ok ? parseTestCount(r.output) : null;
+      if (name == 'testes') {
+        count = parsed;
+        testCommand = cmd;
+      }
+      final ok = step(
+        GateCheck(
+          name: name,
+          ok: r.ok,
+          output: r.ok ? tailLines(r.output, 20) : r.output,
+          duration: r.duration,
+          command: cmd,
+          count: parsed,
+        ),
+      );
+      if (!ok) return report();
+    }
+    if (testCommand != null && config.gate.countTests) {
+      onProgress?.call('contagem', checks);
+      step(countCheck(baseline, count, testCommand));
+    }
+    return report();
+  }
+
+  Future<GateCheck> _markers(List<String> files) async {
+    final left = <String>[];
+    for (final path in files) {
+      final f = File('${git.repoRoot}/$path');
+      if (!f.existsSync()) continue;
+      try {
+        final n = countMarkers(f.readAsStringSync());
+        if (n > 0) left.add('$path: $n marcador(es)');
+      } on FileSystemException {
+        /* binary or unreadable: nothing to look for */
+      } on FormatException {
+        /* binary */
+      }
+    }
+    return GateCheck(
+      name: 'marcadores',
+      ok: left.isEmpty,
+      output: left.isEmpty
+          ? '${files.length} arquivo(s) sem marcadores'
+          : 'Marcadores de conflito esquecidos:\n${left.join('\n')}',
+    );
+  }
+
+  Future<GateCheck> _containsBase(String baseSha) async {
+    try {
+      await git.git(['merge-base', '--is-ancestor', baseSha, 'HEAD']);
+      return GateCheck(name: 'base', ok: true, output: baseSha);
+    } on GitException catch (e) {
+      return GateCheck(
+        name: 'base',
+        ok: false,
+        output: e.exitCode == 1
+            ? 'A branch não contém a ponta atual da base ($baseSha).'
+            : '$e',
+      );
+    }
   }
 
   /// `contagem` item: [after] against [before] (SPEC-023 R2); without one
