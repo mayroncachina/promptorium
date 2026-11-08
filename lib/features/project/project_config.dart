@@ -41,6 +41,8 @@ import '../specs/spec_file.dart';
 /// autopilot:
 ///   paralelo: 3
 ///   orcamento-dia: 10
+/// git:
+///   marcar-commits-de-agente: true  # trailer nos commits das sessões
 /// review:
 ///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
 /// ```
@@ -173,6 +175,25 @@ class AutopilotConfig {
   int get hashCode => Object.hash(parallel, dailyBudgetUsd);
 }
 
+/// `git:` of the config (SPEC-048).
+@immutable
+class GitConfig {
+  const GitConfig({this.markAgentCommits = false});
+
+  /// `marcar-commits-de-agente`: the app's agent sessions append
+  /// `Promptorium-Agente: <modelo> · <origem>` to their commits.
+  final bool markAgentCommits;
+
+  bool get isDefault => !markAgentCommits;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GitConfig && other.markAgentCommits == markAgentCommits;
+
+  @override
+  int get hashCode => markAgentCommits.hashCode;
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -191,6 +212,7 @@ class ProjectConfig {
     this.worktree = const WorktreeConfig(),
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
+    this.git = const GitConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
@@ -231,6 +253,7 @@ class ProjectConfig {
   final WorktreeConfig worktree;
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
+  final GitConfig git;
   final String mergeMethod;
   final String? host, hostType;
 
@@ -269,6 +292,7 @@ class ProjectConfig {
     WorktreeConfig? worktree,
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
+    GitConfig? git,
     String? mergeMethod,
     String? host,
     String? hostType,
@@ -289,6 +313,7 @@ class ProjectConfig {
     worktree: worktree ?? this.worktree,
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
+    git: git ?? this.git,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
@@ -434,6 +459,10 @@ class ProjectConfig {
         parallel: integer(a['paralelo'], min: 1),
         dailyBudgetUsd: number(a['orcamento-dia']),
       ),
+      git: GitConfig(
+        markAgentCommits:
+            boolean(map('git')['marcar-commits-de-agente']) ?? false,
+      ),
       autoResolveConflicts:
           '${map('review')['resolver-conflitos'] ?? ''}'.trim() == 'automatico',
     );
@@ -522,6 +551,9 @@ class ProjectConfig {
       if (autopilot.dailyBudgetUsd != null) {
         b.writeln('  orcamento-dia: ${autopilot.dailyBudgetUsd}');
       }
+    }
+    if (!git.isDefault) {
+      b.writeln('git:\n  marcar-commits-de-agente: ${git.markAgentCommits}');
     }
     if (autoResolveConflicts) {
       b.writeln('review:\n  resolver-conflitos: automatico');

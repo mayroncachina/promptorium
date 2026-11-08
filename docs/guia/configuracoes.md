@@ -37,3 +37,25 @@ Aviso diário de versão nova (pode ser desligado), "Verificar agora", "Abrir p�
 ## Workspace
 
 **Configuração do projeto**: editor do `.promptorium/config.yml` ([detalhes](projeto.md#promptoriumconfigyml)), com o resumo do que o gate exige ("A etapa só passa se: ✓ testes · …").
+
+### Git: marcar commits feitos por agentes
+
+No grupo **Git** da Configuração do projeto (também na aba Configuração do Projeto), a caixa **Marcar commits feitos por agentes** grava `git: marcar-commits-de-agente: true` no `.promptorium/config.yml`. Vem desligada. O ⓘ ao lado mostra um commit de exemplo; ele abre com o ponteiro ou com o foco do teclado (Tab).
+
+Ligada, todo commit feito por uma sessão do app (Claude, Codex, ACP e o Prompt) ganha uma linha no fim da mensagem:
+
+```
+SPEC-042 R2: seletor de sprint no cabeçalho
+
+Promptorium-Agente: sonnet · SPEC-042 R2
+```
+
+- A linha diz o modelo e a origem: `SPEC-042 R2` numa etapa, `SPEC-043 conflito` ao resolver conflito, `SPEC-042 base` ao refazer a base, `sessão <nome>` numa sessão livre e `Prompt` numa conversa. Quando a sessão usa o modelo padrão do provedor, a linha mostra o provedor (`claude`, `codex`).
+- O "Commitar o que sobrou" e o commit das pendências na Review saem como `Promptorium-Agente: app · …`, porque podem juntar edição sua com edição do agente.
+- O autor continua sendo você, e o GitHub não mostra coautor.
+- Nada é instalado no repositório nem em `.git/hooks`. O app passa às sessões um `core.hooksPath` para `~/.promptorium/git-hooks/` só pelo ambiente (`GIT_CONFIG_COUNT`). O `prepare-commit-msg` dali chama o do repositório e acrescenta a linha; os outros hooks repassam para os do repositório com os mesmos argumentos. Husky, lefthook e hooks próprios continuam rodando.
+- Seus commits no terminal, no terminal do Código e no painel do Código não são marcados.
+- Num amend ou rebase do agente, a linha é trocada, não duplicada. Commits antigos não mudam.
+- Desligar vale para as próximas sessões. As sessões abertas terminam marcadas, e o estado mostra "Desliga nas próximas sessões".
+
+A linha de estado mostra "Ligado desde 8 nov · 37 commits marcados" (contados na branch base), "Desligado" ou "Precisa do git 2.32 ou mais novo".
