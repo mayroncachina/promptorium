@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/gh_cli.dart';
@@ -14,6 +15,9 @@ import 'package:promptorium/features/repository/graph/graph_controller.dart';
 import 'package:promptorium/features/repository/graph/graph_painter.dart';
 import 'package:promptorium/features/repository/graph/graph_sources.dart';
 import 'package:promptorium/features/repository/graph/graph_tab.dart';
+import 'package:promptorium/features/repository/graph/graph_watcher.dart';
+import 'package:promptorium/features/board/board_screen.dart'
+    show boardSelectedSpecProvider;
 import 'package:promptorium/features/repository/releases/releases_state.dart';
 import 'package:promptorium/features/repository/releases/releases_tab.dart';
 import 'package:promptorium/features/repository/repository_info.dart';
@@ -24,7 +28,7 @@ import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../core/git/git_test_utils.dart';
-import 'commit_log_test.dart' show buildHistory;
+import 'commit_log_test.dart' show buildHistory, commitIn;
 import 'fake_gh.dart';
 
 class _Settings extends AppSettingsController {
@@ -66,6 +70,22 @@ Session sessionOn(String id, String branch) => Session(
   tokensOut: 0,
   startedAt: DateTime(2026, 11, 7),
 );
+
+/// Taps [key] with real time, so the git the tap starts can finish.
+Future<void> tapAndLoad(
+  WidgetTester tester,
+  GraphController c,
+  ValueKey<String> key,
+) async {
+  await tester.runAsync(() async {
+    await tester.tap(find.byKey(key));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    for (var i = 0; i < 200 && c.loading; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  });
+  await tester.pump();
+}
 
 void main() {
   late Directory tmp;
@@ -132,7 +152,7 @@ void main() {
         child: MaterialApp(
           theme: AppTheme.dark(),
           home: Scaffold(
-            body: GraphTab(repo: info(), controller: c),
+            body: GraphTab(repo: info(), controller: c, watchRefs: false),
           ),
         ),
       ),
@@ -327,6 +347,329 @@ void main() {
           : null,
     );
     expect(find.byKey(const ValueKey('badge')), findsOneWidget);
+  });
+
+  group('R6 · filters and search', () {
+    testWidgets('only the default branch, one commit per merge', (
+      tester,
+    ) async {
+      final c = await loaded(tester);
+      await pumpTab(tester, c);
+      await tapAndLoad(tester, c, const ValueKey('graph-scope-defaultBranch'));
+      expect(c.query.scope, GraphScope.defaultBranch);
+      expect(c.rows.map((r) => c.commit(r.sha)!.subject), [
+        'Merge pull request #94 from o/spec/042-sprints',
+        'fix: na main',
+        'inicial',
+      ]);
+      expect(find.text('Só a main'), findsOneWidget);
+      expect(find.text('3 de 3 commits'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+    });
+
+    testWidgets('open specs: the default branch and the spec branches not '
+        'merged', (tester) async {
+      await tester.runAsync(() async {
+        await gitIn(repo, ['checkout', '-q', '-b', 'feat/solta']);
+        await commitIn(repo, 'feat: fora das specs');
+        await gitIn(repo, ['checkout', '-q', 'main']);
+      });
+      final c = await loaded(tester);
+      expect(
+        c.rows.any((r) => c.commit(r.sha)!.subject == 'feat: fora das specs'),
+        isTrue,
+      );
+      await tester.runAsync(() => c.setScope(GraphScope.openSpecs));
+      await pumpTab(tester, c);
+      final subjects = c.rows.map((r) => c.commit(r.sha)!.subject).toList();
+      expect(subjects.first, 'docs: SPEC-043, conflito');
+      expect(subjects, isNot(contains('feat: fora das specs')));
+    });
+
+    testWidgets('remote branches without a local copy only when asked', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        await gitIn(repo, ['checkout', '-q', '-b', 'feat/remota']);
+        final sha = await commitIn(repo, 'feat: só no remoto');
+        await gitIn(repo, ['checkout', '-q', 'main']);
+        await gitIn(repo, [
+          'update-ref',
+          'refs/remotes/origin/feat/remota',
+          sha,
+        ]);
+        await gitIn(repo, ['branch', '-q', '-D', 'feat/remota']);
+      });
+      final c = await loaded(tester);
+      await pumpTab(tester, c);
+      expect(find.text('feat: só no remoto'), findsNothing);
+      await tapAndLoad(tester, c, const ValueKey('graph-remote-only'));
+      expect(c.query.remoteOnly, isTrue);
+      expect(find.text('feat: só no remoto'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('graph-branch-origin/feat/remota')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('search by SPEC-NNN, SHA and author; Enter goes to the next '
+        'result', (tester) async {
+      final c = await loaded(tester);
+      await pumpTab(tester, c);
+      await tester.enterText(
+        find.byKey(const ValueKey('graph-search')),
+        'SPEC-042',
+      );
+      await tester.pump();
+      // The collapsed spec and the merge of its PR.
+      expect(find.text('1 de 2 · Enter'), findsOneWidget);
+      final first = c.currentMatchRow!;
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(find.text('2 de 2 · Enter'), findsOneWidget);
+      expect(c.currentMatchRow, isNot(first));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      expect(c.currentMatchRow, first);
+      final sha = c.commit(c.rows.last.sha)!.sha.substring(0, 8);
+      await tester.enterText(find.byKey(const ValueKey('graph-search')), sha);
+      await tester.pump();
+      expect(c.matches, [c.rows.length - 1]);
+      await tester.enterText(
+        find.byKey(const ValueKey('graph-search')),
+        'teste',
+      );
+      await tester.pump();
+      expect(c.matches.length, c.rows.length - 1);
+      await tester.enterText(find.byKey(const ValueKey('graph-search')), 'xyz');
+      await tester.pump();
+      expect(find.text('nenhum'), findsOneWidget);
+    });
+
+    testWidgets('a day only (the Atividade of SPEC-046)', (tester) async {
+      final c = await loaded(tester);
+      await tester.runAsync(() => c.setDay(DateTime.now()));
+      expect(c.rows, isNotEmpty);
+      expect(c.query.day, isNotNull);
+      await tester.runAsync(
+        () => c.setDay(DateTime.now().subtract(const Duration(days: 3))),
+      );
+      await pumpTab(tester, c);
+      expect(c.rows, isEmpty);
+      expect(find.text('Nenhum commit neste dia.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('graph-day')), findsOneWidget);
+    });
+
+    testWidgets('openGraph asks the tab for a search and a commit', (
+      tester,
+    ) async {
+      final c = await loaded(tester);
+      final target = c.rows.first.sha;
+      await tester.runAsync(() => c.loadDetails(target));
+      final container = await pumpTab(tester, c);
+      container
+          .read(graphRequestProvider.notifier)
+          .request(GraphRequest(search: 'SPEC-043', select: target));
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(graphRequestProvider), isNull);
+      expect(find.text('1 de 1 · Enter'), findsOneWidget);
+      expect(c.selected, target);
+      expect(find.byKey(const ValueKey('graph-commit-panel')), findsOneWidget);
+    });
+  });
+
+  group('R5 · the commit panel', () {
+    testWidgets('message, parents, what contains it, spec, PR and the files '
+        'with +/−', (tester) async {
+      final c = await loaded(tester);
+      final merge = c.rows.firstWhere(
+        (r) => c.commit(r.sha)!.subject.contains('#94'),
+      );
+      await tester.runAsync(() => c.loadDetails(merge.sha));
+      final container = await pumpTab(
+        tester,
+        c,
+        sessions: [sessionOn('s9', 'spec/042-sprints')],
+      );
+      await tester.tap(
+        find.text('Merge pull request #94 from o/spec/042-sprints'),
+      );
+      await tester.pump();
+      expect(find.byKey(const ValueKey('graph-commit-panel')), findsOneWidget);
+      final commit = c.commit(merge.sha)!;
+      expect(find.text(commit.shortSha), findsWidgets);
+      final parents = tester
+          .widget<Wrap>(find.byKey(const ValueKey('graph-panel-parents')))
+          .children;
+      expect(parents, hasLength(2));
+      final inPanel = tester
+          .widget<Text>(find.byKey(const ValueKey('graph-panel-contains')))
+          .data!;
+      expect(inPanel, contains('main'));
+      expect(inPanel, contains('spec/043-conflito'));
+      expect(inPanel, contains('v0.1.0'));
+      expect(find.text('ARQUIVOS · 2 · +2 −0'), findsOneWidget);
+      expect(find.text('SPEC-042 · Sprints no Quadro'), findsOneWidget);
+      expect(find.text('#94 · mergeado'), findsOneWidget);
+      // The list goes compact: no spec nor author column.
+      expect(find.text('AUTOR'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('graph-open-review')));
+      await tester.pump();
+      expect(container.read(selectedReviewProvider), 's9');
+      expect(container.read(navigationProvider), AppSection.review);
+      await tester.tap(find.byKey(const ValueKey('graph-open-board')));
+      await tester.pump();
+      expect(container.read(boardSelectedSpecProvider), 1);
+      expect(container.read(navigationProvider), AppSection.tasks);
+    });
+
+    testWidgets('"Ver diferença" opens the diff of the file', (tester) async {
+      final c = await loaded(tester);
+      final row = c.rows.firstWhere(
+        (r) => c.commit(r.sha)!.subject == 'docs: SPEC-043, conflito',
+      );
+      await tester.runAsync(() => c.loadDetails(row.sha));
+      await pumpTab(tester, c);
+      c.select(row.sha);
+      await tester.pump();
+      final path = c.details(row.sha)!.files.single.path;
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(ValueKey('graph-diff-$path')));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      });
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('graph-diff-dialog')), findsOneWidget);
+      expect(find.text('docs: SPEC-043, conflito'), findsWidgets);
+    });
+
+    testWidgets('Copiar SHA and closing the panel', (tester) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+      final c = await loaded(tester);
+      final row = c.rows.first;
+      await tester.runAsync(() => c.loadDetails(row.sha));
+      await pumpTab(tester, c);
+      c.select(row.sha);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('graph-copy-sha')));
+      await tester.pump();
+      expect(copied, row.sha);
+      expect(find.text('SHA copiado.'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('graph-panel-close')));
+      await tester.pump();
+      expect(c.selected, isNull);
+      expect(find.byKey(const ValueKey('graph-commit-panel')), findsNothing);
+    });
+
+    test('numstat with binaries and renames', () {
+      expect(
+        parseNumstat(
+          '3\t1\tlib/a.dart\n-\t-\tlogo.png\n2\t0\tlib/{x => y}/b.dart\n'
+          '1\t1\told.txt => new.txt\n',
+        ).map((f) => (f.path, f.added, f.removed)),
+        [
+          ('lib/a.dart', 3, 1),
+          ('logo.png', null, null),
+          ('lib/y/b.dart', 2, 0),
+          ('new.txt', 1, 1),
+        ],
+      );
+    });
+  });
+
+  group('R7 · live update', () {
+    testWidgets('a new commit appears without losing the selection nor the '
+        'rows on screen', (tester) async {
+      await tester.runAsync(() async {
+        for (var i = 0; i < 40; i++) {
+          await commitIn(repo, 'chore: passo $i');
+        }
+      });
+      final c = await loaded(tester);
+      await pumpTab(tester, c);
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byKey(const ValueKey('graph-list')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      scrollable.position.jumpTo(4 + 20 * graphRowHeight);
+      await tester.pump();
+      final anchor = c.rows[20].sha;
+      final selected = c.rows[22].sha;
+      await tester.runAsync(() => c.loadDetails(selected));
+      c.select(selected);
+      await tester.pump();
+
+      await tester.runAsync(() async {
+        await gitIn(repo, ['checkout', '-q', 'spec/043-conflito']);
+        File('$repo/mais.txt').writeAsStringSync('mais');
+        await gitIn(repo, ['add', 'mais.txt']);
+        // A minute ahead, so it is the newest commit of the log.
+        final r = await Process.run(
+          'git',
+          ['-C', repo, 'commit', '-q', '-m', 'docs: SPEC-043, mais um'],
+          environment: {
+            'GIT_COMMITTER_DATE': DateTime.now()
+                .add(const Duration(minutes: 1))
+                .toIso8601String(),
+          },
+        );
+        expect(r.exitCode, 0);
+        await gitIn(repo, ['checkout', '-q', 'main']);
+        await tester.state<GraphTabState>(find.byType(GraphTab)).refresh();
+      });
+      await tester.pump();
+      expect(c.commit(c.rows.first.sha)!.subject, 'docs: SPEC-043, mais um');
+      expect(c.selected, selected);
+      expect(find.byKey(const ValueKey('graph-commit-panel')), findsOneWidget);
+      final p = tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byKey(const ValueKey('graph-list')),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position;
+      final top = ((p.pixels - 4) / graphRowHeight).round();
+      expect(c.rows[top].sha, anchor);
+    });
+
+    test('the watcher reacts to a new ref, not to the index', () async {
+      final gitDir = (await gitIn(repo, [
+        'rev-parse',
+        '--absolute-git-dir',
+      ])).trim();
+      final changed = Completer<void>();
+      final w = GraphRefsWatcher(
+        gitDir,
+        debounce: const Duration(milliseconds: 50),
+        onChange: () {
+          if (!changed.isCompleted) changed.complete();
+        },
+      );
+      addTearDown(w.close);
+      expect(w.isRefChange('$gitDir/index'), isFalse);
+      expect(w.isRefChange('$gitDir/refs/heads/x.lock'), isFalse);
+      expect(w.isRefChange('$gitDir/refs/stash'), isFalse);
+      expect(w.isRefChange('$gitDir/refs/promptorium/SPEC-1/a'), isFalse);
+      expect(w.isRefChange('$gitDir/HEAD'), isTrue);
+      expect(w.isRefChange('$gitDir/refs/heads/spec/050-x'), isTrue);
+      expect(w.dirs(), contains('$gitDir/refs/heads/spec'));
+      await gitIn(repo, ['branch', 'spec/099-nova']);
+      await changed.future.timeout(const Duration(seconds: 5));
+    });
   });
 
   test('CI of the checks: a failure wins, then one running', () {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/git/git_service.dart';
@@ -15,7 +17,7 @@ class GraphController extends ChangeNotifier {
 
   String get defaultBranch => log.defaultBranch;
 
-  final GraphQuery _query = const GraphQuery();
+  GraphQuery _query = const GraphQuery();
   GraphQuery get query => _query;
 
   RepoRefs _refs = const RepoRefs();
@@ -74,6 +76,125 @@ class GraphController extends ChangeNotifier {
     if (_selected == sha) return;
     _selected = sha;
     notifyListeners();
+    final c = sha == null ? null : _bySha[sha];
+    if (c != null && !_details.containsKey(sha)) unawaited(loadDetails(sha!));
+  }
+
+  /// What to show (R6): a new query reads the log again.
+  Future<void> setQuery(GraphQuery q) {
+    if (q == _query) return Future.value();
+    _query = q;
+    return load();
+  }
+
+  Future<void> setScope(GraphScope scope) =>
+      setQuery(_query.copyWith(scope: scope));
+
+  Future<void> setRemoteOnly(bool on) =>
+      setQuery(_query.copyWith(remoteOnly: on));
+
+  /// Only the commits of [day] (null = every day). SPEC-046 opens the Grafo
+  /// this way from the Atividade.
+  Future<void> setDay(DateTime? day) => setQuery(
+    _query.copyWith(
+      day: () => day == null ? null : DateTime(day.year, day.month, day.day),
+    ),
+  );
+
+  /// Reads the log again after HEAD, the refs or the tags changed (R7):
+  /// as many commits as before, the selection kept.
+  Future<void> refresh() => load(keep: _commits.length);
+
+  // Search (R6).
+
+  String _search = '';
+  String get search => _search;
+  List<int> _matches = const [];
+
+  /// Rows (indexes in [rows]) that match the search.
+  List<int> get matches => _matches;
+  int _match = -1;
+
+  /// Index in [matches] of the current result (-1 = none).
+  int get currentMatch => _match;
+
+  bool isMatch(int row) => _matchSet.contains(row);
+  Set<int> _matchSet = const {};
+
+  /// Searches the message, the SHA, the author or `SPEC-NNN` of the rows on
+  /// screen; the first result becomes the current one.
+  void setSearch(String text) {
+    _search = text;
+    _findMatches();
+    _match = _matches.isEmpty ? -1 : 0;
+    notifyListeners();
+  }
+
+  /// The next result (Enter), round to the first one; null = no result.
+  int? nextMatch() {
+    if (_matches.isEmpty) return null;
+    _match = (_match + 1) % _matches.length;
+    notifyListeners();
+    return _matches[_match];
+  }
+
+  /// Row of the current result.
+  int? get currentMatchRow =>
+      _match < 0 || _match >= _matches.length ? null : _matches[_match];
+
+  void _findMatches() {
+    final q = _search.trim().toLowerCase();
+    if (q.isEmpty) {
+      _matches = const [];
+      _matchSet = const {};
+      return;
+    }
+    _matches = [
+      for (final (i, r) in _rows.indexed)
+        if (_matchesRow(r, q)) i,
+    ];
+    _matchSet = _matches.toSet();
+    if (_match >= _matches.length) _match = _matches.isEmpty ? -1 : 0;
+  }
+
+  bool _matchesRow(LaneRow r, String q) {
+    final spec = specOf(r);
+    if (spec != null &&
+        (spec.code.toLowerCase() == q || spec.label.toLowerCase() == q)) {
+      return true;
+    }
+    if (r.kind == NodeKind.summary) return false;
+    final c = _bySha[r.sha];
+    if (c == null) return false;
+    return c.subject.toLowerCase().contains(q) ||
+        c.author.toLowerCase().contains(q) ||
+        (q.length >= 4 && c.sha.startsWith(q));
+  }
+
+  // Details of the selected commit (R5).
+
+  final Map<String, CommitDetails> _details = {};
+  final Map<String, Object> _detailErrors = {};
+
+  CommitDetails? details(String sha) => _details[sha];
+  Object? detailsError(String sha) => _detailErrors[sha];
+
+  Future<void> loadDetails(String sha) async {
+    final c = _bySha[sha];
+    if (c == null) return;
+    try {
+      _details[sha] = await log.details(c);
+      _detailErrors.remove(sha);
+    } on GitException catch (e) {
+      _detailErrors[sha] = e;
+    }
+    notifyListeners();
+  }
+
+  Future<String> fileDiff(String sha, String path) {
+    final c = _bySha[sha];
+    if (c == null) return Future.value('');
+    return log.fileDiff(c, path);
   }
 
   /// Widest row (lanes) read so far.
@@ -115,10 +236,14 @@ class GraphController extends ChangeNotifier {
       _bySha
         ..clear()
         ..addEntries(page.rows.map((c) => MapEntry(c.sha, c)));
+      // The refs changed: what contains each commit may have changed too.
+      _details.clear();
+      _detailErrors.clear();
       _relayout();
       if (_selected != null && !_bySha.containsKey(_selected)) {
         _selected = null;
       }
+      if (_selected != null) unawaited(loadDetails(_selected!));
     } on GitException catch (e) {
       if (gen != _generation) return;
       _error = e;
@@ -156,6 +281,7 @@ class GraphController extends ChangeNotifier {
       );
       _rows = [..._rows, ...next.rows];
       _state = next.state;
+      _findMatches();
     } on GitException catch (e) {
       if (gen != _generation) return;
       _error = e;
@@ -175,5 +301,6 @@ class GraphController extends ChangeNotifier {
     );
     _rows = l.rows;
     _state = l.state;
+    _findMatches();
   }
 }

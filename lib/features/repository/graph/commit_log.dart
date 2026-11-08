@@ -120,26 +120,40 @@ enum GraphScope {
 /// Which commits to read (R6).
 @immutable
 class GraphQuery {
-  const GraphQuery({this.scope = GraphScope.all, this.remoteOnly = false});
+  const GraphQuery({
+    this.scope = GraphScope.all,
+    this.remoteOnly = false,
+    this.day,
+  });
 
   final GraphScope scope;
 
   /// Also the remote branches without a local copy.
   final bool remoteOnly;
 
-  GraphQuery copyWith({GraphScope? scope, bool? remoteOnly}) => GraphQuery(
+  /// Only the commits of this (local) day: the Atividade of SPEC-046 opens
+  /// the Grafo on a day. Null = every day.
+  final DateTime? day;
+
+  GraphQuery copyWith({
+    GraphScope? scope,
+    bool? remoteOnly,
+    DateTime? Function()? day,
+  }) => GraphQuery(
     scope: scope ?? this.scope,
     remoteOnly: remoteOnly ?? this.remoteOnly,
+    day: day == null ? this.day : day(),
   );
 
   @override
   bool operator ==(Object other) =>
       other is GraphQuery &&
       other.scope == scope &&
-      other.remoteOnly == remoteOnly;
+      other.remoteOnly == remoteOnly &&
+      other.day == day;
 
   @override
-  int get hashCode => Object.hash(scope, remoteOnly);
+  int get hashCode => Object.hash(scope, remoteOnly, day);
 }
 
 /// The refs of the repository, read once per load.
@@ -313,10 +327,18 @@ class CommitLog {
     return revs;
   }
 
-  List<String> _logArgs(GraphQuery q, List<String> revs) => [
-    if (q.scope == GraphScope.defaultBranch) '--first-parent',
-    ...revs,
-  ];
+  List<String> _logArgs(GraphQuery q, List<String> revs) {
+    final day = q.day;
+    final start = day == null ? null : DateTime(day.year, day.month, day.day);
+    return [
+      if (q.scope == GraphScope.defaultBranch) '--first-parent',
+      if (start != null) ...[
+        '--since=${start.millisecondsSinceEpoch ~/ 1000}',
+        '--until=${DateTime(start.year, start.month, start.day + 1).millisecondsSinceEpoch ~/ 1000 - 1}',
+      ],
+      ...revs,
+    ];
+  }
 
   /// Commits [skip]..[skip] + [limit] of [revs] (from [revisions]).
   Future<CommitPage> page(
@@ -355,6 +377,106 @@ class CommitLog {
     ]);
     return int.tryParse(out.trim()) ?? 0;
   }
+}
+
+/// A file changed by a commit (`--numstat`); null counts = binary.
+@immutable
+class ChangedFile {
+  const ChangedFile(this.path, this.added, this.removed);
+
+  final String path;
+  final int? added;
+  final int? removed;
+}
+
+/// What the commit panel shows (SPEC-045 R5).
+@immutable
+class CommitDetails {
+  const CommitDetails({
+    required this.message,
+    required this.files,
+    this.branches = const [],
+    this.tags = const [],
+  });
+
+  /// The whole message.
+  final String message;
+
+  /// Against the first parent (a merge shows what it brought in).
+  final List<ChangedFile> files;
+
+  /// Branches (local and remote) and tags that contain the commit.
+  final List<String> branches;
+  final List<String> tags;
+
+  /// The lines after the subject.
+  String get body {
+    final i = message.indexOf('\n');
+    return i < 0 ? '' : message.substring(i + 1).trim();
+  }
+
+  int get added => files.fold(0, (n, f) => n + (f.added ?? 0));
+  int get removed => files.fold(0, (n, f) => n + (f.removed ?? 0));
+}
+
+/// `12\t3\tpath` lines of `--numstat -z`-less output; renames keep the new
+/// path (`a => b`, `dir/{a => b}/x`).
+List<ChangedFile> parseNumstat(String out) => [
+  for (final line in out.split('\n'))
+    if (line.split('\t') case [final a, final r, ...final rest]
+        when rest.isNotEmpty)
+      ChangedFile(_renamed(rest.join('\t')), int.tryParse(a), int.tryParse(r)),
+];
+
+String _renamed(String p) {
+  final brace = RegExp(r'\{([^{}]*) => ([^{}]*)\}').firstMatch(p);
+  if (brace != null) {
+    return p
+        .replaceRange(brace.start, brace.end, brace.group(2)!)
+        .replaceAll('//', '/');
+  }
+  final arrow = p.indexOf(' => ');
+  return arrow < 0 ? p : p.substring(arrow + 4);
+}
+
+extension CommitDetailsReader on CommitLog {
+  /// The panel of [c] (R5): message, files with +/− and what contains it.
+  Future<CommitDetails> details(CommitRow c) async {
+    final message = await git.git(['show', '-s', '--format=%B', c.sha]);
+    final numstat = c.parents.isEmpty
+        ? await git.git(['show', '--numstat', '--format=', c.sha])
+        : await git.git(['diff', '--numstat', c.parents.first, c.sha]);
+    final branches = await git.git([
+      'branch',
+      '-a',
+      '--contains',
+      c.sha,
+      '--format=%(refname)',
+    ]);
+    final tags = await git.git(['tag', '--contains', c.sha]);
+    List<String> lines(String s) => [
+      for (final l in s.split('\n'))
+        if (l.trim().isNotEmpty && !l.trim().endsWith('/HEAD')) l.trim(),
+    ];
+    return CommitDetails(
+      message: message.trim(),
+      files: parseNumstat(numstat),
+      branches: [
+        for (final r in lines(branches))
+          r.startsWith('refs/heads/')
+              ? r.substring(11)
+              : r.startsWith('refs/remotes/')
+              ? r.substring(13)
+              : r,
+      ],
+      tags: lines(tags),
+    );
+  }
+
+  /// Unified diff of [path] in [c] (against its first parent).
+  Future<String> fileDiff(CommitRow c, String path) => c.parents.isEmpty
+      ? git.git(['show', '--format=', c.sha, '--', path])
+      : git.git(['diff', c.parents.first, c.sha, '--', path]);
 }
 
 /// The refs of `%D` with `--decorate=full`: `HEAD -> refs/heads/main,
