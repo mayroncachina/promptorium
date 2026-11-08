@@ -17,6 +17,7 @@ import '../../features/project/widgets/start_screen.dart'
 import '../../features/project/project_screen.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
+import '../../features/repository/releases/release_dispatcher.dart';
 import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
@@ -87,6 +88,13 @@ class _AppShellState extends ConsumerState<AppShell> {
       _shortcutsNotice();
       _warmMcpList();
       _checkUpdate();
+      // A release followed when the app closed comes back (SPEC-044 R7).
+      unawaited(
+        ref
+            .read(releaseDispatcherProvider.notifier)
+            .resume()
+            .catchError((Object e) => debugPrint('releases: $e')),
+      );
     });
   }
 

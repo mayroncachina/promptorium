@@ -7,6 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/core/git/gh_cli.dart';
+import 'package:promptorium/features/project/project_config.dart';
+import 'package:promptorium/features/repository/releases/create_release_dialog.dart';
+import 'package:promptorium/features/repository/releases/release_dispatcher.dart';
 import 'package:promptorium/features/repository/releases/release_timeline.dart';
 import 'package:promptorium/features/repository/releases/releases_state.dart';
 import 'package:promptorium/features/repository/releases/releases_tab.dart';
@@ -358,6 +361,253 @@ void main() {
             .onTap,
         isNull,
       );
+    });
+  });
+
+  group('R5 · Criar release', () {
+    Future<ReleasesData> data() async {
+      await gitIn(repo, ['tag', 'v0.11.0']);
+      await commit(repo, 'b.txt', 'feat(repo): releases');
+      return loadReleases(
+        RepositoryInfo(
+          path: repo,
+          defaultBranch: 'main',
+          remote: 'origin',
+          remoteUrl: 'git@github.com:o/r.git',
+        ),
+        git: GitService(repo),
+        gh: GhCli(
+          (FakeGh()..releases = [releaseRow('v0.12.0', draft: true)]).call,
+          cwd: repo,
+        ),
+        cliff: FakeGh().call,
+        today: DateTime(2026, 11, 8),
+      );
+    }
+
+    Future<Future<CreateReleaseRequest?> Function()> openDialog(
+      WidgetTester tester,
+      ReleasesData d,
+      ReleasePath path,
+    ) async {
+      CreateReleaseRequest? result;
+      var closed = false;
+      tester.view.physicalSize = const Size(1440, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appSettingsProvider.overrideWith(() => _Settings({})),
+            cliRunnerProvider.overrideWithValue(FakeGh().call),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  key: const ValueKey('open'),
+                  onPressed: () async {
+                    result = await showCreateReleaseDialog(
+                      context,
+                      data: d,
+                      path: path,
+                    );
+                    closed = true;
+                  },
+                  child: const Text('abrir'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return () async => closed ? result : null;
+    }
+
+    Finder dispatchButton() => find.byKey(const ValueKey('release-dispatch'));
+
+    bool canDispatch(WidgetTester tester) =>
+        tester.widget<AmberButton>(dispatchButton()).onTap != null;
+
+    testWidgets('refuses a version that is not semver, exists already or is '
+        'not greater than the last', (tester) async {
+      final d = (await tester.runAsync(data))!;
+      final result = await openDialog(
+        tester,
+        d,
+        resolveReleasePath(const ReleasesConfig(), [
+          const ReleaseWorkflow(
+            file: 'create-release.yml',
+            name: 'Criar Release',
+            dispatch: true,
+            inputs: ['version'],
+          ),
+        ]),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('open')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('create-release')), findsOneWidget);
+      // The suggestion (0.11.1 without git-cliff) is valid.
+      expect(find.text('0.11.1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('release-version-ok')), findsOneWidget);
+      expect(canDispatch(tester), isTrue);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('release-command'))).data,
+        'gh workflow run create-release.yml --ref main -f version=0.11.1',
+      );
+      expect(find.text('1 commit desde v0.11.0.'), findsOneWidget);
+
+      Future<String?> typed(String v) async {
+        await tester.enterText(
+          find.byKey(const ValueKey('release-version')),
+          v,
+        );
+        await tester.pump();
+        final err = find.byKey(const ValueKey('release-version-error'));
+        return err.evaluate().isEmpty ? null : tester.widget<Text>(err).data;
+      }
+
+      expect(await typed('0.12'), 'Use X.Y.Z (ex.: 0.12.0).');
+      expect(canDispatch(tester), isFalse);
+      // v0.12.0 is a draft on GitHub: the tag is taken.
+      expect(await typed('0.12.0'), 'A tag v0.12.0 já existe.');
+      expect(canDispatch(tester), isFalse);
+      expect(await typed('0.10.9'), contains('maior que a última'));
+      expect(canDispatch(tester), isFalse);
+      expect(await typed('0.13.0'), isNull);
+      expect(canDispatch(tester), isTrue);
+      await tester.pump();
+      expect(find.textContaining('## [0.13.0] - '), findsOneWidget);
+      expect(
+        find.textContaining('o workflow Criar Release roda na main'),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(dispatchButton());
+      await tester.pumpAndSettle();
+      await tester.tap(dispatchButton());
+      await tester.pumpAndSettle();
+      final req = (await result())!;
+      expect(req.version, '0.13.0');
+      expect(req.tag, 'v0.13.0');
+      expect(req.saveChoice, isFalse);
+      expect(req.changelog, startsWith('## [0.13.0]'));
+    });
+
+    testWidgets('two candidates: the dialog asks and offers to save the '
+        'choice', (tester) async {
+      final d = (await tester.runAsync(data))!;
+      final result = await openDialog(
+        tester,
+        d,
+        resolveReleasePath(const ReleasesConfig(), const [
+          ReleaseWorkflow(
+            file: 'create-release.yml',
+            name: 'Criar Release',
+            dispatch: true,
+          ),
+          ReleaseWorkflow(
+            file: 'release-beta.yml',
+            name: 'Beta',
+            dispatch: true,
+          ),
+        ]),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('open')));
+      await tester.pumpAndSettle();
+      expect(canDispatch(tester), isFalse);
+      expect(find.byKey(const ValueKey('release-save-choice')), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('release-candidate-release-beta.yml')),
+      );
+      await tester.pump();
+      expect(canDispatch(tester), isTrue);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('release-command'))).data,
+        'gh workflow run release-beta.yml --ref main -f version=0.11.1',
+      );
+      await tester.ensureVisible(dispatchButton());
+      await tester.pumpAndSettle();
+      await tester.tap(dispatchButton());
+      await tester.pumpAndSettle();
+      final req = (await result())!;
+      expect(req.path.workflow!.file, 'release-beta.yml');
+      expect(req.saveChoice, isTrue);
+    });
+
+    testWidgets('no workflow: a draft, said in the dialog', (tester) async {
+      final d = (await tester.runAsync(data))!;
+      await openDialog(
+        tester,
+        d,
+        resolveReleasePath(const ReleasesConfig(), const []),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('open')));
+      await tester.pumpAndSettle();
+      expect(canDispatch(tester), isTrue);
+      expect(find.textContaining('em rascunho'), findsOneWidget);
+      expect(find.text('sem workflow de release'), findsOneWidget);
+    });
+
+    testWidgets('from the tab: Criar release opens the dialog, Disparar '
+        'creates the draft and the card follows it', (tester) async {
+      final d = (await tester.runAsync(data))!;
+      final fake = FakeGh();
+      tester.view.physicalSize = const Size(1440, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = ProviderContainer(
+        overrides: [
+          appSettingsProvider.overrideWith(() => _Settings({})),
+          activeWorkspaceProvider.overrideWithValue(workspaceAt(repo)),
+          cliRunnerProvider.overrideWithValue(fake.call),
+          releasesProvider.overrideWith((ref, r) async => d),
+          projectConfigProvider.overrideWith(
+            (ref, p) async => const ProjectConfig(),
+          ),
+          releaseTickerProvider.overrideWithValue(
+            (every, tick) => Timer(const Duration(days: 1), () {}),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      // The palette asked for it before the tab opened (R10).
+      c
+          .read(repositoryActionProvider.notifier)
+          .request(RepositoryAction.createRelease);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(body: ReleasesTab(repo: d.repo)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('create-release')), findsOneWidget);
+      expect(c.read(repositoryActionProvider), isNull);
+      await tester.ensureVisible(dispatchButton());
+      await tester.pumpAndSettle();
+      await tester.tap(dispatchButton());
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(fake.ghCalls('release create'), hasLength(1));
+      expect(find.byKey(const ValueKey('release-run-card')), findsOneWidget);
+      expect(find.text('Rascunho criado'), findsOneWidget);
+      expect(find.byKey(const ValueKey('release-dispatched')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('release-run-dismiss')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('release-run-card')), findsNothing);
+      await tester.pump(const Duration(seconds: 7));
     });
   });
 }

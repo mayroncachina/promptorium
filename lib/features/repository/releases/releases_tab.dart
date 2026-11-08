@@ -10,9 +10,13 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../board/board_screen.dart' show boardSelectedSpecProvider;
+import '../../project/project_config.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../repository_info.dart';
 import '../repository_screen.dart';
+import 'create_release_dialog.dart';
+import 'release_dispatcher.dart';
+import 'release_run_card.dart';
 import 'release_timeline.dart';
 import 'releases_state.dart';
 import 'unreleased.dart';
@@ -128,16 +132,130 @@ final selectedReleaseProvider =
       SelectedReleaseController.new,
     );
 
-class ReleasesTab extends ConsumerWidget {
+class ReleasesTab extends ConsumerStatefulWidget {
   const ReleasesTab({super.key, required this.repo});
 
   final RepositoryInfo repo;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(releasesProvider(repo));
+  ConsumerState<ReleasesTab> createState() => _ReleasesTabState();
+}
+
+class _ReleasesTabState extends ConsumerState<ReleasesTab> {
+  late final ReleaseDispatcher _dispatcher;
+  bool _dialogOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _dispatcher = ref.read(releaseDispatcherProvider.notifier);
+    // R7: 10 s with the tab on screen, 60 s away from it.
+    Future.microtask(() => _dispatcher.setVisible(true));
+  }
+
+  @override
+  void dispose() {
+    _dispatcher.setVisible(false);
+    super.dispose();
+  }
+
+  /// "Criar release" (R5, R6): the path, the dialog, the dispatch.
+  Future<void> _create(ReleasesData data, {String? version}) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null || _dialogOpen || data.blocker != null) return;
+    _dialogOpen = true;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      final config = await ref.read(projectConfigProvider(ws.path).future);
+      final path = resolveReleasePath(
+        config.releases,
+        readWorkflows(data.repo.path),
+      );
+      if (!mounted) return;
+      final req = await showCreateReleaseDialog(
+        context,
+        data: data,
+        path: path,
+        version: version,
+      );
+      if (req == null || !mounted) return;
+      final chosen = req.path.workflow;
+      if (req.saveChoice && chosen != null) {
+        await ProjectConfig.save(
+          ws.path,
+          config.copyWith(
+            releases: ReleasesConfig(
+              workflow: chosen.file,
+              input: config.releases.input,
+            ),
+          ),
+        );
+        ref.invalidate(projectConfigProvider(ws.path));
+      }
+      final run = await _dispatcher.dispatch(
+        workspaceId: ws.id,
+        repoPath: data.repo.path,
+        branch: data.repo.defaultBranch,
+        version: req.version,
+        tag: req.tag,
+        path: req.path,
+        changelog: req.changelog,
+      );
+      messenger?.showAppToast(
+        SnackBar(
+          key: const ValueKey('release-dispatched'),
+          duration: const Duration(seconds: 6),
+          content: Text(
+            run.status == ReleaseRunStatus.draftCreated
+                ? 'Rascunho da ${run.tag} criado no GitHub.'
+                : 'Na bandeja: release ${run.tag}. Avisa quando publicar ou '
+                      'se algum job falhar.',
+          ),
+        ),
+      );
+    } on GhException catch (e) {
+      messenger?.showAppToast(
+        SnackBar(content: Text('A release não foi disparada: $e')),
+      );
+    } finally {
+      _dialogOpen = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(releasesProvider(widget.repo));
+    final ws = ref.watch(activeWorkspaceProvider);
+    final run = ws == null ? null : ref.watch(releaseDispatcherProvider)[ws.id];
+    // A release that ended changes the timeline (R8).
+    ref.listen(releaseDispatcherProvider, (before, now) {
+      if (ws == null) return;
+      final a = before?[ws.id]?.status, b = now[ws.id]?.status;
+      if (a != b && (b?.done ?? false)) {
+        ref.invalidate(releasesProvider(widget.repo));
+      }
+    });
+    final data = async.value;
+    // The palette's "Criar release" (R10) opens the dialog on arrival.
+    if (data != null &&
+        ref.watch(repositoryActionProvider) == RepositoryAction.createRelease) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final asked = ref.read(repositoryActionProvider.notifier).take();
+        if (asked == RepositoryAction.createRelease &&
+            run == null &&
+            !data.unreleased.isEmpty) {
+          _create(data);
+        }
+      });
+    }
     return switch (async) {
-      AsyncData(:final value) => ReleasesView(data: value),
+      AsyncData(:final value) => ReleasesView(
+        data: value,
+        run: run,
+        onCreate: () => _create(value),
+        onRetry: () => _create(value, version: run?.version),
+      ),
       AsyncError(:final error) => Center(
         child: Text(
           'Não foi possível ler as versões: $error',
@@ -154,14 +272,26 @@ class ReleasesTab extends ConsumerWidget {
   }
 }
 
-/// The card, the versions and the open version (R2, R3, R4, R9).
+/// The card, the versions and the open version (R2, R3, R4, R9). While a
+/// release runs, its card takes the place of "Não lançado" and the
+/// versions go to the side (R7).
 class ReleasesView extends ConsumerWidget {
-  const ReleasesView({super.key, required this.data, this.onCreate});
+  const ReleasesView({
+    super.key,
+    required this.data,
+    this.onCreate,
+    this.run,
+    this.onRetry,
+  });
 
   final ReleasesData data;
 
-  /// "Criar release" (null = not offered yet).
+  /// "Criar release" (null = not offered).
   final VoidCallback? onCreate;
+
+  /// The release followed in this workspace (R7, R8).
+  final ReleaseRun? run;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -169,6 +299,9 @@ class ReleasesView extends ConsumerWidget {
     final selected =
         data.timeline.where((e) => e.tag == selectedTag).firstOrNull ??
         data.timeline.firstOrNull;
+    final running = run != null && !run!.status.done;
+    void select(String tag) =>
+        ref.read(selectedReleaseProvider.notifier).select(tag);
     return LayoutBuilder(
       builder: (context, box) {
         final side = (box.maxWidth * 0.36).clamp(320.0, 500.0);
@@ -181,48 +314,71 @@ class ReleasesView extends ConsumerWidget {
                 child: ListView(
                   key: const ValueKey('releases-list'),
                   children: [
-                    UnreleasedCard(data: data, onCreate: onCreate),
-                    if (data.releasesError != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        'As releases do GitHub não vieram: '
-                        '${data.releasesError}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.amber,
-                        ),
+                    if (run != null) ...[
+                      ReleaseRunCard(
+                        key: ValueKey('run-${run!.dispatchedAt}'),
+                        run: run!,
+                        onRetry: onRetry ?? () {},
                       ),
+                      if (!running) const SizedBox(height: 16),
                     ],
-                    const SizedBox(height: 24),
-                    const Text('VERSÕES', style: sectionTitleStyle),
-                    const SizedBox(height: 8),
-                    if (data.timeline.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          'Nenhuma versão ainda: a primeira release cria a '
-                          'primeira tag.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
+                    if (!running) ...[
+                      UnreleasedCard(data: data, onCreate: onCreate),
+                      if (data.releasesError != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'As releases do GitHub não vieram: '
+                          '${data.releasesError}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.amber,
                           ),
                         ),
-                      ),
-                    for (final e in data.timeline)
-                      VersionRow(
-                        entry: e,
-                        selected: e.tag == selected?.tag,
-                        onTap: () => ref
-                            .read(selectedReleaseProvider.notifier)
-                            .select(e.tag),
-                      ),
+                      ],
+                      const SizedBox(height: 24),
+                      const Text('VERSÕES', style: sectionTitleStyle),
+                      const SizedBox(height: 8),
+                      if (data.timeline.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'Nenhuma versão ainda: a primeira release cria a '
+                            'primeira tag.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      for (final e in data.timeline)
+                        VersionRow(
+                          entry: e,
+                          selected: e.tag == selected?.tag,
+                          onTap: () => select(e.tag),
+                        ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 24),
               SizedBox(
                 width: side,
-                child: selected == null
+                child: running
+                    ? ListView(
+                        key: const ValueKey('releases-side-versions'),
+                        children: [
+                          const Text('VERSÕES', style: sectionTitleStyle),
+                          const SizedBox(height: 8),
+                          for (final e in data.timeline)
+                            VersionRow(
+                              entry: e,
+                              selected: false,
+                              compact: true,
+                              onTap: () => select(e.tag),
+                            ),
+                        ],
+                      )
+                    : selected == null
                     ? const SizedBox.shrink()
                     : ReleaseDetailPanel(entry: selected),
               ),
@@ -908,34 +1064,49 @@ Future<void> showChangelogPreview(BuildContext context, String text) =>
 
 /// Mono, read-only text of a changelog with "Copiar" on top.
 class ChangelogBox extends StatelessWidget {
-  const ChangelogBox({super.key, required this.text, this.maxHeight = 220});
+  const ChangelogBox({
+    super.key,
+    required this.text,
+    this.maxHeight = 220,
+    this.label,
+  });
 
   final String text;
   final double maxHeight;
+
+  /// Title on the left of "Copiar" (the dialog's "Prévia do changelog").
+  final String? label;
 
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Align(
-        alignment: Alignment.centerRight,
-        child: SmallButton(
-          key: const ValueKey('changelog-copy'),
-          label: 'Copiar',
-          height: 26,
-          fontSize: 11,
-          onTap: () async {
-            await Clipboard.setData(ClipboardData(text: text));
-            if (!context.mounted) return;
-            ScaffoldMessenger.maybeOf(context)?.showAppToast(
-              const SnackBar(
-                content: Text('Changelog copiado.'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
+      Row(
+        children: [
+          if (label != null)
+            Text(
+              label!,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          const Spacer(),
+          SmallButton(
+            key: const ValueKey('changelog-copy'),
+            label: 'Copiar',
+            height: 26,
+            fontSize: 11,
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.maybeOf(context)?.showAppToast(
+                const SnackBar(
+                  content: Text('Changelog copiado.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       const SizedBox(height: 8),
       Container(

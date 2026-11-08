@@ -6,6 +6,8 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../board/board_screen.dart' show openSessionIn;
 import '../prompt/conversation_manager.dart';
+import '../repository/releases/release_dispatcher.dart';
+import '../repository/repository_screen.dart' show repositoryTabProvider;
 import '../review/review_service.dart' show selectedReviewProvider;
 import '../sessions/session_manager.dart';
 import 'home_inbox.dart';
@@ -39,6 +41,35 @@ class RadarSession {
   final DateTime startedAt;
 }
 
+/// A release dispatched from the Repositório screen (SPEC-044 R7, R8).
+@immutable
+class RadarRelease {
+  const RadarRelease({
+    required this.tag,
+    required this.status,
+    this.doneJobs = 0,
+    this.jobs = 0,
+  });
+
+  final String tag;
+  final ReleaseRunStatus status;
+  final int doneJobs;
+  final int jobs;
+
+  /// `release v0.12.0 · 1 de 4 jobs`, `v0.12.0 publicada`.
+  String get label => switch (status) {
+    ReleaseRunStatus.finding => 'release $tag · disparada',
+    ReleaseRunStatus.running =>
+      jobs == 0
+          ? 'release $tag · rodando'
+          : 'release $tag · $doneJobs de $jobs jobs',
+    ReleaseRunStatus.success => '$tag publicada',
+    ReleaseRunStatus.failure => 'release $tag falhou',
+    ReleaseRunStatus.cancelled => 'release $tag cancelada',
+    ReleaseRunStatus.draftCreated => 'rascunho da $tag criado',
+  };
+}
+
 /// What one workspace feeds the radar.
 @immutable
 class RadarWorkspace {
@@ -47,12 +78,16 @@ class RadarWorkspace {
     required this.name,
     this.inbox = const [],
     this.running = const [],
+    this.releases = const [],
   });
 
   final int id;
   final String name;
   final List<InboxGroup> inbox;
   final List<RadarSession> running;
+
+  /// The release followed in this workspace (SPEC-044).
+  final List<RadarRelease> releases;
 }
 
 /// Where a menu item leads (R6).
@@ -162,14 +197,19 @@ TrayRadar buildTrayRadar(List<RadarWorkspace> workspaces) {
       for (final session in ws.running) (ws: ws, session: session),
   ]..sort((a, b) => b.session.startedAt.compareTo(a.session.startedAt));
 
+  final releases = [
+    for (final ws in workspaces)
+      for (final r in ws.releases) (ws: ws, release: r),
+  ];
   final kinds = {for (final e in inbox) e.item.kind};
   final state =
       kinds.contains(InboxKind.approval) ||
           kinds.contains(InboxKind.needsAnswer)
       ? TrayState.attention
-      : kinds.contains(InboxKind.prProblem)
+      : kinds.contains(InboxKind.prProblem) ||
+            releases.any((e) => e.release.status == ReleaseRunStatus.failure)
       ? TrayState.problem
-      : running.isNotEmpty
+      : running.isNotEmpty || releases.any((e) => !e.release.status.done)
       ? TrayState.working
       : TrayState.idle;
 
@@ -247,6 +287,28 @@ TrayRadar buildTrayRadar(List<RadarWorkspace> workspaces) {
       );
     }
   }
+  if (releases.isNotEmpty) {
+    rows
+      ..add(const TrayRow.separator())
+      ..add(const TrayRow('Releases'));
+    for (final e in releases) {
+      final id = 'release:${e.ws.id}';
+      targets[id] = RadarTarget(
+        workspaceId: e.ws.id,
+        section: AppSection.repository,
+      );
+      rows.add(
+        TrayRow(
+          radarLabel(
+            '',
+            e.release.label,
+            workspace: workspaces.length > 1 ? e.ws.name : null,
+          ),
+          id: id,
+        ),
+      );
+    }
+  }
   return TrayRadar(
     status: TrayStatus(state: state, tooltip: tooltip, rows: rows),
     targets: targets,
@@ -276,6 +338,7 @@ bool isRadarRunning(LiveSession? session) =>
 final trayRadarProvider = Provider.autoDispose<TrayRadar>((ref) {
   final manager = ref.watch(sessionManagerProvider);
   final workspaces = ref.watch(workspacesProvider).value ?? const [];
+  final releaseRuns = ref.watch(releaseDispatcherProvider);
   return buildTrayRadar([
     for (final ws in workspaces)
       () {
@@ -289,6 +352,15 @@ final trayRadarProvider = Provider.autoDispose<TrayRadar>((ref) {
           id: ws.id,
           name: ws.name,
           inbox: radarInbox(ref.watch(workspaceInboxProvider(ws.id)), own),
+          releases: [
+            if (releaseRuns[ws.id] case final r?)
+              RadarRelease(
+                tag: r.tag,
+                status: r.status,
+                doneJobs: r.doneJobs,
+                jobs: r.jobs.length,
+              ),
+          ],
           running: [
             for (final s in sessions)
               if (isRadarRunning(manager.live[s.id]))
@@ -318,6 +390,9 @@ Future<void> openRadarItem(ProviderContainer container, String id) async {
   final conversation = target.conversationId;
   if (conversation != null) {
     container.read(selectedConversationProvider.notifier).select(conversation);
+  }
+  if (target.section == AppSection.repository) {
+    container.read(repositoryTabProvider.notifier).select('releases');
   }
   if (target.section == AppSection.review) {
     container.read(selectedReviewProvider.notifier).select(session);
