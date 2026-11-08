@@ -1,7 +1,7 @@
 ---
 id: SPEC-046
 status: rascunho
-depende-de: SPEC-044, SPEC-042
+depende-de: SPEC-044, SPEC-042, SPEC-048
 issue: 104
 ---
 
@@ -21,6 +21,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 |---|---|---|
 | `1-atividade.png` | Resumo do período, mapa de commits por dia, commits por tipo e ciclo das specs | R1, R2, R3, R4, R6 |
 | `2-arquivo.png` | Arquivos mais alterados, com as specs que mexeram em um deles | R5 |
+| `3-quem-fez.png` | "Quem fez os commits": pessoa, agentes e app por semana e por modelo, com o tooltip do ⓘ aberto | R8 |
+| `4-quem-fez-desligado.png` | O cartão quando o projeto não marca os commits, com "Ligar neste projeto" | R8 |
 
 ## Requisitos
 
@@ -36,10 +38,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - R5 · **Arquivos mais alterados** deve listar os 15 arquivos com mais commits no período (`git log --numstat`, sem os arquivos gerados que o projeto ignora para a análise, como `*.g.dart` e `pubspec.lock`), com o número de commits, as linhas somadas e quantas specs diferentes mexeram neles. Ao abrir um arquivo, aparece a lista das specs e dos commits que o alteraram, do mais novo ao mais antigo, com links para o Quadro e para o Grafo.
 - R6 · Os números são calculados a partir do git e guardados por SHA da ponta da branch padrão. Ao abrir a aba de novo sem commits novos, nada é recalculado. Com commits novos, só eles são lidos. O cálculo roda fora da thread da interface e a aba mostra os cartões com um esqueleto enquanto isso.
 - R7 · Os números sem fonte confiável não aparecem: sem branches `spec/*`, o ciclo das specs diz "Este repositório não usa branches de spec", e sem tags os dias de release não são marcados.
+- R8 · **Quem fez os commits** deve separar os commits do período em **pessoa**, **agentes** e **app**, pela marca da SPEC-048 (`commitOrigins`):
+  - barras empilhadas por semana com as três origens, e a divisão dos commits de agente por modelo (`sonnet`, `opus`…), com a porcentagem;
+  - um ícone de informação (ⓘ, o `InfoTip` da SPEC-048) no título. O tooltip explica que a separação vem da linha `Promptorium-Agente` que o app põe nos commits das sessões, que "app" é o commit feito pelo próprio app numa etapa e desde quando o projeto marca;
+  - as semanas antes do primeiro commit marcado ficam em cinza, como **sem marca**, e nunca contam como pessoa;
+  - com a opção desligada, o cartão diz "Este projeto não marca os commits dos agentes", com o mesmo ⓘ e o botão **Ligar neste projeto**, que abre a confirmação da SPEC-048 (R6).
 
 ## Fora do escopo
 
-- Separar commits de pessoas e de agentes. Hoje nada marca os commits feitos por agentes, e marcar seria outra spec.
+- Marcar commits antigos para preencher "Quem fez os commits" antes da opção ligada (SPEC-048, fora do escopo de lá também).
 - Métricas por pessoa ou rankings de autores.
 - Custo em dólar ou tokens por spec. O orquestrador de modelos (SPEC-035) é quem cuida disso.
 - Exportar os gráficos.
@@ -51,26 +58,28 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - `lib/features/repository/repository_screen.dart` (SPEC-044) e o agrupamento por tipo em `releases/unreleased.dart`.
 - `lib/features/repository/graph/` (SPEC-045): o Grafo, que recebe o filtro por dia, e `spec_of_commit.dart`, que liga commit e spec.
 - `lib/data/repos/sprints_repo.dart` (SPEC-042): sprints e as specs de cada uma.
+- `GitService.commitOrigins`, `InfoTip` e a confirmação de ligar a marcação (SPEC-048).
 - `lib/core/git/git_service.dart`: `git(args)`.
 
 ### Componentes
 
 - `lib/features/repository/activity/activity_log.dart` (novo): lê `git log --numstat --format=…` da branch padrão e das `spec/*` e guarda o resultado num arquivo de cache por workspace, com o SHA da ponta (R6).
-- `lib/features/repository/activity/activity_stats.dart` (novo): funções puras para o resumo, o mapa por dia, os tipos por semana, o ciclo das specs (mediana, p90, por sprint) e os arquivos mais alterados.
+- `lib/features/repository/activity/activity_stats.dart` (novo): funções puras para o resumo, o mapa por dia, os tipos por semana, o ciclo das specs (mediana, p90, por sprint), os arquivos mais alterados e as origens por semana e por modelo (R8).
 - `lib/features/repository/activity/activity_tab.dart` (novo): os cartões. Os gráficos são `CustomPainter` simples, sem pacote novo.
 - O filtro "por dia" do Grafo entra como parâmetro de rota da aba.
 
 ### Testes
 
-- `test/features/repository/activity_stats_test.dart`: períodos e comparação, mapa por dia, grupos e "Outros", ciclo com filhas dentro da pai, p90, por sprint, arquivos ignorados.
+- `test/features/repository/activity_stats_test.dart`: períodos e comparação, mapa por dia, grupos e "Outros", ciclo com filhas dentro da pai, p90, por sprint, arquivos ignorados, origens com semanas sem marca.
 - `test/features/repository/activity_log_test.dart`: cache por SHA, leitura só do que é novo.
-- `test/features/repository/activity_tab_test.dart`: período, esqueleto, mensagens sem fonte e o clique que leva ao Grafo e ao Quadro.
+- `test/features/repository/activity_tab_test.dart`: período, esqueleto, mensagens sem fonte, o clique que leva ao Grafo e ao Quadro, e o cartão Quem fez ligado e desligado, com o tooltip.
 
 ## Decisões
 
 - **Só o git e as specs como fonte.** Os números ficam iguais em qualquer máquina com o mesmo repositório, sem depender do histórico local do app.
 - **Ciclo da spec começa no primeiro commit da branch.** A data de criação do arquivo da spec mede o tempo de planejamento, que é outra pergunta.
-- **Sem pacote de gráficos.** Os quatro gráficos são simples, e um pacote novo traria temas e dependências que o app não precisa.
+- **Sem marca não é pessoa.** Antes da SPEC-048 ligada, todo commit tem o nome da pessoa. Contar esses como dela inflaria o número e esconderia o trabalho dos agentes.
+- **Sem pacote de gráficos.** Os cinco gráficos são simples, e um pacote novo traria temas e dependências que o app não precisa.
 
 ## Plano
 
@@ -78,7 +87,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 2. `activity_log` com cache e `activity_stats` com os testes.
 3. Aba com resumo, mapa e commits por tipo.
 4. Ciclo das specs com sprints e arquivos mais alterados.
-5. Ligações com Grafo e Quadro; guia `docs/guia/repositorio.md`.
+5. Quem fez os commits, depois da SPEC-048.
+6. Ligações com Grafo e Quadro; guia `docs/guia/repositorio.md`.
 
 ## Critérios de aceite
 
@@ -89,5 +99,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - [ ] Os arquivos mais alterados ignoram gerados e listam as specs de cada um [R5] verificar: flutter test test/features/repository/activity_stats_test.dart
 - [ ] Sem commits novos nada é recalculado; com commits novos só eles são lidos [R6] verificar: flutter test test/features/repository/activity_log_test.dart
 - [ ] Sem branches de spec ou sem tags a aba explica em vez de mostrar zero [R7] verificar: flutter test test/features/repository/activity_tab_test.dart
+- [ ] Quem fez separa pessoa, agentes e app, por modelo, com as semanas sem marca em cinza e o tooltip explicando a origem [R8] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [ ] Desligado, o cartão explica e "Ligar neste projeto" abre a confirmação [R8] verificar: flutter test test/features/repository/activity_tab_test.dart
 - [ ] A aba abre em menos de 2 s no Promptorium depois do primeiro cálculo [R6] verificar: manual (abrir Atividade duas vezes no próprio repositório)
-- [ ] O projeto compila e a análise estática passa [R1–R7] verificar: flutter analyze
+- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
