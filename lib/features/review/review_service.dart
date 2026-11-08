@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/diff_parser.dart';
 import '../../core/fs/dir_watcher.dart';
 import '../../core/git/git_service.dart';
+import '../../core/git/agent_trailer.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../project/project_memory.dart';
@@ -759,6 +760,7 @@ class ReviewService {
     GitService git,
     String message, {
     bool skipHooks = false,
+    String? trailer,
   }) async {
     if ((await git.status()).isEmpty) return false;
     await git.git(['add', '-A']);
@@ -768,8 +770,23 @@ class ReviewService {
       '-q',
       '-m',
       message,
+      if (trailer != null) ...['--trailer', trailer],
     ]);
     return true;
+  }
+
+  /// `Promptorium-Agente: app · SPEC-042` for the pending commit the app
+  /// makes in a session's worktree, when the project marks agent commits
+  /// (SPEC-048 R4); null otherwise.
+  Future<String?> _appTrailer(Workspace ws, Session s, Spec? spec) async {
+    if (!ProjectConfig.loadSync(ws.path).git.markAgentCommits) return null;
+    if (!gitSupportsAgentTrailer(await _ref.read(gitVersionProvider.future))) {
+      return null;
+    }
+    return agentTrailerLine(
+      appTrailerModel,
+      spec?.code ?? sessionOrigin(s.title ?? s.branch),
+    );
   }
 
   /// "Criar PR": commit pending changes, `git push -u <remote> <branch>`,
@@ -794,7 +811,11 @@ class ReviewService {
       throw ReviewException('$e');
     }
     try {
-      await _commitPending(git, pendingCommitMessage(s, task, spec));
+      await _commitPending(
+        git,
+        pendingCommitMessage(s, task, spec),
+        trailer: await _appTrailer(c.workspace, s, spec),
+      );
       await git.git([
         'push',
         '-u',
@@ -1722,6 +1743,10 @@ class ReviewService {
       final prediction = await predictConflict(sessionId);
       files = prediction.files;
     }
+    // SPEC-048: the commits of the resolution say where they came from.
+    final label =
+        c.spec?.code ?? sessionOrigin(c.session.title ?? c.session.branch);
+    final restack = mark != null && mark.startsWith('conflito');
     final resolver = _ref.read(conflictResolverProvider);
     await resolver.begin(
       session: c.session,
@@ -1733,7 +1758,12 @@ class ReviewService {
       restackMark: mark != null && mark.startsWith('conflito') ? mark : null,
     );
     try {
-      await _ref.read(sessionManagerProvider.notifier).send(sessionId, message);
+      final manager = _ref.read(sessionManagerProvider.notifier);
+      await manager.setAgentOrigin(
+        sessionId,
+        restack ? restackOrigin(label) : conflictOrigin(label),
+      );
+      await manager.send(sessionId, message);
     } on SessionException catch (e) {
       await resolver.cancel(sessionId);
       throw ReviewException('$e');
@@ -2409,6 +2439,7 @@ class ReviewService {
         wt,
         pendingCommitMessage(s, task, spec),
         skipHooks: options.skipHooks,
+        trailer: await _appTrailer(c.workspace, s, spec),
       )) {
         headBefore = null;
       }

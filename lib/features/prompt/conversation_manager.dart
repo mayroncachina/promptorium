@@ -9,10 +9,12 @@ import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
+import '../../core/git/agent_trailer.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
 import '../../data/repos/conversations_repo.dart';
+import '../project/project_config.dart';
 import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show PendingApproval, sessionIdGeneratorProvider;
@@ -286,6 +288,20 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     });
   }
 
+  /// Marking of the conversation's commits (`Prompt`); null when the
+  /// project has it off.
+  Future<Map<String, String>?> _agentEnv(Conversation conv, String root) async {
+    if (!ProjectConfig.loadSync(root).git.markAgentCommits) return null;
+    final env = await agentCommitEnv(
+      enabled: true,
+      hooks: ref.read(agentGitHooksProvider),
+      git: await ref.read(gitVersionProvider.future),
+      model: agentModelLabel(conv.model, conv.provider),
+      origin: promptOrigin,
+    );
+    return env.isEmpty ? null : env;
+  }
+
   Future<_Run> _startRun(Conversation conv) async {
     if (_shuttingDown) {
       throw const ConversationException('O aplicativo está sendo encerrado.');
@@ -324,6 +340,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           settingsFile: conv.provider == 'claude'
               ? await runSettingsFile(ref)
               : null,
+          // SPEC-048: commits of the Prompt (end of a plan) are marked too.
+          environment: await _agentEnv(conv, ws.path),
         ),
       );
     } catch (e) {
