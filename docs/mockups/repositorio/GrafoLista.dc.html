@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Lista do grafo</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div role="list" aria-label="Commits" style="position: relative; width: {{largura}}px; display: flex; flex-direction: column; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <sc-for list="{{linhas}}" as="r" hint-placeholder-count="16">
+    <div role="listitem" style="height: 36px; display: flex; align-items: center; gap: 10px; padding-right: 12px; background: {{r.bg}}; box-shadow: {{r.sombra}}; opacity: {{r.op}}">
+      <svg aria-hidden="true" width="104" height="36" viewBox="0 0 104 36" style="flex: none">
+        <sc-for list="{{r.tracos}}" as="t" hint-placeholder-count="2">
+          <path d="{{t.d}}" stroke="{{t.c}}" stroke-width="2" fill="none" stroke-linecap="round"></path>
+        </sc-for>
+        <circle cx="{{r.nx}}" cy="18" r="{{r.raio}}" fill="{{r.nfill}}" stroke="{{r.c}}" stroke-width="2"></circle>
+      </svg>
+      <div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden">
+        <sc-for list="{{r.chips}}" as="k" hint-placeholder-count="1">
+          <span style="flex: none; height: 22px; box-sizing: border-box; padding: 0 8px; display: flex; align-items: center; gap: 5px; border: 1px solid {{k.borda}}; border-radius: 6px; background: {{k.bg}}; color: {{k.cor}}; font: 500 12px 'JetBrains Mono', monospace">
+            <sc-if value="{{k.ponto}}" hint-placeholder-val="{{false}}"><span style="width: 7px; height: 7px; border-radius: 4px; background: {{k.cor}}; box-shadow: 0 0 0 3px {{k.halo}}"></span></sc-if>
+            {{k.t}}
+          </span>
+        </sc-for>
+        <span style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: {{r.msgCor}}; font-weight: {{r.peso}}">{{r.msg}}</span>
+      </div>
+      <sc-if value="{{completo}}" hint-placeholder-val="{{true}}">
+        <span style="width: 84px; flex: none; font: 12px 'JetBrains Mono', monospace; color: {{r.c}}">{{r.spec}}</span>
+        <span style="width: 116px; flex: none; font-size: 13px; color: #A0A8B6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.autor}}</span>
+      </sc-if>
+      <span style="width: 78px; flex: none; font-size: 13px; color: #A0A8B6">{{r.data}}</span>
+      <span style="width: 62px; flex: none; font: 12px 'JetBrains Mono', monospace; color: #7C8595">{{r.sha}}</span>
+    </div>
+  </sc-for>
+  <sc-if value="{{hover}}" hint-placeholder-val="{{false}}">
+    <div role="tooltip" style="position: absolute; left: 660px; top: 286px; width: 300px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #4A3F66; border-radius: 8px; background: #1C1926; box-shadow: 0 12px 28px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 3px">
+      <span style="font: 600 13px 'JetBrains Mono', monospace; color: #C59BFF">spec/042-sprints</span>
+      <span style="font-size: 13px; color: #C9CED8">4 filhas · 9 commits a mais que a main</span>
+      <span style="font-size: 13px; color: #A0A8B6">Mergeada na main em 7 nov, 02:37 (PR #94)</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1336,"height":612},"largura":{"editor":"int","default":1336},"recolhida":{"editor":"boolean","default":false},"completo":{"editor":"boolean","default":true},"hover":{"editor":"boolean","default":false},"sel":{"editor":"text","default":""}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const recolhida = this.props.recolhida ?? false;
+    const hover = this.props.hover ?? false;
+    const sel = this.props.sel ?? '';
+    const M = '#C9CED8', G = '#5BC88A', A = '#F2A541', P = '#C59BFF', F = '#DCC8FF', B = '#8EC5FF';
+    const x = (l) => 12 + l * 16;
+    const chip = {
+      br: (t, c) => ({ t, cor: c, borda: c + '66', bg: 'transparent' }),
+      tag: (t) => ({ t, cor: '#1A1206', borda: '#F2A541', bg: '#F2A541' }),
+      pr: (t, c) => ({ t, cor: c, borda: c + '55', bg: c + '1A' }),
+      ag: (t) => ({ t, cor: '#F2A541', borda: '#F2A54166', bg: '#F2A5411A', ponto: true, halo: 'rgba(242,165,65,.25)' }),
+      rec: (t) => ({ t, cor: '#C59BFF', borda: '#C59BFF66', bg: '#C59BFF14' }),
+    };
+    const R = (l, c, o) => Object.assign({ l, c, up: true, dn: true, pass: [], cu: [], cd: [], chips: [], merge: false }, o);
+    const pai = recolhida ? [
+      R(3, P, { msg: 'SPEC-042 · Sprints no Quadro: 4 tarefas, 4 mergeadas, 9 commits', spec: 'SPEC-042', autor: '', data: '7 nov', sha: '', pass: [[0, M]], chips: [chip.rec('recolhida')], merge: true, peso: 500 }),
+    ] : [
+      R(3, P, { msg: 'Merge pull request #98 from spec/042-t4-conclusao', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: '4c1b410', pass: [[0, M]], cd: [[4, F]], merge: true }),
+      R(4, F, { msg: 'fix(sprints): singular na contagem de specs do seletor', spec: 'SPEC-042 T4', autor: 'agente · sonnet', data: '7 nov', sha: '6350be3', pass: [[0, M], [3, P]] }),
+      R(4, F, { msg: 'feat(sprints): concluir sprint, Autopilot na sprint Ativa e aviso de pendências', spec: 'SPEC-042 T4', autor: 'agente · sonnet', data: '7 nov', sha: '9d06068', pass: [[0, M], [3, P]] }),
+      R(3, P, { msg: 'Merge pull request #97 from spec/042-t3-visoes', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: '5efdae7', pass: [[0, M]], cu: [[4, F]], cd: [[4, F]], merge: true }),
+      R(4, F, { msg: 'feat(sprints): Grafo e Foco por sprint, com dependências externas e busca em todas', spec: 'SPEC-042 T3', autor: 'agente · sonnet', data: '7 nov', sha: '13eaab4', pass: [[0, M], [3, P]] }),
+      R(3, P, { msg: 'docs: SPEC-042, sprints no Quadro e mockups', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '6 nov', sha: '4f5091d', pass: [[0, M]], cu: [[4, F]] }),
+    ];
+    const rows = [
+      R(2, A, { up: false, msg: 'docs: SPEC-044, releases na tela Repositório', spec: 'SPEC-044', autor: 'Mayron Cachina', data: 'agora', sha: '8b21f0c', chips: [chip.br('spec/044-releases', A), chip.pr('#101 · CI rodando', B), chip.ag('agente trabalhando')] }),
+      R(1, G, { up: false, msg: 'docs: SPEC-043, referência à issue #99', spec: 'SPEC-043', autor: 'Mayron Cachina', data: 'há 1 h', sha: '3b8a756', pass: [[2, A]], chips: [chip.br('spec/043-conflito…', G), chip.pr('#100 · CI passou', G)] }),
+      R(1, G, { msg: 'docs: SPEC-043, decisões e mockups', spec: 'SPEC-043', autor: 'Mayron Cachina', data: 'há 1 h', sha: '3291362', pass: [[2, A]] }),
+      R(1, G, { msg: 'docs: SPEC-043, conflito resolvido pelo agente, conferido pelo gate', spec: 'SPEC-043', autor: 'Mayron Cachina', data: 'há 2 h', sha: 'edc6463', pass: [[2, A]] }),
+      R(0, M, { up: false, msg: 'Merge pull request #94 from mayroncachina/spec/042-sprints', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: 'ee1c324', cu: [[1, G], [2, A]], cd: [[3, P]], merge: true, chips: [chip.br('main', M), chip.tag('v0.11.0')] }),
+      ...pai,
+      R(0, M, { msg: 'Merge pull request #93 from mayroncachina/spec/041-radar-na-bandeja', spec: 'SPEC-041', autor: 'Mayron Cachina', data: '7 nov', sha: '6a950b7', cu: [[3, P]], cd: [[1, B]], merge: true }),
+      R(1, B, { msg: 'fix(tray): sublinhado do rótulo não vira atalho no menu', spec: 'SPEC-041', autor: 'agente · opus', data: '6 nov', sha: '0732551', pass: [[0, M]] }),
+      R(1, B, { msg: 'feat(tray): radar na bandeja com estado no ícone, tooltip e menu', spec: 'SPEC-041', autor: 'agente · opus', data: '6 nov', sha: 'a408a2e', pass: [[0, M]] }),
+      R(0, M, { msg: 'Merge pull request #89 from mayroncachina/spec/039-nova-spec-com-planejamento', spec: 'SPEC-039', autor: 'Mayron Cachina', data: '6 nov', sha: '14c3c8e', cu: [[1, B]], merge: true, chips: [chip.rec('SPEC-039 recolhida · 5')] }),
+      R(0, M, { msg: 'docs: SPEC-039, nova spec com mini planejamento (#88)', spec: 'SPEC-039', autor: 'Mayron Cachina', data: '6 nov', sha: 'f66b905', chips: [chip.tag('v0.10.0')] }),
+      R(0, M, { msg: 'Merge pull request #86 from mayroncachina/spec/038-tela-sobre', spec: 'SPEC-038', autor: 'Mayron Cachina', data: '5 nov', sha: 'cd8b56f', merge: true, chips: [chip.rec('SPEC-038 recolhida · 6')] }),
+      R(0, M, { msg: 'Merge pull request #84 from mayroncachina/chore/remover-hook-stop-testes', spec: '', autor: 'Mayron Cachina', data: '5 nov', sha: '4cda343', merge: true }),
+    ];
+    const linhas = rows.map((r) => {
+      const t = [];
+      const nx = x(r.l);
+      r.pass.forEach(([l, c]) => t.push({ d: `M${x(l)} 0 L${x(l)} 36`, c }));
+      if (r.up) t.push({ d: `M${nx} 0 L${nx} 18`, c: r.c });
+      if (r.dn) t.push({ d: `M${nx} 18 L${nx} 36`, c: r.c });
+      r.cd.forEach(([l, c]) => t.push({ d: `M${nx} 18 C${nx} 30 ${x(l)} 24 ${x(l)} 36`, c }));
+      r.cu.forEach(([l, c]) => t.push({ d: `M${nx} 18 C${nx} 6 ${x(l)} 12 ${x(l)} 0`, c }));
+      const isSel = sel && r.sha === sel;
+      const dim = hover && r.c !== P && r.c !== F;
+      return Object.assign({}, r, {
+        tracos: t, nx, raio: r.merge ? 5 : 4, nfill: r.merge ? '#0E1014' : r.c,
+        bg: isSel ? '#1A2130' : 'transparent', sombra: isSel ? 'inset 3px 0 0 #8EC5FF' : 'none',
+        op: dim ? 0.45 : 1, msgCor: r.merge ? '#A0A8B6' : '#E7E9EE', peso: r.peso || 400,
+      });
+    });
+    return { linhas, hover, completo: this.props.completo ?? true, largura: this.props.largura ?? 1336 };
+  }
+}
+</script>
+</body>
+</html>

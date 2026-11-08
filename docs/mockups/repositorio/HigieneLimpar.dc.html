@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Confirmar limpeza</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Higiene" hint-size="1440px,900px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(5,6,8,.66); display: flex; align-items: center; justify-content: center">
+    <section role="dialog" aria-modal="true" aria-labelledby="t" style="width: 620px; box-sizing: border-box; border: 1px solid #3A4250; border-radius: 14px; background: #14171D; box-shadow: 0 24px 64px rgba(0,0,0,.6); display: flex; flex-direction: column">
+      <div style="padding: 20px 24px 8px; display: flex; flex-direction: column; gap: 4px">
+        <h2 id="t" style="margin: 0; font-size: 20px; font-weight: 600">Limpar 7 itens?</h2>
+        <p style="margin: 0; font-size: 14px; color: #A0A8B6">Libera 756 MB. Nada com alterações não commitadas ou sessão viva entra aqui.</p>
+      </div>
+      <div style="padding: 10px 24px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">WORKTREES · 3</span>
+          <sc-for list="{{wts}}" as="w" hint-placeholder-count="3">
+            <div style="display: flex; gap: 10px; font: 12px 'JetBrains Mono', monospace"><span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{w.p}}</span><span style="color: #A0A8B6">{{w.t}}</span></div>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">BRANCHES LOCAIS · 4 · git branch -d</span>
+          <span style="font: 12px/19px 'JetBrains Mono', monospace; color: #C9CED8">spec/042-t1-dados, spec/041-radar-na-bandeja, chore/remover-hook-stop-testes, docs/spec-014-marcar-criterios</span>
+        </div>
+        <label style="padding: 12px 14px; display: flex; gap: 12px; border: 1px solid #4A2E2A; border-radius: 8px; background: rgba(242,122,110,.06); font-size: 13px; line-height: 19px">
+          <input type="checkbox" style="width: 16px; height: 16px; margin-top: 2px; accent-color: #F27A6E">
+          <span><strong style="font-weight: 600">Apagar também no GitHub</strong> as 4 branches remotas (<span style="font-family: 'JetBrains Mono', monospace">origin/…</span>). Afeta quem usa o repositório e não volta com o Desfazer.</span>
+        </label>
+        <p style="margin: 0; font-size: 13px; line-height: 19px; color: #A0A8B6">Por 15 s, "Desfazer" recria as branches locais nos mesmos commits e os worktrees. Se o git recusar apagar uma branch, ela fica na lista com o motivo e não é forçada.</p>
+      </div>
+      <div style="padding: 14px 24px 20px; display: flex; justify-content: flex-end; gap: 10px">
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Cancelar</button>
+        <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Limpar 7 itens</button>
+      </div>
+    </section>
+  </div>
+  <div style="position: absolute; left: 72px; bottom: 16px; padding: 10px; display: flex; flex-direction: column; gap: 6px; border-radius: 12px; background: #0E1014">
+    <span style="font-size: 12px; color: #C9CED8">Depois de limpar:</span>
+    <div role="status" style="width: 460px; box-sizing: border-box; padding: 12px 14px; display: flex; align-items: center; gap: 12px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.5)">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg>
+      <span style="flex: 1; font-size: 13px; color: #C9CED8">3 worktrees e 4 branches removidos · 756 MB livres</span>
+      <button style="height: 32px; padding: 0 12px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Desfazer · 12 s</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { wts: [
+      { p: '~/workspace/promptorium-wt/spec-034', t: '576 MB' },
+      { p: '~/workspace/promptorium-wt/spec-019', t: '138 MB' },
+      { p: '~/.promptorium/worktrees/promptorium-spec-020-icone-na-bandeja-do-sis-d0648b', t: '42 MB' },
+    ] };
+  }
+}
+</script>
+</body>
+</html>
