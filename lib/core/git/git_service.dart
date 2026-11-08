@@ -396,6 +396,70 @@ class GitService {
     return result;
   }
 
+  /// Worktrees whose folder is gone (`git worktree prune --dry-run -v`), as
+  /// the paths [listWorktrees] gives. Nothing is removed. The output is
+  /// translated, so only `worktrees/<name>` is read from each line and the
+  /// path comes from `<common dir>/worktrees/<name>/gitdir`.
+  Future<Set<String>> pruneDryRun() async {
+    final r = await _run('git', [
+      '-C',
+      repoRoot,
+      'worktree',
+      'prune',
+      '--dry-run',
+      '-v',
+    ]);
+    if (r.exitCode != 0) {
+      throw GitException(
+        'git worktree prune falhou',
+        arguments: const ['worktree', 'prune', '--dry-run', '-v'],
+        exitCode: r.exitCode,
+        stderr: '${r.stderr}',
+      );
+    }
+    final names = {
+      for (final m in RegExp(
+        r'worktrees/([^:\s]+):',
+      ).allMatches('${r.stdout}\n${r.stderr}'))
+        m.group(1)!,
+    };
+    if (names.isEmpty) return const {};
+    final common = (await git([
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-common-dir',
+    ])).trim();
+    final paths = <String>{};
+    for (final n in names) {
+      try {
+        var p = File('$common/worktrees/$n/gitdir').readAsStringSync().trim();
+        if (p.endsWith('/.git')) p = p.substring(0, p.length - 5);
+        paths.add(p);
+      } on FileSystemException {
+        // No gitdir file at all: git prunes it, but there is no path.
+      }
+    }
+    return paths;
+  }
+
+  /// Commits of [base] missing in [branch] and of [branch] missing in
+  /// [base] (`git rev-list --left-right --count base...branch`).
+  Future<({int behind, int ahead})> aheadBehind(
+    String branch,
+    String base,
+  ) async {
+    final out = (await git([
+      'rev-list',
+      '--left-right',
+      '--count',
+      '${_arg(base, 'base')}...${_arg(branch, 'branch')}',
+    ])).trim().split(RegExp(r'\s+'));
+    return (
+      behind: int.tryParse(out.first) ?? 0,
+      ahead: out.length > 1 ? int.tryParse(out[1]) ?? 0 : 0,
+    );
+  }
+
   /// `git diff --unified` of the work tree against [base] (default: index),
   /// optionally limited to [path]. Parse with `DiffParser`.
   Future<String> diff({String? base, String? path, int context = 3}) => git([
