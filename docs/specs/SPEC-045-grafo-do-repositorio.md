@@ -1,6 +1,6 @@
 ---
 id: SPEC-045
-status: rascunho
+status: aprovada
 depende-de: SPEC-044, SPEC-032, SPEC-042, SPEC-048
 issue: 103
 ---
@@ -87,6 +87,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **A cor é da spec, não da branch.** Assim o grafo e o Quadro falam a mesma língua.
 - **Só leitura.** As ações de branch já têm lugar no Review e no Quadro, e um clique errado no grafo não pode reescrever o histórico.
 - **Mergeadas recolhidas por padrão.** Com dezenas de specs fechadas, o grafo expandido fica ilegível. O que interessa no dia a dia é o que está aberto.
+- **A cor da spec nasce no Grafo.** O código não bate com "a mesma do card no Quadro": o card não tem cor por spec, só a cor da etapa no selo (Feito, Em execução, Review, Backlog). Usar a cor da etapa pintaria quase todas as raias de verde. Por isso `SpecColors` (`tokens.dart`) dá a cor pelo número da spec, com seis tons: os quatro do mockup, mais o rosa e o teal do Quadro. Seis specs seguidas nunca repetem cor. O Quadro pode passar a usar a mesma cor depois.
+- **Qualquer spec mergeada recolhe, não só a pai.** A forma é a da captura `2-commit.png`: uma linha na raia da spec com "N tarefas, N mergeadas, N commits". Uma spec sem filhas mostra só os commits. A etiqueta "recolhida" no merge da main, que aparece em `1-grafo.png`, ficou de fora: a raia continua visível, e dá para ver de onde a spec saiu.
+- **"Mergeada" quer dizer alcançável pela branch padrão local ou pela remota.** Uma `main` local parada não reabre as specs que já entraram em `origin/main`.
+- **De quem é cada commit.** Primeiro a branch padrão. Depois a pai cuja ponta está no commit (uma spec empilhada saiu dali). Depois a raia por onde o commit chegou, a pai antes da filha. Depois a ponta de uma filha. Por último, qualquer outra branch. O nome de uma raia vem da ponta da branch ou do assunto do merge que a abriu (`Merge pull request #94 from o/spec/042-sprints`), porque as branches mergeadas costumam ser apagadas.
+- **Os arquivos do painel são contados contra o primeiro pai.** `git show --numstat` não mostra nada num merge. Contra o primeiro pai, o merge mostra o que trouxe, como na captura (18 arquivos no merge do PR #94).
+- **PR sem sessão abre no navegador.** O Review só tem card para PRs de sessões do app. Para os outros PRs, o clique abre o GitHub.
+- **Filtro por dia para a SPEC-046.** `GraphQuery.day` lê só os commits de um dia (`--since`/`--until`). `openGraph(ref, day:, select:, search:)` leva a tela ao Grafo filtrado, e a Atividade usa isso.
+- **A R9 é ligada pela SPEC-046.** A marcação da SPEC-048 está em outra branch, que esta não contém. A coluna do autor já aceita uma etiqueta ao lado do nome (`graphAuthorBadgeProvider`, `Widget? Function(BuildContext, CommitRow)`). A SPEC-046 junta esta branch com a da SPEC-048 e liga a etiqueta do modelo com o tooltip da origem.
 
 ## Plano
 
@@ -99,12 +107,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 
 ## Critérios de aceite
 
-- [ ] As raias de branch, merge e merge com vários pais saem certas e continuam entre páginas [R1, R7] verificar: flutter test test/features/repository/lane_layout_test.dart
-- [ ] Os commits de spec têm a cor do Quadro e a etiqueta SPEC-NNN [R2] verificar: flutter test test/features/repository/spec_of_commit_test.dart
-- [ ] As filhas ficam junto da pai, que recolhe e expande; as mergeadas começam recolhidas [R3] verificar: flutter test test/features/repository/lane_layout_test.dart
-- [ ] Tags, PRs com CI e agente trabalhando aparecem como etiquetas que levam a Releases e ao Review [R4] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [x] As raias de branch, merge e merge com vários pais saem certas e continuam entre páginas [R1, R7] verificar: flutter test test/features/repository/lane_layout_test.dart
+- [x] Os commits de spec têm a cor do Quadro e a etiqueta SPEC-NNN [R2] verificar: flutter test test/features/repository/spec_of_commit_test.dart
+- [x] As filhas ficam junto da pai, que recolhe e expande; as mergeadas começam recolhidas [R3] verificar: flutter test test/features/repository/lane_layout_test.dart
+- [x] Tags, PRs com CI e agente trabalhando aparecem como etiquetas que levam a Releases e ao Review [R4] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] Commits marcados pela SPEC-048 mostram a etiqueta do modelo com o tooltip da origem [R9] verificar: flutter test test/features/repository/graph_tab_test.dart
-- [ ] O painel mostra pais, refs, arquivos com +/− e os links da spec e do PR [R5] verificar: flutter test test/features/repository/graph_tab_test.dart
-- [ ] Filtros e busca funcionam, e a aba atualiza sem perder seleção e rolagem [R6, R7] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [x] O painel mostra pais, refs, arquivos com +/− e os links da spec e do PR [R5] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [x] Filtros e busca funcionam, e a aba atualiza sem perder seleção e rolagem [R6, R7] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] O grafo do próprio Promptorium (mais de 1.000 commits) rola sem travar e mostra a SPEC-042 com as quatro filhas [R3, R7] verificar: manual (abrir o Promptorium no app)
-- [ ] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
