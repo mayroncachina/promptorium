@@ -18,6 +18,10 @@ enum AppSection {
   agents('Agentes', 'Novo agente'),
   skills('Skills', 'Nova skill'),
   review('Review', null),
+
+  /// The main repository of the workspace: releases, and the tabs of the
+  /// next specs (SPEC-044 R1).
+  repository('Repositório', null),
   code('Código', null),
   mcp('Servidores MCP', 'Adicionar servidor'),
 
@@ -33,8 +37,8 @@ enum AppSection {
   final String? actionLabel;
 
   /// Main sidebar items, in the order of the work (plano F10, UX v2):
-  /// Início · Projeto · Specs · Quadro · Sessões · Review · Código · Prompt ·
-  /// Ferramentas. [agents] stands for "Ferramentas" (Agentes / Skills / MCP
+  /// Início · Projeto · Specs · Quadro · Sessões · Review · Repositório ·
+  /// Código · Prompt · Ferramentas. [agents] stands for "Ferramentas" (Agentes / Skills / MCP
   /// as tabs).
   static const navItems = [
     home,
@@ -43,6 +47,7 @@ enum AppSection {
     tasks,
     sessions,
     review,
+    repository,
     code,
     prompt,
     agents,
@@ -63,19 +68,21 @@ enum AppSection {
     return i < 0 ? navItems.length : i;
   }
 
-  /// Ctrl+1…9 targets (same order as the sidebar).
+  /// Ctrl+1…9 and Ctrl+0 targets (same order as the sidebar; the tenth
+  /// item is Ctrl+0).
   static const shortcutItems = navItems;
 
   /// Version of the shortcut layout; a change shows a one-time notice.
-  static const shortcutsVersion = 3;
+  /// 4: Repositório after Review, Ferramentas on Ctrl+0 (SPEC-044).
+  static const shortcutsVersion = 4;
 
   /// Sidebar / palette name: the tools group is "Ferramentas".
   String get navLabel => this == agents ? 'Ferramentas' : label;
 
-  /// `Ctrl 3` (null = no shortcut).
+  /// `Ctrl 3`, `Ctrl 0` for the tenth item (null = no shortcut).
   String? get shortcutLabel {
     final i = shortcutItems.indexOf(this);
-    return i < 0 ? null : 'Ctrl ${i + 1}';
+    return i < 0 || i > 9 ? null : 'Ctrl ${(i + 1) % 10}';
   }
 
   AppIconData get icon => switch (this) {
@@ -88,6 +95,7 @@ enum AppSection {
     agents => AppIcons.agents,
     skills => AppIcons.skills,
     review => AppIcons.review,
+    repository => AppIcons.repository,
     code => AppIcons.code,
     mcp => AppIcons.mcp,
     settings => AppIcons.settings,

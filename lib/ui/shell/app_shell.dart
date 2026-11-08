@@ -17,6 +17,7 @@ import '../../features/project/widgets/start_screen.dart'
 import '../../features/project/project_screen.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/prompt/prompt_screen.dart';
+import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_screen.dart';
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/session_manager.dart';
@@ -61,7 +62,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   bool _paletteOpen = false;
 
-  /// Last tab of "Ferramentas" (Ctrl+8 / the sidebar go back to it).
+  /// Last tab of "Ferramentas" (Ctrl+0 / the sidebar go back to it).
   AppSection _lastTool = AppSection.agents;
 
   void _go(AppSection s) {
@@ -69,7 +70,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     unawaited(ref.read(navigationProvider.notifier).request(s));
   }
 
-  /// Sidebar / Ctrl+8: "Ferramentas" opens its last tab.
+  /// Sidebar / Ctrl+0: "Ferramentas" opens its last tab.
   void _goNav(AppSection s) {
     if (s == AppSection.agents) {
       final current = ref.read(navigationProvider);
@@ -299,6 +300,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     AppSection.agents => const AgentsScreen(),
     AppSection.skills => const SkillsScreen(),
     AppSection.review => const ReviewScreen(),
+    AppSection.repository => const RepositoryScreen(),
     AppSection.code => const CodeScreen(),
     AppSection.mcp => const McpScreen(),
     AppSection.settings => const SettingsScreen(),

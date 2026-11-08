@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/features/repository/repository_screen.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/spec_runner.dart';
@@ -41,7 +42,8 @@ void main() {
     expect(filterCommands(all, 'xyz'), isEmpty);
     filterCommands(all, 'quadro').single.run();
     expect(ran, 'Ir para Quadro');
-    expect(AppSection.agents.shortcutLabel, 'Ctrl 9');
+    expect(AppSection.agents.shortcutLabel, 'Ctrl 0');
+    expect(AppSection.repository.shortcutLabel, 'Ctrl 7');
     expect(AppSection.skills.shortcutLabel, isNull);
   });
 
@@ -118,6 +120,13 @@ void main() {
     );
     commands.firstWhere((x) => x.label == 'Ir para Review').run();
     expect(c.read(navigationProvider), AppSection.review);
+    // SPEC-044 R10: Releases and its dialog.
+    commands.firstWhere((x) => x.label == 'Abrir Releases').run();
+    expect(c.read(navigationProvider), AppSection.repository);
+    expect(c.read(repositoryTabProvider), 'releases');
+    expect(c.read(repositoryActionProvider), isNull);
+    commands.firstWhere((x) => x.label == 'Criar release').run();
+    expect(c.read(repositoryActionProvider), RepositoryAction.createRelease);
     expect(LogicalKeyboardKey.keyK, isNotNull);
   });
 
