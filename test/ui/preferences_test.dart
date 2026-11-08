@@ -84,7 +84,7 @@ void main() {
     addTearDown(db.close);
 
     var c = await pumpLoadedShell(tester, db);
-    await ctrl(tester, LogicalKeyboardKey.digit7); // Código
+    await ctrl(tester, LogicalKeyboardKey.digit8); // Código
     await ctrl(tester, LogicalKeyboardKey.equal);
     await ctrl(tester, LogicalKeyboardKey.equal);
     await ctrl(tester, LogicalKeyboardKey.digit3); // Specs
@@ -101,8 +101,46 @@ void main() {
     c = await pumpLoadedShell(tester, db);
     expect(active(tester, AppSection.specs), isTrue);
     expect(find.text('90%'), findsOneWidget);
-    await ctrl(tester, LogicalKeyboardKey.digit7);
+    await ctrl(tester, LogicalKeyboardKey.digit8);
     expect(find.text('120%'), findsOneWidget);
+    await unmount(tester, c);
+  });
+
+  testWidgets('SPEC-044 R1: the new shortcut layout (Repositório, Ctrl+0) is '
+      'told once to who knew the old one', (tester) async {
+    final db = memoryDatabase();
+    addTearDown(db.close);
+    final repo = AppSettingsRepo(db);
+    await tester.runAsync(() async {
+      await repo.set(AppSettingKeys.lastSection, 'home');
+      await repo.set(AppSettingKeys.shortcutsVersion, '3');
+    });
+    var c = await pumpLoadedShell(tester, db);
+    await tester.pump();
+    final notice = find.byKey(const ValueKey('shortcuts-changed'));
+    expect(notice, findsOneWidget);
+    expect(
+      find.descendant(
+        of: notice,
+        matching: find.textContaining('Ctrl 7 Repositório'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: notice,
+        matching: find.textContaining('Ctrl 0 Ferramentas'),
+      ),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pumpAndSettle();
+    await unmount(tester, c);
+    expect((await repo.getAll())[AppSettingKeys.shortcutsVersion], '4');
+
+    c = await pumpLoadedShell(tester, db);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('shortcuts-changed')), findsNothing);
     await unmount(tester, c);
   });
 

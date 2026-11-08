@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Marcar commits de agentes</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" atual="Configurações" hint-size="56px,900px"></dc-import>
+  <nav aria-label="Seções das configurações" style="width: 248px; box-sizing: border-box; padding: 20px 12px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid #252B35; background: #0F1116">
+    <h1 style="margin: 0 8px 14px; font-size: 18px; font-weight: 600">Configurações</h1>
+    <span style="margin: 4px 8px 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em; color: #7C8595">APP</span>
+    <sc-for list="{{app}}" as="s" hint-placeholder-count="8">
+      <button style="height: 34px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #A0A8B6; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">{{s}}</button>
+    </sc-for>
+    <span style="margin: 14px 8px 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em; color: #7C8595">WORKSPACE · PROMPTORIUM</span>
+    <button aria-current="page" style="height: 34px; padding: 0 10px; border: 0; border-radius: 6px; background: #2A2418; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif; text-align: left">Configuração do projeto</button>
+  </nav>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center">
+    <div style="width: 820px; box-sizing: border-box; padding: 24px 0; display: flex; flex-direction: column; gap: 6px">
+      <h2 style="margin: 0; font-size: 18px; font-weight: 600">Configuração de promptorium</h2>
+      <span style="font-size: 12px; color: #A0A8B6">Fica em .promptorium/config.yml, dentro do repositório: faça commit para o time usar o mesmo.</span>
+      <label style="margin-top: 14px; font-size: 13px; font-weight: 500">Pasta das specs <span style="font-size: 11px; font-weight: 400; color: #A0A8B6">relativa ao repositório</span></label>
+      <input value="docs/specs" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #252B35; border-radius: 8px; background: #14171D; color: #E7E9EE; font: 13px 'JetBrains Mono', monospace">
+      <label style="margin-top: 10px; font-size: 13px; font-weight: 500">Comando de testes <span style="font-size: 11px; font-weight: 400; color: #A0A8B6">as sessões rodam isto antes de cada commit</span></label>
+      <input value="flutter analyze &amp;&amp; flutter test" style="height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid #252B35; border-radius: 8px; background: #14171D; color: #E7E9EE; font: 13px 'JetBrains Mono', monospace">
+      <label style="margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px"><input type="checkbox" checked style="width: 16px; height: 16px; accent-color: #F2A541">Exigir commit da etapa</label>
+      <label style="display: flex; align-items: center; gap: 10px; font-size: 13px"><input type="checkbox" checked style="width: 16px; height: 16px; accent-color: #F2A541">Exigir árvore limpa (nada sem commit)</label>
+      <section aria-labelledby="git" style="position: relative; margin-top: 18px; padding: 16px; border: 1px solid #3A3222; border-radius: 10px; background: #15130F; display: flex; flex-direction: column; gap: 10px">
+        <h3 id="git" style="margin: 0; font-size: 14px; font-weight: 600">Git</h3>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="checkbox" checked="{{ligado}}" style="width: 16px; height: 16px; accent-color: #F2A541">Marcar commits feitos por agentes</label>
+          <button aria-label="O que é marcar commits de agentes" aria-describedby="tip" aria-expanded="true" style="width: 28px; height: 28px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #F2A541; border-radius: 14px; background: #2A2418">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="6"></circle><path d="M7 6.2 V10 M7 4 V4.1"></path></svg>
+          </button>
+        </div>
+        <span style="display: flex; align-items: center; gap: 8px; padding-left: 26px; font-size: 13px; color: {{estadoCor}}"><span style="width: 7px; height: 7px; border-radius: 4px; background: {{estadoCor}}"></span>{{estado}}</span>
+        <div id="tip" role="tooltip" style="position: absolute; left: 330px; top: 4px; width: 440px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #4A4030; border-radius: 12px; background: #1C1A16; box-shadow: 0 18px 40px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 19px; color: #C9CED8">
+          <span style="font-size: 14px; font-weight: 600; color: #E7E9EE">O que muda nos commits</span>
+          <span>Quando um agente do Promptorium faz commit, o app acrescenta uma linha ao fim da mensagem. O autor continua sendo você, e o GitHub não mostra coautor.</span>
+          <pre style="margin: 0; padding: 10px 12px; border-radius: 8px; background: #0B0D11; font: 12px/18px 'JetBrains Mono', monospace; color: #A0A8B6; white-space: pre-wrap">SPEC-042 R2: seletor de sprint no cabeçalho
+
+<span style="color: #F2A541">Promptorium-Agente: sonnet · SPEC-042 R2</span></pre>
+          <span>Serve para a <strong style="color: #E7E9EE">Atividade</strong> separar o que você e os agentes fizeram e para o <strong style="color: #E7E9EE">Grafo</strong> mostrar o modelo de cada commit.</span>
+          <span style="font-size: 12px; color: #A0A8B6">Só as sessões do app são marcadas: seus commits no terminal saem como sempre. Nada é instalado no repositório, e commits antigos não mudam.</span>
+        </div>
+      </section>
+      <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px">
+        <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Salvar</button>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900},"ligado":{"editor":"boolean","default":true}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ligado = this.props.ligado ?? true;
+    return {
+      ligado,
+      estado: ligado ? 'Ligado desde 8 nov · 37 commits marcados' : 'Desligado',
+      estadoCor: ligado ? '#5BC88A' : '#A0A8B6',
+      app: ['Modelo e consumo', 'Orquestrador', 'Execução de specs', 'Sessões', 'Automações (hooks)', 'Provedores (ACP)', 'Banco e backups', 'Atualizações'],
+    };
+  }
+}
+</script>
+</body>
+</html>

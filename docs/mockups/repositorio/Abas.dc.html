@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Cabeçalho do Repositório</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<header style="box-sizing: border-box; width: 1384px; height: 104px; padding: 16px 24px 0; display: flex; flex-direction: column; justify-content: space-between; border-bottom: 1px solid #252B35; background: #0E1014; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <div style="display: flex; align-items: center; gap: 14px">
+    <h1 style="margin: 0; font-size: 20px; font-weight: 600">Repositório</h1>
+    <span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">promptorium · origin · main</span>
+    <div style="flex: 1"></div>
+    <span style="font-size: 13px; color: #A0A8B6">gh conectado como mayroncachina</span>
+  </div>
+  <nav aria-label="Abas do Repositório" style="display: flex; gap: 4px">
+    <sc-for list="{{abas}}" as="a" hint-placeholder-count="4">
+      <button aria-current="{{a.atual}}" style="height: 40px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border: 0; border-bottom: 2px solid {{a.linha}}; background: transparent; color: {{a.cor}}; font: 500 14px 'IBM Plex Sans', sans-serif">
+        <span>{{a.nome}}</span>
+        <sc-if value="{{a.temConta}}" hint-placeholder-val="{{false}}"><span style="min-width: 22px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: 10px; background: #2A2418; color: #F2A541; font-size: 12px; line-height: 20px; text-align: center">{{a.conta}}</span></sc-if>
+      </button>
+    </sc-for>
+  </nav>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1384,"height":104},"aba":{"editor":"enum","options":["Releases","Grafo","Atividade","Higiene"],"default":"Releases"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const atual = this.props.aba ?? 'Releases';
+    const abas = [['Releases', ''], ['Grafo', ''], ['Atividade', ''], ['Higiene', '89']].map(([nome, conta]) => {
+      const on = nome === atual;
+      return { nome, conta, temConta: conta !== '', atual: on ? 'page' : 'false', cor: on ? '#E7E9EE' : '#A0A8B6', linha: on ? '#F2A541' : 'transparent' };
+    });
+    return { abas };
+  }
+}
+</script>
+</body>
+</html>

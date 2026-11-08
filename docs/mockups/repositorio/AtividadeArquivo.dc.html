@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Arquivos mais alterados</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Atividade" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 24px; display: flex; gap: 20px">
+      <section aria-label="Arquivos mais alterados" style="width: 760px; box-sizing: border-box; padding: 16px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; flex-direction: column">
+        <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><h2 style="margin: 0; font-size: 15px; font-weight: 600">Arquivos mais alterados</h2><span style="font-size: 12px; color: #A0A8B6">90 dias · sem *.g.dart e pubspec.lock</span></div>
+        <div style="height: 30px; display: flex; align-items: center; gap: 12px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #7C8595; border-bottom: 1px solid #252B35">
+          <span style="flex: 1">ARQUIVO</span><span style="width: 150px">COMMITS</span><span style="width: 70px; text-align: right">LINHAS</span><span style="width: 56px; text-align: right">SPECS</span>
+        </div>
+        <sc-for list="{{arquivos}}" as="a" hint-placeholder-count="12">
+          <button aria-pressed="{{a.sel}}" style="height: 40px; padding: 0 8px; margin: 0 -8px; display: flex; align-items: center; gap: 12px; border: 0; border-radius: 6px; background: {{a.bg}}; box-shadow: {{a.sombra}}; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; text-align: left">
+            <span style="flex: 1; min-width: 0; font: 12px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.p}}</span>
+            <span style="width: 150px; display: flex; align-items: center; gap: 8px"><span style="width: {{a.w}}px; height: 8px; border-radius: 4px; background: #F2A541"></span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">{{a.n}}</span></span>
+            <span style="width: 70px; text-align: right; font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{a.l}}</span>
+            <span style="width: 56px; text-align: right; font: 12px 'JetBrains Mono', monospace">{{a.s}}</span>
+          </button>
+        </sc-for>
+      </section>
+      <aside aria-label="Specs que mexeram no arquivo" style="flex: 1; min-width: 0; box-sizing: border-box; border: 1px solid #252B35; border-radius: 10px; background: #12151B; display: flex; flex-direction: column">
+        <div style="padding: 16px 18px; border-bottom: 1px solid #252B35; display: flex; flex-direction: column; gap: 6px">
+          <span style="font: 13px 'JetBrains Mono', monospace; word-break: break-all">lib/features/board/board_screen.dart</span>
+          <span style="font-size: 13px; color: #A0A8B6">34 commits · +2.980 −1.412 linhas · 9 specs em 90 dias</span>
+        </div>
+        <div style="padding: 12px 18px 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">SPECS, DA MAIS NOVA PARA A MAIS ANTIGA</div>
+        <div style="flex: 1; min-height: 0; padding: 6px 18px; display: flex; flex-direction: column; overflow: hidden">
+          <sc-for list="{{specs}}" as="s" hint-placeholder-count="7">
+            <div style="padding: 9px 0; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid #1E232C">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px">
+                <span style="width: 8px; height: 8px; border-radius: 4px; background: {{s.cor}}"></span>
+                <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{s.c}}</span>
+                <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.n}}</span>
+                <span style="font-size: 12px; color: #A0A8B6">{{s.k}}</span>
+              </div>
+              <span style="padding-left: 16px; font: 12px 'JetBrains Mono', monospace; color: #7C8595; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.ex}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding: 12px 18px; border-top: 1px solid #252B35; display: flex; gap: 10px">
+          <a href="#" style="height: 36px; padding: 0 14px; display: flex; align-items: center; border: 1px solid #3A4250; border-radius: 8px; color: #E7E9EE; font-size: 13px; text-decoration: none">Ver no Grafo</a>
+          <a href="#" style="height: 36px; padding: 0 14px; display: flex; align-items: center; border: 1px solid #3A4250; border-radius: 8px; color: #E7E9EE; font-size: 13px; text-decoration: none">Abrir no Código</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      ['lib/features/board/board_screen.dart', 34, '4.392', 9],
+      ['lib/features/board/spec_runner.dart', 30, '3.106', 11],
+      ['lib/ui/shell/app_shell.dart', 27, '1.248', 12],
+      ['lib/features/specs/specs_screen.dart', 27, '2.871', 8],
+      ['lib/features/sessions/session_manager.dart', 25, '1.930', 7],
+      ['lib/data/db/app_database.dart', 25, '842', 10],
+      ['test/features/board/spec_runner_test.dart', 22, '2.214', 9],
+      ['lib/features/review/review_service.dart', 22, '3.540', 5],
+      ['README.md', 21, '611', 14],
+      ['lib/features/review/review_screen.dart', 21, '2.408', 5],
+      ['docs/plano-implementacao.md', 20, '930', 6],
+      ['test/features/specs/specs_screen_test.dart', 19, '1.377', 7],
+    ];
+    const arquivos = rows.map(([p, n, l, s], i) => ({ p, n, l, s, w: Math.round(n / 34 * 100), sel: i === 0 ? 'true' : 'false', bg: i === 0 ? '#1A2130' : 'transparent', sombra: i === 0 ? 'inset 3px 0 0 #8EC5FF' : 'none' }));
+    const specs = [
+      ['SPEC-042', 'Sprints no Quadro', '4 commits', '#C59BFF', 'ba8ca63 fix(board): filtros têm prioridade no cabeçalho…'],
+      ['SPEC-037', 'Planejar', '1 commit', '#8EC5FF', 'feat(board): Planejar como ação do card'],
+      ['SPEC-036', 'Pasta e palco no canvas', '4 commits', '#5BC88A', 'feat(board): visão Foco e troca entre três visões'],
+      ['SPEC-034', 'Motion e fluidez', '4 commits', '#F2A541', 'feat(board): cartões entram e saem com motion'],
+      ['SPEC-033', 'Decidir etapa pelo balão', '1 commit', '#E58FB5', 'feat(board): balão de decisão no card'],
+      ['SPEC-021', 'Voltar a spec ao refino', '2 commits', '#8EC5FF', 'feat(board): voltar ao refino pelo menu do card'],
+      ['SPEC-019', 'Ocultar e finalizar', '2 commits', '#5BC88A', 'feat(board): ocultar concluídas'],
+    ].map(([c, n, k, cor, ex]) => ({ c, n, k, cor, ex }));
+    return { arquivos, specs };
+  }
+}
+</script>
+</body>
+</html>
