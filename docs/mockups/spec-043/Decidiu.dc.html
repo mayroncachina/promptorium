@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>O que a resolução decidiu</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <dc-import name="Fila" estado="aprovada" hint-size="340px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Cabecalho" tipo="aprovada" hint-size="1044px,96px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <sc-for list="{{chips}}" as="c" hint-placeholder-count="6"><span style="height: 30px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(91,200,138,.5); border-radius: 15px; background: rgba(91,200,138,.08); color: #5BC88A; font-size: 13px">✓ {{c}}</span></sc-for>
+      </div>
+      <div style="display: flex; align-items: baseline; justify-content: space-between">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 600">O que a resolução decidiu</h2>
+        <span style="font-size: 13px; color: #A0A8B6">1 arquivo · 2 trechos</span>
+      </div>
+      <section aria-label="home_inbox.dart" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D; overflow: hidden">
+        <div style="height: 48px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #252B35"><code style="font: 14px 'JetBrains Mono', monospace">lib/features/home/home_inbox.dart</code><span style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #A0A8B6"><button aria-label="Trecho anterior" disabled style="width: 30px; height: 30px; border: 1px solid #252B35; border-radius: 6px; background: #1A1E26; color: #7C8595">‹</button>Trecho 1 de 2 · linhas 41–49<button aria-label="Próximo trecho" style="width: 30px; height: 30px; border: 1px solid #252B35; border-radius: 6px; background: #1A1E26; color: #E7E9EE">›</button></span></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1.15fr">
+          <div style="border-right: 1px solid #252B35"><div style="padding: 8px 12px; font-size: 13px; color: #A0A8B6; border-bottom: 1px solid #252B35">Na main (veio da SPEC-041)</div><pre style="font: 13px/22px 'JetBrains Mono', monospace; margin: 0; padding: 10px 12px; white-space: pre; overflow: hidden; font-variant-ligatures: none; background: rgba(242,165,65,.06)">final workspaceInboxProvider =
+    Provider.family&lt;
+        List&lt;InboxItem&gt;, int&gt;(
+  (ref, wsId) =&gt; buildInbox(
+    ref.watch(sessionsOf(wsId)),
+  ),
+);</pre></div>
+          <div style="border-right: 1px solid #252B35"><div style="padding: 8px 12px; font-size: 13px; color: #A0A8B6; border-bottom: 1px solid #252B35">Nesta spec (SPEC-042)</div><pre style="font: 13px/22px 'JetBrains Mono', monospace; margin: 0; padding: 10px 12px; white-space: pre; overflow: hidden; font-variant-ligatures: none; background: rgba(79,209,181,.05)">final inboxProvider =
+    Provider&lt;List&lt;InboxItem&gt;&gt;((ref) {
+  final sprint =
+      ref.watch(
+          boardSprintProvider);
+  return buildInbox(…, sprint: sprint);
+});</pre></div>
+          <div><div style="padding: 8px 12px; font-size: 13px; color: #5BC88A; border-bottom: 1px solid #252B35">Resultado do agente</div><pre style="font: 13px/22px 'JetBrains Mono', monospace; margin: 0; padding: 10px 12px; white-space: pre; overflow: hidden; font-variant-ligatures: none; background: rgba(91,200,138,.07)">final workspaceInboxProvider =
+    Provider.family&lt;
+        List&lt;InboxItem&gt;, int&gt;(
+  (ref, wsId) =&gt; buildInbox(
+    ref.watch(sessionsOf(wsId)),
+  ),
+);
+// sem filtro de sprint: o Início
+// mostra tudo (SPEC-042)</pre></div>
+        </div>
+        <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #252B35; background: #11141A">
+          <span style="font-size: 13px; font-weight: 600; color: #A0A8B6">Como resolvi · resposta do agente</span>
+          <span style="font-size: 14px; line-height: 22px">home_inbox.dart: mantive a família por workspace da SPEC-041 e tirei o filtro de sprint do Início, porque a SPEC-042 pede que Início, bandeja e notificações mostrem tudo. O filtro ficou só no aviso do Quadro.</span>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return { chips: ['sem marcadores', 'contém a main', 'testes · 1.685', 'lint', 'verificar: 8 de 8', 'contagem: +1 teste'] }; } }
+</script>
+</body>
+</html>

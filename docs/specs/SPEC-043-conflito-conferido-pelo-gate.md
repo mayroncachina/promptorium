@@ -14,6 +14,15 @@ Esta spec faz o app conferir a resolução com o mesmo gate das etapas (SPEC-023
 
 A ideia vem do gitai (github.com/feder-cr/git-ai), uma versão aberta do Scion, o sistema de versionamento para agentes descrito pela Anthropic: a resolução de um modelo é só uma proposta, e só vale se a verificação configurada passar na árvore exata que vai entrar. Aqui, quem decide o merge continua sendo a pessoa.
 
+Mockup: [canvas do Claude Design](https://claude.ai/artifact/WVLos1yqpJaJ6pZCN6x6zG). Cópia dos quadros e capturas em `docs/mockups/spec-043/`:
+
+| Captura | O que mostra | Requisitos |
+|---|---|---|
+| `1-conferindo.png` | Gate rodando na resolução, estados no card e aviso da resolução automática | R1, R2, R6 |
+| `2-reprovada.png` | Resolução reprovada, com o relatório e as três saídas | R3, R6 |
+| `3-o-que-decidiu.png` | Gate aprovado e o que o agente decidiu em cada trecho | R4, R8 |
+| `4-desatualizada.png` | "Pronto para merge?" com a resolução desatualizada | R5, R7 |
+
 ## Requisitos
 
 - R1 · Quando o agente terminar uma resolução de conflito (`resolveConflict`, "Passar para o agente" ou a resolução automática de R6), o sistema deve rodar o gate no worktree da spec, fora do agente, com estes itens em ordem:
@@ -40,6 +49,7 @@ A ideia vem do gitai (github.com/feder-cr/git-ai), uma versão aberta do Scion, 
   - "Mergear mesmo assim…" continua disponível, com motivo registrado, como hoje.
 - R6 · O projeto deve poder ligar a resolução automática em `.promptorium/config.yml`, com `review: resolver-conflitos: automatico`. O padrão é `manual`. Ligada:
   - quando o rebase de uma filha conflitar (SPEC-032 R7) ou a previsão de conflito com a base (`predictConflict`) acusar conflito, o sistema começa a resolução sozinho, uma spec por vez, se não houver sessão viva na spec;
+  - se o gate reprovar a primeira resolução, o sistema roda "Corrigir e verificar" sozinho uma única vez. Depois disso, as correções são só manuais;
   - aprovada ou reprovada, uma notificação avisa o resultado;
   - o sistema nunca faz o merge sozinho.
 - R7 · Se a base andar enquanto o agente resolve ou o gate roda, o resultado deve ficar como **desatualizado** ("A base mudou · resolver de novo"), e o gate não pode aprová-lo.
@@ -90,13 +100,13 @@ A ideia vem do gitai (github.com/feder-cr/git-ai), uma versão aberta do Scion, 
 - [ ] "Desfazer a resolução" volta ao SHA de antes e recusa com alterações não commitadas [R3] verificar: flutter test test/features/review/conflict_resolution_test.dart
 - [ ] "O que a resolução decidiu" mostra o remerge-diff por arquivo com a explicação do agente, e a resposta inteira sem `## Como resolvi` [R4, R8] verificar: flutter test test/features/review/conflict_resolution_test.dart
 - [ ] "Pronto para merge?" bloqueia a resolução pendente, reprovada ou desatualizada [R5, R7] verificar: flutter test test/features/review/merge_readiness_test.dart
-- [ ] Com `resolver-conflitos: automatico`, um conflito previsto inicia uma resolução por vez e nunca faz merge [R6] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [ ] Com `resolver-conflitos: automatico`, um conflito previsto inicia uma resolução por vez, corrige sozinho só na primeira reprovação e nunca faz merge [R6] verificar: flutter test test/features/review/conflict_resolution_test.dart
 - [ ] O histórico registra origem, arquivos, gates e SHA aprovado [R9] verificar: flutter test test/features/review/conflict_resolution_test.dart
 - [ ] Um conflito real entre duas specs é resolvido, conferido e mergeado no app [R1–R5] verificar: manual (projeto de teste com duas specs que mexem no mesmo arquivo)
 - [ ] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
 
-## Perguntas em aberto
+## Decisões
 
-- P1 · Com a resolução automática, "Corrigir e verificar" também roda sozinho? Proposta: uma vez, e depois espera a pessoa.
-- P2 · O gate completo pode demorar. Rodar só `testes:` quando o projeto não tiver `lint:` e `build:` rápidos, ou sempre o gate inteiro? Proposta: sempre o inteiro, porque é ele que libera o merge.
-- P3 · Precisa de mockup? São três telas novas: o estado no card, o relatório reprovado e "O que a resolução decidiu".
+- P1 · Na resolução automática, "Corrigir e verificar" roda sozinho só na primeira reprovação. Depois, só manual (R6).
+- P2 · A resolução sempre passa pelo gate inteiro, porque é ele que libera o merge (R1).
+- P3 · Com mockups: o estado no card, o relatório reprovado, "O que a resolução decidiu" e "Pronto para merge?" com a resolução desatualizada.
