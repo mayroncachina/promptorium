@@ -15,6 +15,7 @@ import '../board/widgets/step_decision_dialog.dart'
 import '../board/widgets/card_extras.dart' show LiveToolLine;
 import '../project/project_config.dart';
 import '../prompt/conversation_manager.dart';
+import '../repository/hygiene/hygiene_tab.dart' show HygieneHomeCard;
 import '../review/review_service.dart' show selectedReviewProvider;
 import '../sessions/session_manager.dart';
 import '../sessions/widgets/session_style.dart';
@@ -82,6 +83,7 @@ class _Inbox extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 18),
+        HygieneHomeCard(workspacePath: workspace.path),
         for (final g in groups) ...[
           _GroupTitle(group: g),
           const SizedBox(height: 6),
