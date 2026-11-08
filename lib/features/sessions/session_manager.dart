@@ -1083,6 +1083,9 @@ class SessionManager extends Notifier<SessionManagerState> {
           options.permissionMode == ClaudePermissionMode.skipPermissions,
     )..markedRoot = marking.isEmpty ? null : (root ?? cwd);
     _procs[id] = p;
+    if (p.markedRoot != null) {
+      ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
+    }
     try {
       await _repo.setPid(id, process.pid);
     } catch (e) {
@@ -1343,6 +1346,7 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (identical(_procs[id], p)) {
       _procs.remove(id);
       if (p.markedRoot != null && ref.mounted) {
+        ref.read(markedSessionsProvider.notifier).remove(id);
         await ref.read(agentGitHooksProvider)?.clearOrigin(id);
       }
     }
@@ -1576,6 +1580,23 @@ final worktreeEnvProvider =
     NotifierProvider<WorktreeEnvs, Map<String, Map<String, String>>>(
       WorktreeEnvs.new,
     );
+
+/// Live sessions started with `git: marcar-commits-de-agente` on: session
+/// id → workspace root (SPEC-048 R8, "Desliga nas próximas sessões").
+class MarkedSessions extends Notifier<Map<String, String>> {
+  @override
+  Map<String, String> build() => const {};
+
+  void add(String id, String root) => state = {...state, id: root};
+
+  void remove(String id) {
+    if (!state.containsKey(id)) return;
+    state = {...state}..remove(id);
+  }
+}
+
+final markedSessionsProvider =
+    NotifierProvider<MarkedSessions, Map<String, String>>(MarkedSessions.new);
 
 final sessionManagerProvider =
     NotifierProvider<SessionManager, SessionManagerState>(SessionManager.new);

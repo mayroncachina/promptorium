@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/git/agent_trailer.dart';
+import '../../../core/git/git_service.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
@@ -10,7 +12,9 @@ import '../../sessions/agent_names.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_file.dart' show SpecSubagent;
 import '../../specs/widgets/subagents_editor.dart';
+import '../../sessions/session_manager.dart' show markedSessionsProvider;
 import '../project_config.dart';
+import 'agent_trailer_dialog.dart';
 
 /// Whether the workspace already has code: any entry besides git / app /
 /// editor folders and the specs folder.
@@ -30,6 +34,79 @@ final hasExistingCodeProvider = FutureProvider.family<bool, String>((
   }
   return false;
 });
+
+/// First marked commit and how many there are on the base branch
+/// (status line of the Git group, SPEC-048 R1 / R5).
+final agentMarkInfoProvider =
+    FutureProvider.family<({DateTime? since, int count}), String>((
+      ref,
+      path,
+    ) async {
+      final branch = ProjectConfig.loadSync(path).baseBranch ?? 'HEAD';
+      final git = ref.read(gitServiceFactoryProvider)(path);
+      return (
+        since: await git.agentMarkSince(branch),
+        count: await git.agentMarkCount(branch),
+      );
+    });
+
+const _months = [
+  'jan',
+  'fev',
+  'mar',
+  'abr',
+  'mai',
+  'jun',
+  'jul',
+  'ago',
+  'set',
+  'out',
+  'nov',
+  'dez',
+];
+
+/// Status line of the option (SPEC-048 R1, R8) and whether it is good news.
+({String text, Color color}) agentMarkStatus({
+  required bool saved,
+  required bool edited,
+  required bool gitOk,
+  DateTime? since,
+  int count = 0,
+  int liveMarked = 0,
+}) {
+  if (!gitOk) {
+    return (
+      text: 'Precisa do git $agentTrailerMinGitLabel ou mais novo',
+      color: AppColors.red,
+    );
+  }
+  if (edited != saved) {
+    return (
+      text: edited
+          ? 'Liga nas próximas sessões, depois de salvar'
+          : 'Desliga nas próximas sessões, depois de salvar',
+      color: AppColors.amber,
+    );
+  }
+  if (saved) {
+    if (since == null) {
+      return (
+        text: 'Ligado · nenhum commit marcado ainda',
+        color: CanvasColors.done,
+      );
+    }
+    final d = since.toLocal();
+    final n = count == 1 ? '1 commit marcado' : '$count commits marcados';
+    return (
+      text: 'Ligado desde ${d.day} ${_months[d.month - 1]} · $n',
+      color: CanvasColors.done,
+    );
+  }
+  if (liveMarked > 0) {
+    return (text: 'Desliga nas próximas sessões', color: AppColors.amber);
+  }
+  return (text: 'Desligado', color: AppColors.textMuted);
+}
 
 /// "Configuração do projeto": where the specs live, how tests run, the base
 /// branch, the default agent and the subagents of every spec. Saved to
@@ -112,6 +189,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   );
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
+  late bool _markAgents = _saved.git.markAgentCommits;
   late String? _agent = _saved.agent;
   late List<SpecSubagent> _subagents = _saved.subagents;
   String? _error;
@@ -198,6 +276,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           int.tryParse(_reviewerRounds.text.trim()) ??
           const ReviewerConfig().rounds,
     ),
+    git: GitConfig(markAgentCommits: _markAgents),
   );
 
   bool get _dirty => _current != _saved;
@@ -231,6 +310,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _saved = c;
       ref.invalidate(projectConfigProvider);
       ref.invalidate(hasExistingCodeProvider);
+      ref.invalidate(agentMarkInfoProvider(widget.workspace.path));
       messenger?.showAppToast(
         const SnackBar(
           content: Text(
@@ -373,6 +453,89 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     );
   }
 
+  /// Group "Git" (SPEC-048 R1): the marking of agent commits.
+  Widget _gitGroup(String path) {
+    final git = ref.watch(gitVersionProvider);
+    final info = ref.watch(agentMarkInfoProvider(path)).value;
+    final live = ref
+        .watch(markedSessionsProvider)
+        .values
+        .where((r) => r == path)
+        .length;
+    final status = agentMarkStatus(
+      saved: _saved.git.markAgentCommits,
+      edited: _markAgents,
+      // Unknown yet (reading git) counts as fine: no flash of the warning.
+      gitOk: !git.hasValue || gitSupportsAgentTrailer(git.value),
+      since: info?.since,
+      count: info?.count ?? 0,
+      liveMarked: live,
+    );
+    return Container(
+      key: const ValueKey('config-git-group'),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Git',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Checkbox(
+                key: const ValueKey('config-mark-agents'),
+                value: _markAgents,
+                visualDensity: VisualDensity.compact,
+                onChanged: (v) => setState(() => _markAgents = v ?? false),
+              ),
+              Flexible(
+                child: GestureDetector(
+                  onTap: () => setState(() => _markAgents = !_markAgents),
+                  child: const Text(
+                    'Marcar commits feitos por agentes',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              agentTrailerInfoTip(),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 2),
+            child: Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: status.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    status.text,
+                    key: const ValueKey('config-mark-agents-status'),
+                    style: TextStyle(fontSize: 12, color: status.color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _form(
     String path,
     List<AgentRef> agents,
@@ -485,6 +648,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
         ),
         onChanged: (v) => setState(() => _requireClean = v ?? true),
       ),
+      const SizedBox(height: 16),
+      _gitGroup(path),
       _label('Formatar ao editar', '{arquivo} = arquivo editado pelo agente'),
       _field(
         const ValueKey('config-format'),
