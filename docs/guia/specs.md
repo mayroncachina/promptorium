@@ -45,7 +45,7 @@ O rascunho tem no máximo 6 requisitos. O que passar disso vai para Fora do esco
 
 ## Editor
 
-Modos **Editar**, **Dividido** e **Visualizar**, com realce, números de linha, busca e substituição (Ctrl+F/Ctrl+H) e zoom (Ctrl+= / Ctrl+- / Ctrl+0), salvo por tela. Ctrl+S salva.
+Modos **Editar**, **Dividido** e **Visualizar**, com realce, números de linha, busca e substituição (Ctrl+F/Ctrl+H) e zoom (Ctrl+= / Ctrl+- / Ctrl+Shift+0), salvo por tela. Ctrl+S salva.
 
 Ações da spec:
 

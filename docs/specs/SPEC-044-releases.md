@@ -1,6 +1,6 @@
 ---
 id: SPEC-044
-status: rascunho
+status: aprovada
 depende-de: SPEC-032, SPEC-038
 issue: 102
 ---
@@ -138,14 +138,14 @@ Decisões tomadas na implementação, onde a spec não batia com o código ou de
 
 ## Critérios de aceite
 
-- [ ] A barra mostra Repositório depois de Review, com a aba Releases, e os atalhos avisam a mudança [R1] verificar: flutter test test/features/repository/releases_tab_test.dart
-- [ ] A linha do tempo junta tags e releases com os quatro estados e os commits de cada versão [R2] verificar: flutter test test/features/repository/release_timeline_test.dart
-- [ ] O card Não lançado agrupa os commits, reconhece as specs e sugere a versão com e sem git-cliff [R3] verificar: flutter test test/features/repository/unreleased_test.dart
-- [ ] A prévia do changelog usa o git-cliff quando existe e o formato dele quando não existe [R4] verificar: flutter test test/features/repository/unreleased_test.dart
-- [ ] O diálogo recusa versão inválida, repetida ou menor que a última [R5] verificar: flutter test test/features/repository/releases_tab_test.dart
-- [ ] O caminho segue config, workflow achado e rascunho, e pede a escolha com dois candidatos [R6] verificar: flutter test test/features/repository/release_dispatcher_test.dart
-- [ ] O run é achado, acompanhado e retomado depois de reabrir o app [R7] verificar: flutter test test/features/repository/release_dispatcher_test.dart
-- [ ] Sucesso avisa e mostra o PR da versão; falha mostra a etapa e as linhas do log [R8] verificar: flutter test test/features/repository/release_dispatcher_test.dart
-- [ ] Sem `gh` ou sem login, a aba funciona só leitura e explica o motivo [R9] verificar: flutter test test/features/repository/releases_tab_test.dart
+- [x] A barra mostra Repositório depois de Review, com a aba Releases, e os atalhos avisam a mudança [R1] verificar: flutter test test/features/repository/releases_tab_test.dart
+- [x] A linha do tempo junta tags e releases com os quatro estados e os commits de cada versão [R2] verificar: flutter test test/features/repository/release_timeline_test.dart
+- [x] O card Não lançado agrupa os commits, reconhece as specs e sugere a versão com e sem git-cliff [R3] verificar: flutter test test/features/repository/unreleased_test.dart
+- [x] A prévia do changelog usa o git-cliff quando existe e o formato dele quando não existe [R4] verificar: flutter test test/features/repository/unreleased_test.dart
+- [x] O diálogo recusa versão inválida, repetida ou menor que a última [R5] verificar: flutter test test/features/repository/releases_tab_test.dart
+- [x] O caminho segue config, workflow achado e rascunho, e pede a escolha com dois candidatos [R6] verificar: flutter test test/features/repository/release_dispatcher_test.dart
+- [x] O run é achado, acompanhado e retomado depois de reabrir o app [R7] verificar: flutter test test/features/repository/release_dispatcher_test.dart
+- [x] Sucesso avisa e mostra o PR da versão; falha mostra a etapa e as linhas do log [R8] verificar: flutter test test/features/repository/release_dispatcher_test.dart
+- [x] Sem `gh` ou sem login, a aba funciona só leitura e explica o motivo [R9] verificar: flutter test test/features/repository/releases_tab_test.dart
 - [ ] Uma release real do Promptorium é disparada e acompanhada pelo app até o PR da versão [R5–R8] verificar: manual (Criar Release do próprio repositório)
-- [ ] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
