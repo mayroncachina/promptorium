@@ -90,6 +90,15 @@ abstract final class AppIcons {
     'M6 7v10M16 12h-3a5 5 0 0 1-5-5',
   ]);
 
+  /// Branch of the Repositório screen (repositorio/Lateral.dc.html, in the
+  /// 24×24 box): the trunk and a branch that leaves it.
+  static final repository = AppIconData([
+    svgCircle(7, 4.5, 1.8),
+    'M7 6.3V21',
+    'M7 9.5c0 4 10 3 10 7v.7',
+    svgCircle(17, 19, 1.8),
+  ]);
+
   static final code = AppIconData(['M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14']);
 
   static final mcp = AppIconData([

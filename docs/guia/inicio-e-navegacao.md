@@ -2,7 +2,7 @@
 
 ## Barra lateral
 
-Em ordem, com Ctrl+1 a Ctrl+9: **Início · Projeto · Specs · Quadro · Sessões · Review · Código · Prompt · Ferramentas**. Ferramentas agrupa Agentes, Skills e Servidores MCP (Ctrl+9 abre a última aba usada). Configurações fica na engrenagem do pé da barra.
+Em ordem, com Ctrl+1 a Ctrl+9 e Ctrl+0: **Início · Projeto · Specs · Quadro · Sessões · Review · Repositório · Código · Prompt · Ferramentas**. Ferramentas agrupa Agentes, Skills e Servidores MCP (Ctrl+0 abre a última aba usada). Configurações fica na engrenagem do pé da barra.
 
 Cada item mostra em âmbar quantas pendências há naquela tela.
 

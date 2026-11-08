@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Painel do commit</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Grafo" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; display: flex">
+      <div style="width: 924px; display: flex; flex-direction: column; border-right: 1px solid #252B35">
+        <div style="height: 60px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1E232C">
+          <div role="group" aria-label="O que mostrar" style="display: flex; border: 1px solid #252B35; border-radius: 8px; overflow: hidden">
+            <button aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; background: #2A2418; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif">Todas as branches</button>
+            <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Só a main</button>
+            <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Specs abertas</button>
+          </div>
+          <label style="flex: 1; height: 36px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; gap: 8px; border: 1px solid #252B35; border-radius: 8px; background: #14171D">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="6" r="4"></circle><path d="M9 9 L12.5 12.5"></path></svg>
+            <input aria-label="Buscar commits" value="SPEC-042" style="flex: 1; min-width: 0; border: 0; background: transparent; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; outline: none">
+            <span style="font-size: 12px; color: #A0A8B6">2 de 13 · Enter</span>
+          </label>
+        </div>
+        <div style="flex: 1; min-height: 0; padding: 8px 12px 0; overflow: hidden">
+          <dc-import name="GrafoLista" largura="900" recolhida="{{sim}}" completo="{{nao}}" sel="ee1c324" hint-size="900px,432px"></dc-import>
+        </div>
+      </div>
+      <aside aria-label="Commit selecionado" style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #12151B">
+        <div style="padding: 18px 20px 14px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #252B35">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">ee1c324</span>
+            <button style="height: 26px; padding: 0 8px; border: 1px solid #252B35; border-radius: 6px; background: transparent; color: #A0A8B6; font: 12px 'IBM Plex Sans', sans-serif">Copiar SHA</button>
+            <div style="flex: 1"></div>
+            <span style="height: 22px; padding: 0 8px; display: flex; align-items: center; border-radius: 6px; background: #F2A541; color: #1A1206; font: 500 12px 'JetBrains Mono', monospace">v0.11.0</span>
+          </div>
+          <h2 style="margin: 0; font-size: 16px; line-height: 23px; font-weight: 600">Merge pull request #94 from mayroncachina/spec/042-sprints</h2>
+          <span style="font-size: 13px; color: #C9CED8">Sprints no Quadro (SPEC-042)</span>
+          <span style="font-size: 13px; color: #A0A8B6">Mayron Cachina · 7 nov 2026, 02:37</span>
+        </div>
+        <dl style="margin: 0; padding: 14px 20px; display: grid; grid-template-columns: 88px minmax(0, 1fr); row-gap: 10px; font-size: 13px; border-bottom: 1px solid #252B35">
+          <dt style="color: #A0A8B6">Pais</dt>
+          <dd style="margin: 0; font-family: 'JetBrains Mono', monospace; display: flex; gap: 10px"><span>6a950b7 <span style="color: #7C8595">main</span></span><span style="color: #C59BFF">4c1b410 <span style="color: #7C8595">spec/042</span></span></dd>
+          <dt style="color: #A0A8B6">Contido em</dt>
+          <dd style="margin: 0; font-family: 'JetBrains Mono', monospace; color: #C9CED8">main, origin/main, spec/043-…, spec/044-…</dd>
+          <dt style="color: #A0A8B6">Spec</dt>
+          <dd style="margin: 0; display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 4px; background: #C59BFF"></span>SPEC-042 · Sprints no Quadro <a href="#" style="color: #8EC5FF">Abrir no Quadro</a></dd>
+          <dt style="color: #A0A8B6">PR</dt>
+          <dd style="margin: 0">#94 · mergeado · CI passou <a href="#" style="color: #8EC5FF">Abrir no Review</a></dd>
+        </dl>
+        <div style="flex: 1; min-height: 0; padding: 12px 20px; display: flex; flex-direction: column; gap: 2px; overflow: hidden">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6; margin-bottom: 6px">ARQUIVOS · 18 · +2.140 −96</span>
+          <sc-for list="{{arquivos}}" as="a" hint-placeholder-count="8">
+            <div style="height: 32px; display: flex; align-items: center; gap: 10px; font-size: 12px; border-top: 1px solid #1E232C">
+              <span style="flex: 1; min-width: 0; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left">{{a.p}}</span>
+              <span style="width: 44px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #5BC88A">{{a.mais}}</span>
+              <span style="width: 34px; text-align: right; font-family: 'JetBrains Mono', monospace; color: #F27A6E">{{a.menos}}</span>
+              <a href="#" aria-label="Ver diferença de {{a.p}}" style="color: #8EC5FF; font-size: 12px">diferença</a>
+            </div>
+          </sc-for>
+          <span style="font-size: 12px; color: #7C8595; margin-top: 6px">+ 10 arquivos</span>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      sim: true, nao: false,
+      arquivos: [
+        { p: 'lib/features/board/sprint_rules.dart', mais: '+214', menos: '' },
+        { p: 'lib/features/board/widgets/sprint_selector.dart', mais: '+388', menos: '' },
+        { p: 'lib/features/board/widgets/sprint_dialogs.dart', mais: '+471', menos: '' },
+        { p: 'lib/data/repos/sprints_repo.dart', mais: '+162', menos: '' },
+        { p: 'lib/data/db/app_database.dart', mais: '+58', menos: '−4' },
+        { p: 'lib/features/board/board_screen.dart', mais: '+96', menos: '−31' },
+        { p: 'lib/features/board/widgets/spec_canvas.dart', mais: '+74', menos: '−22' },
+        { p: 'test/features/board/sprint_selector_test.dart', mais: '+302', menos: '' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

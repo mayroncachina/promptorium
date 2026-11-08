@@ -58,6 +58,8 @@ const _digits = [
   LogicalKeyboardKey.digit7,
   LogicalKeyboardKey.digit8,
   LogicalKeyboardKey.digit9,
+  // The tenth item (SPEC-044): Ctrl+0, which was the zoom reset.
+  LogicalKeyboardKey.digit0,
 ];
 
 /// Global shortcuts of the shell.
@@ -90,11 +92,13 @@ final Map<ShortcutActivator, Intent> shellShortcuts = {
       const ZoomIntent(ZoomOp.zoomOut),
   const SingleActivator(LogicalKeyboardKey.numpadSubtract, control: true):
       const ZoomIntent(ZoomOp.zoomOut),
-  const SingleActivator(LogicalKeyboardKey.digit0, control: true):
+  // Ctrl+0 is the tenth sidebar item (SPEC-044): the zoom goes back to
+  // 100% with the numpad 0 or Ctrl+Shift+0.
+  const SingleActivator(LogicalKeyboardKey.digit0, control: true, shift: true):
       const ZoomIntent(ZoomOp.reset),
   const SingleActivator(LogicalKeyboardKey.numpad0, control: true):
       const ZoomIntent(ZoomOp.reset),
-  for (var i = 0; i < AppSection.shortcutItems.length; i++)
+  for (var i = 0; i < AppSection.shortcutItems.length && i < 10; i++)
     SingleActivator(_digits[i], control: true): GoToSectionIntent(
       AppSection.shortcutItems[i],
     ),
