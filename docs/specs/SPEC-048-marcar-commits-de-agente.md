@@ -1,6 +1,6 @@
 ---
 id: SPEC-048
-status: rascunho
+status: aprovada
 depende-de: SPEC-023
 issue: 110
 ---
@@ -90,6 +90,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **"app" separado de agente.** O commit que o app faz pode misturar mãos, e contar isso como agente distorceria a Atividade.
 - **A interface explica com ⓘ e tooltip.** A linha do trailer é detalhe técnico: quem quer saber passa o ponteiro, e quem não quer não vê.
 
+Decisões tomadas na implementação:
+
+- **Origem de uma sessão viva por arquivo.** O ambiente de um processo não muda depois que ele começa, mas a mesma sessão pode emendar a próxima etapa ou receber "Resolver conflito". Por isso a sessão também recebe `PROMPTORIUM_ORIGEM_ARQUIVO`, que aponta para `~/.promptorium/git-hooks/origens/<sessão>`. O app reescreve esse arquivo ao trocar as etapas (`setSteps`) e ao pedir a resolução de conflito (`setAgentOrigin`), e o `prepare-commit-msg` prefere o arquivo à variável. O arquivo some quando o processo termina.
+- **git 2.32, não 2.31.** O `GIT_CONFIG_COUNT` é de 2.31, mas o `git commit --trailer` de R4 só existe a partir de 2.32. O estado diz "Precisa do git 2.32 ou mais novo", e abaixo disso nada é injetado.
+- **Os hooks do repositório rodam sem o `core.hooksPath` do app.** A sessão recebe `PROMPTORIUM_GIT_CONFIG_BASE`, com quantas entradas `GIT_CONFIG_*` o app já herdou. O repasse lê o `core.hooksPath` do projeto (ou `git rev-parse --git-common-dir`/hooks) com essa contagem e roda o hook original com ela. Assim um husky que chama `git` dentro do hook vê a configuração de sempre. As entradas `GIT_CONFIG_*` herdadas são mantidas.
+- **Modelo `inherit` vira o nome do provedor.** O modelo real só aparece depois que o processo começa. Uma sessão no padrão do CLI sai como `claude` ou `codex`.
+- **Grafo e Atividade ficam para as SPEC-045 e SPEC-046.** As duas telas ainda não existem. Esta spec entrega o que elas vão usar: `InfoTip`, `GitService.commitOrigins` (com `CommitOrigin` e `CommitOriginLog`) e `showAgentTrailerDialog`. Em R7, só o ⓘ da Configuração fica pronto aqui.
+- **"Desde" pela data do committer, na branch base.** `agentMarkSince` e `agentMarkCount` olham a `branch-base` do config (ou o HEAD da raiz). O estado segue o mockup ("Ligado desde 8 nov · 37 commits marcados"). Sem nenhum commit marcado ainda, ele diz "Ligado · nenhum commit marcado ainda". Com a caixa alterada e ainda não salva, diz "Liga nas próximas sessões, depois de salvar" ou "Desliga nas próximas sessões, depois de salvar".
+- **Commits do app na Review também saem como `app`.** O commit das pendências em "Criar PR" e no merge junta o que estiver no worktree, como o "Commitar o que sobrou".
+- **Conversas do Prompt marcadas em qualquer modo.** Só os modos que editam chegam a commitar, e a origem é sempre `Prompt`.
+- **O ACP passa a repassar o ambiente.** O `starter` padrão do `AcpProvider` ignorava `environment`, e por isso nenhuma variável chegava às sessões ACP.
+
 ## Plano
 
 1. Validar o mockup (tabela no início da spec).
@@ -101,13 +113,13 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 
 ## Critérios de aceite
 
-- [ ] A opção fica em `git: marcar-commits-de-agente`, desligada por padrão, com caixa, ⓘ e estado na Configuração do projeto [R1] verificar: flutter test test/features/project/project_config_view_test.dart
-- [ ] O tooltip abre com ponteiro e com foco pelo teclado e mostra o commit de exemplo [R1, R7] verificar: flutter test test/features/project/project_config_view_test.dart
-- [ ] Sessões de agente recebem as variáveis só com a opção ligada; o terminal do Código nunca recebe [R2, R8] verificar: flutter test test/core/git/agent_trailer_test.dart
-- [ ] O commit do agente ganha a linha com modelo e origem, sem duplicar num amend [R3] verificar: flutter test test/core/git/agent_trailer_test.dart
-- [ ] Os hooks do repositório (inclusive husky) continuam rodando com os mesmos argumentos e stdin [R3] verificar: flutter test test/core/git/agent_trailer_test.dart
-- [ ] "Commitar o que sobrou" sai marcado como app [R4] verificar: flutter test test/core/git/git_service_trailer_test.dart
-- [ ] A leitura separa pessoa, agente, app e sem marca, com o "desde" [R5] verificar: flutter test test/core/git/git_service_trailer_test.dart
-- [ ] Ligar pela confirmação grava o config.yml e explica o que muda [R6] verificar: flutter test test/features/project/project_config_view_test.dart
+- [x] A opção fica em `git: marcar-commits-de-agente`, desligada por padrão, com caixa, ⓘ e estado na Configuração do projeto [R1] verificar: flutter test test/features/project/project_config_view_test.dart
+- [x] O tooltip abre com ponteiro e com foco pelo teclado e mostra o commit de exemplo [R1, R7] verificar: flutter test test/features/project/project_config_view_test.dart
+- [x] Sessões de agente recebem as variáveis só com a opção ligada; o terminal do Código nunca recebe [R2, R8] verificar: flutter test test/features/sessions/agent_commit_env_test.dart test/core/git/agent_trailer_test.dart
+- [x] O commit do agente ganha a linha com modelo e origem, sem duplicar num amend [R3] verificar: flutter test test/core/git/agent_trailer_test.dart
+- [x] Os hooks do repositório (inclusive husky) continuam rodando com os mesmos argumentos e stdin [R3] verificar: flutter test test/core/git/agent_trailer_test.dart
+- [x] "Commitar o que sobrou" sai marcado como app [R4] verificar: flutter test test/core/git/git_service_trailer_test.dart
+- [x] A leitura separa pessoa, agente, app e sem marca, com o "desde" [R5] verificar: flutter test test/core/git/git_service_trailer_test.dart
+- [x] Ligar pela confirmação grava o config.yml e explica o que muda [R6] verificar: flutter test test/features/project/project_config_view_test.dart
 - [ ] Uma etapa real do Promptorium gera um commit com `Promptorium-Agente: <modelo> · SPEC-NNN Rn`, e um commit no terminal sai sem a linha [R2–R4] verificar: manual (rodar uma etapa e commitar no terminal)
-- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
