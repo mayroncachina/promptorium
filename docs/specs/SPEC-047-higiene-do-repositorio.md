@@ -1,6 +1,6 @@
 ---
 id: SPEC-047
-status: rascunho
+status: aprovada
 depende-de: SPEC-044, SPEC-032
 issue: 105
 ---
@@ -80,6 +80,23 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **Atrás da base só informa.** Refazer a base envolve agente, gate e conflito, e isso já está no Review.
 - **Parado depois de 14 dias.** É o bastante para uma spec pausada não aparecer como lixo na mesma semana.
 
+Na implementação:
+
+- **Sem `worktreeListPorcelain()`.** O `GitService.listWorktrees()` já lê `git worktree list --porcelain` e é usado pelo Código, pelo SpecRunner e pela abertura do app. A aba usa o mesmo método em vez de criar um segundo com outro nome.
+- **`pruneDryRun()` devolve caminhos.** A saída do `git worktree prune --dry-run -v` vem traduzida, então só `worktrees/<nome>` é lido de cada linha, e o caminho sai de `<git-common-dir>/worktrees/<nome>/gitdir`. O worktree órfão sai com `git worktree remove <caminho>`, que aceita pasta inexistente, em vez de `git worktree prune`, que levaria todos de uma vez.
+- **Mergeada contra a padrão local e a do remoto.** `git branch --merged` roda contra `main` e `origin/main`, quando existem. Assim, uma branch mergeada no GitHub aparece mesmo que a `main` local esteja atrasada.
+- **Squash só com o commit do PR.** A branch conta como mergeada por squash quando o `gh pr list --state merged` traz um PR dela e o último commit da branch é o `headRefOid` do PR ou um ancestral dele. Uma branch com commits depois do merge não entra.
+- **`-d` segue a regra do git.** O `git branch -d` compara com o upstream da branch ou, sem upstream, com o HEAD do repositório principal. Uma branch mergeada por squash e nunca enviada ao remoto é recusada. O item mostra "git recusou: …" e fica. O guia explica.
+- **Worktree carrega a branch.** A branch em uso por um worktree é protegida ("worktree em promptorium-wt/release"). Ao selecionar esse worktree, a branch é selecionada junto e deixa de ser protegida, porque o worktree sai antes dela. Sem isso, cada spec fechada pediria duas limpezas.
+- **Remota só depois da local.** A caixa "também no remoto" fica no item da branch local, e a remota só é apagada se a local saiu. Remotas mergeadas sem branch local não aparecem nesta versão.
+- **Contagens.** A da aba soma os quatro grupos, como no mockup (64 + 19 + 2 + 4 = 89). A do Início soma as branches mergeadas e os worktrees de spec fechada (R8), com uma análise leve, sem `du`, `git status` e `merge-tree`. Ela roda uma vez por sessão do app e é atualizada a cada análise da aba.
+- **Refs fechadas.** A chave de `refs/promptorium/<chave>/` é o código da spec ou o id da sessão (refs antigas). Ela está fechada quando a spec está em Feito, concluída ou arquivada, quando a sessão foi mergeada ou perdeu a branch, ou quando o banco não conhece a chave ("apagada"). "Limpar" de refs não pede confirmação: refs de spec fechada não servem a mais nada, e o rodapé do card avisa que não voltam.
+- **Ordem das listas.** Primeiro o que pode sair e depois os protegidos, do mais novo para o mais antigo. Nos worktrees, a ordem é de spec fechada, parado, órfão e protegidos, do maior para o menor.
+- **"Abrir no Review" só com sessão.** O botão aparece quando a branch tem uma sessão no banco. Sem sessão, o Review não tem o que abrir.
+- **Dispensa por repositório.** O card do Início guarda o fim da dispensa em `hygiene.dismissedUntil.<caminho>`.
+- **Posição da aba.** Grafo (SPEC-045) e Atividade (SPEC-046) ainda não estão na `main`, então a Higiene entra logo depois de Releases em `repositoryTabs`. Quando as duas chegarem, as entradas delas vão antes da Higiene.
+- **`predictMergeConflict` saiu do Review.** O `ReviewService.predictConflict` passou a chamar a função, que recebe a base e a branch e serve à aba.
+
 ## Plano
 
 1. Validar o mockup (tabela no início da spec).
@@ -90,13 +107,13 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 
 ## Critérios de aceite
 
-- [ ] Branches mergeadas por merge e por squash aparecem, com remotas em caixa separada [R2] verificar: flutter test test/features/repository/hygiene_scan_test.dart
-- [ ] Worktrees órfãos, de spec fechada e parados são reconhecidos com o espaço em disco [R3] verificar: flutter test test/features/repository/hygiene_scan_test.dart
-- [ ] Atrás da base mostra atrás e à frente e o conflito previsto, sem opção de apagar [R4] verificar: flutter test test/features/repository/hygiene_tab_test.dart
-- [ ] Refs internas de specs fechadas são contadas e limpas por spec [R5] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
-- [ ] Branch padrão, branch atual, sessão viva e worktree sujo nunca são selecionáveis [R6] verificar: flutter test test/features/repository/hygiene_scan_test.dart
-- [ ] `-d` recusado não é forçado e o remoto só sai com a caixa marcada [R6] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
-- [ ] Desfazer recria branches e worktrees locais em 15 s [R7] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
-- [ ] O card do Início aparece acima de 20 itens e some por 30 dias ao dispensar [R8] verificar: flutter test test/features/repository/hygiene_tab_test.dart
+- [x] Branches mergeadas por merge e por squash aparecem, com remotas em caixa separada [R2] verificar: flutter test test/features/repository/hygiene_scan_test.dart
+- [x] Worktrees órfãos, de spec fechada e parados são reconhecidos com o espaço em disco [R3] verificar: flutter test test/features/repository/hygiene_scan_test.dart
+- [x] Atrás da base mostra atrás e à frente e o conflito previsto, sem opção de apagar [R4] verificar: flutter test test/features/repository/hygiene_tab_test.dart
+- [x] Refs internas de specs fechadas são contadas e limpas por spec [R5] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
+- [x] Branch padrão, branch atual, sessão viva e worktree sujo nunca são selecionáveis [R6] verificar: flutter test test/features/repository/hygiene_scan_test.dart
+- [x] `-d` recusado não é forçado e o remoto só sai com a caixa marcada [R6] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
+- [x] Desfazer recria branches e worktrees locais em 15 s [R7] verificar: flutter test test/features/repository/hygiene_cleaner_test.dart
+- [x] O card do Início aparece acima de 20 itens e some por 30 dias ao dispensar [R8] verificar: flutter test test/features/repository/hygiene_tab_test.dart
 - [ ] Os worktrees antigos do próprio Promptorium são limpos pelo app sem perder alterações [R3, R6, R7] verificar: manual (aba Higiene no próprio repositório)
-- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
