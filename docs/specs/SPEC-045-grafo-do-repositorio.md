@@ -1,7 +1,7 @@
 ---
 id: SPEC-045
 status: rascunho
-depende-de: SPEC-044, SPEC-032, SPEC-042
+depende-de: SPEC-044, SPEC-032, SPEC-042, SPEC-048
 issue: 103
 ---
 
@@ -19,7 +19,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 
 | Captura | O que mostra | Requisitos |
 |---|---|---|
-| `1-grafo.png` | Grafo com a main, as specs abertas, uma spec pai com as filhas, tags e PRs com o CI | R1, R2, R3, R4, R8 |
+| `1-grafo.png` | Grafo com a main, as specs abertas, uma spec pai com as filhas, tags, PRs com o CI e a etiqueta do modelo (o tooltip está em `docs/mockups/spec-048/3-grafo-etiqueta.png`) | R1, R2, R3, R4, R8, R9 |
 | `2-commit.png` | Spec pai recolhida e o painel do commit selecionado | R3, R5, R6 |
 
 ## Requisitos
@@ -46,6 +46,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
   - um botão que mostra ou esconde as branches remotas que não têm cópia local.
 - R7 · A aba deve carregar 300 commits por vez, em ordem topológica, e mais 300 ao rolar até o fim. As raias são calculadas por partes, sem recalcular o que já está na tela. A lista desenha só as linhas visíveis. A aba atualiza quando HEAD, as refs ou as tags mudam, com o mesmo vigia de arquivos do Código, sem perder o commit selecionado nem a rolagem.
 - R8 · Ao passar o ponteiro sobre uma raia, ela fica em destaque e as outras esmaecem, e um balão diz o nome da branch, quantos commits ela tem a mais que a branch padrão e, se mergeada, quando.
+- R9 · Com a marcação da SPEC-048 ligada, o commit de agente deve mostrar uma etiqueta com o modelo (`sonnet`, `opus`, `app`) ao lado do autor. O tooltip da etiqueta mostra a origem ("SPEC-042 R2") e o texto exato da linha `Promptorium-Agente`. Sem a marca, só o autor aparece.
 
 ## Fora do escopo
 
@@ -102,7 +103,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - [ ] Os commits de spec têm a cor do Quadro e a etiqueta SPEC-NNN [R2] verificar: flutter test test/features/repository/spec_of_commit_test.dart
 - [ ] As filhas ficam junto da pai, que recolhe e expande; as mergeadas começam recolhidas [R3] verificar: flutter test test/features/repository/lane_layout_test.dart
 - [ ] Tags, PRs com CI e agente trabalhando aparecem como etiquetas que levam a Releases e ao Review [R4] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [ ] Commits marcados pela SPEC-048 mostram a etiqueta do modelo com o tooltip da origem [R9] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] O painel mostra pais, refs, arquivos com +/− e os links da spec e do PR [R5] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] Filtros e busca funcionam, e a aba atualiza sem perder seleção e rolagem [R6, R7] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] O grafo do próprio Promptorium (mais de 1.000 commits) rola sem travar e mostra a SPEC-042 com as quatro filhas [R3, R7] verificar: manual (abrir o Promptorium no app)
-- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
+- [ ] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
