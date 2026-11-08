@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/review/conflict_resolution.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
 
 void main() {
@@ -116,5 +118,133 @@ void main() {
       ).blockers.single.id,
       'revisor',
     );
+  });
+
+  group('SPEC-043 R5, R7: Resolução do conflito', () {
+    ConflictResolution res(
+      ResolutionState state, {
+      String? checked = 'aaaaaaa111',
+    }) => ConflictResolution(
+      state: state,
+      workspaceId: 1,
+      base: 'main',
+      checkedSha: checked,
+      baseSha: 'bbbbbbb222',
+      report: GateReport(
+        at: DateTime(2026),
+        checks: const [GateCheck(name: 'testes', ok: false)],
+      ),
+    );
+
+    MergeReadiness of(String? problem) => evaluateReadiness(
+      ReadinessInputs(
+        hasSpec: true,
+        hasResolution: true,
+        resolutionProblem: problem,
+      ),
+    );
+
+    String? problem(
+      ConflictResolution r, {
+      String? head,
+      bool contains = true,
+    }) {
+      final p = resolutionProblem(
+        r,
+        head: head,
+        baseTip: 'ccccccc333',
+        containsBase: contains,
+      );
+      return p == null ? null : '${p.$1} · ${p.$2}';
+    }
+
+    test('in progress, failed or outdated block the merge', () {
+      for (final state in [
+        ResolutionState.resolvendo,
+        ResolutionState.conferindo,
+        ResolutionState.reprovada,
+        ResolutionState.desatualizada,
+      ]) {
+        final r = of(problem(res(state)));
+        final item = r.items.firstWhere((i) => i.id == 'resolucao');
+        expect(item.label, 'Resolução do conflito');
+        expect(item.effective, ReadinessLevel.bloqueio, reason: '$state');
+        expect(r.level, ReadinessLevel.bloqueio);
+      }
+      expect(
+        problem(res(ResolutionState.reprovada)),
+        startsWith('reprovada · O gate reprovou a resolução em testes'),
+      );
+      final stale = problem(res(ResolutionState.desatualizada))!;
+      expect(stale, startsWith('desatualizada'));
+      expect(stale, contains('aaaaaaa'));
+      expect(stale, contains('ccccccc'));
+      expect(
+        of(problem(res(ResolutionState.reprovada))).items
+            .firstWhere((i) => i.id == 'resolucao')
+            .action,
+        'Corrigir e verificar',
+      );
+      expect(
+        of(stale).items.firstWhere((i) => i.id == 'resolucao').action,
+        'Resolver de novo',
+      );
+    });
+
+    test('approved only on the current tip of the branch and of the base', () {
+      final ok = res(ResolutionState.aprovada);
+      expect(problem(ok, head: 'aaaaaaa111'), isNull);
+      expect(of(null).level, ReadinessLevel.ok);
+      expect(
+        of(null).items.firstWhere((i) => i.id == 'resolucao').level,
+        ReadinessLevel.ok,
+      );
+      // R7: the base moved after the gate.
+      expect(problem(ok, contains: false), startsWith('desatualizada'));
+      // New commits after the gate.
+      expect(problem(ok, head: 'ddddddd444'), startsWith('desatualizada'));
+      // Without a resolution there is no item.
+      expect(
+        evaluateReadiness(const ReadinessInputs(hasSpec: true)).items
+            .any((i) => i.id == 'resolucao'),
+        isFalse,
+      );
+    });
+
+    test('"Mergear mesmo assim…" stays available, alone or with criteria', () {
+      expect(of(problem(res(ResolutionState.reprovada))).canOverride, isTrue);
+      expect(
+        evaluateReadiness(
+          ReadinessInputs(
+            hasSpec: true,
+            pendingCriteria: const ['a'],
+            hasResolution: true,
+            resolutionProblem: problem(res(ResolutionState.desatualizada)),
+          ),
+        ).canOverride,
+        isTrue,
+      );
+      expect(
+        evaluateReadiness(
+          ReadinessInputs(
+            hasSpec: true,
+            stackedOn: 'SPEC-001',
+            hasResolution: true,
+            resolutionProblem: problem(res(ResolutionState.reprovada)),
+          ),
+        ).canOverride,
+        isFalse,
+      );
+      expect(
+        evaluateReadiness(
+          const ReadinessInputs(
+            hasSpec: true,
+            hasResolution: true,
+            unknown: {'resolucao': 'git falhou'},
+          ),
+        ).canOverride,
+        isFalse,
+      );
+    });
   });
 }

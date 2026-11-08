@@ -126,8 +126,15 @@ String restackMessage({
       '$onto, resolva os conflitos mantendo o que as duas versões precisam, '
       'continue o rebase (`git rebase --continue`), rode os testes da spec e '
       'faça commit se precisar. Não troque a branch da raiz do projeto. '
-      'Explique na resposta como resolveu cada conflito.';
+      '$howResolvedInstruction';
 }
+
+/// What every conflict message asks at the end of the answer (SPEC-043 R8):
+/// the Review shows each line next to what the agent decided in that file.
+const howResolvedInstruction =
+    'Explique na resposta como resolveu cada conflito e termine com a seção '
+    '`## Como resolvi`, com uma linha por arquivo que estava em conflito, no '
+    'formato `caminho: o que foi mantido de cada lado`.';
 
 /// Short notice of a batch of restacks: "base da SPEC-031 refeita",
 /// "conflito ao refazer a base da SPEC-033 (a.dart)".

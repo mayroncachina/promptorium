@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Barra lateral</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<nav aria-label="Seções" style="width: 56px; height: 900px; box-sizing: border-box; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; background: #0B0D11; border-right: 1px solid #252B35">
+  <sc-for list="{{itens}}" as="i" hint-placeholder-count="5">
+    <button aria-label="{{i.nome}}" aria-current="{{i.atual}}" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: {{i.bg}}">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{i.cor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{i.d}}"></path></svg>
+    </button>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":56,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const i = (nome, d, atual) => ({ nome, d, atual: atual ? 'true' : 'false', bg: atual ? '#2A2418' : 'transparent', cor: atual ? '#F2A541' : '#A0A8B6' });
+    return { itens: [
+      i('Início', 'M3 9 L10 3 L17 9 V17 H3 Z'),
+      i('Specs', 'M5 2.5 H12 L15 5.5 V17.5 H5 Z'),
+      i('Quadro', 'M3 3 H8 V17 H3 Z M11 3 H17 V11 H11 Z'),
+      i('Sessões', 'M3 6 L7 10 L3 14 M9 15 H17'),
+      i('Review', 'M9 3 A6 6 0 1 1 8.99 3 M13.5 13.5 L17.5 17.5', true),
+    ] };
+  }
+}
+</script>
+</body>
+</html>

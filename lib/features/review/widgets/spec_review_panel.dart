@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../conflict_resolution.dart' show resolutionAuthor;
+
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
@@ -249,7 +251,13 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
     final done = criteria.where(criterionChecked).length;
     final batch = batchControl(criteria);
     final rounds = <int, List<ReviewCommentRow>>{};
+    // SPEC-043 R9: the conflict resolutions have their own history.
+    final resolutions = <ReviewCommentRow>[];
     for (final c in comments) {
+      if (c.author == resolutionAuthor) {
+        resolutions.add(c);
+        continue;
+      }
       rounds.putIfAbsent(c.round, () => []).add(c);
     }
     final gated = [
@@ -414,6 +422,29 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                     for (final MapEntry(key: round, value: list)
                         in rounds.entries.toList().reversed)
                       _RoundTile(round: round, comments: list),
+                  ],
+                  if (resolutions.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text('RESOLUÇÕES DE CONFLITO', style: _title),
+                    for (final c in resolutions.reversed)
+                      Padding(
+                        key: ValueKey('review-resolution-history-${c.id}'),
+                        padding: const EdgeInsets.only(top: 3, left: 8),
+                        child: Text(
+                          '${_when(c.createdAt)} · ${c.body}'
+                          '${c.commitSha == null ? '' : ' · ${c.commitSha!.substring(0, c.commitSha!.length.clamp(0, 7))}'}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: switch (c.verdict) {
+                              'aprovada' => AppColors.teal,
+                              'reprovada' => AppColors.red,
+                              'desatualizada' ||
+                              'mesmo-assim' => AppColors.amber,
+                              _ => AppColors.textSecondary,
+                            },
+                          ),
+                        ),
+                      ),
                   ],
                   if (spec.mergeOverride != null)
                     Text(
@@ -693,4 +724,9 @@ class _RoundTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _when(DateTime at) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(at.day)}/${two(at.month)} ${two(at.hour)}:${two(at.minute)}';
 }
