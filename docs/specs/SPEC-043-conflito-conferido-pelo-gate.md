@@ -2,6 +2,7 @@
 id: SPEC-043
 status: rascunho
 depende-de: SPEC-032, SPEC-023
+issue: 99
 ---
 
 # Conflito resolvido pelo agente, conferido pelo gate
@@ -13,6 +14,8 @@ Quando uma spec entra em conflito com a base, o Review já oferece "Resolver con
 Esta spec faz o app conferir a resolução com o mesmo gate das etapas (SPEC-023), rodado no worktree, fora do agente, antes de liberar o merge. Ela também mostra exatamente o que o agente decidiu em cada trecho em conflito, e permite que o app comece a resolução sozinho quando o projeto pedir.
 
 A ideia vem do gitai (github.com/feder-cr/git-ai), uma versão aberta do Scion, o sistema de versionamento para agentes descrito pela Anthropic: a resolução de um modelo é só uma proposta, e só vale se a verificação configurada passar na árvore exata que vai entrar. Aqui, quem decide o merge continua sendo a pessoa.
+
+Issue: [#99](https://github.com/mayroncachina/promptorium/issues/99).
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/WVLos1yqpJaJ6pZCN6x6zG). Cópia dos quadros e capturas em `docs/mockups/spec-043/`:
 
