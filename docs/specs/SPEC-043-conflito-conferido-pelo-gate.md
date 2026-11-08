@@ -1,6 +1,6 @@
 ---
 id: SPEC-043
-status: rascunho
+status: aprovada
 depende-de: SPEC-032, SPEC-023
 issue: 99
 ---
@@ -95,21 +95,29 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/WVLos1yqpJaJ6pZCN6x
 
 ## Critérios de aceite
 
-- [ ] O gate roda sozinho quando o agente termina a resolução, nas três origens [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] Marcador de conflito esquecido ou base fora da branch reprovam a resolução [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] A contagem de testes compara com o último gate aprovado da spec [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] O card mostra os quatro estados com ícone e texto [R2] verificar: flutter test test/features/review/review_stack_test.dart
-- [ ] "Corrigir e verificar" envia o relatório e roda o gate de novo [R3] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] "Desfazer a resolução" volta ao SHA de antes e recusa com alterações não commitadas [R3] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] "O que a resolução decidiu" mostra o remerge-diff por arquivo com a explicação do agente, e a resposta inteira sem `## Como resolvi` [R4, R8] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] "Pronto para merge?" bloqueia a resolução pendente, reprovada ou desatualizada [R5, R7] verificar: flutter test test/features/review/merge_readiness_test.dart
-- [ ] Com `resolver-conflitos: automatico`, um conflito previsto inicia uma resolução por vez, corrige sozinho só na primeira reprovação e nunca faz merge [R6] verificar: flutter test test/features/review/conflict_resolution_test.dart
-- [ ] O histórico registra origem, arquivos, gates e SHA aprovado [R9] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] O gate roda sozinho quando o agente termina a resolução, nas três origens [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] Marcador de conflito esquecido ou base fora da branch reprovam a resolução [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] A contagem de testes compara com o último gate aprovado da spec [R1] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] O card mostra os quatro estados com ícone e texto [R2] verificar: flutter test test/features/review/review_stack_test.dart
+- [x] "Corrigir e verificar" envia o relatório e roda o gate de novo [R3] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] "Desfazer a resolução" volta ao SHA de antes e recusa com alterações não commitadas [R3] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] "O que a resolução decidiu" mostra o remerge-diff por arquivo com a explicação do agente, e a resposta inteira sem `## Como resolvi` [R4, R8] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] "Pronto para merge?" bloqueia a resolução pendente, reprovada ou desatualizada [R5, R7] verificar: flutter test test/features/review/merge_readiness_test.dart
+- [x] Com `resolver-conflitos: automatico`, um conflito previsto inicia uma resolução por vez, corrige sozinho só na primeira reprovação e nunca faz merge [R6] verificar: flutter test test/features/review/conflict_resolution_test.dart
+- [x] O histórico registra origem, arquivos, gates e SHA aprovado [R9] verificar: flutter test test/features/review/conflict_resolution_test.dart
 - [ ] Um conflito real entre duas specs é resolvido, conferido e mergeado no app [R1–R5] verificar: manual (projeto de teste com duas specs que mexem no mesmo arquivo)
-- [ ] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R9] verificar: flutter analyze
 
 ## Decisões
 
 - P1 · Na resolução automática, "Corrigir e verificar" roda sozinho só na primeira reprovação. Depois, só manual (R6).
 - P2 · A resolução sempre passa pelo gate inteiro, porque é ele que libera o merge (R1).
 - P3 · Com mockups: o estado no card, o relatório reprovado, "O que a resolução decidiu" e "Pronto para merge?" com a resolução desatualizada.
+- P4 · Implementação: o gate da resolução para no primeiro item que falha, também nos itens de árvore, marcadores e base (o mockup 2 mostra "não rodaram: o gate para na primeira falha"), e a contagem de testes fica por último, como em R1. A árvore limpa é sempre exigida, mesmo com `exigir-arvore-limpa: false`, porque a resolução precisa estar commitada para ser conferida (R1).
+- P5 · Implementação: "O que a resolução decidiu" usa `git show --remerge-diff` quando o commit conferido é o merge do agente (caminho do PR e de `conflictMessage`). Quando a resolução veio de um rebase (`restackMessage`, "Passar para o agente") ou o agente commitou correções depois do merge, não há commit de merge para o remerge-diff: o app compara a árvore de `git merge-tree --write-tree <base> <antes-da-resolucao>`, que tem os marcadores, com o commit conferido. O resultado tem o mesmo formato (R4).
+- P6 · Implementação: o estado da resolução fica nas configurações do app (`review.resolucao.<sessão>`), como as marcas do restack, e o provider é uma família por sessão lida dali. O histórico (R9) usa a tabela de comentários de review, com `author: resolucao`, já resolvido e na rodada 0, para não virar comentário aberto nem rodada de review; o painel da spec mostra essas linhas em "Resoluções de conflito".
+- P7 · Implementação: enquanto o agente resolve, a sessão está rodando e a spec volta para Em execução; o card continua na fila de Review com "Agente resolvendo o conflito…" (R2), em vez de sumir como antes.
+- P8 · Implementação: uma sessão parada sem resposta final (processo encerrado) não dispara o gate; nesse caso o painel oferece "Conferir agora". Desfazer a resolução também recusa com sessão rodando ou com rebase/merge parado no worktree, além das alterações não commitadas.
+- P9 · Implementação: "Pronto para merge?" trata como desatualizada também a resolução aprovada cuja branch ganhou commits depois do gate (R5: aprovado só na ponta atual). Ao detectar que a base andou depois da aprovação, grava o estado desatualizado, e o card passa a mostrá-lo (R7).
+- P10 · Implementação: a resolução automática (R6) dispara pela previsão de conflito da fila (`conflictForecastProvider`, que só roda com a tela de Review aberta) e pelo restack que conflita. Ela não recomeça sozinha uma resolução reprovada ou desatualizada: só uma sem resolução ou com a anterior aprovada.
+- P11 · Implementação: "Mergear mesmo assim…" passou a aceitar o bloqueio da resolução, sozinho ou com critérios; o motivo vai para `mergeOverride` da spec e para o histórico da resolução.
