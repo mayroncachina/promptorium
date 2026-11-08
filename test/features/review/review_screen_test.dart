@@ -490,6 +490,11 @@ class _NoConflictReview extends ReviewService {
     ['a.txt'],
   );
   @override
-  Future<void> resolveConflict(String sessionId) async =>
-      resolved.add(sessionId);
+  Future<List<String>> resolveConflict(
+    String sessionId, {
+    String origin = 'pessoa',
+  }) async {
+    resolved.add(sessionId);
+    return const [];
+  }
 }

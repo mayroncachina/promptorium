@@ -228,6 +228,8 @@ class GhPullRequest {
     this.title = '',
     this.headRefName = '',
     this.state = '',
+    this.headRefOid = '',
+    this.mergedAt,
   });
 
   final int number;
@@ -235,6 +237,10 @@ class GhPullRequest {
   final String title;
   final String headRefName;
   final String state;
+
+  /// Last commit of the head when the PR was read ([prListMerged]).
+  final String headRefOid;
+  final DateTime? mergedAt;
 }
 
 DateTime? _date(Object? v) =>
@@ -567,6 +573,35 @@ class GhCli {
               title: _str(p['title']),
               headRefName: _str(p['headRefName']),
               state: _str(p['state']),
+            ),
+    ];
+  }
+
+  /// The last [limit] merged PRs with their head branch and its last commit
+  /// (`gh pr list --state merged`): branches merged by squash (SPEC-047 R2).
+  Future<List<GhPullRequest>> prListMerged({int limit = 200}) async {
+    final j = await _json([
+      'pr',
+      'list',
+      '--state',
+      'merged',
+      '--limit',
+      '$limit',
+      '--json',
+      'number,url,title,headRefName,headRefOid,state,mergedAt',
+    ]);
+    return [
+      if (j is List)
+        for (final p in j.whereType<Map>())
+          if (_int(p['number']) case final n? when p['url'] is String)
+            GhPullRequest(
+              number: n,
+              url: p['url'] as String,
+              title: _str(p['title']),
+              headRefName: _str(p['headRefName']),
+              state: _str(p['state']),
+              headRefOid: _str(p['headRefOid']),
+              mergedAt: _date(p['mergedAt']),
             ),
     ];
   }

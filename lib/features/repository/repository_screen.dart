@@ -5,6 +5,7 @@ import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import 'activity/activity_tab.dart';
 import 'graph/graph_tab.dart';
+import 'hygiene/hygiene_tab.dart';
 import 'releases/releases_tab.dart';
 import 'repository_info.dart';
 
@@ -41,7 +42,12 @@ class RepositoryTab {
 }
 
 /// The tabs, in order. Adding a tab = one more entry here.
-final repositoryTabs = <RepositoryTab>[releasesTab, graphTab, activityTab];
+final repositoryTabs = <RepositoryTab>[
+  releasesTab,
+  graphTab,
+  activityTab,
+  higieneTab,
+];
 
 /// Tab shown first and when the saved one no longer exists.
 const defaultRepositoryTab = 'releases';

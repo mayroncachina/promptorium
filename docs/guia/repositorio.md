@@ -1,6 +1,6 @@
 # Repositório
 
-A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. Por enquanto a tela tem as abas **Releases** e **Grafo**. Atividade e Higiene chegam nas próximas versões.
+A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. A tela tem as abas **Releases**, **Grafo**, **Atividade** e **Higiene**.
 
 ## Releases
 
@@ -159,3 +159,41 @@ Na primeira vez, a aba lê o histórico com `git log --numstat` e guarda o resul
 Sem o `gh`, sem login no `gh` ou sem remoto no GitHub, a aba continua mostrando as tags locais, o card Não lançado e a prévia. **Criar release** fica desabilitado, com o motivo e o comando que resolve (`gh auth login`). Um repositório sem nenhuma tag mostra tudo desde o primeiro commit e sugere `0.1.0`.
 
 No Grafo, sem o `gh` só faltam as etiquetas de PR. O resto vem do git local.
+
+## Higiene
+
+Cada spec deixa rastros: a branch local, a remota, um worktree e as refs internas em `refs/promptorium/<spec>/`. Depois do merge, quase nada disso some sozinho. A aba **Higiene** mostra o que pode sair e o que precisa de atenção. A contagem no título (`Higiene · 89`) soma os itens dos quatro grupos.
+
+A análise roda ao abrir a aba e com **Analisar de novo**. Ela só lê: nada é apagado sem você selecionar e confirmar.
+
+### Os quatro grupos
+
+- **Branches mergeadas**: as branches locais que já estão na branch padrão, local ou do remoto (`git branch --merged`). Entram também as mergeadas por squash, quando o `gh` diz que o PR da branch foi mergeado e a branch não tem commits depois dele. Cada linha mostra a spec, o PR e a data do último commit. Se a branch também existe no remoto e está mergeada lá, a coluna **também no remoto** tem uma caixa própria.
+- **Worktrees**: os worktrees do repositório em três situações. **Órfão** é o que perdeu a pasta. **De spec fechada** é o que tem a branch mergeada ou apagada. **Parado** está sem commit há mais de 14 dias e sem sessão viva. Cada linha mostra o caminho, a branch e o espaço em disco.
+- **Atrás da main**: as branches abertas com quantos commits estão atrás e à frente da branch padrão, da mais atrasada para a menos. Quando o merge daria conflito, a linha diz em quais arquivos e oferece **Abrir no Review**, onde a base é atualizada. Esse grupo só informa.
+- **Refs internas**: as refs de specs já mergeadas ou apagadas, por spec. **Limpar** apaga as de uma spec, e **Limpar todas** apaga as do grupo.
+
+### O que nunca sai
+
+Ficam na lista, esmaecidos e sem caixa, com o motivo:
+
+- a branch padrão e a branch atual do repositório;
+- a branch de uma sessão viva;
+- a branch em uso por outro worktree (`worktree em promptorium-wt/release`). Ao selecionar esse worktree, a branch é selecionada junto, porque o worktree sai primeiro;
+- o worktree com alterações não commitadas, o de uma sessão viva e o bloqueado (`git worktree lock`).
+
+### Limpar
+
+**Limpar selecionados** abre uma confirmação com tudo o que vai sair: os worktrees com o tamanho e as branches locais. Se alguma caixa **também no remoto** estiver marcada, a confirmação tem mais uma caixa, **Apagar também no GitHub**. Sem ela, nada sai do remoto.
+
+A ordem é worktree, branch local, branch remota e refs. O app nunca força nada:
+
+- o worktree sai com `git worktree remove`, sem `--force`;
+- a branch local sai com `git branch -d`, nunca `-D`. Se o git recusar, a linha mostra o motivo e a branch fica. Isso acontece, por exemplo, com uma branch mergeada por squash que nunca foi enviada ao remoto. Nesse caso, apague pelo terminal se tiver certeza;
+- uma branch remota só sai se a local saiu.
+
+Depois da limpeza, um aviso diz o que saiu e o espaço liberado, com **Desfazer** por 15 s. Ele recria as branches locais nos mesmos commits, com o upstream, e os worktrees das branches que voltaram. Branches apagadas no remoto e refs internas não voltam. Arquivos ignorados pelo git dentro do worktree, como `build/`, também não voltam.
+
+### No Início
+
+Quando a soma de branches mergeadas e worktrees de specs fechadas passa de 20, o Início mostra o card **Repositório com N itens para limpar**, que abre a aba. O × esconde o card por 30 dias.

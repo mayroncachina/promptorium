@@ -105,7 +105,12 @@ void main() {
 
   testWidgets('R1 · a aba vem depois de Grafo; o período vale para a aba '
       'inteira e compara com o anterior', (tester) async {
-    expect(repositoryTabs.map((t) => t.id), ['releases', 'grafo', 'atividade']);
+    expect(repositoryTabs.map((t) => t.id), [
+      'releases',
+      'grafo',
+      'atividade',
+      'higiene',
+    ]);
     expect(activityTab.label, 'Atividade');
     final container = await pump(tester);
     expect(container.read(activityPeriodProvider), ActivityPeriod.days90);
