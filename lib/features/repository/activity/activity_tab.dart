@@ -1686,23 +1686,13 @@ class _FilePanel extends StatelessWidget {
                         ],
                       ),
                     ),
-                    for (final c in commits)
-                      InkWell(
-                        key: ValueKey('activity-file-commit-${c.sha}'),
-                        onTap: () => onCommit(c.sha),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 16, top: 3),
-                          child: Text(
-                            '${c.shortSha} ${c.subject}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: mono.copyWith(
-                              fontSize: 11.5,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
+                    _FileCommits(
+                      key: ValueKey(
+                        'activity-file-commits-${spec ?? 'nenhuma'}',
                       ),
+                      commits: commits,
+                      onCommit: onCommit,
+                    ),
                   ],
                 ),
               ),
@@ -2257,6 +2247,70 @@ class _WeekAxis extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The commits of one spec in the file panel: the three newest, and the
+/// others on "+N anteriores" (R5).
+class _FileCommits extends StatefulWidget {
+  const _FileCommits({
+    super.key,
+    required this.commits,
+    required this.onCommit,
+  });
+
+  final List<FileCommit> commits;
+  final ValueChanged<String> onCommit;
+
+  static const shown = 3;
+
+  @override
+  State<_FileCommits> createState() => _FileCommitsState();
+}
+
+class _FileCommitsState extends State<_FileCommits> {
+  bool _all = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final all = widget.commits;
+    final list = _all ? all : all.take(_FileCommits.shown).toList();
+    const style = TextStyle(
+      fontFamily: AppFonts.mono,
+      fontSize: 11.5,
+      color: AppColors.textSecondary,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final c in list)
+          InkWell(
+            key: ValueKey('activity-file-commit-${c.sha}'),
+            onTap: () => widget.onCommit(c.sha),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, top: 3),
+              child: Text(
+                '${c.shortSha} ${c.subject}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+          ),
+        if (!_all && all.length > list.length)
+          InkWell(
+            onTap: () => setState(() => _all = true),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, top: 3),
+              child: Text(
+                '+${all.length - list.length} '
+                '${all.length - list.length == 1 ? 'anterior' : 'anteriores'}',
+                style: const TextStyle(fontSize: 12, color: AppColors.blue),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
