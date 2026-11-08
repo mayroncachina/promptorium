@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Barra lateral</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<nav aria-label="Seções" style="width: 56px; height: 900px; box-sizing: border-box; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; background: #0B0D11; border-right: 1px solid #252B35">
+  <sc-for list="{{itens}}" as="i" hint-placeholder-count="10">
+    <button aria-label="{{i.nome}}" title="{{i.nome}}" aria-current="{{i.atual}}" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: {{i.bg}}">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{i.cor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{i.d}}"></path></svg>
+    </button>
+  </sc-for>
+  <div style="flex: 1"></div>
+  <button aria-label="Configurações" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: {{engBg}}">
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{engCor}}" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 2.5 V5 M10 15 V17.5 M2.5 10 H5 M15 10 H17.5 M4.7 4.7 L6.5 6.5 M13.5 13.5 L15.3 15.3 M4.7 15.3 L6.5 13.5 M13.5 6.5 L15.3 4.7"></path></svg>
+  </button>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":56,"height":900},"atual":{"editor":"text","default":"Repositório"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const i = (nome, d) => {
+      const atual = nome === (this.props.atual ?? 'Repositório');
+      return { nome, d, atual: atual ? 'page' : 'false', bg: atual ? '#2A2418' : 'transparent', cor: atual ? '#F2A541' : '#A0A8B6' };
+    };
+    const eng = (this.props.atual ?? '') === 'Configurações';
+    return { engBg: eng ? '#2A2418' : 'transparent', engCor: eng ? '#F2A541' : '#A0A8B6', itens: [
+      i('Início', 'M3 9 L10 3 L17 9 V17 H3 Z'),
+      i('Projeto', 'M3 5 H8 L10 7 H17 V16 H3 Z'),
+      i('Specs', 'M5 2.5 H12 L15 5.5 V17.5 H5 Z'),
+      i('Quadro', 'M3 3 H8 V17 H3 Z M11 3 H17 V11 H11 Z'),
+      i('Sessões', 'M3 6 L7 10 L3 14 M9 15 H17'),
+      i('Review', 'M9 3 A6 6 0 1 1 8.99 3 M13.5 13.5 L17.5 17.5'),
+      i('Repositório', 'M6 3 V17 M6 7 C6 10 14 9 14 12 V17 M6 3.5 A1.5 1.5 0 1 0 6 3.49 M14 17 A1.5 1.5 0 1 0 14 16.99'),
+      i('Código', 'M7 5 L2.5 10 L7 15 M13 5 L17.5 10 L13 15'),
+      i('Prompt', 'M3 4 H17 V13 H9 L5 16.5 V13 H3 Z'),
+      i('Ferramentas', 'M12.5 3 A4 4 0 0 0 9 8.5 L3 14.5 L5.5 17 L11.5 11 A4 4 0 0 0 17 7.5 L14.5 10 L10 5.5 Z'),
+    ] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Quem fez os commits</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Atividade" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="flex: 1; font-size: 14px; color: #A0A8B6">Branch main e branches de spec · últimos 90 dias</span>
+        <div role="group" aria-label="Período" style="display: flex; border: 1px solid #252B35; border-radius: 8px; overflow: hidden">
+          <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">30 dias</button>
+          <button aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: #2A2418; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif">90 dias</button>
+          <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">1 ano</button>
+        </div>
+      </div>
+      <section aria-labelledby="qf" style="position: relative; flex: 1; min-height: 0; box-sizing: border-box; padding: 20px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; flex-direction: column; gap: 16px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <h2 id="qf" style="margin: 0; font-size: 16px; font-weight: 600">Quem fez os commits</h2>
+          <button aria-label="De onde vem esta separação" aria-describedby="tipq" aria-expanded="{{tipAberto}}" style="width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid {{tipBorda}}; border-radius: 13px; background: {{tipBg}}">
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="{{tipCor}}" stroke-width="1.6" stroke-linecap="round"><circle cx="7" cy="7" r="6"></circle><path d="M7 6.2 V10 M7 4 V4.1"></path></svg>
+          </button>
+          <div style="flex: 1"></div>
+          <span style="font-size: 13px; color: #A0A8B6">{{desde}}</span>
+        </div>
+        <div style="display: flex; gap: 32px; flex: 1; min-height: 0">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">POR SEMANA</span>
+            <div style="height: 420px; display: flex; align-items: flex-end; gap: 12px; border-bottom: 1px solid #252B35; opacity: {{barrasOp}}">
+              <sc-for list="{{barras}}" as="b" hint-placeholder-count="13">
+                <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 1px">
+                  <sc-for list="{{b.partes}}" as="p" hint-placeholder-count="3">
+                    <span style="height: {{p.h}}px; background: {{p.c}}; border-radius: 2px"></span>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #7C8595"><span>ago</span><span>set</span><span>out</span><span>8 nov · marcação ligada</span></div>
+          </div>
+          <sc-if value="{{ligado}}" hint-placeholder-val="{{true}}">
+            <div style="width: 380px; display: flex; flex-direction: column; gap: 10px">
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px">
+                <sc-for list="{{totais}}" as="t" hint-placeholder-count="4">
+                  <div style="box-sizing: border-box; padding: 10px 12px; border: 1px solid #252B35; border-radius: 8px; display: flex; flex-direction: column; gap: 4px">
+                    <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #A0A8B6"><span style="width: 10px; height: 10px; border-radius: 2px; background: {{t.c}}"></span>{{t.n}}</span>
+                    <span style="font-size: 20px; font-weight: 600">{{t.v}} <span style="font-size: 12px; font-weight: 400; color: #A0A8B6">{{t.p}}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+              <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">COMMITS DE AGENTE POR MODELO</span>
+              <sc-for list="{{modelos}}" as="m" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 10px; font-size: 13px">
+                  <span style="width: 64px; font-family: 'JetBrains Mono', monospace">{{m.n}}</span>
+                  <span style="flex: 1; height: 10px; border-radius: 5px; background: #1C2029; overflow: hidden; display: flex"><span style="width: {{m.w}}%; background: #F2A541"></span></span>
+                  <span style="width: 72px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9CED8">{{m.v}}</span>
+                </div>
+              </sc-for>
+              <span style="margin-top: 8px; font-size: 12px; line-height: 18px; color: #A0A8B6">"App" é o commit que o próprio app faz numa etapa, como "Commitar o que sobrou". Ele pode juntar edição sua e do agente.</span>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{desligado}}" hint-placeholder-val="{{false}}">
+          <div style="position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); width: 520px; box-sizing: border-box; padding: 22px 24px; border: 1px solid #3A4250; border-radius: 12px; background: #171B22; box-shadow: 0 16px 40px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 10px; align-items: flex-start">
+            <span style="font-size: 15px; font-weight: 600">Este projeto não marca os commits dos agentes</span>
+            <span style="font-size: 13px; line-height: 20px; color: #C9CED8">Os agentes commitam com o seu nome, então o git não separa o que você e eles fizeram. Ligada a marcação, os próximos commits das sessões ganham uma linha que o app lê aqui.</span>
+            <button style="margin-top: 4px; height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Ligar neste projeto</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{tipAberto}}" hint-placeholder-val="{{false}}">
+          <div id="tipq" role="tooltip" style="position: absolute; left: 200px; top: 52px; width: 430px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #4A4030; border-radius: 12px; background: #1C1A16; box-shadow: 0 18px 40px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 19px; color: #C9CED8">
+            <span style="font-size: 14px; font-weight: 600; color: #E7E9EE">De onde vem esta separação</span>
+            <span>Os commits das sessões do app levam uma linha no fim da mensagem, com o modelo e a etapa:</span>
+            <code style="padding: 8px 10px; border-radius: 8px; background: #0B0D11; font: 12px 'JetBrains Mono', monospace; color: #F2A541">Promptorium-Agente: sonnet · SPEC-042 R2</code>
+            <span>Sem a linha, o commit é seu. Com "app", foi o próprio Promptorium que commitou numa etapa.</span>
+            <span style="font-size: 12px; color: #A0A8B6">A marcação está ligada desde 8 nov. As semanas anteriores aparecem em cinza, como sem marca, e não contam como suas.</span>
+          </div>
+        </sc-if>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900},"desligado":{"editor":"boolean","default":false},"tip":{"editor":"boolean","default":true}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const desligado = this.props.desligado ?? false;
+    const tipAberto = !desligado && (this.props.tip ?? true);
+    const C = { sem: '#3A4250', pes: '#8EC5FF', ag: '#F2A541', app: '#C59BFF' };
+    const dados = [[22,0,0,0],[18,0,0,0],[26,0,0,0],[24,0,0,0],[31,0,0,0],[28,0,0,0],[35,0,0,0],[40,0,0,0],[36,0,0,0],[44,0,0,0],[49,0,0,0],[0,9,26,4],[0,8,31,5]];
+    const barras = dados.map(([s, p, a, x]) => ({ partes: desligado
+      ? [{ c: C.sem, h: (s + p + a + x) * 7 }]
+      : [{ c: C.sem, h: s * 7 }, { c: C.pes, h: p * 7 }, { c: C.ag, h: a * 7 }, { c: C.app, h: x * 7 }].filter((q) => q.h > 0) }));
+    return {
+      ligado: !desligado, desligado, tipAberto, barras,
+      barrasOp: desligado ? 0.35 : 1,
+      desde: desligado ? 'Marcação desligada' : 'Marcado desde 8 nov · 83 commits',
+      tipBorda: tipAberto ? '#F2A541' : '#3A4250', tipBg: tipAberto ? '#2A2418' : 'transparent', tipCor: tipAberto ? '#F2A541' : '#A0A8B6',
+      totais: [
+        { n: 'Você', v: '17', p: '20%', c: C.pes },
+        { n: 'Agentes', v: '57', p: '69%', c: C.ag },
+        { n: 'App', v: '9', p: '11%', c: C.app },
+        { n: 'Sem marca', v: '329', p: 'antes de 8 nov', c: C.sem },
+      ],
+      modelos: [
+        { n: 'sonnet', v: '35 · 61%', w: 61 },
+        { n: 'opus', v: '18 · 32%', w: 32 },
+        { n: 'haiku', v: '4 · 7%', w: 7 },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -71,11 +71,12 @@ void main() {
       'Quadro',
       'Sessões',
       'Review',
+      'Repositório',
       'Código',
       'Prompt',
       'Ferramentas',
     ]);
-    expect(find.byType(SideBarItem), findsNWidgets(10));
+    expect(find.byType(SideBarItem), findsNWidgets(11));
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
     }
@@ -134,30 +135,32 @@ void main() {
     }
   });
 
-  testWidgets('Ctrl+1..9 switch screens and zoom shortcuts hit the editor', (
-    tester,
-  ) async {
+  testWidgets('Ctrl+1..9 and Ctrl+0 switch screens and zoom shortcuts hit '
+      'the editor', (tester) async {
     await pumpShell(tester);
 
-    // Ctrl+1…9 follow the sidebar (F10, UX v2).
+    // Ctrl+1…9 and Ctrl+0 follow the sidebar (F10, UX v2, SPEC-044).
     await ctrl(tester, LogicalKeyboardKey.digit2);
     expect(item(tester, AppSection.project).active, isTrue);
     await ctrl(tester, LogicalKeyboardKey.digit1);
     expect(item(tester, AppSection.home).active, isTrue);
     await ctrl(tester, LogicalKeyboardKey.digit5);
     expect(item(tester, AppSection.sessions).active, isTrue);
-    await ctrl(tester, LogicalKeyboardKey.digit9);
+    await ctrl(tester, LogicalKeyboardKey.digit7);
+    expect(item(tester, AppSection.repository).active, isTrue);
+    expect(find.byKey(const ValueKey('screen-repository')), findsOneWidget);
+    await ctrl(tester, LogicalKeyboardKey.digit0);
     expect(item(tester, AppSection.agents).active, isTrue);
     await tester.tap(find.byKey(const ValueKey('tools-tab-skills')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
-    // Ferramentas stays lit and Ctrl+9 keeps the tab.
+    // Ferramentas stays lit and Ctrl+0 keeps the tab.
     expect(item(tester, AppSection.agents).active, isTrue);
     await ctrl(tester, LogicalKeyboardKey.digit5);
-    await ctrl(tester, LogicalKeyboardKey.digit9);
+    await ctrl(tester, LogicalKeyboardKey.digit0);
     expect(find.byKey(const ValueKey('screen-skills')), findsOneWidget);
 
-    await ctrl(tester, LogicalKeyboardKey.digit7);
+    await ctrl(tester, LogicalKeyboardKey.digit8);
     expect(item(tester, AppSection.code).active, isTrue);
     expect(find.text('100%'), findsOneWidget);
 
@@ -172,10 +175,17 @@ void main() {
     await ctrl(tester, LogicalKeyboardKey.minus);
     expect(find.text('90%'), findsOneWidget);
 
-    await ctrl(tester, LogicalKeyboardKey.digit7);
+    await ctrl(tester, LogicalKeyboardKey.digit8);
     expect(find.text('120%'), findsOneWidget);
-    await ctrl(tester, LogicalKeyboardKey.digit0);
+    // Ctrl+0 is a screen now: the zoom goes back with Ctrl+Shift+0.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.digit0);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
     expect(find.text('100%'), findsOneWidget);
+    expect(item(tester, AppSection.code).active, isTrue);
   });
 
   testWidgets('Ctrl+/ and the palette footer open the shortcut sheet', (

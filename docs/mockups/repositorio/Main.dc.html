@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Releases e Não lançado</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Releases" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 24px; display: flex; gap: 24px">
+      <div style="width: 820px; display: flex; flex-direction: column; gap: 20px">
+        <section aria-label="Não lançado" style="border: 1px solid #3A3222; border-radius: 12px; background: #15130F; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; align-items: flex-start; gap: 16px">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 13px; color: #F2A541; font-weight: 500">Não lançado</span>
+              <h2 style="margin: 0; font-size: 20px; font-weight: 600">38 commits na main desde v0.11.0</h2>
+              <span style="font-size: 13px; color: #A0A8B6">Versão sugerida pelo git-cliff: <strong style="font: 600 13px 'JetBrains Mono', monospace; color: #E7E9EE">v0.12.0</strong> · há funcionalidades novas</span>
+            </div>
+            <button style="height: 40px; padding: 0 16px; border: 1px solid #3A4250; border-radius: 8px; background: #14171D; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Ver changelog</button>
+            <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Criar release</button>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6">SPECS MERGEADAS · 4</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <sc-for list="{{specs}}" as="s" hint-placeholder-count="4">
+                <a href="#" style="height: 32px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; gap: 8px; border: 1px solid #252B35; border-radius: 8px; background: #14171D; color: #E7E9EE; font-size: 13px; text-decoration: none">
+                  <span style="width: 8px; height: 8px; border-radius: 4px; background: {{s.cor}}"></span>
+                  <span style="font-family: 'JetBrains Mono', monospace; color: #A0A8B6">{{s.cod}}</span>
+                  <span>{{s.nome}}</span>
+                </a>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6; margin-bottom: 6px">POR TIPO</span>
+            <sc-for list="{{tipos}}" as="t" hint-placeholder-count="5">
+              <div style="height: 34px; display: flex; align-items: center; gap: 12px; font-size: 14px; border-top: 1px solid #221F19">
+                <span style="width: 150px">{{t.nome}}</span>
+                <span style="width: 32px; font-family: 'JetBrains Mono', monospace; color: #E7E9EE; text-align: right">{{t.n}}</span>
+                <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #A0A8B6; font-size: 13px">{{t.ex}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+        <section aria-label="Versões" style="display: flex; flex-direction: column">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6; margin-bottom: 8px">VERSÕES</span>
+          <sc-for list="{{versoes}}" as="v" hint-placeholder-count="5">
+            <button style="height: 48px; padding: 0 14px; display: flex; align-items: center; gap: 14px; border: 1px solid {{v.borda}}; border-radius: 8px; margin-bottom: 4px; background: {{v.bg}}; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif; text-align: left">
+              <span style="width: 9px; height: 9px; border-radius: 5px; border: 2px solid {{v.cor}}; background: {{v.fill}}"></span>
+              <span style="width: 80px; font: 600 14px 'JetBrains Mono', monospace">{{v.tag}}</span>
+              <span style="width: 120px; height: 24px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; border-radius: 12px; background: {{v.estadoBg}}; color: {{v.cor}}; font-size: 12px; font-weight: 500">{{v.estado}}</span>
+              <span style="flex: 1; color: #A0A8B6; font-size: 13px">{{v.data}}</span>
+              <span style="width: 110px; color: #A0A8B6; font-size: 13px">{{v.commits}}</span>
+              <span style="width: 90px; color: #A0A8B6; font-size: 13px">{{v.pacotes}}</span>
+            </button>
+          </sc-for>
+        </section>
+      </div>
+      <aside aria-label="Versão selecionada" style="flex: 1; min-width: 0; border: 1px solid #252B35; border-radius: 12px; background: #14171D; display: flex; flex-direction: column">
+        <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid #252B35">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <h2 style="margin: 0; font: 600 20px 'JetBrains Mono', monospace">v0.11.0</h2>
+            <span style="height: 24px; padding: 0 10px; display: flex; align-items: center; border-radius: 12px; background: rgba(91,200,138,.12); color: #5BC88A; font-size: 12px; font-weight: 500">Publicada · mais recente</span>
+          </div>
+          <span style="font-size: 13px; color: #A0A8B6">7 nov 2026, 10:41 · 41 commits desde v0.10.0 · run #42377161977</span>
+        </div>
+        <div style="flex: 1; min-height: 0; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+          <span style="font-size: 13px; font-weight: 600">Funcionalidades</span>
+          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 19px; color: #C9CED8">
+            <li>Ditado por voz nas sessões e na nova spec, transcrito no computador</li>
+            <li>Tela de ideia e mini planejamento em Nova spec</li>
+            <li>Sobre em duas colunas, com o cartão de atualização</li>
+          </ul>
+          <span style="font-size: 13px; font-weight: 600; margin-top: 4px">Correções</span>
+          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 19px; color: #C9CED8">
+            <li>Parar antes do gravador iniciar não se perde mais</li>
+            <li>O splash segue em loop no mesmo palco do Sobre</li>
+          </ul>
+          <span style="font-size: 13px; font-weight: 600; margin-top: 8px">Pacotes · 3</span>
+          <sc-for list="{{pacotes}}" as="p" hint-placeholder-count="3">
+            <div style="height: 36px; display: flex; align-items: center; gap: 10px; border-top: 1px solid #252B35; font-size: 13px">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M7 2 V9 M4 6.5 L7 9.5 L10 6.5 M2.5 12 H11.5"></path></svg>
+              <span style="flex: 1; font-family: 'JetBrains Mono', monospace">{{p.nome}}</span>
+              <span style="color: #A0A8B6">{{p.tam}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding: 14px 20px; border-top: 1px solid #252B35; display: flex; gap: 10px">
+          <a href="#" style="height: 40px; padding: 0 16px; display: flex; align-items: center; border: 1px solid #3A4250; border-radius: 8px; color: #E7E9EE; font-size: 14px; text-decoration: none">Abrir no GitHub</a>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = {
+      pub: ['#5BC88A', 'rgba(91,200,138,.12)'],
+      tag: ['#A0A8B6', 'rgba(160,168,182,.12)'],
+    };
+    const v = (tag, estado, k, data, commits, pacotes, sel) => ({ tag, estado, data, commits, pacotes, cor: st[k][0], estadoBg: st[k][1], fill: sel ? st[k][0] : 'transparent', bg: sel ? '#1A1E26' : 'transparent', borda: sel ? '#3A4250' : 'transparent' });
+    return {
+      specs: [
+        { cod: 'SPEC-041', nome: 'Radar na bandeja', cor: '#8EC5FF' },
+        { cod: 'SPEC-042', nome: 'Sprints no Quadro', cor: '#C59BFF' },
+        { cod: 'SPEC-043', nome: 'Conflito conferido pelo gate', cor: '#5BC88A' },
+        { cod: 'SPEC-044', nome: 'Releases na tela Repositório', cor: '#F2A541' },
+      ],
+      tipos: [
+        { nome: 'Funcionalidades', n: '14', ex: 'sprints: concluir sprint, Autopilot na sprint Ativa e aviso de pendências · tray: radar na bandeja…' },
+        { nome: 'Correções', n: '6', ex: 'sprints: singular na contagem de specs do seletor · tray: sublinhado do rótulo…' },
+        { nome: 'Documentação', n: '9', ex: 'SPEC-042, sprints no Quadro e mockups · SPEC-041, radar na bandeja…' },
+        { nome: 'Testes', n: '3', ex: 'board: filtros com o seletor de sprint…' },
+        { nome: 'Manutenção', n: '6', ex: 'merges de PR (#93 a #98)' },
+      ],
+      versoes: [
+        v('v0.11.0', 'Publicada', 'pub', '7 nov 2026', '41 commits', '3 pacotes', true),
+        v('v0.10.0', 'Publicada', 'pub', '6 nov 2026', '27 commits', '3 pacotes'),
+        v('v0.9.0', 'Publicada', 'pub', '5 nov 2026', '52 commits', '3 pacotes'),
+        v('v0.8.0', 'Publicada', 'pub', '3 nov 2026', '66 commits', '3 pacotes'),
+        v('v0.7.0', 'Publicada', 'pub', '26 out 2026', '48 commits', '2 pacotes'),
+      ],
+      pacotes: [
+        { nome: 'promptorium_0.11.0_amd64.deb', tam: '12,9 MB' },
+        { nome: 'promptorium-0.11.0-linux-x64.tar.gz', tam: '16,1 MB' },
+        { nome: 'promptorium-0.11.0-windows-x64.zip', tam: '18,5 MB' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

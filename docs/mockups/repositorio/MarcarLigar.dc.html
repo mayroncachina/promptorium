@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Ligar a marcação</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="AtividadeQuem" desligado="{{sim}}" hint-size="1440px,900px"></dc-import>
+  <div style="position: absolute; inset: 0; background: rgba(5,6,8,.66); display: flex; align-items: center; justify-content: center">
+    <section role="dialog" aria-modal="true" aria-labelledby="t" style="width: 600px; box-sizing: border-box; border: 1px solid #3A4250; border-radius: 14px; background: #14171D; box-shadow: 0 24px 64px rgba(0,0,0,.6); display: flex; flex-direction: column">
+      <div style="padding: 20px 24px 6px; display: flex; flex-direction: column; gap: 4px">
+        <h2 id="t" style="margin: 0; font-size: 20px; font-weight: 600">Marcar os commits dos agentes?</h2>
+        <p style="margin: 0; font-size: 14px; color: #A0A8B6">Vale para promptorium, a partir das próximas sessões.</p>
+      </div>
+      <div style="padding: 12px 24px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 13px; font-weight: 500">Os commits das sessões ganham esta linha no fim</span>
+          <pre style="margin: 0; padding: 12px 14px; border: 1px solid #252B35; border-radius: 8px; background: #0B0D11; font: 12px/19px 'JetBrains Mono', monospace; color: #A0A8B6; white-space: pre-wrap">SPEC-042 R2: seletor de sprint no cabeçalho
+
+<span style="color: #F2A541">Promptorium-Agente: sonnet · SPEC-042 R2</span></pre>
+        </div>
+        <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 19px; color: #C9CED8">
+          <li>O autor continua sendo você, e o GitHub não mostra coautor.</li>
+          <li><span style="font-family: 'JetBrains Mono', monospace">.promptorium/config.yml</span> ganha <span style="font-family: 'JetBrains Mono', monospace">git: marcar-commits-de-agente: true</span> e entra no seu próximo commit. Quem clonar com o Promptorium herda a marcação.</li>
+          <li>Seus commits no terminal não são marcados, e nada é instalado em <span style="font-family: 'JetBrains Mono', monospace">.git/hooks</span>.</li>
+          <li>Commits antigos não mudam. Eles seguem como "sem marca".</li>
+        </ul>
+        <p style="margin: 0; font-size: 12px; color: #A0A8B6">Dá para desligar em Configurações › Configuração do projeto › Git.</p>
+      </div>
+      <div style="padding: 14px 24px 20px; display: flex; justify-content: flex-end; gap: 10px">
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Agora não</button>
+        <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Ligar marcação</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return { sim: true }; } }
+</script>
+</body>
+</html>

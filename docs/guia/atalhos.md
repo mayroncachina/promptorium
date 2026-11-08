@@ -6,7 +6,7 @@ Ctrl+/ abre a folha de atalhos dentro do app, com filtro.
 
 | Atalho | Ação |
 |---|---|
-| Ctrl+1 … Ctrl+9 | Início, Projeto, Specs, Quadro, Sessões, Review, Código, Prompt, Ferramentas |
+| Ctrl+1 … Ctrl+9, Ctrl+0 | Início, Projeto, Specs, Quadro, Sessões, Review, Repositório, Código, Prompt, Ferramentas |
 | Ctrl+K | Paleta de comandos |
 | Ctrl+N | Nova sessão |
 | Ctrl+/ | Folha de atalhos |
@@ -18,7 +18,7 @@ Ctrl+/ abre a folha de atalhos dentro do app, com filtro.
 
 | Atalho | Ação |
 |---|---|
-| Ctrl+= / Ctrl+- / Ctrl+0 | Zoom do editor da tela (Specs e Código têm zoom próprio) |
+| Ctrl+= / Ctrl+- / Ctrl+Shift+0 | Zoom do editor da tela (Specs e Código têm zoom próprio). Ctrl+0 agora vai para Ferramentas |
 | Ctrl+S | Salvar (Specs, Código) |
 | Ctrl+F / Ctrl+H | Buscar / substituir (Esc fecha) |
 | Ctrl+W | Fechar aba (Código) |

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Higiene do repositório</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Higiene" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="flex: 1; font-size: 14px; color: #A0A8B6">Analisado há 1 min · 64 branches mergeadas, 19 worktrees, 2 branches atrás da main, refs de 4 specs</span>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Analisar de novo</button>
+        <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Limpar selecionados (7)</button>
+      </div>
+      <div style="flex: 1; min-height: 0; display: flex; gap: 16px">
+        <div style="width: 860px; display: flex; flex-direction: column; gap: 16px">
+          <section aria-label="Branches mergeadas" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+            <div style="height: 48px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+              <input type="checkbox" aria-label="Selecionar todas as branches mergeadas" style="width: 16px; height: 16px; accent-color: #F2A541">
+              <h2 style="flex: 1; margin: 0; font-size: 15px; font-weight: 600">Branches mergeadas <span style="color: #A0A8B6; font-weight: 400">· 64</span></h2>
+              <span style="font-size: 12px; color: #A0A8B6">também no remoto</span>
+            </div>
+            <sc-for list="{{branches}}" as="b" hint-placeholder-count="5">
+              <div style="height: 44px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1E232C; opacity: {{b.op}}">
+                <input type="checkbox" checked="{{b.marcada}}" disabled="{{b.travada}}" aria-label="Selecionar {{b.nome}}" style="width: 16px; height: 16px; accent-color: #F2A541">
+                <span style="width: 300px; font: 13px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{b.nome}}</span>
+                <span style="flex: 1; font-size: 13px; color: {{b.infoCor}}">{{b.info}}</span>
+                <span style="width: 110px; font-size: 13px; color: #A0A8B6">{{b.data}}</span>
+                <input type="checkbox" disabled="{{b.travada}}" aria-label="Apagar {{b.nome}} também no remoto" style="width: 16px; height: 16px; accent-color: #F27A6E; margin-right: 40px">
+              </div>
+            </sc-for>
+            <button style="height: 40px; width: 100%; border: 0; background: transparent; color: #8EC5FF; font: 13px 'IBM Plex Sans', sans-serif">Mostrar as outras 59</button>
+          </section>
+          <section aria-label="Worktrees" style="flex: 1; min-height: 0; border: 1px solid #252B35; border-radius: 10px; background: #14171D; overflow: hidden">
+            <div style="height: 48px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+              <input type="checkbox" aria-label="Selecionar todos os worktrees" style="width: 16px; height: 16px; accent-color: #F2A541">
+              <h2 style="flex: 1; margin: 0; font-size: 15px; font-weight: 600">Worktrees <span style="color: #A0A8B6; font-weight: 400">· 19 · 4,1 GB</span></h2>
+            </div>
+            <sc-for list="{{worktrees}}" as="w" hint-placeholder-count="5">
+              <div style="height: 50px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1E232C; opacity: {{w.op}}">
+                <input type="checkbox" checked="{{w.marcada}}" disabled="{{w.travada}}" aria-label="Selecionar {{w.caminho}}" style="width: 16px; height: 16px; accent-color: #F2A541">
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font: 13px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{w.caminho}}</span>
+                  <span style="font: 12px 'JetBrains Mono', monospace; color: #7C8595">{{w.branch}}</span>
+                </div>
+                <span style="height: 24px; padding: 0 10px; display: flex; align-items: center; border-radius: 12px; background: {{w.bg}}; color: {{w.cor}}; font-size: 12px; font-weight: 500">{{w.estado}}</span>
+                <span style="width: 70px; text-align: right; font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{w.tam}}</span>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section aria-label="Atrás da base" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+            <div style="padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid #252B35">
+              <h2 style="margin: 0; font-size: 15px; font-weight: 600">Atrás da main <span style="color: #A0A8B6; font-weight: 400">· 2</span></h2>
+              <span style="font-size: 12px; color: #A0A8B6">Só informa. Atualizar a base é no Review.</span>
+            </div>
+            <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #1E232C">
+              <div style="display: flex; align-items: center; gap: 8px"><span style="flex: 1; font: 13px 'JetBrains Mono', monospace">feat/zoom-editor-spec</span><span style="font: 12px 'JetBrains Mono', monospace; color: #F2A541">312 atrás · 2 à frente</span></div>
+              <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #F27A6E"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F27A6E" stroke-width="1.6" stroke-linecap="round"><path d="M7 1.5 L13 12 H1 Z M7 5.5 V8.5 M7 10.3 V10.4"></path></svg>Conflito previsto em specs_screen.dart</span>
+              <a href="#" style="align-self: flex-start; height: 32px; padding: 0 12px; display: flex; align-items: center; border: 1px solid #3A4250; border-radius: 8px; color: #E7E9EE; font-size: 13px; text-decoration: none">Abrir no Review</a>
+            </div>
+            <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; align-items: center; gap: 8px"><span style="flex: 1; font: 13px 'JetBrains Mono', monospace">spec/043-conflito-conferido…</span><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">3 atrás · 3 à frente</span></div>
+              <span style="font-size: 13px; color: #5BC88A">Sem conflito previsto</span>
+            </div>
+          </section>
+          <section aria-label="Refs internas" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+            <div style="padding: 14px 16px 10px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #252B35">
+              <h2 style="flex: 1; margin: 0; font-size: 15px; font-weight: 600">Refs internas <span style="color: #A0A8B6; font-weight: 400">· 4 specs</span></h2>
+              <button style="height: 32px; padding: 0 12px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif">Limpar todas</button>
+            </div>
+            <sc-for list="{{refs}}" as="r" hint-placeholder-count="4">
+              <div style="height: 40px; padding: 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #1E232C; font-size: 13px">
+                <span style="width: 84px; font: 12px 'JetBrains Mono', monospace">{{r.c}}</span>
+                <span style="flex: 1; color: #A0A8B6">{{r.i}}</span>
+                <button style="height: 28px; padding: 0 10px; border: 0; background: transparent; color: #8EC5FF; font: 13px 'IBM Plex Sans', sans-serif">Limpar</button>
+              </div>
+            </sc-for>
+            <p style="margin: 0; padding: 10px 16px 14px; font-size: 12px; line-height: 17px; color: #A0A8B6">refs/promptorium/&lt;spec&gt;/ guarda os pontos de volta das etapas. Specs mergeadas não precisam mais deles.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const b = (nome, info, data, marcada, motivo) => ({ nome, info: motivo || info, data, marcada: !!marcada, travada: !!motivo, op: motivo ? 0.5 : 1, infoCor: motivo ? '#F2A541' : '#A0A8B6' });
+    const est = {
+      fechada: ['de spec fechada', '#8EC5FF', 'rgba(142,197,255,.12)'],
+      parado: ['parado há 15 dias', '#F2A541', 'rgba(242,165,65,.12)'],
+      sujo: ['alterações não commitadas', '#F27A6E', 'rgba(242,122,110,.12)'],
+    };
+    const w = (caminho, branch, k, tam, marcada) => ({ caminho, branch, tam, marcada: !!marcada, travada: k === 'sujo', op: k === 'sujo' ? 0.55 : 1, estado: est[k][0], cor: est[k][1], bg: est[k][2] });
+    return {
+      branches: [
+        b('spec/042-t1-dados', 'SPEC-042 T1 · PR #95', '7 nov', true),
+        b('spec/041-radar-na-bandeja', 'SPEC-041 · PR #93', '7 nov', true),
+        b('chore/remover-hook-stop-testes', 'PR #84', '5 nov', true),
+        b('docs/spec-014-marcar-criterios', 'SPEC-014 · mergeada por squash', '21 out', true),
+        b('ci/preparar-release', '', '18 out', false, 'worktree em promptorium-wt/release'),
+      ],
+      worktrees: [
+        w('~/workspace/promptorium-wt/spec-034', 'spec/034-motion', 'fechada', '576 MB', true),
+        w('~/workspace/promptorium-wt/spec-019', 'feat/spec-019-ocultar-e-finalizar', 'fechada', '138 MB', true),
+        w('~/.promptorium/worktrees/promptorium-spec-020-icone-na-bandeja-do-sis-d0648b', 'pr/spec-020-icone-na-bandeja-do-sis-d0648b', 'fechada', '42 MB', true),
+        w('~/workspace/promptorium-wt/zoom', 'feat/zoom-editor-spec', 'parado', '119 MB', false),
+        w('~/workspace/promptorium/.claude/worktrees/spec-038', 'spec/040-wt', 'sujo', '201 MB', false),
+      ],
+      refs: [
+        { c: 'SPEC-020', i: '1 ref · mergeada em 24 out' },
+        { c: 'SPEC-021', i: '1 ref · mergeada em 24 out' },
+        { c: 'SPEC-022', i: '1 ref · mergeada em 25 out' },
+        { c: 'SPEC-023', i: '1 ref · mergeada em 25 out' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

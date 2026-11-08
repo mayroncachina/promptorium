@@ -27,7 +27,8 @@ class ShortcutGroup {
 const shortcutGroups = [
   ShortcutGroup('Navegação', [
     ShortcutEntry('Início · Projeto · Specs · Quadro · Sessões', 'Ctrl+1 … 5'),
-    ShortcutEntry('Review · Código · Prompt · Ferramentas', 'Ctrl+6 … 9'),
+    ShortcutEntry('Review · Repositório · Código · Prompt', 'Ctrl+6 … 9'),
+    ShortcutEntry('Ferramentas', 'Ctrl+0'),
     ShortcutEntry('Paleta de comandos', 'Ctrl+K'),
     ShortcutEntry('Ir para arquivo (Código)', 'Ctrl+P'),
     ShortcutEntry('Busca global no worktree (Código)', 'Ctrl+Shift+F'),
@@ -62,7 +63,7 @@ const shortcutGroups = [
     ShortcutEntry('Salvar', 'Ctrl+S'),
     ShortcutEntry('Fechar aba (Código)', 'Ctrl+W'),
     ShortcutEntry('Buscar · Substituir', 'Ctrl+F · Ctrl+H'),
-    ShortcutEntry('Zoom + / − / 100%', 'Ctrl+= · Ctrl+- · Ctrl+0'),
+    ShortcutEntry('Zoom + / − / 100%', 'Ctrl+= · Ctrl+- · Ctrl+Shift+0'),
   ]),
 ];
 
