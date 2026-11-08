@@ -34,6 +34,7 @@ class InfoTip extends StatefulWidget {
     this.maxWidth = 440,
     this.iconSize = 18,
     this.hoverDelay = const Duration(milliseconds: 250),
+    this.child,
   });
 
   final String title;
@@ -51,6 +52,10 @@ class InfoTip extends StatefulWidget {
 
   /// Wait before opening on hover (focus opens at once).
   final Duration hoverDelay;
+
+  /// What opens the card in place of the ⓘ (the model label of the Grafo,
+  /// SPEC-045 R9); null = the icon.
+  final Widget? child;
 
   @override
   State<InfoTip> createState() => InfoTipState();
@@ -115,24 +120,37 @@ class InfoTipState extends State<InfoTip> {
   @override
   Widget build(BuildContext context) {
     final active = _portal.isShowing || _focused || _hoverIcon;
-    final icon = Container(
-      key: _iconKey,
-      width: widget.iconSize + 8,
-      height: widget.iconSize + 8,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: _focused ? AppColors.amber : Colors.transparent,
-          width: 1.5,
-        ),
-      ),
-      child: Icon(
-        Icons.info_outline,
-        size: widget.iconSize,
-        color: active ? AppColors.amber : AppColors.textSecondary,
-      ),
-    );
+    final custom = widget.child;
+    final icon = custom != null
+        ? Container(
+            key: _iconKey,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: _focused ? AppColors.amber : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: custom,
+          )
+        : Container(
+            key: _iconKey,
+            width: widget.iconSize + 8,
+            height: widget.iconSize + 8,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _focused ? AppColors.amber : Colors.transparent,
+                width: 1.5,
+              ),
+            ),
+            child: Icon(
+              Icons.info_outline,
+              size: widget.iconSize,
+              color: active ? AppColors.amber : AppColors.textSecondary,
+            ),
+          );
     return Semantics(
       button: true,
       label: widget.semanticLabel ?? 'Sobre: ${widget.title}',

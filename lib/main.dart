@@ -14,6 +14,8 @@ import 'features/board/autopilot.dart';
 import 'features/code/worktree_terminal.dart';
 import 'features/home/tray_radar.dart';
 import 'features/prompt/conversation_manager.dart';
+import 'features/repository/graph/commit_model_badge.dart';
+import 'features/repository/graph/graph_tab.dart' show graphAuthorBadgeProvider;
 import 'features/review/pr_babysitter.dart';
 import 'features/sessions/session_manager.dart';
 import 'features/sessions/widgets/session_terminal.dart';
@@ -51,7 +53,12 @@ Future<void> main() async {
   // Closing the window must not leave `claude` processes orphaned: intercept
   // the close (window_manager 0.5.2 `setPreventClose` + `onWindowClose`), stop every
   // session process / PTY, then destroy the window.
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: [
+      // The model of the agents' commits beside the author (SPEC-045 R9).
+      graphAuthorBadgeProvider.overrideWithValue(commitModelBadge),
+    ],
+  );
   await windowManager.setPreventClose(true);
   final closeHandler = _CloseHandler(container);
   windowManager.addListener(closeHandler);
