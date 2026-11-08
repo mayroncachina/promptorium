@@ -210,9 +210,10 @@ bool _never(int _) => false;
 ///   daughters stay beside the mother), or join the lane that already
 ///   waits for them.
 /// - Each commit belongs to a branch (its track): the default branch first,
-///   then a spec branch whose tip it is, then the lane it came down (the
-///   mother before a daughter), whose name came from a tip or from the
-///   subject of the merge that opened it, then any branch whose tip it is.
+///   then a mother spec whose tip it is, then the lane it came down (the
+///   mother before a daughter; a daughter's tip before a daughter's lane),
+///   whose name came from a tip or from the subject of the merge that
+///   opened it, then any branch whose tip it is.
 /// - The spec of a [collapsed] number (the mother and its daughters) shows
 ///   only its first row, as a [NodeKind.summary]; the others are counted in
 ///   [LaneState.groups] and hidden, their lanes going on to the parents.
@@ -233,14 +234,17 @@ LaneLayout layoutLanes(
               parseSpecBranch(name) == null &&
               name.indexOf('/') == name.length - defaultBranch.length - 1));
 
-  // Lower wins; a tip only takes the commit from a lane it beats.
+  // Lower wins; a tip only takes the commit from a lane it beats. A
+  // mother's tip beats any lane (a spec stacked on it came from there); a
+  // task's tip beats only another task's lane (a task merged by
+  // fast-forward does not take the mother's line).
   int rank(String? name, {bool tip = false}) {
-    if (name == null) return 5;
+    if (name == null) return 6;
     if (isDefault(name)) return 0;
     final spec = parseSpecBranch(name);
-    if (spec == null) return 4;
-    if (tip) return 1;
-    return spec.isTask ? 3 : 2;
+    if (spec == null) return 5;
+    if (spec.isTask) return tip ? 3 : 4;
+    return tip ? 1 : 2;
   }
 
   int free(int after) {

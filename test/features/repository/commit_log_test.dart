@@ -159,6 +159,13 @@ void main() {
     expect(page.rows.first.subject, 'docs: SPEC-043, conflito');
   });
 
+  test('R3 · a spec merged into the remote default branch is not open, '
+      'even with the local one left behind', () async {
+    final tip = (await gitIn(repo, ['rev-parse', 'spec/043-conflito'])).trim();
+    await gitIn(repo, ['update-ref', 'refs/remotes/origin/main', tip]);
+    expect((await log.refs()).openSpecNumbers, isEmpty);
+  });
+
   test('R6 · remote branches without a local copy only when asked', () async {
     final main = (await gitIn(repo, ['rev-parse', 'main~1'])).trim();
     await gitIn(repo, ['update-ref', 'refs/remotes/origin/main', main]);

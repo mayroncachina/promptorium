@@ -176,6 +176,35 @@ void main() {
       expect(l.rows[1].column, 1);
     });
 
+    test(
+      'the mother and a task on the same tip: the line is the mother\'s',
+      () {
+        final l = lay([
+          C('T', ['P'], branches: ['spec/045-t2-aba']),
+          C(
+            'P',
+            ['A'],
+            branches: [
+              'spec/045-t2-aba-old',
+              'spec/045-t1-x',
+              'spec/045-grafo',
+            ],
+          ),
+          C('A', [], branches: ['main']),
+        ]);
+        expect(l.rows[1].track, 'spec/045-grafo');
+      },
+    );
+
+    test('a task merged by fast-forward does not take the mother\'s line', () {
+      final l = lay([
+        C('P2', ['P1'], branches: ['spec/045-grafo']),
+        C('P1', ['A'], branches: ['spec/045-t1-raias']),
+        C('A', [], branches: ['main']),
+      ]);
+      expect(l.rows[1].track, 'spec/045-grafo');
+    });
+
     test('a stale non-spec branch does not take a spec lane', () {
       final l = lay([
         C('S2', ['S1'], branches: ['spec/050-x']),

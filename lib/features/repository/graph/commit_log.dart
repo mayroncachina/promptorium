@@ -219,9 +219,14 @@ class CommitLog {
         tags.add(r.substring('refs/tags/'.length));
       }
     }
-    final base = _baseRef(locals, remotes);
-    var unmerged = <String>[];
-    if (base != null) {
+    // Merged = reachable from the default branch, local or remote (a local
+    // copy left behind does not make the merged specs open again).
+    final bases = <String>{
+      if (locals.contains(defaultBranch)) defaultBranch,
+      ?_remoteBase(remotes),
+    };
+    List<String>? unmerged;
+    for (final base in bases) {
       try {
         final no = await git.git([
           'for-each-ref',
@@ -230,7 +235,7 @@ class CommitLog {
           'refs/heads/spec',
           'refs/remotes',
         ]);
-        unmerged = [
+        final names = [
           for (final line in no.split('\n'))
             if (line.trim() case final r when r.isNotEmpty)
               if (r.startsWith('refs/heads/'))
@@ -239,21 +244,32 @@ class CommitLog {
                   !r.endsWith('/HEAD'))
                 r.substring(13),
         ];
+        unmerged = unmerged == null
+            ? names
+            : [
+                for (final n in unmerged)
+                  if (names.contains(n)) n,
+              ];
       } on GitException {
-        unmerged = [];
+        continue;
       }
     }
     return RepoRefs(
       locals: locals,
       remotes: remotes,
       tags: tags,
-      unmergedSpecs: unmerged,
+      unmergedSpecs: unmerged ?? const [],
     );
   }
 
   /// The default branch: the local one, or its remote copy.
   String? _baseRef(List<String> locals, List<String> remotes) {
     if (locals.contains(defaultBranch)) return defaultBranch;
+    return _remoteBase(remotes);
+  }
+
+  /// The remote copy of the default branch (`origin/main`).
+  String? _remoteBase(List<String> remotes) {
     final r = remote == null ? null : '$remote/$defaultBranch';
     if (r != null && remotes.contains(r)) return r;
     return remotes
