@@ -107,6 +107,19 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **Disparar sempre pede confirmação no diálogo.** Criar tag e release é público e não se desfaz pelo app.
 - **Linha do tempo sem cache próprio.** Tags e releases são poucas, e ler de novo ao abrir a aba evita dados velhos.
 
+Decisões tomadas na implementação, onde a spec não batia com o código ou deixava espaço:
+
+- **`Ctrl+0` vai para o décimo item, e o zoom 100% muda de tecla (T1).** O `Ctrl+0` era o zoom 100% do editor (Specs e Código). Ele passa para `Ctrl+Shift+0` e `Ctrl+Numpad0`, e a folha de atalhos mostra a mudança. O `Ctrl+0` do canvas do Quadro é local e continua igual.
+- **As abas são uma lista de `RepositoryTab` (T1).** Cada aba tem `id`, `label`, `builder`, um contador opcional (`count`, lido no build com `ref.watch`) e um texto opcional à direita do cabeçalho (`headerTrailing`). As SPEC-045 a 047 acrescentam uma entrada em `repositoryTabs`. A aba aberta fica salva em `repo.tab`.
+- **O repositório principal vem do `--git-common-dir` (T1).** Se o workspace for um worktree, a tela mostra o repositório de onde ele saiu. A branch padrão é a HEAD do remoto, depois `branch-base:` do config, depois `main` ou `master`, depois a branch atual.
+- **As notas usam `latestChanges` (T2).** A spec cita `parseChangelogSection`, mas a função da SPEC-038 se chama `latestChanges`. Ela mostra só Funcionalidades e Correções quando o texto vem do git-cliff, como o Sobre, e o texto inteiro quando não vem.
+- **As releases vêm de `gh api repos/{owner}/{repo}/releases` (T2).** O `gh release list --json` não traz os pacotes, o tamanho nem as notas, e pedir cada release com `gh release view` seriam N chamadas. A API devolve tudo de uma vez. "Mais recente" é a publicada mais nova que não é pré-release, como no GitHub.
+- **A linha do tempo ordena por versão, não por data (T2).** Assim um rascunho criado agora e uma tag antiga ficam no lugar certo. A contagem de commits só existe para quem tem a tag local (`git rev-list --count anterior..tag`). Uma release cuja tag não foi baixada aparece sem contagem.
+- **A última tag é a maior versão local, mesmo fora da main (T2).** No Promptorium, a tag nasce na branch `release/vX.Y.Z` e só entra na main com o merge do PR da versão. Se o app exigisse uma tag ancestral da main, o card contaria de novo tudo que já foi lançado.
+- **O app não faz `git fetch` sozinho (T2).** O card usa a cópia do remoto (`origin/main`) quando ela existe e a branch local quando não existe. Abrir a aba não mexe na rede além do `gh`.
+- **A versão sugerida sem o binário do git-cliff (T2).** Sem `cliff.toml`, valem as regras de R3 (antes da 1.0, incompatível sobe a minor e `feat` sobe a patch). Com `cliff.toml` e sem o `git-cliff` instalado, o app segue o `[bump]` do arquivo com os padrões do git-cliff 2.x (`features_always_bump_minor` e `breaking_always_bump_major` ligados). Isso contradiz o "como no git-cliff" de R3, mas é o que faz o app e o workflow chegarem ao mesmo número, que é o objetivo da terceira decisão acima.
+- **Specs só pelo assunto do commit (T2).** O `SPEC-NNN` conta no assunto, e o `spec/NNN-*` conta no merge. O corpo fica de fora, porque cita outras specs ("depende da SPEC-032") sem ter mexido nelas.
+
 ## Plano
 
 1. Validar o mockup (tabela no início da spec).
