@@ -9,6 +9,7 @@ import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
+import 'restack.dart' show howResolvedInstruction;
 import 'review_service.dart';
 
 /// A comment of the PR (conversation or review body).
@@ -184,7 +185,7 @@ String conflictMessage(String base) =>
     'A branch tem conflito com $base. No worktree: rode `git fetch` (se '
     'houver remote) e `git merge $base`, resolva os conflitos mantendo o '
     'que as duas versões precisam, rode os testes e faça commit do merge. '
-    'Explique na resposta como resolveu cada conflito.';
+    '$howResolvedInstruction';
 
 /// What the babysitter knows about one watched PR.
 @immutable

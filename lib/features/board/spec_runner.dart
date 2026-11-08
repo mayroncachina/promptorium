@@ -11,6 +11,7 @@ import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/run_prefs.dart';
+import '../../core/git/agent_trailer.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
@@ -2320,11 +2321,23 @@ class SpecRunner {
       throw const SpecRunException('Nenhuma etapa aguardando verificação.');
     }
     final (s, steps) = found;
+    // SPEC-048 R4: may mix the person's and the agent's edits → "app".
+    final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    final mark =
+        ws != null &&
+        ProjectConfig.loadSync(ws.path).git.markAgentCommits &&
+        gitSupportsAgentTrailer(await _ref.read(gitVersionProvider.future));
     try {
       await _ref
           .read(gitServiceFactoryProvider)(s.worktreePath)
           .commitAll(
             '${spec.code} ${steps.join(', ')}: arquivos restantes da etapa',
+            trailer: mark
+                ? agentTrailerLine(
+                    appTrailerModel,
+                    stepOrigin(spec.code, steps),
+                  )
+                : null,
           );
     } on GitException catch (e) {
       throw SpecRunException('Falha ao fazer o commit: $e');

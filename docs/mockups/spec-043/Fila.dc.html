@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Fila de review</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<aside aria-label="Aguardando review" style="width: 340px; height: 900px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; background: #11141A; border-right: 1px solid #252B35; font-family: 'IBM Plex Sans', sans-serif; color: #E7E9EE">
+  <div style="display: flex; padding: 4px; background: #0B0D11; border: 1px solid #252B35; border-radius: 8px">
+    <button aria-pressed="true" style="flex: 1; height: 32px; border: 0; border-radius: 6px; background: #1F2430; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Lista</button>
+    <button aria-pressed="false" style="flex: 1; height: 32px; border: 0; border-radius: 6px; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Grafo</button>
+  </div>
+  <div style="padding: 10px 6px 2px; font-size: 14px; font-weight: 600; color: #A0A8B6">Aguardando review · 5</div>
+  <sc-for list="{{cards}}" as="c" hint-placeholder-count="5">
+    <button aria-current="{{c.atual}}" style="box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; text-align: left; background: {{c.bg}}; border: 1px solid {{c.borda}}; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+      <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{c.code}}</span>
+      <span style="font-size: 15px; font-weight: 600">{{c.title}}</span>
+      <span style="display: flex; align-items: center; gap: 7px; font-size: 13px; color: {{c.cor}}">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="{{c.cor}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{c.icone}}"></path></svg>
+        <span>{{c.estado}}</span>
+      </span>
+    </button>
+  </sc-for>
+</aside>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":340,"height":900},"estado":{"type":"string","default":"conferindo"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const E = {
+      resolvendo: ['Agente resolvendo o conflito…', '#F2A541', 'M7 1.5 A5.5 5.5 0 1 1 1.5 7'],
+      conferindo: ['Conferindo a resolução · testes', '#8EC5FF', 'M1.5 7 A5.5 5.5 0 0 1 12.5 7 M7 7 L10 4.5'],
+      aprovada: ['Conflito resolvido · gate aprovado', '#5BC88A', 'M2.5 7.5 L5.5 10.5 L11.5 3.5'],
+      reprovada: ['Resolução reprovada no gate · testes', '#F27A6E', 'M2 2 H12 V12 H2 Z M4.8 4.8 L9.2 9.2 M9.2 4.8 L4.8 9.2'],
+      desatualizada: ['A base mudou · resolver de novo', '#F2A541', 'M11.5 5 A5 5 0 0 0 2.5 5 M2.5 2 V5 H5.5 M2.5 9 A5 5 0 0 0 11.5 9 M11.5 12 V9 H8.5'],
+      pronta: ['Pronto para merge', '#5BC88A', 'M2.5 7.5 L5.5 10.5 L11.5 3.5'],
+    };
+    const c = (code, title, st, atual) => { const [estado, cor, icone] = E[st]; return { code, title, estado, cor, icone, atual: atual ? 'true' : 'false', bg: atual ? '#1F2430' : '#14171D', borda: atual ? '#3A4250' : '#252B35' }; };
+    return { cards: [
+      c('SPEC-042', 'Sprints no Quadro', this.props.estado, true),
+      c('SPEC-038', 'Tela Sobre', 'resolvendo'),
+      c('SPEC-037', 'Planejar', 'reprovada'),
+      c('SPEC-039', 'Nova spec com mini planejamento', 'aprovada'),
+      c('SPEC-036', 'Pasta de specs e palco no Canvas', 'pronta'),
+    ] };
+  }
+}
+</script>
+</body>
+</html>

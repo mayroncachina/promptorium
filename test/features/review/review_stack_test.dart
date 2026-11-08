@@ -1,7 +1,15 @@
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/step_gate.dart';
+import 'package:promptorium/features/review/conflict_resolution.dart';
 import 'package:promptorium/features/review/review_logic.dart';
 import 'package:promptorium/features/review/review_stack.dart';
+import 'package:promptorium/features/review/widgets/conflict_resolution_panel.dart';
+import 'package:promptorium/features/review/widgets/merge_status_view.dart';
+import 'package:promptorium/ui/theme/tokens.dart';
 
 import '../board/board_rules_test.dart' show spec;
 import 'review_logic_test.dart' show session;
@@ -140,6 +148,280 @@ void main() {
       );
     });
 
+    test('SPEC-043 R2: the card shows the states of the resolution with icon '
+        'and text', () {
+      MergeStatus of(ResolutionState r, {String? detail}) => mergeStatusOf(
+        resolution: r,
+        resolutionDetail: detail,
+        conflictFiles: const [],
+      );
+      expect(
+        of(ResolutionState.resolvendo).text,
+        'Agente resolvendo o conflito…',
+      );
+      expect(
+        of(ResolutionState.conferindo, detail: 'testes').text,
+        'Conferindo a resolução · testes',
+      );
+      expect(
+        of(ResolutionState.aprovada).text,
+        'Conflito resolvido · gate aprovado',
+      );
+      expect(
+        of(ResolutionState.reprovada, detail: 'testes').text,
+        'Resolução reprovada no gate · testes',
+      );
+      expect(
+        of(ResolutionState.desatualizada).text,
+        'A base mudou · resolver de novo',
+      );
+      final looks = {
+        for (final s in [
+          MergeState.resolvendo,
+          MergeState.conferindo,
+          MergeState.resolvida,
+          MergeState.reprovada,
+          MergeState.resolucaoDesatualizada,
+        ])
+          s: mergeStateLook(s),
+      };
+      expect(looks[MergeState.resolvida]!.$2, AppColors.teal);
+      expect(looks[MergeState.reprovada]!.$2, AppColors.red);
+      expect(looks.values.map((l) => l.$1).toSet(), hasLength(5));
+      // The resolution in progress comes before the reviewer and the
+      // forecast; an approved one replaces "ready", not the pendencies.
+      expect(
+        mergeStatusOf(
+          resolution: ResolutionState.resolvendo,
+          reviewing: true,
+          conflictFiles: const ['a'],
+        ).state,
+        MergeState.resolvendo,
+      );
+      expect(
+        mergeStatusOf(
+          resolution: ResolutionState.aprovada,
+          conflictFiles: const [],
+          pending: true,
+        ).state,
+        MergeState.pendencias,
+      );
+      // A manual rebase ("Resolver eu mesmo") wins over a failed one.
+      expect(
+        mergeStatusOf(
+          resolution: ResolutionState.reprovada,
+          rebaseStep: '1 de 1',
+        ).state,
+        MergeState.rebaseManual,
+      );
+      PrimaryAction primary(MergeState s) =>
+          primaryActionOf(MergeStatus(s), hasPr: false);
+      expect(primary(MergeState.reprovada), PrimaryAction.corrigirVerificar);
+      expect(
+        primary(MergeState.resolucaoDesatualizada),
+        PrimaryAction.resolverDeNovo,
+      );
+      expect(primary(MergeState.conferindo), PrimaryAction.fazerMerge);
+      expect(primary(MergeState.resolvida), PrimaryAction.fazerMerge);
+    });
+
+    testWidgets('SPEC-043 R2, R3: header pill, gate running and the three ways '
+        'out of a failed resolution', (tester) async {
+      tester.view.physicalSize = const Size(1440, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final running = ConflictResolution(
+        state: ResolutionState.conferindo,
+        workspaceId: 1,
+        files: const ['a.txt'],
+        running: 'testes',
+        plan: const ['arvore', 'marcadores', 'base', 'testes', 'lint'],
+        report: GateReport(
+          at: DateTime(2026),
+          checks: const [
+            GateCheck(name: 'arvore', ok: true),
+            GateCheck(name: 'marcadores', ok: true, output: '1 arquivo(s)'),
+            GateCheck(name: 'base', ok: true, output: 'a408a2e1'),
+          ],
+        ),
+      );
+      final settings = _Settings({resolutionKey('s1'): running.encode()});
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appSettingsProvider.overrideWith(() => settings)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const ResolutionChip(sessionId: 's1'),
+                    ConflictResolutionPanel(
+                      sessionId: 's1',
+                      specCode: 'SPEC-042',
+                      busy: false,
+                      run: (_, job) => job(),
+                      toast: (_) {},
+                      refresh: () {},
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Conferindo a resolução'), findsOneWidget);
+      expect(find.text('Gate da resolução'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('review-resolution-running-testes')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('review-resolution-queued-lint')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('não tem build:'), findsOneWidget);
+
+      settings.state = {
+        resolutionKey('s1'): running
+            .copyWith(
+              state: ResolutionState.reprovada,
+              running: () => null,
+              checkedSha: () => '4e1b7a2aa',
+              gates: 2,
+              report: () => GateReport(
+                at: DateTime(2026),
+                checks: const [
+                  GateCheck(name: 'arvore', ok: true),
+                  GateCheck(name: 'marcadores', ok: true),
+                  GateCheck(name: 'base', ok: true),
+                  GateCheck(
+                    name: 'testes',
+                    ok: false,
+                    command: 'flutter test',
+                    output: 'Expected: <3>\n  Actual: <2>',
+                  ),
+                ],
+              ),
+            )
+            .encode(),
+      };
+      await tester.pump();
+      expect(find.text('Resolução reprovada no gate'), findsOneWidget);
+      expect(find.textContaining('Expected: <3>'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('review-resolution-not-run')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('review-resolution-fix')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('review-resolution-undo')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('review-resolution-myself')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('SPEC-043 R4: "O que a resolução decidiu" shows both sides, '
+        'the result and the explanation', (tester) async {
+      tester.view.physicalSize = const Size(1440, 1200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final approved = ConflictResolution(
+        state: ResolutionState.aprovada,
+        workspaceId: 1,
+        files: const ['lib/a.dart'],
+        checkedSha: '4e1b7a2aa',
+        report: GateReport(
+          at: DateTime(2026),
+          checks: const [GateCheck(name: 'marcadores', ok: true)],
+        ),
+      );
+      Widget app(ResolutionDecisions d) => ProviderScope(
+        key: UniqueKey(),
+        overrides: [
+          appSettingsProvider.overrideWith(
+            () => _Settings({resolutionKey('s1'): approved.encode()}),
+          ),
+          resolutionDecisionsProvider('s1').overrideWith((ref) async => d),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ConflictResolutionPanel(
+                sessionId: 's1',
+                specCode: 'SPEC-042',
+                busy: false,
+                run: (_, job) => job(),
+                toast: (_) {},
+                refresh: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      const hunks = [
+        ResolutionHunk(
+          path: 'lib/a.dart',
+          line: 41,
+          base: ['main()'],
+          spec: ['spec()'],
+          result: ['main();', '// spec'],
+        ),
+        ResolutionHunk(
+          path: 'lib/a.dart',
+          line: 80,
+          base: ['x'],
+          spec: ['y'],
+          result: ['y'],
+        ),
+      ];
+      await tester.pumpWidget(
+        app(
+          ResolutionDecisions(
+            hunks: hunks,
+            how: parseHowResolved('## Como resolvi\na.dart: mantive a main'),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('O que a resolução decidiu'), findsOneWidget);
+      expect(find.text('1 arquivo · 2 trechos'), findsOneWidget);
+      expect(find.text('Na main'), findsOneWidget);
+      expect(find.text('Nesta spec (SPEC-042)'), findsOneWidget);
+      expect(find.text('Resultado do agente'), findsOneWidget);
+      expect(find.text('main();\n// spec'), findsOneWidget);
+      expect(find.text('mantive a main'), findsOneWidget);
+      expect(find.text('Como resolvi · resposta do agente'), findsOneWidget);
+      expect(find.textContaining('Trecho 1 de 2'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('review-resolution-next')));
+      await tester.pump();
+      expect(find.textContaining('Trecho 2 de 2'), findsOneWidget);
+
+      // Without ## Como resolvi: the whole answer.
+      await tester.pumpWidget(
+        app(
+          const ResolutionDecisions(
+            hunks: hunks,
+            answer: 'Fiquei com a main em tudo.',
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Fiquei com a main em tudo.'), findsOneWidget);
+      expect(
+        find.textContaining('sem a seção ## Como resolvi'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     test('accessible label of a card (R14)', () {
       expect(
         queueSemanticLabel(
@@ -161,4 +443,13 @@ void main() {
       );
     });
   });
+}
+
+class _Settings extends AppSettingsController {
+  _Settings(this.initial);
+
+  final Map<String, String> initial;
+
+  @override
+  Map<String, String> build() => initial;
 }
