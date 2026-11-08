@@ -1,6 +1,6 @@
 # Repositório
 
-A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. Por enquanto a tela tem só a aba **Releases**. Grafo, Atividade e Higiene chegam nas próximas versões.
+A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. Por enquanto a tela tem as abas **Releases** e **Grafo**. Atividade e Higiene chegam nas próximas versões.
 
 ## Releases
 
@@ -61,6 +61,62 @@ No fim:
 
 "Fechar" tira o resultado do card e da bandeja.
 
+## Grafo
+
+A aba **Grafo** desenha o histórico como um grafo de raias, uma por branch. Cada linha é um commit, com as raias à esquerda e, ao lado, as etiquetas, a mensagem, a spec, o autor, a data relativa e o SHA curto. O app calcula as raias e as curvas, sem ler o `git log --graph`. O grafo só lê: nenhuma ação de git sai daqui.
+
+### Cores
+
+- A branch padrão fica sempre na primeira raia, em cinza claro.
+- Uma branch `spec/NNN-*` ganha a cor da spec. A mesma cor aparece no ponto da spec no painel e em Releases.
+- As filhas de uma spec grande (`spec/NNN-tN-*`) ficam ao lado da pai, no mesmo tom, mais claro.
+- As outras branches ficam em um tom neutro.
+
+A spec de cada commit vem da branch que o contém primeiro. No merge de um PR, vem da branch que ele trouxe. Num commit da branch padrão, vem do `SPEC-NNN` da mensagem.
+
+### Specs recolhidas
+
+As specs já mergeadas começam **recolhidas**: a pai e as filhas viram uma linha só, como "SPEC-042 · Sprints no Quadro: 4 tarefas, 4 mergeadas, 11 commits". A etiqueta **recolhida** expande a spec. A etiqueta `SPEC-NNN` na primeira linha da raia recolhe de novo. As specs abertas, com branch ainda não mergeada na branch padrão local ou na remota, começam expandidas.
+
+### Etiquetas
+
+- **Tag de versão** (âmbar): um clique abre a versão em Releases.
+- **Branch**: local, e a remota (`origin/…`) só quando aponta para outro commit.
+- **PR aberto** na ponta da branch, com o estado do CI: rodando, passou ou falhou. Os PRs que o babysitter acompanha vêm dele, e os outros vêm de `gh pr list`. Com uma sessão na branch, o clique abre o card no Review. Sem sessão, abre o PR no navegador.
+- **Agente trabalhando**, com um ponto pulsando, na ponta da branch de um worktree em que um agente está rodando.
+
+Com o ponteiro sobre uma raia, a spec dela (pai e filhas) fica em destaque e o resto esmaece. Um balão mostra o nome da branch, quantas filhas e quantos commits ela tem a mais que a branch padrão e, se já foi mergeada, quando e por qual PR.
+
+### Filtros e busca
+
+- **Todas as branches** (padrão) mostra todas as branches e tags locais.
+- **Só a main** (o nome da branch padrão) usa `--first-parent`, com um commit por merge.
+- **Specs abertas** mostra a branch padrão e as `spec/*` ainda não mergeadas.
+- **Branches só no remoto** acrescenta as branches remotas que não têm cópia local.
+
+A busca procura na mensagem, no SHA (a partir de 4 caracteres), no autor ou por `SPEC-NNN`. Ela realça os resultados e mostra "2 de 13". O **Enter** pula para o próximo resultado.
+
+Quando a Atividade abre o Grafo filtrado por um dia, o cabeçalho mostra "Só 7 nov 2026". O × volta para todos os dias.
+
+### Painel do commit
+
+Clicar num commit abre o painel à direita:
+
+- a mensagem inteira, o autor, a data e o SHA, com **Copiar SHA**;
+- os pais (dois num merge), com a branch de cada um;
+- as branches e tags que contêm o commit;
+- a spec, com **Abrir no Quadro**;
+- o PR, com **Abrir no Review**, ou **Abrir no GitHub** quando não há sessão;
+- os arquivos com `+` e `−`, contados contra o primeiro pai. Num merge, isso mostra o que o merge trouxe. Cada arquivo tem **diferença**.
+
+Com o painel aberto, a lista esconde as colunas de spec e autor. Um novo clique no commit, ou o ×, fecha o painel.
+
+### Carregamento e atualização
+
+A aba lê 300 commits por vez, em ordem topológica, e lê mais 300 ao chegar perto do fim da lista. As raias da página nova continuam as da anterior, sem recalcular o que já está na tela, e a lista desenha só as linhas visíveis. Quando HEAD, uma branch ou uma tag muda, a aba relê o log sozinha. O commit selecionado e a linha do topo continuam onde estavam.
+
 ## Sem gh
 
 Sem o `gh`, sem login no `gh` ou sem remoto no GitHub, a aba continua mostrando as tags locais, o card Não lançado e a prévia. **Criar release** fica desabilitado, com o motivo e o comando que resolve (`gh auth login`). Um repositório sem nenhuma tag mostra tudo desde o primeiro commit e sugere `0.1.0`.
+
+No Grafo, sem o `gh` só faltam as etiquetas de PR. O resto vem do git local.
