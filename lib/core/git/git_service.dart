@@ -578,6 +578,30 @@ class GitService {
     );
   }
 
+  /// [CommitOrigin] of each of [shas] (in that order), read in one `git
+  /// log --no-walk` — the Grafo's page of rows (SPEC-045 R9). [since] as in
+  /// [commitOrigins]; null = the unmarked ones stay
+  /// [CommitOriginKind.unmarked] (no extra read).
+  Future<List<CommitOrigin>> commitOriginsOf(
+    Iterable<String> shas, {
+    DateTime? since,
+  }) async {
+    final list = [for (final s in shas) _arg(s, 'commit')];
+    if (list.isEmpty) return const [];
+    final out = await git([
+      'log',
+      '--no-walk=unsorted',
+      '--format=%H%x1f%an%x1f%cI%x1f%s%x1f'
+          '%(trailers:key=$_trailerKey,valueonly,separator=%x1d)%x1e',
+      ...list,
+      '--',
+    ]);
+    return [
+      for (final rec in out.split('\x1e'))
+        if (rec.trim().isNotEmpty) CommitOrigin.parse(rec.trim(), since: since),
+    ];
+  }
+
   /// Date of the first marked commit of [branch] (when the marking started
   /// there); null = none yet.
   Future<DateTime?> agentMarkSince(String branch) async {

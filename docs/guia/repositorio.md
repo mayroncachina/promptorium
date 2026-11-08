@@ -1,6 +1,6 @@
 # Repositório
 
-A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. A tela tem as abas **Releases**, **Grafo** e **Higiene**. Atividade chega na próxima versão.
+A tela **Repositório** fica na barra lateral depois de Review (Ctrl+7). Ela mostra o repositório principal do workspace, nunca um worktree. O cabeçalho tem o nome, o remoto e a branch padrão (`promptorium · origin · main`) e, à direita, a conta do `gh`. A tela tem as abas **Releases**, **Grafo**, **Atividade** e **Higiene**.
 
 ## Releases
 
@@ -84,6 +84,7 @@ As specs já mergeadas começam **recolhidas**: a pai e as filhas viram uma linh
 - **Branch**: local, e a remota (`origin/…`) só quando aponta para outro commit.
 - **PR aberto** na ponta da branch, com o estado do CI: rodando, passou ou falhou. Os PRs que o babysitter acompanha vêm dele, e os outros vêm de `gh pr list`. Com uma sessão na branch, o clique abre o card no Review. Sem sessão, abre o PR no navegador.
 - **Agente trabalhando**, com um ponto pulsando, na ponta da branch de um worktree em que um agente está rodando.
+- **Modelo**, ao lado do autor, nos commits marcados pela linha `Promptorium-Agente` (veja [Projeto](projeto.md)): `sonnet`, `opus`, `haiku` ou `app`, quando o próprio app commitou numa etapa. O ⓘ da etiqueta mostra a origem ("SPEC-042 T4") e a linha exata da mensagem. Sem a linha, só o autor aparece. As origens das linhas na tela são lidas de uma vez, num `git log` só.
 
 Com o ponteiro sobre uma raia, a spec dela (pai e filhas) fica em destaque e o resto esmaece. Um balão mostra o nome da branch, quantas filhas e quantos commits ela tem a mais que a branch padrão e, se já foi mergeada, quando e por qual PR.
 
@@ -114,6 +115,44 @@ Com o painel aberto, a lista esconde as colunas de spec e autor. Um novo clique 
 ### Carregamento e atualização
 
 A aba lê 300 commits por vez, em ordem topológica, e lê mais 300 ao chegar perto do fim da lista. As raias da página nova continuam as da anterior, sem recalcular o que já está na tela, e a lista desenha só as linhas visíveis. Quando HEAD, uma branch ou uma tag muda, a aba relê o log sozinha. O commit selecionado e a linha do topo continuam onde estavam.
+
+## Atividade
+
+A aba **Atividade** mostra o ritmo do projeto com números tirados só do git e das specs: em que dias se trabalhou, quanto foi funcionalidade e quanto foi correção, quanto tempo uma spec leva e quais arquivos mudam em quase toda spec. Ela lê a branch padrão (local e remota) e as branches `spec/*`. Os merges não contam como commits.
+
+No topo, **30 dias**, **90 dias** (padrão) ou **1 ano** vale para a aba inteira. O app guarda a escolha.
+
+### Resumo
+
+Quatro números do período: **commits**, **specs mergeadas**, **releases** (as tags de versão, "v0.6.0 a v0.11.0") e o **ciclo mediano das specs**. Cada um é comparado com o período anterior de mesmo tamanho ("+38% que os 90 dias anteriores"). No ciclo, menos tempo aparece em verde.
+
+### Commits por dia
+
+Uma célula por dia, em colunas por semana (segunda no topo), com cinco tons pela quantidade de commits. Os dias com tag de versão ganham um anel. O balão diz a data, os commits e as specs que receberam commits naquele dia. Um clique abre o **Grafo** só com os commits do dia.
+
+### Commits por tipo
+
+Barras empilhadas por semana, com os grupos do `cliff.toml` do projeto (ou os do Promptorium, como no card Não lançado). Os commits fora do padrão de commit convencional ficam em **Outros**, e passados seis grupos, os menores também. Um clique na legenda esconde ou mostra o grupo.
+
+### Ciclo das specs
+
+O tempo do primeiro commit numa branch `spec/NNN-*` até o primeiro merge da spec na branch padrão. As filhas de uma spec grande contam dentro da pai. O cartão mostra a **mediana**, o **percentil 90**, as **cinco mais longas** (um clique abre a spec no Quadro) e, com sprints, a **mediana por sprint** concluída no período, em ordem. Um commit de spec feito direto na branch padrão (o arquivo da spec, por exemplo) não conta: ele mede o planejamento, que é outra pergunta.
+
+Sem branches `spec/*`, o cartão diz "Este repositório não usa branches de spec" em vez de mostrar zero. Sem tags, o resumo diz "Sem tags no repositório" e o mapa não marca dias de release.
+
+### Arquivos mais alterados
+
+Os 15 arquivos com mais commits no período, com as linhas somadas (`+` e `−`) e quantas specs diferentes mexeram neles. Código gerado e lockfiles ficam de fora (`*.g.dart`, `*.freezed.dart`, `pubspec.lock`, `package-lock.json`…). Ao abrir um arquivo, o painel lista as specs que o alteraram, da mais nova para a mais antiga, cada uma com os seus commits (os três mais novos, e "+N anteriores"). A spec abre no Quadro e o commit abre no Grafo. **Ver no Grafo** seleciona o commit mais novo do arquivo e **Abrir no Código** abre o arquivo na tela Código.
+
+### Quem fez os commits
+
+Separa os commits do período em **você**, **agentes** e **app**, pela linha `Promptorium-Agente` que o app põe nos commits das sessões quando a marcação está ligada (veja [Projeto](projeto.md)). As barras por semana mostram as três origens. Ao lado, os totais com a porcentagem e os commits de agente por modelo. O ⓘ do título explica de onde vem a separação e desde quando o projeto marca.
+
+As semanas antes do primeiro commit marcado ficam em cinza, como **sem marca**, e nunca contam como suas. Com a marcação desligada, o cartão diz "Este projeto não marca os commits dos agentes", e **Ligar neste projeto** abre a mesma confirmação da tela Projeto.
+
+### Cálculo
+
+Na primeira vez, a aba lê o histórico com `git log --numstat` e guarda o resultado em `~/.promptorium/atividade/`, com a ponta de cada branch lida. Ao abrir de novo sem commits novos, nada é lido do git. Com commits novos, só eles são lidos. Uma branch reescrita (rebase, amend) faz a aba ler tudo de novo. Os números são calculados fora da thread da interface, e os cartões aparecem como esqueleto enquanto isso.
 
 ## Sem gh
 
