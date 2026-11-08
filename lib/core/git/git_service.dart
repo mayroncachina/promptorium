@@ -110,6 +110,108 @@ class GitLogEntry {
   final String subject;
 }
 
+/// Who made a commit (SPEC-048 R5).
+enum CommitOriginKind {
+  /// No trailer, after the marking started: the person.
+  person,
+
+  /// `Promptorium-Agente: <modelo> · <origem>` from an agent session.
+  agent,
+
+  /// `Promptorium-Agente: app · …`: a commit the app made, which may mix
+  /// the person's and the agent's edits.
+  app,
+
+  /// No trailer, before the first marked commit: unknown.
+  unmarked,
+}
+
+/// One commit read by [GitService.commitOrigins].
+@immutable
+class CommitOrigin {
+  const CommitOrigin({
+    required this.sha,
+    required this.kind,
+    required this.author,
+    required this.date,
+    required this.subject,
+    this.model,
+    this.origin,
+    this.trailer,
+  });
+
+  final String sha;
+  final CommitOriginKind kind;
+  final String author;
+
+  /// Committer date.
+  final DateTime date;
+  final String subject;
+
+  /// `sonnet`, `gpt-5`, `app` (null without trailer).
+  final String? model;
+
+  /// `SPEC-042 R2`, `sessão x`, `Prompt` (null without trailer / origin).
+  final String? origin;
+
+  /// The exact line: `Promptorium-Agente: sonnet · SPEC-042 R2`.
+  final String? trailer;
+
+  bool get isAgent => kind == CommitOriginKind.agent;
+
+  /// `<sha>\x1f<author>\x1f<date>\x1f<subject>\x1f<values>` (values
+  /// separated by `\x1d`, the last one wins).
+  static CommitOrigin parse(String rec, {DateTime? since}) {
+    final f = rec.split('\x1f');
+    String at(int i) => f.length > i ? f[i] : '';
+    final date = DateTime.tryParse(at(2)) ?? DateTime(1970);
+    final values = [
+      for (final v in at(4).split('\x1d'))
+        if (v.trim().isNotEmpty) v.trim(),
+    ];
+    final value = values.isEmpty ? null : values.last;
+    if (value == null) {
+      return CommitOrigin(
+        sha: at(0),
+        kind: since != null && !date.isBefore(since)
+            ? CommitOriginKind.person
+            : CommitOriginKind.unmarked,
+        author: at(1),
+        date: date,
+        subject: at(3),
+      );
+    }
+    final cut = value.indexOf(' · ');
+    final model = (cut < 0 ? value : value.substring(0, cut)).trim();
+    final origin = cut < 0 ? null : value.substring(cut + 3).trim();
+    return CommitOrigin(
+      sha: at(0),
+      kind: model == 'app' ? CommitOriginKind.app : CommitOriginKind.agent,
+      author: at(1),
+      date: date,
+      subject: at(3),
+      model: model,
+      origin: origin == null || origin.isEmpty ? null : origin,
+      trailer: 'Promptorium-Agente: $value',
+    );
+  }
+}
+
+/// Result of [GitService.commitOrigins].
+@immutable
+class CommitOriginLog {
+  const CommitOriginLog({required this.commits, this.since});
+
+  /// Newest first.
+  final List<CommitOrigin> commits;
+
+  /// First marked commit of the default branch (null = marking never ran).
+  final DateTime? since;
+
+  int count(CommitOriginKind kind) =>
+      commits.where((c) => c.kind == kind).length;
+}
+
 /// Git operations on one repository (`git -C <repoRoot> …`).
 class GitService {
   GitService(this.repoRoot, {ProcessRunner? run, String? worktreesBase})
@@ -349,15 +451,106 @@ class GitService {
   }
 
   /// `git add -A && git commit -m <message>` (nothing staged = no commit,
-  /// returns false).
-  Future<bool> commitAll(String message) async {
+  /// returns false). [trailer] (`Promptorium-Agente: app · SPEC-042 R2`)
+  /// goes in with `--trailer` (SPEC-048 R4).
+  Future<bool> commitAll(String message, {String? trailer}) async {
     await git(['add', '-A']);
     if ((await git(['diff', '--cached', '--name-only'])).trim().isEmpty) {
       return false;
     }
-    await git(['commit', '-q', '-m', message]);
+    await git([
+      'commit',
+      '-q',
+      '-m',
+      message,
+      if (trailer != null) ...['--trailer', trailer],
+    ]);
     return true;
   }
+
+  /// Who made [sha] (SPEC-048 R5). [since] = [agentMarkSince] of the
+  /// default branch: an unmarked commit before it counts as
+  /// [CommitOriginKind.unmarked]; null = read it from [defaultBranch] (or
+  /// HEAD).
+  Future<CommitOrigin> commitOrigin(
+    String sha, {
+    DateTime? since,
+    String? defaultBranch,
+  }) async {
+    final log = await commitOrigins(
+      _arg(sha, 'commit'),
+      since: since,
+      defaultBranch: defaultBranch,
+      limit: 1,
+    );
+    if (log.commits.isEmpty) throw GitException('commit não encontrado: $sha');
+    return log.commits.first;
+  }
+
+  /// [CommitOrigin] of every commit of [range] (`main`, `a..b`), newest
+  /// first, read in one `git log` with the `Promptorium-Agente` trailer.
+  Future<CommitOriginLog> commitOrigins(
+    String range, {
+    DateTime? since,
+    String? defaultBranch,
+    int? limit,
+  }) async {
+    final from = since ?? await agentMarkSince(defaultBranch ?? 'HEAD');
+    final out = await git([
+      'log',
+      if (limit != null) ...['-n', '$limit'],
+      '--format=%H%x1f%an%x1f%cI%x1f%s%x1f'
+          '%(trailers:key=$_trailerKey,valueonly,separator=%x1d)%x1e',
+      _arg(range, 'intervalo'),
+      '--',
+    ]);
+    return CommitOriginLog(
+      since: from,
+      commits: [
+        for (final rec in out.split('\x1e'))
+          if (rec.trim().isNotEmpty)
+            CommitOrigin.parse(rec.trim(), since: from),
+      ],
+    );
+  }
+
+  /// Date of the first marked commit of [branch] (when the marking started
+  /// there); null = none yet.
+  Future<DateTime?> agentMarkSince(String branch) async {
+    try {
+      final out = await git([
+        'log',
+        '--format=%cI',
+        '--grep=^$_trailerKey: ',
+        _arg(branch, 'branch'),
+        '--',
+      ]);
+      final lines = out.trim().split('\n').where((l) => l.trim().isNotEmpty);
+      return lines.isEmpty ? null : DateTime.tryParse(lines.last.trim());
+    } on GitException {
+      return null;
+    }
+  }
+
+  /// Marked commits of [branch] (status line of the option).
+  Future<int> agentMarkCount(String branch) async {
+    try {
+      return int.tryParse(
+            (await git([
+              'rev-list',
+              '--count',
+              '--grep=^$_trailerKey: ',
+              _arg(branch, 'branch'),
+              '--',
+            ])).trim(),
+          ) ??
+          0;
+    } on GitException {
+      return 0;
+    }
+  }
+
+  static const _trailerKey = 'Promptorium-Agente';
 
   /// `git update-ref <ref> <sha>` (refs under `refs/promptorium/`).
   Future<void> updateRef(String ref, String sha) =>
