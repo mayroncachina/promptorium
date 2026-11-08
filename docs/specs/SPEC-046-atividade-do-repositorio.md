@@ -1,6 +1,6 @@
 ---
 id: SPEC-046
-status: rascunho
+status: aprovada
 depende-de: SPEC-044, SPEC-042, SPEC-048
 issue: 104
 ---
@@ -23,6 +23,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 | `2-arquivo.png` | Arquivos mais alterados, com as specs que mexeram em um deles | R5 |
 | `3-quem-fez.png` | "Quem fez os commits": pessoa, agentes e app por semana e por modelo, com o tooltip do ⓘ aberto | R8 |
 | `4-quem-fez-desligado.png` | O cartão quando o projeto não marca os commits, com "Ligar neste projeto" | R8 |
+| `5-aba-implementada.png` | A aba implementada, com o histórico real do Promptorium (a marca de "Quem fez" simulada nos últimos dias) | R1–R5, R8 |
+| `6-arquivo-implementado.png` | O painel de um arquivo, implementado | R5 |
+| `7-quem-fez-desligado-implementado.png` | "Quem fez os commits" com a marcação desligada, implementado | R8 |
 
 ## Requisitos
 
@@ -80,6 +83,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **Ciclo da spec começa no primeiro commit da branch.** A data de criação do arquivo da spec mede o tempo de planejamento, que é outra pergunta.
 - **Sem marca não é pessoa.** Antes da SPEC-048 ligada, todo commit tem o nome da pessoa. Contar esses como dela inflaria o número e esconderia o trabalho dos agentes.
 - **Sem pacote de gráficos.** Os cinco gráficos são simples, e um pacote novo traria temas e dependências que o app não precisa.
+- **Merges não contam como commits.** O resumo, o mapa, os tipos, os arquivos e "Quem fez" contam só os commits com trabalho. Um "Merge pull request" não tem arquivos no `--numstat` e iria todo para "Outros". Os merges servem para achar as specs mergeadas e o fim do ciclo.
+- **Spec mergeada = merge na linha de primeiro pai da branch padrão.** O nome da branch vem da mensagem do merge (`Merge pull request #94 from o/spec/042-sprints`, `Merge branch 'spec/…'`), como no Grafo. O primeiro merge da spec, da pai ou de uma filha, fecha o ciclo. Um squash merge sem branch no assunto não entra no ciclo nem nas specs mergeadas.
+- **O início do ciclo vem da raia do Grafo.** `layoutLanes` (SPEC-045) dá a branch de cada commit, mesmo depois de a branch ser apagada. O ciclo começa no commit mais antigo de uma raia `spec/NNN-*` (pai ou filha) antes do merge. `specsOfLog` não serve aqui porque cai no `SPEC-NNN` da mensagem, e o commit do arquivo da spec na `main` esticaria o ciclo para o planejamento.
+- **O cache guarda todas as pontas, não só a da branch padrão.** A chave é o mapa ref → SHA da branch padrão (local e `origin/`) e das `spec/*`. Assim um commit novo numa branch de spec também é lido. A leitura incremental usa `git log <pontas novas> --not <pontas antigas>`. Se algum commit antigo deixou de ser alcançável (rebase, amend, branch apagada antes do merge), a aba lê tudo de novo. O cache fica em `~/.promptorium/atividade/<repo>-<hash>.json`, fora do workspace, para não aparecer no `git status` nem acordar o vigia da pasta.
+- **O histórico inteiro é lido uma vez, e os três períodos saem da mesma leitura.** Assim o ciclo de uma spec que começou antes do período fica certo, e trocar o período não lê nada de novo. Os relatórios dos três períodos são calculados juntos em outro isolate (`Isolate.run`) e guardados em memória pela chave das pontas e do dia.
+- **A marca de "Quem fez" vem do mesmo `git log`.** A leitura com `--numstat` já traz o trailer `Promptorium-Agente` (`%(trailers:…)`), e a classificação é a mesma de `CommitOrigin.parse` (SPEC-048). Ler de novo com `commitOrigins` seria um segundo `git log` do histórico inteiro. O "desde" é o primeiro commit marcado entre todos os lidos, e não só na branch padrão: as sessões marcam primeiro nas branches de spec.
+- **No máximo seis grupos em "Commits por tipo".** Os grupos com menos commits no período vão para "Outros", para a legenda caber numa linha. A ordem é a do `cliff.toml`.
+- **A mediana por sprint usa as sprints concluídas dentro do período.** O ciclo de cada spec vem do histórico inteiro, porque a sprint é a sua própria janela. A spec entra na sprint pelo `sprintId` dela no banco.
+- **Releases são as tags de versão.** Contam as tags que são versões semânticas. Sem nenhuma, contam todas as tags. A data é a da tag anotada, ou a do commit.
+- **O painel do arquivo mostra três commits por spec**, e "+N anteriores" mostra o resto. A lista inteira deixava o painel mais alto que a tabela. "Ver no Grafo" seleciona o commit mais novo do arquivo (a busca do Grafo não procura por caminho) e "Abrir no Código" abre o arquivo na raiz do workspace.
+- **O filtro por dia vem por `openGraph(day:)`**, o pedido que a SPEC-045 já deixou pronto, e não por parâmetro de rota: o app não tem rotas por aba.
+- **A etiqueta do Grafo (SPEC-045 R9) é ligada aqui**, por um override em `lib/main.dart`, para o Grafo não depender da leitura da SPEC-048. Veja as decisões da SPEC-045.
 
 ## Plano
 
@@ -92,14 +107,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 
 ## Critérios de aceite
 
-- [ ] O resumo compara com o período anterior nos três períodos [R1] verificar: flutter test test/features/repository/activity_stats_test.dart
-- [ ] O mapa conta commits por dia, marca releases e leva ao Grafo do dia [R2] verificar: flutter test test/features/repository/activity_tab_test.dart
-- [ ] Os tipos seguem os grupos do cliff.toml, com "Outros" [R3] verificar: flutter test test/features/repository/activity_stats_test.dart
-- [ ] O ciclo das specs dá mediana, p90, as cinco mais longas e a mediana por sprint, com as filhas dentro da pai [R4] verificar: flutter test test/features/repository/activity_stats_test.dart
-- [ ] Os arquivos mais alterados ignoram gerados e listam as specs de cada um [R5] verificar: flutter test test/features/repository/activity_stats_test.dart
-- [ ] Sem commits novos nada é recalculado; com commits novos só eles são lidos [R6] verificar: flutter test test/features/repository/activity_log_test.dart
-- [ ] Sem branches de spec ou sem tags a aba explica em vez de mostrar zero [R7] verificar: flutter test test/features/repository/activity_tab_test.dart
-- [ ] Quem fez separa pessoa, agentes e app, por modelo, com as semanas sem marca em cinza e o tooltip explicando a origem [R8] verificar: flutter test test/features/repository/activity_stats_test.dart
-- [ ] Desligado, o cartão explica e "Ligar neste projeto" abre a confirmação [R8] verificar: flutter test test/features/repository/activity_tab_test.dart
+- [x] O resumo compara com o período anterior nos três períodos [R1] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [x] O mapa conta commits por dia, marca releases e leva ao Grafo do dia [R2] verificar: flutter test test/features/repository/activity_tab_test.dart
+- [x] Os tipos seguem os grupos do cliff.toml, com "Outros" [R3] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [x] O ciclo das specs dá mediana, p90, as cinco mais longas e a mediana por sprint, com as filhas dentro da pai [R4] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [x] Os arquivos mais alterados ignoram gerados e listam as specs de cada um [R5] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [x] Sem commits novos nada é recalculado; com commits novos só eles são lidos [R6] verificar: flutter test test/features/repository/activity_log_test.dart
+- [x] Sem branches de spec ou sem tags a aba explica em vez de mostrar zero [R7] verificar: flutter test test/features/repository/activity_tab_test.dart
+- [x] Quem fez separa pessoa, agentes e app, por modelo, com as semanas sem marca em cinza e o tooltip explicando a origem [R8] verificar: flutter test test/features/repository/activity_stats_test.dart
+- [x] Desligado, o cartão explica e "Ligar neste projeto" abre a confirmação [R8] verificar: flutter test test/features/repository/activity_tab_test.dart
 - [ ] A aba abre em menos de 2 s no Promptorium depois do primeiro cálculo [R6] verificar: manual (abrir Atividade duas vezes no próprio repositório)
-- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze

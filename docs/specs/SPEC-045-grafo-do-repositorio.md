@@ -95,6 +95,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - **PR sem sessão abre no navegador.** O Review só tem card para PRs de sessões do app. Para os outros PRs, o clique abre o GitHub.
 - **Filtro por dia para a SPEC-046.** `GraphQuery.day` lê só os commits de um dia (`--since`/`--until`). `openGraph(ref, day:, select:, search:)` leva a tela ao Grafo filtrado, e a Atividade usa isso.
 - **A R9 é ligada pela SPEC-046.** A marcação da SPEC-048 está em outra branch, que esta não contém. A coluna do autor já aceita uma etiqueta ao lado do nome (`graphAuthorBadgeProvider`, `Widget? Function(BuildContext, CommitRow)`). A SPEC-046 junta esta branch com a da SPEC-048 e liga a etiqueta do modelo com o tooltip da origem.
+- **R9 ligada na SPEC-046** (PR #108). `lib/main.dart` sobrescreve `graphAuthorBadgeProvider` com `commitModelBadge` (`graph/commit_model_badge.dart`): a etiqueta `sonnet`, `opus`, `haiku` ou `app` ao lado do autor, com um `InfoTip` que mostra a origem e a linha exata do trailer. As linhas visíveis pedem a origem ao `commitOriginBatchProvider`, que junta os SHAs pedidos no mesmo quadro numa chamada só de `GitService.commitOriginsOf` (`git log --no-walk`). O `InfoTip` ganhou `child`, para a etiqueta abrir o cartão no lugar do ⓘ. A etiqueta aparece sempre que o commit tem a linha, mesmo com a opção desligada depois: a marca está no histórico.
 
 ## Plano
 
@@ -111,7 +112,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/HcFbQPFWcM9ZWttmCgc
 - [x] Os commits de spec têm a cor do Quadro e a etiqueta SPEC-NNN [R2] verificar: flutter test test/features/repository/spec_of_commit_test.dart
 - [x] As filhas ficam junto da pai, que recolhe e expande; as mergeadas começam recolhidas [R3] verificar: flutter test test/features/repository/lane_layout_test.dart
 - [x] Tags, PRs com CI e agente trabalhando aparecem como etiquetas que levam a Releases e ao Review [R4] verificar: flutter test test/features/repository/graph_tab_test.dart
-- [ ] Commits marcados pela SPEC-048 mostram a etiqueta do modelo com o tooltip da origem [R9] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [x] Commits marcados pela SPEC-048 mostram a etiqueta do modelo com o tooltip da origem [R9] verificar: flutter test test/features/repository/commit_model_badge_test.dart
 - [x] O painel mostra pais, refs, arquivos com +/− e os links da spec e do PR [R5] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [x] Filtros e busca funcionam, e a aba atualiza sem perder seleção e rolagem [R6, R7] verificar: flutter test test/features/repository/graph_tab_test.dart
 - [ ] O grafo do próprio Promptorium (mais de 1.000 commits) rola sem travar e mostra a SPEC-042 com as quatro filhas [R3, R7] verificar: manual (abrir o Promptorium no app)
