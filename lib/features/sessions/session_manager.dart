@@ -29,6 +29,7 @@ import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../project/project_config.dart';
+import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -1305,6 +1306,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
         await _specs.onResult(id, e);
+        // SPEC-043 R1: a conflict resolution goes to the gate.
+        await ref
+            .read(conflictResolverProvider)
+            .onResult(id, e.isSuccess ? e.result : null);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',

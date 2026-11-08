@@ -34,10 +34,15 @@ class MergeReadiness {
       items.where((i) => i.effective == ReadinessLevel.bloqueio).toList();
   List<ReadinessItem> get warnings =>
       items.where((i) => i.effective == ReadinessLevel.aviso).toList();
+
+  /// Criteria and the conflict resolution (SPEC-043 R5) are the blockers
+  /// the user may override, with a reason.
   bool get canOverride =>
       blockers.isNotEmpty &&
       blockers.every(
-        (i) => i.id == 'criterios' && i.level != ReadinessLevel.naoVerificado,
+        (i) =>
+            const {'criterios', 'resolucao'}.contains(i.id) &&
+            i.level != ReadinessLevel.naoVerificado,
       );
   ReadinessLevel get level => blockers.isNotEmpty
       ? ReadinessLevel.bloqueio
@@ -64,8 +69,16 @@ class ReadinessInputs {
     this.rootProblem,
     this.worktreeProblem,
     this.uncommitted = 0,
+    this.hasResolution = false,
+    this.resolutionProblem,
     this.unknown = const {},
   });
+
+  /// The agent resolved (or is resolving) a conflict of this item
+  /// (SPEC-043 R5); [resolutionProblem] null = approved on the current tip,
+  /// else `estado · detalhe`.
+  final bool hasResolution;
+  final String? resolutionProblem;
   final bool hasSpec, reviewing;
 
   /// The automatic reviewer failed and handed the spec to the user.
@@ -145,6 +158,18 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
         action: 'Ver comentários',
       ),
     ],
+    if (f.hasResolution)
+      item(
+        'resolucao',
+        'Resolução do conflito',
+        f.resolutionProblem,
+        blocking: true,
+        action: switch (f.resolutionProblem?.split(' · ').first) {
+          'reprovada' => 'Corrigir e verificar',
+          'desatualizada' => 'Resolver de novo',
+          _ => null,
+        },
+      ),
     item('pr', 'PR', f.prProblem, action: 'Verificar PR'),
     item(
       'empilhada',

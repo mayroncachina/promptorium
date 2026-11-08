@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Pronto para merge com a resolução desatualizada</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <dc-import name="Fila" estado="desatualizada" hint-size="340px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Cabecalho" tipo="desatualizada" hint-size="1044px,96px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+      <section aria-label="Pronto para merge?" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+        <div style="height: 56px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between"><span style="font-size: 16px; font-weight: 600">Pronto para merge?</span><span style="font-size: 13px; color: #F27A6E">1 bloqueio</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="width: 260px">Revisor automático</span><span style="flex: 1; color: #A0A8B6">REV1 · nenhum comentário aberto</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="width: 260px">Critérios de aceite</span><span style="flex: 1; color: #A0A8B6">21 de 21</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="width: 260px">Verificações das etapas</span><span style="flex: 1; color: #A0A8B6">4 etapas aprovadas</span></div>
+        <div style="padding: 14px 16px; display: flex; gap: 12px; border-top: 1px solid #252B35; background: rgba(242,122,110,.06)">
+          <span style="padding-top: 2px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#F27A6E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 H12 V12 H2 Z M4.8 4.8 L9.2 9.2 M9.2 4.8 L4.8 9.2"></path></svg></span>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; gap: 12px; font-size: 14px"><span style="width: 248px; font-weight: 600">Resolução do conflito</span><span style="color: #F27A6E">Bloqueio · desatualizada</span></div>
+            <span style="margin-left: 260px; font-size: 14px; line-height: 21px; color: #C9CED8">A SPEC-039 entrou na main enquanto o gate rodava. O commit conferido, <code style="font-family: 'JetBrains Mono', monospace">4e1b7a2</code>, não contém a ponta atual da main, <code style="font-family: 'JetBrains Mono', monospace">c35bc09</code>.</span>
+            <button style="margin-left: 260px; align-self: flex-start; height: 36px; padding: 0 14px; border: 1px solid #F2A541; border-radius: 8px; background: transparent; color: #F2A541; font: 600 13px 'IBM Plex Sans', sans-serif">Resolver de novo</button>
+          </div>
+        </div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="width: 260px">Checks do PR #94</span><span style="flex: 1; color: #A0A8B6">build passou</span></div>
+        <div style="height: 46px; padding: 0 16px; display: flex; align-items: center; gap: 12px; border-top: 1px solid #252B35; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg><span style="width: 260px">Raiz do projeto</span><span style="flex: 1; color: #A0A8B6">na main, sem alterações</span></div>
+      </section>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <button disabled style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #2A2E36; color: #7C8595; font: 600 14px 'IBM Plex Sans', sans-serif">Mergear na main</button>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #252B35; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Mergear mesmo assim…</button>
+        <span style="font-size: 13px; color: #A0A8B6">Mergear mesmo assim pede um motivo, que fica registrado na spec.</span>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

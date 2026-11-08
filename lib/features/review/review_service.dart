@@ -17,6 +17,7 @@ import '../project/project_memory.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'pr_babysitter.dart';
+import 'conflict_resolution.dart';
 import 'restack.dart';
 import 'review_logic.dart';
 import 'comment_anchor.dart';
@@ -278,6 +279,18 @@ class ReviewService {
       if (s.specId != null && latestOfSpec[s.specId]?.id != s.id) continue;
       final task = s.taskId == null ? null : byId[s.taskId];
       final wt = hasWorktree(s, ws);
+      // SPEC-043 R2: the agent resolving a conflict keeps the card here.
+      final resolution = ConflictResolution.decode(
+        _ref.read(appSettingsProvider)[resolutionKey(s.id)],
+      );
+      if ((resolution?.state.active ?? false) &&
+          wt &&
+          s.status != SessionStatus.merged &&
+          s.mergeCommit == null &&
+          (spec == null || spec.stage != SpecStage.done)) {
+        items.add(ReviewItem(session: s, task: task, spec: spec));
+        continue;
+      }
       // Cheap checks first: git only for candidates.
       if (!isAwaitingReview(
         session: s,
@@ -1274,6 +1287,10 @@ class ReviewService {
       } else {
         await settings.set(restackMarkKey(child.id), mark);
       }
+      if (outcome == RestackOutcome.conflict) {
+        // SPEC-043 R6: the conflicting rebase may start the resolution.
+        unawaited(_ref.read(conflictResolverProvider).autoStart(child.id));
+      }
       out.add(result);
     }
     return out;
@@ -1540,9 +1557,19 @@ class ReviewService {
     final message =
         '${restackMessage(branch: c.session.branch, base: base, files: status.files.keys.toList())}'
         '${status.inProgress ? ' O rebase já está em andamento no worktree (commit ${status.step} de ${status.total}): continue de onde parou, sem recomeçar.' : ''}';
+    // SPEC-043 R1: during a rebase the branch still points to its old tip.
+    final resolver = _ref.read(conflictResolverProvider);
+    await resolver.begin(
+      session: c.session,
+      ws: c.workspace,
+      spec: c.spec,
+      base: base,
+      files: status.files.keys.toList(),
+    );
     try {
       await _ref.read(sessionManagerProvider.notifier).send(sessionId, message);
     } on SessionException catch (e) {
+      await resolver.cancel(sessionId);
       throw ReviewException('$e');
     }
   }
@@ -1688,28 +1715,48 @@ class ReviewService {
   }
 
   /// "Resolver conflito": the session gets the instructions to merge the
-  /// base into its branch and resolve.
-  Future<void> resolveConflict(String sessionId) async {
+  /// base into its branch and resolve. The tip of the branch is saved
+  /// first and the gate checks the result when the agent finishes
+  /// (SPEC-043 R1). Returns the files in conflict.
+  Future<List<String>> resolveConflict(
+    String sessionId, {
+    String origin = ResolutionOrigin.person,
+  }) async {
     final c = await _context(sessionId);
     final base = await baseBranchOf(c.session, c.workspace);
     final settings = _ref.read(appSettingsProvider.notifier);
     final mark = settings.get(restackMarkKey(sessionId));
     var message = conflictMessage(base);
+    List<String> files;
     if (mark != null && mark.startsWith('conflito')) {
       // SPEC-032 R7: the base redone after the mother's merge conflicted.
+      files = mark.split('\n').skip(1).where((l) => l.isNotEmpty).toList();
       final old = await _git(c.workspace.path)
           .resolveRef(oldBaseRef(await _restackKey(c.session)));
       message = restackMessage(
         branch: c.session.branch,
         base: base,
         oldBase: old,
-        files: mark.split('\n').skip(1).toList(),
+        files: files,
       );
+    } else {
+      final prediction = await predictConflict(sessionId);
+      files = prediction.files;
     }
     // SPEC-048: the commits of the resolution say where they came from.
     final label =
         c.spec?.code ?? sessionOrigin(c.session.title ?? c.session.branch);
     final restack = mark != null && mark.startsWith('conflito');
+    final resolver = _ref.read(conflictResolverProvider);
+    await resolver.begin(
+      session: c.session,
+      ws: c.workspace,
+      spec: c.spec,
+      base: base,
+      files: files,
+      origin: origin,
+      restackMark: mark != null && mark.startsWith('conflito') ? mark : null,
+    );
     try {
       final manager = _ref.read(sessionManagerProvider.notifier);
       await manager.setAgentOrigin(
@@ -1718,12 +1765,14 @@ class ReviewService {
       );
       await manager.send(sessionId, message);
     } on SessionException catch (e) {
+      await resolver.cancel(sessionId);
       throw ReviewException('$e');
     }
     await settings.remove(restackMarkKey(sessionId));
     if (c.task != null) {
       await _ref.read(taskActionsProvider).move(c.task!.id, TaskStatus.running);
     }
+    return files;
   }
 
   /// Criteria of [spec] not checked yet (text). A criterion counts as
@@ -1993,7 +2042,46 @@ class ReviewService {
         unknown['pr'] = '$e';
       }
     }
+    String? resolution;
+    var hasResolution = false;
+    final r = _ref.read(conflictResolverProvider).get(sessionId);
+    if (r != null && c.session.status != SessionStatus.merged) {
+      hasResolution = true;
+      try {
+        final base = await baseBranchOf(c.session, c.workspace);
+        final tip = await _git(c.workspace.path).resolveRef('refs/heads/$base');
+        var contains = true;
+        if (r.state == ResolutionState.aprovada &&
+            tip != null &&
+            r.checkedSha != null) {
+          try {
+            await _git(c.workspace.path)
+                .git(['merge-base', '--is-ancestor', tip, r.checkedSha!]);
+          } on GitException {
+            contains = false;
+          }
+        }
+        final head = hasWorktree(c.session, c.workspace)
+            ? await _git(c.session.worktreePath).headSha()
+            : null;
+        final problem = resolutionProblem(
+          r,
+          head: head,
+          baseTip: tip,
+          containsBase: contains,
+        );
+        if (problem != null) resolution = '${problem.$1} · ${problem.$2}';
+        // R7: the card shows the approved resolution as outdated.
+        if (!contains) {
+          await _ref.read(conflictResolverProvider).markOutdated(sessionId);
+        }
+      } catch (e) {
+        unknown['resolucao'] = '$e';
+      }
+    }
     return ReadinessInputs(
+      hasResolution: hasResolution,
+      resolutionProblem: resolution,
       hasSpec: spec != null,
       reviewing:
           spec?.reviewPhase == ReviewPhase.auto &&
@@ -2269,6 +2357,22 @@ class ReviewService {
               spec.id,
               SpecsCompanion(mergeOverride: Value(override.trim())),
             );
+      } else if (override != null && override.trim().isNotEmpty) {
+        // SPEC-043 R5: merged over the conflict resolution's blocker.
+        await _ref
+            .read(specsRepoProvider)
+            .update(
+              spec.id,
+              SpecsCompanion(mergeOverride: Value(override.trim())),
+            );
+      }
+      if (override != null && override.trim().isNotEmpty) {
+        final r = _ref.read(conflictResolverProvider).get(sessionId);
+        if (r != null && r.state != ResolutionState.aprovada) {
+          await _ref
+              .read(conflictResolverProvider)
+              .recordOverride(sessionId, override.trim());
+        }
       }
     }
     if (!hasWorktree(s, ws)) {
@@ -2825,6 +2929,10 @@ final mergeReadinessProvider = FutureProvider.family<MergeReadiness, String>((
   }
   ref.watch(sessionsProvider(detail.session.workspaceId));
   ref.watch(prBabysitterProvider);
+  ref.watch(
+    conflictResolutionProvider(sessionId)
+        .select((r) => (r?.state, r?.checkedSha, r?.running)),
+  );
   try {
     final readiness = evaluateReadiness(
       await ref.read(reviewServiceProvider).readinessInputs(sessionId),
@@ -2896,7 +3004,12 @@ final conflictForecastProvider =
       // check is a prediction with [ConflictPrediction.error].
       return ref.read(forecastLaneProvider).run(() async {
         try {
-          return await service.predictConflict(sessionId);
+          final p = await service.predictConflict(sessionId);
+          // SPEC-043 R6: a predicted conflict may start the resolution.
+          if (p.files.isNotEmpty) {
+            unawaited(ref.read(conflictResolverProvider).autoStart(sessionId));
+          }
+          return p;
         } catch (e) {
           return ConflictPrediction(error: '$e');
         }

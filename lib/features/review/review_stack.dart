@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'conflict_resolution.dart' show ResolutionState;
 import 'review_logic.dart';
 
 /// Pure rules of the queue as stacks (SPEC-032 R1–R3, R5, R8).
@@ -131,7 +132,14 @@ enum MergeState {
   baseDesatualizada('Base desatualizada'),
   revisando('Revisor revisando'),
   rebaseManual('Rebase em andamento'),
-  pendencias('Pendências');
+  pendencias('Pendências'),
+
+  /// Conflict resolved by the agent, checked by the gate (SPEC-043 R2).
+  resolvendo('Agente resolvendo o conflito…'),
+  conferindo('Conferindo a resolução…'),
+  resolvida('Conflito resolvido · gate aprovado'),
+  reprovada('Resolução reprovada no gate'),
+  resolucaoDesatualizada('A base mudou · resolver de novo');
 
   const MergeState(this.label);
 
@@ -154,6 +162,10 @@ class MergeStatus {
     MergeState.conflito when detail != null => 'Conflito em $detail',
     MergeState.rebaseManual when detail != null =>
       'Rebase em andamento · $detail',
+    MergeState.conferindo when detail != null =>
+      'Conferindo a resolução · $detail',
+    MergeState.reprovada when detail != null =>
+      'Resolução reprovada no gate · $detail',
     _ => state.label,
   };
 
@@ -168,7 +180,12 @@ class MergeStatus {
 /// Precedence of the states of an item (R3): the reviewer still reviewing,
 /// then the mother not merged, a failed restack, a predicted conflict,
 /// pendencies, and only then ready. [conflictFiles] null = not checked yet.
+/// A conflict resolution (SPEC-043 R2) in progress, failed or outdated
+/// comes first; an approved one replaces "ready". [resolutionDetail]: the
+/// gate item running or the first that failed.
 MergeStatus mergeStatusOf({
+  ResolutionState? resolution,
+  String? resolutionDetail,
   String? rebaseStep,
   bool reviewing = false,
   String? motherCode,
@@ -177,6 +194,17 @@ MergeStatus mergeStatusOf({
   List<String>? conflictFiles,
   bool pending = false,
 }) {
+  switch (resolution) {
+    case ResolutionState.resolvendo:
+      return const MergeStatus(MergeState.resolvendo);
+    case ResolutionState.conferindo:
+      return MergeStatus(MergeState.conferindo, detail: resolutionDetail);
+    case ResolutionState.reprovada when rebaseStep == null:
+      return MergeStatus(MergeState.reprovada, detail: resolutionDetail);
+    case ResolutionState.desatualizada when rebaseStep == null:
+      return const MergeStatus(MergeState.resolucaoDesatualizada);
+    default:
+  }
   // A manual rebase in the worktree is the dominant fact (R17).
   if (rebaseStep != null) {
     return MergeStatus(MergeState.rebaseManual, detail: rebaseStep);
@@ -197,6 +225,9 @@ MergeStatus mergeStatusOf({
     );
   }
   if (pending) return const MergeStatus(MergeState.pendencias);
+  if (resolution == ResolutionState.aprovada) {
+    return const MergeStatus(MergeState.resolvida);
+  }
   if (conflictFiles == null) return const MergeStatus(MergeState.verificando);
   return const MergeStatus(MergeState.pronto);
 }
@@ -210,6 +241,8 @@ enum PrimaryAction {
   refazerBase('Refazer agora'),
   pedirAjustes('Pedir ajustes ao agente'),
   abrirEditor('Abrir no editor'),
+  corrigirVerificar('Corrigir e verificar'),
+  resolverDeNovo('Resolver de novo'),
   nenhuma('');
 
   const PrimaryAction(this.label);
@@ -221,8 +254,14 @@ enum PrimaryAction {
 /// merge stays the primary action (it will be enabled or not by readiness).
 PrimaryAction primaryActionOf(MergeStatus status, {required bool hasPr}) =>
     switch (status.state) {
-      MergeState.pronto || MergeState.verificando =>
+      MergeState.pronto ||
+      MergeState.verificando ||
+      MergeState.resolvendo ||
+      MergeState.conferindo ||
+      MergeState.resolvida =>
         hasPr ? PrimaryAction.mergearPr : PrimaryAction.fazerMerge,
+      MergeState.reprovada => PrimaryAction.corrigirVerificar,
+      MergeState.resolucaoDesatualizada => PrimaryAction.resolverDeNovo,
       MergeState.esperaMae => PrimaryAction.irParaMae,
       MergeState.conflito ||
       MergeState.conflitoBase => PrimaryAction.resolverConflito,

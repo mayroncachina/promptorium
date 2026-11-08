@@ -1,0 +1,74 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-07T13:00:00Z"
+ },
+ "title": "Promptorium · Conflito conferido pelo gate",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Conferindo a resolução"
+  },
+  "Reprovada.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Resolução reprovada no gate"
+  },
+  "Decidiu.dc.html": {
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · O que a resolução decidiu"
+  },
+  "Pronto.dc.html": {
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Pronto para merge? com a resolução desatualizada"
+  },
+  "Lateral.dc.html": {
+   "x": 0,
+   "y": 2040,
+   "w": 56,
+   "h": 900,
+   "title": "Componente · barra lateral"
+  },
+  "Fila.dc.html": {
+   "x": 136,
+   "y": 2040,
+   "w": 340,
+   "h": 900,
+   "title": "Componente · fila de review"
+  },
+  "Cabecalho.dc.html": {
+   "x": 556,
+   "y": 2040,
+   "w": 1044,
+   "h": 96,
+   "title": "Componente · cabeçalho da spec"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Reprovada.dc.html",
+  "Decidiu.dc.html",
+  "Pronto.dc.html",
+  "Lateral.dc.html",
+  "Fila.dc.html",
+  "Cabecalho.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}
