@@ -14,19 +14,20 @@
     </button>
   </sc-for>
   <div style="flex: 1"></div>
-  <button aria-label="Configurações" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: transparent">
-    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 2.5 V5 M10 15 V17.5 M2.5 10 H5 M15 10 H17.5 M4.7 4.7 L6.5 6.5 M13.5 13.5 L15.3 15.3 M4.7 15.3 L6.5 13.5 M13.5 6.5 L15.3 4.7"></path></svg>
+  <button aria-label="Configurações" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 8px; background: {{engBg}}">
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{engCor}}" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"></circle><path d="M10 2.5 V5 M10 15 V17.5 M2.5 10 H5 M15 10 H17.5 M4.7 4.7 L6.5 6.5 M13.5 13.5 L15.3 15.3 M4.7 15.3 L6.5 13.5 M13.5 6.5 L15.3 4.7"></path></svg>
   </button>
 </nav>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":56,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":56,"height":900},"atual":{"editor":"text","default":"Repositório"}}'>
 class Component extends DCLogic {
   renderVals() {
     const i = (nome, d) => {
-      const atual = nome === 'Repositório';
+      const atual = nome === (this.props.atual ?? 'Repositório');
       return { nome, d, atual: atual ? 'page' : 'false', bg: atual ? '#2A2418' : 'transparent', cor: atual ? '#F2A541' : '#A0A8B6' };
     };
-    return { itens: [
+    const eng = (this.props.atual ?? '') === 'Configurações';
+    return { engBg: eng ? '#2A2418' : 'transparent', engCor: eng ? '#F2A541' : '#A0A8B6', itens: [
       i('Início', 'M3 9 L10 3 L17 9 V17 H3 Z'),
       i('Projeto', 'M3 5 H8 L10 7 H17 V16 H3 Z'),
       i('Specs', 'M5 2.5 H12 L15 5.5 V17.5 H5 Z'),

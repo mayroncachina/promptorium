@@ -27,12 +27,20 @@
       </div>
       <sc-if value="{{completo}}" hint-placeholder-val="{{true}}">
         <span style="width: 84px; flex: none; font: 12px 'JetBrains Mono', monospace; color: {{r.c}}">{{r.spec}}</span>
-        <span style="width: 116px; flex: none; font-size: 13px; color: #A0A8B6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.autor}}</span>
+        <span style="position: relative; width: 170px; flex: none; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #A0A8B6; white-space: nowrap">{{r.autor}}<sc-if value="{{r.temModelo}}" hint-placeholder-val="{{false}}"><span style="height: 20px; box-sizing: border-box; padding: 0 7px; display: flex; align-items: center; gap: 4px; border: 1px solid {{r.modeloBorda}}; border-radius: 10px; background: {{r.modeloBg}}; color: {{r.modeloCor}}; font: 500 11px 'JetBrains Mono', monospace"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="{{r.modeloCor}}"><path d="M5 0.5 L9.5 5 L5 9.5 L0.5 5 Z"></path></svg>{{r.modelo}}</span></sc-if></span>
       </sc-if>
       <span style="width: 78px; flex: none; font-size: 13px; color: #A0A8B6">{{r.data}}</span>
       <span style="width: 62px; flex: none; font: 12px 'JetBrains Mono', monospace; color: #7C8595">{{r.sha}}</span>
     </div>
   </sc-for>
+  <sc-if value="{{tipModelo}}" hint-placeholder-val="{{false}}">
+    <div role="tooltip" style="position: absolute; right: 372px; top: 200px; width: 360px; box-sizing: border-box; padding: 12px 14px; border: 1px solid #4A4030; border-radius: 10px; background: #1C1A16; box-shadow: 0 14px 32px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 19px; color: #C9CED8">
+      <span style="font-weight: 600; color: #E7E9EE">Commit feito por um agente</span>
+      <span>Modelo <strong style="color: #F2A541">sonnet</strong>, na etapa <strong style="color: #E7E9EE">SPEC-042 T4</strong>. O autor no git continua sendo você.</span>
+      <code style="padding: 6px 8px; border-radius: 6px; background: #0B0D11; font: 12px 'JetBrains Mono', monospace; color: #E7E9EE">Promptorium-Agente: sonnet · SPEC-042 T4</code>
+      <span style="font-size: 12px; color: #A0A8B6">Linha que o app acrescenta aos commits das sessões (SPEC-048).</span>
+    </div>
+  </sc-if>
   <sc-if value="{{hover}}" hint-placeholder-val="{{false}}">
     <div role="tooltip" style="position: absolute; left: 660px; top: 286px; width: 300px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #4A3F66; border-radius: 8px; background: #1C1926; box-shadow: 0 12px 28px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 3px">
       <span style="font: 600 13px 'JetBrains Mono', monospace; color: #C59BFF">spec/042-sprints</span>
@@ -42,7 +50,7 @@
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1336,"height":612},"largura":{"editor":"int","default":1336},"recolhida":{"editor":"boolean","default":false},"completo":{"editor":"boolean","default":true},"hover":{"editor":"boolean","default":false},"sel":{"editor":"text","default":""}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1336,"height":612},"largura":{"editor":"int","default":1336},"recolhida":{"editor":"boolean","default":false},"completo":{"editor":"boolean","default":true},"hover":{"editor":"boolean","default":false},"sel":{"editor":"text","default":""},"tipModelo":{"editor":"boolean","default":false}}'>
 class Component extends DCLogic {
   renderVals() {
     const recolhida = this.props.recolhida ?? false;
@@ -62,10 +70,10 @@ class Component extends DCLogic {
       R(3, P, { msg: 'SPEC-042 · Sprints no Quadro: 4 tarefas, 4 mergeadas, 9 commits', spec: 'SPEC-042', autor: '', data: '7 nov', sha: '', pass: [[0, M]], chips: [chip.rec('recolhida')], merge: true, peso: 500 }),
     ] : [
       R(3, P, { msg: 'Merge pull request #98 from spec/042-t4-conclusao', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: '4c1b410', pass: [[0, M]], cd: [[4, F]], merge: true }),
-      R(4, F, { msg: 'fix(sprints): singular na contagem de specs do seletor', spec: 'SPEC-042 T4', autor: 'agente · sonnet', data: '7 nov', sha: '6350be3', pass: [[0, M], [3, P]] }),
-      R(4, F, { msg: 'feat(sprints): concluir sprint, Autopilot na sprint Ativa e aviso de pendências', spec: 'SPEC-042 T4', autor: 'agente · sonnet', data: '7 nov', sha: '9d06068', pass: [[0, M], [3, P]] }),
+      R(4, F, { msg: 'fix(sprints): singular na contagem de specs do seletor', spec: 'SPEC-042 T4', autor: 'Mayron Cachina', modelo: 'sonnet', data: '7 nov', sha: '6350be3', pass: [[0, M], [3, P]] }),
+      R(4, F, { msg: 'feat(sprints): concluir sprint, Autopilot na sprint Ativa e aviso de pendências', spec: 'SPEC-042 T4', autor: 'Mayron Cachina', modelo: 'sonnet', data: '7 nov', sha: '9d06068', pass: [[0, M], [3, P]] }),
       R(3, P, { msg: 'Merge pull request #97 from spec/042-t3-visoes', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: '5efdae7', pass: [[0, M]], cu: [[4, F]], cd: [[4, F]], merge: true }),
-      R(4, F, { msg: 'feat(sprints): Grafo e Foco por sprint, com dependências externas e busca em todas', spec: 'SPEC-042 T3', autor: 'agente · sonnet', data: '7 nov', sha: '13eaab4', pass: [[0, M], [3, P]] }),
+      R(4, F, { msg: 'feat(sprints): Grafo e Foco por sprint, com dependências externas e busca em todas', spec: 'SPEC-042 T3', autor: 'Mayron Cachina', modelo: 'sonnet', data: '7 nov', sha: '13eaab4', pass: [[0, M], [3, P]] }),
       R(3, P, { msg: 'docs: SPEC-042, sprints no Quadro e mockups', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '6 nov', sha: '4f5091d', pass: [[0, M]], cu: [[4, F]] }),
     ];
     const rows = [
@@ -76,8 +84,8 @@ class Component extends DCLogic {
       R(0, M, { up: false, msg: 'Merge pull request #94 from mayroncachina/spec/042-sprints', spec: 'SPEC-042', autor: 'Mayron Cachina', data: '7 nov', sha: 'ee1c324', cu: [[1, G], [2, A]], cd: [[3, P]], merge: true, chips: [chip.br('main', M), chip.tag('v0.11.0')] }),
       ...pai,
       R(0, M, { msg: 'Merge pull request #93 from mayroncachina/spec/041-radar-na-bandeja', spec: 'SPEC-041', autor: 'Mayron Cachina', data: '7 nov', sha: '6a950b7', cu: [[3, P]], cd: [[1, B]], merge: true }),
-      R(1, B, { msg: 'fix(tray): sublinhado do rótulo não vira atalho no menu', spec: 'SPEC-041', autor: 'agente · opus', data: '6 nov', sha: '0732551', pass: [[0, M]] }),
-      R(1, B, { msg: 'feat(tray): radar na bandeja com estado no ícone, tooltip e menu', spec: 'SPEC-041', autor: 'agente · opus', data: '6 nov', sha: 'a408a2e', pass: [[0, M]] }),
+      R(1, B, { msg: 'fix(tray): sublinhado do rótulo não vira atalho no menu', spec: 'SPEC-041', autor: 'Mayron Cachina', modelo: 'opus', data: '6 nov', sha: '0732551', pass: [[0, M]] }),
+      R(1, B, { msg: 'feat(tray): radar na bandeja com estado no ícone, tooltip e menu', spec: 'SPEC-041', autor: 'Mayron Cachina', modelo: 'opus', data: '6 nov', sha: 'a408a2e', pass: [[0, M]] }),
       R(0, M, { msg: 'Merge pull request #89 from mayroncachina/spec/039-nova-spec-com-planejamento', spec: 'SPEC-039', autor: 'Mayron Cachina', data: '6 nov', sha: '14c3c8e', cu: [[1, B]], merge: true, chips: [chip.rec('SPEC-039 recolhida · 5')] }),
       R(0, M, { msg: 'docs: SPEC-039, nova spec com mini planejamento (#88)', spec: 'SPEC-039', autor: 'Mayron Cachina', data: '6 nov', sha: 'f66b905', chips: [chip.tag('v0.10.0')] }),
       R(0, M, { msg: 'Merge pull request #86 from mayroncachina/spec/038-tela-sobre', spec: 'SPEC-038', autor: 'Mayron Cachina', data: '5 nov', sha: 'cd8b56f', merge: true, chips: [chip.rec('SPEC-038 recolhida · 6')] }),
@@ -96,10 +104,11 @@ class Component extends DCLogic {
       return Object.assign({}, r, {
         tracos: t, nx, raio: r.merge ? 5 : 4, nfill: r.merge ? '#0E1014' : r.c,
         bg: isSel ? '#1A2130' : 'transparent', sombra: isSel ? 'inset 3px 0 0 #8EC5FF' : 'none',
-        op: dim ? 0.45 : 1, msgCor: r.merge ? '#A0A8B6' : '#E7E9EE', peso: r.peso || 400,
+        op: dim ? 0.45 : 1, temModelo: !!r.modelo,
+        modeloCor: r.modelo === 'opus' ? '#8EC5FF' : '#F2A541', modeloBorda: r.modelo === 'opus' ? '#8EC5FF55' : '#F2A54155', modeloBg: r.modelo === 'opus' ? '#8EC5FF14' : '#F2A54114', msgCor: r.merge ? '#A0A8B6' : '#E7E9EE', peso: r.peso || 400,
       });
     });
-    return { linhas, hover, completo: this.props.completo ?? true, largura: this.props.largura ?? 1336 };
+    return { linhas, hover, tipModelo: this.props.tipModelo ?? false, completo: this.props.completo ?? true, largura: this.props.largura ?? 1336 };
   }
 }
 </script>

@@ -1,32 +1,227 @@
 {
- "v": 3,
- "createdOnFiles": {"v": 1, "at": "2026-11-08T00:45:00Z"},
- "title": "Promptorium · Repositório",
- "launch": {"view": "canvas"},
- "pages": [],
- "boards": {
-  "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "SPEC-044 · 1 · Releases e Não lançado"},
-  "CriarRelease.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "SPEC-044 · 2 · Criar release"},
-  "Acompanhando.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 900, "title": "SPEC-044 · 3 · Release em andamento"},
-  "Grafo.dc.html": {"x": 0, "y": 1300, "w": 1440, "h": 900, "title": "SPEC-045 · 1 · Grafo das branches"},
-  "GrafoCommit.dc.html": {"x": 1520, "y": 1300, "w": 1440, "h": 900, "title": "SPEC-045 · 2 · Pai recolhida e painel do commit"},
-  "Atividade.dc.html": {"x": 0, "y": 2600, "w": 1440, "h": 900, "title": "SPEC-046 · 1 · Atividade"},
-  "AtividadeArquivo.dc.html": {"x": 1520, "y": 2600, "w": 1440, "h": 900, "title": "SPEC-046 · 2 · Arquivo e as specs que mexeram"},
-  "Higiene.dc.html": {"x": 0, "y": 3900, "w": 1440, "h": 900, "title": "SPEC-047 · 1 · Higiene"},
-  "HigieneLimpar.dc.html": {"x": 1520, "y": 3900, "w": 1440, "h": 900, "title": "SPEC-047 · 2 · Confirmar limpeza"},
-  "Lateral.dc.html": {"x": 0, "y": 5200, "w": 56, "h": 900, "title": "Componente · barra lateral"},
-  "Abas.dc.html": {"x": 136, "y": 5200, "w": 1384, "h": 104, "title": "Componente · cabeçalho com abas"},
-  "GrafoLista.dc.html": {"x": 1600, "y": 5200, "w": 1336, "h": 612, "title": "Componente · linhas do grafo"}
- },
- "order": ["Main.dc.html", "CriarRelease.dc.html", "Acompanhando.dc.html", "Grafo.dc.html", "GrafoCommit.dc.html", "Atividade.dc.html", "AtividadeArquivo.dc.html", "Higiene.dc.html", "HigieneLimpar.dc.html", "Lateral.dc.html", "Abas.dc.html", "GrafoLista.dc.html"],
- "notes": {
-  "t044": {"x": 0, "y": -260, "text": "SPEC-044 · Releases", "kind": "title1", "maxW": 4480},
-  "t045": {"x": 0, "y": 1040, "text": "SPEC-045 · Grafo", "kind": "title1", "maxW": 2960},
-  "t046": {"x": 0, "y": 2340, "text": "SPEC-046 · Atividade", "kind": "title1", "maxW": 2960},
-  "t047": {"x": 0, "y": 3640, "text": "SPEC-047 · Higiene", "kind": "title1", "maxW": 2960},
-  "tcomp": {"x": 0, "y": 4940, "text": "Componentes", "kind": "title1", "maxW": 2936},
-  "n1": {"x": 3120, "y": 1300, "w": 360, "text": "As abas Grafo, Atividade e Higiene aparecem em todos os quadros, mas cada uma chega com a sua spec. A SPEC-044 entrega a tela com Releases.", "fill": "orange"},
-  "n2": {"x": 3120, "y": 1720, "w": 360, "text": "Versões, SHAs, tempos e números são de exemplo, tirados do próprio Promptorium (v0.11.0, SPEC-042).", "fill": "gray"}
- },
- "designSystems": []
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Abas.dc.html": {
+      "h": 104,
+      "title": "Componente · cabeçalho com abas",
+      "w": 1384,
+      "x": 136,
+      "y": 6500
+    },
+    "Acompanhando.dc.html": {
+      "h": 900,
+      "title": "SPEC-044 · 3 · Release em andamento",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Atividade.dc.html": {
+      "h": 900,
+      "title": "SPEC-046 · 1 · Atividade",
+      "w": 1440,
+      "x": 0,
+      "y": 2600
+    },
+    "AtividadeArquivo.dc.html": {
+      "h": 900,
+      "title": "SPEC-046 · 2 · Arquivo e as specs que mexeram",
+      "w": 1440,
+      "x": 1520,
+      "y": 2600
+    },
+    "CriarRelease.dc.html": {
+      "h": 900,
+      "title": "SPEC-044 · 2 · Criar release",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Grafo.dc.html": {
+      "h": 900,
+      "title": "SPEC-045 · 1 · Grafo das branches",
+      "w": 1440,
+      "x": 0,
+      "y": 1300
+    },
+    "GrafoCommit.dc.html": {
+      "h": 900,
+      "title": "SPEC-045 · 2 · Pai recolhida e painel do commit",
+      "w": 1440,
+      "x": 1520,
+      "y": 1300
+    },
+    "GrafoLista.dc.html": {
+      "h": 612,
+      "title": "Componente · linhas do grafo",
+      "w": 1336,
+      "x": 1600,
+      "y": 6500
+    },
+    "Higiene.dc.html": {
+      "h": 900,
+      "title": "SPEC-047 · 1 · Higiene",
+      "w": 1440,
+      "x": 0,
+      "y": 3900
+    },
+    "HigieneLimpar.dc.html": {
+      "h": 900,
+      "title": "SPEC-047 · 2 · Confirmar limpeza",
+      "w": 1440,
+      "x": 1520,
+      "y": 3900
+    },
+    "Lateral.dc.html": {
+      "h": 900,
+      "title": "Componente · barra lateral",
+      "w": 56,
+      "x": 0,
+      "y": 6500
+    },
+    "Main.dc.html": {
+      "h": 900,
+      "title": "SPEC-044 · 1 · Releases e Não lançado",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "AtividadeQuem.dc.html": {
+      "x": 3040,
+      "y": 2600,
+      "w": 1440,
+      "h": 900,
+      "title": "SPEC-046 · 3 · Quem fez os commits"
+    },
+    "AtividadeQuemOff.dc.html": {
+      "x": 4560,
+      "y": 2600,
+      "w": 1440,
+      "h": 900,
+      "title": "SPEC-046 · 4 · Quem fez, com a marcação desligada"
+    },
+    "MarcarConfig.dc.html": {
+      "x": 0,
+      "y": 5200,
+      "w": 1440,
+      "h": 900,
+      "title": "SPEC-048 · 1 · Opção na Configuração do projeto"
+    },
+    "MarcarLigar.dc.html": {
+      "x": 1520,
+      "y": 5200,
+      "w": 1440,
+      "h": 900,
+      "title": "SPEC-048 · 2 · Ligar pela Atividade"
+    },
+    "MarcarGrafo.dc.html": {
+      "x": 3040,
+      "y": 5200,
+      "w": 1440,
+      "h": 900,
+      "title": "SPEC-048 · 3 · Etiqueta do modelo no Grafo"
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-08T00:45:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "t044",
+    "t045",
+    "t046",
+    "t047",
+    "tcomp",
+    "n1",
+    "n2",
+    "t048"
+  ],
+  "notes": {
+    "n1": {
+      "fill": "orange",
+      "text": "As abas Grafo, Atividade e Higiene aparecem em todos os quadros, mas cada uma chega com a sua spec. A SPEC-044 entrega a tela com Releases.",
+      "w": 360,
+      "x": 3120,
+      "y": 1300
+    },
+    "n2": {
+      "fill": "gray",
+      "text": "Versões, SHAs, tempos e números são de exemplo, tirados do próprio Promptorium (v0.11.0, SPEC-042).",
+      "w": 360,
+      "x": 3120,
+      "y": 1720
+    },
+    "t044": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "SPEC-044 · Releases",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "t045": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "SPEC-045 · Grafo",
+      "w": 240,
+      "x": 0,
+      "y": 1040
+    },
+    "t046": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "SPEC-046 · Atividade",
+      "w": 240,
+      "x": 0,
+      "y": 2340
+    },
+    "t047": {
+      "kind": "title1",
+      "maxW": 2960,
+      "text": "SPEC-047 · Higiene",
+      "w": 240,
+      "x": 0,
+      "y": 3640
+    },
+    "tcomp": {
+      "kind": "title1",
+      "maxW": 2936,
+      "text": "Componentes",
+      "w": 240,
+      "x": 0,
+      "y": 6240
+    },
+    "t048": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "SPEC-048 · Marcar commits de agentes",
+      "x": 0,
+      "y": 4940
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "CriarRelease.dc.html",
+    "Acompanhando.dc.html",
+    "Grafo.dc.html",
+    "GrafoCommit.dc.html",
+    "Atividade.dc.html",
+    "AtividadeArquivo.dc.html",
+    "Higiene.dc.html",
+    "HigieneLimpar.dc.html",
+    "AtividadeQuem.dc.html",
+    "AtividadeQuemOff.dc.html",
+    "MarcarConfig.dc.html",
+    "MarcarLigar.dc.html",
+    "MarcarGrafo.dc.html",
+    "Lateral.dc.html",
+    "Abas.dc.html",
+    "GrafoLista.dc.html"
+  ],
+  "pages": [],
+  "title": "Promptorium · Repositório"
 }
