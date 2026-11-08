@@ -40,6 +40,27 @@ void main() {
     );
   });
 
+  test('git: marcar-commits-de-agente (SPEC-048 R1): off by default, '
+      'round trip, other keys kept', () {
+    expect(const ProjectConfig().git.markAgentCommits, isFalse);
+    expect(
+      ProjectConfig.parse('specs: docs/specs\n').git.markAgentCommits,
+      isFalse,
+    );
+    final on = ProjectConfig.parse(
+      'specs: docs/specs\ngit:\n  marcar-commits-de-agente: sim\n',
+    );
+    expect(on.git.markAgentCommits, isTrue);
+    expect(on.specsDir, 'docs/specs');
+    expect(on.toYaml(), contains('git:\n  marcar-commits-de-agente: true\n'));
+    expect(ProjectConfig.parse(on.toYaml()), on);
+    expect(const ProjectConfig().toYaml(), isNot(contains('git:')));
+    expect(
+      const ProjectConfig(git: GitConfig(markAgentCommits: true)).isDefault,
+      isFalse,
+    );
+  });
+
   test('validateSpecsDir', () {
     expect(ProjectConfig.validateSpecsDir('specs'), isNull);
     expect(ProjectConfig.validateSpecsDir('docs/specs'), isNull);
