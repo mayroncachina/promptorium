@@ -28,6 +28,9 @@ class FakeGh {
   List<Map<String, Object?>> runViews = [];
   String failedLog = '';
   List<Map<String, Object?>> prs = [];
+
+  /// Rows of `gh pr list --state merged` (Higiene, SPEC-047).
+  List<Map<String, Object?>> mergedPrs = [];
   bool dispatchFails = false;
   String draftUrl = 'https://github.com/o/r/releases/tag/untagged-1';
 
@@ -82,7 +85,7 @@ class FakeGh {
       case 'release create':
         return ok('$draftUrl\n');
       case 'pr list':
-        return ok(prs);
+        return ok(args.contains('merged') ? mergedPrs : prs);
     }
     if (args.first == 'api') {
       return releasesFail ? fail('HTTP 502') : ok(releases);
