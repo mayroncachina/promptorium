@@ -195,7 +195,7 @@ class RepositoryHeader extends ConsumerWidget {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
               const SizedBox(width: 14),
-              Flexible(
+              Expanded(
                 child: Text(
                   repo.headline,
                   key: const ValueKey('repo-headline'),
@@ -207,7 +207,6 @@ class RepositoryHeader extends ConsumerWidget {
                   ),
                 ),
               ),
-              const Spacer(),
               ?trailing,
             ],
           ),

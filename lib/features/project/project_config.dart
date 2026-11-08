@@ -41,6 +41,9 @@ import '../specs/spec_file.dart';
 /// autopilot:
 ///   paralelo: 3
 ///   orcamento-dia: 10
+/// releases:                  # "Criar release" (SPEC-044 R6)
+///   workflow: create-release.yml  # in .github/workflows/
+///   input: version           # field of the version (default version)
 /// ```
 ///
 /// Every key is optional; absent = the behaviour from before the key existed.
@@ -171,6 +174,30 @@ class AutopilotConfig {
   int get hashCode => Object.hash(parallel, dailyBudgetUsd);
 }
 
+/// `releases:` of the config: the workflow "Criar release" dispatches
+/// (SPEC-044 R6).
+@immutable
+class ReleasesConfig {
+  const ReleasesConfig({this.workflow, this.input});
+
+  /// File in `.github/workflows/` (null = the app looks for one).
+  final String? workflow;
+
+  /// Input of the workflow that gets the version (null = `version`).
+  final String? input;
+
+  bool get isDefault => workflow == null && input == null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ReleasesConfig &&
+      other.workflow == workflow &&
+      other.input == input;
+
+  @override
+  int get hashCode => Object.hash(workflow, input);
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -189,6 +216,7 @@ class ProjectConfig {
     this.worktree = const WorktreeConfig(),
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
+    this.releases = const ReleasesConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
@@ -228,6 +256,7 @@ class ProjectConfig {
   final WorktreeConfig worktree;
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
+  final ReleasesConfig releases;
   final String mergeMethod;
   final String? host, hostType;
 
@@ -262,6 +291,7 @@ class ProjectConfig {
     WorktreeConfig? worktree,
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
+    ReleasesConfig? releases,
     String? mergeMethod,
     String? host,
     String? hostType,
@@ -281,6 +311,7 @@ class ProjectConfig {
     worktree: worktree ?? this.worktree,
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
+    releases: releases ?? this.releases,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
@@ -376,6 +407,7 @@ class ProjectConfig {
     const dr = ReviewerConfig();
     final r = map('revisor');
     final a = map('autopilot');
+    final rel = map('releases');
     return ProjectConfig(
       mergeMethod:
           ['merge', 'squash', 'rebase'].contains(map('merge')['metodo'])
@@ -424,6 +456,10 @@ class ProjectConfig {
       autopilot: AutopilotConfig(
         parallel: integer(a['paralelo'], min: 1),
         dailyBudgetUsd: number(a['orcamento-dia']),
+      ),
+      releases: ReleasesConfig(
+        workflow: str(rel['workflow']),
+        input: str(rel['input']),
       ),
     );
   }
@@ -510,6 +546,15 @@ class ProjectConfig {
       }
       if (autopilot.dailyBudgetUsd != null) {
         b.writeln('  orcamento-dia: ${autopilot.dailyBudgetUsd}');
+      }
+    }
+    if (!releases.isDefault) {
+      b.writeln('releases:');
+      if (releases.workflow != null) {
+        b.writeln('  workflow: ${_quote(releases.workflow!)}');
+      }
+      if (releases.input != null) {
+        b.writeln('  input: ${_quote(releases.input!)}');
       }
     }
     return b.toString();
