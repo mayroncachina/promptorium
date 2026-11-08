@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Grafo das branches</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Grafo" hint-size="1384px,104px"></dc-import>
+    <div style="height: 60px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #1E232C">
+      <div role="group" aria-label="O que mostrar" style="display: flex; border: 1px solid #252B35; border-radius: 8px; overflow: hidden">
+        <button aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; background: #2A2418; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif">Todas as branches</button>
+        <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Só a main</button>
+        <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Specs abertas</button>
+      </div>
+      <label style="width: 380px; height: 36px; box-sizing: border-box; padding: 0 12px; display: flex; align-items: center; gap: 8px; border: 1px solid #252B35; border-radius: 8px; background: #14171D">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="6" r="4"></circle><path d="M9 9 L12.5 12.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Buscar commits</span>
+        <input placeholder="Mensagem, SHA, autor ou SPEC-NNN" style="flex: 1; min-width: 0; border: 0; background: transparent; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif; outline: none">
+      </label>
+      <div style="flex: 1"></div>
+      <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A0A8B6"><input type="checkbox" style="width: 16px; height: 16px; accent-color: #F2A541">Branches só no remoto</label>
+      <span style="font-size: 13px; color: #7C8595">300 de 1.284 commits</span>
+    </div>
+    <div style="height: 32px; box-sizing: border-box; padding: 0 36px 0 24px; display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #7C8595; border-bottom: 1px solid #1E232C">
+      <span style="width: 104px">GRAFO</span><span style="flex: 1">COMMIT</span><span style="width: 84px">SPEC</span><span style="width: 170px">AUTOR</span><span style="width: 78px">DATA</span><span style="width: 62px">SHA</span>
+    </div>
+    <div style="flex: 1; min-height: 0; padding: 4px 24px 0; overflow: hidden">
+      <dc-import name="GrafoLista" largura="1336" hover="{{sim}}" hint-size="1336px,612px"></dc-import>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return { sim: true }; } }
+</script>
+</body>
+</html>

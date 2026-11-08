@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Atividade do repositório</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <dc-import name="Abas" aba="Atividade" hint-size="1384px,104px"></dc-import>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="flex: 1; font-size: 14px; color: #A0A8B6">Branch main e branches de spec · últimos 90 dias, comparados com os 90 anteriores</span>
+        <div role="group" aria-label="Período" style="display: flex; border: 1px solid #252B35; border-radius: 8px; overflow: hidden">
+          <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">30 dias</button>
+          <button aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: #2A2418; color: #F2A541; font: 500 13px 'IBM Plex Sans', sans-serif">90 dias</button>
+          <button aria-pressed="false" style="height: 36px; padding: 0 14px; border: 0; border-left: 1px solid #252B35; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">1 ano</button>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+        <sc-for list="{{resumo}}" as="s" hint-placeholder-count="4">
+          <div style="height: 84px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; flex-direction: column; justify-content: space-between">
+            <span style="font-size: 13px; color: #A0A8B6">{{s.nome}}</span>
+            <div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 26px; font-weight: 600">{{s.v}}</span><span style="font-size: 13px; color: {{s.cor}}">{{s.delta}}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 16px">
+        <section aria-label="Commits por dia" style="width: 560px; box-sizing: border-box; padding: 16px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: center"><h2 style="flex: 1; margin: 0; font-size: 15px; font-weight: 600">Commits por dia</h2><span style="font-size: 12px; color: #A0A8B6">anel = dia de release</span></div>
+          <div style="display: flex; gap: 8px">
+            <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 18px; font-size: 11px; color: #A0A8B6"><span style="height: 26px; line-height: 26px">seg</span><span style="height: 26px"></span><span style="height: 26px; line-height: 26px">qua</span><span style="height: 26px"></span><span style="height: 26px; line-height: 26px">sex</span><span style="height: 26px"></span><span style="height: 26px"></span></div>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="display: flex; gap: 4px; height: 14px; font-size: 11px; color: #A0A8B6"><span style="width: 120px">ago</span><span style="width: 120px">set</span><span style="width: 120px">out</span><span>nov</span></div>
+              <div style="display: flex; gap: 4px">
+                <sc-for list="{{semanas}}" as="w" hint-placeholder-count="13">
+                  <div style="display: flex; flex-direction: column; gap: 4px">
+                    <sc-for list="{{w.dias}}" as="d" hint-placeholder-count="7">
+                      <span title="{{d.t}}" style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 5px; background: {{d.bg}}; border: {{d.anel}}"></span>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #A0A8B6">menos <span style="width: 12px; height: 12px; border-radius: 3px; background: #1C2029"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: #4A3A1E"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: #7A5A26"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: #B98330"></span><span style="width: 12px; height: 12px; border-radius: 3px; background: #F2A541"></span> mais · clique leva ao Grafo do dia</div>
+        </section>
+        <section aria-label="Commits por tipo" style="flex: 1; min-width: 0; box-sizing: border-box; padding: 16px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; flex-direction: column; gap: 12px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Commits por tipo, por semana</h2>
+          <div style="height: 200px; display: flex; align-items: flex-end; gap: 10px; border-bottom: 1px solid #252B35">
+            <sc-for list="{{barras}}" as="b" hint-placeholder-count="13">
+              <div style="flex: 1; display: flex; flex-direction: column-reverse; gap: 1px">
+                <sc-for list="{{b.partes}}" as="p" hint-placeholder-count="4">
+                  <span style="height: {{p.h}}px; background: {{p.c}}; border-radius: 2px"></span>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #C9CED8">
+            <sc-for list="{{legenda}}" as="l" hint-placeholder-count="5">
+              <button aria-pressed="true" style="height: 24px; padding: 0; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #C9CED8; font: 12px 'IBM Plex Sans', sans-serif"><span style="width: 10px; height: 10px; border-radius: 2px; background: {{l.c}}"></span>{{l.n}}</button>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+      <section aria-label="Ciclo das specs" style="flex: 1; min-height: 0; box-sizing: border-box; padding: 16px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; display: flex; gap: 32px">
+        <div style="width: 220px; display: flex; flex-direction: column; gap: 12px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Ciclo das specs</h2>
+          <span style="font-size: 12px; line-height: 17px; color: #A0A8B6">Do primeiro commit da branch ao merge na main. Filhas contam dentro da pai.</span>
+          <div style="display: flex; gap: 24px"><div style="display: flex; flex-direction: column"><span style="font-size: 24px; font-weight: 600">1,8 d</span><span style="font-size: 12px; color: #A0A8B6">mediana</span></div><div style="display: flex; flex-direction: column"><span style="font-size: 24px; font-weight: 600">4,6 d</span><span style="font-size: 12px; color: #A0A8B6">percentil 90</span></div></div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6; margin-bottom: 4px">AS MAIS LONGAS</span>
+          <sc-for list="{{longas}}" as="s" hint-placeholder-count="5">
+            <a href="#" style="height: 28px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #E7E9EE; text-decoration: none">
+              <span style="width: 72px; font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{s.c}}</span>
+              <span style="width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.n}}</span>
+              <span style="flex: 1; height: 8px; border-radius: 4px; background: #1C2029; overflow: hidden; display: flex"><span style="width: {{s.w}}%; background: #8EC5FF"></span></span>
+              <span style="width: 52px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px">{{s.d}}</span>
+            </a>
+          </sc-for>
+        </div>
+        <div style="width: 300px; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #A0A8B6; margin-bottom: 4px">MEDIANA POR SPRINT</span>
+          <sc-for list="{{sprints}}" as="s" hint-placeholder-count="3">
+            <div style="height: 28px; display: flex; align-items: center; gap: 10px; font-size: 13px">
+              <span style="width: 110px">{{s.n}}</span>
+              <span style="flex: 1; height: 8px; border-radius: 4px; background: #1C2029; overflow: hidden; display: flex"><span style="width: {{s.w}}%; background: #C59BFF"></span></span>
+              <span style="width: 44px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px">{{s.d}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    let seed = 7;
+    const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    const tons = ['#1C2029', '#4A3A1E', '#7A5A26', '#B98330', '#F2A541'];
+    const releases = { '11-4': 1, '11-6': 1, '12-0': 1, '12-2': 1, '9-3': 1, '10-4': 1 };
+    const semanas = [];
+    for (let w = 0; w < 13; w++) {
+      const dias = [];
+      for (let d = 0; d < 7; d++) {
+        const ramp = w < 6 ? 0.15 : w < 9 ? 0.45 : 0.8;
+        const fds = d >= 5 ? 0.5 : 1;
+        const v = rnd() * ramp * fds;
+        const n = w === 12 && d > 5 ? 0 : Math.min(4, Math.floor(v * 5.5));
+        const rel = releases[w + '-' + d];
+        dias.push({ bg: tons[n], anel: rel ? '2px solid #E7E9EE' : '0', t: rel ? 'Dia de release' : n + ' nível' });
+      }
+      semanas.push({ dias });
+    }
+    const C = { f: '#F2A541', c: '#8EC5FF', d: '#C59BFF', t: '#5BC88A', o: '#7C8595' };
+    const base = [[2,1,3,0,1],[3,1,2,1,0],[2,2,4,0,1],[4,1,3,1,1],[3,2,2,1,0],[5,2,4,1,2],[6,3,5,2,1],[8,3,6,2,2],[7,4,5,3,1],[10,4,8,3,3],[12,5,9,4,2],[14,6,9,3,6],[9,4,7,2,3]];
+    const barras = base.map((r) => ({ partes: [['f', r[0]], ['c', r[1]], ['d', r[2]], ['t', r[3]], ['o', r[4]]].map(([k, n]) => ({ c: C[k], h: n * 5 })) }));
+    const longas = [['SPEC-035', 'Orquestrador de modelos', 6.2], ['SPEC-032', 'Fila de review em pilha', 5.4], ['SPEC-036', 'Pasta e palco no canvas', 4.9], ['SPEC-042', 'Sprints no Quadro', 3.1], ['SPEC-034', 'Motion e fluidez', 2.8]]
+      .map(([c, n, d]) => ({ c, n, d: String(d).replace('.', ',') + ' d', w: Math.round(d / 6.2 * 100) }));
+    const sprints = [['Sprint 1', 2.4], ['Sprint 2', 1.6], ['Sprint 3', 1.2]].map(([n, d]) => ({ n, d: String(d).replace('.', ',') + ' d', w: Math.round(d / 2.4 * 100) }));
+    return {
+      resumo: [
+        { nome: 'Commits', v: '412', delta: '+38% que os 90 dias anteriores', cor: '#5BC88A' },
+        { nome: 'Specs mergeadas', v: '27', delta: '+9', cor: '#5BC88A' },
+        { nome: 'Releases', v: '6', delta: 'v0.6.0 a v0.11.0', cor: '#A0A8B6' },
+        { nome: 'Ciclo mediano das specs', v: '1,8 dia', delta: '−0,7 dia', cor: '#5BC88A' },
+      ],
+      semanas, barras, longas, sprints,
+      legenda: [{ n: 'Funcionalidades', c: C.f }, { n: 'Correções', c: C.c }, { n: 'Documentação', c: C.d }, { n: 'Testes', c: C.t }, { n: 'Outros', c: C.o }],
+    };
+  }
+}
+</script>
+</body>
+</html>
