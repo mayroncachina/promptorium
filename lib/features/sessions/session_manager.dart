@@ -17,6 +17,7 @@ import '../../core/claude/usage_tracker.dart';
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/permission_policy.dart';
 import '../../core/providers/provider_preferences.dart';
+import '../../core/git/agent_trailer.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
@@ -28,6 +29,7 @@ import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../project/project_config.dart';
+import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -231,6 +233,10 @@ class _Proc {
 
   /// Completed once [SessionManager._onExit] ran.
   final Completer<void> exited = Completer<void>();
+
+  /// Workspace whose `git: marcar-commits-de-agente` this process started
+  /// with (SPEC-048): its commits carry the trailer until it ends.
+  String? markedRoot;
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
@@ -837,7 +843,66 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> setSteps(String id, String steps, String title) async {
     await _repo.setSteps(id, steps, title);
     _procs[id]?.title = title;
+    _originOverrides.remove(id);
+    if (_procs[id]?.markedRoot != null) {
+      final s = await _repo.getById(id);
+      if (s != null) await _writeOrigin(id, await _agentOrigin(s));
+    }
     _publish();
+  }
+
+  /// Origin of the commits the session makes from now on (SPEC-048 R2):
+  /// `SPEC-043 conflito` before "Resolver conflito", `SPEC-042 base` after
+  /// a redone base conflicted. Kept until the steps change; null = back to
+  /// the step / session origin.
+  Future<void> setAgentOrigin(String id, String? origin) async {
+    if (origin == null) {
+      _originOverrides.remove(id);
+    } else {
+      _originOverrides[id] = origin;
+    }
+    if (_procs[id]?.markedRoot == null) return;
+    final s = await _repo.getById(id);
+    if (s != null) await _writeOrigin(id, await _agentOrigin(s));
+  }
+
+  final Map<String, String> _originOverrides = {};
+
+  /// Live sessions of [root] started with the marking on (R8: turning it
+  /// off applies to the next sessions only).
+  int markedLiveSessions(String root) =>
+      _procs.values.where((p) => p.markedRoot == root).length;
+
+  /// `SPEC-042 R2` / `sessão <nome>` (or the override of [setAgentOrigin]).
+  Future<String> _agentOrigin(Session s) async {
+    final override = _originOverrides[s.id];
+    if (override != null) return override;
+    final spec = s.specId == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(s.specId!);
+    if (spec != null) return stepOrigin(spec.code, parseSessionSteps(s.steps));
+    return sessionOrigin(_titleOf(s));
+  }
+
+  Future<void> _writeOrigin(String id, String origin) async {
+    await ref.read(agentGitHooksProvider)?.setOrigin(id, origin);
+  }
+
+  /// `PROMPTORIUM_AGENTE` / `PROMPTORIUM_ORIGEM` / `core.hooksPath` of the
+  /// session when its project has the marking on; empty otherwise.
+  Future<Map<String, String>> _agentEnv(Session s, String root) async {
+    final config = ProjectConfig.loadSync(root);
+    if (!config.git.markAgentCommits) return const {};
+    final hooks = ref.read(agentGitHooksProvider);
+    if (hooks == null) return const {};
+    return agentCommitEnv(
+      enabled: true,
+      hooks: hooks,
+      git: await ref.read(gitVersionProvider.future),
+      model: agentModelLabel(s.model, s.provider),
+      origin: await _agentOrigin(s),
+      sessionId: s.id,
+    );
   }
 
   /// Closes the process of every session idle for the configured time (no
@@ -927,6 +992,12 @@ class SessionManager extends Notifier<SessionManagerState> {
       throw const SessionException('O aplicativo está sendo encerrado.');
     }
     final session = (await _repo.getById(id))!;
+    // SPEC-048: only the agent's process gets the marking, never the
+    // terminals of the worktree (worktreeEnvProvider below).
+    final marking = await _agentEnv(session, root ?? cwd);
+    final processEnv = marking.isEmpty
+        ? environment
+        : {...?environment, ...marking};
     final ManagedAgentRun process;
     try {
       if (session.provider != 'claude') {
@@ -957,7 +1028,7 @@ class SessionManager extends Notifier<SessionManagerState> {
           model: options.model,
           effort: options.effort,
           permissionMode: options.permissionMode,
-          environment: environment,
+          environment: processEnv,
           autocompact: saved['autocompact'] as String?,
           agent: options.agent,
           maxBudgetUsd: options.maxBudgetUsd,
@@ -992,7 +1063,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             workingDirectory: cwd,
             executable: ref.read(claudeExecutableProvider),
             starter: ref.read(claudeProcessStarterProvider),
-            environment: environment,
+            environment: processEnv,
           ),
         );
       } else {
@@ -1011,8 +1082,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseCost,
       skipPermissions:
           options.permissionMode == ClaudePermissionMode.skipPermissions,
-    );
+    )..markedRoot = marking.isEmpty ? null : (root ?? cwd);
     _procs[id] = p;
+    if (p.markedRoot != null) {
+      ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
+    }
     try {
       await _repo.setPid(id, process.pid);
     } catch (e) {
@@ -1232,6 +1306,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         await _repo.setStatus(id, status);
         await _syncTask(id, status, fromResult: true);
         await _specs.onResult(id, e);
+        // SPEC-043 R1: a conflict resolution goes to the gate.
+        await ref
+            .read(conflictResolverProvider)
+            .onResult(id, e.isSuccess ? e.result : null);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
@@ -1270,7 +1348,13 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.logSub?.cancel();
     final code = await p.process.exitCode;
     // Only this process: a resume may already have started the next one.
-    if (identical(_procs[id], p)) _procs.remove(id);
+    if (identical(_procs[id], p)) {
+      _procs.remove(id);
+      if (p.markedRoot != null && ref.mounted) {
+        ref.read(markedSessionsProvider.notifier).remove(id);
+        await ref.read(agentGitHooksProvider)?.clearOrigin(id);
+      }
+    }
     if (ref.mounted) {
       try {
         await _repo.setPid(id, null);
@@ -1501,6 +1585,23 @@ final worktreeEnvProvider =
     NotifierProvider<WorktreeEnvs, Map<String, Map<String, String>>>(
       WorktreeEnvs.new,
     );
+
+/// Live sessions started with `git: marcar-commits-de-agente` on: session
+/// id → workspace root (SPEC-048 R8, "Desliga nas próximas sessões").
+class MarkedSessions extends Notifier<Map<String, String>> {
+  @override
+  Map<String, String> build() => const {};
+
+  void add(String id, String root) => state = {...state, id: root};
+
+  void remove(String id) {
+    if (!state.containsKey(id)) return;
+    state = {...state}..remove(id);
+  }
+}
+
+final markedSessionsProvider =
+    NotifierProvider<MarkedSessions, Map<String, String>>(MarkedSessions.new);
 
 final sessionManagerProvider =
     NotifierProvider<SessionManager, SessionManagerState>(SessionManager.new);

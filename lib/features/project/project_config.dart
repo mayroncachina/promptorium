@@ -44,6 +44,10 @@ import '../specs/spec_file.dart';
 /// releases:                  # "Criar release" (SPEC-044 R6)
 ///   workflow: create-release.yml  # in .github/workflows/
 ///   input: version           # field of the version (default version)
+/// git:
+///   marcar-commits-de-agente: true  # trailer nos commits das sessões
+/// review:
+///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
 /// ```
 ///
 /// Every key is optional; absent = the behaviour from before the key existed.
@@ -198,6 +202,25 @@ class ReleasesConfig {
   int get hashCode => Object.hash(workflow, input);
 }
 
+/// `git:` of the config (SPEC-048).
+@immutable
+class GitConfig {
+  const GitConfig({this.markAgentCommits = false});
+
+  /// `marcar-commits-de-agente`: the app's agent sessions append
+  /// `Promptorium-Agente: <modelo> · <origem>` to their commits.
+  final bool markAgentCommits;
+
+  bool get isDefault => !markAgentCommits;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GitConfig && other.markAgentCommits == markAgentCommits;
+
+  @override
+  int get hashCode => markAgentCommits.hashCode;
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -217,9 +240,11 @@ class ProjectConfig {
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
     this.releases = const ReleasesConfig(),
+    this.git = const GitConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
+    this.autoResolveConflicts = false,
   });
 
   static const defaultSpecsDir = 'specs';
@@ -257,8 +282,13 @@ class ProjectConfig {
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
   final ReleasesConfig releases;
+  final GitConfig git;
   final String mergeMethod;
   final String? host, hostType;
+
+  /// `review: resolver-conflitos: automatico` (SPEC-043 R6): the app starts
+  /// the agent's conflict resolution by itself. Default `manual`.
+  final bool autoResolveConflicts;
 
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
@@ -292,9 +322,11 @@ class ProjectConfig {
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
     ReleasesConfig? releases,
+    GitConfig? git,
     String? mergeMethod,
     String? host,
     String? hostType,
+    bool? autoResolveConflicts,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -312,9 +344,11 @@ class ProjectConfig {
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
     releases: releases ?? this.releases,
+    git: git ?? this.git,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
+    autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -461,6 +495,12 @@ class ProjectConfig {
         workflow: str(rel['workflow']),
         input: str(rel['input']),
       ),
+      git: GitConfig(
+        markAgentCommits:
+            boolean(map('git')['marcar-commits-de-agente']) ?? false,
+      ),
+      autoResolveConflicts:
+          '${map('review')['resolver-conflitos'] ?? ''}'.trim() == 'automatico',
     );
   }
 
@@ -556,6 +596,12 @@ class ProjectConfig {
       if (releases.input != null) {
         b.writeln('  input: ${_quote(releases.input!)}');
       }
+    }
+    if (!git.isDefault) {
+      b.writeln('git:\n  marcar-commits-de-agente: ${git.markAgentCommits}');
+    }
+    if (autoResolveConflicts) {
+      b.writeln('review:\n  resolver-conflitos: automatico');
     }
     return b.toString();
   }

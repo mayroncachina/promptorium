@@ -151,10 +151,11 @@ void main() {
     find.descendant(of: key(k), matching: find.byType(Checkbox)).first,
   );
 
-  testWidgets('R1 · the tab after Releases, with the counter of everything '
+  testWidgets('R1 · the last tab, with the counter of everything '
       'it found', (tester) async {
     await pump(tester);
-    expect(repositoryTabs.map((t) => t.id).take(2), ['releases', 'higiene']);
+    expect(repositoryTabs.first.id, 'releases');
+    expect(repositoryTabs.last.id, 'higiene');
     expect(key('repo-tab-body-higiene'), findsOneWidget);
     expect(
       find.descendant(

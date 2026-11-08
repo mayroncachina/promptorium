@@ -28,8 +28,10 @@ import 'review_service.dart';
 import '../../core/system/worktree_launcher.dart';
 import '../project/widgets/project_config_view.dart' show configFocusProvider;
 import '../settings/settings_sections.dart';
+import 'conflict_resolution.dart';
 import 'restack.dart';
 import 'review_stack.dart';
+import 'widgets/conflict_resolution_panel.dart';
 import 'widgets/merge_status_view.dart';
 import 'widgets/review_graph.dart';
 import '../board/widgets/wave_graph.dart' show dependencyWaves;
@@ -1002,6 +1004,12 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
           ..go(first.path);
       }
     },
+    'resolucao' => switch (ref.read(conflictResolutionProvider(_id))?.state) {
+      ResolutionState.reprovada => _fixResolution,
+      ResolutionState.desatualizada ||
+      ResolutionState.aprovada => _resolveAgain,
+      _ => null,
+    },
     'criterios' => () {
       final panel = _specPanelKey.currentContext;
       if (panel != null) unawaited(Scrollable.ensureVisible(panel));
@@ -1192,6 +1200,24 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     });
   }
 
+  /// "Corrigir e verificar" (SPEC-043 R3).
+  void _fixResolution() => unawaited(
+    _run('Corrigir e verificar', () async {
+      await ref.read(conflictResolverProvider).fix(_id);
+      _refresh();
+      _toast('Relatório do gate enviado ao agente da spec.');
+    }),
+  );
+
+  /// "Resolver de novo" (SPEC-043 R7).
+  void _resolveAgain() => unawaited(
+    _run('Resolver de novo', () async {
+      await _service.resolveConflict(_id);
+      _refresh();
+      _toast('Instruções do conflito enviadas ao agente da spec.');
+    }),
+  );
+
   Widget _primaryButton(
     PrimaryAction primary,
     MergeStatus status, {
@@ -1271,6 +1297,14 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         'review-open-editor',
         () => unawaited(_openEditor()),
       ),
+      PrimaryAction.corrigirVerificar => button(
+        'review-resolution-fix-primary',
+        busy ? null : _fixResolution,
+      ),
+      PrimaryAction.resolverDeNovo => button(
+        'review-resolution-again-primary',
+        busy ? null : _resolveAgain,
+      ),
       PrimaryAction.nenhuma => Text(
         status.text,
         key: const ValueKey('review-primary-none'),
@@ -1316,6 +1350,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         : ref.watch(pendingCriteriaProvider(widget.item.spec!.id)).value ??
               const <String>[];
     final status = watchMergeStatus(ref, widget.item, readiness: ready);
+    final resolution = ref.watch(conflictResolutionProvider(_id));
     // R13: this item is the base of a stack.
     final stack = orderQueue(
       ref.watch(reviewQueueProvider(widget.workspaceId)).value ??
@@ -1348,20 +1383,31 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.item.spec != null
-                          ? widget.item.spec!.title
-                          : widget.item.task != null
-                          ? widget.item.task!.title
-                          : sessionTitle(s),
-                      key: const ValueKey('review-title'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.item.spec != null
+                                ? widget.item.spec!.title
+                                : widget.item.task != null
+                                ? widget.item.task!.title
+                                : sessionTitle(s),
+                            key: const ValueKey('review-title'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ),
+                        // SPEC-043 R2: the state of the conflict resolution.
+                        if (resolution != null) ...[
+                          const SizedBox(width: 10),
+                          ResolutionChip(sessionId: _id),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     _Subtitle(detail: d, branch: s.branch, busy: _busy),
@@ -1456,16 +1502,26 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                           'Merge de ${stack.items.map((i) => i.spec?.code ?? sessionTitle(i.session)).join(', ')} em sequência; '
                           'para no primeiro que não estiver pronto',
                     ),
-                  // Criteria are the only blocker the user may override,
-                  // with a reason.
+                  // Criteria and the conflict resolution (SPEC-043 R5) are
+                  // the blockers the user may override, with a reason.
                   if (d != null &&
                       ready != null &&
-                      ready.blockers.any((i) => i.id == 'criterios'))
+                      ready.blockers.any(
+                        (i) => i.id == 'criterios' || i.id == 'resolucao',
+                      ))
                     _MoreEntry(
                       'review-merge-override',
                       'Mergear mesmo assim…',
                       !busy && ready.canOverride
-                          ? () => _merge(d, pending: pending)
+                          ? () => _merge(
+                              d,
+                              pending: [
+                                ...pending,
+                                for (final i in ready.blockers)
+                                  if (i.id == 'resolucao')
+                                    'Resolução do conflito: ${i.detail}',
+                              ],
+                            )
                           : null,
                     ),
                   if (!busy &&
@@ -1503,6 +1559,32 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             path: s.worktreePath,
             branch: s.branch,
             onMessage: _toast,
+          ),
+        // SPEC-043: the gate on the agent's resolution.
+        if (resolution != null &&
+            const {
+              MergeState.resolvendo,
+              MergeState.conferindo,
+              MergeState.resolvida,
+              MergeState.reprovada,
+              MergeState.resolucaoDesatualizada,
+            }.contains(status.state))
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 520),
+            child: SingleChildScrollView(
+              child: ConflictResolutionPanel(
+                sessionId: _id,
+                specCode: widget.item.spec?.code ?? 'desta spec',
+                busy: busy,
+                run: _run,
+                toast: _toast,
+                refresh: () {
+                  ref.invalidate(rebaseStatusProvider(_id));
+                  ref.invalidate(conflictHunksProvider(_id));
+                  _refresh();
+                },
+              ),
+            ),
           ),
         // R17: how to resolve a conflict, with the stretches.
         if (const {
@@ -1910,6 +1992,7 @@ extension on _ReviewMainState {
         ref.watch(reviewCommentsProvider(widget.item.spec!.id)).value ?? [];
     final rounds = <int, ReviewCommentRow>{};
     for (final c in rows) {
+      if (c.author == resolutionAuthor) continue;
       rounds.putIfAbsent(c.round, () => c);
     }
     final sorted = rounds.values.toList()

@@ -607,6 +607,90 @@ class GhCli {
   }
 }
 
+/// State of the checks of a PR (SPEC-045 R4).
+enum CiState { none, running, passed, failed }
+
+/// The CI of a list of check states (`SUCCESS`, `FAILURE`, `PENDING`…): a
+/// failure wins, then one still running; skipped and neutral ones pass.
+CiState ciStateOf(Iterable<String> states) {
+  var any = false, running = false;
+  for (final raw in states) {
+    any = true;
+    switch (raw.toUpperCase()) {
+      case 'FAILURE' ||
+          'ERROR' ||
+          'CANCELLED' ||
+          'TIMED_OUT' ||
+          'ACTION_REQUIRED' ||
+          'STARTUP_FAILURE':
+        return CiState.failed;
+      case 'SUCCESS' || 'NEUTRAL' || 'SKIPPED' || 'STALE':
+        break;
+      default:
+        running = true;
+    }
+  }
+  if (!any) return CiState.none;
+  return running ? CiState.running : CiState.passed;
+}
+
+/// An open PR with its checks (`gh pr list --json statusCheckRollup`).
+@immutable
+class GhOpenPr {
+  const GhOpenPr({
+    required this.number,
+    required this.url,
+    required this.headRefName,
+    this.ci = CiState.none,
+  });
+
+  final int number;
+  final String url;
+  final String headRefName;
+  final CiState ci;
+}
+
+/// State of one entry of `statusCheckRollup`: a check run's conclusion
+/// (`PENDING` while not completed) or a status context's state.
+String rollupState(Map<Object?, Object?> c) {
+  final status = c['status'];
+  if (status is String && status.isNotEmpty) {
+    return status == 'COMPLETED' ? _str(c['conclusion']) : 'PENDING';
+  }
+  final state = _str(c['state']);
+  return state.isEmpty ? 'PENDING' : state;
+}
+
+extension GhOpenPrs on GhCli {
+  /// The open PRs with the state of their CI (SPEC-045 R4).
+  Future<List<GhOpenPr>> prListOpen({int limit = 100}) async {
+    final j = await _json([
+      'pr',
+      'list',
+      '--state',
+      'open',
+      '--limit',
+      '$limit',
+      '--json',
+      'number,url,headRefName,statusCheckRollup',
+    ]);
+    return [
+      if (j is List)
+        for (final p in j.whereType<Map>())
+          if (_int(p['number']) case final n? when p['url'] is String)
+            GhOpenPr(
+              number: n,
+              url: p['url'] as String,
+              headRefName: _str(p['headRefName']),
+              ci: ciStateOf([
+                if (p['statusCheckRollup'] case final List checks)
+                  for (final c in checks.whereType<Map>()) rollupState(c),
+              ]),
+            ),
+    ];
+  }
+}
+
 /// A [GhCli] for a repository folder.
 final ghCliFactoryProvider = Provider<GhCli Function(String cwd)>((ref) {
   final run = ref.watch(cliRunnerProvider);
