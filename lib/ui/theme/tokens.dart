@@ -128,3 +128,32 @@ abstract final class CanvasColors {
   /// Tooltip cards over the canvas.
   static const tooltip = Color(0xFF1F2430);
 }
+
+/// Colour of a spec (SPEC-045 R2): its lane in the Grafo and its dot in
+/// the Releases and in the commit panel. The Quadro's cards have no colour
+/// of their own (only the stage pill), so the spec's colour is born here,
+/// from the four tones of the mockups plus the Quadro's pink and teal, by
+/// the spec number: six specs in a row never share one.
+abstract final class SpecColors {
+  static const palette = [
+    AppColors.amber,
+    Color(0xFF8EC5FF),
+    Color(0xFFC59BFF),
+    Color(0xFF5BC88A),
+    Color(0xFFE07AB0),
+    AppColors.teal,
+  ];
+
+  /// The spec (`spec/042-…`).
+  static Color of(int number) => palette[number % palette.length];
+
+  /// Its tasks (`spec/042-t4-…`): the same tone, lighter (R3).
+  static Color task(int number) =>
+      Color.lerp(of(number), const Color(0xFFFFFFFF), .45)!;
+
+  /// The default branch: light grey, always on the first lane.
+  static const defaultBranch = Color(0xFFC9CED8);
+
+  /// Any other branch.
+  static const other = Color(0xFF8A93A3);
+}
