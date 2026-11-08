@@ -58,7 +58,7 @@ void main() {
     // ignore: avoid_print
     print(
       'commits: $count · 1ª página: ${firstMs}ms '
-      '(git ${read1 ~/ 1000}ms, layout ${lay1}µs) · '
+      '(git ${read1 ~/ 1000}ms, layout $lay1 µs) · '
       'páginas seguintes: ${pages.join('; ')} · '
       'as $rows de uma vez: ${fullMs}ms, ${allLay.rows.length} linhas, '
       'raias até ${allLay.rows.fold(0, (w, r) => r.width > w ? r.width : w)} '
