@@ -14,9 +14,11 @@ import '../releases/releases_tab.dart';
 import '../repository_info.dart';
 import '../repository_screen.dart';
 import 'commit_log.dart';
+import 'commit_panel.dart';
 import 'graph_controller.dart';
 import 'graph_painter.dart';
 import 'graph_sources.dart';
+import 'graph_watcher.dart';
 import 'lane_layout.dart';
 import 'spec_branch.dart';
 
@@ -132,13 +134,66 @@ LaneBalloon laneBalloon(String track, GraphController c) {
   return LaneBalloon(track, detail, merged);
 }
 
+/// Something asked from outside the tab (SPEC-046: the Atividade opens the
+/// Grafo on a day), carried out once by the tab.
+@immutable
+class GraphRequest {
+  const GraphRequest({this.day, this.select, this.search});
+
+  /// Only this day's commits ([GraphQuery.day]).
+  final DateTime? day;
+
+  /// Commit to select (its SHA).
+  final String? select;
+
+  /// Text of the search.
+  final String? search;
+}
+
+class GraphRequestController extends Notifier<GraphRequest?> {
+  @override
+  GraphRequest? build() => null;
+
+  void request(GraphRequest r) => state = r;
+
+  /// The request, cleared (null = nothing asked).
+  GraphRequest? take() {
+    final r = state;
+    if (r != null) state = null;
+    return r;
+  }
+}
+
+final graphRequestProvider =
+    NotifierProvider<GraphRequestController, GraphRequest?>(
+      GraphRequestController.new,
+    );
+
+/// Opens the Grafo of the Repositório screen on [day] (its commits only),
+/// selecting [select] and searching [search] (SPEC-046).
+void openGraph(WidgetRef ref, {DateTime? day, String? select, String? search}) {
+  ref
+      .read(graphRequestProvider.notifier)
+      .request(GraphRequest(day: day, select: select, search: search));
+  ref.read(repositoryTabProvider.notifier).select('grafo');
+  ref.read(navigationProvider.notifier).request(AppSection.repository);
+}
+
 class GraphTab extends ConsumerStatefulWidget {
-  const GraphTab({super.key, required this.repo, this.controller});
+  const GraphTab({
+    super.key,
+    required this.repo,
+    this.controller,
+    this.watchRefs = true,
+  });
 
   final RepositoryInfo repo;
 
   /// Given by the tests (already loaded); otherwise made here.
   final GraphController? controller;
+
+  /// Reads the log again when HEAD, the refs or the tags change (R7).
+  final bool watchRefs;
 
   @override
   ConsumerState<GraphTab> createState() => GraphTabState();
@@ -149,6 +204,10 @@ class GraphTabState extends ConsumerState<GraphTab> {
   late final bool _owned;
   final _scroll = ScrollController();
   final _stackKey = GlobalKey();
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+  GraphRefsWatcher? _watcher;
+  bool _disposed = false;
 
   /// Lane under the pointer (R8).
   String? _hoverTrack;
@@ -163,16 +222,61 @@ class GraphTabState extends ConsumerState<GraphTab> {
         GraphController(ref.read(graphLogFactoryProvider)(widget.repo));
     controller.addListener(_changed);
     _scroll.addListener(_onScroll);
+    _search.text = controller.search;
     if (!controller.loaded) unawaited(controller.load());
+    if (widget.watchRefs) unawaited(_watch());
   }
 
   @override
   void dispose() {
+    _disposed = true;
     controller.removeListener(_changed);
     if (_owned) controller.dispose();
+    unawaited(_watcher?.close());
     _scroll.dispose();
+    _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
+
+  Future<void> _watch() async {
+    try {
+      final dir = (await controller.log.git.git([
+        'rev-parse',
+        '--absolute-git-dir',
+      ])).trim();
+      if (_disposed || dir.isEmpty) return;
+      _watcher = GraphRefsWatcher(dir, onChange: () => unawaited(refresh()));
+    } on GitException catch (e) {
+      debugPrint('Grafo: sem vigia das refs — $e');
+    }
+  }
+
+  /// Reads the log again (R7) keeping the selection and the rows on screen:
+  /// the first visible row stays where it was.
+  Future<void> refresh() async {
+    final c = controller;
+    String? anchor;
+    var delta = 0.0;
+    if (_scroll.hasClients && c.rows.isNotEmpty) {
+      final top = _scroll.offset - _listTop;
+      final i = (top / graphRowHeight).floor().clamp(0, c.rows.length - 1);
+      anchor = c.rows[i].sha;
+      delta = top - i * graphRowHeight;
+    }
+    await c.refresh();
+    if (_disposed || anchor == null || !_scroll.hasClients) return;
+    final i = c.rows.indexWhere((r) => r.sha == anchor);
+    if (i < 0) return;
+    final to = (_listTop + i * graphRowHeight + delta).clamp(
+      0.0,
+      _scroll.position.maxScrollExtent,
+    );
+    if ((to - _scroll.offset).abs() > .5) _scroll.jumpTo(to);
+  }
+
+  /// Top padding of the list.
+  static const _listTop = 4.0;
 
   void _changed() {
     if (mounted) setState(() {});
@@ -184,6 +288,48 @@ class GraphTabState extends ConsumerState<GraphTab> {
     if (p.extentAfter < graphRowHeight * 20 && controller.hasMore) {
       unawaited(controller.loadMore());
     }
+  }
+
+  /// Brings row [i] to the middle of the list (a search result).
+  void _reveal(int i) {
+    if (!_scroll.hasClients) return;
+    final p = _scroll.position;
+    final to = (_listTop + i * graphRowHeight - p.viewportDimension / 2).clamp(
+      0.0,
+      p.maxScrollExtent,
+    );
+    _scroll.jumpTo(to);
+  }
+
+  void _onSearch(String text) {
+    controller.setSearch(text);
+    final row = controller.currentMatchRow;
+    if (row != null) _reveal(row);
+  }
+
+  void _nextMatch() {
+    final row = controller.nextMatch();
+    if (row != null) _reveal(row);
+    _searchFocus.requestFocus();
+  }
+
+  /// A request from outside (SPEC-046), once.
+  void _takeRequest() {
+    final r = ref.read(graphRequestProvider.notifier).take();
+    if (r == null) return;
+    unawaited(() async {
+      await controller.setDay(r.day);
+      if (_disposed) return;
+      if (r.search != null) {
+        _search.text = r.search!;
+        _onSearch(r.search!);
+      }
+      if (r.select != null) {
+        controller.select(r.select);
+        final i = controller.rows.indexWhere((x) => x.sha == r.select);
+        if (i >= 0) _reveal(i);
+      }
+    }());
   }
 
   void _hover(LaneRow row, Offset local, Offset global) {
@@ -242,6 +388,11 @@ class GraphTabState extends ConsumerState<GraphTab> {
   @override
   Widget build(BuildContext context) {
     final c = controller;
+    if (ref.watch(graphRequestProvider) != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _takeRequest();
+      });
+    }
     final ws = ref.watch(activeWorkspaceProvider);
     final specs = ws == null
         ? const <Spec>[]
@@ -253,6 +404,11 @@ class GraphTabState extends ConsumerState<GraphTab> {
     final highlight = _hoverTrack == null ? null : highlightKeyOf(_hoverTrack);
     final graphWidth = graphColumnWidth(c.width);
     final now = DateTime.now();
+    final selectedRow = c.selected == null
+        ? null
+        : c.rows.where((r) => r.sha == c.selected).firstOrNull;
+    final compact = selectedRow != null;
+    final current = c.currentMatchRow;
 
     Widget body;
     if (c.error != null && c.rows.isEmpty) {
@@ -269,6 +425,15 @@ class GraphTabState extends ConsumerState<GraphTab> {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
+    } else if (c.rows.isEmpty) {
+      body = Center(
+        child: Text(
+          c.query.day != null
+              ? 'Nenhum commit neste dia.'
+              : 'Nenhum commit para mostrar.',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+      );
     } else {
       body = Stack(
         key: _stackKey,
@@ -276,7 +441,12 @@ class GraphTabState extends ConsumerState<GraphTab> {
           ListView.builder(
             key: const ValueKey('graph-list'),
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+            padding: EdgeInsets.fromLTRB(
+              compact ? 12 : 24,
+              _listTop,
+              compact ? 12 : 24,
+              24,
+            ),
             itemExtent: graphRowHeight,
             itemCount: c.rows.length + (c.hasMore ? 1 : 0),
             itemBuilder: (context, i) {
@@ -304,12 +474,18 @@ class GraphTabState extends ConsumerState<GraphTab> {
                 graphWidth: graphWidth,
                 highlight: highlight,
                 selected: c.selected == row.sha,
+                match: i == current
+                    ? GraphMatch.current
+                    : c.isMatch(i)
+                    ? GraphMatch.other
+                    : GraphMatch.none,
+                compact: compact,
                 now: now,
                 specTitles: titles,
                 prs: prs,
                 busyBranches: busy,
                 authorBadge: badge,
-                onTap: () => c.select(row.sha),
+                onTap: () => c.select(c.selected == row.sha ? null : row.sha),
                 onHover: (local, global) => _hover(row, local, global),
                 onLeave: _leave,
                 onTag: _openTag,
@@ -332,42 +508,259 @@ class GraphTabState extends ConsumerState<GraphTab> {
       );
     }
 
-    return Column(
+    final list = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Toolbar(controller: c),
-        _ColumnTitles(graphWidth: graphWidth),
+        _Toolbar(
+          controller: c,
+          search: _search,
+          searchFocus: _searchFocus,
+          compact: compact,
+          onSearch: _onSearch,
+          onNext: _nextMatch,
+        ),
+        if (!compact) _ColumnTitles(graphWidth: graphWidth),
         Expanded(child: body),
       ],
+    );
+    if (selectedRow == null) return list;
+    return LayoutBuilder(
+      builder: (context, box) => Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: list),
+          Container(width: 1, color: AppColors.border),
+          SizedBox(
+            width: (box.maxWidth * .33).clamp(360.0, 520.0),
+            child: CommitPanel(
+              controller: c,
+              row: selectedRow,
+              repo: widget.repo,
+              onClose: () => c.select(null),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Header of the tab (R6): the count of commits read.
+/// How a row stands in the search (R6).
+enum GraphMatch { none, other, current }
+
+const _toolbarBorder = Color(0xFF1E232C);
+
+/// Header of the tab (R6; Grafo.dc.html): what to show, the search, the
+/// remote-only branches and the count.
 class _Toolbar extends StatelessWidget {
-  const _Toolbar({required this.controller});
+  const _Toolbar({
+    required this.controller,
+    required this.search,
+    required this.searchFocus,
+    required this.onSearch,
+    required this.onNext,
+    this.compact = false,
+  });
 
   final GraphController controller;
+  final TextEditingController search;
+  final FocusNode searchFocus;
+  final ValueChanged<String> onSearch;
+  final VoidCallback onNext;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final c = controller;
+    final q = c.query;
+    Widget scope(GraphScope s, String label, {bool first = false}) {
+      final on = q.scope == s;
+      return Semantics(
+        button: true,
+        selected: on,
+        child: InkWell(
+          key: ValueKey('graph-scope-${s.name}'),
+          onTap: () => unawaited(c.setScope(s)),
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on ? AppColors.amberTint : Colors.transparent,
+              border: first
+                  ? null
+                  : const Border(left: BorderSide(color: AppColors.border)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: on ? AppColors.amber : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final searching = search.text.trim().isNotEmpty;
+    final counter = !searching
+        ? null
+        : c.matches.isEmpty
+        ? 'nenhum'
+        : '${c.currentMatch + 1} de ${c.matches.length} · Enter';
+    final day = q.day;
     return Container(
       height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 24),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF1E232C))),
+        border: Border(bottom: BorderSide(color: _toolbarBorder)),
       ),
       child: Row(
         children: [
-          const Spacer(),
-          if (c.loaded)
-            Text(
-              '${formatThousands(c.commits.length)} de '
-              '${formatThousands(c.total)} commits',
-              key: const ValueKey('graph-count'),
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(8),
             ),
+            clipBehavior: Clip.antiAlias,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                scope(GraphScope.all, 'Todas as branches', first: true),
+                scope(GraphScope.defaultBranch, 'Só a ${c.defaultBranch}'),
+                scope(GraphScope.openSpecs, 'Specs abertas'),
+              ],
+            ),
+          ),
+          if (day != null) ...[
+            const SizedBox(width: 8),
+            InputChip(
+              key: const ValueKey('graph-day'),
+              label: Text(
+                'Só ${day.day} ${_months[day.month - 1]} ${day.year}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              onDeleted: () => unawaited(c.setDay(null)),
+              deleteButtonTooltipMessage: 'Todos os dias',
+            ),
+          ],
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: compact ? double.infinity : 380,
+                ),
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.panel,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search,
+                        size: 15,
+                        color: AppColors.textMuted,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          key: const ValueKey('graph-search'),
+                          controller: search,
+                          focusNode: searchFocus,
+                          onChanged: onSearch,
+                          onSubmitted: (_) => onNext(),
+                          onEditingComplete: () {},
+                          style: const TextStyle(fontSize: 13),
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: InputBorder.none,
+                            hintText: 'Mensagem, SHA, autor ou SPEC-NNN',
+                            hintStyle: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textMuted,
+                            ),
+                            semanticCounterText: 'Buscar commits',
+                          ),
+                        ),
+                      ),
+                      if (counter != null)
+                        Text(
+                          counter,
+                          key: const ValueKey('graph-search-counter'),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (!compact) ...[
+            const SizedBox(width: 12),
+            Flexible(
+              flex: 2,
+              child: InkWell(
+                key: const ValueKey('graph-remote-only'),
+                onTap: () => unawaited(c.setRemoteOnly(!q.remoteOnly)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox.square(
+                      dimension: 16,
+                      child: Checkbox(
+                        value: q.remoteOnly,
+                        onChanged: (v) =>
+                            unawaited(c.setRemoteOnly(v ?? false)),
+                        activeColor: AppColors.amber,
+                        checkColor: AppColors.onAmber,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'Branches só no remoto',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (c.loaded)
+              Flexible(
+                child: Text(
+                  '${formatThousands(c.commits.length)} de '
+                  '${formatThousands(c.total)} commits',
+                  key: const ValueKey('graph-count'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -402,7 +795,7 @@ class _ColumnTitles extends StatelessWidget {
     height: 32,
     padding: const EdgeInsets.fromLTRB(24, 0, 36, 0),
     decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: Color(0xFF1E232C))),
+      border: Border(bottom: BorderSide(color: _toolbarBorder)),
     ),
     child: Row(
       children: [
@@ -437,6 +830,7 @@ class GraphCommitRow extends StatelessWidget {
     required this.now,
     this.highlight,
     this.selected = false,
+    this.match = GraphMatch.none,
     this.compact = false,
     this.specTitles = const {},
     this.prs = const {},
@@ -456,6 +850,9 @@ class GraphCommitRow extends StatelessWidget {
   final DateTime now;
   final Object? highlight;
   final bool selected;
+
+  /// A result of the search (R6).
+  final GraphMatch match;
 
   /// Without the spec and author columns (the panel is open).
   final bool compact;
@@ -592,7 +989,13 @@ class GraphCommitRow extends StatelessWidget {
       button: true,
       label: message,
       child: Material(
-        color: selected ? const Color(0xFF1A2130) : Colors.transparent,
+        color: selected
+            ? const Color(0xFF1A2130)
+            : switch (match) {
+                GraphMatch.current => AppColors.amberTint,
+                GraphMatch.other => AppColors.amber.withValues(alpha: .05),
+                GraphMatch.none => Colors.transparent,
+              },
         child: InkWell(
           onTap: onTap,
           child: Container(
