@@ -64,6 +64,7 @@ class AcpProvider implements AgentProvider {
         command.first,
         command.sublist(1),
         workingDirectory: options.workingDirectory,
+        environment: options.environment,
       );
     } on ProcessException catch (e) {
       throw AgentUnavailable(
@@ -81,7 +82,12 @@ class AcpProvider implements AgentProvider {
     List<String> args, {
     String? workingDirectory,
     Map<String, String>? environment,
-  }) => Process.start(exe, args, workingDirectory: workingDirectory);
+  }) => Process.start(
+    exe,
+    args,
+    workingDirectory: workingDirectory,
+    environment: environment,
+  );
 }
 
 /// One ACP agent process: `initialize`, `session/new` (or `session/load`

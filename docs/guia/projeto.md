@@ -88,6 +88,8 @@ autopilot:
 hospedagem:                    # GitHub/GitLab em instância própria
   host: git.exemplo.com
   tipo: gitlab
+git:
+  marcar-commits-de-agente: true  # trailer nos commits das sessões (padrão: false)
 ```
 
 ## Apagar projeto

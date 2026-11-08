@@ -44,6 +44,8 @@ import '../specs/spec_file.dart';
 /// releases:                  # "Criar release" (SPEC-044 R6)
 ///   workflow: create-release.yml  # in .github/workflows/
 ///   input: version           # field of the version (default version)
+/// git:
+///   marcar-commits-de-agente: true  # trailer nos commits das sessões
 /// ```
 ///
 /// Every key is optional; absent = the behaviour from before the key existed.
@@ -198,6 +200,25 @@ class ReleasesConfig {
   int get hashCode => Object.hash(workflow, input);
 }
 
+/// `git:` of the config (SPEC-048).
+@immutable
+class GitConfig {
+  const GitConfig({this.markAgentCommits = false});
+
+  /// `marcar-commits-de-agente`: the app's agent sessions append
+  /// `Promptorium-Agente: <modelo> · <origem>` to their commits.
+  final bool markAgentCommits;
+
+  bool get isDefault => !markAgentCommits;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GitConfig && other.markAgentCommits == markAgentCommits;
+
+  @override
+  int get hashCode => markAgentCommits.hashCode;
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -217,6 +238,7 @@ class ProjectConfig {
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
     this.releases = const ReleasesConfig(),
+    this.git = const GitConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
@@ -257,6 +279,7 @@ class ProjectConfig {
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
   final ReleasesConfig releases;
+  final GitConfig git;
   final String mergeMethod;
   final String? host, hostType;
 
@@ -292,6 +315,7 @@ class ProjectConfig {
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
     ReleasesConfig? releases,
+    GitConfig? git,
     String? mergeMethod,
     String? host,
     String? hostType,
@@ -312,6 +336,7 @@ class ProjectConfig {
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
     releases: releases ?? this.releases,
+    git: git ?? this.git,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
@@ -461,6 +486,10 @@ class ProjectConfig {
         workflow: str(rel['workflow']),
         input: str(rel['input']),
       ),
+      git: GitConfig(
+        markAgentCommits:
+            boolean(map('git')['marcar-commits-de-agente']) ?? false,
+      ),
     );
   }
 
@@ -556,6 +585,9 @@ class ProjectConfig {
       if (releases.input != null) {
         b.writeln('  input: ${_quote(releases.input!)}');
       }
+    }
+    if (!git.isDefault) {
+      b.writeln('git:\n  marcar-commits-de-agente: ${git.markAgentCommits}');
     }
     return b.toString();
   }
