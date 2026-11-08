@@ -1993,27 +1993,11 @@ class ReviewService {
   ///    session `merged` (+ hash) and the task "Feito".
   Future<ConflictPrediction> predictConflict(String sessionId) async {
     final c = await _context(sessionId);
-    try {
-      await _git(c.workspace.path).git([
-        'merge-tree',
-        '--write-tree',
-        '--name-only',
-        await baseBranchOf(c.session, c.workspace),
-        c.session.branch,
-      ]);
-      return const ConflictPrediction();
-    } on GitException catch (e) {
-      if (e.exitCode == 1) {
-        return ConflictPrediction(
-          files: e.stdout
-              .split('\n')
-              .skip(1)
-              .takeWhile((l) => l.isNotEmpty)
-              .toList(),
-        );
-      }
-      return ConflictPrediction(error: '$e');
-    }
+    return predictMergeConflict(
+      _git(c.workspace.path),
+      await baseBranchOf(c.session, c.workspace),
+      c.session.branch,
+    );
   }
 
   Future<MergeResult> merge(
@@ -2953,3 +2937,28 @@ final pairConflictProvider =
 
 /// App setting with the Review's view of a workspace ("lista" | "grafo").
 String reviewModeKey(int workspaceId) => 'review.modo.$workspaceId';
+
+/// Files that would conflict merging [branch] into [base], without touching
+/// the tree or the index (`git merge-tree --write-tree`): the Review's
+/// forecast, also used by the Higiene tab (SPEC-047 R4).
+Future<ConflictPrediction> predictMergeConflict(
+  GitService git,
+  String base,
+  String branch,
+) async {
+  try {
+    await git.git(['merge-tree', '--write-tree', '--name-only', base, branch]);
+    return const ConflictPrediction();
+  } on GitException catch (e) {
+    if (e.exitCode == 1) {
+      return ConflictPrediction(
+        files: e.stdout
+            .split('\n')
+            .skip(1)
+            .takeWhile((l) => l.isNotEmpty)
+            .toList(),
+      );
+    }
+    return ConflictPrediction(error: '$e');
+  }
+}
