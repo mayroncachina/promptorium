@@ -386,7 +386,7 @@ class _RunSpecDialogState extends ConsumerState<RunSpecDialog> {
               initialValue: value,
               isDense: true,
               isExpanded: true,
-              dropdownColor: AppColors.panel,
+              dropdownColor: AppColors.panelSolid,
               style: const TextStyle(fontSize: 13, color: AppColors.text),
               decoration: InputDecoration(
                 isDense: true,

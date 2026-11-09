@@ -649,7 +649,7 @@ class _ProviderButton extends StatelessWidget {
         return PopupMenuButton<String>(
           key: const ValueKey('prompt-provider'),
           tooltip: 'Provedor',
-          color: AppColors.surfaceRaised,
+          color: AppColors.surfaceRaisedSolid,
           position: PopupMenuPosition.over,
           onSelected: (id) => onSelected(all.firstWhere((p) => p.id == id)),
           itemBuilder: (_) => [
@@ -731,7 +731,7 @@ class _ModelButton extends StatelessWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('prompt-model'),
       tooltip: 'Modelo (vale a partir da próxima mensagem)',
-      color: AppColors.surfaceRaised,
+      color: AppColors.surfaceRaisedSolid,
       position: PopupMenuPosition.over,
       onSelected: onSelected,
       itemBuilder: (_) => [

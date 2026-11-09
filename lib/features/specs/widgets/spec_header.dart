@@ -991,7 +991,7 @@ class _SpecMoreButtonState extends State<SpecMoreButton>
       childFocusNode: _focus,
       alignmentOffset: const Offset(0, 6),
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(AppColors.panel),
+        backgroundColor: const WidgetStatePropertyAll(AppColors.panelSolid),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(

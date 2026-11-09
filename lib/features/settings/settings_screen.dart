@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
+import '../../ui/theme/glass.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
@@ -166,6 +167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
+                SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
                   title: 'Automações',
                   intro:
@@ -531,6 +533,58 @@ class _SessionsSection extends ConsumerWidget {
               'andamento nem pergunta pendente, é fechado depois deste tempo '
               'para liberar memória. A sessão continua na lista.',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The Vidro theme's effects (SPEC-049 R6).
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(glassEffectsProvider);
+    final byEnv = glassDisabledByEnvironment();
+    final settings = ref.read(appSettingsProvider.notifier);
+    return _Page(
+      title: 'Aparência',
+      intro:
+          'O tema Vidro: painéis translúcidos, luzes no fundo e desfoque '
+          'atrás de diálogos.',
+      effect: _Effect(
+        on
+            ? 'Efeitos ligados: fundo com luzes e diálogos sobre desfoque.'
+            : 'Efeitos desligados: fundo liso e nada desfoca. O layout e as '
+                  'cores dos painéis são os mesmos.',
+      ),
+      children: [
+        AgentCard(
+          title: 'Efeitos de vidro',
+          children: [
+            choices(
+              keyPrefix: 'settings-glass',
+              values: const [('on', 'Ligados'), ('off', 'Desligados')],
+              selected: on ? 'on' : 'off',
+              onTap: byEnv
+                  ? (_) {}
+                  : (v) => v == 'on'
+                        ? settings.remove(AppSettingKeys.glassEffects)
+                        : settings.set(AppSettingKeys.glassEffects, 'false'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              byEnv
+                  ? 'Desligados por PROMPTORIUM_SEM_VIDRO nesta execução.'
+                  : 'Desligue numa placa de vídeo fraca, num desktop sem '
+                        'aceleração gráfica ou se preferir o visual opaco.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),

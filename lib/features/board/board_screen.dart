@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/motion.dart';
+import '../../ui/theme/glass.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../sessions/session_composer_draft.dart';
@@ -794,7 +795,7 @@ class _Header extends ConsumerWidget {
     ) => PopupMenuButton<String>(
       key: ValueKey('board-filter-$keyName'),
       tooltip: label,
-      color: AppColors.panel,
+      color: AppColors.panelSolid,
       onSelected: (v) =>
           onPick(v == '' ? null : options.firstWhere((o) => '$o' == v)),
       itemBuilder: (_) => [
@@ -1267,11 +1268,14 @@ class _Column extends ConsumerWidget {
         ref.read(specsRepoProvider).setStage(d.data, stage);
       },
       builder: (context, candidate, _) => Container(
+        // A glass column (SPEC-049 R3).
         decoration: BoxDecoration(
           color: AppColors.panel,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: candidate.isNotEmpty ? AppColors.amber : AppColors.border,
+            color: candidate.isNotEmpty
+                ? AppColors.amber
+                : GlassColors.hairline,
           ),
         ),
         padding: const EdgeInsets.all(10),
@@ -1604,16 +1608,24 @@ class SpecCard extends ConsumerWidget {
             .select(selected ? null : spec.id),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          // A glass card; a state border (running, needs you) also glows
+          // (SPEC-049 R3, R4).
           decoration: BoxDecoration(
             color: selected
                 ? SessionColors.selectedBg
                 : AppColors.surfaceRaised,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected && border == AppColors.border
                   ? SessionColors.selectedBorder
+                  : border == AppColors.border
+                  ? GlassColors.hairline
                   : border,
             ),
+            boxShadow: [
+              if (border != AppColors.border)
+                BoxShadow(color: border.withValues(alpha: .18), blurRadius: 18),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2144,7 +2156,7 @@ class _CardMenu extends ConsumerWidget {
         padding: EdgeInsets.zero,
         iconSize: 14,
         tooltip: 'Ações',
-        color: AppColors.panel,
+        color: AppColors.panelSolid,
         icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
         onSelected: (v) async {
           final repo = ref.read(specsRepoProvider);

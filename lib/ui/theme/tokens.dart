@@ -3,10 +3,11 @@ import 'package:flutter/painting.dart';
 /// Design tokens copied from the mockups (docs/mockups/*.dc.html).
 /// See docs/plano-implementacao.md, Fase 1 item 5.
 abstract final class AppColors {
-  /// Page background: transparent, so the [GlassBackdrop] behind the shell
-  /// shows (SPEC-049 R1). With the glass effects off the backdrop is a flat
-  /// [backgroundSolid], so pages look exactly as before.
-  static const background = Color(0x00000000);
+  /// Page background and the wells inside panels (code blocks, fields): a
+  /// 30% black (SPEC-049 R1, R3). Over a [panelSolid] it composes to
+  /// [backgroundSolid], so a well keeps its depth; over the backdrop it only
+  /// dims it a little, and the lights still show.
+  static const background = Color(0x4D000000);
 
   /// The opaque page colour: the window itself, text drawn on amber, and
   /// anything that must hide what is behind it.

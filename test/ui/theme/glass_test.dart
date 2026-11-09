@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/settings/settings_sections.dart';
 import 'package:promptorium/ui/theme/glass.dart';
 import 'package:promptorium/ui/theme/tokens.dart';
 import 'package:promptorium/ui/widgets/app_dialog.dart';
@@ -51,9 +52,16 @@ void main() {
           ),
           lessThanOrEqualTo(1),
         );
+        // A well (background) inside a panel keeps the depth of before.
         expect(
-          _over(AppColors.background, AppColors.backgroundSolid),
-          AppColors.backgroundSolid,
+          _dist(
+            _over(
+              AppColors.background,
+              _over(AppColors.panel, AppColors.backgroundSolid),
+            ),
+            AppColors.backgroundSolid,
+          ),
+          lessThanOrEqualTo(1),
         );
       },
     );
@@ -108,6 +116,17 @@ void main() {
       );
       expect(find.byType(BackdropFilter), findsOneWidget);
     });
+  });
+
+  test('Aparência is found by its words and marks the change (R6)', () {
+    expect(filterSections('vidro'), [SettingsSection.appearance]);
+    expect(sectionChanged(SettingsSection.appearance, const {}, null), isFalse);
+    expect(
+      sectionChanged(SettingsSection.appearance, const {
+        'aparencia.vidro': 'false',
+      }, null),
+      isTrue,
+    );
   });
 
   group('dialog (R5)', () {

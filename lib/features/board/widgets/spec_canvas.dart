@@ -1403,7 +1403,7 @@ class CanvasZoomMenu extends StatelessWidget {
     builder: (_, _) => MenuAnchor(
       alignmentOffset: const Offset(0, 8),
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(AppColors.panel),
+        backgroundColor: const WidgetStatePropertyAll(AppColors.panelSolid),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(6)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
