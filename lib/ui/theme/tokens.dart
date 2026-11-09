@@ -3,14 +3,25 @@ import 'package:flutter/painting.dart';
 /// Design tokens copied from the mockups (docs/mockups/*.dc.html).
 /// See docs/plano-implementacao.md, Fase 1 item 5.
 abstract final class AppColors {
-  /// Window / page background.
-  static const background = Color(0xFF0E1014);
+  /// Page background: transparent, so the [GlassBackdrop] behind the shell
+  /// shows (SPEC-049 R1). With the glass effects off the backdrop is a flat
+  /// [backgroundSolid], so pages look exactly as before.
+  static const background = Color(0x00000000);
+
+  /// The opaque page colour: the window itself, text drawn on amber, and
+  /// anything that must hide what is behind it.
+  static const backgroundSolid = Color(0xFF0E1014);
 
   /// Border of text fields: 3:1 against the background (SPEC-039 R12).
   static const inputBorder = Color(0xFF626C7C);
 
-  /// Panels, sidebars, cards.
-  static const panel = Color(0xFF14171D);
+  /// Panels, sidebars, cards: glass (SPEC-049 R3). Over [backgroundSolid]
+  /// it composes to [panelSolid], the colour panels had before the glass.
+  static const panel = Color(0x8C191D24);
+
+  /// [panel] when it must not let anything through: surfaces content scrolls
+  /// under, menus, tooltips.
+  static const panelSolid = Color(0xFF14171D);
 
   /// Borders and dividers.
   static const border = Color(0xFF252B35);
@@ -36,8 +47,13 @@ abstract final class AppColors {
   /// Accent: lilac (subagents, AI actions).
   static const lilac = Color(0xFFC79BF2);
 
-  /// Raised controls on panels (workspace selector, chips).
-  static const surfaceRaised = Color(0xFF1A1E26);
+  /// Raised controls on panels (workspace selector, chips): glass, a step
+  /// lighter than [panel]. Over [backgroundSolid] it composes to
+  /// [surfaceRaisedSolid].
+  static const surfaceRaised = Color(0x99222732);
+
+  /// [surfaceRaised] when it must not let anything through.
+  static const surfaceRaisedSolid = Color(0xFF1A1E26);
 
   /// Border of a card or button under the mouse.
   static const borderHover = Color(0xFF3A4250);
