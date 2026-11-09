@@ -15,7 +15,7 @@ Esta spec cria **Trazer PR**: a pessoa escolhe um PR aberto do repositório e o 
 
 A ideia vem do Vibe Kanban (vibekanban.com), que abre um worktree a partir de qualquer PR do time para iterar com agentes. Aqui, o PR continua sendo de quem o abriu: o app nunca reescreve o histórico publicado da branch e só publica commits quando tem permissão de escrita.
 
-Issue: [#125](https://github.com/mayroncachina/promptorium/issues/125), parte de [#124](https://github.com/mayroncachina/promptorium/issues/124).
+Issue: [#125](https://github.com/mayroncachina/promptorium/issues/125), parte de [#124](https://github.com/mayroncachina/promptorium/issues/124). PR: [#129](https://github.com/mayroncachina/promptorium/pull/129).
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/NVC9Pyp1mQBbmMDp7KhQtr). Cópia dos quadros e capturas em `docs/mockups/spec-050/`:
 
@@ -30,7 +30,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NVC9Pyp1mQBbmMDp7Kh
 
 - R1 · O Review deve ganhar o botão **Trazer PR…** no topo da fila. Ele abre um diálogo com:
   - os PRs abertos do repositório (`gh pr list --state open`), com número, título, autor, branch, rascunho ou não, checks e data da última atualização;
-  - uma busca por título, autor ou número, e um campo que aceita o número (`#131`) ou a URL do PR, inclusive de um PR que não aparece na lista;
+  - uma busca por título, autor ou número, e um campo que aceita o número (`#212`) ou a URL do PR, inclusive de um PR que não aparece na lista;
   - o selo **Já no app** nos PRs que já têm sessão no workspace (pela `prUrl` da sessão ou pela branch), com "Abrir no Review" no lugar de "Trazer".
 - R2 · Na aba Grafo do Repositório (SPEC-045), o painel de um PR sem sessão deve oferecer **Trazer para o app**, que abre o mesmo diálogo com o PR já escolhido.
 - R3 · Ao trazer um PR, o sistema deve:
