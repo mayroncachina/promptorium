@@ -1,6 +1,6 @@
 ---
 id: SPEC-049
-status: rascunho
+status: aprovada
 depende-de: SPEC-034
 issue: 118
 ---
@@ -46,7 +46,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/44UbgcC7UexHUpz5WUT
 - R4 · O brilho deve marcar só estado vivo:
   - item ativo da navegação, sessão rodando, etapa em execução, "precisa de você" e foco do teclado;
   - nada decorativo brilha.
-- R5 · Diálogos, paleta de comandos, menus, avisos e tooltips devem desfocar o que está atrás:
+- R5 · Diálogos (inclusive a paleta de comandos, os atalhos e a central de notificações) devem desfocar o que está atrás; menus, dropdowns, avisos e tooltips, que flutuam sem diálogo, ficam opacos:
   - um único nível de desfoque por região;
   - listas longas (grafo, diff, conversa, terminal) nunca desfocam item por item.
 - R6 · Configurações deve ter "Efeitos de vidro", ligado por padrão:
@@ -100,6 +100,16 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/44UbgcC7UexHUpz5WUT
 - **Superfícies opacas onde o conteúdo rola por baixo.** Um cabeçalho grudado translúcido mostraria o texto de baixo, o que fica pior que opaco.
 - **Efeitos desligáveis.** Em placas de vídeo fracas, em compositores sem aceleração ou para quem prefere, o app volta ao visual opaco sem perder nada.
 
+Decisões tomadas na implementação:
+
+- **Tokens translúcidos calculados sobre o fundo de antes.** `panel` e `surfaceRaised` viraram vidro com valores que, sobre `#0E1014`, compõem exatamente as cores opacas de antes. Por isso nenhum dos 364 `const` mudou, e com os efeitos desligados (fundo liso) o app fica igual ao visual anterior. As versões opacas ficaram em `panelSolid`, `surfaceRaisedSolid` e `backgroundSolid`.
+- **`background` é preto a 30%, não transparente.** Ele também é usado em poços (blocos de código, campos). Sobre um painel, o preto a 30% dá o `#0E1014` de antes e o poço mantém a profundidade; na página, só escurece um pouco o fundo de vidro.
+- **O fundo é uma imagem.** A primeira versão redesenhava os degradês e cerca de 1.600 pontos a cada quadro e subiu o p90 de raster de 15,8 para 22,2 ms. O fundo agora é desenhado uma vez por tamanho de janela, e cada quadro só copia a imagem.
+- **Menus, dropdowns, InfoTip e a pasta do Canvas são opacos.** Eles flutuam sobre conteúdo sem um diálogo por trás. No teste, a lista do dropdown "Modo de permissão" mostrava o campo e os botões através das opções. O desfoque de R5 ficou nos diálogos (que incluem a paleta, os atalhos e a central de notificações). Os tooltips do Material já eram opacos.
+- **O desfoque do diálogo lê a opção sem depender do Riverpod** (`glassEffectsOf`), porque vários testes abrem diálogos sem `ProviderScope`.
+- **A casca ganhou 8 px de folga, não 16.** Com 16 px, os 10 itens da barra lateral e a engrenagem não caberiam em 1100×700.
+- **"Efeitos de vidro" fica em Configurações › Aparência**, uma seção nova do grupo App.
+
 ## Plano
 
 1. Validar o mockup (tabela no início da spec).
@@ -108,18 +118,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/44UbgcC7UexHUpz5WUT
 4. Casca flutuante e brilho (R2, R4).
 5. Desfoque das sobreposições e a opção de R6 (R5, R6).
 6. Varredura visual de todas as telas, correções, medição do Vidro e requisito mínimo (R7, R8).
-7. Guia `docs/guia/aparencia.md` e requisito mínimo em `docs/guia/instalacao.md`.
+7. Aparência em `docs/guia/configuracoes.md` e requisito mínimo em `docs/guia/instalacao.md`.
 
 ## Critérios de aceite
 
-- [ ] O fundo tem as duas manchas e a grade, pintado uma vez [R1] verificar: flutter test test/ui/theme/glass_test.dart
-- [ ] Barra lateral, cabeçalho e rodapé flutuam em vidro, e as telas cabem em 1100×700 [R2] verificar: flutter test test/ui/shell
-- [ ] Painéis e cartões usam os dois níveis de vidro, e as superfícies sob rolagem continuam opacas [R3] verificar: flutter test test/ui/theme/glass_test.dart
-- [ ] Só estado vivo brilha [R4] verificar: manual (percorrer as telas com uma sessão rodando)
-- [ ] Diálogos, paleta, menus, avisos e tooltips desfocam o fundo, num nível só [R5] verificar: flutter test test/ui/theme/glass_test.dart
-- [ ] "Efeitos de vidro" desligado e `PROMPTORIUM_SEM_VIDRO=1` voltam ao visual opaco sem mudar o layout [R6] verificar: flutter test test/ui/theme/glass_test.dart
-- [ ] O medidor grava percentis de build e raster e os quadros lentos [R7] verificar: flutter test test/core/perf/frame_monitor_test.dart
-- [ ] Com o Vidro, o p90 de raster piora no máximo 2 ms em relação ao visual atual [R7] verificar: manual (scripts/medir_quadros.py antes e depois)
-- [ ] O guia traz o requisito mínimo, medido também com renderização por software e dois núcleos [R8] verificar: manual (ler docs/guia/instalacao.md)
-- [ ] Todas as telas abrem sem nada quebrado, testado num projeto Flutter de calculadora criado pelo app [R1–R6] verificar: manual (percorrer o app com o projeto de teste)
-- [ ] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
+- [x] O fundo tem as duas manchas e a grade, pintado uma vez [R1] verificar: flutter test test/ui/theme/glass_test.dart
+- [x] Barra lateral, cabeçalho e rodapé flutuam em vidro, e as telas cabem em 1100×700 [R2] verificar: flutter test test/ui/shell
+- [x] Painéis e cartões usam os dois níveis de vidro, e as superfícies sob rolagem continuam opacas [R3] verificar: flutter test test/ui/theme/glass_test.dart
+- [x] Só estado vivo brilha [R4] verificar: manual (percorrer as telas com uma sessão rodando)
+- [x] Diálogos desfocam o fundo, num nível só; menus, avisos e tooltips ficam opacos [R5] verificar: flutter test test/ui/theme/glass_test.dart
+- [x] "Efeitos de vidro" desligado e `PROMPTORIUM_SEM_VIDRO=1` voltam ao visual opaco sem mudar o layout [R6] verificar: flutter test test/ui/theme/glass_test.dart
+- [x] O medidor grava percentis de build e raster e os quadros lentos [R7] verificar: flutter test test/core/perf/frame_monitor_test.dart
+- [x] Com o Vidro, o p90 de raster piora no máximo 2 ms em relação ao visual atual [R7] verificar: manual (scripts/medir_quadros.py antes e depois)
+- [x] O guia traz o requisito mínimo, medido também com renderização por software e dois núcleos [R8] verificar: manual (ler docs/guia/instalacao.md)
+- [x] Todas as telas abrem sem nada quebrado, testado num projeto Flutter de calculadora criado pelo app [R1–R6] verificar: manual (percorrer o app com o projeto de teste)
+- [x] O projeto compila e a análise estática passa [R1–R8] verificar: flutter analyze
