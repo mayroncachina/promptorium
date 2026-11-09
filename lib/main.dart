@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/claude/usage_poller.dart';
+import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
 import 'features/board/autopilot.dart';
@@ -94,6 +95,9 @@ Future<void> main() async {
     const Duration(minutes: 2),
     (_) => container.read(prBabysitterProvider.notifier).tick(),
   );
+
+  // Frame timings to a file, only with PROMPTORIUM_QUADROS (SPEC-049 R7).
+  FrameMonitor.fromEnvironment();
 
   runApp(
     UncontrolledProviderScope(
