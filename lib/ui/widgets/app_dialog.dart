@@ -1,7 +1,6 @@
 import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../theme/glass.dart';
 import '../theme/motion.dart';
@@ -170,8 +169,8 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Consumer(
-          builder: (context, ref, _) => !ref.watch(glassEffectsProvider)
+        Builder(
+          builder: (context) => !glassEffectsOf(context)
               ? const SizedBox.shrink()
               : IgnorePointer(
                   child: AnimatedBuilder(

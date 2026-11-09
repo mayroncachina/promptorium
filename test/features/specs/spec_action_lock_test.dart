@@ -415,9 +415,10 @@ void main() {
   testWidgets('R10: the disabled actions use #8A93A3 on #1A1E26 with a '
       'border (4.5:1 or more), without opacity', (tester) async {
     expect(AppColors.textDisabled, const Color(0xFF8A93A3));
-    expect(AppColors.surfaceRaised, const Color(0xFF1A1E26));
+    // Glass since SPEC-049: over the flat background it is #1A1E26.
+    expect(AppColors.surfaceRaisedSolid, const Color(0xFF1A1E26));
     expect(
-      contrast(AppColors.textDisabled, AppColors.surfaceRaised),
+      contrast(AppColors.textDisabled, AppColors.surfaceRaisedSolid),
       greaterThanOrEqualTo(4.5),
     );
     await pumpSpecs(tester, tmp, designer: make);

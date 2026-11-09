@@ -19,6 +19,20 @@ final glassEffectsProvider = Provider<bool>((ref) {
   return ref.watch(appSettingsProvider)[AppSettingKeys.glassEffects] != 'false';
 });
 
+/// [glassEffectsProvider] read once, for widgets that may live without a
+/// [ProviderScope] (dialogs opened in tests): then only the environment
+/// decides.
+bool glassEffectsOf(BuildContext context) {
+  try {
+    return ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(glassEffectsProvider);
+  } on StateError {
+    return !glassDisabledByEnvironment();
+  }
+}
+
 /// `PROMPTORIUM_SEM_VIDRO=1` (or `true`) in the environment.
 bool glassDisabledByEnvironment([Map<String, String>? env]) {
   final v = (env ?? Platform.environment)['PROMPTORIUM_SEM_VIDRO']
@@ -267,7 +281,7 @@ class AppGlass extends StatelessWidget {
 /// Blurs what is behind [child] (R5), clipped to [radius]. One level per
 /// region: never nest it, never use it per item of a list. Without the glass
 /// effects it is a plain clip.
-class GlassBlur extends ConsumerWidget {
+class GlassBlur extends StatelessWidget {
   const GlassBlur({
     super.key,
     this.radius = 16,
@@ -280,9 +294,9 @@ class GlassBlur extends ConsumerWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final r = BorderRadius.circular(radius);
-    if (!ref.watch(glassEffectsProvider)) {
+    if (!glassEffectsOf(context)) {
       return ClipRRect(borderRadius: r, child: child);
     }
     return ClipRRect(
