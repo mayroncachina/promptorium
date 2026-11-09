@@ -41,6 +41,9 @@ bool glassDisabledByEnvironment([Map<String, String>? env]) {
   return v == '1' || v == 'true' || v == 'sim';
 }
 
+/// Space around and between the floating parts of the shell (R2).
+const shellGap = 8.0;
+
 /// Colours of the backdrop (R1).
 abstract final class GlassColors {
   /// Base of the backdrop with the effects on: a little deeper than

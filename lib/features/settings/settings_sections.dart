@@ -55,6 +55,15 @@ enum SettingsSection {
     'memória',
     'retomar',
   ]),
+  appearance('Aparência', SettingsGroup.app, [
+    'aparência',
+    'vidro',
+    'tema',
+    'efeitos',
+    'transparência',
+    'desfoque',
+    'desempenho',
+  ]),
   automations('Automações (hooks)', SettingsGroup.app, [
     'hook',
     'formatar',
@@ -147,6 +156,8 @@ bool sectionChanged(
           (settings[AppSettingKeys.disabledPlugins] ?? '[]') != '[]' ||
           (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]',
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.appearance =>
+      settings[AppSettingKeys.glassEffects] == 'false',
     SettingsSection.automations => ManagedHook.values.any(
       (h) => settings[h.settingKey] == '0',
     ),

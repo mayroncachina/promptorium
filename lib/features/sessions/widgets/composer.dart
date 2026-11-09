@@ -414,7 +414,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                         : alive
                         ? 'Muda já na sessão em andamento'
                         : 'Modo de permissão ao retomar',
-                    color: AppColors.panel,
+                    color: AppColors.panelSolid,
                     onSelected: (m) async {
                       final messenger = ScaffoldMessenger.maybeOf(context);
                       try {
@@ -509,7 +509,7 @@ class _AttachSpecButton extends ConsumerWidget {
           ? 'Nenhuma spec registrada (tela Specs)'
           : 'Anexar spec (@specs/…)',
       enabled: specs.isNotEmpty,
-      color: AppColors.panel,
+      color: AppColors.panelSolid,
       onSelected: onPick,
       itemBuilder: (_) => [
         for (final s in specs)

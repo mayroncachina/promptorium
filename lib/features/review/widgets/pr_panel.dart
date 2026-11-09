@@ -118,7 +118,7 @@ class _PrPanelState extends ConsumerState<PrPanel> {
             PopupMenuButton<PrMergeMethod>(
               key: const ValueKey('review-pr-merge'),
               tooltip: 'gh pr merge',
-              color: AppColors.panel,
+              color: AppColors.panelSolid,
               enabled: !_busy,
               onSelected: (m) => _do(
                 'PR mergeado (${m.label}). Atualize a branch base com git pull.',

@@ -32,10 +32,6 @@ class TitleBar extends StatelessWidget {
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.panel,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
       child: Row(
         children: [
           const TitleBarLogo(),
