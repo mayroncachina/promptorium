@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Andamento no Quadro</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" atual="Quadro" hint-size="56px,900px"></dc-import>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 64px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600; flex: 1">Quadro</h1>
+      <span style="padding: 4px 10px; border: 1px solid #252B35; border-radius: 999px; font-size: 13px; color: #A0A8B6">Sprint 12 · Ativa</span>
+    </header>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <sc-for list="{{colunas}}" as="c" hint-placeholder-count="4">
+        <section aria-label="{{c.nome}}" style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+          <h2 style="margin: 0; padding: 0 4px; font-size: 14px; font-weight: 600; color: #A0A8B6">{{c.nome}} · {{c.n}}</h2>
+          <sc-for list="{{c.cards}}" as="k" hint-placeholder-count="2">
+            <button style="box-sizing: border-box; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; text-align: left; background: {{k.bg}}; border: 1px solid {{k.borda}}; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+              <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{k.code}}</span>
+              <span style="font-size: 15px; font-weight: 600">{{k.title}}</span>
+              <span style="font-size: 13px; color: {{k.cor}}">{{k.etapa}}</span>
+              <sc-if value="{{k.temNota}}" hint-placeholder-val="{{ false }}">
+                <span style="display: flex; gap: 8px; padding: 8px 10px; background: #1A1622; border: 1px solid #3A3048; border-radius: 8px; font-size: 13px; line-height: 19px; color: #DCD0EA">
+                  <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#C79BF2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px"><path d="M2 11.5 L2.5 9 L9.5 2 L12 4.5 L5 11.5 Z"></path></svg>
+                  <span>{{k.nota}}</span>
+                </span>
+              </sc-if>
+            </button>
+          </sc-for>
+        </section>
+      </sc-for>
+    </div>
+  </main>
+  <aside aria-label="Andamento da SPEC-047" style="width: 380px; box-sizing: border-box; padding: 20px 18px; display: flex; flex-direction: column; gap: 14px; background: #11141A; border-left: 1px solid #252B35">
+    <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-047</span>
+    <h2 style="margin: 0; font-size: 18px; font-weight: 600">Higiene do repositório</h2>
+    <div style="display: flex; gap: 6px; font-size: 13px"><span style="padding: 3px 9px; border: 1px solid #2E4A44; border-radius: 999px; color: #4FD1B5">R1 ✓</span><span style="padding: 3px 9px; border: 1px solid #2E4A44; border-radius: 999px; color: #4FD1B5">R2 ✓</span><span style="padding: 3px 9px; border: 1px solid #5A4520; border-radius: 999px; color: #F2A541">R3 rodando</span><span style="padding: 3px 9px; border: 1px solid #252B35; border-radius: 999px; color: #A0A8B6">R4</span></div>
+    <h3 style="margin: 4px 0 0; font-size: 15px; font-weight: 600">Andamento</h3>
+    <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0">
+      <sc-for list="{{notas}}" as="n" hint-placeholder-count="4">
+        <li style="padding: 12px 0; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #252B35">
+          <span style="display: flex; justify-content: space-between; font-size: 12px; color: #A0A8B6"><span>{{n.sessao}}</span><span>{{n.hora}}</span></span>
+          <span style="font-size: 14px; line-height: 20px">{{n.texto}}</span>
+        </li>
+      </sc-for>
+    </ol>
+    <div style="flex: 1"></div>
+    <p style="margin: 0; padding: 10px 12px; background: #14171D; border: 1px solid #252B35; border-radius: 8px; font-size: 13px; line-height: 19px; color: #C9CED8">As notas vêm de <code style="font: 12px 'JetBrains Mono', monospace">anotar_andamento</code>. Elas não concluem a etapa: isso continua com o marcador e o gate.</p>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const k = (code, title, etapa, o = {}) => ({ code, title, etapa, nota: o.nota || '', temNota: !!o.nota, cor: o.cor || '#A0A8B6', bg: o.atual ? '#1F2430' : '#14171D', borda: o.atual ? '#3A4250' : '#252B35' });
+    return {
+      colunas: [
+        { nome: 'Backlog', n: 3, cards: [ k('SPEC-053', 'Exportar o relatório do Review em PDF', 'rascunho · criada pelo agente'), k('SPEC-050', 'Trazer um PR qualquer para o app', 'aprovada · 7 etapas') ] },
+        { nome: 'Em execução', n: 2, cards: [
+          k('SPEC-047', 'Higiene do repositório', 'R3 de 4 · rodando há 6 min', { cor: '#F2A541', atual: true, nota: 'Migração da tabela pronta. Faltam os testes da migração a partir da v21. · há 2 min' }),
+          k('SPEC-045', 'Grafo do repositório', 'R2 de 3 · aguardando você', { cor: '#F2A541', nota: 'Parei: a aba precisa de um ícone novo. Deixei a pergunta na sessão. · há 14 min' }),
+        ] },
+        { nome: 'Review', n: 1, cards: [ k('SPEC-046', 'Atividade do repositório', 'gate aprovado', { cor: '#4FD1B5' }) ] },
+        { nome: 'Concluída', n: 2, cards: [ k('SPEC-044', 'Releases', 'mergeada'), k('SPEC-043', 'Conflito conferido pelo gate', 'mergeada') ] },
+      ],
+      notas: [
+        { sessao: 'SPEC-047 · R3', hora: '16:40', texto: 'Migração da tabela pronta. Faltam os testes da migração a partir da v21.' },
+        { sessao: 'SPEC-047 · R3', hora: '16:35', texto: 'Comecei pela tabela: a limpeza precisa guardar o que apagou.' },
+        { sessao: 'SPEC-047 · R2', hora: '15:58', texto: 'R2 feita. O gate pegou um teste a menos; corrigi e reenviei.' },
+        { sessao: 'SPEC-047 · R1', hora: '15:21', texto: 'Listagem das branches órfãs pronta, com a data do último commit.' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

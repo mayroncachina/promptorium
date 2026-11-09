@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Configurações do servidor MCP</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" atual="Configurações" hint-size="56px,900px"></dc-import>
+  <nav aria-label="Configurações" style="width: 240px; box-sizing: border-box; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; background: #11141A; border-right: 1px solid #252B35">
+    <sc-for list="{{secoes}}" as="s" hint-placeholder-count="6">
+      <button aria-current="{{s.atual}}" style="height: 40px; padding: 0 12px; text-align: left; border: 0; border-radius: 8px; background: {{s.bg}}; color: {{s.cor}}; font: 500 14px 'IBM Plex Sans', sans-serif">{{s.nome}}</button>
+    </sc-for>
+  </nav>
+  <main style="flex: 1; min-width: 0; box-sizing: border-box; padding: 28px 36px; display: flex; flex-direction: column; gap: 18px; overflow: hidden">
+    <h1 style="margin: 0; font-size: 22px; font-weight: 600">Execução de specs</h1>
+    <div style="display: flex; gap: 32px; font-size: 14px; color: #A0A8B6"><span>Etapas numa sessão só: <strong style="color: #E7E9EE; font-weight: 500">até 3</strong></span><span>Continuar na mesma sessão até: <strong style="color: #E7E9EE; font-weight: 500">60 mil tokens</strong></span><span>Plugins e servidores MCP desligados: <strong style="color: #E7E9EE; font-weight: 500">2</strong></span></div>
+    <section aria-labelledby="mcp-titulo" style="border: 1px solid #252B35; border-radius: 12px; background: #14171D">
+      <div style="padding: 18px 20px; display: flex; align-items: flex-start; gap: 16px; border-bottom: 1px solid #252B35">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+          <h2 id="mcp-titulo" style="margin: 0; font-size: 17px; font-weight: 600">Servidor MCP do Promptorium</h2>
+          <p style="margin: 0; max-width: 760px; font-size: 14px; line-height: 21px; color: #C9CED8">Deixa o agente consultar as specs e o Quadro, criar rascunhos e anotar o andamento. Vale só para as sessões e conversas que o app abre. Cada uma recebe um arquivo próprio em <code style="font: 13px 'JetBrains Mono', monospace">~/.promptorium/run</code>, com um token que some quando ela termina. Nada vai para <code style="font: 13px 'JetBrains Mono', monospace">~/.claude.json</code> nem para <code style="font: 13px 'JetBrains Mono', monospace">.mcp.json</code>.</p>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4FD1B5"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="#4FD1B5"><circle cx="5" cy="5" r="4"></circle></svg>Ouvindo em <code style="font: 13px 'JetBrains Mono', monospace">127.0.0.1:41873</code> · 2 execuções conectadas</span>
+        </div>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer">
+          <input type="checkbox" checked="checked" style="width: 18px; height: 18px; accent-color: #F2A541">
+          <span>Ligado</span>
+        </label>
+      </div>
+      <div style="display: flex; flex-direction: column; font-size: 14px">
+        <div style="padding: 10px 20px; display: grid; grid-template-columns: 200px minmax(0, 1fr) 160px 120px; gap: 16px; color: #A0A8B6; font-size: 13px; font-weight: 500"><span>Ferramenta</span><span>O que faz</span><span>Modos</span><span>Aprovação</span></div>
+        <sc-for list="{{ferramentas}}" as="f" hint-placeholder-count="7">
+          <div style="padding: 11px 20px; display: grid; grid-template-columns: 200px minmax(0, 1fr) 160px 120px; gap: 16px; border-top: 1px solid #252B35">
+            <code style="font: 13px 'JetBrains Mono', monospace">{{f.nome}}</code>
+            <span style="color: #C9CED8">{{f.faz}}</span>
+            <span style="color: #A0A8B6">{{f.modos}}</span>
+            <span style="color: {{f.cor}}">{{f.aprov}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 16px 20px; display: flex; align-items: center; gap: 14px; border-top: 1px solid #252B35">
+        <label for="limite" style="font-size: 14px">Specs que uma execução pode criar</label>
+        <input id="limite" type="number" value="10" min="1" max="50" style="width: 72px; height: 36px; box-sizing: border-box; padding: 0 10px; background: #0E1014; border: 1px solid #626C7C; border-radius: 8px; color: #E7E9EE; font: 14px 'IBM Plex Sans', sans-serif">
+        <span style="font-size: 13px; color: #A0A8B6">Acima disso, o agente recebe um erro que explica o motivo e nada é gravado.</span>
+      </div>
+    </section>
+    <p style="margin: 0; font-size: 13px; line-height: 19px; color: #A0A8B6">O servidor nunca muda status, coluna ou etapas, não sobrescreve specs e não aprova, executa nem faz merge. Em "sem perguntar", a escrita grava sem aprovação e a timeline marca o que foi criado.</p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = (nome, on) => ({ nome, atual: on ? 'true' : 'false', bg: on ? '#2A2418' : 'transparent', cor: on ? '#F2A541' : '#A0A8B6' });
+    const f = (nome, faz, modos, escrita) => ({ nome, faz, modos, aprov: escrita ? 'Sempre pede' : 'Liberada', cor: escrita ? '#F2A541' : '#4FD1B5' });
+    return {
+      secoes: [s('Geral'), s('Aparência'), s('Execução de specs', true), s('Sessões'), s('Automações'), s('Atualizações')],
+      ferramentas: [
+        f('listar_specs', 'Specs do workspace, com status, coluna, sprint e dependências', 'todos', false),
+        f('ler_spec', 'O texto de uma spec, as etapas e o último gate', 'todos', false),
+        f('estado_do_quadro', 'Colunas, sessões vivas e o que espera você', 'todos', false),
+        f('spec_atual', 'A spec e a etapa desta execução', 'todos', false),
+        f('criar_spec', 'Cria um rascunho no próximo código, com os avisos do lint', 'Planejar, Editar', true),
+        f('criar_filhas', 'Cria até 6 filhas com depende-de, numa aprovação só', 'Planejar, Editar', true),
+        f('anotar_andamento', 'Nota curta no card e no histórico da spec', 'Planejar, Editar', true),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

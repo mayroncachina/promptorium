@@ -1,0 +1,58 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-09T19:10:00Z"
+ },
+ "title": "Promptorium · Servidor MCP",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Aprovação na sessão"
+  },
+  "Specs.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Rascunho criado pelo agente em Specs"
+  },
+  "Quadro.dc.html": {
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Andamento no Quadro"
+  },
+  "Config.dc.html": {
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Configurações › Servidor MCP do Promptorium"
+  },
+  "Lateral.dc.html": {
+   "x": 0,
+   "y": 2040,
+   "w": 56,
+   "h": 900,
+   "title": "Componente · barra lateral"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Specs.dc.html",
+  "Quadro.dc.html",
+  "Config.dc.html",
+  "Lateral.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}
