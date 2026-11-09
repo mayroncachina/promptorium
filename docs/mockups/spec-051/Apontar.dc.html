@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Apontar no Chromium do preview</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; overflow: hidden; background: #F6F7F9; font-family: 'IBM Plex Sans', sans-serif">
+  <div style="height: 36px; flex: none; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: #1A1E26; color: #E7E9EE; font-size: 13px">
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F2A541" stroke-width="1.6"><circle cx="7" cy="7" r="5.5"></circle><circle cx="7" cy="7" r="2"></circle></svg>
+    <span style="flex: 1">Preview · SPEC-012 · Página de login · 127.0.0.1:4003/login</span>
+    <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">Chromium do Promptorium · perfil spec-012</span>
+  </div>
+  <div role="status" style="height: 48px; flex: none; padding: 0 16px; display: flex; align-items: center; gap: 12px; background: #2A2418; border-bottom: 2px solid #F2A541; color: #F6E7CF; font-size: 14px">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 14 14" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 L6 12 L7.5 7.5 L12 6 Z"></path></svg>
+    <span style="flex: 1"><strong style="font-weight: 600; color: #F2A541">Promptorium</strong> · clique num elemento para mandar à sessão · <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px">Esc</span> cancela</span>
+    <span style="font-size: 13px; color: #E0C9A6">1 elemento já anexado</span>
+    <button style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #6B5530; background: transparent; color: #F6E7CF; font: 500 13px 'IBM Plex Sans', sans-serif">Sair do modo Apontar</button>
+  </div>
+  <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; font-family: 'Inter', sans-serif; color: #1B1F27">
+    <div style="height: 64px; padding: 0 48px; display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border-bottom: 1px solid #E3E6EB">
+      <span style="font-size: 20px; font-weight: 700; letter-spacing: -0.01em">loja<span style="color: #2F6FEB">.web</span></span>
+      <div style="display: flex; gap: 28px; font-size: 15px; color: #4A5260"><span>Produtos</span><span>Ofertas</span><span>Ajuda</span></div>
+    </div>
+    <div style="flex: 1; display: flex; align-items: center; justify-content: center">
+      <div style="position: relative; width: 420px; box-sizing: border-box; padding: 36px; display: flex; flex-direction: column; gap: 18px; background: #FFFFFF; border: 1px solid #E3E6EB; border-radius: 14px">
+        <span style="font-size: 26px; font-weight: 700">Entrar</span>
+        <span style="font-size: 15px; color: #5A6270">Use o e-mail da sua conta.</span>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500">E-mail<input value="ana@exemplo.com" style="height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #C9CED6; border-radius: 8px; font: 15px 'Inter', sans-serif"></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500">Senha<input type="password" value="segredo" style="height: 44px; box-sizing: border-box; padding: 0 12px; border: 1px solid #C9CED6; border-radius: 8px; font: 15px 'Inter', sans-serif"></label>
+        <div style="position: relative">
+          <button style="width: 100%; height: 44px; border: 0; border-radius: 8px; background: #9DB8EE; color: #FFFFFF; font: 600 15px 'Inter', sans-serif">Continuar</button>
+          <div aria-hidden="true" style="position: absolute; left: -4px; top: -4px; right: -4px; bottom: -4px; border: 2px solid #F2A541; border-radius: 10px; background: rgba(242,165,65,.12)"></div>
+          <div style="position: absolute; left: -4px; top: 54px; height: 30px; padding: 0 10px; display: flex; align-items: center; gap: 10px; border-radius: 6px; background: #1A1E26; color: #E7E9EE; font: 12px 'JetBrains Mono', monospace; white-space: nowrap">form.login &gt; button[type=submit]<span style="color: #A0A8B6">348 × 44</span></div>
+        </div>
+        <span style="font-size: 14px; color: #2F6FEB">Esqueci a senha</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

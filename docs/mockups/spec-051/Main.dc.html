@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Servidor no ar e aba Preview</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <nav aria-label="Seções" style="width: 56px; box-sizing: border-box; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; background: #0B0D11; border-right: 1px solid #252B35">
+    <button aria-label="Início" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M3 9 L10 3 L17 9 V17 H3 Z"></path></svg></button>
+    <button aria-label="Specs" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M5 2.5 H12 L15 5.5 V17.5 H5 Z"></path></svg></button>
+    <button aria-label="Quadro" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M3 3 H8 V17 H3 Z M11 3 H17 V11 H11 Z"></path></svg></button>
+    <button aria-label="Sessões" aria-current="true" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: #2A2418; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6 L7 10 L3 14 M9 15 H17"></path></svg></button>
+    <button aria-label="Review" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round"><path d="M9 3 A6 6 0 1 1 8.99 3 M13.5 13.5 L17.5 17.5"></path></svg></button>
+  </nav>
+  <aside aria-label="Sessões" style="width: 280px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; background: #11141A; border-right: 1px solid #252B35">
+    <div style="padding: 4px 6px 6px; font-size: 14px; font-weight: 600; color: #A0A8B6">Sessões · 3</div>
+    <button aria-current="true" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #1F2430; border: 1px solid #3A4250; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-012 · etapa 2</span><span style="font-size: 15px; font-weight: 600">Página de login</span><span style="font-size: 13px; color: #4FD1B5">Rodando · servidor no ar :4003</span></button>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-014 · etapa 1</span><span style="font-size: 15px; font-weight: 600">Carrinho lateral</span><span style="font-size: 13px; color: #A0A8B6">Parada · servidor parado</span></button>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">Prompt</span><span style="font-size: 15px; font-weight: 600">Dúvida sobre o checkout</span><span style="font-size: 13px; color: #A0A8B6">Concluída</span></button>
+  </aside>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="box-sizing: border-box; height: 64px; padding: 0 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 17px; font-weight: 600">SPEC-012 · Página de login</span><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">worktree spec/012-login · etapa 2 de 4</span></div>
+      <span style="height: 32px; padding: 0 12px; display: flex; align-items: center; gap: 8px; border-radius: 16px; background: rgba(79,209,181,.12); color: #4FD1B5; font-size: 13px; font-weight: 500"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#4FD1B5"></circle></svg>No ar :4003</span>
+      <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Abrir preview</button>
+      <button style="height: 32px; padding: 0 12px; display: flex; align-items: center; gap: 6px; border-radius: 6px; border: 0; background: #F2A541; color: #1A1206; font: 600 13px 'IBM Plex Sans', sans-serif"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2 L6 12 L7.5 7.5 L12 6 Z"></path></svg>Apontar</button>
+      <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Parar servidor</button>
+    </header>
+    <div role="tablist" aria-label="Abas da sessão" style="height: 44px; padding: 0 20px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #252B35">
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Timeline</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Terminal</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Diff</button>
+      <button role="tab" aria-selected="true" style="height: 40px; padding: 0 14px; border: 0; border-bottom: 2px solid #F2A541; background: transparent; color: #E7E9EE; font: 600 14px 'IBM Plex Sans', sans-serif">Preview</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Log bruto</button>
+    </div>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+      <section aria-label="Servidor de desenvolvimento" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D; padding: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Estado</span><span style="font-size: 15px; font-weight: 600; color: #4FD1B5">No ar há 4 min</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Comando</span><span style="font: 13px 'JetBrains Mono', monospace">npm run dev -- --port $PROMPTORIUM_PORT</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Porta</span><span style="font: 13px 'JetBrains Mono', monospace">127.0.0.1:4003 · página /login</span></div>
+        <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Processo</span><span style="font: 13px 'JetBrains Mono', monospace">PID 48211 · grupo 48211</span></div>
+      </section>
+      <section aria-label="Logs do servidor" style="flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid #252B35; border-radius: 10px; background: #0B0D11">
+        <div style="height: 48px; padding: 0 12px 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #252B35">
+          <span style="flex: 1; font-size: 14px; font-weight: 600">Logs · 212 de 2.000 linhas</span>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A0A8B6">Buscar<input value="" placeholder="texto no log" style="width: 180px; height: 30px; box-sizing: border-box; padding: 0 10px; border: 1px solid #626C7C; border-radius: 6px; background: #14171D; color: #E7E9EE; font: 13px 'IBM Plex Sans', sans-serif"></label>
+          <button style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Copiar</button>
+          <button style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Mandar erro para a sessão</button>
+        </div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; overflow: hidden; font: 13px/22px 'JetBrains Mono', monospace; color: #C9CED8; white-space: pre-wrap">$ npm run dev -- --port 4003
+
+&gt; loja-web@0.4.0 dev
+&gt; vite --port 4003
+
+  VITE v6.2.1  ready in 412 ms
+
+  ➜  Local:   http://127.0.0.1:4003/
+<span style="color: #4FD1B5">✓ porta 4003 respondeu HTTP 200 · servidor no ar</span>
+
+19:02:41 [vite] page reload src/pages/Login.tsx
+19:03:07 [vite] hmr update /src/pages/Login.tsx, /src/index.css
+<span style="color: #F2A541">19:03:58 [vite] warning: "LoginForm" received a non-boolean attribute "disabled"</span>
+19:04:12 [vite] hmr update /src/components/Button.tsx</pre>
+      </section>
+    </div>
+  </main>
+  <aside aria-label="Painel lateral" style="width: 280px; box-sizing: border-box; padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; border-left: 1px solid #252B35; background: #11141A">
+    <span style="font-size: 14px; font-weight: 600; color: #A0A8B6">Detalhes</span>
+    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px">
+      <div style="display: flex; justify-content: space-between"><span style="color: #A0A8B6">Spec</span><span>SPEC-012</span></div>
+      <div style="display: flex; justify-content: space-between"><span style="color: #A0A8B6">Duração</span><span>11 min</span></div>
+      <div style="display: flex; justify-content: space-between"><span style="color: #A0A8B6">Tokens</span><span>48,2 mil</span></div>
+    </div>
+    <span style="margin-top: 8px; font-size: 14px; font-weight: 600; color: #A0A8B6">Arquivos alterados · 3</span>
+    <div style="display: flex; flex-direction: column; gap: 8px; font: 13px 'JetBrains Mono', monospace; color: #C9CED8">
+      <span>src/pages/Login.tsx</span>
+      <span>src/components/Button.tsx</span>
+      <span>src/index.css</span>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
