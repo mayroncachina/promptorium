@@ -2,7 +2,7 @@
 id: SPEC-049
 status: rascunho
 depende-de: SPEC-034
-issue:
+issue: 118
 ---
 
 # Tema Vidro
@@ -18,7 +18,7 @@ Esta spec troca o visual do app pelo tema **Vidro**:
 
 As cores, as fontes e a estrutura das telas continuam as mesmas. Não há troca de temas nesta spec: o Vidro substitui o visual atual, com uma opção para desligar os efeitos.
 
-Issue: (a criar).
+Issue: [#118](https://github.com/mayroncachina/promptorium/issues/118).
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/44UbgcC7UexHUpz5WUTw1d), linha "A · Vidro". Capturas em `docs/mockups/spec-049/`:
 
