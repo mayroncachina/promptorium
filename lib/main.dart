@@ -36,7 +36,7 @@ Future<void> main() async {
     size: Size(1440, 900),
     minimumSize: Size(1100, 700),
     center: true,
-    backgroundColor: AppColors.background,
+    backgroundColor: AppColors.backgroundSolid,
     title: 'Promptorium',
   );
   windowManager.waitUntilReadyToShow(windowOptions, () async {

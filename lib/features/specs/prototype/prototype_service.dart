@@ -36,7 +36,7 @@ String _hex(Color c) =>
 
 /// Promptorium look (lib/ui/theme/tokens.dart) for the generated HTML.
 String prototypeTokens() =>
-    'fundo ${_hex(AppColors.background)}, painéis ${_hex(AppColors.panel)}, '
+    'fundo ${_hex(AppColors.backgroundSolid)}, painéis ${_hex(AppColors.panelSolid)}, '
     'controles elevados ${_hex(AppColors.surfaceRaised)}, bordas '
     '${_hex(AppColors.border)}, texto ${_hex(AppColors.text)}, texto '
     'secundário ${_hex(AppColors.textSecondary)}, texto apagado '

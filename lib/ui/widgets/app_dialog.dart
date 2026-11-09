@@ -1,7 +1,9 @@
-import 'dart:ui' show lerpDouble;
+import 'dart:ui' show ImageFilter, lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../theme/glass.dart';
 import '../theme/motion.dart';
 import 'motion_progress.dart';
 
@@ -59,6 +61,9 @@ Future<T?> showAppDialog<T>({
     ),
   );
 }
+
+/// Blur behind a dialog with the glass effects on (SPEC-049 R5).
+const dialogBlurSigma = 12.0;
 
 /// Scale of a dialog that has not arrived yet, and of one that is leaving.
 const _enterScale = 0.96;
@@ -152,13 +157,38 @@ class _AppDialogRoute<T> extends DialogRoute<T> {
     if (color == null || color.a == 0 || offstage) {
       return super.buildModalBarrier();
     }
-    return AnimatedModalBarrier(
+    final barrier = AnimatedModalBarrier(
       color: _scrim.drive(
         ColorTween(begin: color.withValues(alpha: 0), end: color),
       ),
       dismissible: barrierDismissible,
       semanticsLabel: barrierLabel,
       barrierSemanticsDismissible: semanticsDismissible,
+    );
+    // The glass dialog sits on a blur of the screen (SPEC-049 R5): one
+    // region, the whole screen, growing with the scrim.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Consumer(
+          builder: (context, ref, _) => !ref.watch(glassEffectsProvider)
+              ? const SizedBox.shrink()
+              : IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: _scrim,
+                    builder: (context, _) => BackdropFilter(
+                      key: const ValueKey('dialog-blur'),
+                      filter: ImageFilter.blur(
+                        sigmaX: dialogBlurSigma * _scrim.value,
+                        sigmaY: dialogBlurSigma * _scrim.value,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+        ),
+        barrier,
+      ],
     );
   }
 
