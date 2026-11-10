@@ -135,3 +135,19 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3jkRzCnhFRQnWsoAnzf
 - **O Prompt fica entre o Projeto e as Specs.** É o primeiro passo natural de quem não programa (abrir o projeto e conversar com ele), antes de escrever specs.
 - **O exemplo não é enviado sozinho.** Ele só preenche o campo: a pessoa vê o que vai mandar e pode ajustar antes, o que importa principalmente no modo Editar.
 - **O selo leva texto e ícone, não só cor.** O nível de permissão de cada modo é a informação mais importante para quem não programa.
+
+## Plano
+
+1. **t1 · Barra lateral e atalhos** (R1–R3, R6, R8): nova ordem em `navItems`, `SideBarFeaturedItem`, separadores, `_Highlight` com altura variável, `shortcutsVersion` 5, folha de atalhos e testes.
+2. **t2 · Ícone e sinais** (R4, R5, R10): `AppIcons.prompt` novo (com a faísca preenchida), `promptActivityProvider`, ponto "respondendo", contador do Prompt em `navBadgesProvider` e testes.
+3. **t3 · Tela de boas-vindas** (R7, R9, R10): `PromptWelcome` no lugar do `_Empty` com workspace, cartões espelhando o modo, exemplos que preenchem o campo, ajuste abaixo de 760 px e testes.
+
+## Critérios de aceite
+
+- [ ] O Prompt aparece logo abaixo do Projeto, entre separadores, com 48 × 58 px e o nome "Prompt".
+- [ ] Ctrl 3 abre o Prompt; Ctrl 9 abre o Código; o aviso de atalhos novos aparece uma vez.
+- [ ] O destaque da barra fica sobre o item certo, inclusive no Prompt e nos itens abaixo dele.
+- [ ] Em outra tela, o ponto teal aparece enquanto uma conversa responde, e o contador mostra as aprovações e os planos prontos do Prompt.
+- [ ] O ícone novo aparece na barra, na paleta e na tela vazia.
+- [ ] A tela vazia mostra os três modos; clicar num exemplo escolhe o modo e preenche o campo sem enviar.
+- [ ] Em 1100×700 a barra cabe e os exemplos somem.
