@@ -2,7 +2,7 @@
 id: SPEC-057
 status: aprovada
 depende-de: SPEC-039
-issue: ISSUE
+issue: 144
 ---
 
 # Importar arquivo no "Conte a ideia"
