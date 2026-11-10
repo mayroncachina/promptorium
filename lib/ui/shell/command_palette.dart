@@ -32,9 +32,14 @@ class PaletteCommand {
     this.shortcut,
     this.group = 'Telas',
     this.detail,
+    this.icon,
   });
 
   final String label;
+
+  /// Icon of the screen of an "Ir para" command (16px before the label,
+  /// SPEC-055 R5). Null = no icon.
+  final AppIconData? icon;
   final String? shortcut;
 
   /// `Pendentes`, `Ações`, `Telas`, `Specs`, `Sessões` (section of the
@@ -304,6 +309,7 @@ List<PaletteCommand> paletteCommands(
       PaletteCommand(
         label: 'Ir para ${s == AppSection.agents ? 'Agentes' : s.label}',
         shortcut: s.shortcutLabel,
+        icon: s.icon,
         run: () => onNavigate(s),
       ),
     PaletteCommand(
@@ -377,6 +383,7 @@ List<PaletteCommand> withRecents(
           label: c.label,
           detail: c.detail,
           shortcut: c.shortcut,
+          icon: c.icon,
           group: 'Recentes',
           run: c.run,
         ),
@@ -624,6 +631,19 @@ class _CommandPaletteState extends State<CommandPalette> {
                                 ),
                                 child: Row(
                                   children: [
+                                    if (c.icon case final icon?) ...[
+                                      AppIcon(
+                                        icon,
+                                        key: ValueKey(
+                                          'palette-icon-${c.label}',
+                                        ),
+                                        size: 16,
+                                        color: sel
+                                            ? AppColors.amber
+                                            : AppColors.textSecondary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
                                     Expanded(
                                       child: Text.rich(
                                         TextSpan(

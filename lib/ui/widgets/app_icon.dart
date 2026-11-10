@@ -3,24 +3,38 @@ import 'package:flutter/widgets.dart';
 import '../theme/tokens.dart';
 import 'svg_path.dart';
 
-/// A 24×24 stroke icon described by SVG path data (copied from the mockups).
+/// A 24×24 stroke icon described by SVG path data (copied from the mockups),
+/// with optional filled shapes (`fill="currentColor" stroke="none"`).
 @immutable
 class AppIconData {
-  AppIconData(List<String> paths, {this.strokeWidth = 1.8})
-    : path = _combine(paths);
+  ///
+  /// [viewBox] is the side of the mockup's square view box: paths drawn on a
+  /// 20 grid are scaled to 24 ([strokeWidth] is always in the 24 grid).
+  AppIconData(
+    List<String> paths, {
+    this.strokeWidth = 1.8,
+    List<String> fills = const [],
+    double viewBox = 24,
+  }) : path = _combine(paths, viewBox),
+       fill = fills.isEmpty ? null : _combine(fills, viewBox);
 
-  /// Combined path in a 24×24 view box.
+  /// Combined stroked path in a 24×24 view box.
   final Path path;
+
+  /// Combined filled path in the same box (null = stroke only).
+  final Path? fill;
 
   /// Stroke width in view-box units (as in the mockup `stroke-width`).
   final double strokeWidth;
 
-  static Path _combine(List<String> paths) {
+  static Path _combine(List<String> paths, double viewBox) {
     final out = Path();
     for (final d in paths) {
       out.addPath(parseSvgPath(d), Offset.zero);
     }
-    return out;
+    if (viewBox == 24) return out;
+    final k = 24 / viewBox;
+    return out.transform(Matrix4.diagonal3Values(k, k, 1).storage);
   }
 }
 
@@ -57,10 +71,16 @@ abstract final class AppIcons {
     'M7 9l3 3-3 3M12 15h5',
   ]);
 
-  static final prompt = AppIconData([
-    'M21 12a8.5 8.5 0 0 1-12.4 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 21 12z',
-    'M12 8l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z',
-  ]);
+  /// Chat balloon with two lines of text and a filled spark outside the
+  /// outline (SPEC-055 R5, spec-055/Trilho.dc.html): reads as "chat with
+  /// AI" down to 16px.
+  static final prompt = AppIconData(
+    [
+      'M13 4H6.5A3.5 3.5 0 0 0 3 7.5v7A3.5 3.5 0 0 0 6.5 18H8v3.2l4.2-3.2h5.3a3.5 3.5 0 0 0 3.5-3.5V11',
+      'M7.5 9.8h5.5M7.5 13.2h3.5',
+    ],
+    fills: ['M18.5 1.5l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z'],
+  );
 
   static final specs = AppIconData([
     'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z',
@@ -135,7 +155,8 @@ abstract final class AppIcons {
   ]);
 }
 
-/// Paints an [AppIconData] stroked with round caps and joins.
+/// Paints an [AppIconData] stroked with round caps and joins (and its
+/// filled shapes, if any).
 class AppIcon extends StatelessWidget {
   const AppIcon(
     this.icon, {
@@ -179,6 +200,16 @@ class _AppIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.scale(size.width / 24, size.height / 24);
+    final fill = icon.fill;
+    if (fill != null) {
+      canvas.drawPath(
+        fill,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = color
+          ..isAntiAlias = true,
+      );
+    }
     canvas.drawPath(
       icon.path,
       Paint()

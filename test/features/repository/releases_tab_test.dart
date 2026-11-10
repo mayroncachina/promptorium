@@ -59,10 +59,10 @@ void main() {
         items.indexOf(AppSection.review) + 1,
       );
       expect(AppSection.repository.label, 'Repositório');
-      expect(AppSection.repository.shortcutLabel, 'Ctrl 7');
+      expect(AppSection.repository.shortcutLabel, 'Ctrl 8');
       expect(items.length, 10);
       expect(items.last.shortcutLabel, 'Ctrl 0');
-      expect(AppSection.shortcutsVersion, 4);
+      expect(AppSection.shortcutsVersion, 5);
     });
 
     test('the main repository, never a worktree, with the remote and the '
