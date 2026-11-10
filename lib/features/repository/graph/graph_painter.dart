@@ -106,7 +106,7 @@ class GraphRowPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(nx, mid),
       r,
-      Paint()..color = hollow ? AppColors.background : color,
+      Paint()..color = hollow ? AppColors.backgroundSolid : color,
     );
     canvas.drawCircle(
       Offset(nx, mid),

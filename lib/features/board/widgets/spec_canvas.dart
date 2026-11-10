@@ -18,10 +18,12 @@ import '../board_screen.dart';
 import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
+import '../attention_shake.dart';
 import 'spec_node.dart';
 import 'wave_graph.dart';
 import '../sprint_rules.dart';
 import '../sprint_state.dart';
+import '../../../ui/theme/ambient.dart';
 
 /// Node size, wave spacing and reference rows (Quadro-Canvas.dc.html).
 const _cardSize = Size(250, 116);
@@ -70,8 +72,10 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
   AnimationController? _pulse;
   void _syncPulse(bool wanted) {
     if (wanted && _pulse == null) {
-      _pulse = AnimationController(vsync: this, duration: attentionPulsePeriod)
-        ..repeat();
+      _pulse = AnimationController(
+        vsync: AmbientVsync(context),
+        duration: attentionPulsePeriod,
+      )..repeat();
     } else if (!wanted && _pulse != null) {
       _pulse!.dispose();
       _pulse = null;
@@ -347,7 +351,8 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                               related.contains(d.spec.code)
                                           ? 1
                                           : .45,
-                                      child: RepaintBoundary(
+                                      child: AttentionShake(
+                                        specId: d.spec.id,
                                         child: AttentionHalo(
                                           enabled: widget.attention(d),
                                           pulse: pulse,
@@ -779,11 +784,11 @@ class _CanvasStepDotState extends State<CanvasStepDot>
       _animated = widget.status;
       _animation = widget.status == StepStatus.running
           ? (AnimationController(
-              vsync: this,
+              vsync: AmbientVsync(context),
               duration: const Duration(milliseconds: 700),
             )..repeat(reverse: true))
           : (AnimationController(
-              vsync: this,
+              vsync: AmbientVsync(context),
               duration: const Duration(milliseconds: 900),
             )..repeat());
     }
@@ -1403,7 +1408,7 @@ class CanvasZoomMenu extends StatelessWidget {
     builder: (_, _) => MenuAnchor(
       alignmentOffset: const Offset(0, 8),
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(AppColors.panel),
+        backgroundColor: const WidgetStatePropertyAll(AppColors.panelSolid),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(6)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(

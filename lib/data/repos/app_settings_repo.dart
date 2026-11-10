@@ -2,6 +2,13 @@ import '../db/app_database.dart';
 
 /// Keys stored in `app_settings`.
 abstract final class AppSettingKeys {
+  /// Glass effects of the Vidro theme, `false` to turn them off (SPEC-049 R6).
+  static const glassEffects = 'aparencia.vidro';
+
+  /// Shake of the cards that need the person, `false` to turn it off
+  /// (SPEC-054 R7).
+  static const attentionShake = 'aparencia.tremor';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 

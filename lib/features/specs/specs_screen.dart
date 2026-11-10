@@ -33,6 +33,7 @@ import 'prototype/prototype_service.dart';
 import 'prototype/prototype_view.dart';
 import 'spec_lint.dart';
 import 'spec_planner.dart';
+import 'spec_editor_handle.dart';
 import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
@@ -529,10 +530,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _actions = ref.read(specActionProvider.notifier);
     _nav = ref.read(navigationProvider.notifier);
     _nav.leaveGuard = _guardLeave;
+    _editorHandle = ref.read(specEditorHandleProvider);
   }
+
+  late final SpecEditorHandle _editorHandle;
+  Future<bool> Function()? _boundSave;
 
   @override
   void dispose() {
+    _editorHandle.unbind(_boundSave);
     // R9: the screen is rebuilt on every visit; keep what was not saved.
     final id = _loadedSpecId, text = _controller?.text;
     if (id != null && text != null && _dirty) {
@@ -1510,6 +1516,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (spec != null && spec.id != _loadedSpecId) {
       _loadedSpecId = spec.id;
       Future.microtask(() => _load(ws, spec));
+    }
+    if (spec != null) {
+      final save = _boundSave = () async => await _save(ws, spec) != null;
+      _editorHandle.bind(spec.id, save, () => _dirty);
     }
     // While another spec is on the way the controller has the old text,
     // which says nothing about [spec].

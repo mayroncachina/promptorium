@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Repositório em vidro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05070A}
+.glass{background:rgba(22,27,36,.52);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 20px 50px rgba(0,0,0,.35);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+.glass2{background:rgba(30,36,48,.55);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+button{font-family:'IBM Plex Sans',sans-serif;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; background: radial-gradient(800px 600px at 30% -10%, rgba(197,155,255,.10), transparent 60%), radial-gradient(900px 700px at 100% 110%, rgba(79,209,181,.11), transparent 60%), #05070A">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size: 28px 28px"></div>
+
+  <nav aria-label="Seções" class="glass" style="position: absolute; left: 16px; top: 16px; bottom: 16px; width: 64px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 64px 0 14px; box-sizing: border-box">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="7">
+      <button aria-label="{{n.label}}" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid {{n.borda}}; background: {{n.bg}}; display: flex; align-items: center; justify-content: center; box-shadow: {{n.glow}}">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{n.cor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"></path></svg>
+      </button>
+    </sc-for>
+  </nav>
+
+  <header class="glass" style="position: absolute; left: 96px; right: 16px; top: 16px; height: 56px; border-radius: 16px; display: flex; align-items: center; gap: 24px; padding: 0 12px 0 20px; box-sizing: border-box">
+    <span style="font-size: 15px; font-weight: 600">Repositório</span>
+    <span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">promptorium · origin · main</span>
+    <div role="tablist" aria-label="Abas" style="display: flex; gap: 4px; margin-left: 12px">
+      <sc-for list="{{abas}}" as="a" hint-placeholder-count="4">
+        <button role="tab" aria-selected="{{a.on}}" style="height: 34px; padding: 0 14px; border-radius: 9px; border: 1px solid {{a.borda}}; background: {{a.bg}}; color: {{a.cor}}; font-size: 14px; font-weight: 500">{{a.n}}</button>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <span style="font-size: 13px; color: #A0A8B6">gh · mayroncachina</span>
+  </header>
+
+  <main style="position: absolute; left: 96px; right: 16px; top: 88px; bottom: 16px; display: flex; gap: 16px">
+    <section class="glass" aria-label="Grafo" style="flex: 1; min-width: 0; border-radius: 18px; padding: 10px 8px; display: flex; flex-direction: column">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 6px 12px 12px">
+        <button class="glass2" style="height: 32px; padding: 0 12px; border-radius: 9px; color: #E7E9EE; font-size: 13px">Todas as branches</button>
+        <button class="glass2" style="height: 32px; padding: 0 12px; border-radius: 9px; color: #A0A8B6; font-size: 13px">Só specs</button>
+        <div style="flex: 1"></div>
+        <span style="font-size: 13px; color: #8A93A3">v0.11.0 → v0.12.0 · 6 merges</span>
+      </div>
+      <div style="position: relative; flex: 1">
+        <sc-for list="{{linhas}}" as="l" hint-placeholder-count="13">
+          <div style="position: relative; height: 52px; display: flex; align-items: center; gap: 16px; padding: 0 16px 0 150px; border-radius: 10px; background: {{l.bg}}; border: 1px solid {{l.borda}}">
+            <span style="width: 70px; font: 500 13px 'JetBrains Mono', monospace; color: #8A93A3">{{l.sha}}</span>
+            <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: {{l.peso}}; color: {{l.cor}}">{{l.msg}}</span>
+            <span style="height: 24px; padding: 0 10px; border-radius: 12px; display: flex; align-items: center; font: 500 12px 'JetBrains Mono', monospace; color: {{l.tagCor}}; background: {{l.tagBg}}; border: 1px solid {{l.tagBorda}}">{{l.tag}}</span>
+          </div>
+        </sc-for>
+        <svg aria-hidden="true" width="140" height="680" viewBox="0 0 140 680" fill="none" stroke-width="2.5" stroke-linecap="round" style="position: absolute; left: 6px; top: 0; overflow: visible">
+          <defs><filter id="neon" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"></feGaussianBlur></filter></defs>
+          <path d="M30 26V680" stroke="#C9CED8" opacity=".75"></path>
+          <g filter="url(#neon)" opacity=".7">
+            <path d="M30 78C30 96 70 96 70 130V182C70 200 30 200 30 234" stroke="#E07AB0"></path>
+            <path d="M30 182C30 200 110 200 110 234V286C110 304 30 304 30 338" stroke="#4FD1B5"></path>
+            <path d="M30 286C30 304 70 304 70 338V390C70 408 30 408 30 442" stroke="#5BC88A"></path>
+            <path d="M30 390C30 408 110 408 110 442V494C110 512 30 512 30 546" stroke="#C59BFF"></path>
+            <path d="M30 494C30 512 70 512 70 546V598C70 616 30 616 30 650" stroke="#F2A541"></path>
+          </g>
+          <path d="M30 78C30 96 70 96 70 130V182C70 200 30 200 30 234" stroke="#E07AB0"></path>
+          <path d="M30 182C30 200 110 200 110 234V286C110 304 30 304 30 338" stroke="#4FD1B5"></path>
+          <path d="M30 286C30 304 70 304 70 338V390C70 408 30 408 30 442" stroke="#5BC88A"></path>
+          <path d="M30 390C30 408 110 408 110 442V494C110 512 30 512 30 546" stroke="#C59BFF"></path>
+          <path d="M30 494C30 512 70 512 70 546V598C70 616 30 616 30 650" stroke="#F2A541"></path>
+          <g fill="#05070A">
+            <circle cx="30" cy="26" r="7" stroke="#C9CED8"></circle><circle cx="30" cy="78" r="7" stroke="#C9CED8"></circle><circle cx="70" cy="130" r="7" stroke="#E07AB0"></circle>
+            <circle cx="30" cy="182" r="7" stroke="#C9CED8"></circle><circle cx="110" cy="234" r="7" stroke="#4FD1B5"></circle><circle cx="30" cy="286" r="7" stroke="#C9CED8"></circle>
+            <circle cx="70" cy="338" r="9" stroke="#5BC88A" stroke-width="3"></circle><circle cx="30" cy="390" r="7" stroke="#C9CED8"></circle><circle cx="110" cy="442" r="7" stroke="#C59BFF"></circle>
+            <circle cx="30" cy="494" r="7" stroke="#C9CED8"></circle><circle cx="70" cy="546" r="7" stroke="#F2A541"></circle><circle cx="30" cy="598" r="7" stroke="#C9CED8"></circle>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <aside class="glass" aria-label="Commit selecionado" style="width: 400px; border-radius: 18px; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; border-color: rgba(91,200,138,.28); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 50px rgba(91,200,138,.1), 0 20px 50px rgba(0,0,0,.4)">
+      <span style="font: 600 15px 'JetBrains Mono', monospace; color: #F2A541">c96ca70</span>
+      <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: #5BC88A"><span style="width: 8px; height: 8px; border-radius: 4px; background: #5BC88A; box-shadow: 0 0 10px #5BC88A"></span>SPEC-045 · Grafo do repositório</span>
+      <h2 style="margin: 0; font-size: 19px; font-weight: 600; line-height: 26px">painel do commit, filtros, busca e atualização ao vivo do grafo</h2>
+      <span style="font-size: 13px; color: #A0A8B6">Mayron Cachina · 8 nov 2026 · PR #107 mergeado</span>
+      <div style="height: 1px; background: rgba(255,255,255,.07)"></div>
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #8A93A3">ARQUIVOS · 7</span>
+      <sc-for list="{{arquivos}}" as="f" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="flex: 1; font: 13px 'JetBrains Mono', monospace; color: #C9CED8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.n}}</span>
+          <span style="width: 60px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; display: flex"><span style="width: {{f.w}}%; background: #5BC88A"></span></span>
+          <span style="width: 44px; text-align: right; font: 500 12px 'JetBrains Mono', monospace; color: #5BC88A">{{f.v}}</span>
+        </div>
+      </sc-for>
+      <div style="flex: 1"></div>
+      <button class="glass2" style="height: 40px; border-radius: 10px; color: #E7E9EE; font-size: 14px; font-weight: 500">Abrir a spec no Quadro</button>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const icons = [['Início', 'M3 9.5 10 3l7 6.5V17H3z'], ['Quadro', 'M3 3h5v14H3zM12 3h5v8h-5z'], ['Sessões', 'M3 4h14v10H3zM7 17h6'], ['Review', 'M4 10l4 4 8-9'], ['Repositório', 'M6 3v14M6 7c6 0 8 2 8 6M14 13a2 2 0 1 0 0 .1M6 3a1 1 0 1 0 0 .1'], ['Código', 'M7 6 3 10l4 4M13 6l4 4-4 4'], ['Prompts', 'M4 4h12v9H8l-4 3z']];
+    const nav = icons.map(([label, d], i) => { const on = i === 4; return { label, d, cor: on ? '#F2A541' : '#A0A8B6', bg: on ? 'rgba(242,165,65,.12)' : 'transparent', borda: on ? 'rgba(242,165,65,.4)' : 'transparent', glow: on ? '0 0 18px rgba(242,165,65,.25)' : 'none' }; });
+    const abas = ['Releases', 'Grafo', 'Atividade', 'Higiene'].map((n) => { const on = n === 'Grafo'; return { n, on: on ? 'true' : 'false', bg: on ? 'rgba(255,255,255,.08)' : 'transparent', borda: on ? 'rgba(255,255,255,.12)' : 'transparent', cor: on ? '#E7E9EE' : '#A0A8B6' }; });
+    const hex = (c, a) => { const n = parseInt(c.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+    const raw = [
+      ['fa15c5a', 'chore(release): v0.12.0', 'v0.12.0', '#F2A541', 'm'],
+      ['3711397', 'Merge #108 · spec/046-atividade-do-repositorio', 'PR #108', '#8A93A3', 'm'],
+      ['66df960', 'painel do arquivo com três commits por spec', 'SPEC-046', '#E07AB0', 'c'],
+      ['d0d0037', 'Merge #109 · spec/047-higiene-do-repositorio', 'PR #109', '#8A93A3', 'm'],
+      ['5af1c02', 'limpeza de branches, worktrees e refs com Desfazer', 'SPEC-047', '#4FD1B5', 'c'],
+      ['7db4f33', 'Merge #107 · spec/045-grafo-do-repositorio', 'PR #107', '#8A93A3', 'm'],
+      ['c96ca70', 'painel do commit, filtros, busca e atualização ao vivo', 'SPEC-045', '#5BC88A', 's'],
+      ['cf5cbdf', 'Merge #106 · spec/044-releases', 'PR #106', '#8A93A3', 'm'],
+      ['30872ff', 'Criar release, acompanhamento do run e aviso no fim', 'SPEC-044', '#C59BFF', 'c'],
+      ['04b61f0', 'Merge #111 · spec/048-marcar-commits-de-agente', 'PR #111', '#8A93A3', 'm'],
+      ['b750167', 'marcar commits das sessões de agente', 'SPEC-048', '#F2A541', 'c'],
+      ['1e02642', 'Merge #100 · spec/043-conflito-conferido-pelo-gate', 'PR #100', '#8A93A3', 'm'],
+    ];
+    const linhas = raw.map(([sha, msg, tag, c, k]) => ({
+      sha, msg, tag,
+      cor: k === 'm' ? '#A0A8B6' : '#E7E9EE', peso: k === 'm' ? 400 : 500,
+      tagCor: c, tagBg: k === 'm' && c === '#8A93A3' ? 'transparent' : hex(c, .12), tagBorda: k === 'm' && c === '#8A93A3' ? 'transparent' : hex(c, .4),
+      bg: k === 's' ? 'rgba(91,200,138,.1)' : 'transparent', borda: k === 's' ? 'rgba(91,200,138,.35)' : 'transparent',
+    }));
+    const arquivos = [['graph/commit_panel.dart', 611], ['graph/graph_tab.dart', 441], ['graph_tab_test.dart', 347], ['graph/commit_log.dart', 138], ['graph/graph_controller.dart', 129]].map(([n, v]) => ({ n, v: '+' + v, w: Math.round(v / 611 * 100) }));
+    return { nav, abas, linhas, arquivos };
+  }
+}
+</script>
+</body>
+</html>

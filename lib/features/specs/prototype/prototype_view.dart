@@ -1087,7 +1087,7 @@ class _CardMenuState extends State<_CardMenu> {
         onOpen: () => widget.onMenu(true),
         onClose: () => widget.onMenu(false),
         style: MenuStyle(
-          backgroundColor: const WidgetStatePropertyAll(AppColors.panel),
+          backgroundColor: const WidgetStatePropertyAll(AppColors.panelSolid),
           padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(

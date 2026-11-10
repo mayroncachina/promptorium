@@ -59,7 +59,7 @@ class WorktreeSelector extends StatelessWidget {
         PopupMenuButton<String>(
           key: const ValueKey('code-worktree-button'),
           tooltip: selected.path,
-          color: AppColors.panel,
+          color: AppColors.panelSolid,
           position: PopupMenuPosition.under,
           onSelected: (p) => onSelect(options.firstWhere((o) => o.path == p)),
           itemBuilder: (_) => [

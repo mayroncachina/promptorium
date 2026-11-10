@@ -231,7 +231,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       initialValue: value,
       isDense: true,
       isExpanded: true,
-      dropdownColor: AppColors.panel,
+      dropdownColor: AppColors.panelSolid,
       decoration: deco(''),
       style: const TextStyle(fontSize: 13, color: AppColors.text),
       items: [

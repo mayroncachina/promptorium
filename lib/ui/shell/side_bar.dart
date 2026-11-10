@@ -37,11 +37,7 @@ class SideBar extends ConsumerWidget {
     );
     return Container(
       width: 56,
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: const BoxDecoration(
-        color: AppColors.panel,
-        border: Border(right: BorderSide(color: AppColors.border)),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       // The highlight repaints the bar, not the shell, while it slides.
       child: RepaintBoundary(
         child: Stack(
@@ -102,9 +98,17 @@ class _HighlightState extends State<_Highlight> {
           curve: AppMotion.enter,
           child: DecoratedBox(
             key: const ValueKey('nav-highlight'),
+            // Lit in amber: the active item is live state (SPEC-049 R4).
             decoration: BoxDecoration(
               color: AppColors.amberTint,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.amber.withValues(alpha: .4)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.amber.withValues(alpha: .18),
+                  blurRadius: 16,
+                ),
+              ],
             ),
             child: const SizedBox.square(dimension: _itemSize),
           ),

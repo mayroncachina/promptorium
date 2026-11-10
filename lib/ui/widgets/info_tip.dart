@@ -216,7 +216,8 @@ class InfoTipState extends State<InfoTip> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
+          // Floats over content without a blur: opaque (SPEC-049 R3).
+          color: AppColors.surfaceRaisedSolid,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppColors.borderHover),
           boxShadow: const [
@@ -256,7 +257,7 @@ class InfoTipState extends State<InfoTip> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: AppColors.backgroundSolid,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Column(
