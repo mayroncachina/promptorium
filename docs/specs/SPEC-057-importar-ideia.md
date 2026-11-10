@@ -116,6 +116,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3QhJ9SKKTfdTZMDj7Yw
 - **`pdftotext`, não um pacote Dart.** O app é Linux, o poppler-utils já vem na maioria das distribuições e lê PDF melhor que as bibliotecas puras em Dart. Sem ele, a mensagem do R7 diz como instalar. `pdfrx` traria o PDFium inteiro para o build.
 - **40.000 caracteres.** É bastante para um briefing e não toma o contexto do planner.
 - **Só texto.** O planner trabalha com o campo; anexar o arquivo mudaria o fluxo do planner, que fica para outra spec.
+- **t1 · Número de páginas pelo `pdfinfo`.** Vem no mesmo pacote (poppler-utils) que o `pdftotext`. Se faltar ou não disser as páginas, o PDF é lido numa execução só e as páginas são separadas pelo `\f` que o `pdftotext` escreve; aí não há progresso por página. Senha é reconhecida pelo "Incorrect password" (código 1) ou pelo código 3.
+- **t1 · Limpeza do PDF.** O espaçamento do `-layout` é colapsado num espaço. Uma linha junta com a seguinte quando não termina frase (`. ! ? : ; …`), a seguinte não é item de lista e começa em minúscula ou a anterior é longa (60 % da maior linha da página; linha curta é título). Hífen no fim da linha seguido de minúscula é tirado. Cabeçalho e rodapé: até duas linhas do topo e duas do pé iguais em todas as páginas (com 2+ páginas), comparadas sem os números, para "Página 1" bater com "Página 2".
+- **t1 · Corte.** Sem fim de parágrafo antes de 40.000, o corte cai na última quebra de linha, depois no último fim de frase, e só então em 40.000 exatos. `ImportedText.fit` refaz o corte para o espaço que sobra quando o texto é adicionado ao fim (R6).
+- **t1 · Textos das mensagens.** As frases entre aspas do R7 são as do título; o "o que fazer" vem do mockup `5-problemas.png`. Arquivo que sumiu, sem permissão ou PDF corrompido mostram "Não deu para ler o arquivo." com o motivo (caso fora da tabela).
+- **t1 · TXT fora de UTF-8.** Lido como Latin-1; os bytes de controle 0x80–0x9F viram "?". O BOM do UTF-8 é tirado.
 
 ## Plano
 
