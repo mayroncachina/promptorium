@@ -1314,6 +1314,12 @@ class SaveState extends StatelessWidget {
             trailing: const Kbd('Ctrl+S'),
             height: 30,
             fontSize: 13,
+            // Unsaved work is the next thing to do: the button says so
+            // (after "Planejar" the Plano lives only in the editor).
+            color: AppColors.amber,
+            border: AppColors.amber.withValues(alpha: .55),
+            background: AppColors.amber.withValues(alpha: .12),
+            fontWeight: FontWeight.w600,
             focusColor: AppColors.amber.withValues(alpha: .25),
             onTap: onSave,
           ),

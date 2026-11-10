@@ -13,6 +13,7 @@ import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'spec_canvas.dart';
 import 'spec_node.dart';
+import '../../../ui/theme/ambient.dart';
 
 /// Sizes of the stage (docs/mockups/spec-036/Main.dc.html).
 const stageRootSize = Size(330, 150), stageCardSize = Size(250, 116);
@@ -275,8 +276,10 @@ class FocusStageState extends ConsumerState<FocusStage>
 
   void _syncPulse(bool wanted) {
     if (wanted && _pulse == null) {
-      _pulse = AnimationController(vsync: this, duration: attentionPulsePeriod)
-        ..repeat();
+      _pulse = AnimationController(
+        vsync: AmbientVsync(context),
+        duration: attentionPulsePeriod,
+      )..repeat();
     } else if (!wanted && _pulse != null) {
       _pulse!.dispose();
       _pulse = null;

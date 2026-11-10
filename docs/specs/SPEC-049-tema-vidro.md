@@ -110,6 +110,14 @@ Decisões tomadas na implementação:
 - **A casca ganhou 8 px de folga, não 16.** Com 16 px, os 10 itens da barra lateral e a engrenagem não caberiam em 1100×700.
 - **"Efeitos de vidro" fica em Configurações › Aparência**, uma seção nova do grupo App.
 
+Decisões da segunda rodada de testes (t5):
+
+- **O custo está no número de quadros, não no vidro.** Com quadros contínuos (`PROMPTORIUM_QUADROS_CONTINUO=1`), a mesma tela custa o mesmo com e sem vidro (CPU do app perto de 64% nos dois). No Linux cada quadro redesenha a janela inteira, então o que pesa é quantos quadros o app pede.
+- **Animações de ambiente a 24 quadros/s.** A onda do logo, os pulsos de atenção, os pontos de etapa rodando, o brilho do esqueleto e os spinners de sessão e do planner usam `AmbientVsync` (`lib/ui/theme/ambient.dart`): o tique espera ~42 ms e todos se alinham no mesmo quadro. Durante a execução de uma spec, o app foi de ~36 para ~17 quadros/s e de ~32% para ~19% de CPU.
+- **O contador de segundos da sessão usa um `Timer`.** Antes, um `Ticker` pedia um quadro a cada vsync só para ver se o segundo tinha mudado.
+- **"Executar" salva a spec aberta antes de rodar.** Depois de "Planejar", o Plano fica só no editor; os agentes leem o arquivo e rodavam sem ele.
+- **Layout:** as ações da pasta de specs (Sincronizar, Verificar, Relatório) ficaram discretas, com ícone, para não competir com as ações principais da tela; o botão "Salvar" fica âmbar quando há alterações não salvas.
+
 ## Plano
 
 1. Validar o mockup (tabela no início da spec).

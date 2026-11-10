@@ -10,6 +10,7 @@ import '../widgets/brand_mark.dart';
 import 'brand_activity.dart';
 import 'navigation.dart';
 import 'notification_center.dart';
+import '../theme/ambient.dart';
 
 /// Top bar (44px): logo, workspace selector, command search, contextual action.
 class TitleBar extends StatelessWidget {
@@ -72,8 +73,7 @@ class TitleBarLogo extends ConsumerStatefulWidget {
   ConsumerState<TitleBarLogo> createState() => _TitleBarLogoState();
 }
 
-class _TitleBarLogoState extends ConsumerState<TitleBarLogo>
-    with SingleTickerProviderStateMixin {
+class _TitleBarLogoState extends ConsumerState<TitleBarLogo> {
   AnimationController? _wave;
   bool _stopping = false;
 
@@ -81,8 +81,10 @@ class _TitleBarLogoState extends ConsumerState<TitleBarLogo>
   void _sync(bool wanted, bool reduced) {
     final c = _wave;
     if (wanted && c == null) {
-      _wave = AnimationController(vsync: this, duration: brandMotionCycle)
-        ..repeat();
+      _wave = AnimationController(
+        vsync: AmbientVsync(context),
+        duration: brandMotionCycle,
+      )..repeat();
     } else if (wanted && _stopping) {
       _stopping = false;
       c!.repeat();
