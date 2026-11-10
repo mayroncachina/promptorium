@@ -299,7 +299,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
               const Icon(
                 Icons.folder_outlined,
                 size: 14,
-                color: AppColors.textMuted,
+                color: AppColors.textSecondary,
               ),
               const SizedBox(width: 6),
               Text(
@@ -307,7 +307,7 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
                 key: const ValueKey('specs-folder'),
                 style: const TextStyle(
                   fontSize: 11,
-                  color: AppColors.textMuted,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
