@@ -30,6 +30,13 @@ Mostra o progresso das etapas ("3/7"), a etapa atual, bloqueio por dependência 
 
 Menu do cartão: Executar com opções… (provedor, agente, modelo, esforço, modo de permissão), Executar em dobro (A/B), Ligar ou pausar o avanço automático, Etapas e sessões, Subir/Descer na coluna e Mover para….
 
+### Tremor de atenção
+
+Um cartão que precisa de você dá um tremor curto (menos de meio segundo) nas Colunas, no Grafo e no Foco:
+- **Quando:** assim que passa a esperar por você e, depois, um cartão a cada 5 s, revezando, nunca dois juntos.
+- **Quando para:** quando você passa o mouse, foca ou seleciona o cartão; depois de 6 tremores seguidos (até o motivo mudar); durante um arraste, com um diálogo aberto ou com a janela sem foco.
+- **Sem tremor:** com movimento reduzido no sistema ou com a opção desligada em [Configurações › Aparência](configuracoes.md#aparência), fica só o halo âmbar.
+
 ## Execução por etapa
 
 **Executar** cria o worktree da spec (`pr/spec-NNN-…`) e abre uma sessão com contexto limpo: a parte da spec relevante, as etapas já feitas e a de agora. O agente commita `SPEC-NNN Rn: …` e termina com a linha `ETAPA CONCLUÍDA: Rn`.

@@ -1,6 +1,6 @@
 ---
 id: SPEC-054
-status: rascunho
+status: aprovada
 depende-de: SPEC-030, SPEC-049
 issue: 134
 ---
@@ -107,6 +107,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/6TGxoQimCoyUp7RsnJv
 - **Visões:** o card certo treme nas três, e uma spec numa pasta recolhida não treme.
 - **Configuração:** desligada, nenhum card treme e o halo continua.
 
+## Decisões
+
+Tomadas na implementação:
+- **5 s, a pedido.** O intervalo começou em 10 s e foi para 5 s. O custo médio fica perto de 5 quadros/s a mais, só enquanto há card esperando e ele ainda não foi visto.
+- **Um host por Quadro.** `AttentionShakeHost` envolve o Quadro inteiro, com ou sem o painel lateral, para que selecionar um card não zere a vez nem as contagens. Ao voltar de outra tela, o Quadro é montado de novo e as contagens recomeçam (R3).
+- **"Visto" só com mouse ou foco.** O card selecionado fica fora da vez enquanto estiver selecionado, mas volta a ela quando deixa de estar.
+- **Pausas.** As pausas de R4 vêm de três sinais: o ciclo de vida da janela, um ponteiro pressionado sobre o Quadro (arraste) e `ModalRoute.isCurrent` (diálogo, menu ou paleta por cima).
+- **Na suíte de testes o movimento fica desligado** (`AppMotion.enabled`), como nos outros testes de animação; os testes do tremor o ligam.
+
 ## Plano
 
 1. `AttentionShakeScheduler` e `AttentionShake`, com os testes (R1–R4, R6, R8).
@@ -116,13 +125,13 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/6TGxoQimCoyUp7RsnJv
 
 ## Critérios de aceite
 
-- [ ] Um card que passa a precisar de você treme na hora, nas três visões.
-- [ ] Com dois cards esperando, eles se revezam a cada 5 s e nunca tremem juntos.
-- [ ] Depois de 6 tremores o card para e fica com o halo; volta a tremer quando o motivo muda.
-- [ ] Passar o mouse ou focar o card para o tremor dele.
-- [ ] Com movimento reduzido ou a opção desligada, nada treme.
-- [ ] Entre tremores, o Quadro parado não pede quadros além do halo.
-- [ ] O leitor de tela não anuncia o tremor.
+- [x] Um card que passa a precisar de você treme na hora, nas três visões.
+- [x] Com dois cards esperando, eles se revezam a cada 5 s e nunca tremem juntos.
+- [x] Depois de 6 tremores o card para e fica com o halo; volta a tremer quando o motivo muda.
+- [x] Passar o mouse ou focar o card para o tremor dele.
+- [x] Com movimento reduzido ou a opção desligada, nada treme.
+- [x] Entre tremores, o Quadro parado não pede quadros além do halo.
+- [x] O leitor de tela não anuncia o tremor.
 
 ## Perguntas em aberto
 
