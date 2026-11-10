@@ -62,6 +62,17 @@ class ConversationsRepo {
   Future<int> rename(int id, String title) =>
       update(id, ConversationsCompanion(title: Value(title)));
 
+  /// Out of the active list (SPEC-056 R4); nothing is deleted.
+  Future<int> archive(int id, {DateTime? at}) =>
+      setArchivedAt(id, at ?? DateTime.now());
+
+  /// Back to the active list (SPEC-056 R6, R7).
+  Future<int> unarchive(int id) => setArchivedAt(id, null);
+
+  /// [at] null = active. "Desfazer" puts back the previous value.
+  Future<int> setArchivedAt(int id, DateTime? at) =>
+      update(id, ConversationsCompanion(archivedAt: Value(at)));
+
   /// Session created by "Continuar como sessão".
   Future<int> linkSession(int id, String? sessionId) =>
       update(id, ConversationsCompanion(sessionId: Value(sessionId)));

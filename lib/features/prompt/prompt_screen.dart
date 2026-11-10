@@ -14,6 +14,7 @@ import '../sessions/widgets/session_style.dart';
 import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import '../sessions/widgets/timeline_view.dart';
 import 'attachments.dart';
+import 'conversation_actions.dart';
 import 'conversation_manager.dart';
 import 'plan_ready.dart';
 import 'prompt_actions.dart';
@@ -128,14 +129,25 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   @override
   Widget build(BuildContext context) {
     final ws = ref.watch(activeWorkspaceProvider);
-    final list = ws == null
-        ? const <Conversation>[]
-        : ref.watch(conversationsProvider(ws.id)).value ??
-              const <Conversation>[];
+    final lists = ws == null
+        ? ConversationLists.empty
+        : ref.watch(conversationListsProvider(ws.id));
     final selectedId = ref.watch(selectedConversationProvider);
-    Conversation? conv;
-    for (final c in list) {
-      if (c.id == selectedId) conv = c;
+    final conv = lists.byId(selectedId);
+    // SPEC-056 R7: the open conversation left the archived ones (a message
+    // or "Desarquivar"): the list goes back to the active ones.
+    if (ws != null) {
+      ref.listen<bool?>(
+        conversationListsProvider(ws.id)
+            .select((l) => l.byId(selectedId)?.archivedAt != null),
+        (was, now) {
+          if (was == true && now == false) {
+            ref
+                .read(conversationTabProvider.notifier)
+                .show(ConversationTab.active);
+          }
+        },
+      );
     }
     final draft = ref.watch(promptDraftProvider);
     final providerId = conv?.provider ?? draft.providerId;
@@ -170,7 +182,7 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
               SizedBox(
                 width: left,
                 child: ConversationListPanel(
-                  conversations: list,
+                  lists: lists,
                   selectedId: conv?.id,
                 ),
               ),
@@ -179,7 +191,18 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _Header(conversation: conv, busy: busy, items: items),
+                    _Header(
+                      conversation: conv,
+                      busy: busy,
+                      items: items,
+                      active: lists.active,
+                    ),
+                    if (conv != null && conv.archivedAt != null)
+                      ArchivedBanner(
+                        onUnarchive: () => ref
+                            .read(conversationActionsProvider)
+                            .unarchive(conv.id),
+                      ),
                     Expanded(
                       child: conv == null
                           ? ws == null
@@ -221,6 +244,10 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                         controller: _text,
                         focusNode: _focus,
                         workspaceRoot: ws?.path,
+                        hintText: conv?.archivedAt != null
+                            ? 'Escreva para continuar…  enviar desarquiva a '
+                                  'conversa'
+                            : null,
                         files: _files,
                         dropping: _dropping,
                         onPickFiles: () => _pickFiles(ws),
@@ -289,42 +316,15 @@ class _Header extends ConsumerWidget {
     required this.conversation,
     required this.busy,
     required this.items,
+    required this.active,
   });
 
   final Conversation? conversation;
   final bool busy;
   final List<TimelineItem> items;
 
-  void _snack(BuildContext context, String msg) {
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showAppToast(SnackBar(content: Text(msg)));
-  }
-
-  Future<void> _toSpec(BuildContext context, WidgetRef ref) async {
-    final c = conversation!;
-    // SPEC-016 R5: a spec written by the agent wins over the transcript.
-    final written = lastAnswerSpec(items);
-    if (written != null) {
-      await primaryAnswerSpec(context, ref, c, written);
-      return;
-    }
-    try {
-      final ws = await ref.read(workspacesRepoProvider).getById(c.workspaceId);
-      if (ws == null) throw StateError('Workspace não encontrado.');
-      final spec = await createSpecFromConversation(
-        ref.read(specsRepoProvider),
-        workspace: ws,
-        title: c.title,
-        transcript: transcriptOf(items),
-      );
-      if (context.mounted) {
-        _snack(context, '${spec.code} criada em ${spec.path} (rascunho)');
-      }
-    } catch (e) {
-      if (context.mounted) _snack(context, 'Falha ao criar a spec: $e');
-    }
-  }
+  /// Active conversations, for the selection after archiving (R4).
+  final List<Conversation> active;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -378,7 +378,7 @@ class _Header extends ConsumerWidget {
               label: 'Transformar em spec',
               onTap: c == null || busy || !hasAnswer
                   ? null
-                  : () => _toSpec(context, ref),
+                  : () => conversationToSpec(context, ref, c, items),
             ),
           ),
           const SizedBox(width: 8),
@@ -392,6 +392,25 @@ class _Header extends ConsumerWidget {
                   : () => showContinueSessionDialog(context, c),
             ),
           ),
+          // SPEC-056 R1: the same menu as the right click on the row.
+          if (c != null) ...[
+            const SizedBox(width: 6),
+            Builder(
+              builder: (context) => RowAction(
+                key: const ValueKey('prompt-more'),
+                icon: Icons.more_horiz,
+                tooltip: 'Mais ações da conversa',
+                onPressed: () => showConversationMenu(
+                  context,
+                  ref,
+                  c: c,
+                  position: menuPositionBelow(context),
+                  active: active,
+                  items: items,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
