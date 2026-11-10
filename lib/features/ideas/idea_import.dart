@@ -526,13 +526,21 @@ void _dropRepeated(List<List<String>> pages) {
 
 final _bullet = RegExp(r'^([•▪◦·*\-–—]|\d+[.)]|[a-z][.)])\s');
 final _sentenceEnd = RegExp(r'[.!?:;…]["”’)]*$');
+final _fullStop = RegExp(r'[.!?…]["”’)]*$');
 
-/// Whether [next] goes on the same line as [prev]: [prev] does not end a
-/// sentence and [next] is not a list item, and either [next] starts in
-/// lowercase or [prev] is long (not a title).
+/// Whether [next] goes on the same line as [prev]. [next] is not a list
+/// item and either [prev] does not end a sentence and [next] starts in
+/// lowercase or [prev] is long (not a title), or [prev] ends a sentence but
+/// fills the width of the page (85 % of the longest line).
 bool _continuesLine(String prev, String next, int longest) {
-  if (prev.isEmpty || next.isEmpty) return false;
-  if (_sentenceEnd.hasMatch(prev) || _bullet.hasMatch(next)) return false;
+  if (prev.isEmpty || next.isEmpty || _bullet.hasMatch(next)) return false;
+  // A line that fills the width and ends a sentence is still in the middle
+  // of a paragraph; a list item or a colon closes it.
+  if (_sentenceEnd.hasMatch(prev)) {
+    return _fullStop.hasMatch(prev) &&
+        prev.length >= longest * .85 &&
+        !_bullet.hasMatch(prev);
+  }
   final first = next[0];
   final lower = first != first.toUpperCase() && first == first.toLowerCase();
   return lower || prev.length >= longest * .6;
@@ -551,12 +559,14 @@ String _join(String prev, String next) {
 String _joinBroken(List<String> lines) {
   final longest = lines.fold(0, (m, l) => l.length > m ? l.length : m);
   final out = <String>[];
+  var previous = ''; // the line as printed, before any join
   for (final l in lines) {
-    if (out.isNotEmpty && _continuesLine(out.last, l, longest)) {
+    if (out.isNotEmpty && _continuesLine(previous, l, longest)) {
       out[out.length - 1] = _join(out.last, l);
     } else {
       out.add(l);
     }
+    previous = l;
   }
   return normalizeText(out.join('\n'));
 }

@@ -117,10 +117,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3QhJ9SKKTfdTZMDj7Yw
 - **40.000 caracteres.** É bastante para um briefing e não toma o contexto do planner.
 - **Só texto.** O planner trabalha com o campo; anexar o arquivo mudaria o fluxo do planner, que fica para outra spec.
 - **t1 · Número de páginas pelo `pdfinfo`.** Vem no mesmo pacote (poppler-utils) que o `pdftotext`. Se faltar ou não disser as páginas, o PDF é lido numa execução só e as páginas são separadas pelo `\f` que o `pdftotext` escreve; aí não há progresso por página. Senha é reconhecida pelo "Incorrect password" (código 1) ou pelo código 3.
-- **t1 · Limpeza do PDF.** O espaçamento do `-layout` é colapsado num espaço. Uma linha junta com a seguinte quando não termina frase (`. ! ? : ; …`), a seguinte não é item de lista e começa em minúscula ou a anterior é longa (60 % da maior linha da página; linha curta é título). Hífen no fim da linha seguido de minúscula é tirado. Cabeçalho e rodapé: até duas linhas do topo e duas do pé iguais em todas as páginas (com 2+ páginas), comparadas sem os números, para "Página 1" bater com "Página 2".
+- **t1 · Limpeza do PDF.** O espaçamento do `-layout` é colapsado num espaço. Uma linha junta com a seguinte quando a seguinte não é item de lista e: a linha não termina frase (`. ! ? : ; …`) e a seguinte começa em minúscula ou a linha é longa (60 % da maior linha da página; linha curta é título); ou a linha termina frase com `. ! ? …` mas ocupa a largura da página (85 % da maior linha), sinal de que o parágrafo continua. Hífen no fim da linha seguido de minúscula é tirado. Cabeçalho e rodapé: até duas linhas do topo e duas do pé iguais em todas as páginas (com 2+ páginas), comparadas sem os números, para "Página 1" bater com "Página 2".
 - **t1 · Corte.** Sem fim de parágrafo antes de 40.000, o corte cai na última quebra de linha, depois no último fim de frase, e só então em 40.000 exatos. `ImportedText.fit` refaz o corte para o espaço que sobra quando o texto é adicionado ao fim (R6).
 - **t1 · Textos das mensagens.** As frases entre aspas do R7 são as do título; o "o que fazer" vem do mockup `5-problemas.png`. Arquivo que sumiu, sem permissão ou PDF corrompido mostram "Não deu para ler o arquivo." com o motivo (caso fora da tabela).
 - **t1 · TXT fora de UTF-8.** Lido como Latin-1; os bytes de controle 0x80–0x9F viram "?". O BOM do UTF-8 é tirado.
+- **t2 · A escolha do R6 vem depois de ler o arquivo.** Assim um erro (formato, senha…) aparece sem uma pergunta antes. A escolha é um painel logo abaixo do campo (não um popover sobre os botões, como no mockup): não cobre "Planejar a spec", é um `RadioGroup` (setas trocam, Esc cancela) e o botão principal diz "Adicionar" ou "Substituir". Ao adicionar ao fim, o corte de 40.000 conta o texto que já estava no campo.
+- **t2 · Ctrl+Z depois de Substituir.** O `IdeaField` sobrepõe a ação `UndoTextIntent` do campo: enquanto o texto é o da substituição, Ctrl+Z devolve o anterior; fora disso, o desfazer é o do próprio campo.
+- **t2 · Remover com o texto editado.** A pergunta avisa que o campo volta para como estava antes do arquivo e que as edições feitas depois se perdem. Trocar, sem edição, troca só o trecho do arquivo; com edição, o campo conta como "já tem texto" e a escolha do R6 aparece.
+- **t2 · Progresso.** O cartão "Lendo o PDF… página x de n" fica acima do campo, no lugar do cartão de origem, e só para PDF com mais de 5 páginas; os menores leem sem cartão.
+- **t2 · Detalhes do campo.** O campo não aceita mais de 40.000 caracteres (também ao colar). Depois de importar, o cursor fica no começo do texto do arquivo, para ele aparecer do topo. Soltar vários arquivos importa o primeiro e mostra "Importamos só <nome>; o campo recebe um arquivo por vez."
 
 ## Plano
 
@@ -130,9 +135,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3QhJ9SKKTfdTZMDj7Yw
 
 ## Critérios de aceite
 
-- [ ] Importar um TXT, um Markdown e um PDF com texto preenche o campo, e o cartão mostra o arquivo.
-- [ ] Arrastar um arquivo para o campo importa.
-- [ ] Com texto no campo, dá para adicionar ao fim ou substituir; Ctrl+Z desfaz a substituição.
-- [ ] PDF escaneado, com senha, `.docx` e arquivo grande mostram a mensagem certa e não mexem no campo.
-- [ ] Um texto acima de 40.000 caracteres entra cortado num parágrafo, com o aviso.
+- [x] Importar um TXT, um Markdown e um PDF com texto preenche o campo, e o cartão mostra o arquivo.
+- [x] Arrastar um arquivo para o campo importa.
+- [x] Com texto no campo, dá para adicionar ao fim ou substituir; Ctrl+Z desfaz a substituição.
+- [x] PDF escaneado, com senha, `.docx` e arquivo grande mostram a mensagem certa e não mexem no campo.
+- [x] Um texto acima de 40.000 caracteres entra cortado num parágrafo, com o aviso.
 - [ ] O mesmo vale no passo Visão do Projeto.
