@@ -51,6 +51,33 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   bool _dropping = false;
   bool _sending = false;
 
+  /// Width band of the last layout (below [sidePanelNarrowWidth]) and the
+  /// choice of the button in it (SPEC-056 R10).
+  bool? _narrow;
+  bool? _panelOverride;
+
+  bool get _storedCollapsed =>
+      ref.read(appSettingsProvider)[AppSettingKeys.promptPanelCollapsed] == '1';
+
+  bool get _panelCollapsed => sidePanelCollapsed(
+    narrow: _narrow ?? false,
+    stored: _storedCollapsed,
+    override: _panelOverride,
+  );
+
+  /// "Recolher painel" / "Mostrar painel" (R8): stored above the narrow
+  /// band; below it the choice lasts until the band changes (R10).
+  void _togglePanel() {
+    final next = !_panelCollapsed;
+    if (_narrow ?? false) {
+      setState(() => _panelOverride = next);
+    } else {
+      ref
+          .read(appSettingsProvider.notifier)
+          .set(AppSettingKeys.promptPanelCollapsed, next ? '1' : '0');
+    }
+  }
+
   @override
   void dispose() {
     _text.dispose();
@@ -130,6 +157,10 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   @override
   Widget build(BuildContext context) {
     final ws = ref.watch(activeWorkspaceProvider);
+    // The stored choice of the panel (R8).
+    ref.watch(
+      appSettingsProvider.select((m) => m[AppSettingKeys.promptPanelCollapsed]),
+    );
     final lists = ws == null
         ? ConversationLists.empty
         : ref.watch(conversationListsProvider(ws.id));
@@ -179,6 +210,8 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
 
     return CallbackShortcuts(
       bindings: {
+        // SPEC-056 R8: collapse / show the right panel.
+        sidePanelShortcut: _togglePanel,
         // SPEC-056 R2: F2 renames the open conversation.
         const SingleActivator(LogicalKeyboardKey.f2): () {
           if (conv != null) {
@@ -188,144 +221,173 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
           }
         },
       },
-      child: LayoutBuilder(
-        builder: (context, c) {
-          final narrow = c.maxWidth < 1100;
-          final left = narrow ? 230.0 : 260.0;
-          final right = narrow ? 250.0 : 280.0;
-          return ColoredBox(
-            color: AppColors.background,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: left,
-                  child: ConversationListPanel(
-                    lists: lists,
-                    selectedId: conv?.id,
+      // Holds the focus when nothing in the screen has it, so F2 and
+      // Ctrl+Alt+B work right after opening the Prompt.
+      child: Focus(
+        autofocus: true,
+        skipTraversal: true,
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final narrow = c.maxWidth < sidePanelNarrowWidth;
+            // SPEC-056 R10: opening by the button holds until the band
+            // changes.
+            if (_narrow != narrow) {
+              _narrow = narrow;
+              _panelOverride = null;
+            }
+            final collapsed = _panelCollapsed;
+            final left = narrow ? 230.0 : 260.0;
+            final right = collapsed ? sideStripWidth : (narrow ? 250.0 : 280.0);
+            return ColoredBox(
+              color: AppColors.background,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: left,
+                    child: ConversationListPanel(
+                      lists: lists,
+                      selectedId: conv?.id,
+                    ),
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _Header(
-                        conversation: conv,
-                        busy: busy,
-                        items: items,
-                        active: lists.active,
-                      ),
-                      if (conv != null && conv.archivedAt != null)
-                        ArchivedBanner(
-                          onUnarchive: () => ref
-                              .read(conversationActionsProvider)
-                              .unarchive(conv.id),
-                        ),
-                      Expanded(
-                        child: conv == null
-                            ? ws == null
-                                  ? const _Empty()
-                                  // SPEC-055 R7: the three modes, in plain words.
-                                  : PromptWelcome(
-                                      mode: mode,
-                                      onPickMode: (m) =>
-                                          draftCtl.set(draft.copyWith(mode: m)),
-                                      onExample: (m, text) {
-                                        draftCtl.set(draft.copyWith(mode: m));
-                                        // Only fills the field: the person
-                                        // sees what goes and can adjust it.
-                                        _text.value = TextEditingValue(
-                                          text: text,
-                                          selection: TextSelection.collapsed(
-                                            offset: text.length,
-                                          ),
-                                        );
-                                        _focus.requestFocus();
-                                      },
-                                    )
-                            : _Conversation(
-                                key: ValueKey('conversation-main-${conv.id}'),
-                                conversation: conv,
-                                workspace: ws,
-                                busy: busy,
-                              ),
-                      ),
-                      DropTarget(
-                        key: const ValueKey('prompt-drop'),
-                        onDragEntered: (_) => setState(() => _dropping = true),
-                        onDragExited: (_) => setState(() => _dropping = false),
-                        onDragDone: (d) {
-                          setState(() => _dropping = false);
-                          _addFiles(d.files.map((f) => f.path));
-                        },
-                        child: PromptComposer(
-                          controller: _text,
-                          focusNode: _focus,
-                          workspaceRoot: ws?.path,
-                          hintText: conv?.archivedAt != null
-                              ? 'Escreva para continuar…  enviar desarquiva a '
-                                    'conversa'
-                              : null,
-                          files: _files,
-                          dropping: _dropping,
-                          onPickFiles: () => _pickFiles(ws),
-                          onRemoveFile: (f) => setState(() => _files.remove(f)),
-                          attachments: _attached,
-                          onAttach: (p) => setState(() {
-                            if (!_attached.contains(p)) _attached.add(p);
-                          }),
-                          onRemoveAttachment: (p) => setState(() {
-                            _attached.remove(p);
-                            _text.text = _text.text
-                                .replaceAll('@$p ', '')
-                                .replaceAll('@$p', '');
-                          }),
-                          provider: provider,
-                          model: model,
-                          mode: mode,
-                          onProvider: (p) {
-                            if (!p.enabled) return;
-                            if (conv == null) {
-                              draftCtl.set(
-                                draft.copyWith(
-                                  providerId: p.id,
-                                  model: p.models.first,
-                                ),
-                              );
-                            }
-                          },
-                          onModel: (m) => conv == null
-                              ? draftCtl.set(draft.copyWith(model: m))
-                              : manager.setModel(conv.id, m),
-                          onMode: (m) => conv == null
-                              ? draftCtl.set(draft.copyWith(mode: m))
-                              : manager.setMode(conv.id, m),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _Header(
+                          conversation: conv,
                           busy: busy,
-                          onSend: () => _send(ws, conv),
-                          onStop: () {
-                            if (conv != null) manager.stop(conv.id);
-                          },
+                          items: items,
+                          active: lists.active,
                         ),
-                      ),
-                    ],
+                        if (conv != null && conv.archivedAt != null)
+                          ArchivedBanner(
+                            onUnarchive: () => ref
+                                .read(conversationActionsProvider)
+                                .unarchive(conv.id),
+                          ),
+                        Expanded(
+                          child: conv == null
+                              ? ws == null
+                                    ? const _Empty()
+                                    // SPEC-055 R7: the three modes, in plain words.
+                                    : PromptWelcome(
+                                        mode: mode,
+                                        onPickMode: (m) => draftCtl.set(
+                                          draft.copyWith(mode: m),
+                                        ),
+                                        onExample: (m, text) {
+                                          draftCtl.set(draft.copyWith(mode: m));
+                                          // Only fills the field: the person
+                                          // sees what goes and can adjust it.
+                                          _text.value = TextEditingValue(
+                                            text: text,
+                                            selection: TextSelection.collapsed(
+                                              offset: text.length,
+                                            ),
+                                          );
+                                          _focus.requestFocus();
+                                        },
+                                      )
+                              : _Conversation(
+                                  key: ValueKey('conversation-main-${conv.id}'),
+                                  conversation: conv,
+                                  workspace: ws,
+                                  busy: busy,
+                                ),
+                        ),
+                        DropTarget(
+                          key: const ValueKey('prompt-drop'),
+                          onDragEntered: (_) =>
+                              setState(() => _dropping = true),
+                          onDragExited: (_) =>
+                              setState(() => _dropping = false),
+                          onDragDone: (d) {
+                            setState(() => _dropping = false);
+                            _addFiles(d.files.map((f) => f.path));
+                          },
+                          child: PromptComposer(
+                            controller: _text,
+                            focusNode: _focus,
+                            workspaceRoot: ws?.path,
+                            hintText: conv?.archivedAt != null
+                                ? 'Escreva para continuar…  enviar desarquiva a '
+                                      'conversa'
+                                : null,
+                            files: _files,
+                            dropping: _dropping,
+                            onPickFiles: () => _pickFiles(ws),
+                            onRemoveFile: (f) =>
+                                setState(() => _files.remove(f)),
+                            attachments: _attached,
+                            onAttach: (p) => setState(() {
+                              if (!_attached.contains(p)) _attached.add(p);
+                            }),
+                            onRemoveAttachment: (p) => setState(() {
+                              _attached.remove(p);
+                              _text.text = _text.text
+                                  .replaceAll('@$p ', '')
+                                  .replaceAll('@$p', '');
+                            }),
+                            provider: provider,
+                            model: model,
+                            mode: mode,
+                            onProvider: (p) {
+                              if (!p.enabled) return;
+                              if (conv == null) {
+                                draftCtl.set(
+                                  draft.copyWith(
+                                    providerId: p.id,
+                                    model: p.models.first,
+                                  ),
+                                );
+                              }
+                            },
+                            onModel: (m) => conv == null
+                                ? draftCtl.set(draft.copyWith(model: m))
+                                : manager.setModel(conv.id, m),
+                            onMode: (m) => conv == null
+                                ? draftCtl.set(draft.copyWith(mode: m))
+                                : manager.setMode(conv.id, m),
+                            busy: busy,
+                            onSend: () => _send(ws, conv),
+                            onStop: () {
+                              if (conv != null) manager.stop(conv.id);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                SizedBox(
-                  width: right,
-                  child: PromptSidePanel(
-                    workspace: ws,
-                    conversation: conv,
-                    mode: mode,
-                    files: files,
-                    onInsert: _insertPrompt,
+                  const VerticalDivider(width: 1),
+                  SizedBox(
+                    width: right,
+                    child: collapsed
+                        ? PromptSideStrip(
+                            key: const ValueKey('prompt-side-strip'),
+                            workspace: ws,
+                            conversation: conv,
+                            mode: mode,
+                            files: files,
+                            onInsert: _insertPrompt,
+                            onExpand: _togglePanel,
+                          )
+                        : PromptSidePanel(
+                            key: const ValueKey('prompt-side-panel'),
+                            workspace: ws,
+                            conversation: conv,
+                            mode: mode,
+                            files: files,
+                            onInsert: _insertPrompt,
+                            onCollapse: _togglePanel,
+                          ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
