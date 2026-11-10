@@ -18,6 +18,7 @@ import '../board_screen.dart';
 import '../spec_references.dart';
 import 'canvas_view_controller.dart';
 import 'canvas_detail_card.dart';
+import '../attention_shake.dart';
 import 'spec_node.dart';
 import 'wave_graph.dart';
 import '../sprint_rules.dart';
@@ -350,7 +351,8 @@ class _SpecCanvasState extends ConsumerState<SpecCanvas>
                                               related.contains(d.spec.code)
                                           ? 1
                                           : .45,
-                                      child: RepaintBoundary(
+                                      child: AttentionShake(
+                                        specId: d.spec.id,
                                         child: AttentionHalo(
                                           enabled: widget.attention(d),
                                           pulse: pulse,
