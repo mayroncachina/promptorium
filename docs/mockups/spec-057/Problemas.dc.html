@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Quando não dá para importar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1);box-shadow:0 0 16px rgba(242,165,65,.25)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sep{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+/* Item em destaque do Prompt */
+.hero{position:relative;width:48px;height:58px;border-radius:13px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+ background:linear-gradient(160deg,rgba(242,165,65,.20),rgba(79,209,181,.10));border:1px solid rgba(242,165,65,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.hero span.lb{font:600 10.5px 'IBM Plex Sans';color:#E7E9EE;letter-spacing:.01em}
+.hero.hov{background:linear-gradient(160deg,rgba(242,165,65,.28),rgba(79,209,181,.14));border-color:rgba(242,165,65,.5)}
+.hero.on{background:linear-gradient(160deg,rgba(242,165,65,.34),rgba(242,165,65,.16));border-color:rgba(242,165,65,.7);box-shadow:0 0 0 1px rgba(242,165,65,.25),0 0 22px rgba(242,165,65,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+.hero.on span.lb{color:#FFD08A}
+.hero.foc{outline:2px solid #FFD08A;outline-offset:3px}
+.live{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:#4FD1B5;box-shadow:0 0 0 2px rgba(10,12,16,.9),0 0 10px rgba(79,209,181,.8);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:5}
+.note.warn{background:#F2A541}
+.arrow{position:absolute;border-top:1px dashed rgba(79,209,181,.8);z-index:5}
+.mode{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.mode.sel{border-color:rgba(242,165,65,.6);box-shadow:0 0 0 1px rgba(242,165,65,.3),inset 0 1px 0 rgba(255,255,255,.06);background:rgba(242,165,65,.07)}
+.mode h3{margin:0;font:600 15px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.mode p{margin:0;font-size:13px;color:#A0A8B6;line-height:1.45}
+.lvl{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font:500 11px 'IBM Plex Sans';width:max-content}
+.ex{display:block;text-align:left;width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.35);color:#C9CED8;font:400 12.5px 'IBM Plex Sans'}
+.ex::before{content:'“';color:#7C8595;margin-right:2px}
+.ex::after{content:'”';color:#7C8595;margin-left:1px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:10px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09)}
+.seg b{height:28px;padding:0 12px;border-radius:7px;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg b.on{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.conv{padding:9px 10px;border-radius:10px;font-size:12.5px;color:#C9CED8;display:flex;flex-direction:column;gap:3px}
+.conv small{font-size:11px;color:#7C8595}
+.tile{border-radius:16px;padding:20px;position:relative}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+table.k{border-collapse:collapse;font-size:12.5px;width:100%}
+table.k td,table.k th{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+table.k th{font:600 11px 'IBM Plex Sans';color:#7C8595;letter-spacing:.06em;text-transform:uppercase}
+@media (prefers-reduced-motion: reduce){.live{animation:none}}
+</style>
+<style>
+.panel{position:absolute;left:72px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.col{position:absolute;left:50%;transform:translateX(-50%);width:640px;display:flex;flex-direction:column;gap:12px}
+.col h1{margin:0;font:600 20px 'IBM Plex Sans'}
+.sub{margin:-6px 0 0;font-size:12.5px;color:#A0A8B6;line-height:1.45}
+.ta{position:relative;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(10,12,16,.55);padding:12px 12px 0;font-size:13.5px;line-height:1.55;color:#E7E9EE}
+.ta.focus{border-color:#F2A541;box-shadow:0 0 0 2px rgba(242,165,65,.35)}
+.ta .ph{color:#7C8595}
+.ta .body{min-height:96px;max-height:200px;overflow:hidden;white-space:pre-line}
+.tbar{display:flex;align-items:center;gap:8px;height:42px;margin:8px -12px 0;padding:0 8px 0 10px;border-top:1px solid rgba(255,255,255,.07)}
+.imp{height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(34,39,50,.6);color:#E7E9EE;font:500 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.imp.foc{outline:2px solid #FFD08A;outline-offset:2px}
+.fmt{font:500 11.5px 'IBM Plex Sans';color:#A0A8B6}
+.cnt{margin-left:auto;font:500 11px 'JetBrains Mono';color:#A0A8B6}
+.btns{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.amber{height:36px;padding:0 14px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans'}
+.amber:disabled{background:rgba(242,165,65,.28);color:rgba(26,18,6,.75)}
+.small{height:36px;padding:0 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#E7E9EE;font:500 13px 'IBM Plex Sans'}
+.hint{font-size:11.5px;color:#A0A8B6}
+.chip{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;border-radius:10px;background:rgba(79,209,181,.08);border:1px solid rgba(79,209,181,.3)}
+.chip .nm{font:600 12.5px 'IBM Plex Sans'}
+.chip .mt{font:500 11px 'IBM Plex Sans';color:#A0A8B6}
+.ft{width:30px;height:34px;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;font:700 8.5px 'JetBrains Mono';letter-spacing:.04em;flex:none}
+.ib{width:30px;height:30px;border-radius:7px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center}
+.lk{height:30px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:#F2A541;font:500 12px 'IBM Plex Sans'}
+.drop{position:absolute;inset:-1px;border-radius:10px;border:2px dashed #F2A541;background:rgba(18,14,8,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:3}
+.alert{display:flex;gap:10px;padding:10px 12px;border-radius:10px;font-size:12.5px;line-height:1.45}
+.alert.err{background:rgba(255,120,95,.08);border:1px solid rgba(255,120,95,.35)}
+.alert.warn{background:rgba(242,165,65,.08);border:1px solid rgba(242,165,65,.35)}
+.alert b{display:block;font-weight:600;margin-bottom:2px}
+.pop{position:absolute;z-index:6;width:340px;border-radius:12px;padding:14px;background:#1C2028;border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;gap:10px;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.1);font-size:12.5px}
+.opt.on{border-color:rgba(242,165,65,.6);background:rgba(242,165,65,.08)}
+.opt small{display:block;color:#A0A8B6;font-size:11.5px;margin-top:2px}
+.prog{height:3px;border-radius:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.prog i{display:block;height:100%;width:62%;background:#F2A541}
+.board-cap{position:absolute;font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+.mini{position:absolute;border-radius:16px;padding:18px}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px">
+<div class="dots" aria-hidden="true"></div>
+<div style="position:absolute;left:48px;top:40px"><div class="board-cap" style="position:static">SPEC-057 · quando a importação não dá certo</div><h1 style="margin:6px 0 0;font:600 24px 'IBM Plex Sans'">Mensagens perto do campo, dizendo o que fazer</h1></div><div class="mini g" style="left:104px;top:120px;width:600px"><div class="board-cap" style="position:static;margin-bottom:10px">PDF digitalizado</div><div class="alert err" role="alert"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#FFB4A3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3l7 13H3zM10 8v4M10 14.2v.1"/></svg><div style="flex:1"><b>Este PDF não tem texto para ler.</b><span style="color:#C9CED8"> Parece uma imagem escaneada. Copie o texto de outra fonte ou exporte o documento como PDF com texto.</span></div></div><p class="hint" style="margin:10px 0 0">O campo fica como estava.</p></div><div class="mini g" style="left:744px;top:120px;width:600px"><div class="board-cap" style="position:static;margin-bottom:10px">Texto longo</div><div class="alert warn" role="alert"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#FFC879" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 9v4.5M10 6.6v.1"/></svg><div style="flex:1"><b>O arquivo tem 62.300 caracteres; o campo aceita 40.000.</b><span style="color:#C9CED8"> Carregamos o começo e paramos no fim de um parágrafo. Corte o que não importa ou resuma antes de planejar.</span><div style="margin-top:8px;display:flex;gap:8px"><button class="lk" style="padding:0">Ver o que ficou de fora</button></div></div></div><p class="hint" style="margin:10px 0 0">O texto entra no campo e o aviso fica acima dele até você editar.</p></div><div class="mini g" style="left:104px;top:370px;width:600px"><div class="board-cap" style="position:static;margin-bottom:10px">Formato não aceito</div><div class="alert err" role="alert"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#FFB4A3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3l7 13H3zM10 8v4M10 14.2v.1"/></svg><div style="flex:1"><b>Ainda não dá para importar .docx.</b><span style="color:#C9CED8"> Salve como PDF, Markdown ou TXT e tente de novo.</span></div></div><p class="hint" style="margin:10px 0 0">O campo fica como estava.</p></div><div class="mini g" style="left:744px;top:370px;width:600px"><div class="board-cap" style="position:static;margin-bottom:10px">Arquivo protegido</div><div class="alert err" role="alert"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#FFB4A3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3l7 13H3zM10 8v4M10 14.2v.1"/></svg><div style="flex:1"><b>O PDF tem senha.</b><span style="color:#C9CED8"> Abra no leitor de PDF, salve uma cópia sem senha e importe essa cópia.</span></div></div><p class="hint" style="margin:10px 0 0">O campo fica como estava.</p></div><div class="mini g" style="left:104px;top:620px;width:600px"><div class="board-cap" style="position:static;margin-bottom:10px">Codificação</div><div class="alert warn" role="alert"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#FFC879" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 9v4.5M10 6.6v.1"/></svg><div style="flex:1"><b>Alguns caracteres não foram reconhecidos.</b><span style="color:#C9CED8"> O TXT não está em UTF-8; trocamos os acentos que não deu para ler por “?”. Confira o texto.</span></div></div><p class="hint" style="margin:10px 0 0">O texto entra no campo e o aviso fica acima dele até você editar.</p></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
