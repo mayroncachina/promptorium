@@ -2,6 +2,7 @@
 id: SPEC-054
 status: rascunho
 depende-de: SPEC-030, SPEC-049
+issue: 134
 ---
 
 # Card que precisa de você treme de tempos em tempos
