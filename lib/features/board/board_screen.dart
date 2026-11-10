@@ -44,6 +44,8 @@ import 'widgets/spec_steps_panel.dart';
 import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
 import 'widgets/subagent_status.dart';
+import 'attention_shake.dart';
+import 'widgets/spec_node.dart' show specAttentionReason;
 import 'widgets/spec_canvas.dart';
 import 'widgets/spec_focus_view.dart';
 import 'widgets/sprint_dialogs.dart';
@@ -445,6 +447,16 @@ class BoardScreen extends ConsumerWidget {
     final elsewhere = sprint.isAll
         ? 0
         : cards.where((d) => !sprint.matches(d.spec) && attention(d)).length;
+    // SPEC-054 R2: the cards on screen that need the person, in the order
+    // of the attention queue (wave, then code, as SPEC-030 R8).
+    final shakeWaves = dependencyWaves([for (final d in cards) d.spec]);
+    final shakeCards = visible.where(attention).toList()
+      ..sort((a, b) {
+        final w = (shakeWaves[a.spec.id] ?? 0).compareTo(
+          shakeWaves[b.spec.id] ?? 0,
+        );
+        return w == 0 ? a.spec.code.compareTo(b.spec.code) : w;
+      });
     final body = cards.isEmpty
         ? _Empty(
             drafts == 0
@@ -553,53 +565,63 @@ class BoardScreen extends ConsumerWidget {
                   onOpen: () => showLegacyTasksDialog(context, ws, legacy),
                 ),
               Expanded(
-                child: selected == null || view != BoardView.columns
-                    ? body
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(child: body),
-                          Container(
-                            key: const ValueKey('board-side-panel'),
-                            width: 360,
-                            padding: const EdgeInsets.all(16),
-                            decoration: const BoxDecoration(
-                              color: AppColors.panel,
-                              border: Border(
-                                left: BorderSide(color: AppColors.border),
+                // SPEC-054: one host for the board, side panel or not, so
+                // selecting a card keeps the turns and the counts.
+                child: AttentionShakeHost(
+                  queue: [for (final d in shakeCards) d.spec.id],
+                  reasons: {
+                    for (final d in shakeCards)
+                      d.spec.id: specAttentionReason(ref, d),
+                  },
+                  selected: selectedId,
+                  child: selected == null || view != BoardView.columns
+                      ? body
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(child: body),
+                            Container(
+                              key: const ValueKey('board-side-panel'),
+                              width: 360,
+                              padding: const EdgeInsets.all(16),
+                              decoration: const BoxDecoration(
+                                color: AppColors.panel,
+                                border: Border(
+                                  left: BorderSide(color: AppColors.border),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: IconButton(
+                                      key: const ValueKey('board-side-close'),
+                                      tooltip: 'Fechar',
+                                      iconSize: 16,
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      onPressed: () => ref
+                                          .read(
+                                            boardSelectedSpecProvider.notifier,
+                                          )
+                                          .select(null),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: SpecStepsPanel(
+                                      specId: selected.spec.id,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: IconButton(
-                                    key: const ValueKey('board-side-close'),
-                                    tooltip: 'Fechar',
-                                    iconSize: 16,
-                                    visualDensity: VisualDensity.compact,
-                                    icon: const Icon(
-                                      Icons.close,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                    onPressed: () => ref
-                                        .read(
-                                          boardSelectedSpecProvider.notifier,
-                                        )
-                                        .select(null),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: SpecStepsPanel(
-                                    specId: selected.spec.id,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                ),
               ),
             ],
           ),
@@ -1391,7 +1413,10 @@ class _Column extends ConsumerWidget {
                               opacity: 0.35,
                               child: card,
                             ),
-                            child: card,
+                            child: AttentionShake(
+                              specId: d.spec.id,
+                              child: card,
+                            ),
                           ),
                         );
                       },
