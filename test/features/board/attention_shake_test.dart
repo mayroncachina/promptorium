@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
-import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/board/attention_shake.dart';
 import 'package:promptorium/ui/theme/motion.dart';
 
