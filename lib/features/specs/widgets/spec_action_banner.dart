@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../ui/theme/tokens.dart';
 import '../spec_action.dart';
 import 'spec_header.dart' show Kbd;
+import '../../../ui/theme/ambient.dart';
 
 /// Progress indicator of the spec actions (SPEC-025 R2, R11): a spinner, or
 /// a still icon when the system asks for reduced motion.
@@ -30,11 +31,11 @@ class ActionSpinner extends StatelessWidget {
         color: color,
       );
     }
-    return SizedBox(
+    return AmbientSpinner(
       key: const ValueKey('spec-action-spinner'),
-      width: size,
-      height: size,
-      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+      size: size,
+      strokeWidth: 2,
+      color: color,
     );
   }
 }
