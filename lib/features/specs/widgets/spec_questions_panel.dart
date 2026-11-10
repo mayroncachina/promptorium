@@ -13,6 +13,7 @@ import '../../../ui/widgets/app_pressable.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../spec_answers.dart';
 import '../spec_file.dart';
+import '../../../ui/theme/ambient.dart';
 
 /// Before / after of "Aplicar respostas" (SPEC-028 R10), shown as a diff.
 typedef AppliedAnswers = ({String before, String after, bool updated});
@@ -859,10 +860,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox.square(
-          dimension: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        const AmbientSpinner(size: 18, strokeWidth: 2),
         const SizedBox(height: 10),
         Text(
           _update
@@ -1081,10 +1079,7 @@ class _Hint extends StatelessWidget {
     child: Row(
       children: [
         if (spinner) ...[
-          const SizedBox.square(
-            dimension: 12,
-            child: CircularProgressIndicator(strokeWidth: 1.5),
-          ),
+          const AmbientSpinner(strokeWidth: 1.5),
           const SizedBox(width: 8),
         ],
         Expanded(

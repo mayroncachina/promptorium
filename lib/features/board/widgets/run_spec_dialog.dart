@@ -22,6 +22,7 @@ import '../../sessions/agent_names.dart';
 import '../../sessions/session_manager.dart';
 import '../../sessions/widgets/composer.dart' show uiPermissionModes;
 import '../../sessions/widgets/session_style.dart';
+import '../../specs/spec_editor_handle.dart';
 import '../../specs/spec_service.dart';
 import '../../../ui/shell/navigation.dart';
 import '../board_rules.dart';
@@ -92,6 +93,28 @@ Future<void> runSpec(
       ?..hideCurrentSnackBar()
       ..showAppToast(SnackBar(content: Text('${lock.reason}.')));
     return;
+  }
+  // The agents read the file: the text open in the editor (a fresh Plano,
+  // say) is saved first, or "Executar" would run the old file.
+  final editor = ref.read(specEditorHandleProvider);
+  if (editor.unsaved(data.spec.id)) {
+    if (!await editor.saveIfUnsaved(data.spec.id)) {
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showAppToast(
+          SnackBar(
+            content: Text(
+              'Salve ${data.spec.code} antes de executar: os agentes leem o '
+              'arquivo.',
+            ),
+          ),
+        );
+      return;
+    }
+    messenger?.showAppToast(
+      SnackBar(content: Text('${data.spec.code} salva antes de executar.')),
+    );
+    if (!context.mounted) return;
   }
   // The card (and its `ref`) may be gone when the user taps the snackbar
   // action: it moves to another column as soon as the session starts.

@@ -76,11 +76,24 @@ class FrameMonitor {
   final _raster = <int>[];
   Timer? _timer;
 
-  /// Starts the monitor if `PROMPTORIUM_QUADROS` names a file.
+  /// Starts the monitor if `PROMPTORIUM_QUADROS` names a file. With
+  /// `PROMPTORIUM_QUADROS_CONTINUO=1` it also asks for a frame after every
+  /// frame, so the whole screen is drawn at the refresh rate even when
+  /// nothing moves: the cost of a frame of that screen, measured.
   static FrameMonitor? fromEnvironment([Map<String, String>? env]) {
-    final path = (env ?? Platform.environment)['PROMPTORIUM_QUADROS'];
+    final e = env ?? Platform.environment;
+    final path = e['PROMPTORIUM_QUADROS'];
     if (path == null || path.trim().isEmpty) return null;
-    return FrameMonitor(File(path.trim()))..start();
+    final monitor = FrameMonitor(File(path.trim()))..start();
+    if (e['PROMPTORIUM_QUADROS_CONTINUO'] == '1') monitor.continuous();
+    return monitor;
+  }
+
+  /// A frame after every frame (see [fromEnvironment]).
+  void continuous() {
+    final binding = SchedulerBinding.instance;
+    binding.addPersistentFrameCallback((_) => binding.scheduleFrame());
+    binding.scheduleFrame();
   }
 
   void start() {
