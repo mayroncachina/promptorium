@@ -7,12 +7,16 @@ import 'svg_path.dart';
 /// with optional filled shapes (`fill="currentColor" stroke="none"`).
 @immutable
 class AppIconData {
+  ///
+  /// [viewBox] is the side of the mockup's square view box: paths drawn on a
+  /// 20 grid are scaled to 24 ([strokeWidth] is always in the 24 grid).
   AppIconData(
     List<String> paths, {
     this.strokeWidth = 1.8,
     List<String> fills = const [],
-  }) : path = _combine(paths),
-       fill = fills.isEmpty ? null : _combine(fills);
+    double viewBox = 24,
+  }) : path = _combine(paths, viewBox),
+       fill = fills.isEmpty ? null : _combine(fills, viewBox);
 
   /// Combined stroked path in a 24×24 view box.
   final Path path;
@@ -23,12 +27,14 @@ class AppIconData {
   /// Stroke width in view-box units (as in the mockup `stroke-width`).
   final double strokeWidth;
 
-  static Path _combine(List<String> paths) {
+  static Path _combine(List<String> paths, double viewBox) {
     final out = Path();
     for (final d in paths) {
       out.addPath(parseSvgPath(d), Offset.zero);
     }
-    return out;
+    if (viewBox == 24) return out;
+    final k = 24 / viewBox;
+    return out.transform(Matrix4.diagonal3Values(k, k, 1).storage);
   }
 }
 
