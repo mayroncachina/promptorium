@@ -141,6 +141,11 @@ Tomadas na implementação:
 - **t1 · O destaque anima um retângulo.** Ele desliza por `Transform` como antes e só muda de tamanho (e de raio, de 10 para 13 px) quando sai do Prompt ou chega nele. O brilho também cresce um pouco no Prompt, como no mockup.
 - **t1 · O ícone do Prompt ativo também fica em `#FFD08A`,** igual ao rótulo, como no mockup (`Trilho.dc.html`). A cor ganhou o token `AppColors.amberLight`.
 - **t1 · O anel de foco só aparece no teclado** (`FocusHighlightMode.traditional`), sem a demora do hover, como nos outros itens.
+- **t2 · A faísca é um caminho preenchido.** `AppIconData` ganhou `fills`: caminhos pintados com `fill` antes do traço, na mesma grade de 24. Os outros ícones continuam só com traço.
+- **t2 · A paleta passou a mostrar ícones** nos comandos "Ir para" (16 px), para o ícone novo aparecer nela como pede R5. Antes ela só tinha texto.
+- **t2 · `promptActivityProvider` lê o banco, não o processo.** O título e o modo vêm da conversa (`conversations`) do workspace ativo; o `busy` vem do `ConversationManager`. Com várias conversas respondendo, vale a mais recente, como na lista do Prompt.
+- **t2 · O contador ganha do ponto.** Os dois ficam no mesmo canto; quando há pendências, só o contador aparece, e o rótulo anuncia as duas coisas ("Prompt · respondendo · 1 pendente"). Na própria tela do Prompt o ponto some, porque a conversa já mostra que está respondendo.
+- **t2 · Pendências pelo `conversationId`.** O `navBadgesProvider` separa as aprovações do Inbox: com `conversationId`, contam no Prompt (inclusive "Plano pronto"); sem, em Sessões. O Início continua contando todas.
 - **t1 · A barra em 700 px:** os itens ocupam 564 px (9 × 48 + 62 + 2 × 5 + a engrenagem), e sobram cerca de 30 px na janela de 1100 × 700.
 
 ## Plano
@@ -154,7 +159,7 @@ Tomadas na implementação:
 - [x] O Prompt aparece logo abaixo do Projeto, entre separadores, com 48 × 58 px e o nome "Prompt".
 - [x] Ctrl 3 abre o Prompt; Ctrl 9 abre o Código; o aviso de atalhos novos aparece uma vez.
 - [x] O destaque da barra fica sobre o item certo, inclusive no Prompt e nos itens abaixo dele.
-- [ ] Em outra tela, o ponto teal aparece enquanto uma conversa responde, e o contador mostra as aprovações e os planos prontos do Prompt.
-- [ ] O ícone novo aparece na barra, na paleta e na tela vazia.
+- [x] Em outra tela, o ponto teal aparece enquanto uma conversa responde, e o contador mostra as aprovações e os planos prontos do Prompt.
+- [x] O ícone novo aparece na barra, na paleta e na tela vazia.
 - [ ] A tela vazia mostra os três modos; clicar num exemplo escolhe o modo e preenche o campo sem enviar.
 - [ ] Em 1100×700 a barra cabe e os exemplos somem.
