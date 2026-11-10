@@ -2,7 +2,7 @@
 id: SPEC-056
 status: aprovada
 depende-de: SPEC-055
-issue: ISSUE
+issue: 143
 ---
 
 # Organizar as conversas do Prompt
