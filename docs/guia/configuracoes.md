@@ -26,6 +26,8 @@ O app usa o tema **Vidro**: painéis translúcidos sobre um fundo escuro com dua
 
 Para desligar só numa execução, abra o app com `PROMPTORIUM_SEM_VIDRO=1`.
 
+**Tremer cards que precisam de você**: Ligado (padrão) ou Desligado. Ligado, o cartão que espera revisão no Quadro dá um tremor curto a cada 5 s, um por vez e no máximo 6 vezes seguidas ([Quadro](quadro.md#tremor-de-atenção)). Desligado, fica só o halo. Com movimento reduzido no sistema, nunca treme e a opção aparece como Desligado.
+
 ### Automações (hooks)
 
 Hooks gerenciados pelo app nas sessões: "Bloquear comandos perigosos", "Formatar ao editar" e "Registrar fim da sessão". Precisam de `python3`.
