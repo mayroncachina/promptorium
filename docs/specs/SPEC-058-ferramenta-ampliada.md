@@ -2,7 +2,7 @@
 id: SPEC-058
 status: aprovada
 depende-de: SPEC-026
-issue: ISSUE
+issue: 145
 ---
 
 # Item da sessão ampliado
