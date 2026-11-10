@@ -7,6 +7,7 @@ import '../../data/providers.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/brand_mark.dart';
+import '../widgets/cta_button.dart';
 import 'brand_activity.dart';
 import 'navigation.dart';
 import 'notification_center.dart';
@@ -54,7 +55,7 @@ class TitleBar extends StatelessWidget {
             _ActionButton(
               key: const ValueKey('title-action'),
               label: action,
-              withIcon: section == AppSection.sessions,
+              section: section,
               onTap: onAction,
             ),
           ],
@@ -171,16 +172,12 @@ class _BarButton extends StatelessWidget {
     required this.onTap,
     required this.child,
     required this.background,
-    this.border = true,
-    this.padding = 10,
     this.semanticLabel,
   });
 
   final VoidCallback onTap;
   final Widget child;
   final Color background;
-  final bool border;
-  final double padding;
   final String? semanticLabel;
 
   @override
@@ -193,16 +190,14 @@ class _BarButton extends StatelessWidget {
         color: background,
         shape: RoundedRectangleBorder(
           borderRadius: radius,
-          side: border
-              ? const BorderSide(color: AppColors.border)
-              : BorderSide.none,
+          side: const BorderSide(color: AppColors.border),
         ),
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
           child: Container(
             height: 30,
-            padding: EdgeInsets.symmetric(horizontal: padding),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             alignment: Alignment.center,
             child: child,
           ),
@@ -326,42 +321,29 @@ class _SearchButton extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+/// The section's main action, as the animated call to action (SPEC-053):
+/// it breathes in Specs and in the Quadro while the active workspace has no
+/// spec (R4).
+class _ActionButton extends ConsumerWidget {
   const _ActionButton({
     super.key,
     required this.label,
-    required this.withIcon,
+    required this.section,
     required this.onTap,
   });
 
   final String label;
-  final bool withIcon;
+  final AppSection section;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return _BarButton(
-      onTap: onTap,
-      background: AppColors.amber,
-      border: false,
-      padding: 12,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (withIcon) ...[
-            AppIcon(AppIcons.plus, size: 14, color: AppColors.onAmber),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.onAmber,
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ws = ref.watch(activeWorkspaceProvider);
+    final specs = ws == null ? null : ref.watch(specsProvider(ws.id)).value;
+    final attention =
+        (section == AppSection.specs || section == AppSection.tasks) &&
+        specs != null &&
+        specs.isEmpty;
+    return CtaButton(label: label, onTap: onTap, attention: attention);
   }
 }
