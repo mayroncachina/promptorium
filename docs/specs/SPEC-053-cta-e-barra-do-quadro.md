@@ -1,6 +1,6 @@
 ---
 id: SPEC-053
-status: rascunho
+status: aprovada
 depende-de: SPEC-049
 issue: 132
 ---
@@ -116,6 +116,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/FxRMzU3yZ3qQUhqwSjf
 - **Barra estreita**: em 1100 px, com todos os filtros, eles se juntam no chip "Filtros", nada se sobrepõe (retângulos sem interseção) e os dois botões ficam visíveis.
 - **`BoardViewSwitch`**: as setas trocam de visão, e a semântica anuncia "Visão do quadro" e a opção selecionada.
 
+## Decisões
+
+Tomadas na implementação:
+- **"+" em toda ação da barra de título.** Antes só "Nova sessão" tinha o ícone; o giro de R1 precisa dele, e o botão ficou igual em todas as seções.
+- **Quatro áreas na barra, não três.** O `BoardBarLayout` posiciona a esquerda, o controle segmentado, a linha de estado e as ações. As ações (Agendar, Executar tudo) nunca encolhem; a linha de estado e os rascunhos ocupam o que sobra entre o centro e as ações, com reticências. Agendar mostra até 160 px do rótulo do agendamento, com o texto inteiro no tooltip.
+- **Quando os filtros se juntam:** abaixo de 1120 px de barra (janela de cerca de 1240 px). Medir o texto dos chips falhava na fonte dos testes; a largura fixa é previsível. A esquerda guarda 400 px para as ações; dobrada, ela corta em vez de transbordar.
+- **O controle segmentado é uma parada de Tab.** As setas trocam de visão, como num grupo de rádio; clicar numa opção também dá o foco ao grupo. O anel de foco é o mesmo do "Nova spec".
+
 ## Plano
 
 1. `CtaButton` com repouso, mouse em cima, pressionado e foco (R1–R3, R5) e os testes. Trocar em `_ActionButton`.
@@ -125,15 +133,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/FxRMzU3yZ3qQUhqwSjf
 
 ## Critérios de aceite
 
-- [ ] Passar o mouse no "Nova spec" faz o "+" girar e um reflexo cruzar o botão uma vez; ao sair, ele volta ao repouso sem repetir.
-- [ ] Pressionar encolhe o botão e soltar abre a nova spec, sem atraso.
-- [ ] O foco do teclado mostra o anel em volta do botão.
-- [ ] Num workspace sem specs, o botão respira até a pessoa interagir ou criar uma spec.
-- [ ] Com movimento reduzido, o botão só muda de cor.
-- [ ] Parado, o botão não pede quadros (`PROMPTORIUM_QUADROS`).
-- [ ] No Quadro em 1440×900, Colunas/Grafo/Foco ficam no centro da barra, e Agendar e Executar tudo à direita.
-- [ ] Em 1100×700, com todos os filtros, nada se sobrepõe e os dois botões ficam visíveis.
-- [ ] As setas trocam de visão, e o leitor de tela anuncia "Visão do quadro".
+- [x] Passar o mouse no "Nova spec" faz o "+" girar e um reflexo cruzar o botão uma vez; ao sair, ele volta ao repouso sem repetir.
+- [x] Pressionar encolhe o botão e soltar abre a nova spec, sem atraso.
+- [x] O foco do teclado mostra o anel em volta do botão.
+- [x] Num workspace sem specs, o botão respira até a pessoa interagir ou criar uma spec.
+- [x] Com movimento reduzido, o botão só muda de cor.
+- [x] Parado, o botão não pede quadros (`PROMPTORIUM_QUADROS`).
+- [x] No Quadro em 1440×900, Colunas/Grafo/Foco ficam no centro da barra, e Agendar e Executar tudo à direita.
+- [x] Em 1100×700, com todos os filtros, nada se sobrepõe e os dois botões ficam visíveis.
+- [x] As setas trocam de visão, e o leitor de tela anuncia "Visão do quadro".
 
 ## Perguntas em aberto
 

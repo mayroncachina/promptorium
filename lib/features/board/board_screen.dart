@@ -18,7 +18,6 @@ import '../sessions/session_manager.dart';
 import '../specs/workspace_watcher.dart';
 import '../specs/widgets/spec_sync_bar.dart';
 import '../review/auto_reviewer.dart' show ReviewPhase, reviewerLabel;
-import '../agents/widgets/agent_style.dart' show ToggleBox;
 import '../sessions/widgets/session_style.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import '../project/spec_auto_planner.dart';
@@ -48,6 +47,7 @@ import 'widgets/spec_canvas.dart';
 import 'widgets/spec_focus_view.dart';
 import 'widgets/sprint_dialogs.dart';
 import 'widgets/sprint_selector.dart';
+import 'widgets/board_view_switch.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
 /// Step rows of every spec of a workspace.
@@ -691,6 +691,10 @@ class _Empty extends StatelessWidget {
   }
 }
 
+/// Width of the Quadro's bar below which the filters fold into one
+/// "Filtros" chip (SPEC-053 R9): about a 1240 px window.
+const foldFiltersBelow = 1120.0;
+
 class _Header extends ConsumerWidget {
   const _Header({
     required this.workspaceId,
@@ -831,170 +835,309 @@ class _Header extends ConsumerWidget {
       ),
     );
 
+    final hideDone = ref.watch(boardHideDoneProvider);
+    final filterChips = <Widget>[
+      chip(
+        attentionCount == 0
+            ? 'Precisam de mim'
+            : 'Precisam de mim · $attentionCount',
+        filter.attention,
+        () => filters.set(filter.copyWith(attention: !filter.attention)),
+        'attention',
+      ),
+      chip(
+        hideDone ? 'Ocultar concluídas · $hiddenDone' : 'Ocultar concluídas',
+        hideDone,
+        () => ref.read(boardHideDoneProvider.notifier).toggle(),
+        'hide-done',
+      ),
+      // A value set stays visible so it can be cleared.
+      if (phases.isNotEmpty || filter.phase != null)
+        menuChip(
+          'Fase',
+          filter.phase,
+          phases,
+          (v) => filters.set(filter.copyWith(phase: () => v)),
+          'phase',
+        ),
+      if (agents.isNotEmpty || filter.agent != null)
+        menuChip(
+          'Agente',
+          filter.agent,
+          agents,
+          (v) => filters.set(filter.copyWith(agent: () => v)),
+          'agent',
+        ),
+    ];
+    // SPEC-053 R9: in a narrow bar the filters fold into one chip.
+    final activeFilters = [
+      filter.attention,
+      hideDone,
+      filter.phase != null,
+      filter.agent != null,
+    ].where((x) => x).length;
+    Widget foldedFilters() => PopupMenuButton<String>(
+      key: const ValueKey('board-filters-folded'),
+      tooltip: 'Filtros',
+      color: AppColors.panelSolid,
+      onSelected: (v) {
+        if (v == 'attention') {
+          filters.set(filter.copyWith(attention: !filter.attention));
+        } else if (v == 'hide-done') {
+          ref.read(boardHideDoneProvider.notifier).toggle();
+        } else if (v.startsWith('phase:')) {
+          final x = v.substring(6);
+          filters.set(filter.copyWith(phase: () => x.isEmpty ? null : x));
+        } else if (v.startsWith('agent:')) {
+          final x = v.substring(6);
+          filters.set(filter.copyWith(agent: () => x.isEmpty ? null : x));
+        }
+      },
+      itemBuilder: (_) => [
+        CheckedPopupMenuItem(
+          value: 'attention',
+          checked: filter.attention,
+          child: Text(
+            attentionCount == 0
+                ? 'Precisam de mim'
+                : 'Precisam de mim · $attentionCount',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        CheckedPopupMenuItem(
+          value: 'hide-done',
+          checked: hideDone,
+          child: const Text(
+            'Ocultar concluídas',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+        if (phases.isNotEmpty || filter.phase != null) ...[
+          const PopupMenuDivider(),
+          for (final o in ['', ...phases])
+            CheckedPopupMenuItem(
+              value: 'phase:$o',
+              checked: (filter.phase ?? '') == o,
+              child: Text(
+                'Fase: ${o.isEmpty ? 'todas' : o}',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+        ],
+        if (agents.isNotEmpty || filter.agent != null) ...[
+          const PopupMenuDivider(),
+          for (final o in ['', ...agents])
+            CheckedPopupMenuItem(
+              value: 'agent:$o',
+              checked: (filter.agent ?? '') == o,
+              child: Text(
+                'Agente: ${o.isEmpty ? 'todos' : o}',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+        ],
+      ],
+      child: Container(
+        height: 26,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activeFilters > 0 ? AppColors.amberTint : Colors.transparent,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(
+            color: activeFilters > 0 ? AppColors.amber : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.filter_list,
+              size: 14,
+              color: activeFilters > 0
+                  ? AppColors.amber
+                  : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              activeFilters == 0 ? 'Filtros' : 'Filtros · $activeFilters',
+              style: TextStyle(
+                fontSize: 11,
+                color: activeFilters > 0
+                    ? AppColors.amber
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Row(
-        children: [
-          const Text(
-            'Quadro',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            '$total',
-            key: const ValueKey('board-total'),
-            style: const TextStyle(
-              fontFamily: AppFonts.mono,
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(width: 14),
-          SprintSelector(
-            workspaceId: workspaceId,
-            specs: specs,
-            waiting: (s) => cards.any((d) => d.spec.id == s.id && attention(d)),
-          ),
-          const SizedBox(width: 14),
-          // The filters give way first when the window is narrow.
-          Flexible(
-            flex: 1000,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  chip(
-                    attentionCount == 0
-                        ? 'Precisam de mim'
-                        : 'Precisam de mim · $attentionCount',
-                    filter.attention,
-                    () => filters.set(
-                      filter.copyWith(attention: !filter.attention),
-                    ),
-                    'attention',
-                  ),
-                  chip(
-                    ref.watch(boardHideDoneProvider)
-                        ? 'Ocultar concluídas · $hiddenDone'
-                        : 'Ocultar concluídas',
-                    ref.watch(boardHideDoneProvider),
-                    () => ref.read(boardHideDoneProvider.notifier).toggle(),
-                    'hide-done',
-                  ),
-                  // A value set stays visible so it can be cleared.
-                  if (phases.isNotEmpty || filter.phase != null)
-                    menuChip(
-                      'Fase',
-                      filter.phase,
-                      phases,
-                      (v) => filters.set(filter.copyWith(phase: () => v)),
-                      'phase',
-                    ),
-                  if (agents.isNotEmpty || filter.agent != null)
-                    menuChip(
-                      'Agente',
-                      filter.agent,
-                      agents,
-                      (v) => filters.set(filter.copyWith(agent: () => v)),
-                      'agent',
-                    ),
-                ],
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final folded = box.maxWidth < foldFiltersBelow;
+          final leftRow = Row(
+            key: const ValueKey('board-bar-left'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Quadro',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              on ? 'Autopilot · $strip' : strip,
-              key: const ValueKey('board-strip'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 11,
-                color: on ? AppColors.teal : AppColors.textMuted,
+              const SizedBox(width: 10),
+              Text(
+                '$total',
+                key: const ValueKey('board-total'),
+                style: const TextStyle(
+                  fontFamily: AppFonts.mono,
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Shrinks with the strip when the filter chips need the room.
-          if (drafts > 0)
-            Flexible(
-              child: Tooltip(
-                message: '$drafts em rascunho fora do quadro',
+              const SizedBox(width: 14),
+              SprintSelector(
+                workspaceId: workspaceId,
+                specs: specs,
+                waiting: (s) =>
+                    cards.any((d) => d.spec.id == s.id && attention(d)),
+              ),
+              const SizedBox(width: 14),
+              if (folded)
+                foldedFilters()
+              else
+                // The filters give way first when the room runs out.
+                Flexible(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: filterChips,
+                    ),
+                  ),
+                ),
+            ],
+          );
+          // Folded, the left zone has no flexible part: with large text it
+          // is clipped at the edge of its room instead of overflowing.
+          final left = folded
+              ? UnconstrainedBox(
+                  constrainedAxis: Axis.vertical,
+                  alignment: Alignment.centerLeft,
+                  clipBehavior: Clip.hardEdge,
+                  child: leftRow,
+                )
+              : leftRow;
+          // The strip and the drafts shorten with an ellipsis (R9).
+          final stripRow = Row(
+            key: const ValueKey('board-bar-strip'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                flex: 3,
                 child: Text(
-                  '$drafts em rascunho fora do quadro',
+                  on ? 'Autopilot · $strip' : strip,
+                  key: const ValueKey('board-strip'),
+                  textWidthBasis: TextWidthBasis.longestLine,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(width: 12),
-          for (final (view, label) in const [
-            (BoardView.columns, 'Colunas'),
-            (BoardView.graph, 'Grafo'),
-            (BoardView.focus, 'Foco'),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: ToggleBox(
-                key: ValueKey('board-view-${view.name}'),
-                on: ref.watch(boardGraphViewProvider) == view,
-                height: 28,
-                onTap: () =>
-                    ref.read(boardGraphViewProvider.notifier).set(view),
-                child: Text(
-                  label,
+                  textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: ref.watch(boardGraphViewProvider) == view
-                        ? AppColors.amber
-                        : AppColors.textSecondary,
+                    fontSize: 11,
+                    color: on ? AppColors.teal : AppColors.textMuted,
                   ),
                 ),
               ),
-            ),
-          const SizedBox(width: 8),
-          Builder(
-            builder: (context) {
-              ref.watch(appSettingsProvider);
-              final schedule = pilot.scheduleOf(workspaceId);
-              return TextButton.icon(
-                key: const ValueKey('board-schedule'),
-                onPressed: () => showScheduleDialog(context, ref, workspaceId),
-                icon: const Icon(Icons.schedule, size: 16),
-                label: Text(
-                  schedule == null ? 'Agendar' : schedule.label,
-                  style: const TextStyle(fontSize: 12),
+              if (drafts > 0) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Tooltip(
+                    message: '$drafts em rascunho fora do quadro',
+                    child: Text(
+                      '$drafts em rascunho fora do quadro',
+                      textWidthBasis: TextWidthBasis.longestLine,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
                 ),
-              );
-            },
-          ),
-          const SizedBox(width: 4),
-          Tooltip(
-            message: on
-                ? 'Parar: desliga o automático e interrompe as sessões das specs'
-                : 'Executar: inicia as specs sem bloqueio em paralelo e as '
-                      'bloqueadas assim que a dependência chegar em Review',
-            child: AppPressable(
-              child: FilledButton.icon(
-                key: const ValueKey('board-autopilot'),
-                onPressed: () =>
-                    on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
-                icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
-                label: Text(on ? 'Parar' : 'Executar tudo'),
+              ],
+            ],
+          );
+          // Agendar and Executar tudo never leave the bar (R9).
+          final actions = Row(
+            key: const ValueKey('board-bar-right'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Builder(
+                builder: (context) {
+                  ref.watch(appSettingsProvider);
+                  final schedule = pilot.scheduleOf(workspaceId);
+                  final label = schedule == null ? 'Agendar' : schedule.label;
+                  return Tooltip(
+                    message: label,
+                    child: TextButton.icon(
+                      key: const ValueKey('board-schedule'),
+                      onPressed: () =>
+                          showScheduleDialog(context, ref, workspaceId),
+                      icon: const Icon(Icons.schedule, size: 16),
+                      label: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 160),
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
+              const SizedBox(width: 4),
+              Tooltip(
+                message: on
+                    ? 'Parar: desliga o automático e interrompe as sessões '
+                          'das specs'
+                    : 'Executar: inicia as specs sem bloqueio em paralelo e '
+                          'as bloqueadas assim que a dependência chegar em '
+                          'Review',
+                child: AppPressable(
+                  child: FilledButton.icon(
+                    key: const ValueKey('board-autopilot'),
+                    onPressed: () =>
+                        on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+                    icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
+                    label: Text(on ? 'Parar' : 'Executar tudo'),
+                  ),
+                ),
+              ),
+            ],
+          );
+          return SizedBox(
+            height: BoardViewSwitch.height + 4,
+            child: CustomMultiChildLayout(
+              delegate: BoardBarLayout(),
+              children: [
+                LayoutId(id: BoardBarLayout.left, child: left),
+                LayoutId(
+                  id: BoardBarLayout.center,
+                  child: const BoardViewSwitch(),
+                ),
+                LayoutId(id: BoardBarLayout.strip, child: stripRow),
+                LayoutId(id: BoardBarLayout.actions, child: actions),
+              ],
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
