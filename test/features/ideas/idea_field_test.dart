@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/features/ideas/widgets/idea_field.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import 'idea_import_test.dart' show FakePoppler;
@@ -70,13 +71,23 @@ class IdeaHarness {
   }
 }
 
-/// File reads are real IO: give them time outside the fake clock.
-Future<void> settle(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
+/// File reads are real IO: give them time outside the fake clock, until
+/// the import button is enabled again (it is off while a file is read).
+/// Under the full suite in parallel a fixed wait was not enough.
+Future<void> settle(WidgetTester tester, {bool idle = true}) async {
+  final end = DateTime.now().add(const Duration(seconds: 20));
+  for (var i = 0; DateTime.now().isBefore(end); i++) {
     await tester.runAsync(
-      () => Future<void>.delayed(Duration(milliseconds: 20)),
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
     await tester.pump();
+    final button = find.byKey(const ValueKey('idea-import'));
+    if (i >= 4 &&
+        (!idle ||
+            (button.evaluate().isEmpty ||
+                tester.widget<SmallButton>(button).onTap != null))) {
+      break;
+    }
   }
   await tester.pumpAndSettle();
 }
@@ -404,7 +415,7 @@ void main() {
     await tester.pump();
     h.picks.add(h.file('grande.pdf', 'x'));
     await tester.tap(find.byKey(const ValueKey('idea-import')));
-    await settle(tester);
+    await settle(tester, idle: false);
     expect(find.byKey(const ValueKey('idea-progress')), findsOneWidget);
     expect(find.textContaining('página 2 de 8'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('idea-progress-cancel')));
