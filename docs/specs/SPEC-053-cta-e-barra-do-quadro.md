@@ -21,7 +21,7 @@ Esta spec faz duas coisas:
   - **centro:** a troca de visão Colunas, Grafo e Foco, num controle segmentado único;
   - **direita:** Agendar e Executar tudo.
 
-Mockup: canvas do Claude Design (link na issue). Capturas em `docs/mockups/spec-053/`:
+Mockup: [canvas do Claude Design](https://claude.ai/artifact/FxRMzU3yZ3qQUhqwSjfMT9), validado com `/validar-layouts` (nota média 86, "Pronto para entregar"; o relatório está na issue). Capturas em `docs/mockups/spec-053/`:
 
 | Captura | O que mostra | Requisitos |
 |---|---|---|
