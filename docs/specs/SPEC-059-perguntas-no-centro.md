@@ -2,7 +2,7 @@
 id: SPEC-059
 status: aprovada
 depende-de: SPEC-028
-issue: ISSUE
+issue: 146
 ---
 
 # Perguntas da spec no centro
