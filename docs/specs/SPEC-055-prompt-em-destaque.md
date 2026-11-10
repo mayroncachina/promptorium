@@ -2,7 +2,7 @@
 id: SPEC-055
 status: aprovada
 depende-de: SPEC-034, SPEC-049
-issue: ISSUE
+issue: 141
 ---
 
 # Prompt em destaque
