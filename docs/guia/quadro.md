@@ -7,10 +7,12 @@ Um cartão por spec aprovada ou concluída, em **Backlog · Em execução · Rev
 - **Sprint**: escolhe o que Colunas, Grafo e Foco mostram. Veja [Sprints](#sprints).
 - "Precisam de mim · N": filtra o que espera por você.
 - **Ocultar concluídas · N**: esconde os cartões em Feito, nas Colunas, no Grafo e na pasta do Foco. A escolha é lembrada por projeto.
-- Filtros por Fase e Agente.
-- **Colunas / Grafo / Foco**.
+- Filtros por Fase e Agente. Numa janela estreita, os filtros se juntam no chip **Filtros · n**, que abre um menu com cada um.
+- **Colunas / Grafo / Foco**, no centro da barra: um controle só. Com o foco nele (Tab), as setas trocam de visão.
 - **Agendar**: Autopilot diário, com horário e orçamento.
-- **Executar tudo / Parar**: liga ou para o Autopilot, que executa as specs prontas respeitando dependências e o limite de paralelismo (`autopilot.paralelo`).
+- **Executar tudo / Parar**: liga ou para o Autopilot, que executa as specs prontas respeitando dependências e o limite de paralelismo (`autopilot.paralelo`). Agendar e Executar tudo ficam sempre à direita; a linha de estado do Autopilot encurta antes deles.
+
+O botão **Nova spec** da barra de título reage ao mouse (o "+" gira e um reflexo cruza o botão), encolhe ao clicar e mostra um anel com o foco do teclado. Num workspace sem nenhuma spec, ele respira devagar até você passar o mouse ou criar a primeira. Com movimento reduzido no sistema, só a cor muda.
 
 ## Sprints
 
