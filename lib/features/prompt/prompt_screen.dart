@@ -27,6 +27,7 @@ import 'widgets/prompt_composer.dart';
 import 'widgets/prompt_welcome.dart';
 import 'widgets/prompt_dialogs.dart';
 import 'widgets/prompt_side_panel.dart';
+import 'widgets/title_field.dart';
 
 /// Prompt screen (docs/mockups/Prompt.dc.html): conversation history ·
 /// conversation + composer · context and saved prompts. Conversations run in
@@ -134,6 +135,13 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
         : ref.watch(conversationListsProvider(ws.id));
     final selectedId = ref.watch(selectedConversationProvider);
     final conv = lists.byId(selectedId);
+    // SPEC-056 R2: another conversation opened; the title being edited in
+    // the header was of the previous one.
+    ref.listen<int?>(selectedConversationProvider, (_, _) {
+      if (ref.read(renamingProvider)?.place == RenamePlace.header) {
+        ref.read(renamingProvider.notifier).stop();
+      }
+    });
     // SPEC-056 R7: the open conversation left the archived ones (a message
     // or "Desarquivar"): the list goes back to the active ones.
     if (ws != null) {
@@ -169,144 +177,156 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     final manager = ref.read(conversationManagerProvider.notifier);
     final draftCtl = ref.read(promptDraftProvider.notifier);
 
-    return LayoutBuilder(
-      builder: (context, c) {
-        final narrow = c.maxWidth < 1100;
-        final left = narrow ? 230.0 : 260.0;
-        final right = narrow ? 250.0 : 280.0;
-        return ColoredBox(
-          color: AppColors.background,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: left,
-                child: ConversationListPanel(
-                  lists: lists,
-                  selectedId: conv?.id,
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _Header(
-                      conversation: conv,
-                      busy: busy,
-                      items: items,
-                      active: lists.active,
-                    ),
-                    if (conv != null && conv.archivedAt != null)
-                      ArchivedBanner(
-                        onUnarchive: () => ref
-                            .read(conversationActionsProvider)
-                            .unarchive(conv.id),
-                      ),
-                    Expanded(
-                      child: conv == null
-                          ? ws == null
-                                ? const _Empty()
-                                // SPEC-055 R7: the three modes, in plain words.
-                                : PromptWelcome(
-                                    mode: mode,
-                                    onPickMode: (m) =>
-                                        draftCtl.set(draft.copyWith(mode: m)),
-                                    onExample: (m, text) {
-                                      draftCtl.set(draft.copyWith(mode: m));
-                                      // Only fills the field: the person
-                                      // sees what goes and can adjust it.
-                                      _text.value = TextEditingValue(
-                                        text: text,
-                                        selection: TextSelection.collapsed(
-                                          offset: text.length,
-                                        ),
-                                      );
-                                      _focus.requestFocus();
-                                    },
-                                  )
-                          : _Conversation(
-                              key: ValueKey('conversation-main-${conv.id}'),
-                              conversation: conv,
-                              workspace: ws,
-                              busy: busy,
-                            ),
-                    ),
-                    DropTarget(
-                      key: const ValueKey('prompt-drop'),
-                      onDragEntered: (_) => setState(() => _dropping = true),
-                      onDragExited: (_) => setState(() => _dropping = false),
-                      onDragDone: (d) {
-                        setState(() => _dropping = false);
-                        _addFiles(d.files.map((f) => f.path));
-                      },
-                      child: PromptComposer(
-                        controller: _text,
-                        focusNode: _focus,
-                        workspaceRoot: ws?.path,
-                        hintText: conv?.archivedAt != null
-                            ? 'Escreva para continuar…  enviar desarquiva a '
-                                  'conversa'
-                            : null,
-                        files: _files,
-                        dropping: _dropping,
-                        onPickFiles: () => _pickFiles(ws),
-                        onRemoveFile: (f) => setState(() => _files.remove(f)),
-                        attachments: _attached,
-                        onAttach: (p) => setState(() {
-                          if (!_attached.contains(p)) _attached.add(p);
-                        }),
-                        onRemoveAttachment: (p) => setState(() {
-                          _attached.remove(p);
-                          _text.text = _text.text
-                              .replaceAll('@$p ', '')
-                              .replaceAll('@$p', '');
-                        }),
-                        provider: provider,
-                        model: model,
-                        mode: mode,
-                        onProvider: (p) {
-                          if (!p.enabled) return;
-                          if (conv == null) {
-                            draftCtl.set(
-                              draft.copyWith(
-                                providerId: p.id,
-                                model: p.models.first,
-                              ),
-                            );
-                          }
-                        },
-                        onModel: (m) => conv == null
-                            ? draftCtl.set(draft.copyWith(model: m))
-                            : manager.setModel(conv.id, m),
-                        onMode: (m) => conv == null
-                            ? draftCtl.set(draft.copyWith(mode: m))
-                            : manager.setMode(conv.id, m),
-                        busy: busy,
-                        onSend: () => _send(ws, conv),
-                        onStop: () {
-                          if (conv != null) manager.stop(conv.id);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const VerticalDivider(width: 1),
-              SizedBox(
-                width: right,
-                child: PromptSidePanel(
-                  workspace: ws,
-                  conversation: conv,
-                  mode: mode,
-                  files: files,
-                  onInsert: _insertPrompt,
-                ),
-              ),
-            ],
-          ),
-        );
+    return CallbackShortcuts(
+      bindings: {
+        // SPEC-056 R2: F2 renames the open conversation.
+        const SingleActivator(LogicalKeyboardKey.f2): () {
+          if (conv != null) {
+            ref
+                .read(renamingProvider.notifier)
+                .start(conv.id, RenamePlace.header);
+          }
+        },
       },
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final narrow = c.maxWidth < 1100;
+          final left = narrow ? 230.0 : 260.0;
+          final right = narrow ? 250.0 : 280.0;
+          return ColoredBox(
+            color: AppColors.background,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: left,
+                  child: ConversationListPanel(
+                    lists: lists,
+                    selectedId: conv?.id,
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _Header(
+                        conversation: conv,
+                        busy: busy,
+                        items: items,
+                        active: lists.active,
+                      ),
+                      if (conv != null && conv.archivedAt != null)
+                        ArchivedBanner(
+                          onUnarchive: () => ref
+                              .read(conversationActionsProvider)
+                              .unarchive(conv.id),
+                        ),
+                      Expanded(
+                        child: conv == null
+                            ? ws == null
+                                  ? const _Empty()
+                                  // SPEC-055 R7: the three modes, in plain words.
+                                  : PromptWelcome(
+                                      mode: mode,
+                                      onPickMode: (m) =>
+                                          draftCtl.set(draft.copyWith(mode: m)),
+                                      onExample: (m, text) {
+                                        draftCtl.set(draft.copyWith(mode: m));
+                                        // Only fills the field: the person
+                                        // sees what goes and can adjust it.
+                                        _text.value = TextEditingValue(
+                                          text: text,
+                                          selection: TextSelection.collapsed(
+                                            offset: text.length,
+                                          ),
+                                        );
+                                        _focus.requestFocus();
+                                      },
+                                    )
+                            : _Conversation(
+                                key: ValueKey('conversation-main-${conv.id}'),
+                                conversation: conv,
+                                workspace: ws,
+                                busy: busy,
+                              ),
+                      ),
+                      DropTarget(
+                        key: const ValueKey('prompt-drop'),
+                        onDragEntered: (_) => setState(() => _dropping = true),
+                        onDragExited: (_) => setState(() => _dropping = false),
+                        onDragDone: (d) {
+                          setState(() => _dropping = false);
+                          _addFiles(d.files.map((f) => f.path));
+                        },
+                        child: PromptComposer(
+                          controller: _text,
+                          focusNode: _focus,
+                          workspaceRoot: ws?.path,
+                          hintText: conv?.archivedAt != null
+                              ? 'Escreva para continuar…  enviar desarquiva a '
+                                    'conversa'
+                              : null,
+                          files: _files,
+                          dropping: _dropping,
+                          onPickFiles: () => _pickFiles(ws),
+                          onRemoveFile: (f) => setState(() => _files.remove(f)),
+                          attachments: _attached,
+                          onAttach: (p) => setState(() {
+                            if (!_attached.contains(p)) _attached.add(p);
+                          }),
+                          onRemoveAttachment: (p) => setState(() {
+                            _attached.remove(p);
+                            _text.text = _text.text
+                                .replaceAll('@$p ', '')
+                                .replaceAll('@$p', '');
+                          }),
+                          provider: provider,
+                          model: model,
+                          mode: mode,
+                          onProvider: (p) {
+                            if (!p.enabled) return;
+                            if (conv == null) {
+                              draftCtl.set(
+                                draft.copyWith(
+                                  providerId: p.id,
+                                  model: p.models.first,
+                                ),
+                              );
+                            }
+                          },
+                          onModel: (m) => conv == null
+                              ? draftCtl.set(draft.copyWith(model: m))
+                              : manager.setModel(conv.id, m),
+                          onMode: (m) => conv == null
+                              ? draftCtl.set(draft.copyWith(mode: m))
+                              : manager.setMode(conv.id, m),
+                          busy: busy,
+                          onSend: () => _send(ws, conv),
+                          onStop: () {
+                            if (conv != null) manager.stop(conv.id);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                SizedBox(
+                  width: right,
+                  child: PromptSidePanel(
+                    workspace: ws,
+                    conversation: conv,
+                    mode: mode,
+                    files: files,
+                    onInsert: _insertPrompt,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -334,25 +354,60 @@ class _Header extends ConsumerWidget {
     final backLabel = origin == null
         ? null
         : 'Voltar à spec ${origin.specCode}';
+    final renaming = ref.watch(renamingProvider);
+    const decoration = BoxDecoration(
+      border: Border(bottom: BorderSide(color: AppColors.border)),
+    );
+    // SPEC-056 R2: the title becomes a field; the actions wait.
+    if (c != null &&
+        renaming?.id == c.id &&
+        renaming?.place == RenamePlace.header) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: decoration,
+        child: TitleField(
+          key: ValueKey('prompt-title-field-${c.id}'),
+          fieldKey: const ValueKey('title-field'),
+          initial: c.title,
+          onSave: (t) => ref.read(conversationActionsProvider).rename(c.id, t),
+          onCancel: ref.read(renamingProvider.notifier).stop,
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
+      decoration: decoration,
       child: Row(
         children: [
           Expanded(
             flex: 3,
-            child: Text(
-              c?.title ?? 'Nova conversa',
-              key: const ValueKey('prompt-title'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-              ),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    c?.title ?? 'Nova conversa',
+                    key: const ValueKey('prompt-title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                if (c != null) ...[
+                  const SizedBox(width: 4),
+                  RowAction(
+                    key: const ValueKey('prompt-rename'),
+                    icon: Icons.edit_outlined,
+                    tooltip: 'Renomear (F2)',
+                    onPressed: () => ref
+                        .read(renamingProvider.notifier)
+                        .start(c.id, RenamePlace.header),
+                  ),
+                ],
+              ],
             ),
           ),
           // SPEC-021 R2 / R6 / R11: only refine conversations with a stored
@@ -406,6 +461,7 @@ class _Header extends ConsumerWidget {
                   c: c,
                   position: menuPositionBelow(context),
                   active: active,
+                  renameIn: RenamePlace.header,
                   items: items,
                 ),
               ),

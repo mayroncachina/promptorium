@@ -140,6 +140,11 @@ Tomadas na implementação:
 - **t1 · Desfazer reabre a conversa** quando ela era a aberta.
 - **t1 · O menu de uma conversa fechada** carrega a conversa antes de "Transformar em spec". Renomear entra no menu em t2.
 - **t1 · A linha das arquivadas mostra o modelo** (`Sonnet · arquivada 3 nov`), como as ativas já fazem, em vez do modo dos mockups.
+- **t2 · O clique duplo não atrasa o clique simples.** O primeiro clique seleciona na hora; um segundo dentro de `kDoubleTapTimeout` abre a edição. Um `onDoubleTap` no `InkWell` faria toda seleção esperar 300 ms.
+- **t2 · Onde se edita fica num provider** (`renamingProvider`: conversa e lugar). F2, o lápis e o Renomear do ⋯ do cabeçalho editam o título do cabeçalho; o clique duplo, o lápis da linha e o Renomear do botão direito editam na linha. Abrir outra conversa encerra a edição do cabeçalho sem salvar.
+- **t2 · O título é normalizado ao salvar:** espaços nas pontas saem, quebras de linha viram espaço e o campo não aceita mais de 120 caracteres. Salvar sem mudar nada só fecha o campo.
+- **t2 · Perder o foco com o título vazio volta ao anterior,** como o Esc: não há o que salvar, e o campo não pode prender o foco.
+- **t2 · Os botões salvar e cancelar ficam fora do Tab** e dentro da região do campo: clicar neles não conta como perder o foco (o que salvaria antes do cancelar), e no teclado Enter e Esc fazem o mesmo.
 
 ## Plano
 
@@ -152,6 +157,6 @@ Tomadas na implementação:
 - [x] Arquivar uma conversa a tira da lista e mostra o aviso com Desfazer; Desfazer a traz de volta.
 - [x] A aba Arquivadas lista as conversas arquivadas e permite desarquivar.
 - [x] Mandar uma mensagem numa conversa arquivada a desarquiva.
-- [ ] F2, o lápis e o clique duplo renomeiam; título vazio não salva.
+- [x] F2, o lápis e o clique duplo renomeiam; título vazio não salva.
 - [ ] O painel recolhe numa faixa de 48 px, reabre com Ctrl+Alt+B e lembra a escolha.
 - [ ] Em 1100×700 o painel começa recolhido e as seções abrem num balão.
