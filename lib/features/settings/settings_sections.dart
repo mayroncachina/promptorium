@@ -63,6 +63,9 @@ enum SettingsSection {
     'transparência',
     'desfoque',
     'desempenho',
+    'tremor',
+    'tremer',
+    'movimento',
   ]),
   automations('Automações (hooks)', SettingsGroup.app, [
     'hook',
@@ -157,7 +160,8 @@ bool sectionChanged(
           (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]',
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
     SettingsSection.appearance =>
-      settings[AppSettingKeys.glassEffects] == 'false',
+      settings[AppSettingKeys.glassEffects] == 'false' ||
+          settings[AppSettingKeys.attentionShake] == 'false',
     SettingsSection.automations => ManagedHook.values.any(
       (h) => settings[h.settingKey] == '0',
     ),
