@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+
+import '../../../ui/theme/ambient.dart';
 import '../../../ui/theme/tokens.dart';
 import '../timeline.dart';
 
@@ -62,9 +64,10 @@ class SessionActivity extends StatefulWidget {
   State<SessionActivity> createState() => _SessionActivityState();
 }
 
-class _SessionActivityState extends State<SessionActivity>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
+class _SessionActivityState extends State<SessionActivity> {
+  // The seconds counter: one check a second, not one per frame (a Ticker
+  // here asked for a frame on every vsync while the session ran).
+  late final Timer _ticker;
   int _sig = 0;
   DateTime _lastChange = DateTime.now();
   int _shownSecond = -1;
@@ -73,15 +76,15 @@ class _SessionActivityState extends State<SessionActivity>
   void initState() {
     super.initState();
     _sig = _signature(widget.items);
-    _ticker = createTicker((_) {
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
       final sec = DateTime.now().difference(widget.since).inSeconds;
-      if (sec != _shownSecond) setState(() {});
-    })..start();
+      if (mounted && sec != _shownSecond) setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _ticker.cancel();
     super.dispose();
   }
 
@@ -100,11 +103,7 @@ class _SessionActivityState extends State<SessionActivity>
     return Row(
       key: const ValueKey('session-activity'),
       children: [
-        SizedBox(
-          width: 12,
-          height: 12,
-          child: CircularProgressIndicator(strokeWidth: 1.6, color: color),
-        ),
+        AmbientSpinner(color: color),
         const SizedBox(width: 10),
         Flexible(
           child: Text(
@@ -128,9 +127,6 @@ class BusyDot extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 10,
-    height: 10,
-    child: CircularProgressIndicator(strokeWidth: 1.5, color: color),
-  );
+  Widget build(BuildContext context) =>
+      AmbientSpinner(size: 10, strokeWidth: 1.5, color: color);
 }
