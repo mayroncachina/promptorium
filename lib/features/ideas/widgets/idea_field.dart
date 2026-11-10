@@ -214,6 +214,16 @@ class _IdeaFieldState extends ConsumerState<IdeaField> {
           _pendingBase = base;
           _mode = _Mode.append;
         });
+        // In a short window the choice may fall below the fold.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _choiceKey.currentContext;
+          if (ctx != null && ctx.mounted) {
+            Scrollable.ensureVisible(
+              ctx,
+              alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+            );
+          }
+        });
       }
     } on ImportCancelled {
       if (mounted) setState(() => _reading = null);
@@ -228,6 +238,7 @@ class _IdeaFieldState extends ConsumerState<IdeaField> {
   }
 
   String _pendingBase = '';
+  final _choiceKey = GlobalKey();
 
   void _apply(ImportedText r, {required String base, required _Mode mode}) {
     final previous = _text.text;
@@ -463,6 +474,7 @@ class _IdeaFieldState extends ConsumerState<IdeaField> {
         if (_pending != null) ...[
           const SizedBox(height: 8),
           _Choice(
+            key: _choiceKey,
             name: _pending!.name,
             mode: _mode,
             onMode: (m) => setState(() => _mode = m),
@@ -993,6 +1005,7 @@ class _Message extends StatelessWidget {
 /// radio group (R6, R9).
 class _Choice extends StatelessWidget {
   const _Choice({
+    super.key,
     required this.name,
     required this.mode,
     required this.onMode,
