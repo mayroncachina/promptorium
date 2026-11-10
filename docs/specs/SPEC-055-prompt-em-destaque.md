@@ -136,6 +136,13 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3jkRzCnhFRQnWsoAnzf
 - **O exemplo não é enviado sozinho.** Ele só preenche o campo: a pessoa vê o que vai mandar e pode ajustar antes, o que importa principalmente no modo Editar.
 - **O selo leva texto e ícone, não só cor.** O nível de permissão de cada modo é a informação mais importante para quem não programa.
 
+Tomadas na implementação:
+- **t1 · Tabela de alturas, não `GlobalKey`s.** A barra é uma coluna fixa: a posição de cada item sai de uma conta com as alturas reais (44 ou 58), o espaço de 4 px e os separadores (1 px + 4 px). Medir com `GlobalKey` pediria um quadro a mais e faria o destaque pular na primeira pintura.
+- **t1 · O destaque anima um retângulo.** Ele desliza por `Transform` como antes e só muda de tamanho (e de raio, de 10 para 13 px) quando sai do Prompt ou chega nele. O brilho também cresce um pouco no Prompt, como no mockup.
+- **t1 · O ícone do Prompt ativo também fica em `#FFD08A`,** igual ao rótulo, como no mockup (`Trilho.dc.html`). A cor ganhou o token `AppColors.amberLight`.
+- **t1 · O anel de foco só aparece no teclado** (`FocusHighlightMode.traditional`), sem a demora do hover, como nos outros itens.
+- **t1 · A barra em 700 px:** os itens ocupam 564 px (9 × 48 + 62 + 2 × 5 + a engrenagem), e sobram cerca de 30 px na janela de 1100 × 700.
+
 ## Plano
 
 1. **t1 · Barra lateral e atalhos** (R1–R3, R6, R8): nova ordem em `navItems`, `SideBarFeaturedItem`, separadores, `_Highlight` com altura variável, `shortcutsVersion` 5, folha de atalhos e testes.
@@ -144,9 +151,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3jkRzCnhFRQnWsoAnzf
 
 ## Critérios de aceite
 
-- [ ] O Prompt aparece logo abaixo do Projeto, entre separadores, com 48 × 58 px e o nome "Prompt".
-- [ ] Ctrl 3 abre o Prompt; Ctrl 9 abre o Código; o aviso de atalhos novos aparece uma vez.
-- [ ] O destaque da barra fica sobre o item certo, inclusive no Prompt e nos itens abaixo dele.
+- [x] O Prompt aparece logo abaixo do Projeto, entre separadores, com 48 × 58 px e o nome "Prompt".
+- [x] Ctrl 3 abre o Prompt; Ctrl 9 abre o Código; o aviso de atalhos novos aparece uma vez.
+- [x] O destaque da barra fica sobre o item certo, inclusive no Prompt e nos itens abaixo dele.
 - [ ] Em outra tela, o ponto teal aparece enquanto uma conversa responde, e o contador mostra as aprovações e os planos prontos do Prompt.
 - [ ] O ícone novo aparece na barra, na paleta e na tela vazia.
 - [ ] A tela vazia mostra os três modos; clicar num exemplo escolhe o modo e preenche o campo sem enviar.

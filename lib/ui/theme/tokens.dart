@@ -36,6 +36,10 @@ abstract final class AppColors {
   /// Accent: amber (active nav item, primary actions).
   static const amber = Color(0xFFF2A541);
 
+  /// Light amber: the active Prompt item and keyboard focus rings
+  /// (SPEC-055 R3).
+  static const amberLight = Color(0xFFFFD08A);
+
   /// Accent: teal (success, running, CLI connected).
   static const teal = Color(0xFF4FD1B5);
 
