@@ -2,6 +2,7 @@
 id: SPEC-053
 status: rascunho
 depende-de: SPEC-049
+issue: 132
 ---
 
 # Botão "Nova spec" animado e barra do Quadro em três zonas
