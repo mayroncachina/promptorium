@@ -1,6 +1,7 @@
 ---
 id: SPEC-064
 status: rascunho
+issue: 178
 ---
 
 # "Executar tudo" diz quem começa e quem espera
