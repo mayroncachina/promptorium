@@ -137,7 +137,9 @@ abstract final class CanvasColors {
   static const running = Color(0xFFF08A4B);
   static const review = Color(0xFFE07AB0);
   static const needsInput = AppColors.amber;
-  static const verifying = AppColors.teal;
+
+  /// Purple, like the card's bar and "R2 verificando" (SPEC-065 R5).
+  static const verifying = AppColors.lilac;
   static const pending = AppColors.textMuted;
 
   /// Agent nodes and reference links (distinct from the running orange).

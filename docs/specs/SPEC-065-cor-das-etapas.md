@@ -21,6 +21,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QUeph8T2owT52iAVMAW
 | `3-pulso.png` | O pulso quadro a quadro e a tabela dos estados | R2, R3 |
 | `4-reduzido.png` | Movimento reduzido: as cores ficam, o pulso não | R4 |
 
+Tela do app em `docs/mockups/spec-065/app/1-cores.png` (t1).
+
 ## Requisitos
 
 - R1 · Cada segmento da barra do card tem a cor do estado da etapa:
@@ -33,7 +35,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QUeph8T2owT52iAVMAW
 - R2 · Os segmentos **rodando** e **verificando** pulsam: a opacidade vai de 100% a 40% e volta, em 1,2 s, sem parar, enquanto o estado durar. Os outros estados ficam parados.
 - R3 · A troca de cor continua suave (a transição de hoje, `StepColorTransition`). O pulso começa quando a etapa entra num estado ativo e para na hora em que sai, terminando na cor nova com opacidade cheia.
 - R4 · Com movimento reduzido (o ajuste do sistema ou "Reduzir animações" do app), as cores valem e o pulso não acontece.
-- R5 · Os pontos das etapas no Grafo e no Foco usam as mesmas cores e o mesmo pulso.
+- R5 · Os pontos das etapas no Grafo e no Foco mostram "verificando" em roxo, como a barra (ver Decisões, t1).
 - R6 · A cor nunca é o único sinal: a dica do segmento continua com "R2 · verificando", e a linha do card continua com o texto do estado ("R2 verificando", "R2 aguardando você").
 
 ## Fora do escopo
@@ -69,6 +71,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QUeph8T2owT52iAVMAW
 - **Roxo para verificar.** O roxo já é a cor de "verificando" no texto do card ("R2 verificando" em lilás); a barra passa a combinar.
 - **Âmbar-claro para aguardando você.** É atenção, mas diferente de "rodando": a etapa parou e espera a pessoa. O vermelho fica só para a falha do gate.
 - **Pulso só no que está trabalhando.** Pulsar o que espera a pessoa competiria com o tremor de atenção (SPEC-054); o pulso diz "está andando", não "olhe aqui".
+- **t1 · Grafo e Foco.** Os pontos das etapas no Grafo e no Foco já tinham forma e animação próprias por estado (o de rodando pulsa, o de verificando gira) e uma paleta própria do canvas. Lá, só "verificando" mudou de cor, para o roxo (`CanvasColors.verifying`); as formas, as animações e as outras cores do canvas ficam como estão, para não desfazer o desenho da SPEC-036.
+- **t1 · Teste visual.** A captura do app é da montagem de teste do Quadro (fundo sem o vidro), mostrando as cores da barra.
 - **Opacidade, não tamanho.** Só a opacidade muda: nada se mexe no layout e o custo é baixo com muitos cards.
 
 ## Plano
@@ -77,7 +81,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QUeph8T2owT52iAVMAW
 
 ## Critérios de aceite
 
-- [ ] Cada estado da etapa tem a sua cor na barra do card, com "verificando" em roxo.
-- [ ] Os segmentos rodando e verificando pulsam enquanto o estado durar.
-- [ ] Com movimento reduzido, as cores valem e nada pulsa.
-- [ ] O Grafo e o Foco usam as mesmas cores e o mesmo pulso.
+- [x] Cada estado da etapa tem a sua cor na barra do card, com "verificando" em roxo.
+- [x] Os segmentos rodando e verificando pulsam enquanto o estado durar.
+- [x] Com movimento reduzido, as cores valem e nada pulsa.
+- [x] O Grafo e o Foco mostram "verificando" em roxo.

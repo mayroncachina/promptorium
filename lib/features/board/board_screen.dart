@@ -2174,15 +2174,23 @@ class _AgentAvatar extends StatelessWidget {
   );
 }
 
-/// Colour of one segment of the card's progress (UX v2, U8).
+/// Colour of one segment of the card's progress (UX v2, U8): one colour
+/// per state (SPEC-065 R1).
 Color stepSegmentColor(StepView s) => s.gateFailed
     ? AppColors.red
     : switch (s.status) {
         StepStatus.done => AppColors.teal,
-        StepStatus.running || StepStatus.verifying => AppColors.amber,
-        StepStatus.needsInput => AppColors.red,
+        StepStatus.running => AppColors.amber,
+        StepStatus.verifying => AppColors.lilac,
+        StepStatus.needsInput => AppColors.amberLight,
         StepStatus.pending => AppColors.border,
       };
+
+/// A session or the gate is working on the step: its segment pulses
+/// (SPEC-065 R2).
+bool isStepActive(StepView s) =>
+    !s.gateFailed &&
+    (s.status == StepStatus.running || s.status == StepStatus.verifying);
 
 class _Progress extends StatelessWidget {
   const _Progress({
@@ -2237,13 +2245,17 @@ class _Progress extends StatelessWidget {
                                 0,
                                 4,
                               ),
-                              child: StepColorTransition(
-                                color: stepSegmentColor(s),
-                                builder: (_, color) => Container(
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    borderRadius: BorderRadius.circular(3),
+                              child: StepPulse(
+                                key: ValueKey('board-pulse-$specCode-${s.id}'),
+                                active: isStepActive(s),
+                                child: StepColorTransition(
+                                  color: stepSegmentColor(s),
+                                  builder: (_, color) => Container(
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
                                   ),
                                 ),
                               ),
