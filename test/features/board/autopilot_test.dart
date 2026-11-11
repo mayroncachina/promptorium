@@ -91,6 +91,21 @@ void main() {
     expect(cli.processes, hasLength(1));
   });
 
+  test('SPEC-063 R1: a spec with "depende:" waits for its dependency in '
+      '"Executar tudo"', () async {
+    File('$repo/specs/SPEC-004.md').writeAsStringSync(
+      '---\nid: SPEC-004\nstatus: aprovada\ndesign: dispensado\n'
+      'depende: [SPEC-001]\n---\n\n# SPEC-004\n\n## Requisitos\n\n- R1 · a\n',
+    );
+    await c.read(specServiceProvider).sync(ws);
+    expect((await specs())['SPEC-004']!.dependsOn, ['SPEC-001']);
+    await c.read(autopilotProvider.notifier).start(ws.id);
+    await settle();
+    final after = await specs();
+    expect(after['SPEC-001']!.stage, SpecStage.running);
+    expect(after['SPEC-004']!.stage, SpecStage.backlog);
+  });
+
   test('R11: sem sprint Ativa, age como hoje', () async {
     await c.read(autopilotProvider.notifier).start(ws.id);
     await settle();

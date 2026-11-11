@@ -723,6 +723,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       // automatic plan no longer touches it (SPEC-037 R13, D7).
       final doc = SpecDocument.parse(c.text);
       if (doc.autoPlanned) c.text = doc.withAutoPlan(false);
+      // SPEC-063 R2: the variation of `depende-de` gets the right name.
+      if (doc.dependsOnAlias != null) {
+        c.text = SpecDocument.parse(c.text).withCanonicalDependsOn();
+      }
       final text = c.text;
       final saved = await ref.read(specServiceProvider).save(ws, spec, text);
       if (!mounted || _docSpecId != spec.id) return saved;
@@ -1093,6 +1097,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     c.text = doc.withOpenQuestions(doc.openQuestions);
     setState(() => _setWarnings(c.text));
     _snack('Formato das perguntas corrigido. Revise e salve.');
+  }
+
+  /// "Trocar agora" (SPEC-063 R2): the variation becomes `depende-de` in
+  /// the editor; saving is the person's.
+  void _fixDependsOnAlias() {
+    final c = _controller;
+    if (c == null) return;
+    c.text = SpecDocument.parse(c.text).withCanonicalDependsOn();
+    setState(() => _setWarnings(c.text));
   }
 
   /// "Aplicar respostas" (R10): `## Decisões` written on the editor text
@@ -1690,6 +1703,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           ],
                     lineMarks: _questionMarks,
                     questionsNotice: formatNotice?.message,
+                    dependsNotice: locked || readOnly
+                        ? null
+                        : dependsOnAliasNotice(doc, spec.code),
+                    onFixDepends: _fixDependsOnAlias,
                     onFixQuestions: _fixQuestionsFormat,
                     onAnswerQuestions: _openQuestions,
                     warningsOpen: _warningsOpen,
@@ -2066,7 +2083,14 @@ class _EditorBody extends StatelessWidget {
     this.questionsNotice,
     this.onFixQuestions,
     this.onAnswerQuestions,
+    this.dependsNotice,
+    this.onFixDepends,
   });
+
+  /// A variation of `depende-de` (SPEC-063 R2): the notice above the
+  /// editor with "Trocar agora".
+  final String? dependsNotice;
+  final VoidCallback? onFixDepends;
 
   final FocusNode? focusNode;
 
@@ -2156,15 +2180,21 @@ class _EditorBody extends StatelessWidget {
         ],
       ),
     );
-    if (questionsNotice != null) {
+    if (questionsNotice != null || dependsNotice != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SpecQuestionsFormatNotice(
-            message: questionsNotice!,
-            onFix: onFixQuestions,
-            onAnswer: onAnswerQuestions,
-          ),
+          if (dependsNotice != null)
+            SpecDependsAliasNotice(
+              message: dependsNotice!,
+              onFix: onFixDepends,
+            ),
+          if (questionsNotice != null)
+            SpecQuestionsFormatNotice(
+              message: questionsNotice!,
+              onFix: onFixQuestions,
+              onAnswer: onAnswerQuestions,
+            ),
           Expanded(child: body),
         ],
       );
@@ -2285,6 +2315,75 @@ class SpecQuestionsFormatNotice extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// The text of the notice for a variation of `depende-de` (SPEC-063 R2);
+/// null when the frontmatter has none.
+String? dependsOnAliasNotice(SpecDocument doc, String code) {
+  final alias = doc.dependsOnAlias;
+  if (alias == null) return null;
+  final deps = doc.dependsOn;
+  final who = deps.isEmpty
+      ? 'a lista está vazia'
+      : '$code espera ${_joinCodes(deps)}';
+  return 'A chave "$alias" foi lida como "$dependsOnKey": $who. '
+      'Ao salvar, o nome fica certo no arquivo.';
+}
+
+String _joinCodes(List<String> codes) => codes.length == 1
+    ? 'a ${codes.single}'
+    : '${codes.take(codes.length - 1).map((c) => 'a $c').join(', ')} '
+          'e a ${codes.last}';
+
+/// "A chave … foi lida como depende-de" (SPEC-063 R2), above the editor,
+/// with "Trocar agora" (changes the editor text, without saving).
+class SpecDependsAliasNotice extends StatelessWidget {
+  const SpecDependsAliasNotice({super.key, required this.message, this.onFix});
+
+  final String message;
+  final VoidCallback? onFix;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    liveRegion: true,
+    child: Container(
+      key: const ValueKey('spec-depends-alias'),
+      padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
+      decoration: const BoxDecoration(
+        color: SessionColors.approvalBg,
+        border: Border(bottom: BorderSide(color: SessionColors.approvalBorder)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 16, color: AppColors.amber),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              key: const ValueKey('spec-depends-alias-text'),
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.45,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            key: const ValueKey('spec-depends-alias-fix'),
+            onPressed: onFix,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.text,
+              side: const BorderSide(color: AppColors.amber),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Trocar agora', style: TextStyle(fontSize: 12.5)),
+          ),
+        ],
+      ),
     ),
   );
 }
