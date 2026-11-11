@@ -110,6 +110,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4RYhjRD9hT3WdV16uQf
 - **Tela cheia na área de trabalho.** Responder exige atenção; a spec inteira atrás só competia com a pergunta. O trecho que importa aparece em "Ver na spec".
 - **720 px.** Dá 70 a 80 caracteres por linha na pergunta e nas descrições, a medida confortável de leitura.
 - **Reaproveitar o painel.** O estado e a gravação da SPEC-028 ficam como estão; só muda onde e como aparecem.
+- **t1 · Teclas.** ←/→ trocam de pergunta como um clique na etapa: não gravam a sugestão pré-selecionada (só "Próxima" grava) e não fazem nada na primeira e na última pergunta. Enter só vale "Próxima" com o foco numa opção ou na coluna; num botão focado, Enter aciona o botão. Com o foco numa opção, ←/→ trocam de pergunta, e ↑/↓ continuam andando entre as opções.
+- **t1 · Crossfade.** A pergunta nova entra com fade de 120 ms e a anterior sai na hora. Duas cópias da pergunta ao mesmo tempo dividiriam os mesmos nós de foco dos rádios e o mesmo campo de texto.
+- **t1 · "salvo automaticamente".** As respostas continuam só em memória até "Salvar na spec" (SPEC-028 P2); a dica do texto diz isso.
+- **t1 · Partes.** `QuestionSteps`, `QuestionOptionCard` e `QuestionFooter` ficam em `spec_questions_focus.dart`, junto da moldura. O estado continua em `SpecQuestionsPanel`. O link "Ver na spec" entra na t2, com o trecho.
+- **t2 · Ditar fica de fora.** O ditado da SPEC-040 não está na `main`: o PR #91 foi mesclado na branch da SPEC-039 depois que ela já tinha entrado na `main`, e `lib/features/dictation/` só existe em `origin/spec/039-nova-spec-com-planejamento`. Trazer o ditado (modelos, gravação, whisper-cli, ajustes) não cabe nesta spec. O cartão de "Outra resposta" já tem o lugar do botão (`QuestionOptionCard.trailing`); o botão entra quando a SPEC-040 chegar à `main`. Por isso o critério de "Outra resposta" segue aberto.
+- **t2 · Foco de "Outra resposta".** Escolher a opção com clique, tecla 4 ou clique no campo põe o foco no campo. Com ↑/↓ o foco fica no rádio, para continuar andando entre as opções. Escolher outra opção com o foco no campo leva o foco para ela, e Enter volta a ser "Próxima". O campo tem 3 linhas quando escolhido e cresce até 6.
+- **t2 · Trecho.** O trecho vem do texto do editor (`SpecDocument.questionExcerpt`): as linhas da pergunta (até a próxima pergunta, sem as linhas em branco) e até 2 linhas antes e depois, dentro da seção. Os números são os do arquivo, os mesmos do editor.
+- **t3 · Revisão.** "Revise as respostas" segue o mockup (cartão por pergunta, resposta com ✓ ou relógio, **Editar**) e mantém o que a SPEC-028 pede: o selo "Para depois", a caixa "Atualizar requisitos e critérios" marcada e a contagem no botão ("Aplicar 2 respostas na spec"). A pergunta deixada para depois diz "Continua em Perguntas em aberto.", como faz o aplicar da SPEC-028. O texto do mockup, "vai para Premissas", não vale aqui.
+- **t3 · Diff.** "O que muda na spec" fica na mesma moldura, com a coluna de até 1100 px (menos 32 px de cada lado em janelas estreitas) e o rodapé alinhado a ela. O subtítulo do cabeçalho diz "… · o que muda na spec · nada foi salvo ainda".
 
 ## Plano
 
@@ -119,10 +128,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4RYhjRD9hT3WdV16uQf
 
 ## Critérios de aceite
 
-- [ ] "Responder perguntas" abre a pergunta no centro da tela, numa coluna de 720 px.
-- [ ] As teclas 1–4 escolhem a opção e Enter vai para a próxima.
+- [x] "Responder perguntas" abre a pergunta no centro da tela, numa coluna de 720 px.
+- [x] As teclas 1–4 escolhem a opção e Enter vai para a próxima.
 - [ ] "Outra resposta" cresce com o texto e aceita ditado.
-- [ ] "Ver na spec" mostra o trecho da pergunta sem sair da tela.
-- [ ] A revisão e o diff também ficam no centro.
-- [ ] Esc fecha e as respostas continuam salvas.
-- [ ] Em 1100×700 o rodapé fica fixo e nada se sobrepõe.
+- [x] "Ver na spec" mostra o trecho da pergunta sem sair da tela.
+- [x] A revisão e o diff também ficam no centro.
+- [x] Esc fecha e as respostas continuam salvas.
+- [x] Em 1100×700 o rodapé fica fixo e nada se sobrepõe.

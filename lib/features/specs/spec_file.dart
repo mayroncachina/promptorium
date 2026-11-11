@@ -259,6 +259,45 @@ class SpecDocument {
   /// template's hint) are not questions.
   List<OpenQuestion> get openQuestions => openQuestionsScan.questions;
 
+  /// The lines of "Perguntas em aberto" around [q] (SPEC-059 R7): the
+  /// question's own lines ([first]..[last], 1-based) with up to [context]
+  /// lines of the section before and after; null when the question is not
+  /// in the text.
+  QuestionExcerptLines? questionExcerpt(OpenQuestion q, {int context = 2}) {
+    final r = _sectionRange(text, openQuestionsSection, from: _bodyLine);
+    if (r == null || q.line <= r.start + 1 || q.line > r.end) return null;
+    final all = text.split('\n');
+    // 1-based: the section body is r.start + 2 .. r.end.
+    final top = r.start + 2;
+    var bottom = r.end;
+    while (bottom > top && all[bottom - 1].trim().isEmpty) {
+      bottom--;
+    }
+    final next = openQuestions
+        .map((x) => x.line)
+        .where((l) => l > q.line)
+        .fold<int?>(null, (m, l) => m == null || l < m ? l : m);
+    var last = (next ?? bottom + 1) - 1;
+    while (last > q.line && all[last - 1].trim().isEmpty) {
+      last--;
+    }
+    if (last > bottom) last = bottom;
+    var from = (q.line - context).clamp(top, q.line);
+    while (from < q.line && all[from - 1].trim().isEmpty) {
+      from++;
+    }
+    var to = (last + context).clamp(last, bottom);
+    while (to > last && all[to - 1].trim().isEmpty) {
+      to--;
+    }
+    return QuestionExcerptLines(
+      first: q.line,
+      last: last,
+      from: from,
+      lines: all.sublist(from - 1, to),
+    );
+  }
+
   /// [openQuestions] plus what is outside the R1 format (SPEC-028 R2, R3).
   OpenQuestionsScan get openQuestionsScan {
     final r = _sectionRange(text, openQuestionsSection, from: _bodyLine);
@@ -1013,6 +1052,27 @@ class OpenQuestion {
   @override
   String toString() =>
       '$id · $text${suggestion == null ? '' : ' → $suggestion'}';
+}
+
+/// The excerpt of "Perguntas em aberto" around a question (SPEC-059 R7).
+@immutable
+class QuestionExcerptLines {
+  const QuestionExcerptLines({
+    required this.first,
+    required this.last,
+    required this.from,
+    required this.lines,
+  });
+
+  /// 1-based lines of the question itself.
+  final int first;
+  final int last;
+
+  /// 1-based line of [lines].first.
+  final int from;
+  final List<String> lines;
+
+  bool marked(int line) => line >= first && line <= last;
 }
 
 /// What [SpecDocument.openQuestionsScan] read.

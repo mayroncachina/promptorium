@@ -638,7 +638,7 @@ void main() {
         tester
             .widget<Text>(find.byKey(const ValueKey('spec-questions-subtitle')))
             .data,
-        'SPEC-002, pergunta 1 de 4',
+        'SPEC-002 · Sessões com stream-json · pergunta 1 de 4',
       );
       expect(readSpec(tmp), contains('3. E no terminal?'));
     });
