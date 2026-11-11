@@ -16,6 +16,7 @@ import 'review_screen_test.dart' show secondFile;
 
 /// SPEC-010: "Alterações desde…" a review round.
 final _spec = Spec(
+  hasPlan: false,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-007',

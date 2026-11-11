@@ -17,6 +17,17 @@ Color specStatusColor(SpecStatus s) => switch (s) {
   SpecStatus.archived => AppColors.textMuted,
 };
 
+/// Label and color of [spec] in the list: "Planejada" in yellow while it
+/// has a plan and is not approved (SPEC-062 R2), else its status.
+({String label, Color color, bool planned}) specListStatus(Spec spec) =>
+    specIsPlanned(spec.status, hasPlan: spec.hasPlan)
+    ? (label: plannedLabel, color: AppColors.yellow, planned: true)
+    : (
+        label: specStatusLabel(spec.status),
+        color: specStatusColor(spec.status),
+        planned: false,
+      );
+
 /// "4 etapas · 3 concluídas" / "sem requisitos".
 String specStepsMeta(Spec spec, List<SpecStep> rows) {
   final steps = stepsOf(spec, rows);
@@ -149,15 +160,12 @@ class SpecList extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 8),
                                       const Spacer(),
-                                      Flexible(
-                                        child: Text(
-                                          specStatusLabel(s.status),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: specStatusColor(s.status),
-                                          ),
+                                      // The status is short: it keeps its
+                                      // width, the code gives way.
+                                      _StatusText(
+                                        specListStatus(s),
+                                        key: ValueKey(
+                                          'spec-item-status-${s.code}',
                                         ),
                                       ),
                                     ],
@@ -193,4 +201,36 @@ class SpecList extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The status of an item; "Planejada" has a dot before it, so it does not
+/// rely on the color alone (SPEC-062 R2).
+class _StatusText extends StatelessWidget {
+  const _StatusText(this.status, {super.key});
+
+  final ({String label, Color color, bool planned}) status;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (status.planned) ...[
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: status.color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 5),
+      ],
+      Text(
+        status.label,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(fontSize: 11, color: status.color),
+      ),
+    ],
+  );
 }

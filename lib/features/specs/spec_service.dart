@@ -191,6 +191,7 @@ class SpecService {
         requirements: reqs,
         dependsOn: doc.dependsOn,
         phase: doc.phase,
+        hasPlan: doc.design != null,
       );
     }
     var status = doc.status ?? existing.status;
@@ -220,6 +221,7 @@ class SpecService {
         existing.status != status ||
         existing.stage != stage ||
         existing.phase != doc.phase ||
+        existing.hasPlan != (doc.design != null) ||
         !_sameReqs(existing.requirements, reqs) ||
         existing.dependsOn.join(',') != deps.join(',')) {
       await _repo.update(
@@ -232,6 +234,7 @@ class SpecService {
           phase: Value(doc.phase),
           requirements: Value(reqs),
           dependsOn: Value(deps),
+          hasPlan: Value(doc.design != null),
         ),
       );
     }
@@ -361,6 +364,7 @@ class SpecService {
       requirements: doc.requirements,
       dependsOn: doc.dependsOn,
       phase: doc.phase,
+      hasPlan: doc.design != null,
     );
   }
 

@@ -43,6 +43,10 @@ abstract final class AppColors {
   /// Accent: teal (success, running, CLI connected).
   static const teal = Color(0xFF4FD1B5);
 
+  /// "Planejada" (SPEC-062 R4): a yellow apart from the amber of "Em
+  /// revisão" and of the primary button.
+  static const yellow = Color(0xFFE8C547);
+
   /// Accent: blue (info, links).
   static const blue = Color(0xFF8EA4C8);
 

@@ -12,6 +12,7 @@ Spec spec(
   List<String> deps = const [],
   int steps = 0,
 }) => Spec(
+  hasPlan: false,
   id: id,
   workspaceId: 1,
   code: code,

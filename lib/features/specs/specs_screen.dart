@@ -1755,6 +1755,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   onSave: ready && !readOnly ? () => _save(ws, spec) : null,
                   lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
                   statusLabel: planLock?.chip,
+                  planned:
+                      spec != null &&
+                      specIsPlanned(
+                        doc.status ?? spec.status,
+                        hasPlan: doc.design != null,
+                      ),
                   lockAlert: (held && action!.kind.long) || planLock != null,
                   zoom: const ZoomControl(editorKey: SpecsScreen.editorKey),
                   actions: spec == null
