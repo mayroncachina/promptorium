@@ -123,6 +123,26 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/UidCnsDRBFHZxR11yto
 - **O clique abre direto a visão ampliada.** A prévia no cartão some, porque mostrava um pedaço e a pessoa sempre precisava rolar ou adivinhar. O cartão continua mostrando o resumo (resultado, +/−).
 - **Cobre a área da sessão, não a janela.** A barra lateral e o topo ficam, para a pessoa não se perder e poder trocar de tela.
 - **Por cima, não no lugar da linha do tempo.** Manter a linha do tempo montada por baixo é o que permite voltar com a mesma rolagem e o foco no cartão.
+- **t1 · O Prompt continua abrindo no lugar.** O `ToolCard` só abre a visão ampliada quando há um `ToolExpandHost` acima dele, e só a linha do tempo da tela Sessões põe um. No Prompt (fora do escopo) o clique segue abrindo a prévia no cartão.
+- **t1 · Resultado no cabeçalho.** O cabeçalho mostra o mesmo resumo do cartão ("erro", "+9 −3", "+61 arquivo novo", "ok", "N linhas"). Não interpretamos a saída de cada ferramenta de teste para escrever "1 falhou". A duração aparece a partir de 0,1 s, e o número de linhas só quando o corpo é texto.
+- **t1 · Copiar.** Copia o texto que a visão mostra: a saída, o conteúdo do Write ou o diff unificado (`+`/`-`) de um Edit.
+- **t1 · Ordem de Anterior/Próxima.** As chamadas de um subagente entram logo depois do cartão Task delas, na mesma ordem em que aparecem aninhadas na linha do tempo.
+- **t1 · Volta a um cartão fora da tela.** Se o último item navegado não está montado na lista (que é preguiçosa), a lista rola uma tela por vez na direção dele até ele aparecer, e então o traz para a área visível só o necessário.
+- **t1 · Destaque com movimento reduzido.** O destaque âmbar fica inteiro por 1,2 s e some de uma vez, sem esmaecer.
+- **t2 · "Quebrar linhas" por aba.** Começa desligado na saída do Bash e no conteúdo de arquivos (Read e Write, que são código), e ligado no Comando, nas abas Saída/Entrada das outras ferramentas e no erro de um Edit. A escolha vale para a aba daquele item enquanto a visão está aberta.
+- **t2 · Linhas do Read.** O Read devolve as linhas no formato `cat -n` (`   12→texto`). A visão usa esses números e deixa de fora o que não é linha do arquivo, como o lembrete que o Claude Code anexa ao resultado. Com `offset`/`limit`, a visão lê o arquivo do disco para mostrar o arquivo inteiro com as linhas lidas destacadas. Se não conseguir ler (o arquivo sumiu ou tem mais de 4 MB), mostra só as linhas devolvidas, com os números delas.
+- **t2 · Busca.** Não diferencia maiúsculas de minúsculas e procura no texto da aba aberta. A ocorrência atual fica em âmbar cheio e as outras em âmbar translúcido. Sem ocorrências, o contador mostra "nenhuma". Na t2, a busca existe nas abas de texto; o diff ganha busca na t3.
+- **t2 · Tabulações** viram quatro espaços na exibição, para a coluna e a busca baterem com o que se vê.
+- **t3 · Limite de largura único (1200 px).** O R6 abre lado a lado a partir de 1000 px, e o R10 abre o Edit em Unificado abaixo de 1200 px. Como o R10 é a regra mais específica para janelas estreitas, o Edit abre lado a lado só com 1200 px ou mais de área. Abaixo disso abre Unificado, e a aba Lado a lado continua a um clique. O mesmo limite deixa Anterior, Próxima, Copiar e Abrir no Código só com ícone, e esconde a duração e as contagens do cabeçalho. O resultado continua.
+- **t3 · Números do lado "antes".** Os `DiffRow` guardam o número antigo nas linhas removidas e o novo nas demais. Para as linhas sem mudança, o lado esquerdo recebe o número novo menos o saldo de linhas adicionadas até ali. Quando o diff não tem posições (o texto anterior ao Edit não era conhecido), as duas colunas ficam sem números.
+- **t3 · Abrir no Código.** Seleciona o worktree da sessão na tela Código, abre o arquivo na linha e troca de tela, como já faz a aba Atividade. A visão fecha antes, e o cartão recebe o destaque quando a pessoa volta às Sessões. Para escolher a linha:
+  - Edit ou MultiEdit: a primeira linha alterada. Se o diff não tem posições, a visão procura no arquivo atual a primeira linha do texto novo e, se não achar, abre na linha 1;
+  - Read: o `offset`;
+  - Write: a primeira mudança, ou a linha 1 num arquivo novo.
+
+  Um arquivo fora do worktree mostra um aviso em vez de abrir.
+- **t3 · Busca no diff.** Ctrl+F também busca nas abas Lado a lado e Unificado, nas linhas do diff. "Quebrar linhas" vale para o Lado a lado. O Unificado mantém o layout do `DiffView`.
+- **t3 · "N trechos"** no cabeçalho de um Edit conta os blocos de linhas alteradas.
 
 ## Plano
 
@@ -132,10 +152,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/UidCnsDRBFHZxR11yto
 
 ## Critérios de aceite
 
-- [ ] Clicar num Bash abre a saída inteira ocupando a área toda; Esc volta ao layout com o cartão em foco.
-- [ ] ↑/↓ passam para o item vizinho sem fechar.
-- [ ] Ctrl+F acha o texto na saída e mostra "x de n".
-- [ ] Um Edit abre com o diff lado a lado; Abrir no Código leva à linha alterada.
-- [ ] Write e Read mostram o arquivo com números de linha.
-- [ ] Com movimento reduzido, a visão abre e fecha sem animação.
-- [ ] Em 1100×700 nada fica cortado.
+- [x] Clicar num Bash abre a saída inteira ocupando a área toda; Esc volta ao layout com o cartão em foco.
+- [x] ↑/↓ passam para o item vizinho sem fechar.
+- [x] Ctrl+F acha o texto na saída e mostra "x de n".
+- [x] Um Edit abre com o diff lado a lado; Abrir no Código leva à linha alterada.
+- [x] Write e Read mostram o arquivo com números de linha.
+- [x] Com movimento reduzido, a visão abre e fecha sem animação.
+- [x] Em 1100×700 nada fica cortado.
