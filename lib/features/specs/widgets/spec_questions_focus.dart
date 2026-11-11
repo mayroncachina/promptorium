@@ -121,9 +121,15 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final r = widget.onKeyEvent?.call(node, event) ?? KeyEventResult.ignored;
     if (r != KeyEventResult.ignored) return r;
+    // SPEC-060 R5: Ctrl+Esc closes from any screen; Esc closes when the
+    // screen did not take it (the questions). While applying neither does
+    // anything (and the run is not cancelled).
+    final kb = HardwareKeyboard.instance;
     if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
-      // While applying, Esc does nothing (and does not cancel the run).
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        !kb.isAltPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed) {
       widget.onClose?.call();
       return KeyEventResult.handled;
     }
@@ -286,7 +292,7 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
         ),
         const SizedBox(width: 12),
         Tooltip(
-          message: 'Fechar (Esc). As respostas ficam guardadas.',
+          message: 'Fechar (Ctrl+Esc). As respostas ficam guardadas.',
           child: OutlinedButton(
             key: const ValueKey('spec-questions-close'),
             onPressed: widget.onClose,
@@ -309,7 +315,7 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(width: 8),
-                ExcludeSemantics(child: StepKbd('Esc')),
+                ExcludeSemantics(child: StepKbd('Ctrl+Esc')),
               ],
             ),
           ),

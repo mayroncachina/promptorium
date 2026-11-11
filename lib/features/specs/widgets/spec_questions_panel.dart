@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -120,7 +121,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   var _update = true;
   AppliedAnswers? _applied;
   Map<String, Answer> _appliedAnswers = const {};
+  bool _appliedUpdate = true;
   bool _saving = false;
+
+  /// SPEC-060 R4: the first Delete arms "Descartar"; a second one within
+  /// [_discardWindow] discards.
+  bool _discardArmed = false;
+  Timer? _discardTimer;
+  static const _discardWindow = Duration(seconds: 3);
   final _other = TextEditingController();
   final _otherFocus = FocusNode(debugLabel: 'spec-question-other-text');
   final _options = {
@@ -164,6 +172,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       f.dispose();
     }
     _panelFocus.dispose();
+    _discardTimer?.cancel();
     super.dispose();
   }
 
@@ -320,14 +329,59 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
 
   Future<void> _apply() async {
     final answers = {for (final q in _questions) q.id: ?_answers[q.id]};
+    // SPEC-060 R3: back from the diff with nothing changed, the diff that
+    // was already made comes back without running the Claude again.
+    if (_applied != null &&
+        _appliedUpdate == _update &&
+        mapEquals(answers, _appliedAnswers)) {
+      setState(() => _stage = _Stage.diff);
+      _focusPanel();
+      return;
+    }
     setState(() => _stage = _Stage.applying);
     final r = await widget.onApply(answers, _update);
     if (!mounted) return;
     setState(() {
       _applied = r;
       _appliedAnswers = answers;
+      _appliedUpdate = _update;
       _stage = r == null ? _Stage.review : _Stage.diff;
     });
+    _focusPanel();
+  }
+
+  /// "Voltar às respostas" (SPEC-060 R3: also Esc).
+  void _backToReview() {
+    _disarm();
+    setState(() => _stage = _Stage.review);
+    _focusPanel();
+  }
+
+  /// The column takes the focus, so Enter is the primary action again.
+  void _focusPanel() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _panelFocus.requestFocus();
+    });
+  }
+
+  void _arm() {
+    _discardTimer?.cancel();
+    _discardTimer = Timer(_discardWindow, _disarm);
+    setState(() => _discardArmed = true);
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        'Aperte Delete de novo em 3 segundos para descartar. '
+        'As respostas continuam guardadas.',
+        TextDirection.ltr,
+      ),
+    );
+  }
+
+  void _disarm() {
+    _discardTimer?.cancel();
+    _discardTimer = null;
+    if (_discardArmed && mounted) setState(() => _discardArmed = false);
   }
 
   Future<void> _save() async {
@@ -376,10 +430,13 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   /// or Alt+←/→ change the question. Esc is the frame's.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final q = _current;
-    if (_stage != _Stage.question || q == null) return KeyEventResult.ignored;
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (q != null && (_stage == _Stage.review || _stage == _Stage.diff)) {
+      return _onEndKey(event);
+    }
+    if (_stage != _Stage.question || q == null) return KeyEventResult.ignored;
     final kb = HardwareKeyboard.instance;
     final key = event.logicalKey;
     final inField = _otherFocus.hasFocus;
@@ -433,6 +490,55 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     return KeyEventResult.ignored;
   }
 
+  /// SPEC-060: in the review Esc goes back to the questions and Enter
+  /// applies; in "O que muda na spec" Enter saves, Esc goes back to the
+  /// review and Delete (twice) discards. Ctrl+Esc is the frame's (close).
+  KeyEventResult _onEndKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final kb = HardwareKeyboard.instance;
+    final key = event.logicalKey;
+    final plain =
+        !kb.isAltPressed &&
+        !kb.isControlPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed;
+    final delete = key == LogicalKeyboardKey.delete;
+    if (_discardArmed && !(delete && plain)) _disarm();
+    if (!plain) return KeyEventResult.ignored;
+    final esc = key == LogicalKeyboardKey.escape;
+    final enter =
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter;
+    if (!esc && !enter && !(delete && _stage == _Stage.diff)) {
+      return KeyEventResult.ignored;
+    }
+    // While saving, nothing (and Esc does not close).
+    if (_saving) return KeyEventResult.handled;
+    if (esc) {
+      _stage == _Stage.review ? _previous() : _backToReview();
+      return KeyEventResult.handled;
+    }
+    if (enter) {
+      // A focused button or checkbox takes its own Enter (SPEC-060 R2).
+      if (FocusManager.instance.primaryFocus != _panelFocus) {
+        return KeyEventResult.ignored;
+      }
+      if (_stage == _Stage.diff) {
+        unawaited(_save());
+      } else if (_answeredCount > 0) {
+        unawaited(_apply());
+      }
+      return KeyEventResult.handled;
+    }
+    if (_discardArmed) {
+      _disarm();
+      widget.onClose();
+    } else {
+      _arm();
+    }
+    return KeyEventResult.handled;
+  }
+
   /// Left / right on a focused option: the radio group would take them to
   /// move between the options, which ↑/↓ already do.
   KeyEventResult _onOptionsKey(FocusNode node, KeyEvent event) {
@@ -469,47 +575,51 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
         '$_prefix · o que muda na spec · nada foi salvo ainda',
       ),
     };
-    return SpecQuestionsFocus(
-      title: title,
-      specCode: widget.specCode,
-      subtitle: subtitle,
-      focusNode: _panelFocus,
-      onKeyEvent: _onKey,
-      onClose: _stage == _Stage.applying ? null : widget.onClose,
-      turn: (_stage, _index),
-      scrollable: _stage != _Stage.diff && _stage != _Stage.applying,
-      // SPEC-059 R8: the diff takes the width of the area, up to 1100 px.
-      maxWidth: _stage == _Stage.diff ? 1100 : 720,
-      body: q == null
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: Text(
-                  'A spec não tem perguntas em aberto.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+    // SPEC-060 R4: a click anywhere disarms "Descartar".
+    return Listener(
+      onPointerDown: (_) => _disarm(),
+      child: SpecQuestionsFocus(
+        title: title,
+        specCode: widget.specCode,
+        subtitle: subtitle,
+        focusNode: _panelFocus,
+        onKeyEvent: _onKey,
+        onClose: _stage == _Stage.applying || _saving ? null : widget.onClose,
+        turn: (_stage, _index),
+        scrollable: _stage != _Stage.diff && _stage != _Stage.applying,
+        // SPEC-059 R8: the diff takes the width of the area, up to 1100 px.
+        maxWidth: _stage == _Stage.diff ? 1100 : 720,
+        body: q == null
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: Text(
+                    'A spec não tem perguntas em aberto.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            )
-          : switch (_stage) {
-              _Stage.question => _questionView(q),
-              _Stage.review => _reviewView(),
-              _Stage.applying => _applyingView(),
-              _Stage.diff => _diffView(),
-            },
-      footer: q == null
-          ? QuestionFooter(
-              left: const [],
-              right: [
-                OutlinedButton(
-                  onPressed: widget.onClose,
-                  child: const Text('Fechar'),
-                ),
-              ],
-            )
-          : _footer(q),
+              )
+            : switch (_stage) {
+                _Stage.question => _questionView(q),
+                _Stage.review => _reviewView(),
+                _Stage.applying => _applyingView(),
+                _Stage.diff => _diffView(),
+              },
+        footer: q == null
+            ? QuestionFooter(
+                left: const [],
+                right: [
+                  OutlinedButton(
+                    onPressed: widget.onClose,
+                    child: const Text('Fechar'),
+                  ),
+                ],
+              )
+            : _footer(q),
+      ),
     );
   }
 
@@ -865,7 +975,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             onPressed: _stage == _Stage.review ? _previous : null,
             style: secondary,
             icon: const Icon(Icons.chevron_left, size: 18),
-            label: const Text('Voltar às perguntas', style: bold),
+            label: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Voltar às perguntas', style: bold),
+                SizedBox(width: 8),
+                ExcludeSemantics(child: StepKbd('Esc')),
+              ],
+            ),
           ),
         ],
         right: [
@@ -888,6 +1005,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, size: 18),
+                  const SizedBox(width: 8),
+                  const ExcludeSemantics(
+                    child: StepKbd('Enter', onAmber: true),
+                  ),
                 ],
               ),
             ),
@@ -896,21 +1017,62 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       ),
       _Stage.diff => QuestionFooter(
         left: [
-          TextButton(
-            key: const ValueKey('spec-questions-discard'),
-            onPressed: _saving ? null : widget.onClose,
-            child: const Text('Descartar'),
-          ),
+          _discardArmed
+              ? OutlinedButton(
+                  key: const ValueKey('spec-questions-discard'),
+                  onPressed: _saving ? null : widget.onClose,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.red,
+                    backgroundColor: AppColors.red.withValues(alpha: .12),
+                    side: BorderSide(
+                      color: AppColors.red.withValues(alpha: .55),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Descartar mudanças?', style: bold),
+                      SizedBox(width: 8),
+                      ExcludeSemantics(child: StepKbd('Delete')),
+                      SizedBox(width: 6),
+                      Text('de novo'),
+                    ],
+                  ),
+                )
+              : TextButton(
+                  key: const ValueKey('spec-questions-discard'),
+                  onPressed: _saving ? null : widget.onClose,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Descartar'),
+                      SizedBox(width: 8),
+                      ExcludeSemantics(child: StepKbd('Delete')),
+                    ],
+                  ),
+                ),
         ],
         right: [
           OutlinedButton.icon(
             key: const ValueKey('spec-questions-back'),
-            onPressed: _saving
-                ? null
-                : () => setState(() => _stage = _Stage.review),
+            onPressed: _saving ? null : _backToReview,
             style: secondary,
             icon: const Icon(Icons.chevron_left, size: 18),
-            label: const Text('Voltar às respostas'),
+            label: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Voltar às respostas'),
+                SizedBox(width: 8),
+                ExcludeSemantics(child: StepKbd('Esc')),
+              ],
+            ),
           ),
           AppPressable(
             enabled: !_saving,
@@ -919,7 +1081,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
               onPressed: _saving ? null : _save,
               style: primary,
               icon: const Icon(Icons.check, size: 16),
-              label: const Text('Salvar na spec', style: bold),
+              label: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Salvar na spec', style: bold),
+                  SizedBox(width: 8),
+                  ExcludeSemantics(child: StepKbd('Enter', onAmber: true)),
+                ],
+              ),
             ),
           ),
         ],
