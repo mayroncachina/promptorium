@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/home_inbox.dart' show navBadgesProvider;
+import '../../features/prompt/prompt_activity.dart';
 import '../theme/motion.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
@@ -52,12 +53,14 @@ class SideBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final badges = ref.watch(navBadgesProvider);
+    final activity = ref.watch(promptActivityProvider);
     Widget item(AppSection s) => s.featured
         ? SideBarFeaturedItem(
             key: ValueKey('nav-${s.name}'),
             section: s,
             active: s == active.navItem,
             badge: badges[s] ?? 0,
+            activity: activity,
             onTap: () => onSelect(s),
           )
         : SideBarItem(
@@ -195,14 +198,19 @@ class SideBarFeaturedItem extends StatefulWidget {
     required this.active,
     required this.onTap,
     this.badge = 0,
+    this.activity,
   });
 
   final AppSection section;
   final bool active;
   final VoidCallback onTap;
 
-  /// Pending items shown as a counter (0 = none).
+  /// Pending approvals and ready plans, shown as a counter (0 = none).
   final int badge;
+
+  /// A conversation still answering: a teal dot pulses in the corner and
+  /// the tooltip names it (SPEC-055 R4). Null = none.
+  final PromptActivity? activity;
 
   @override
   State<SideBarFeaturedItem> createState() => _SideBarFeaturedItemState();
@@ -218,10 +226,20 @@ class _SideBarFeaturedItemState extends State<SideBarFeaturedItem> {
     final section = widget.section;
     final active = widget.active;
     final badge = widget.badge;
+    final activity = widget.activity;
     final radius = BorderRadius.circular(13);
-    final label = badge > 0
-        ? '${section.navLabel} · $badge ${badge == 1 ? 'pendente' : 'pendentes'}'
-        : section.navLabel;
+    final pending = badge > 0
+        ? '$badge ${badge == 1 ? 'pendente' : 'pendentes'}'
+        : null;
+    // "Prompt", "Prompt · respondendo", "Prompt · 2 pendentes" (R10).
+    final label = [
+      section.navLabel,
+      if (activity != null) 'respondendo',
+      ?pending,
+    ].join(' · ');
+    final tooltip = activity == null
+        ? label
+        : [activity.tooltip, ?pending].join(' · ');
     final hovered = _hovered && !active;
     final hover = AppMotion.duration(
       context,
@@ -250,7 +268,7 @@ class _SideBarFeaturedItemState extends State<SideBarFeaturedItem> {
         _focused &&
         FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
     return Tooltip(
-      message: label,
+      message: tooltip,
       waitDuration: const Duration(milliseconds: 400),
       preferBelow: false,
       child: Semantics(
@@ -346,18 +364,81 @@ class _SideBarFeaturedItemState extends State<SideBarFeaturedItem> {
                     ),
                   ),
                 ),
+              // The counter says more than the dot: it takes the corner.
               if (badge > 0)
                 Positioned(
                   top: -3,
                   right: -3,
                   child: _Badge(section: section, count: badge),
-                ),
+                )
+              // On the Prompt screen the conversation itself shows it.
+              else if (activity != null && !active)
+                const Positioned(top: 5, right: 5, child: _LiveDot()),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Teal dot of a conversation still answering (SPEC-055 R4): it pulses
+/// (opacity 1 → .45, 1.6s) and stays still with reduced motion.
+class _LiveDot extends StatefulWidget {
+  const _LiveDot();
+
+  @override
+  State<_LiveDot> createState() => _LiveDotState();
+}
+
+class _LiveDotState extends State<_LiveDot>
+    with SingleTickerProviderStateMixin {
+  late final _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.animate(context)) {
+      if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
+    } else {
+      _pulse
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: Tween<double>(
+      begin: 1,
+      end: .45,
+    ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
+    child: Container(
+      key: const ValueKey('nav-prompt-live'),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: AppColors.teal,
+        shape: BoxShape.circle,
+        boxShadow: [
+          const BoxShadow(color: Color(0xE60A0C10), spreadRadius: 2),
+          BoxShadow(
+            color: AppColors.teal.withValues(alpha: .8),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// The amber counter of what waits for the user on a screen.
