@@ -9,6 +9,10 @@ abstract final class AppSettingKeys {
   /// (SPEC-054 R7).
   static const attentionShake = 'aparencia.tremor';
 
+  /// Right panel of the Prompt collapsed in its strip (`1` / `0`;
+  /// SPEC-056 R8).
+  static const promptPanelCollapsed = 'prompt.painelRecolhido';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 
