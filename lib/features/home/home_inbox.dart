@@ -320,17 +320,25 @@ final workspaceInboxProvider = Provider.autoDispose
     });
 
 /// Counters of the sidebar (UX v2): what waits for the user, by screen.
+/// Approvals and "Plano pronto" of Prompt conversations count on the Prompt,
+/// not on Sessões (SPEC-055 R4).
 final navBadgesProvider = Provider.autoDispose<Map<AppSection, int>>((ref) {
   final groups = ref.watch(inboxProvider);
   int count(InboxKind k) =>
       groups.where((g) => g.kind == k).fold(0, (a, g) => a + g.items.length);
   final total = groups.fold(0, (a, g) => a + g.items.length);
+  final approvals = [
+    for (final g in groups)
+      if (g.kind == InboxKind.approval) ...g.items,
+  ];
+  final prompt = approvals.where((i) => i.conversationId != null).length;
+  final sessions = approvals.length - prompt;
   return {
     if (total > 0) AppSection.home: total,
     if (count(InboxKind.needsAnswer) > 0)
       AppSection.tasks: count(InboxKind.needsAnswer),
-    if (count(InboxKind.approval) > 0)
-      AppSection.sessions: count(InboxKind.approval),
+    if (sessions > 0) AppSection.sessions: sessions,
+    if (prompt > 0) AppSection.prompt: prompt,
     if (count(InboxKind.review) + count(InboxKind.prProblem) > 0)
       AppSection.review: count(InboxKind.review) + count(InboxKind.prProblem),
   };
