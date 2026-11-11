@@ -128,11 +128,35 @@ void main() {
       expect(await repo.getByCommand('commit'), isNull);
     });
 
+    test('SPEC-063 R5: an old /spec never edited gets the new text; an '
+        'edited one stays', () async {
+      final repo = c.read(savedPromptsRepoProvider);
+      final settings = c.read(appSettingsProvider.notifier);
+      await repo.upsert(
+        command: 'spec',
+        body: legacySpecPromptBody,
+        description: 'Transforma uma ideia solta em spec',
+      );
+      await settings.set(AppSettingKeys.savedPromptsSeeded, '1');
+      await seedSavedPrompts(repo, settings);
+      expect((await repo.getByCommand('spec'))!.body, specPromptBody);
+      await repo.upsert(command: 'spec', body: 'meu texto');
+      await seedSavedPrompts(repo, settings);
+      expect((await repo.getByCommand('spec'))!.body, 'meu texto');
+    });
+
     test('validateCommand', () {
       expect(validateCommand('/revisar-testes'), isNull);
       expect(validateCommand(''), isNotNull);
       expect(validateCommand('Com Espaço'), isNotNull);
     });
+  });
+
+  test('SPEC-063 R5: /spec asks for the frontmatter with depende-de', () {
+    final spec = defaultSavedPrompts.firstWhere((p) => p.command == 'spec');
+    expect(spec.body, contains('depende-de: [SPEC-001]'));
+    expect(spec.body, contains('nunca "depende"'));
+    expect(spec.body, contains('status: rascunho'));
   });
 
   test('SPEC-028 R1: /spec asks for "- P<n> · …" with the suggestion in a '

@@ -107,6 +107,21 @@ void main() {
     });
   });
 
+  test('SPEC-063 R5: "Transformar em spec" and "Aplicar na spec" write '
+      'depende-de and say so', () {
+    const md =
+        '---\nid: X\nstatus: pronto\ndepende: [SPEC-001]\n---\n\n# Pedidos\n';
+    final created = newSpecTextFromAnswer(md, 'SPEC-004');
+    expect(created, contains('depende-de: [SPEC-001]'));
+    expect(created, isNot(contains('depende: ')));
+    expect(created, contains('id: SPEC-004'));
+    expect(
+      dependsOnAliasAdjust(md),
+      'A chave "depende" vira "depende-de": [SPEC-001].',
+    );
+    expect(dependsOnAliasAdjust('---\ndepende-de: [SPEC-001]\n---\n'), isNull);
+  });
+
   test('withSpecTitle replaces or adds the title', () {
     expect(
       withSpecTitle(spec, 'Novo título'),

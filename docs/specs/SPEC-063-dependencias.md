@@ -24,6 +24,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QpHSDa4KLroKNdik5Ww
 | `4-avisos.png` | Avisos de código inexistente e de chave desconhecida | R3, R4 |
 | `5-transformar.png` | "Transformar em spec" mostra o cabeçalho ajustado | R5 |
 
+Telas do app em `docs/mockups/spec-063/app/`: `1-variacao.png` e `2-trocado.png` (t1), `3-avisos.png` (t2).
+
 ## Requisitos
 
 - R1 · O app lê como `depende-de` as variações da chave: `depende`, `depends`, `depends-on`, `depends_on`, `dependsOn`, `depende_de`, `dependencias` e `dependências`, sem diferença de maiúsculas. A dependência vale na hora: no Quadro, no "Executar tudo", na lista ("espera SPEC-001") e na sincronização com o banco.
@@ -75,6 +77,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QpHSDa4KLroKNdik5Ww
 
 - **Aceitar e corrigir, em vez de só avisar.** A spec que falhou estava aprovada e pronta para rodar. Só avisar deixaria a execução errada até alguém ler o aviso. Lendo a variação, o comportamento fica certo na hora, e o aviso explica a troca.
 - **Variações fechadas.** Uma lista fixa evita adivinhar: `requer` ou `apos` podem significar outra coisa, e viram aviso de chave desconhecida (R4).
+- **t1 · Onde aparece a espera.** A dependência lida pela variação aparece no painel de etapas ("Depende de SPEC-001 (ainda fora de Feito)") e bloqueia no Quadro e no "Executar tudo". A lista de specs continua mostrando as etapas, como hoje; o texto "espera SPEC-001" no card fica com a SPEC-064.
+- **t1 · Troca no lugar.** A variação vira `depende-de` na mesma linha. Se `depende-de` já existe, a variação sai e a lista dela entra na de `depende-de`.
+- **t2 · Cabeçalho ajustado.** A troca da chave em "Transformar em spec" e "Aplicar na spec" aparece no quadro "Ajustado ao salvar" que o diálogo já tem ('A chave "depende" vira "depende-de": [SPEC-001].'), em vez de um diff linha a linha só do cabeçalho; a aba de diferenças continua mostrando o texto inteiro.
+- **t2 · `/spec` existente.** O prompt salvo só é trocado pelo novo quando está igual ao texto antigo; um `/spec` editado por quem usa fica como está.
+- **t2 · Códigos do workspace.** Os avisos de dependência inexistente usam as specs do workspace, arquivadas incluídas; antes de a lista carregar, não há esse aviso.
 - **Chave desconhecida é aviso, não erro.** O cabeçalho pode ter metadados de quem usa o projeto; o aviso não impede salvar nem aprovar, como os outros avisos de estrutura.
 
 ## Plano
@@ -84,8 +91,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/QpHSDa4KLroKNdik5Ww
 
 ## Critérios de aceite
 
-- [ ] Uma spec com `depende: [SPEC-001]` espera a SPEC-001 no "Executar tudo".
-- [ ] Ao salvar, `depende:` vira `depende-de:` no arquivo.
-- [ ] Uma dependência para uma spec que não existe aparece como aviso.
-- [ ] Uma chave desconhecida no cabeçalho aparece como aviso, com "Trocar para depende-de".
-- [ ] O `/spec` e "Transformar em spec" produzem `depende-de`.
+- [x] Uma spec com `depende: [SPEC-001]` espera a SPEC-001 no "Executar tudo".
+- [x] Ao salvar, `depende:` vira `depende-de:` no arquivo.
+- [x] Uma dependência para uma spec que não existe aparece como aviso.
+- [x] Uma chave desconhecida no cabeçalho aparece como aviso, com "Trocar para depende-de".
+- [x] O `/spec` e "Transformar em spec" produzem `depende-de`.
