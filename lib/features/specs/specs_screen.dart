@@ -671,8 +671,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   /// Structure warnings of [text] and the editor marks of the suggestions
   /// counted as questions (SPEC-028 R2).
+  /// Codes of the workspace's specs, for the dependency warnings
+  /// (SPEC-063 R3); empty until the list arrives.
+  Set<String> _knownCodes = const {};
+
   void _setWarnings(String text) {
-    _warnings = lintSpec(text);
+    _warnings = lintSpec(text, knownCodes: _knownCodes);
     final scan = SpecDocument.parse(text).openQuestionsScan;
     _questionMarks.value = {
       for (final l in scan.suggestionLines) l - 1: AppColors.amber,
@@ -920,7 +924,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final questions = doc.openQuestions;
     // The format notice has its own strip (SPEC-028 R3).
     final warnings = [
-      for (final w in lintSpec(c.text))
+      for (final w in lintSpec(c.text, knownCodes: _knownCodes))
         if (w.kind != SpecWarningKind.openQuestionsFormat) w,
     ];
     if (questions.isNotEmpty || warnings.isNotEmpty) {
@@ -1097,6 +1101,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     c.text = doc.withOpenQuestions(doc.openQuestions);
     setState(() => _setWarnings(c.text));
     _snack('Formato das perguntas corrigido. Revise e salve.');
+  }
+
+  /// "Trocar para depende-de" on an unknown key (SPEC-063 R4).
+  void _fixWarning(SpecWarning w) {
+    final c = _controller;
+    final k = w.key;
+    if (c == null || k == null) return;
+    c.text = SpecDocument.parse(c.text).withDependsOnFrom(k);
+    setState(() => _setWarnings(c.text));
   }
 
   /// "Trocar agora" (SPEC-063 R2): the variation becomes `depende-de` in
@@ -1517,6 +1530,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       return NewSpecView(workspace: ws, onCreated: _onSpecCreated);
     }
     final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    _knownCodes = {for (final s in allSpecs) s.code};
     final showArchived = ref.watch(showArchivedProvider);
     final archivedCount = allSpecs
         .where((s) => s.status == SpecStatus.archived)
@@ -1713,6 +1727,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                     onToggleWarnings: () =>
                         setState(() => _warningsOpen = !_warningsOpen),
                     onWarning: _goToLine,
+                    onFixWarning: _fixWarning,
                     lockedBanner: locked
                         ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
                               'não é editável. Use "Clonar para alterar" '
@@ -2085,7 +2100,10 @@ class _EditorBody extends StatelessWidget {
     this.onAnswerQuestions,
     this.dependsNotice,
     this.onFixDepends,
+    this.onFixWarning,
   });
+
+  final ValueChanged<SpecWarning>? onFixWarning;
 
   /// A variation of `depende-de` (SPEC-063 R2): the notice above the
   /// editor with "Trocar agora".
@@ -2175,6 +2193,7 @@ class _EditorBody extends StatelessWidget {
                 open: warningsOpen,
                 onToggle: onToggleWarnings ?? () {},
                 onSelect: onWarning ?? (_) {},
+                onFix: onFixWarning,
               ),
             ),
         ],
