@@ -24,6 +24,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/XykDZbCWv2qbkgdYHRw
 | `5-erro.png` | Falha ao gerar: as anteriores continuam | R5 |
 | `6-estreito.png` | 1100×700 com cinco opções | R6 |
 
+Telas do app depois da t1, em `docs/mockups/spec-061/app/`: `1-tres-sugestoes.png`, `2-gerando.png`, `3-novas.png`, `4-erro.png` e `5-estreito.png`.
+
 ## Requisitos
 
 - R1 · O Claude propõe **três** respostas por pergunta (hoje, até duas), diferentes da sugestão da spec. As opções ficam: a sugestão da spec (quando há), as três propostas e "Outra resposta", com as teclas 1 a 5. Sem sugestão na spec, as propostas começam no 1.
@@ -75,6 +77,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/XykDZbCWv2qbkgdYHRw
 - **A escolhida fica.** Trocar tudo jogaria fora uma resposta que a pessoa já tinha marcado só para ver alternativas.
 - **Ctrl+R.** Está livre no app, e não é atalho de edição de texto, então vale também no campo de "Outra resposta".
 - **Sem limite de pedidos.** Cada pedido usa o mesmo orçamento da proposta inicial (`budgetUsd`); o botão desabilitado enquanto gera evita pedidos em fila.
+- **t1 · Repetidas.** Além de pedir ao Claude para não repetir, o app descarta qualquer proposta com o mesmo título de uma já mostrada (sem diferença de maiúsculas). Se só vierem repetidas, conta como falha (R5).
+- **t1 · Selos.** "mantida" e "nova" ficam no conjunto até o próximo pedido; a escolhida em espera continua escolhível e com a sua tecla.
+- **t1 · Primeira tentativa que falhou.** Se as propostas iniciais não vieram, "Outras sugestões" (e Ctrl+R) pede de novo.
 
 ## Plano
 
@@ -82,7 +87,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/XykDZbCWv2qbkgdYHRw
 
 ## Critérios de aceite
 
-- [ ] Cada pergunta mostra três propostas do Claude, além da sugestão da spec.
-- [ ] "Outras sugestões" (Ctrl+R) traz três propostas novas, sem repetir as anteriores.
-- [ ] A resposta escolhida continua no lugar quando as outras são trocadas.
-- [ ] Se falhar, as propostas anteriores continuam e dá para tentar de novo.
+- [x] Cada pergunta mostra três propostas do Claude, além da sugestão da spec.
+- [x] "Outras sugestões" (Ctrl+R) traz três propostas novas, sem repetir as anteriores.
+- [x] A resposta escolhida continua no lugar quando as outras são trocadas.
+- [x] Se falhar, as propostas anteriores continuam e dá para tentar de novo.

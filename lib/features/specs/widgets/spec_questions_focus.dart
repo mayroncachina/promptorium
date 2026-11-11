@@ -429,6 +429,7 @@ class QuestionOptionCard<T> extends StatelessWidget {
     required this.onTap,
     this.focusNode,
     this.badge,
+    this.badgeColor = AppColors.amber,
     this.detail,
     this.field,
     this.trailing,
@@ -444,6 +445,10 @@ class QuestionOptionCard<T> extends StatelessWidget {
   final VoidCallback onTap;
   final FocusNode? focusNode;
   final String? badge;
+
+  /// Amber for "Sugestão da spec"; teal for "mantida" and grey for "nova"
+  /// (SPEC-061 R4).
+  final Color badgeColor;
   final String? detail;
 
   /// "Outra resposta": the text field inside the card.
@@ -502,7 +507,8 @@ class QuestionOptionCard<T> extends StatelessWidget {
                                     color: AppColors.text,
                                   ),
                                 ),
-                                if (badge != null) _Badge(badge!),
+                                if (badge != null)
+                                  _Badge(badge!, color: badgeColor),
                               ],
                             ),
                           ),
@@ -547,25 +553,22 @@ class QuestionOptionCard<T> extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge(this.text);
+  const _Badge(this.text, {this.color = AppColors.amber});
 
   final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
     decoration: BoxDecoration(
-      color: AppColors.amberTint,
+      color: color.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.6)),
+      border: Border.all(color: color.withValues(alpha: 0.6)),
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.amber,
-      ),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
     ),
   );
 }
