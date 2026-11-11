@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../data/providers.dart';
+import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../../../ui/widgets/numbered_text_view.dart';
+import '../../code/code_model.dart';
 import '../edit_diff.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
@@ -242,6 +245,50 @@ final toolFileTextProvider = FutureProvider.autoDispose.family<String?, String>(
   },
 );
 
+/// Line (1-based) of the first line of [needle] in [text]; null = absent.
+int? lineOf(String text, String needle) {
+  final first = needle
+      .split('\n')
+      .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
+  if (first.isEmpty) return null;
+  final at = text.indexOf(first);
+  return at < 0 ? null : '\n'.allMatches(text.substring(0, at)).length + 1;
+}
+
+/// Opens [path] (absolute, under [worktree]) on the Code screen at [line]
+/// (1-based); returns why it could not, or null.
+typedef OpenInCode = Future<String?> Function(
+  String worktree,
+  String path,
+  int line,
+);
+
+/// "Abrir no Código" (SPEC-058 R6, R7): the Code screen on the session's
+/// worktree, with the file open at the line.
+final openInCodeProvider = Provider<OpenInCode>(
+  (ref) => (worktree, path, line) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null) return 'Nenhum workspace aberto.';
+    final String rel;
+    if (path.startsWith('$worktree/')) {
+      rel = path.substring(worktree.length + 1);
+    } else if (!path.startsWith('/')) {
+      rel = path;
+    } else {
+      return 'O arquivo está fora do worktree da sessão.';
+    }
+    await ref
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.codeWorktree(ws.id), worktree);
+    final r = await ref
+        .read(codeWorktreeModelProvider(worktree))
+        .openAt(rel, line);
+    if (r case NotOpened(:final reason)) return reason;
+    await ref.read(navigationProvider.notifier).request(AppSection.code);
+    return null;
+  },
+);
+
 /// What one tab of the expanded view shows.
 sealed class _Content {
   const _Content();
@@ -278,10 +325,13 @@ class _TextContent extends _Content {
 }
 
 class _DiffContent extends _Content {
-  const _DiffContent(this.diff, {this.muted = false});
+  const _DiffContent(this.diff, {this.muted = false, this.split = false});
 
   final EditDiff diff;
   final bool muted;
+
+  /// Side by side (R6); otherwise unified.
+  final bool split;
 }
 
 typedef _Tab = ({String id, String label, _Content content});
@@ -434,13 +484,18 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
       case 'Read' when t.done && !t.isError:
         return [(id: 'content', label: 'Conteúdo', content: _readContent(t))];
       case _ when showsDiff:
-        return [
-          (
-            id: 'diff',
-            label: 'Unificado',
-            content: _DiffContent(diff!, muted: t.denied),
-          ),
-        ];
+        final split = (
+          id: 'split',
+          label: 'Lado a lado',
+          content:
+              _DiffContent(diff!, muted: t.denied, split: true) as _Content,
+        );
+        final unified = (
+          id: 'unified',
+          label: 'Unificado',
+          content: _DiffContent(diff, muted: t.denied) as _Content,
+        );
+        return [split, unified];
     }
     return [(id: 'output', label: 'Saída', content: output(wrap: true)), input];
   }
@@ -478,8 +533,69 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
     );
   }
 
+  /// "Abrir no Código" of [t] (R6, R7): the file of an edit, a Write or a
+  /// Read, at the first changed line (or the first line read).
+  VoidCallback? _openInCode(ToolItem t, EditDiff? diff, bool showsDiff) {
+    final path = editFilePath(t.input);
+    final root = widget.root;
+    if (path == null || root == null) return null;
+    int? line;
+    String? find;
+    switch (t.name) {
+      case 'Read':
+        line = _int(t.input['offset']) ?? 1;
+      case 'Write':
+        line = diff == null || diff.unknownBefore
+            ? 1
+            : (firstChangedLine(diff.rows) ?? 1);
+      case 'Edit' || 'MultiEdit':
+        line = showsDiff ? firstChangedLine(diff!.rows) : null;
+        // Positions unknown (the text before the edit was not seen): the
+        // new text is looked for in the file as it is now.
+        final edits = t.input['edits'];
+        final first = t.name == 'Edit'
+            ? t.input['new_string']
+            : (edits is List && edits.isNotEmpty && edits.first is Map
+                  ? (edits.first as Map)['new_string']
+                  : null);
+        if (first is String) find = first;
+      default:
+        return null;
+    }
+    return () async {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      final open = ref.read(openInCodeProvider);
+      final container = ProviderScope.containerOf(context, listen: false);
+      _ctrl.close();
+      final needle = find;
+      if (line == null && needle != null) {
+        final sub = container.listen(
+          toolFileTextProvider(path).future,
+          (_, _) {},
+        );
+        try {
+          final text = await sub.read();
+          line = text == null ? null : lineOf(text, needle);
+        } finally {
+          sub.close();
+        }
+      }
+      final error = await open(root, path, line ?? 1);
+      if (error != null) {
+        messenger
+          ?..hideCurrentSnackBar()
+          ..showAppToast(SnackBar(content: Text(error)));
+      }
+    };
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, c) => _build(context, c.maxWidth));
+
+  Widget _build(BuildContext context, double width) {
+    // R10: below 1200 px the buttons are icons and an edit opens unified.
+    final wide = width >= 1200;
     final snap = ref.watch(sessionTimelineProvider(widget.sessionId));
     final tools = ref.watch(sessionToolsProvider(widget.sessionId));
     final i = tools.indexWhere((t) => t.id == widget.toolId);
@@ -494,17 +610,32 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
 
     final tabs = t == null ? const <_Tab>[] : _tabsOf(t, diff, showsDiff);
     final chosen = t == null ? null : _tabs[t.id];
+    final preferred = wide ? 'split' : 'unified';
     final tab =
-        tabs.where((x) => x.id == chosen).firstOrNull ?? tabs.firstOrNull;
+        tabs.where((x) => x.id == chosen).firstOrNull ??
+        tabs.where((x) => x.id == preferred).firstOrNull ??
+        tabs.firstOrNull;
     final content = tab?.content;
     final wrapKey = '${t?.id}/${tab?.id}';
-    final wrap = content is _TextContent
-        ? (_wrap[wrapKey] ?? content.wrap)
-        : false;
-    final matches = content is _TextContent && _searching
-        ? findMatches(content.lines, _query.text)
-        : const <TextMatch>[];
+    final wrap = switch (content) {
+      _TextContent() => _wrap[wrapKey] ?? content.wrap,
+      _DiffContent() => _wrap[wrapKey] ?? false,
+      null => false,
+    };
+    final matches = !_searching
+        ? const <TextMatch>[]
+        : switch (content) {
+            _TextContent(:final lines) => findMatches(lines, _query.text),
+            _DiffContent(:final diff) => findMatches([
+              for (final r in diff.rows) r.text,
+            ], _query.text),
+            null => const <TextMatch>[],
+          };
     final current = matches.isEmpty ? null : _current % matches.length;
+    final marks = content is _DiffContent
+        ? marksByLine(matches, current)
+        : const <int, List<LineMark>>{};
+    final currentRow = current == null ? null : matches[current].line;
 
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.escape): _escape,
@@ -557,6 +688,15 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
           matches: matches,
           current: current,
         ),
+        _DiffContent(:final diff, :final muted, split: true) =>
+          SideBySideDiffView(
+            key: ValueKey('tool-expanded-split-${t.id}'),
+            rows: diff.rows,
+            muted: muted,
+            wrap: wrap,
+            marks: marks,
+            currentRow: currentRow,
+          ),
         _DiffContent(:final diff, :final muted) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -578,6 +718,8 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
                 muted: muted,
                 scrollable: true,
                 maxLines: 1 << 30,
+                marks: marks,
+                currentRow: currentRow,
               ),
             ),
           ],
@@ -611,14 +753,21 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
                       onNext: hasNext ? _ctrl.next : null,
                       onCopy: copy == null ? null : () => _copy(copy),
                       onClose: _ctrl.close,
+                      onOpenInCode: t == null
+                          ? null
+                          : _openInCode(t, diff, showsDiff),
+                      compact: !wide,
                     ),
                     _TabBar(
                       tabs: [for (final x in tabs) (id: x.id, label: x.label)],
                       selected: tab?.id,
                       onSelect: (id) => setState(() => _tabs[t!.id] = id),
-                      wrap: content is _TextContent ? wrap : null,
+                      // The unified diff keeps its own layout (no wrap).
+                      wrap: content is _DiffContent && !content.split
+                          ? null
+                          : (content == null ? null : wrap),
                       onWrap: () => setState(() => _wrap[wrapKey] = !wrap),
-                      onSearch: content is _TextContent ? _openSearch : null,
+                      onSearch: content == null ? null : _openSearch,
                     ),
                     Expanded(
                       child: Stack(
@@ -626,7 +775,7 @@ class _ToolExpandedViewState extends ConsumerState<ToolExpandedView> {
                           Positioned.fill(
                             child: Focus(focusNode: _body, child: body),
                           ),
-                          if (_searching && content is _TextContent)
+                          if (_searching && content != null)
                             Positioned(
                               top: 10,
                               right: 20,
@@ -664,6 +813,8 @@ class _Header extends StatelessWidget {
     required this.onNext,
     required this.onCopy,
     required this.onClose,
+    this.onOpenInCode,
+    this.compact = false,
   });
 
   final ToolItem? tool;
@@ -676,6 +827,12 @@ class _Header extends StatelessWidget {
   final VoidCallback? onNext;
   final VoidCallback? onCopy;
   final VoidCallback onClose;
+
+  /// "Abrir no Código" (R6, R7); null = not a file.
+  final VoidCallback? onOpenInCode;
+
+  /// Narrow area (R10): buttons as icons, no duration nor counts.
+  final bool compact;
 
   static const _mono = TextStyle(
     fontFamily: AppFonts.mono,
@@ -729,6 +886,12 @@ class _Header extends StatelessWidget {
         if (t.name == 'Write' && d.unknownBefore) ...[
           const SizedBox(width: 6),
           const Text('arquivo novo', style: meta),
+        ] else if (!compact && t.name != 'Write') ...[
+          const SizedBox(width: 10),
+          Text(switch (diffHunks(d.rows)) {
+            1 => '1 trecho',
+            final n => '$n trechos',
+          }, style: meta),
         ],
       ];
     }
@@ -778,24 +941,35 @@ class _Header extends StatelessWidget {
           if (t != null) ...[
             const SizedBox(width: 12),
             ..._result(t),
-            if (took != null && took.inMilliseconds >= 100) ...[
+            if (!compact && took != null && took.inMilliseconds >= 100) ...[
               const SizedBox(width: 12),
               const Icon(Icons.schedule, size: 13, color: AppColors.textMuted),
               const SizedBox(width: 4),
               Text(expandedDuration(took), style: meta),
             ],
-            if (lines > 0) ...[
+            if (!compact && lines > 0) ...[
               const SizedBox(width: 12),
               Text(lines == 1 ? '1 linha' : '$lines linhas', style: meta),
             ],
           ],
           const SizedBox(width: 12),
-          _NavPair(onPrevious: onPrevious, onNext: onNext),
+          _NavPair(onPrevious: onPrevious, onNext: onNext, compact: compact),
+          if (onOpenInCode != null) ...[
+            const SizedBox(width: 8),
+            _HeadButton(
+              key: const ValueKey('tool-expanded-open-code'),
+              label: 'Abrir no Código',
+              icon: Icons.code,
+              compact: compact,
+              onTap: onOpenInCode,
+            ),
+          ],
           const SizedBox(width: 8),
-          SmallButton(
+          _HeadButton(
             key: const ValueKey('tool-expanded-copy'),
             label: 'Copiar',
             icon: Icons.copy_outlined,
+            compact: compact,
             onTap: onCopy,
           ),
           const SizedBox(width: 8),
@@ -824,10 +998,17 @@ class _Header extends StatelessWidget {
 
 /// Anterior | Próxima, joined (R2, R3).
 class _NavPair extends StatelessWidget {
-  const _NavPair({required this.onPrevious, required this.onNext});
+  const _NavPair({
+    required this.onPrevious,
+    required this.onNext,
+    this.compact = false,
+  });
 
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
+
+  /// Icons only, with a tooltip (R10).
+  final bool compact;
 
   Widget _half(
     String key,
@@ -838,7 +1019,7 @@ class _NavPair extends StatelessWidget {
   ) {
     final on = onTap != null;
     final color = on ? AppColors.text : AppColors.textMuted;
-    return Semantics(
+    final button = Semantics(
       button: true,
       enabled: on,
       label: '$label ($hint)',
@@ -848,26 +1029,29 @@ class _NavPair extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 30,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: color,
+              if (!compact) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
       ),
     );
+    return compact ? Tooltip(message: '$label ($hint)', child: button) : button;
   }
 
   @override
@@ -895,6 +1079,58 @@ class _NavPair extends StatelessWidget {
           ),
           _half('next', 'Próxima', '↓ ou J', Icons.keyboard_arrow_down, onNext),
         ],
+      ),
+    );
+  }
+}
+
+/// A header button: icon and label, or (narrow, R10) the icon alone with a
+/// tooltip and the label for screen readers.
+class _HeadButton extends StatelessWidget {
+  const _HeadButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.compact = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!compact) return SmallButton(label: label, icon: icon, onTap: onTap);
+    final on = onTap != null;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        enabled: on,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: AppColors.panel,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              width: 30,
+              height: 30,
+              child: Icon(
+                icon,
+                size: 14,
+                color: on ? AppColors.text : AppColors.textMuted,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
