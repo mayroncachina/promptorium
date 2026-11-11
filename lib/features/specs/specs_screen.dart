@@ -512,7 +512,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   static const _lintDelay = Duration(milliseconds: 300);
   final _editorFocus = FocusNode(debugLabel: 'spec-editor');
 
-  /// "Responder perguntas" open beside the editor (SPEC-028 R6).
+  /// "Responder perguntas" open over the area (SPEC-028 R6, SPEC-059 R1).
   bool _questionsOpen = false;
 
   /// First-level suggestions counted as questions, marked in the editor
@@ -1062,8 +1062,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   // --- perguntas em aberto (SPEC-028) ---------------------------------------------
 
-  /// "Responder perguntas" (R6): the panel beside the editor, in the place
-  /// of the steps panel (the Protótipo mode goes back to the split view).
+  /// "Responder perguntas" (R6): the session in the center, over the list
+  /// and the editor (SPEC-059 R1); the Protótipo mode goes back to the split
+  /// view.
   void _openQuestions() {
     if (!mounted || _controller == null) return;
     setState(() {
@@ -1077,7 +1078,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   void _closeQuestions() {
     if (!mounted) return;
     setState(() => _questionsOpen = false);
-    _editorFocus.requestFocus();
+    // After the frame: the editor leaves the excluded focus first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _editorFocus.requestFocus();
+    });
   }
 
   /// "Corrigir formato" (R3): the section in the R1 format, in the editor
@@ -1882,22 +1886,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               ),
             ),
             SizedBox(
-              width: questionsOpen ? 440 : sideW,
+              width: sideW,
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
-                  : questionsOpen
-                  ? SpecQuestionsPanel(
-                      key: ValueKey('spec-questions-${spec.id}'),
-                      ws: ws,
-                      specId: spec.id,
-                      specCode: spec.code,
-                      specText: () => _controller?.text ?? '',
-                      questions: questions,
-                      onClose: _closeQuestions,
-                      onApply: (answers, update) =>
-                          _applyAnswers(ws, spec, answers, update),
-                      onSave: (text) => _saveAnswers(ws, spec, text),
-                    )
                   : proto
                   ? CallbackShortcuts(
                       bindings: undoBindings,
@@ -1979,7 +1970,24 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         );
       },
     );
-    return Column(
+    // SPEC-059 R1: the session covers the area (list and editor), which
+    // stays as it was underneath, out of the focus.
+    final questionsSession = questionsOpen
+        ? SpecQuestionsPanel(
+            key: ValueKey('spec-questions-${spec.id}'),
+            ws: ws,
+            specId: spec.id,
+            specCode: spec.code,
+            specTitle: doc.title ?? spec.title,
+            specText: () => _controller?.text ?? '',
+            questions: questions,
+            onClose: _closeQuestions,
+            onApply: (answers, update) =>
+                _applyAnswers(ws, spec, answers, update),
+            onSave: (text) => _saveAnswers(ws, spec, text),
+          )
+        : null;
+    final screen = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SpecSyncBar(
@@ -2004,6 +2012,17 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             child: content,
           ),
         ),
+      ],
+    );
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ExcludeFocus(
+            excluding: questionsSession != null,
+            child: screen,
+          ),
+        ),
+        if (questionsSession != null) Positioned.fill(child: questionsSession),
       ],
     );
   }
