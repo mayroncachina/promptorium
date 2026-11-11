@@ -1,6 +1,6 @@
 ---
 id: SPEC-060
-status: rascunho
+status: aprovada
 issue: 167
 depende-de: SPEC-059
 ---
