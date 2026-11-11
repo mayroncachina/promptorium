@@ -1,6 +1,7 @@
 ---
 id: SPEC-062
 status: rascunho
+issue: 173
 depende-de: SPEC-037
 ---
 
