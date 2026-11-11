@@ -5862,6 +5862,17 @@ class $ConversationsTable extends Conversations
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -5882,6 +5893,7 @@ class $ConversationsTable extends Conversations
     refineSpecCode,
     refineOrigin,
     refineBaseText,
+    archivedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6024,6 +6036,12 @@ class $ConversationsTable extends Conversations
         ),
       );
     }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -6105,6 +6123,10 @@ class $ConversationsTable extends Conversations
         DriftSqlType.string,
         data['${effectivePrefix}refine_base_text'],
       ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
     );
   }
 
@@ -6153,6 +6175,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   /// Spec text when the refine conversation was created (SPEC-026 R8,
   /// schema v18). Null for other modes and older conversations.
   final String? refineBaseText;
+
+  /// When it was archived (SPEC-056 R4, schema v22). Null = active.
+  final DateTime? archivedAt;
   const Conversation({
     this.runConfig,
     required this.id,
@@ -6172,6 +6197,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     this.refineSpecCode,
     this.refineOrigin,
     this.refineBaseText,
+    this.archivedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6207,6 +6233,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     }
     if (!nullToAbsent || refineBaseText != null) {
       map['refine_base_text'] = Variable<String>(refineBaseText);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
     }
     return map;
   }
@@ -6245,6 +6274,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineBaseText: refineBaseText == null && nullToAbsent
           ? const Value.absent()
           : Value(refineBaseText),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
     );
   }
 
@@ -6272,6 +6304,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineSpecCode: serializer.fromJson<String?>(json['refineSpecCode']),
       refineOrigin: serializer.fromJson<String?>(json['refineOrigin']),
       refineBaseText: serializer.fromJson<String?>(json['refineBaseText']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
   @override
@@ -6296,6 +6329,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       'refineSpecCode': serializer.toJson<String?>(refineSpecCode),
       'refineOrigin': serializer.toJson<String?>(refineOrigin),
       'refineBaseText': serializer.toJson<String?>(refineBaseText),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
 
@@ -6318,6 +6352,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     Value<String?> refineSpecCode = const Value.absent(),
     Value<String?> refineOrigin = const Value.absent(),
     Value<String?> refineBaseText = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
   }) => Conversation(
     runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
@@ -6343,6 +6378,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineBaseText: refineBaseText.present
         ? refineBaseText.value
         : this.refineBaseText,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
@@ -6376,6 +6412,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineBaseText: data.refineBaseText.present
           ? data.refineBaseText.value
           : this.refineBaseText,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
     );
   }
 
@@ -6399,7 +6438,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ..write('updatedAt: $updatedAt, ')
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
-          ..write('refineBaseText: $refineBaseText')
+          ..write('refineBaseText: $refineBaseText, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
@@ -6424,6 +6464,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineSpecCode,
     refineOrigin,
     refineBaseText,
+    archivedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -6446,7 +6487,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           other.updatedAt == this.updatedAt &&
           other.refineSpecCode == this.refineSpecCode &&
           other.refineOrigin == this.refineOrigin &&
-          other.refineBaseText == this.refineBaseText);
+          other.refineBaseText == this.refineBaseText &&
+          other.archivedAt == this.archivedAt);
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
@@ -6468,6 +6510,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<String?> refineSpecCode;
   final Value<String?> refineOrigin;
   final Value<String?> refineBaseText;
+  final Value<DateTime?> archivedAt;
   const ConversationsCompanion({
     this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
@@ -6487,6 +6530,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineSpecCode = const Value.absent(),
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
+    this.archivedAt = const Value.absent(),
   });
   ConversationsCompanion.insert({
     this.runConfig = const Value.absent(),
@@ -6507,6 +6551,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineSpecCode = const Value.absent(),
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
+    this.archivedAt = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        title = Value(title),
        model = Value(model);
@@ -6529,6 +6574,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<String>? refineSpecCode,
     Expression<String>? refineOrigin,
     Expression<String>? refineBaseText,
+    Expression<DateTime>? archivedAt,
   }) {
     return RawValuesInsertable({
       if (runConfig != null) 'run_config': runConfig,
@@ -6549,6 +6595,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       if (refineSpecCode != null) 'refine_spec_code': refineSpecCode,
       if (refineOrigin != null) 'refine_origin': refineOrigin,
       if (refineBaseText != null) 'refine_base_text': refineBaseText,
+      if (archivedAt != null) 'archived_at': archivedAt,
     });
   }
 
@@ -6571,6 +6618,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<String?>? refineSpecCode,
     Value<String?>? refineOrigin,
     Value<String?>? refineBaseText,
+    Value<DateTime?>? archivedAt,
   }) {
     return ConversationsCompanion(
       runConfig: runConfig ?? this.runConfig,
@@ -6591,6 +6639,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       refineSpecCode: refineSpecCode ?? this.refineSpecCode,
       refineOrigin: refineOrigin ?? this.refineOrigin,
       refineBaseText: refineBaseText ?? this.refineBaseText,
+      archivedAt: archivedAt ?? this.archivedAt,
     );
   }
 
@@ -6651,6 +6700,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     if (refineBaseText.present) {
       map['refine_base_text'] = Variable<String>(refineBaseText.value);
     }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     return map;
   }
 
@@ -6674,7 +6726,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
           ..write('updatedAt: $updatedAt, ')
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
-          ..write('refineBaseText: $refineBaseText')
+          ..write('refineBaseText: $refineBaseText, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
@@ -19435,6 +19488,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<String?> refineSpecCode,
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
+      Value<DateTime?> archivedAt,
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
@@ -19456,6 +19510,7 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<String?> refineSpecCode,
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
+      Value<DateTime?> archivedAt,
     });
 
 final class $$ConversationsTableReferences
@@ -19608,6 +19663,11 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<String> get refineBaseText => $composableBuilder(
     column: $table.refineBaseText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19772,6 +19832,11 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -19883,6 +19948,11 @@ class $$ConversationsTableAnnotationComposer
 
   GeneratedColumn<String> get refineBaseText => $composableBuilder(
     column: $table.refineBaseText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => column,
   );
 
@@ -20009,6 +20079,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineSpecCode = const Value.absent(),
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
               }) => ConversationsCompanion(
                 runConfig: runConfig,
                 id: id,
@@ -20028,6 +20099,7 @@ class $$ConversationsTableTableManager
                 refineSpecCode: refineSpecCode,
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
+                archivedAt: archivedAt,
               ),
           createCompanionCallback:
               ({
@@ -20049,6 +20121,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineSpecCode = const Value.absent(),
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
               }) => ConversationsCompanion.insert(
                 runConfig: runConfig,
                 id: id,
@@ -20068,6 +20141,7 @@ class $$ConversationsTableTableManager
                 refineSpecCode: refineSpecCode,
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
+                archivedAt: archivedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

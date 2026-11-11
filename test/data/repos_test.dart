@@ -344,6 +344,25 @@ void main() {
 
       expect(await repo.delete(c.id), 1);
     });
+
+    test('archive and unarchive keep the row (SPEC-056)', () async {
+      final repo = ConversationsRepo(db);
+      final w = await ws();
+      final c = await repo.insert(
+        workspaceId: w.id,
+        title: 'Plano: cupom',
+        model: 'sonnet',
+      );
+      final at = DateTime(2026, 11, 3, 10);
+      await repo.archive(c.id, at: at);
+      expect((await repo.getById(c.id))!.archivedAt, at);
+      // Still listed by the workspace: the split is ConversationLists'.
+      expect(await repo.watchByWorkspace(w.id).first, hasLength(1));
+      await repo.unarchive(c.id);
+      expect((await repo.getById(c.id))!.archivedAt, isNull);
+      await repo.rename(c.id, 'Cupom 10%');
+      expect((await repo.getById(c.id))!.title, 'Cupom 10%');
+    });
   });
 
   group('saved prompts', () {

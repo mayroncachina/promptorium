@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 21;
+const appSchemaVersion = 22;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -597,6 +597,9 @@ class Conversations extends Table {
   /// Spec text when the refine conversation was created (SPEC-026 R8,
   /// schema v18). Null for other modes and older conversations.
   TextColumn get refineBaseText => text().nullable()();
+
+  /// When it was archived (SPEC-056 R4, schema v22). Null = active.
+  DateTimeColumn get archivedAt => dateTime().nullable()();
 }
 
 /// Raw stream-json lines of a conversation (same format as [SessionEvents]).
@@ -1024,6 +1027,13 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('specs') &&
                 !await _hasColumn('specs', 'sprint_id')) {
               await m.addColumn(v.specs, v.specs.sprintId);
+            }
+          },
+          // v22: archived conversations of the Prompt (SPEC-056 R4).
+          from21To22: (m, v) async {
+            if (await _hasTable('conversations') &&
+                !await _hasColumn('conversations', 'archived_at')) {
+              await m.addColumn(v.conversations, v.conversations.archivedAt);
             }
           },
         ),

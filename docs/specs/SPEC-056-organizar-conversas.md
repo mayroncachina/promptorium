@@ -132,6 +132,25 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/7v3vDHuZSWrqAXiNHXy
 - **Mensagem desarquiva.** É o que a pessoa espera ao voltar a uma conversa antiga; deixá-la só para leitura obrigaria um passo a mais.
 - **Arquivar sem confirmar.** Desfazer cobre o engano, e nada é apagado.
 
+Tomadas na implementação:
+- **t1 · `conversationsProvider` continua com todas.** A separação fica em `conversationListsProvider` (`ConversationLists`), lido só pela tela Prompt. A atividade da barra lateral, a caixa de entrada e o refino continuam vendo as arquivadas: uma conversa arquivada que ainda responde mantém o ponto "respondendo" e as aprovações (R4).
+- **t1 · As abas aparecem sempre que há arquivada,** como diz R6, no lugar do título "CONVERSAS". Os mockups 1–3 mostram o título com 4 arquivadas; seguimos o texto da spec. O rodapé "Arquivadas · n" fica só na aba Ativas (na outra ele repetiria a aba).
+- **t1 · Quem desarquiva ao enviar é o `ConversationManager.send`.** Assim vale para todo envio (composer, "Plano pronto", barra da spec na resposta). A lista volta para Ativas ao ver a conversa aberta sair das arquivadas, seja pelo envio ou por Desarquivar.
+- **t1 · Ctrl+Z é ouvido pelo teclado inteiro enquanto o aviso está na tela** (`HardwareKeyboard`), porque depois de arquivar o foco pode estar em qualquer lugar. Quando o aviso sai (6 s, Desfazer ou outro aviso), o Ctrl+Z volta a ser do campo de texto.
+- **t1 · Desfazer reabre a conversa** quando ela era a aberta.
+- **t1 · O menu de uma conversa fechada** carrega a conversa antes de "Transformar em spec". Renomear entra no menu em t2.
+- **t1 · A linha das arquivadas mostra o modelo** (`Sonnet · arquivada 3 nov`), como as ativas já fazem, em vez do modo dos mockups.
+- **t2 · O clique duplo não atrasa o clique simples.** O primeiro clique seleciona na hora; um segundo dentro de `kDoubleTapTimeout` abre a edição. Um `onDoubleTap` no `InkWell` faria toda seleção esperar 300 ms.
+- **t2 · Onde se edita fica num provider** (`renamingProvider`: conversa e lugar). F2, o lápis e o Renomear do ⋯ do cabeçalho editam o título do cabeçalho; o clique duplo, o lápis da linha e o Renomear do botão direito editam na linha. Abrir outra conversa encerra a edição do cabeçalho sem salvar.
+- **t2 · O título é normalizado ao salvar:** espaços nas pontas saem, quebras de linha viram espaço e o campo não aceita mais de 120 caracteres. Salvar sem mudar nada só fecha o campo.
+- **t2 · Perder o foco com o título vazio volta ao anterior,** como o Esc: não há o que salvar, e o campo não pode prender o foco.
+- **t2 · Os botões salvar e cancelar ficam fora do Tab** e dentro da região do campo: clicar neles não conta como perder o foco (o que salvaria antes do cancelar), e no teclado Enter e Esc fazem o mesmo.
+- **t3 · A largura que conta é a da tela Prompt,** a mesma faixa que já estreitava as colunas (`< 1100 px`). Numa janela de 1100 × 700 a tela tem uns 1000 px, então o painel começa recolhido, como pede o critério; numa de 1440 × 900 começa como a pessoa deixou.
+- **t3 · Só a escolha feita na faixa larga é guardada** (`prompt.painelRecolhido`). Na faixa estreita o botão vale até a janela mudar de faixa (R10) e não muda a preferência: ao alargar, volta o que a pessoa escolheu ali.
+- **t3 · Os balões são um `OverlayPortal` ancorado no ícone,** à esquerda da faixa. A faixa e o balão são uma só região de toque: clicar em outro ícone troca a seção, clicar no mesmo fecha. O balão recebe o foco ao abrir, para o Esc funcionar; escolher um prompt salvo no balão insere e fecha.
+- **t3 · O total de tokens usa o mesmo formato do painel** (`18k tokens`), não "18,4 mil" do mockup.
+- **t3 · F2 e Ctrl+Alt+B valem com o foco em qualquer parte da tela Prompt;** um `Focus` com `autofocus` segura o foco quando nada da tela o tem, para os atalhos funcionarem logo ao abrir.
+
 ## Plano
 
 1. **t1 · Arquivar e desarquivar** (R1, R4–R7, R11): schema v22, repositório, `ConversationActions`, ações na linha, menu, abas, aviso com Desfazer, aviso na conversa e testes.
@@ -140,9 +159,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/7v3vDHuZSWrqAXiNHXy
 
 ## Critérios de aceite
 
-- [ ] Arquivar uma conversa a tira da lista e mostra o aviso com Desfazer; Desfazer a traz de volta.
-- [ ] A aba Arquivadas lista as conversas arquivadas e permite desarquivar.
-- [ ] Mandar uma mensagem numa conversa arquivada a desarquiva.
-- [ ] F2, o lápis e o clique duplo renomeiam; título vazio não salva.
-- [ ] O painel recolhe numa faixa de 48 px, reabre com Ctrl+Alt+B e lembra a escolha.
-- [ ] Em 1100×700 o painel começa recolhido e as seções abrem num balão.
+- [x] Arquivar uma conversa a tira da lista e mostra o aviso com Desfazer; Desfazer a traz de volta.
+- [x] A aba Arquivadas lista as conversas arquivadas e permite desarquivar.
+- [x] Mandar uma mensagem numa conversa arquivada a desarquiva.
+- [x] F2, o lápis e o clique duplo renomeiam; título vazio não salva.
+- [x] O painel recolhe numa faixa de 48 px, reabre com Ctrl+Alt+B e lembra a escolha.
+- [x] Em 1100×700 o painel começa recolhido e as seções abrem num balão.

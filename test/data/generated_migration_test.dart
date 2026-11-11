@@ -72,4 +72,19 @@ void main() {
     expect(await db.select(db.sprints).get(), isEmpty);
     await db.close();
   });
+
+  test('v21 → v22 keeps the conversations, all active', () async {
+    final schema = await verifier.schemaAt(21);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO conversations (id, workspace_id, title, model) "
+        "VALUES (1, 1, 'Como funciona o carrinho?', 'sonnet')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.conversations).getSingle();
+    expect(row.title, 'Como funciona o carrinho?');
+    expect(row.archivedAt, equals(null));
+    await db.close();
+  });
 }
