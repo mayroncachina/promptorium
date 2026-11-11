@@ -123,6 +123,12 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/UidCnsDRBFHZxR11yto
 - **O clique abre direto a visão ampliada.** A prévia no cartão some, porque mostrava um pedaço e a pessoa sempre precisava rolar ou adivinhar. O cartão continua mostrando o resumo (resultado, +/−).
 - **Cobre a área da sessão, não a janela.** A barra lateral e o topo ficam, para a pessoa não se perder e poder trocar de tela.
 - **Por cima, não no lugar da linha do tempo.** Manter a linha do tempo montada por baixo é o que permite voltar com a mesma rolagem e o foco no cartão.
+- **t1 · O Prompt continua abrindo no lugar.** O `ToolCard` só abre a visão ampliada quando há um `ToolExpandHost` acima dele, e só a linha do tempo da tela Sessões põe um. No Prompt (fora do escopo) o clique segue abrindo a prévia no cartão.
+- **t1 · Resultado no cabeçalho.** O cabeçalho mostra o mesmo resumo do cartão ("erro", "+9 −3", "+61 arquivo novo", "ok", "N linhas"). Não interpretamos a saída de cada ferramenta de teste para escrever "1 falhou". A duração aparece a partir de 0,1 s, e o número de linhas só quando o corpo é texto.
+- **t1 · Copiar.** Copia o texto que a visão mostra: a saída, o conteúdo do Write ou o diff unificado (`+`/`-`) de um Edit.
+- **t1 · Ordem de Anterior/Próxima.** As chamadas de um subagente entram logo depois do cartão Task delas, na mesma ordem em que aparecem aninhadas na linha do tempo.
+- **t1 · Volta a um cartão fora da tela.** Se o último item navegado não está montado na lista (que é preguiçosa), a lista rola uma tela por vez na direção dele até ele aparecer, e então o traz para a área visível só o necessário.
+- **t1 · Destaque com movimento reduzido.** O destaque âmbar fica inteiro por 1,2 s e some de uma vez, sem esmaecer.
 
 ## Plano
 
@@ -132,10 +138,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/UidCnsDRBFHZxR11yto
 
 ## Critérios de aceite
 
-- [ ] Clicar num Bash abre a saída inteira ocupando a área toda; Esc volta ao layout com o cartão em foco.
-- [ ] ↑/↓ passam para o item vizinho sem fechar.
+- [x] Clicar num Bash abre a saída inteira ocupando a área toda; Esc volta ao layout com o cartão em foco.
+- [x] ↑/↓ passam para o item vizinho sem fechar.
 - [ ] Ctrl+F acha o texto na saída e mostra "x de n".
 - [ ] Um Edit abre com o diff lado a lado; Abrir no Código leva à linha alterada.
 - [ ] Write e Read mostram o arquivo com números de linha.
-- [ ] Com movimento reduzido, a visão abre e fecha sem animação.
+- [x] Com movimento reduzido, a visão abre e fecha sem animação.
 - [ ] Em 1100×700 nada fica cortado.
