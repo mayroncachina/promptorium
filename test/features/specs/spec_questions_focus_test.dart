@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ void main() {
   late Directory tmp;
   late FakeQuestionOptions options;
   late ProviderContainer c;
+  late FakeApplier applier;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('promptorium-questions-focus-');
@@ -49,10 +51,13 @@ void main() {
         specQuestionOptionsProvider.overrideWith(
           (ref) => options = FakeQuestionOptions(ref),
         ),
-        specAnswerApplierProvider.overrideWith(FakeApplier.new),
+        specAnswerApplierProvider.overrideWith(
+          (ref) => applier = FakeApplier(ref),
+        ),
       ],
     );
     c.read(specQuestionOptionsProvider);
+    c.read(specAnswerApplierProvider);
   }
 
   Future<void> open(WidgetTester tester) async {
@@ -127,7 +132,7 @@ void main() {
     expect(
       find.descendant(
         of: key('spec-questions-close'),
-        matching: find.text('Esc'),
+        matching: find.text('Ctrl+Esc'),
       ),
       findsOneWidget,
     );
@@ -550,6 +555,275 @@ void main() {
     await tester.tap(key('spec-questions-discard'));
     await tester.pump();
     await releaseEditor(tester);
+  });
+
+  group('SPEC-060 keys of the review and the diff', () {
+    /// Opens the session and answers up to the review (P2 deferred).
+    Future<void> toReview(WidgetTester tester) async {
+      await pump(tester);
+      await open(tester);
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(key('spec-questions-defer'));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      expect(key('spec-questions-review'), findsOneWidget);
+    }
+
+    Finder kbd(String button, String k) =>
+        find.descendant(of: key(button), matching: find.text(k));
+
+    testWidgets('R1, R2, R6: in the review Esc goes back to the last '
+        'question and Enter applies; the buttons show the keys', (
+      tester,
+    ) async {
+      await toReview(tester);
+      expect(kbd('spec-questions-previous', 'Esc'), findsOneWidget);
+      expect(kbd('spec-questions-apply', 'Enter'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(panel, findsOneWidget);
+      expect(subtitle(tester), endsWith('pergunta 3 de 3'));
+      // Back to the review, Enter applies.
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      expect(applier.calls, hasLength(1));
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: with the focus on Editar, Enter is the button\'s', (
+      tester,
+    ) async {
+      await toReview(tester);
+      Focus.of(
+        tester.element(
+          find
+              .descendant(
+                of: key('spec-questions-change-P2'),
+                matching: find.byType(Text),
+              )
+              .first,
+        ),
+      ).requestFocus();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(applier.calls, isEmpty);
+      expect(subtitle(tester), endsWith('pergunta 2 de 3'));
+      await press(tester, LogicalKeyboardKey.escape);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: Enter does nothing with no answer to apply', (
+      tester,
+    ) async {
+      await pump(tester);
+      await open(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(key('spec-questions-defer'));
+        await tester.pump();
+        await tester.pump();
+      }
+      expect(key('spec-questions-review'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(key('spec-questions-review'), findsOneWidget);
+      expect(applier.calls, isEmpty);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3, R6: in the diff Esc goes back to the review keeping '
+        'the diff, and Enter saves', (tester) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      final updated = disk().replaceFirst(
+        'o sistema deve mostrar o grupo',
+        'o sistema deve mostrar o grupo e a contagem',
+      );
+      applier.next.complete(updated);
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.pump();
+      expect(kbd('spec-questions-back', 'Esc'), findsOneWidget);
+      expect(kbd('spec-questions-save', 'Enter'), findsOneWidget);
+      expect(kbd('spec-questions-discard', 'Delete'), findsOneWidget);
+
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(key('spec-questions-review'), findsOneWidget);
+      // Nothing changed: Enter brings the same diff, no new run.
+      await press(tester, LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(key('spec-questions-diff'), findsOneWidget);
+      expect(applier.calls, hasLength(1));
+
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => panel.evaluate().isEmpty);
+      expect(disk(), contains('e a contagem'));
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3: an answer changed after going back runs it again', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await press(tester, LogicalKeyboardKey.escape);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      applier.next = Completer<String>();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      // Without the box the decisions go straight in: a new diff, made now.
+      expect(applier.calls, hasLength(1));
+      expect(key('spec-questions-diff'), findsOneWidget);
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R4: the first Delete arms, the second discards; another '
+        'key, a click or 3 s disarm', (tester) async {
+      await toReview(tester);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.pump();
+      final hint = find.text('Descartar mudanças?');
+
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(panel, findsOneWidget);
+      expect(hint, findsOneWidget);
+      // Another key disarms.
+      await press(tester, LogicalKeyboardKey.keyA);
+      expect(hint, findsNothing);
+      // 3 s disarm.
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(hint, findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+      expect(hint, findsNothing);
+      // A click disarms.
+      await press(tester, LogicalKeyboardKey.delete);
+      await tester.tapAt(tester.getCenter(key('spec-questions-diff')));
+      await tester.pump();
+      expect(hint, findsNothing);
+
+      await press(tester, LogicalKeyboardKey.delete);
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(panel, findsNothing);
+      expect(disk(), questionsSpec);
+      // The answers stay for the next time.
+      expect(answers(), isNotEmpty);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: Ctrl+Esc closes from the questions, the review and the '
+        'diff, keeping the answers; Esc still closes the questions', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+      expect(answers(), isNotEmpty);
+
+      await open(tester);
+      expect(subtitle(tester), contains('pergunta'));
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+
+      await open(tester);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(panel, findsNothing);
+
+      await open(tester);
+      // Straight to the review: the answers were kept.
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(key('spec-questions-next'));
+        await tester.pump();
+        await tester.pump();
+      }
+      expect(key('spec-questions-review'), findsOneWidget);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+      expect(disk(), questionsSpec);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: while applying no key closes or goes back', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      expect(key('spec-questions-applying'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.escape);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(key('spec-questions-applying'), findsOneWidget);
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
   });
 
   group('SPEC-061 three suggestions and "Outras sugestões"', () {
