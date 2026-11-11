@@ -6,6 +6,7 @@ import 'package:promptorium/features/sessions/sessions_screen.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/features/sessions/tool_expanded.dart';
 import 'package:promptorium/ui/theme/motion.dart';
+import 'package:promptorium/ui/widgets/numbered_text_view.dart';
 
 import 'sessions_screen_test.dart'
     show
@@ -151,10 +152,9 @@ void main() {
     expect(_header(tester), 'Bash flutter test');
     expect(find.text('120 linhas'), findsOneWidget);
     // No 40-line cut.
-    final text = tester.widget<Text>(
-      find.byKey(const ValueKey('tool-expanded-text')),
-    );
-    expect(text.data, contains('linha 120'));
+    final text = tester.widget<NumberedTextView>(find.byType(NumberedTextView));
+    expect(text.lines, hasLength(120));
+    expect(text.lines.last, 'linha 120');
     expect(find.textContaining('(+80 linhas)'), findsNothing);
     expect(find.bySemanticsLabel('Bash ampliado'), findsOneWidget);
     expect(find.bySemanticsLabel('Anterior (↑ ou K)'), findsOneWidget);
