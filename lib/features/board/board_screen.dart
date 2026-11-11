@@ -39,6 +39,7 @@ import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
+import 'widgets/autopilot_preview.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
@@ -1129,14 +1130,15 @@ class _Header extends ConsumerWidget {
                 message: on
                     ? 'Parar: desliga o automático e interrompe as sessões '
                           'das specs'
-                    : 'Executar: inicia as specs sem bloqueio em paralelo e '
-                          'as bloqueadas assim que a dependência chegar em '
-                          'Review',
+                    : 'Executar tudo: mostra quem começa agora, quem espera '
+                          'e por quê antes de começar',
                 child: AppPressable(
                   child: FilledButton.icon(
                     key: const ValueKey('board-autopilot'),
-                    onPressed: () =>
-                        on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+                    // SPEC-064 R1: a preview first.
+                    onPressed: () => on
+                        ? pilot.stop(workspaceId)
+                        : showAutopilotPreview(context, ref, workspaceId),
                     icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
                     label: Text(on ? 'Parar' : 'Executar tudo'),
                   ),
