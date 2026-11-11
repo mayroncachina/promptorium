@@ -13,6 +13,7 @@ import 'prompt_actions.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/prompt_dialogs.dart';
+import 'widgets/title_field.dart';
 
 /// Organizing the conversations of the Prompt (SPEC-056): archive with
 /// "Desfazer", unarchive, the tab of the list. Used by the list, the header
@@ -40,6 +41,27 @@ final conversationTabProvider =
     NotifierProvider<ConversationTabController, ConversationTab>(
       ConversationTabController.new,
     );
+
+/// Where a title is being edited (R2): next to the title of the open
+/// conversation or in its row of the list.
+enum RenamePlace { header, list }
+
+typedef RenameTarget = ({int id, RenamePlace place});
+
+class RenamingController extends Notifier<RenameTarget?> {
+  @override
+  RenameTarget? build() => null;
+
+  void start(int id, RenamePlace place) => state = (id: id, place: place);
+
+  void stop() {
+    if (state != null) state = null;
+  }
+}
+
+final renamingProvider = NotifierProvider<RenamingController, RenameTarget?>(
+  RenamingController.new,
+);
 
 /// An archive that "Desfazer" can still take back (R5).
 @immutable
@@ -262,6 +284,15 @@ class ConversationActions {
     );
   }
 
+  /// New title of [id] (R2, R3): trimmed, at most [maxTitleLength]
+  /// characters; an empty one is not saved.
+  Future<void> rename(int id, String title) async {
+    _ref.read(renamingProvider.notifier).stop();
+    final t = normalizeTitle(title);
+    if (t == null) return;
+    await _ref.read(conversationsRepoProvider).rename(id, t);
+  }
+
   /// Back to the active list (R6, R7).
   Future<void> unarchive(int id) async {
     final undo = _ref.read(archiveUndoProvider);
@@ -333,17 +364,25 @@ Future<List<TimelineItem>> _loadedItems(WidgetRef ref, int id) async {
 }
 
 /// Entries of the menu of a conversation (R1).
-enum ConversationMenuAction { archive, unarchive, toSpec, continueSession }
+enum ConversationMenuAction {
+  rename,
+  archive,
+  unarchive,
+  toSpec,
+  continueSession,
+}
 
 /// The menu of [c] (right click on the row, ⋯ of the row or of the header):
-/// Arquivar (or Desarquivar), a separator, Transformar em spec and
-/// Continuar como sessão (R1). [items] = its loaded timeline, when known.
+/// Renomear (F2), Arquivar (or Desarquivar), a separator, Transformar em
+/// spec and Continuar como sessão (R1). [items] = its loaded timeline, when
+/// known; [renameIn] = where Renomear edits the title.
 Future<void> showConversationMenu(
   BuildContext context,
   WidgetRef ref, {
   required Conversation c,
   required RelativeRect position,
   required List<Conversation> active,
+  required RenamePlace renameIn,
   List<TimelineItem>? items,
 }) async {
   final busy = ref.read(conversationManagerProvider).isBusy(c.id);
@@ -356,6 +395,7 @@ Future<void> showConversationMenu(
     IconData icon,
     String label, {
     bool enabled = true,
+    String? shortcut,
   }) => PopupMenuItem(
     key: ValueKey('conversation-menu-${value.name}'),
     value: value,
@@ -377,6 +417,17 @@ Future<void> showConversationMenu(
             color: enabled ? AppColors.text : AppColors.textDisabled,
           ),
         ),
+        if (shortcut != null) ...[
+          const Spacer(),
+          Text(
+            shortcut,
+            style: const TextStyle(
+              fontFamily: AppFonts.mono,
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ],
     ),
   );
@@ -390,6 +441,12 @@ Future<void> showConversationMenu(
       side: const BorderSide(color: AppColors.border),
     ),
     items: [
+      entry(
+        ConversationMenuAction.rename,
+        Icons.edit_outlined,
+        'Renomear',
+        shortcut: 'F2',
+      ),
       archived
           ? entry(
               ConversationMenuAction.unarchive,
@@ -419,6 +476,8 @@ Future<void> showConversationMenu(
   if (choice == null || !context.mounted) return;
   final actions = ref.read(conversationActionsProvider);
   switch (choice) {
+    case ConversationMenuAction.rename:
+      ref.read(renamingProvider.notifier).start(c.id, renameIn);
     case ConversationMenuAction.archive:
       await actions.archive(context, c, active: active);
     case ConversationMenuAction.unarchive:

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../conversation_actions.dart';
 import '../conversation_manager.dart';
+import 'title_field.dart';
 
 /// "Hoje" / "Ontem" / "Anteriores" groups of [list] (already newest first).
 List<(String, List<Conversation>)> groupConversations(
@@ -392,6 +394,7 @@ class ConversationTile extends ConsumerStatefulWidget {
 class _ConversationTileState extends ConsumerState<ConversationTile> {
   bool _hover = false;
   bool _focus = false;
+  DateTime? _lastTap;
 
   void _menu(RelativeRect at) => showConversationMenu(
     context,
@@ -399,7 +402,27 @@ class _ConversationTileState extends ConsumerState<ConversationTile> {
     c: widget.conversation,
     position: at,
     active: widget.active,
+    renameIn: RenamePlace.list,
   );
+
+  void _rename() => ref
+      .read(renamingProvider.notifier)
+      .start(widget.conversation.id, RenamePlace.list);
+
+  /// The first click selects at once; a second one soon after renames (R2).
+  void _onTap() {
+    final now = DateTime.now();
+    final last = _lastTap;
+    _lastTap = now;
+    if (last != null && now.difference(last) <= kDoubleTapTimeout) {
+      _lastTap = null;
+      _rename();
+      return;
+    }
+    ref
+        .read(selectedConversationProvider.notifier)
+        .select(widget.conversation.id);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -408,8 +431,22 @@ class _ConversationTileState extends ConsumerState<ConversationTile> {
     final archived = c.archivedAt != null;
     final radius = BorderRadius.circular(8);
     final actions = ref.read(conversationActionsProvider);
+    final renaming = ref.watch(renamingProvider);
+    if (renaming?.id == c.id && renaming?.place == RenamePlace.list) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: TitleField(
+          key: ValueKey('conversation-title-field-${c.id}'),
+          fieldKey: const ValueKey('title-field'),
+          initial: c.title,
+          compact: true,
+          onSave: (t) => actions.rename(c.id, t),
+          onCancel: ref.read(renamingProvider.notifier).stop,
+        ),
+      );
+    }
     final showActions = _hover || _focus;
-    final buttons = (showActions ? 1 : 0) + (selected ? 1 : 0);
+    final buttons = (showActions ? (archived ? 1 : 2) : 0) + (selected ? 1 : 0);
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
@@ -439,9 +476,7 @@ class _ConversationTileState extends ConsumerState<ConversationTile> {
                 InkWell(
                   key: ValueKey('conversation-${c.id}'),
                   borderRadius: radius,
-                  onTap: () => ref
-                      .read(selectedConversationProvider.notifier)
-                      .select(c.id),
+                  onTap: _onTap,
                   child: Padding(
                     // Room for the buttons over the row.
                     padding: EdgeInsets.fromLTRB(
@@ -493,6 +528,13 @@ class _ConversationTileState extends ConsumerState<ConversationTile> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (showActions && !archived)
+                        RowAction(
+                          key: ValueKey('conversation-rename-${c.id}'),
+                          icon: Icons.edit_outlined,
+                          tooltip: 'Renomear',
+                          onPressed: _rename,
+                        ),
                       if (showActions)
                         archived
                             ? RowAction(
