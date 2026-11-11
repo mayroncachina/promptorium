@@ -76,15 +76,15 @@ void main() {
       return o.evaluate().isEmpty ? 1 : tester.widget<Opacity>(o).opacity;
     }
 
-    testWidgets('R2, R3: active it goes 1 → .4 → 1 in 1.2 s; off it stops '
+    testWidgets('R2, R3: active it goes 1 → .4 → 1 in 2.4 s; off it stops '
         'fully opaque', (tester) async {
       await tester.pumpWidget(host(active: true));
       expect(opacity(tester), 1);
-      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 1200));
       expect(opacity(tester), closeTo(.4, .01));
-      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 1200));
       expect(opacity(tester), closeTo(1, .01));
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 600));
       expect(opacity(tester), inExclusiveRange(.4, 1));
 
       await tester.pumpWidget(host(active: false));

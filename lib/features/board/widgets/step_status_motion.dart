@@ -33,7 +33,7 @@ class StepPulse extends StatefulWidget {
   final bool active;
   final Widget child;
 
-  static const period = Duration(milliseconds: 1200);
+  static const period = Duration(milliseconds: 2400);
 
   /// Lowest opacity of the pulse.
   static const low = .4;

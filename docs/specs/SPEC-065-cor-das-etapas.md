@@ -32,7 +32,7 @@ Tela do app em `docs/mockups/spec-065/app/1-cores.png` (t1).
   - aguardando você (pergunta ou aprovação): âmbar-claro (`AppColors.amberLight`);
   - verificação falhou: vermelho;
   - concluída: teal.
-- R2 · Os segmentos **rodando** e **verificando** pulsam: a opacidade vai de 100% a 40% e volta, em 1,2 s, sem parar, enquanto o estado durar. Os outros estados ficam parados.
+- R2 · Os segmentos **rodando** e **verificando** pulsam: a opacidade vai de 100% a 40% e volta, em 2,4 s, sem parar, enquanto o estado durar. Os outros estados ficam parados.
 - R3 · A troca de cor continua suave (a transição de hoje, `StepColorTransition`). O pulso começa quando a etapa entra num estado ativo e para na hora em que sai, terminando na cor nova com opacidade cheia.
 - R4 · Com movimento reduzido (o ajuste do sistema ou "Reduzir animações" do app), as cores valem e o pulso não acontece.
 - R5 · Os pontos das etapas no Grafo e no Foco mostram "verificando" em roxo, como a barra (ver Decisões, t1).
@@ -55,14 +55,14 @@ Tela do app em `docs/mockups/spec-065/app/1-cores.png` (t1).
 ### Componentes
 
 - **`stepSegmentColor`** com as cores do R1.
-- **`StepPulse`** (novo): envolve o segmento; com um estado ativo e movimento permitido, anima a opacidade (100% → 40% → 100%, 1,2 s, `Curves.easeInOut`, repetindo); fora disso, opacidade 1 e nenhum `Ticker` rodando.
+- **`StepPulse`** (novo): envolve o segmento; com um estado ativo e movimento permitido, anima a opacidade (100% → 40% → 100%, 2,4 s, `Curves.easeInOut`, repetindo); fora disso, opacidade 1 e nenhum `Ticker` rodando.
 - **`isStepActive(StepView)`**: rodando ou verificando (e não `gateFailed`).
 - Os pontos do Grafo e do Foco usam `stepSegmentColor` e `StepPulse`.
 
 ### Testes
 
 - Cor de cada estado (incluindo `gateFailed` e aguardando você).
-- Pulso: com rodando e verificando a opacidade muda ao longo de 1,2 s; parado nos outros; ao sair do estado ativo, opacidade 1 e sem ticker.
+- Pulso: com rodando e verificando a opacidade muda ao longo de 2,4 s; parado nos outros; ao sair do estado ativo, opacidade 1 e sem ticker.
 - Movimento reduzido: cor certa, opacidade 1 o tempo todo.
 - A dica do segmento com o estado; Grafo e Foco com as mesmas cores.
 
