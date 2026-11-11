@@ -23,6 +23,7 @@ import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
+import 'widgets/prompt_welcome.dart';
 import 'widgets/prompt_dialogs.dart';
 import 'widgets/prompt_side_panel.dart';
 
@@ -181,7 +182,26 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                     _Header(conversation: conv, busy: busy, items: items),
                     Expanded(
                       child: conv == null
-                          ? _Empty(hasWorkspace: ws != null)
+                          ? ws == null
+                                ? const _Empty()
+                                // SPEC-055 R7: the three modes, in plain words.
+                                : PromptWelcome(
+                                    mode: mode,
+                                    onPickMode: (m) =>
+                                        draftCtl.set(draft.copyWith(mode: m)),
+                                    onExample: (m, text) {
+                                      draftCtl.set(draft.copyWith(mode: m));
+                                      // Only fills the field: the person
+                                      // sees what goes and can adjust it.
+                                      _text.value = TextEditingValue(
+                                        text: text,
+                                        selection: TextSelection.collapsed(
+                                          offset: text.length,
+                                        ),
+                                      );
+                                      _focus.requestFocus();
+                                    },
+                                  )
                           : _Conversation(
                               key: ValueKey('conversation-main-${conv.id}'),
                               conversation: conv,
@@ -378,10 +398,9 @@ class _Header extends ConsumerWidget {
   }
 }
 
+/// The Prompt without a workspace (with one, [PromptWelcome]).
 class _Empty extends StatelessWidget {
-  const _Empty({required this.hasWorkspace});
-
-  final bool hasWorkspace;
+  const _Empty();
 
   @override
   Widget build(BuildContext context) {
@@ -393,26 +412,19 @@ class _Empty extends StatelessWidget {
           children: [
             AppIcon(AppIcons.prompt, size: 28, color: AppColors.amber),
             const SizedBox(height: 10),
-            Text(
-              hasWorkspace ? 'Nova conversa' : 'Nenhum workspace',
-              style: const TextStyle(
+            const Text(
+              'Nenhum workspace',
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.text,
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              hasWorkspace
-                  ? 'Pergunte sobre o código do workspace. Roda na raiz do '
-                        'repositório, sem worktree; "Perguntar" não altera '
-                        'arquivos.'
-                  : 'Selecione ou adicione um workspace na barra de título.',
+            const Text(
+              'Selecione ou adicione um workspace na barra de título.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ],
         ),
