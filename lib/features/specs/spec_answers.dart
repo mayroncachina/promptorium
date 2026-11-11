@@ -23,6 +23,9 @@ enum AnswerOption {
   /// Second alternative of the Claude.
   alternative2,
 
+  /// Third alternative of the Claude (SPEC-061 R1).
+  alternative3,
+
   /// "Outra resposta", with its own text.
   other,
 }
@@ -82,6 +85,16 @@ final specAnswersProvider =
       SpecAnswers.new,
     );
 
+/// The Claude's alternatives in the order shown (SPEC-061 R1: three).
+const alternativeOptions = [
+  AnswerOption.alternative1,
+  AnswerOption.alternative2,
+  AnswerOption.alternative3,
+];
+
+/// How many alternatives the Claude proposes for each question.
+const alternativesPerQuestion = 3;
+
 /// One alternative of the Claude for a question (SPEC-028 R7).
 @immutable
 class QuestionAlternative {
@@ -93,7 +106,7 @@ class QuestionAlternative {
 
 const questionOptionsPrompt = '''
 Você ajuda a responder uma pergunta em aberto de uma spec do Promptorium. Leia a
-spec abaixo (e o repositório, somente leitura, se precisar) e proponha até duas
+spec abaixo (e o repositório, somente leitura, se precisar) e proponha três
 respostas para a pergunta indicada, diferentes da sugestão que a spec já traz.
 Para cada uma, dê um título curto (a resposta em si, no máximo 8 palavras) e a
 consequência para quem usa ou para a implementação, numa frase. Não repita a
@@ -106,7 +119,7 @@ final questionOptionsSchema = {
   'properties': {
     'options': {
       'type': 'array',
-      'maxItems': 2,
+      'maxItems': alternativesPerQuestion,
       'items': {
         'type': 'object',
         'additionalProperties': false,
@@ -120,7 +133,7 @@ final questionOptionsSchema = {
   },
 };
 
-/// Alternatives of the structured answer (at most two, empty titles out).
+/// Alternatives of the structured answer (at most three, empty titles out).
 List<QuestionAlternative> parseQuestionOptions(Object? data) {
   final list = data is Map ? data['options'] : null;
   return [
@@ -131,8 +144,10 @@ List<QuestionAlternative> parseQuestionOptions(Object? data) {
             title: '${o['title']}'.trim(),
             consequence: '${o['consequence'] ?? ''}'.trim(),
           ),
-  ].take(2).toList();
+  ].take(alternativesPerQuestion).toList();
 }
+
+String _norm(String s) => s.trim().toLowerCase();
 
 /// Alternatives of the Claude for each question (SPEC-028 R7): a read-only
 /// run with `--json-schema`, cached by (spec, question, text) while the app
@@ -146,6 +161,13 @@ class SpecQuestionOptions {
 
   final _cache = <String, Future<List<QuestionAlternative>>>{};
 
+  /// Every alternative already shown for a question (SPEC-061 R4: "Outras
+  /// sugestões" never repeats them).
+  final _shown = <String, List<QuestionAlternative>>{};
+
+  String _key(int specId, OpenQuestion q) =>
+      '$specId|${q.id}|${Object.hash(q.text, q.suggestion)}';
+
   /// Cached [generate] of [q]; a failure is not cached (asked again on the
   /// next visit).
   Future<List<QuestionAlternative>> forQuestion(
@@ -154,20 +176,63 @@ class SpecQuestionOptions {
     String specText,
     OpenQuestion q,
   ) {
-    final key = '$specId|${q.id}|${Object.hash(q.text, q.suggestion)}';
-    return _cache[key] ??= generate(ws, specText, q)
-      ..catchError((Object _) {
-        _cache.remove(key);
-        return const <QuestionAlternative>[];
-      });
+    final key = _key(specId, q);
+    return _cache[key] ??=
+        generate(ws, specText, q).then((v) {
+          _shown.putIfAbsent(key, () => []).addAll(v);
+          return v;
+        })..catchError((Object _) {
+          _cache.remove(key);
+          return const <QuestionAlternative>[];
+        });
   }
 
-  /// Alternatives for [q] (never written anywhere).
+  /// "Outras sugestões" (SPEC-061 R4): a new set for [q] in place of
+  /// [current], without any alternative shown before. The one at [keep]
+  /// (the chosen one) stays where it is. The new set replaces the cached
+  /// one; a failure throws and leaves the cache as it was.
+  Future<List<QuestionAlternative>> more(
+    Workspace ws,
+    int specId,
+    String specText,
+    OpenQuestion q, {
+    required List<QuestionAlternative> current,
+    int? keep,
+  }) async {
+    final key = _key(specId, q);
+    final shown = _shown.putIfAbsent(key, () => [...current]);
+    final kept = keep != null && keep < current.length ? current[keep] : null;
+    final want = alternativesPerQuestion - (kept == null ? 0 : 1);
+    final seen = {
+      for (final a in [...shown, ...current]) _norm(a.title),
+    };
+    final fresh = [
+      for (final a in await generate(
+        ws,
+        specText,
+        q,
+        avoid: [...shown, ...current.where((a) => !shown.contains(a))],
+        count: want,
+      ))
+        if (seen.add(_norm(a.title))) a,
+    ].take(want).toList();
+    if (fresh.isEmpty) throw StateError('Nenhuma sugestão nova.');
+    shown.addAll(fresh);
+    final next = [...fresh];
+    if (kept != null) next.insert(keep!.clamp(0, next.length), kept);
+    _cache[key] = Future.value(next);
+    return next;
+  }
+
+  /// Alternatives for [q] (never written anywhere): [count] of them, none
+  /// like the ones in [avoid].
   Future<List<QuestionAlternative>> generate(
     Workspace ws,
     String specText,
-    OpenQuestion q,
-  ) async {
+    OpenQuestion q, {
+    List<QuestionAlternative> avoid = const [],
+    int count = alternativesPerQuestion,
+  }) async {
     final r = await runReadOnlyClaude(
       _ref,
       workspaceId: ws.id,
@@ -184,6 +249,11 @@ class SpecQuestionOptions {
         'Spec:\n<spec>\n${specText.trimRight()}\n</spec>',
         'Pergunta ${q.id}: ${q.text}',
         if (q.suggestion != null) 'Sugestão da spec: ${q.suggestion}',
+        if (avoid.isNotEmpty)
+          'Já mostradas (não repita nem reformule):\n'
+              '${[for (final a in avoid) '- ${a.title}: ${a.consequence}'].join('\n')}',
+        if (count != alternativesPerQuestion)
+          'Proponha só $count ${count == 1 ? 'resposta' : 'respostas'}.',
       ].join('\n\n'),
     );
     return parseQuestionOptions(structuredOutput(r));
