@@ -1,6 +1,7 @@
 ---
 id: SPEC-065
 status: rascunho
+issue: 184
 ---
 
 # A barra do card mostra o estado de cada etapa
