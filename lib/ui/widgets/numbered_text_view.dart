@@ -27,6 +27,48 @@ List<TextMatch> findMatches(List<String> lines, String query) {
   return out;
 }
 
+/// A search mark inside one line: [start]..[end], [current] = the one the
+/// search is on.
+typedef LineMark = ({int start, int end, bool current});
+
+/// [text] with [marks] in amber (SPEC-058 R5): the current one solid, the
+/// others translucent.
+TextSpan markedSpan(String text, List<LineMark> marks) {
+  final spans = <TextSpan>[];
+  var at = 0;
+  for (final m in marks) {
+    if (m.start > at) spans.add(TextSpan(text: text.substring(at, m.start)));
+    spans.add(
+      TextSpan(
+        text: text.substring(m.start, m.end),
+        style: TextStyle(
+          color: m.current ? AppColors.onAmber : AppColors.text,
+          backgroundColor: m.current
+              ? AppColors.amber
+              : AppColors.amber.withValues(alpha: .32),
+        ),
+      ),
+    );
+    at = m.end;
+  }
+  if (at < text.length) spans.add(TextSpan(text: text.substring(at)));
+  return TextSpan(children: spans);
+}
+
+/// [matches] by line, as [LineMark]s ([current] = index of the current one).
+Map<int, List<LineMark>> marksByLine(List<TextMatch> matches, int? current) {
+  final by = <int, List<LineMark>>{};
+  for (var i = 0; i < matches.length; i++) {
+    final m = matches[i];
+    (by[m.line] ??= []).add((
+      start: m.start,
+      end: m.end,
+      current: i == current,
+    ));
+  }
+  return by;
+}
+
 /// [text] split in lines for [NumberedTextView], tabs as four spaces (the
 /// search counts the characters it shows).
 List<String> displayLines(String text) {
@@ -201,29 +243,12 @@ class _NumberedTextViewState extends State<NumberedTextView> {
         softWrap: widget.wrap,
       );
     } else {
-      final spans = <TextSpan>[];
-      var at = 0;
-      for (final (m, idx) in marks) {
-        if (m.start > at) {
-          spans.add(TextSpan(text: text.substring(at, m.start)));
-        }
-        final on = idx == current;
-        spans.add(
-          TextSpan(
-            text: text.substring(m.start, m.end),
-            style: TextStyle(
-              color: on ? AppColors.onAmber : AppColors.text,
-              backgroundColor: on
-                  ? AppColors.amber
-                  : AppColors.amber.withValues(alpha: .32),
-            ),
-          ),
-        );
-        at = m.end;
-      }
-      if (at < text.length) spans.add(TextSpan(text: text.substring(at)));
+      final span = markedSpan(text, [
+        for (final (m, idx) in marks)
+          (start: m.start, end: m.end, current: idx == current),
+      ]);
       body = Text.rich(
-        TextSpan(children: spans),
+        span,
         style: style,
         strutStyle: widget.wrap ? null : _strut,
         softWrap: widget.wrap,
