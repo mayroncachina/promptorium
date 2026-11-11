@@ -110,6 +110,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4RYhjRD9hT3WdV16uQf
 - **Tela cheia na área de trabalho.** Responder exige atenção; a spec inteira atrás só competia com a pergunta. O trecho que importa aparece em "Ver na spec".
 - **720 px.** Dá 70 a 80 caracteres por linha na pergunta e nas descrições, a medida confortável de leitura.
 - **Reaproveitar o painel.** O estado e a gravação da SPEC-028 ficam como estão; só muda onde e como aparecem.
+- **t1 · Teclas.** ←/→ trocam de pergunta como um clique na etapa: não gravam a sugestão pré-selecionada (só "Próxima" grava) e não fazem nada na primeira e na última pergunta. Enter só vale "Próxima" com o foco numa opção ou na coluna; num botão focado, Enter aciona o botão. Com o foco numa opção, ←/→ trocam de pergunta, e ↑/↓ continuam andando entre as opções.
+- **t1 · Crossfade.** A pergunta nova entra com fade de 120 ms e a anterior sai na hora. Duas cópias da pergunta ao mesmo tempo dividiriam os mesmos nós de foco dos rádios e o mesmo campo de texto.
+- **t1 · "salvo automaticamente".** As respostas continuam só em memória até "Salvar na spec" (SPEC-028 P2); a dica do texto diz isso.
+- **t1 · Partes.** `QuestionSteps`, `QuestionOptionCard` e `QuestionFooter` ficam em `spec_questions_focus.dart`, junto da moldura. O estado continua em `SpecQuestionsPanel`. O link "Ver na spec" entra na t2, com o trecho.
 
 ## Plano
 
@@ -119,10 +123,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/4RYhjRD9hT3WdV16uQf
 
 ## Critérios de aceite
 
-- [ ] "Responder perguntas" abre a pergunta no centro da tela, numa coluna de 720 px.
-- [ ] As teclas 1–4 escolhem a opção e Enter vai para a próxima.
+- [x] "Responder perguntas" abre a pergunta no centro da tela, numa coluna de 720 px.
+- [x] As teclas 1–4 escolhem a opção e Enter vai para a próxima.
 - [ ] "Outra resposta" cresce com o texto e aceita ditado.
 - [ ] "Ver na spec" mostra o trecho da pergunta sem sair da tela.
 - [ ] A revisão e o diff também ficam no centro.
-- [ ] Esc fecha e as respostas continuam salvas.
-- [ ] Em 1100×700 o rodapé fica fixo e nada se sobrepõe.
+- [x] Esc fecha e as respostas continuam salvas.
+- [x] Em 1100×700 o rodapé fica fixo e nada se sobrepõe.

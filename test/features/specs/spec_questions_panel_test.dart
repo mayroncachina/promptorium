@@ -186,7 +186,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tapKey(tester, 'spec-questions-format-answer');
     expect(panel, findsOneWidget);
-    expect(subtitle(tester), 'SPEC-002, pergunta 1 de 4');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 1 de 4');
   });
 
   testWidgets('R6: "Responder perguntas" opens the panel on the first '
@@ -195,24 +195,26 @@ void main() {
     final semantics = tester.ensureSemantics();
     await openPanel(tester);
     expect(find.text('Responder perguntas'), findsWidgets);
-    expect(subtitle(tester), 'SPEC-002, pergunta 1 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 1 de 3');
     expect(find.text('P1 Como adicionar máquinas a um grupo?'), findsOneWidget);
     expect(find.bySemanticsLabel('P1, atual'), findsOneWidget);
     expect(find.bySemanticsLabel('P2, pendente'), findsOneWidget);
     expect(find.bySemanticsLabel('P3, pendente'), findsOneWidget);
     expect(
-      tester.widget<TextButton>(key('spec-questions-previous')).onPressed,
+      tester
+          .widget<ButtonStyleButton>(key('spec-questions-previous'))
+          .onPressed,
       isNull,
     );
     expect(find.text('Deixar para depois'), findsOneWidget);
     expect(find.text('Próxima'), findsOneWidget);
 
     await tapKey(tester, 'spec-questions-next');
-    expect(subtitle(tester), 'SPEC-002, pergunta 2 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3');
     expect(find.bySemanticsLabel('P1, respondida'), findsOneWidget);
     expect(find.bySemanticsLabel('P2, atual'), findsOneWidget);
     await tapKey(tester, 'spec-questions-defer');
-    expect(subtitle(tester), 'SPEC-002, pergunta 3 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 3 de 3');
     expect(find.bySemanticsLabel('P2, para depois'), findsOneWidget);
     // Not only the color: a check for answered, a clock for later.
     expect(
@@ -230,10 +232,10 @@ void main() {
       findsOneWidget,
     );
     await tapKey(tester, 'spec-questions-previous');
-    expect(subtitle(tester), 'SPEC-002, pergunta 2 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3');
     // The trail jumps to a question.
     await tapKey(tester, 'spec-questions-trail-P3');
-    expect(subtitle(tester), 'SPEC-002, pergunta 3 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 3 de 3');
     expect(disk(), questionsSpec);
     semantics.dispose();
   });
@@ -245,7 +247,7 @@ void main() {
     await openPanel(tester);
     expect(
       find.text(
-        'A primeira opção é a sugestão escrita na spec; as seguintes foram '
+        'A primeira opção é a sugestão escrita na spec; as outras foram '
         'propostas pelo Claude.',
       ),
       findsOneWidget,
@@ -332,7 +334,7 @@ void main() {
     expect(editorOf(tester).controller!.text, questionsSpec);
 
     await openPanel(tester);
-    expect(subtitle(tester), 'SPEC-002, pergunta 1 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 1 de 3');
     expect(selected(tester), AnswerOption.other);
     expect(
       tester
@@ -353,7 +355,10 @@ void main() {
     await tapKey(tester, 'spec-questions-defer');
     await tapKey(tester, 'spec-questions-next');
     expect(find.text('Revise antes de aplicar'), findsOneWidget);
-    expect(subtitle(tester), '2 respondidas, 1 para depois');
+    expect(
+      subtitle(tester),
+      'SPEC-002 · Grupos de máquinas · 2 respondidas, 1 para depois',
+    );
     expect(find.text('pela seleção na tabela.'), findsOneWidget);
     expect(find.text('não; elas voltam para "Sem grupo".'), findsOneWidget);
     expect(key('spec-questions-later-P2'), findsOneWidget);
@@ -370,7 +375,7 @@ void main() {
     expect(find.text('Aplicar 2 respostas'), findsOneWidget);
 
     await tapKey(tester, 'spec-questions-change-P2');
-    expect(subtitle(tester), 'SPEC-002, pergunta 2 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3');
     await tester.enterText(key('spec-question-other-text'), 'Sim, por usuário');
     await tester.pump();
     await tapKey(tester, 'spec-questions-next');
@@ -397,7 +402,10 @@ void main() {
     await tapKey(tester, 'spec-questions-apply');
     expect(applier.calls, isEmpty);
     expect(find.text('Respostas aplicadas'), findsOneWidget);
-    expect(subtitle(tester), 'Nada foi salvo ainda');
+    expect(
+      subtitle(tester),
+      'SPEC-002 · Grupos de máquinas · nada foi salvo ainda',
+    );
     expect(find.byType(DiffView), findsOneWidget);
     expect(find.text('Descartar'), findsOneWidget);
     expect(find.text('Voltar às respostas'), findsOneWidget);
@@ -529,12 +537,15 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     await tester.pump();
-    expect(subtitle(tester), 'SPEC-002, pergunta 2 de 3');
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3');
     expect(announced, contains('Pergunta 2 de 3'));
     expect(answers()['P1']!.option, AnswerOption.suggestion);
     expect(
       tester.getSemantics(key('spec-questions-subtitle')),
-      isSemantics(isLiveRegion: true, label: 'SPEC-002, pergunta 2 de 3'),
+      isSemantics(
+        isLiveRegion: true,
+        label: 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3',
+      ),
     );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
