@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 22;
+const appSchemaVersion = 23;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -126,6 +126,10 @@ class Specs extends Table {
   TextColumn get dependsOn => text()
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
+
+  /// The file has a `## Plano` (SPEC-062 R2, schema v23): "Planejada" in
+  /// the list while not approved yet.
+  BoolColumn get hasPlan => boolean().withDefault(const Constant(false))();
 
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   TextColumn get phase => text().nullable()();
@@ -1034,6 +1038,14 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('conversations') &&
                 !await _hasColumn('conversations', 'archived_at')) {
               await m.addColumn(v.conversations, v.conversations.archivedAt);
+            }
+          },
+          // v23: specs with a `## Plano` (SPEC-062 R2); filled by the next
+          // reading of the files.
+          from22To23: (m, v) async {
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'has_plan')) {
+              await m.addColumn(v.specs, v.specs.hasPlan);
             }
           },
         ),

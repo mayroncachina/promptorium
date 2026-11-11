@@ -25,6 +25,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NfG6TyHujedGXjcMCUH
 | `4-lista.png` | "Planejada" em amarelo na lista | R2 |
 | `5-largo.png` | Janela larga: os três botões cabem | R1 |
 
+Telas do app depois da t1, em `docs/mockups/spec-062/app/`: `1-planejar-de-novo.png` (1366×768), `2-estreito.png` (1100×700, "Refinar com IA" no menu) e `3-largo.png` (1920×1000).
+
 ## Requisitos
 
 - R1 · Assim que o plano entra no editor, o botão vira **Planejar de novo**, antes mesmo de salvar. Quando não cabem todos os botões, a barra manda para o menu ⋯ primeiro "Refinar com IA" e só depois "Planejar de novo". O principal ("Aprovar" com plano, "Planejar" sem) nunca sai da barra (SPEC-037 R1, SPEC-039 R7).
@@ -71,6 +73,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NfG6TyHujedGXjcMCUH
 - **Planejada é derivado.** Não há `status: planejada` no arquivo; quem tem plano e ainda não foi aprovado é "Planejada". Assim nada muda para o Quadro, a aprovação e as specs antigas.
 - **Lista pelo arquivo, cabeçalho pelo editor.** A lista mostra o estado salvo de todas as specs (como já faz com o status); o cabeçalho mostra o que está na tela.
 - **Amarelo próprio.** O âmbar já é "Em revisão" e o botão principal; um amarelo distinto evita confundir os dois.
+- **t1 · Prioridade.** `SpecAction.priority`: "Refinar com IA" tem −1, as outras 0. Vale também sem plano: sem espaço, "Refinar com IA" sai antes de "Aprovar". A ordem na barra continua a mesma quando todas cabem.
+- **t1 · Lista estreita.** O status do item guarda a largura dele e o código da spec é que encolhe; antes "Planejada" virava "Planeja…" em 1100 px.
+- **t1 · Testes que montam `Spec` à mão** ganharam `hasPlan: false` (o construtor gerado pede o campo).
 
 ## Plano
 
@@ -78,7 +83,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NfG6TyHujedGXjcMCUH
 
 ## Critérios de aceite
 
-- [ ] Depois de Planejar, o botão vira "Planejar de novo" e continua visível em 1366×768.
-- [ ] Sem espaço, "Refinar com IA" vai para o menu antes de "Planejar de novo".
-- [ ] A lista mostra "Planejada" em amarelo para specs com plano ainda não aprovadas.
-- [ ] O cabeçalho mostra "Planejada" assim que o plano entra no editor.
+- [x] Depois de Planejar, o botão vira "Planejar de novo" e continua visível em 1366×768.
+- [x] Sem espaço, "Refinar com IA" vai para o menu antes de "Planejar de novo".
+- [x] A lista mostra "Planejada" em amarelo para specs com plano ainda não aprovadas.
+- [x] O cabeçalho mostra "Planejada" assim que o plano entra no editor.
