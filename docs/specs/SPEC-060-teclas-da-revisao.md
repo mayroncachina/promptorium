@@ -26,6 +26,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9WhAHpr7JUoYDfgUJ8D
 | `5-descartar.png` | O primeiro Delete arma o descarte; o segundo descarta | R4 |
 | `6-teclas.png` | Mapa das teclas de cada tela | R1–R6 |
 
+Telas do app depois da t1, em `docs/mockups/spec-060/app/`: `1-revisao.png`, `2-o-que-muda.png` e `3-descartar.png`.
+
 ## Requisitos
 
 - R1 · Na revisão das respostas, **Esc** volta às perguntas, na última pergunta, como "Voltar às perguntas".
@@ -79,6 +81,9 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9WhAHpr7JUoYDfgUJ8D
 - **Esc ainda fecha nas perguntas.** Ali não há tela anterior, e é o que a SPEC-059 ensinou.
 - **Delete pede duas vezes.** Descartar joga fora o diff que o Claude levou tempo para fazer, e Delete fica perto de teclas comuns. O clique continua direto, porque o botão já é uma ação deliberada.
 - **Voltar do diff guarda o diff.** Sem isso, Esc seguido de Enter rodaria o Claude de novo por engano.
+- **t1 · Aviso do descarte.** O aviso "Aperte Delete de novo em 3 s…" do mockup não aparece na tela: ao lado do botão ele empurrava "Voltar às respostas" e "Salvar na spec" para uma segunda linha. O botão armado já diz "Descartar mudanças? Delete de novo", e o leitor de tela ouve o aviso inteiro.
+- **t1 · Diff guardado.** O diff volta sem rodar o Claude quando as respostas e a caixa "Atualizar requisitos e critérios" estão iguais às da última vez; mudar qualquer uma roda de novo.
+- **t1 · Durante o salvar,** além de Enter, Esc e Delete, Ctrl+Esc também não fecha (o Fechar fica desabilitado), para não perder o resultado de um salvar em curso.
 
 ## Plano
 
@@ -86,7 +91,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9WhAHpr7JUoYDfgUJ8D
 
 ## Critérios de aceite
 
-- [ ] Na revisão, Esc volta às perguntas e Enter aplica as respostas.
-- [ ] Em "O que muda na spec", Enter salva, Esc volta à revisão e Delete (duas vezes) descarta.
-- [ ] Ctrl+Esc fecha a sessão em qualquer tela, com as respostas guardadas.
-- [ ] Os botões mostram as teclas.
+- [x] Na revisão, Esc volta às perguntas e Enter aplica as respostas.
+- [x] Em "O que muda na spec", Enter salva, Esc volta à revisão e Delete (duas vezes) descarta.
+- [x] Ctrl+Esc fecha a sessão em qualquer tela, com as respostas guardadas.
+- [x] Os botões mostram as teclas.
