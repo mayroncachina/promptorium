@@ -1750,7 +1750,11 @@ class SpecInspector extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Bloqueada por ${data.blockers.join(', ')}',
+                      data.autopilotWait.isNotEmpty
+                          // SPEC-064 R4.
+                          ? 'Espera ${data.autopilotWait.join(', ')} '
+                                '(Executar tudo)'
+                          : 'Bloqueada por ${data.blockers.join(', ')}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

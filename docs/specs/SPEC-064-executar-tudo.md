@@ -22,6 +22,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/SJ4P7HKSWjbPkzRDKzT
 | `4-liberou.png` | O aviso quando uma spec deixa de esperar | R6 |
 | `5-nada.png` | Nada pode começar: a prévia explica | R7 |
 
+Telas do app em `docs/mockups/spec-064/app/`: `1-previa.png` e `2-feito.png` (t1).
+
 ## Requisitos
 
 - R1 · "Executar tudo" abre uma **prévia** presa ao botão, antes de ligar o piloto automático. Ela tem três grupos, cada um com código, título e motivo:
@@ -74,6 +76,10 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/SJ4P7HKSWjbPkzRDKzT
 
 - **Prévia em vez de confirmação genérica.** Um "Tem certeza?" não teria mostrado o problema do caso real. Ver "Começam agora: SPEC-001, SPEC-002" teria.
 - **Um só cálculo.** A prévia e o `tick` usam `autopilotPlan`; se a prévia diz que a SPEC-002 espera, o piloto não a começa.
+- **t1 · Várias dependências em Review.** O runner recusa começar uma spec que depende de mais de uma spec em Review (a branch nova só parte de uma). Antes isso falhava em silêncio no piloto; agora ela aparece em "Esperam" com "depende de SPEC-001 e SPEC-002 em Review: falta o merge de ao menos uma".
+- **t1 · Comando da paleta.** "Ligar Autopilot (Executar tudo)" na paleta de comandos continua ligando direto, sem a prévia; a prévia fica no botão do Quadro.
+- **t2 · Selo e borda.** O card que espera mostra "espera SPEC-001" em âmbar, com a borda âmbar da atenção, no lugar de "bloqueada por" (vermelho); a borda tracejada do mockup ficou de fora. No Grafo e no Foco, o mesmo texto vem com "(Executar tudo)".
+- **t2 · Avisos.** "SPEC-002 começou…" e "Executar tudo terminou…" vão para a lista de avisos do app e para a notificação do sistema, como o aviso de orçamento do piloto, em vez de um aviso flutuante no Quadro.
 - **Review continua o padrão.** Quem usa hoje não muda de comportamento. Quem quer esperar o merge escolhe Feito uma vez.
 
 ## Plano
@@ -83,8 +89,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/SJ4P7HKSWjbPkzRDKzT
 
 ## Critérios de aceite
 
-- [ ] Antes de começar, "Executar tudo" mostra quem começa agora, quem espera e quem não entra, com os motivos.
-- [ ] A prévia e a execução sempre batem.
-- [ ] Dá para escolher liberar em Review ou em Feito, e a escolha fica guardada.
-- [ ] Enquanto roda, cada card que espera diz por quem, e a barra mostra o resumo.
-- [ ] Quando nada pode começar, a prévia explica e não liga o piloto.
+- [x] Antes de começar, "Executar tudo" mostra quem começa agora, quem espera e quem não entra, com os motivos.
+- [x] A prévia e a execução sempre batem.
+- [x] Dá para escolher liberar em Review ou em Feito, e a escolha fica guardada.
+- [x] Enquanto roda, cada card que espera diz por quem, e a barra mostra o resumo.
+- [x] Quando nada pode começar, a prévia explica e não liga o piloto.

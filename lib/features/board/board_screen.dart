@@ -39,6 +39,7 @@ import 'widgets/gate_report_view.dart';
 import 'widgets/legacy_tasks_dialog.dart';
 import 'widgets/run_spec_dialog.dart';
 import 'widgets/schedule_dialog.dart';
+import 'widgets/autopilot_preview.dart';
 import 'widgets/spec_steps_panel.dart';
 import 'widgets/step_decision_dialog.dart';
 import 'widgets/step_status_motion.dart';
@@ -79,9 +80,14 @@ class SpecCardData {
     required this.steps,
     required this.sessions,
     required this.blockers,
+    this.autopilotWait = const [],
   });
 
   final Spec spec;
+
+  /// With "Executar tudo" on: the dependencies it waits for, by the rule
+  /// chosen (Review or Feito) (SPEC-064 R4).
+  final List<String> autopilotWait;
   final List<StepView> steps;
 
   /// Sessions of the spec, oldest first.
@@ -365,6 +371,12 @@ class BoardScreen extends ConsumerWidget {
         if (f.workspaceId == ws.id) f,
     ];
     final byCode = specsByCode(specs);
+    // SPEC-064 R4: with "Executar tudo" on, who waits for whom.
+    final pilotOn = ref.watch(
+      autopilotProvider.select((s) => s.contains(ws.id)),
+    );
+    ref.watch(appSettingsProvider);
+    final unblock = ref.read(autopilotProvider.notifier).unblockAtOf(ws.id);
     final cards = [
       for (final s in specs)
         if (isOnBoard(s))
@@ -379,6 +391,16 @@ class BoardScreen extends ConsumerWidget {
             // Review, released by the autopilot).
             blockers: s.worktreePath == null
                 ? specBlockers(s, byCode)
+                : const [],
+            autopilotWait:
+                pilotOn &&
+                    s.stage == SpecStage.backlog &&
+                    s.worktreePath == null
+                ? specBlockers(
+                    s,
+                    byCode,
+                    reviewUnblocks: unblock == UnblockAt.review,
+                  )
                 : const [],
           ),
     ];
@@ -777,10 +799,14 @@ class _Header extends ConsumerWidget {
         .value
         ?.autopilot
         .dailyBudgetUsd;
+    final waiting = cards.where((d) => d.autopilotWait.isNotEmpty).length;
     final strip = [
-      parallel == null
-          ? '$running em execução'
-          : '$running de $parallel em paralelo',
+      // SPEC-064 R5.
+      if (on) 'Executando · $running rodando · $waiting esperando',
+      if (!on)
+        parallel == null
+            ? '$running em execução'
+            : '$running de $parallel em paralelo',
       if (next != null && waveCount > 1) 'onda ${next + 1} de $waveCount',
       '${formatCost(spent)}${budget == null ? '' : ' / ${formatCost(budget)}'} hoje',
     ].join(' · ');
@@ -1129,14 +1155,15 @@ class _Header extends ConsumerWidget {
                 message: on
                     ? 'Parar: desliga o automático e interrompe as sessões '
                           'das specs'
-                    : 'Executar: inicia as specs sem bloqueio em paralelo e '
-                          'as bloqueadas assim que a dependência chegar em '
-                          'Review',
+                    : 'Executar tudo: mostra quem começa agora, quem espera '
+                          'e por quê antes de começar',
                 child: AppPressable(
                   child: FilledButton.icon(
                     key: const ValueKey('board-autopilot'),
-                    onPressed: () =>
-                        on ? pilot.stop(workspaceId) : pilot.start(workspaceId),
+                    // SPEC-064 R1: a preview first.
+                    onPressed: () => on
+                        ? pilot.stop(workspaceId)
+                        : showAutopilotPreview(context, ref, workspaceId),
                     icon: Icon(on ? Icons.stop : Icons.play_arrow, size: 16),
                     label: Text(on ? 'Parar' : 'Executar tudo'),
                   ),
@@ -1699,6 +1726,11 @@ class SpecCard extends ConsumerWidget {
       meta = current!.gateFailed
           ? '${current.id} · verificação falhou'
           : '${current.id} aguardando você';
+      metaColor = AppColors.amber;
+      border = SessionColors.approvalBorder;
+    } else if (data.autopilotWait.isNotEmpty) {
+      // SPEC-064 R4: "Executar tudo" starts it when these are released.
+      meta = 'espera ${data.autopilotWait.join(', ')}';
       metaColor = AppColors.amber;
       border = SessionColors.approvalBorder;
     } else if (blocked) {
