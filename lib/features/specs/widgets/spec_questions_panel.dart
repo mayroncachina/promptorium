@@ -129,6 +129,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   };
   final _panelFocus = FocusNode(debugLabel: 'spec-questions');
 
+  /// "Ver na spec" (SPEC-059 R7): kept for the next questions until the
+  /// session closes.
+  bool _showExcerpt = false;
+
   List<OpenQuestion> get _questions => widget.questions;
 
   OpenQuestion? get _current => _questions.isEmpty
@@ -234,11 +238,19 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   }
 
   Future<void> _choose(OpenQuestion q, AnswerOption o) async {
+    // Another option chosen from the field: the focus goes with it, so
+    // Enter is "Próxima" again.
+    if (o != AnswerOption.other && _otherFocus.hasFocus) {
+      _options[o]!.requestFocus();
+    }
     switch (o) {
       case AnswerOption.suggestion:
         _store(q, Answer(option: o, text: q.suggestion ?? ''));
       case AnswerOption.other:
         _store(q, Answer(option: o, text: _other.text.trim()));
+        // SPEC-059 R6: straight to the field. The arrows of the radio
+        // group put the focus back on the option right after.
+        _otherFocus.requestFocus();
       case AnswerOption.alternative1 || AnswerOption.alternative2:
         final alts = await _alternatives(q)
             .catchError((Object _) => const <QuestionAlternative>[]);
@@ -397,14 +409,24 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       _next();
       return KeyEventResult.handled;
     }
+    // SPEC-059 R6: in the field Enter breaks the line; Ctrl+Enter goes on.
+    final ctrl =
+        kb.isControlPressed &&
+        !kb.isAltPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed;
+    if (enter && ctrl) {
+      _next();
+      return KeyEventResult.handled;
+    }
     var n = _digits.indexOf(key);
     if (n < 0) n = _numpad.indexOf(key);
     if (n >= 0 && plain && !inField) {
       final options = _optionsOf(q);
       if (n < options.length) {
         final o = options[n];
+        if (o != AnswerOption.other) _options[o]!.requestFocus();
         unawaited(_choose(q, o));
-        _options[o]!.requestFocus();
       }
       return KeyEventResult.handled;
     }
@@ -441,8 +463,11 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
         '$_prefix · pergunta ${_index + 1} de ${_questions.length}',
       ),
       _Stage.review ||
-      _Stage.applying => ('Responder perguntas', '$_prefix · ${_countLabel()}'),
-      _Stage.diff => ('Respostas aplicadas', '$_prefix · nada foi salvo ainda'),
+      _Stage.applying => ('Responder perguntas', '$_prefix · revisão'),
+      _Stage.diff => (
+        'Responder perguntas',
+        '$_prefix · o que muda na spec · nada foi salvo ainda',
+      ),
     };
     return SpecQuestionsFocus(
       title: title,
@@ -453,7 +478,8 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       onClose: _stage == _Stage.applying ? null : widget.onClose,
       turn: (_stage, _index),
       scrollable: _stage != _Stage.diff && _stage != _Stage.applying,
-      maxWidth: 720,
+      // SPEC-059 R8: the diff takes the width of the area, up to 1100 px.
+      maxWidth: _stage == _Stage.diff ? 1100 : 720,
       body: q == null
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
@@ -485,15 +511,6 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             )
           : _footer(q),
     );
-  }
-
-  String _countLabel() {
-    final answered = _answeredCount;
-    final later = _questions.length - answered;
-    return [
-      answered == 1 ? '1 respondida' : '$answered respondidas',
-      if (later > 0) '$later para depois',
-    ].join(', ');
   }
 
   Widget _steps() => QuestionSteps(
@@ -543,31 +560,8 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 1),
-                  child: Icon(
-                    Icons.description_outlined,
-                    size: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    note,
-                    key: const ValueKey('spec-question-note'),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _noteLine(q, note),
+            if (_showExcerpt) ...[const SizedBox(height: 12), _excerpt(q)],
             const SizedBox(height: 16),
             RadioGroup<AnswerOption>(
               groupValue: selected,
@@ -622,7 +616,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                       selected,
                       number: next(),
                       title: 'Outra resposta',
-                      field: _otherField(q),
+                      field: _otherField(
+                        q,
+                        selected: selected == AnswerOption.other,
+                      ),
                     ),
                   ],
                 ),
@@ -634,11 +631,16 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     );
   }
 
-  Widget _otherField(OpenQuestion q) => TextField(
+  /// "Outra resposta" (SPEC-059 R6): grows up to 6 lines and then
+  /// scrolls; Enter breaks the line, Ctrl+Enter goes to the next question.
+  Widget _otherField(OpenQuestion q, {required bool selected}) => TextField(
     key: const ValueKey('spec-question-other-text'),
     controller: _other,
     focusNode: _otherFocus,
-    textInputAction: TextInputAction.next,
+    keyboardType: TextInputType.multiline,
+    textInputAction: TextInputAction.newline,
+    minLines: selected ? 3 : 1,
+    maxLines: 6,
     style: const TextStyle(fontSize: 13.5, height: 1.45),
     decoration: const InputDecoration(
       isDense: true,
@@ -646,10 +648,90 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(),
     ),
+    onTap: () {
+      if (_selected(q) != AnswerOption.other) {
+        unawaited(_choose(q, AnswerOption.other));
+      }
+    },
     onChanged: (v) =>
         _store(q, Answer(option: AnswerOption.other, text: v.trim())),
-    onSubmitted: (_) => _next(),
   );
+
+  /// Where the options come from, and "Ver na spec" / "Esconder trecho"
+  /// (SPEC-059 R2, R7).
+  Widget _noteLine(OpenQuestion q, String note) {
+    final excerpt = _showExcerpt
+        ? SpecDocument.parse(widget.specText()).questionExcerpt(q)
+        : null;
+    final text = !_showExcerpt
+        ? note
+        : excerpt == null
+        ? 'A pergunta não está mais em Perguntas em aberto.'
+        : excerpt.first == excerpt.last
+        ? 'Linha ${excerpt.first} de Perguntas em aberto'
+        : 'Linhas ${excerpt.first}–${excerpt.last} de Perguntas em aberto';
+    const style = TextStyle(
+      fontSize: 12.5,
+      height: 1.4,
+      color: AppColors.textSecondary,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.description_outlined,
+          size: 14,
+          color: AppColors.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            key: const ValueKey('spec-question-note'),
+            style: style,
+          ),
+        ),
+        const Text(' · ', style: style),
+        Semantics(
+          button: true,
+          expanded: _showExcerpt,
+          child: InkWell(
+            key: const ValueKey('spec-question-excerpt-toggle'),
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => setState(() => _showExcerpt = !_showExcerpt),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _showExcerpt ? 'Esconder trecho' : 'Ver na spec',
+                    style: style.copyWith(
+                      color: AppColors.amber,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    _showExcerpt ? Icons.expand_less : Icons.expand_more,
+                    size: 15,
+                    color: AppColors.amber,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _excerpt(OpenQuestion q) {
+    final excerpt = SpecDocument.parse(widget.specText()).questionExcerpt(q);
+    return excerpt == null
+        ? const SizedBox.shrink()
+        : QuestionExcerpt(excerpt: excerpt);
+  }
 
   Widget _option(
     OpenQuestion q,
@@ -674,140 +756,20 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     onTap: () => unawaited(_choose(q, o)),
   );
 
-  Widget _reviewView() {
-    final answers = _answers;
-    return Column(
-      key: const ValueKey('spec-questions-review'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _steps(),
-        const SizedBox(height: 24),
-        const Text(
-          'Revise antes de aplicar',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.text,
-          ),
-        ),
-        const SizedBox(height: 8),
-        for (final (i, q) in _questions.indexed) ...[
-          if (i > 0) const Divider(height: 1, color: AppColors.border),
-          _reviewRow(i, q, answers[q.id]),
-        ],
-        const SizedBox(height: 12),
-        Material(
-          color: AppColors.background,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: AppColors.border),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: CheckboxListTile(
-            key: const ValueKey('spec-questions-update'),
-            value: _update,
-            onChanged: (v) => setState(() => _update = v ?? false),
-            controlAffinity: ListTileControlAffinity.leading,
-            activeColor: AppColors.amber,
-            checkColor: AppColors.onAmber,
-            dense: true,
-            title: const Text(
-              'Atualizar requisitos e critérios com as respostas',
-              style: TextStyle(fontSize: 13, color: AppColors.text),
-            ),
-            subtitle: const Text(
-              'O Claude edita só esta spec. Você revisa o resultado antes de '
-              'salvar.',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _reviewRow(int i, OpenQuestion q, Answer? a) {
-    final answered = a?.answered ?? false;
-    return Padding(
-      key: ValueKey('spec-questions-review-${q.id}'),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 24,
-            child: Text(
-              q.id,
-              style: const TextStyle(fontSize: 12, color: AppColors.amber),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  q.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  answered
-                      ? a!.text
-                      : 'Sem resposta; continua em "Perguntas em aberto".',
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                    color: answered ? AppColors.text : AppColors.textSecondary,
-                  ),
-                ),
-                if (!answered) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    key: ValueKey('spec-questions-later-${q.id}'),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.amberTint,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppColors.amber.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: const Text(
-                      'Para depois',
-                      style: TextStyle(fontSize: 11, color: AppColors.amber),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            key: ValueKey('spec-questions-change-${q.id}'),
-            onPressed: () => setState(() => _enter(i)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.text,
-              side: const BorderSide(color: AppColors.border),
-              visualDensity: VisualDensity.compact,
-            ),
-            child: Text(
-              'Mudar',
-              semanticsLabel: 'Mudar a resposta de ${q.id}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-        ],
+  Widget _reviewView() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _steps(),
+      const SizedBox(height: 24),
+      AnswersReview(
+        questions: _questions,
+        answers: _answers,
+        update: _update,
+        onUpdate: (v) => setState(() => _update = v),
+        onEdit: (i) => setState(() => _enter(i)),
       ),
-    );
-  }
+    ],
+  );
 
   Widget _applyingView() => Center(
     key: const ValueKey('spec-questions-applying'),
@@ -826,81 +788,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     ),
   );
 
-  Widget _diffView() {
-    final r = _applied!;
-    final rows = numberedDiff(r.before, r.after);
-    final added = rows.where((x) => x.op == DiffOp.add).length;
-    final removed = rows.where((x) => x.op == DiffOp.del).length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Alterações na spec',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-              Text(
-                '+$added',
-                key: const ValueKey('spec-questions-added'),
-                style: const TextStyle(
-                  fontFamily: AppFonts.mono,
-                  fontSize: 12,
-                  color: AppColors.teal,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '−$removed',
-                style: const TextStyle(
-                  fontFamily: AppFonts.mono,
-                  fontSize: 12,
-                  color: AppColors.red,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            appliedSummary(_questions, _appliedAnswers, updated: r.updated),
-            key: const ValueKey('spec-questions-summary'),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: DiffView(
-                  key: const ValueKey('spec-questions-diff'),
-                  rows: rows,
-                  collapseSame: 4,
-                  scrollable: true,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _diffView() => AnswersDiff(
+    applied: _applied!,
+    summary: appliedSummary(
+      _questions,
+      _appliedAnswers,
+      updated: _applied!.updated,
+    ),
+  );
 
   Widget _footer(OpenQuestion q) {
     const secondary = ButtonStyle(
@@ -970,24 +865,30 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             onPressed: _stage == _Stage.review ? _previous : null,
             style: secondary,
             icon: const Icon(Icons.chevron_left, size: 18),
-            label: const Text('Anterior', style: bold),
+            label: const Text('Voltar às perguntas', style: bold),
           ),
         ],
         right: [
           AppPressable(
             enabled: _stage == _Stage.review && _answeredCount > 0,
-            child: FilledButton.icon(
+            child: FilledButton(
               key: const ValueKey('spec-questions-apply'),
               onPressed: _stage == _Stage.review && _answeredCount > 0
                   ? _apply
                   : null,
               style: primary,
-              icon: const Icon(Icons.check, size: 16),
-              label: Text(
-                _answeredCount == 1
-                    ? 'Aplicar 1 resposta'
-                    : 'Aplicar $_answeredCount respostas',
-                style: bold,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _answeredCount == 1
+                        ? 'Aplicar 1 resposta na spec'
+                        : 'Aplicar $_answeredCount respostas na spec',
+                    style: bold,
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right, size: 18),
+                ],
               ),
             ),
           ),
@@ -1054,4 +955,295 @@ class _Hint extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// "Revise as respostas" (SPEC-059 R8, SPEC-028 R9): each question with
+/// the answer given and **Editar**, the ones left for later marked, and the
+/// box to update the requirements.
+class AnswersReview extends StatelessWidget {
+  const AnswersReview({
+    super.key,
+    required this.questions,
+    required this.answers,
+    required this.update,
+    required this.onUpdate,
+    required this.onEdit,
+  });
+
+  final List<OpenQuestion> questions;
+  final Map<String, Answer> answers;
+  final bool update;
+  final ValueChanged<bool> onUpdate;
+
+  /// Back to question [i].
+  final ValueChanged<int> onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final answered = [
+      for (final q in questions)
+        if (answers[q.id]?.answered ?? false) q,
+    ].length;
+    final later = questions.length - answered;
+    final count = [
+      answered == 1 ? '1 respondida' : '$answered respondidas',
+      if (later > 0) '$later para depois',
+    ].join(', ');
+    return Column(
+      key: const ValueKey('spec-questions-review'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Revise as respostas',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '$count. Ao aplicar, as respostas vão para Decisões'
+          '${update ? ', o Claude atualiza requisitos e critérios' : ''} '
+          'e você vê o que muda antes de salvar.',
+          key: const ValueKey('spec-questions-count'),
+          style: const TextStyle(
+            fontSize: 12.5,
+            height: 1.45,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        for (final (i, q) in questions.indexed) _row(i, q, answers[q.id]),
+        const SizedBox(height: 4),
+        Material(
+          color: AppColors.surfaceRaisedSolid,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: CheckboxListTile(
+            key: const ValueKey('spec-questions-update'),
+            value: update,
+            onChanged: (v) => onUpdate(v ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            activeColor: AppColors.amber,
+            checkColor: AppColors.onAmber,
+            dense: true,
+            title: const Text(
+              'Atualizar requisitos e critérios com as respostas',
+              style: TextStyle(fontSize: 13.5, color: AppColors.text),
+            ),
+            subtitle: const Text(
+              'O Claude edita só esta spec. Você revisa o resultado antes de '
+              'salvar.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(int i, OpenQuestion q, Answer? a) {
+    final answered = a?.answered ?? false;
+    return Padding(
+      key: ValueKey('spec-questions-review-${q.id}'),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaisedSolid,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 42,
+              child: Text(
+                q.id,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.amber,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    q.text,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          answered ? Icons.check : Icons.schedule,
+                          size: 14,
+                          color: answered
+                              ? AppColors.teal
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (!answered) ...[
+                        Container(
+                          key: ValueKey('spec-questions-later-${q.id}'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Text(
+                            'Para depois',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: Text(
+                          answered
+                              ? a!.text
+                              : 'Continua em Perguntas em aberto.',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            height: 1.4,
+                            color: answered
+                                ? AppColors.text
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              key: ValueKey('spec-questions-change-${q.id}'),
+              onPressed: () => onEdit(i),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.amber,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Text(
+                'Editar',
+                semanticsLabel: 'Editar a resposta de ${q.id}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "O que muda na spec" (SPEC-059 R8, SPEC-028 R11): the summary and the
+/// diff with line numbers, in the width of the area (up to 1100 px).
+class AnswersDiff extends StatelessWidget {
+  const AnswersDiff({super.key, required this.applied, required this.summary});
+
+  final AppliedAnswers applied;
+  final String summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = numberedDiff(applied.before, applied.after);
+    final added = rows.where((x) => x.op == DiffOp.add).length;
+    final removed = rows.where((x) => x.op == DiffOp.del).length;
+    return Column(
+      key: const ValueKey('spec-questions-diff-view'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'O que muda na spec',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
+            Text(
+              '+$added',
+              key: const ValueKey('spec-questions-added'),
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 13,
+                color: AppColors.teal,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '−$removed',
+              style: const TextStyle(
+                fontFamily: AppFonts.mono,
+                fontSize: 13,
+                color: AppColors.red,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          summary,
+          key: const ValueKey('spec-questions-summary'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12.5,
+            height: 1.45,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Expanded(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: DiffView(
+                key: const ValueKey('spec-questions-diff'),
+                rows: rows,
+                collapseSame: 4,
+                scrollable: true,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
