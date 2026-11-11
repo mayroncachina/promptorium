@@ -481,6 +481,74 @@ void main() {
     expect(disk(), questionsSpec);
   });
 
+  testWidgets('R8: the review and the diff are in the center too: the '
+      'review in the 720 px column with Editar taking back to the question, '
+      'the diff up to 1100 px', (tester) async {
+    await pump(tester);
+    await open(tester);
+    await tester.tap(key('spec-questions-next'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(key('spec-questions-defer'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Revisar respostas'), findsOneWidget);
+    await tester.tap(key('spec-questions-next'));
+    await tester.pump();
+    await tester.pump();
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · revisão');
+    final area = tester.getRect(panel);
+    final review = tester.getRect(key('spec-questions-review'));
+    expect(review.width, 720);
+    expect(review.center.dx, closeTo(area.center.dx, 0.5));
+    expect(find.text('Voltar às perguntas'), findsOneWidget);
+    expect(find.text('Aplicar 2 respostas na spec'), findsOneWidget);
+    // The steps stay on top, none of them current.
+    expect(key('spec-questions-trail'), findsOneWidget);
+    expect(key('spec-questions-later-P2'), findsOneWidget);
+
+    await tester.tap(key('spec-questions-change-P2'));
+    await tester.pump();
+    await tester.pump();
+    expect(subtitle(tester), endsWith('pergunta 2 de 3'));
+    await tester.tap(key('spec-questions-next'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(key('spec-questions-next'));
+    await tester.pump();
+    await tester.pump();
+    expect(key('spec-questions-review'), findsOneWidget);
+
+    // Without the box: only the decisions, the diff right away.
+    await tester.tap(key('spec-questions-update'));
+    await tester.pump();
+    await tester.tap(key('spec-questions-apply'));
+    await settleIo(
+      tester,
+      until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+    );
+    expect(find.text('O que muda na spec'), findsOneWidget);
+    final diff = tester.getRect(key('spec-questions-diff-view'));
+    expect(diff.width, 1100);
+    expect(diff.center.dx, closeTo(area.center.dx, 0.5));
+    expect(tester.getRect(key('spec-questions-footer')).width, 1100);
+    expect(
+      tester.getRect(key('spec-questions-diff')).bottom,
+      lessThanOrEqualTo(tester.getRect(key('spec-questions-footer')).top),
+    );
+    expect(find.text('Salvar na spec'), findsOneWidget);
+    expect(disk(), questionsSpec);
+
+    // Narrower: the width of the area minus 32 px on each side.
+    tester.view.physicalSize = const Size(1100, 700);
+    await tester.pump();
+    expect(tester.getRect(key('spec-questions-diff-view')).width, 1036);
+    expect(tester.takeException(), isNull);
+    await tester.tap(key('spec-questions-discard'));
+    await tester.pump();
+    await releaseEditor(tester);
+  });
+
   group('R10 motion', () {
     setUp(() => AppMotion.enabled = true);
     tearDown(() => AppMotion.enabled = false);
