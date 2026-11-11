@@ -1,6 +1,7 @@
 ---
 id: SPEC-063
 status: rascunho
+issue: 176
 ---
 
 # Dependências que o app entende e avisa
