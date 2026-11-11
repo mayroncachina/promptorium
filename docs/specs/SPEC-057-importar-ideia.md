@@ -126,6 +126,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3QhJ9SKKTfdTZMDj7Yw
 - **t2 · Remover com o texto editado.** A pergunta avisa que o campo volta para como estava antes do arquivo e que as edições feitas depois se perdem. Trocar, sem edição, troca só o trecho do arquivo; com edição, o campo conta como "já tem texto" e a escolha do R6 aparece.
 - **t2 · Progresso.** O cartão "Lendo o PDF… página x de n" fica acima do campo, no lugar do cartão de origem, e só para PDF com mais de 5 páginas; os menores leem sem cartão.
 - **t2 · Detalhes do campo.** O campo não aceita mais de 40.000 caracteres (também ao colar). Depois de importar, o cursor fica no começo do texto do arquivo, para ele aparecer do topo. Soltar vários arquivos importa o primeiro e mostra "Importamos só <nome>; o campo recebe um arquivo por vez."
+- **t3 · Nas duas telas.** `_Idea` (Nova spec, até 8 linhas) e `_IdeaBox` (Visão, até 10) trocam o `TextField` pelo `IdeaField` e mantêm as chaves `new-spec-idea` e `project-idea`. O `_IdeaBox` ganhou rolagem: com cartão, aviso e a escolha do R6, ele não cabe em 1100×700. Quando a escolha aparece abaixo da dobra, o `IdeaField` rola até ela.
 
 ## Plano
 
@@ -140,4 +141,4 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/3QhJ9SKKTfdTZMDj7Yw
 - [x] Com texto no campo, dá para adicionar ao fim ou substituir; Ctrl+Z desfaz a substituição.
 - [x] PDF escaneado, com senha, `.docx` e arquivo grande mostram a mensagem certa e não mexem no campo.
 - [x] Um texto acima de 40.000 caracteres entra cortado num parágrafo, com o aviso.
-- [ ] O mesmo vale no passo Visão do Projeto.
+- [x] O mesmo vale no passo Visão do Projeto.
