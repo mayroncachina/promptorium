@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/features/specs/spec_answers.dart';
+import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/features/specs/widgets/spec_list.dart';
 import 'package:promptorium/features/specs/widgets/spec_questions_focus.dart';
 import 'package:promptorium/ui/theme/motion.dart';
@@ -231,13 +232,28 @@ void main() {
     expect(selected(tester), AnswerOption.alternative1);
     await press(tester, LogicalKeyboardKey.digit1);
     expect(selected(tester), AnswerOption.suggestion);
-    await press(tester, LogicalKeyboardKey.digit4);
-    expect(selected(tester), AnswerOption.other);
     // Past the options: nothing.
     await press(tester, LogicalKeyboardKey.digit7);
+    expect(selected(tester), AnswerOption.suggestion);
+    // "Outra resposta" takes the focus to its field (R6), where the digits
+    // are text.
+    await press(tester, LogicalKeyboardKey.digit4);
     expect(selected(tester), AnswerOption.other);
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'spec-question-other-text',
+    );
     await press(tester, LogicalKeyboardKey.digit2);
+    expect(selected(tester), AnswerOption.other);
+    // Another option chosen from the field takes the focus back.
+    await tester.tap(key('spec-question-option-alternative1'));
+    await tester.pump();
+    await tester.pump();
     expect(selected(tester), AnswerOption.alternative1);
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'spec-question-alternative1',
+    );
 
     await press(tester, LogicalKeyboardKey.enter);
     expect(subtitle(tester), endsWith('pergunta 2 de 3'));
@@ -347,6 +363,122 @@ void main() {
       lessThanOrEqualTo(tester.getRect(key('spec-questions-next')).left),
     );
     expect(tester.takeException(), isNull);
+  });
+
+  test('R7: the excerpt of a question, with its lines and the ones around '
+      'it inside "Perguntas em aberto"', () {
+    final doc = SpecDocument.parse(questionsSpec);
+    final qs = doc.openQuestions;
+    final p1 = doc.questionExcerpt(qs[0])!;
+    expect((p1.first, p1.last, p1.from), (18, 19, 18));
+    expect(p1.lines, [
+      '- P1 · Como adicionar máquinas a um grupo?',
+      '  - Sugestão: pela seleção na tabela.',
+      '- P2 · O filtro deve ser lembrado?',
+      '- P3 · Excluir um grupo apaga as máquinas?',
+    ]);
+    final p2 = doc.questionExcerpt(qs[1])!;
+    expect((p2.first, p2.last, p2.from, p2.lines.length), (20, 20, 18, 5));
+    expect(p2.marked(20), isTrue);
+    expect(p2.marked(19), isFalse);
+    final p3 = doc.questionExcerpt(qs[2])!;
+    expect((p3.first, p3.last, p3.from, p3.lines.length), (21, 22, 19, 4));
+  });
+
+  testWidgets('R6: "Outra resposta" takes the focus to its field, which '
+      'grows up to 6 lines; Enter breaks the line and Ctrl+Enter goes on', (
+    tester,
+  ) async {
+    await pump(tester);
+    await open(tester);
+    await tester.tap(key('spec-question-radio-other'));
+    await tester.pump();
+    await tester.pump();
+    expect(selected(tester), AnswerOption.other);
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'spec-question-other-text',
+    );
+    final field = tester.widget<TextField>(key('spec-question-other-text'));
+    expect(field.maxLines, 6);
+    expect(field.keyboardType, TextInputType.multiline);
+    double height() => tester.getSize(key('spec-question-other-text')).height;
+    await tester.enterText(key('spec-question-other-text'), 'a\nb\nc\nd\ne\nf');
+    await tester.pump();
+    final six = height();
+    await tester.enterText(
+      key('spec-question-other-text'),
+      List.generate(12, (i) => 'linha $i').join('\n'),
+    );
+    await tester.pump();
+    expect(height(), six);
+    await tester.enterText(key('spec-question-other-text'), 'a\nb');
+    await tester.pump();
+    expect(height(), lessThan(six));
+
+    // Enter stays in the field.
+    await press(tester, LogicalKeyboardKey.enter);
+    expect(subtitle(tester), endsWith('pergunta 1 de 3'));
+    await press(
+      tester,
+      LogicalKeyboardKey.enter,
+      hold: LogicalKeyboardKey.controlLeft,
+    );
+    expect(subtitle(tester), endsWith('pergunta 2 de 3'));
+    expect(
+      answers()['P1'],
+      const Answer(option: AnswerOption.other, text: 'a\nb'),
+    );
+    expect(disk(), questionsSpec);
+  });
+
+  testWidgets('R7: "Ver na spec" shows the excerpt with the lines of the '
+      'question marked; the choice holds for the next questions until the '
+      'session closes', (tester) async {
+    await pump(tester);
+    await open(tester);
+    expect(key('spec-question-excerpt'), findsNothing);
+    await tester.tap(key('spec-question-excerpt-toggle'));
+    await tester.pump();
+    expect(key('spec-question-excerpt'), findsOneWidget);
+    expect(find.text('Linhas 18–19 de Perguntas em aberto'), findsOneWidget);
+    expect(find.text('Esconder trecho'), findsOneWidget);
+    expect(key('spec-question-excerpt-mark-18'), findsOneWidget);
+    expect(key('spec-question-excerpt-mark-19'), findsOneWidget);
+    expect(key('spec-question-excerpt-line-20'), findsOneWidget);
+    // Between the question and the options.
+    final excerpt = tester.getRect(key('spec-question-excerpt'));
+    expect(
+      excerpt.top,
+      greaterThan(tester.getRect(key('spec-question-text')).bottom),
+    );
+    expect(
+      excerpt.bottom,
+      lessThan(tester.getRect(key('spec-question-options')).top),
+    );
+
+    await tester.tap(key('spec-questions-next'));
+    await tester.pump();
+    await tester.pump();
+    expect(subtitle(tester), endsWith('pergunta 2 de 3'));
+    expect(find.text('Linha 20 de Perguntas em aberto'), findsOneWidget);
+    expect(key('spec-question-excerpt-mark-20'), findsOneWidget);
+    expect(key('spec-question-excerpt-line-18'), findsOneWidget);
+
+    await tester.tap(key('spec-question-excerpt-toggle'));
+    await tester.pump();
+    expect(key('spec-question-excerpt'), findsNothing);
+    expect(find.text('Ver na spec'), findsOneWidget);
+    await tester.tap(key('spec-question-excerpt-toggle'));
+    await tester.pump();
+
+    // Closing ends it: the next session starts without the excerpt.
+    await press(tester, LogicalKeyboardKey.escape);
+    expect(panel, findsNothing);
+    await open(tester);
+    expect(key('spec-question-excerpt'), findsNothing);
+    expect(find.text('Ver na spec'), findsOneWidget);
+    expect(disk(), questionsSpec);
   });
 
   group('R10 motion', () {

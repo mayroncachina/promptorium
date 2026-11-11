@@ -624,3 +624,87 @@ class DashedBorder extends CustomPainter {
   @override
   bool shouldRepaint(covariant DashedBorder old) => old.color != color;
 }
+
+/// The excerpt of "Perguntas em aberto" around the question (SPEC-059 R7):
+/// the line numbers, and the question's own lines marked with an amber rule
+/// on the left.
+class QuestionExcerpt extends StatelessWidget {
+  const QuestionExcerpt({super.key, required this.excerpt});
+
+  final QuestionExcerptLines excerpt;
+
+  @override
+  Widget build(BuildContext context) {
+    final digits = '${excerpt.from + excerpt.lines.length}'.length;
+    return Container(
+      key: const ValueKey('spec-question-excerpt'),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundSolid,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, text) in excerpt.lines.indexed)
+            _line(excerpt.from + i, text, digits),
+        ],
+      ),
+    );
+  }
+
+  Widget _line(int no, String text, int digits) {
+    final marked = excerpt.marked(no);
+    const style = TextStyle(
+      fontFamily: AppFonts.mono,
+      fontSize: 12.5,
+      height: 1.6,
+      color: AppColors.text,
+    );
+    return Semantics(
+      label: marked ? 'Linha $no, da pergunta: $text' : 'Linha $no: $text',
+      excludeSemantics: true,
+      child: Container(
+        key: ValueKey(
+          marked
+              ? 'spec-question-excerpt-mark-$no'
+              : 'spec-question-excerpt-line-$no',
+        ),
+        decoration: BoxDecoration(
+          color: marked ? AppColors.amberTint : null,
+          border: Border(
+            left: BorderSide(
+              color: marked ? AppColors.amber : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.only(left: 10, right: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 8.0 * digits + 4,
+              child: Text(
+                '$no',
+                textAlign: TextAlign.right,
+                style: style.copyWith(color: ReviewColors.lineNumber),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                text.isEmpty ? ' ' : text,
+                style: marked
+                    ? style
+                    : style.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

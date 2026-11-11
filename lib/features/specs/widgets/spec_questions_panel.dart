@@ -129,6 +129,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   };
   final _panelFocus = FocusNode(debugLabel: 'spec-questions');
 
+  /// "Ver na spec" (SPEC-059 R7): kept for the next questions until the
+  /// session closes.
+  bool _showExcerpt = false;
+
   List<OpenQuestion> get _questions => widget.questions;
 
   OpenQuestion? get _current => _questions.isEmpty
@@ -234,11 +238,19 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   }
 
   Future<void> _choose(OpenQuestion q, AnswerOption o) async {
+    // Another option chosen from the field: the focus goes with it, so
+    // Enter is "Próxima" again.
+    if (o != AnswerOption.other && _otherFocus.hasFocus) {
+      _options[o]!.requestFocus();
+    }
     switch (o) {
       case AnswerOption.suggestion:
         _store(q, Answer(option: o, text: q.suggestion ?? ''));
       case AnswerOption.other:
         _store(q, Answer(option: o, text: _other.text.trim()));
+        // SPEC-059 R6: straight to the field. The arrows of the radio
+        // group put the focus back on the option right after.
+        _otherFocus.requestFocus();
       case AnswerOption.alternative1 || AnswerOption.alternative2:
         final alts = await _alternatives(q)
             .catchError((Object _) => const <QuestionAlternative>[]);
@@ -397,14 +409,24 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       _next();
       return KeyEventResult.handled;
     }
+    // SPEC-059 R6: in the field Enter breaks the line; Ctrl+Enter goes on.
+    final ctrl =
+        kb.isControlPressed &&
+        !kb.isAltPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed;
+    if (enter && ctrl) {
+      _next();
+      return KeyEventResult.handled;
+    }
     var n = _digits.indexOf(key);
     if (n < 0) n = _numpad.indexOf(key);
     if (n >= 0 && plain && !inField) {
       final options = _optionsOf(q);
       if (n < options.length) {
         final o = options[n];
+        if (o != AnswerOption.other) _options[o]!.requestFocus();
         unawaited(_choose(q, o));
-        _options[o]!.requestFocus();
       }
       return KeyEventResult.handled;
     }
@@ -543,31 +565,8 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 1),
-                  child: Icon(
-                    Icons.description_outlined,
-                    size: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    note,
-                    key: const ValueKey('spec-question-note'),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      height: 1.4,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _noteLine(q, note),
+            if (_showExcerpt) ...[const SizedBox(height: 12), _excerpt(q)],
             const SizedBox(height: 16),
             RadioGroup<AnswerOption>(
               groupValue: selected,
@@ -622,7 +621,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                       selected,
                       number: next(),
                       title: 'Outra resposta',
-                      field: _otherField(q),
+                      field: _otherField(
+                        q,
+                        selected: selected == AnswerOption.other,
+                      ),
                     ),
                   ],
                 ),
@@ -634,11 +636,16 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     );
   }
 
-  Widget _otherField(OpenQuestion q) => TextField(
+  /// "Outra resposta" (SPEC-059 R6): grows up to 6 lines and then
+  /// scrolls; Enter breaks the line, Ctrl+Enter goes to the next question.
+  Widget _otherField(OpenQuestion q, {required bool selected}) => TextField(
     key: const ValueKey('spec-question-other-text'),
     controller: _other,
     focusNode: _otherFocus,
-    textInputAction: TextInputAction.next,
+    keyboardType: TextInputType.multiline,
+    textInputAction: TextInputAction.newline,
+    minLines: selected ? 3 : 1,
+    maxLines: 6,
     style: const TextStyle(fontSize: 13.5, height: 1.45),
     decoration: const InputDecoration(
       isDense: true,
@@ -646,10 +653,90 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(),
     ),
+    onTap: () {
+      if (_selected(q) != AnswerOption.other) {
+        unawaited(_choose(q, AnswerOption.other));
+      }
+    },
     onChanged: (v) =>
         _store(q, Answer(option: AnswerOption.other, text: v.trim())),
-    onSubmitted: (_) => _next(),
   );
+
+  /// Where the options come from, and "Ver na spec" / "Esconder trecho"
+  /// (SPEC-059 R2, R7).
+  Widget _noteLine(OpenQuestion q, String note) {
+    final excerpt = _showExcerpt
+        ? SpecDocument.parse(widget.specText()).questionExcerpt(q)
+        : null;
+    final text = !_showExcerpt
+        ? note
+        : excerpt == null
+        ? 'A pergunta não está mais em Perguntas em aberto.'
+        : excerpt.first == excerpt.last
+        ? 'Linha ${excerpt.first} de Perguntas em aberto'
+        : 'Linhas ${excerpt.first}–${excerpt.last} de Perguntas em aberto';
+    const style = TextStyle(
+      fontSize: 12.5,
+      height: 1.4,
+      color: AppColors.textSecondary,
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.description_outlined,
+          size: 14,
+          color: AppColors.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            text,
+            key: const ValueKey('spec-question-note'),
+            style: style,
+          ),
+        ),
+        const Text(' · ', style: style),
+        Semantics(
+          button: true,
+          expanded: _showExcerpt,
+          child: InkWell(
+            key: const ValueKey('spec-question-excerpt-toggle'),
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => setState(() => _showExcerpt = !_showExcerpt),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _showExcerpt ? 'Esconder trecho' : 'Ver na spec',
+                    style: style.copyWith(
+                      color: AppColors.amber,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Icon(
+                    _showExcerpt ? Icons.expand_less : Icons.expand_more,
+                    size: 15,
+                    color: AppColors.amber,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _excerpt(OpenQuestion q) {
+    final excerpt = SpecDocument.parse(widget.specText()).questionExcerpt(q);
+    return excerpt == null
+        ? const SizedBox.shrink()
+        : QuestionExcerpt(excerpt: excerpt);
+  }
 
   Widget _option(
     OpenQuestion q,
