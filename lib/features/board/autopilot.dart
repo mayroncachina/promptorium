@@ -280,6 +280,10 @@ class Autopilot extends Notifier<Set<int>> {
 
   /// Budget of the day of a scheduled start (beats `orcamento-dia`).
   final Map<int, double> _budgetToday = {};
+
+  /// Specs that were waiting at the last tick, by workspace (SPEC-064 R6:
+  /// "SPEC-002 começou: a SPEC-001 chegou em Review").
+  final Map<int, Set<int>> _waitingIds = {};
   final Map<int, DateTime> _lastScheduled = {};
 
   AutopilotSchedule? scheduleOf(int workspaceId) => AutopilotSchedule.decode(
@@ -415,6 +419,7 @@ class Autopilot extends Notifier<Set<int>> {
     if (await checkBudget(workspaceId)) return;
     final plan = await planFor(workspaceId);
     final review = plan.unblockAt == UnblockAt.review;
+    final wasWaiting = _waitingIds[workspaceId] ?? const <int>{};
     var started = 0;
     for (final s in plan.start) {
       try {
@@ -424,10 +429,14 @@ class Autopilot extends Notifier<Set<int>> {
             .read(specRunnerProvider)
             .runAuto(s.id, reviewUnblocks: review);
         started++;
+        if (wasWaiting.contains(s.id)) {
+          _announce(workspaceId, startedAfterWait(s, plan.unblockAt));
+        }
       } catch (e) {
         debugPrint('autopilot: ${s.code} não iniciada — $e');
       }
     }
+    _waitingIds[workspaceId] = {for (final w in plan.wait) w.spec.id};
     // SPEC-037 R13: the end of the round calls this again.
     final waiting = plan.wait.any((w) => w.planning);
     // Nothing started now and nothing running: the last spec is finished
@@ -440,7 +449,39 @@ class Autopilot extends Notifier<Set<int>> {
         !waiting &&
         !now.any((s) => s.stage == SpecStage.running)) {
       _off(workspaceId);
+      _waitingIds.remove(workspaceId);
+      final inReview = now.where((s) => s.stage == SpecStage.review).length;
+      _announce(
+        workspaceId,
+        'Executar tudo terminou: $inReview '
+        '${inReview == 1 ? 'spec' : 'specs'} em Review.',
+      );
     }
+  }
+
+  /// "SPEC-002 começou: a SPEC-001 chegou em Review." (SPEC-064 R6).
+  static String startedAfterWait(Spec s, UnblockAt at) {
+    final deps = s.dependsOn;
+    final who = deps.length == 1
+        ? 'a ${deps.single} chegou'
+        : 'as dependências chegaram';
+    return '${s.code} começou: $who em ${at.label}.';
+  }
+
+  /// A notice in the app's list and on the desktop (SPEC-064 R6).
+  void _announce(int workspaceId, String body) {
+    unawaited(
+      ref
+          .read(notificationsRepoProvider)
+          .add(title: 'Executar tudo', body: body, section: 'tasks')
+          .catchError((_) {}),
+    );
+    unawaited(
+      ref
+          .read(appNotifierProvider)
+          .show('Executar tudo', body)
+          .catchError((_) {}),
+    );
   }
 }
 
