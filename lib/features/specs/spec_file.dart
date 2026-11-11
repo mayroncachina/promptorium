@@ -173,6 +173,8 @@ class SpecDocument {
   }
 
   /// 1-based line of [key] in the frontmatter block; null when absent.
+  int? frontmatterLineOf(String key) => _frontmatterLineOf(key);
+
   int? _frontmatterLineOf(String key) {
     if (!hasFrontmatter) return null;
     final start = _frontmatterStart.firstMatch(text)!;
@@ -191,8 +193,20 @@ class SpecDocument {
   /// R2).
   String withCanonicalDependsOn() {
     final alias = dependsOnAlias;
-    if (alias == null || !hasFrontmatter) return text;
-    final codes = dependsOn;
+    if (alias == null) return text;
+    return withDependsOnFrom(alias);
+  }
+
+  /// Text with the frontmatter [key] turned into `depende-de`: its codes
+  /// join those of `depende-de` (SPEC-063 R4, "Trocar para depende-de").
+  String withDependsOnFrom(String key) {
+    if (!hasFrontmatter || !frontmatter.containsKey(key)) return text;
+    final alias = key;
+    final codes = [
+      ...dependsOn,
+      for (final c in _specCodes(frontmatter[key]))
+        if (!dependsOn.contains(c)) c,
+    ];
     final start = _frontmatterStart.firstMatch(text)!;
     final close = _fence.allMatches(text, start.end).first;
     final lines = text.substring(start.end, close.start).split('\n');

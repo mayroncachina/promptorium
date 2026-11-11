@@ -158,5 +158,29 @@ void main() {
       expect(c.text, disk);
       expect(key('spec-depends-alias'), findsNothing);
     });
+
+    testWidgets('SPEC-063 R4: "Trocar para depende-de" on an unknown key', (
+      tester,
+    ) async {
+      File(specPath(tmp)).writeAsStringSync(spec('requer: SPEC-001\n'));
+      await pumpSpecs(tester, tmp, designer: FakeDesigner.new);
+      await tester.tap(key('spec-warnings-toggle'));
+      await tester.pump();
+      final fix = find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('spec-warning-fix-'),
+      );
+      expect(fix, findsOneWidget);
+      expect(find.text('Trocar para depende-de'), findsOneWidget);
+      await tester.tap(fix);
+      await tester.pump();
+      expect(
+        editorOf(tester).controller!.text,
+        contains('depende-de: [SPEC-001]'),
+      );
+      expect(editorOf(tester).controller!.text, isNot(contains('requer:')));
+      expect(find.text('Trocar para depende-de'), findsNothing);
+    });
   });
 }

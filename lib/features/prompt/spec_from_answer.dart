@@ -136,9 +136,12 @@ String withSpecTitle(String markdown, String title) {
 }
 
 /// Text written for a new spec: `id` = [code], `status: rascunho`, other
-/// frontmatter keys kept.
+/// frontmatter keys kept; a variation of `depende-de` gets the right name
+/// (SPEC-063 R5).
 String newSpecTextFromAnswer(String markdown, String code) =>
-    SpecDocument.parse(markdown).withMeta(id: code, status: SpecStatus.draft);
+    SpecDocument.parse(
+      SpecDocument.parse(markdown).withMeta(id: code, status: SpecStatus.draft),
+    ).withCanonicalDependsOn();
 
 /// Saves [markdown] as the next free spec of [ws] (exclusive create).
 Future<Spec> saveAnswerSpecAsNew(
@@ -176,7 +179,9 @@ String appliedSpecText(String markdown, Spec target, String? currentText) {
   final status =
       (currentText == null ? null : SpecDocument.parse(currentText).status) ??
       target.status;
-  return SpecDocument.parse(markdown).withMeta(id: target.code, status: status);
+  return SpecDocument.parse(
+    SpecDocument.parse(markdown).withMeta(id: target.code, status: status),
+  ).withCanonicalDependsOn();
 }
 
 /// Replaces [target]'s file with [markdown]. [expectedText] is the file as
@@ -198,4 +203,13 @@ Future<Spec> applyAnswerSpec(
     appliedSpecText(markdown, target, expectedText),
     expectedText: expectedText,
   );
+}
+
+/// "Ajustado ao salvar" for a variation of `depende-de` (SPEC-063 R5);
+/// null when there is none.
+String? dependsOnAliasAdjust(String markdown) {
+  final doc = SpecDocument.parse(markdown);
+  final alias = doc.dependsOnAlias;
+  if (alias == null) return null;
+  return 'A chave "$alias" vira "$dependsOnKey": [${doc.dependsOn.join(', ')}].';
 }

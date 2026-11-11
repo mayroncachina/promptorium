@@ -13,12 +13,16 @@ class SpecWarningsBar extends StatelessWidget {
     required this.open,
     required this.onToggle,
     required this.onSelect,
+    this.onFix,
   });
 
   final List<SpecWarning> warnings;
   final bool open;
   final VoidCallback onToggle;
   final ValueChanged<SpecWarning> onSelect;
+
+  /// The button of a warning with [SpecWarning.fixLabel] (SPEC-063 R4).
+  final ValueChanged<SpecWarning>? onFix;
 
   static String countLabel(int n) =>
       n == 1 ? '1 aviso de estrutura' : '$n avisos de estrutura';
@@ -127,6 +131,22 @@ class SpecWarningsBar extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (w.fixLabel != null && onFix != null)
+                                TextButton(
+                                  key: ValueKey('spec-warning-fix-$i'),
+                                  onPressed: () => onFix!(w),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.amber,
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    w.fixLabel!,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
