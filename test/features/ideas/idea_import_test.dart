@@ -152,6 +152,20 @@ void main() {
       );
     });
 
+    test('a full-width line ending a sentence goes on', () async {
+      final fake = FakePoppler([
+        'O lembrete sai um dia antes da consulta marcada.\n'
+            'A recepção acompanha as respostas.\n'
+            'Outro parágrafo começa aqui.\n',
+      ]);
+      final r = await reader(fake).read(write('b.pdf', 'x').path);
+      expect(
+        r.text,
+        'O lembrete sai um dia antes da consulta marcada. A recepção '
+        'acompanha as respostas.\nOutro parágrafo começa aqui.',
+      );
+    });
+
     test('removes headers and footers repeated on every page', () async {
       final fake = FakePoppler([
         'Clínica Sorriso — briefing\n\nPrimeira parte do texto.\n\n\nPágina 1 de 2\n',
