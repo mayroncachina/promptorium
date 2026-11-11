@@ -347,17 +347,25 @@ void main() {
     expect(disk(), questionsSpec);
   });
 
-  testWidgets('R9: the review lists the answers, "Mudar" changes one and '
+  testWidgets('R9: the review lists the answers, "Editar" changes one and '
       'the box to update the requirements is checked', (tester) async {
     await pump(tester);
     await openPanel(tester);
     await tapKey(tester, 'spec-questions-next');
     await tapKey(tester, 'spec-questions-defer');
     await tapKey(tester, 'spec-questions-next');
-    expect(find.text('Revise antes de aplicar'), findsOneWidget);
+    expect(find.text('Revise as respostas'), findsOneWidget);
+    expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · revisão');
     expect(
-      subtitle(tester),
-      'SPEC-002 · Grupos de máquinas · 2 respondidas, 1 para depois',
+      tester.widget<Text>(key('spec-questions-count')).data,
+      startsWith('2 respondidas, 1 para depois.'),
+    );
+    expect(
+      find.descendant(
+        of: key('spec-questions-review'),
+        matching: find.text('Editar'),
+      ),
+      findsNWidgets(3),
     );
     expect(find.text('pela seleção na tabela.'), findsOneWidget);
     expect(find.text('não; elas voltam para "Sem grupo".'), findsOneWidget);
@@ -372,7 +380,7 @@ void main() {
       find.text('Atualizar requisitos e critérios com as respostas'),
       findsOneWidget,
     );
-    expect(find.text('Aplicar 2 respostas'), findsOneWidget);
+    expect(find.text('Aplicar 2 respostas na spec'), findsOneWidget);
 
     await tapKey(tester, 'spec-questions-change-P2');
     expect(subtitle(tester), 'SPEC-002 · Grupos de máquinas · pergunta 2 de 3');
@@ -382,7 +390,7 @@ void main() {
     await tapKey(tester, 'spec-questions-next');
     expect(find.text('Sim, por usuário'), findsOneWidget);
     expect(key('spec-questions-later-P2'), findsNothing);
-    expect(find.text('Aplicar 3 respostas'), findsOneWidget);
+    expect(find.text('Aplicar 3 respostas na spec'), findsOneWidget);
     expect(disk(), questionsSpec);
   });
 
@@ -401,10 +409,11 @@ void main() {
     await tapKey(tester, 'spec-questions-update');
     await tapKey(tester, 'spec-questions-apply');
     expect(applier.calls, isEmpty);
-    expect(find.text('Respostas aplicadas'), findsOneWidget);
+    expect(find.text('O que muda na spec'), findsOneWidget);
     expect(
       subtitle(tester),
-      'SPEC-002 · Grupos de máquinas · nada foi salvo ainda',
+      'SPEC-002 · Grupos de máquinas · o que muda na spec · nada foi salvo '
+      'ainda',
     );
     expect(find.byType(DiffView), findsOneWidget);
     expect(find.text('Descartar'), findsOneWidget);
@@ -423,7 +432,7 @@ void main() {
     await tapKey(tester, 'spec-questions-next');
     await tapKey(tester, 'spec-questions-next');
     await tapKey(tester, 'spec-questions-next');
-    expect(find.text('Aplicar 2 respostas'), findsOneWidget);
+    expect(find.text('Aplicar 2 respostas na spec'), findsOneWidget);
     expect(
       tester.widget<CheckboxListTile>(key('spec-questions-update')).value,
       isTrue,
@@ -473,7 +482,7 @@ void main() {
     );
     // "Voltar às respostas" and back again keeps the result.
     await tapKey(tester, 'spec-questions-back');
-    expect(find.text('Revise antes de aplicar'), findsOneWidget);
+    expect(find.text('Revise as respostas'), findsOneWidget);
     applier.next = Completer<String>()..complete(updated);
     await tapKey(tester, 'spec-questions-apply');
     await settleIo(
