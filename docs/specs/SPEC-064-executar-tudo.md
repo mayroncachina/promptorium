@@ -1,6 +1,6 @@
 ---
 id: SPEC-064
-status: rascunho
+status: aprovada
 issue: 178
 ---
 
