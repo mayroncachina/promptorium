@@ -1,6 +1,6 @@
 ---
 id: SPEC-063
-status: rascunho
+status: aprovada
 issue: 176
 ---
 
