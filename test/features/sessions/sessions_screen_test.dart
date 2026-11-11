@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/saved_prompts_repo.dart';
@@ -113,6 +114,7 @@ Future<(AppDatabase, FakeCli)> pumpScreen(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
   List<Map<String, dynamic>>? events,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -165,6 +167,7 @@ Future<(AppDatabase, FakeCli)> pumpScreen(
       sessionChangesProvider.overrideWith(
         (ref, id) async => const SessionChanges(),
       ),
+      ...overrides,
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
