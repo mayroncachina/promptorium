@@ -269,7 +269,10 @@ class _CommitPanelState extends ConsumerState<CommitPanel> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     side: const BorderSide(color: AppColors.border),
                     foregroundColor: AppColors.textSecondary,
-                    textStyle: const TextStyle(fontFamily: AppFonts.sans, fontSize: 12),
+                    textStyle: const TextStyle(
+                      fontFamily: AppFonts.sans,
+                      fontSize: 12,
+                    ),
                   ),
                   child: const Text('Copiar SHA'),
                 ),

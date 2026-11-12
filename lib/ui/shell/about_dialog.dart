@@ -8,9 +8,12 @@ import '../../core/update/changelog_section.dart';
 import '../../core/update/installer.dart';
 import '../../core/update/update_check.dart';
 import '../../features/sessions/widgets/session_style.dart';
+import '../../features/splash/splash_painter.dart';
 import '../../features/splash/splash_stage.dart';
+import '../theme/motion.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/staggered_entrance.dart';
 import 'about_update_card.dart';
 import 'update_flow.dart';
 
@@ -136,29 +139,56 @@ class _AboutPromptoriumDialogState
                 children: [
                   ExcludeFocus(
                     excluding: asking,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const _Identity(),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 12, 16, 0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _Header(installing: installing),
-                                const SizedBox(height: 6),
-                                UpdateCard(
-                                  actionFocus: _actionFocus,
-                                  cardFocus: _cardFocus,
+                    // Tab: the right column, the logo, the links (SPEC-066 R6).
+                    child: FocusTraversalGroup(
+                      policy: OrderedTraversalPolicy(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _Identity(paused: asking),
+                          Expanded(
+                            child: FocusTraversalOrder(
+                              order: const NumericFocusOrder(1),
+                              child: FocusTraversalGroup(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    12,
+                                    16,
+                                    0,
+                                  ),
+                                  // The right column enters in a cascade
+                                  // (SPEC-066 R1).
+                                  child: StaggeredEntrance(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        StaggeredItem(
+                                          index: 0,
+                                          child: _Header(
+                                            installing: installing,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        StaggeredItem(
+                                          index: 1,
+                                          child: UpdateCard(
+                                            actionFocus: _actionFocus,
+                                            cardFocus: _cardFocus,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Expanded(child: _News()),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(height: 16),
-                                const Expanded(child: _News()),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   if (asking)
@@ -210,7 +240,10 @@ class _Header extends StatelessWidget {
 
 /// Left column: the opening animation, the version and the links (R2, R4).
 class _Identity extends ConsumerWidget {
-  const _Identity();
+  const _Identity({required this.paused});
+
+  /// The download confirmation is over the screen (SPEC-066 R7).
+  final bool paused;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,17 +259,11 @@ class _Identity extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          const Expanded(
+          Expanded(
             child: Center(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: SplashStage(
-                  loop: false,
-                  iconSize: 148,
-                  titleSize: 24,
-                  subtitleSize: 12.5,
-                  gap: 6,
-                ),
+                child: AboutLogo(paused: paused),
               ),
             ),
           ),
@@ -252,26 +279,141 @@ class _Identity extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 16,
-            children: [
-              _Link(
-                key: const ValueKey('about-repo'),
-                label: 'Repositório',
-                onTap: () => installer.openReleasePage(repositoryUrl),
+          FocusTraversalOrder(
+            order: const NumericFocusOrder(3),
+            child: FocusTraversalGroup(
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
+                children: [
+                  _Link(
+                    key: const ValueKey('about-repo'),
+                    label: 'Repositório',
+                    onTap: () => installer.openReleasePage(repositoryUrl),
+                  ),
+                  _Link(
+                    key: const ValueKey('about-history'),
+                    label: 'Histórico completo',
+                    onTap: () => installer.openReleasePage(changelogUrl),
+                  ),
+                ],
               ),
-              _Link(
-                key: const ValueKey('about-history'),
-                label: 'Histórico completo',
-                onTap: () => installer.openReleasePage(changelogUrl),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// The logo of Sobre (SPEC-066): the intro, then the calm rhythm while the
+/// screen is open (R2, R3). The mouse agitates it (R4), and a click, Enter or
+/// Space plays the intro again (R5, R6). With animations off it is a still
+/// icon, outside the Tab order (R8).
+class AboutLogo extends ConsumerStatefulWidget {
+  const AboutLogo({super.key, this.paused = false});
+
+  /// Stops the flask where it is (R7).
+  final bool paused;
+
+  /// Level of the liquid for [state] (R10): the download progress, 0 before
+  /// the first event, or null (full) when not downloading or without a known
+  /// size.
+  static double? levelFor(UpdateFlowState state) {
+    if (state is! UpdateDownloading) return null;
+    final progress = state.progress;
+    if (progress == null) return 0;
+    return progress.fraction;
+  }
+
+  @override
+  ConsumerState<AboutLogo> createState() => _AboutLogoState();
+}
+
+class _AboutLogoState extends ConsumerState<AboutLogo> {
+  final _stage = GlobalKey<SplashStageState>();
+  bool _hover = false;
+  bool _focused = false;
+
+  void _replay() => _stage.currentState?.replay();
+
+  @override
+  void initState() {
+    super.initState();
+    // The download ended: the three bubbles go up together (R10).
+    ref.listenManual(updateFlowProvider, (previous, next) {
+      if (previous is UpdateDownloading && next is UpdateInstalling) {
+        _stage.currentState?.celebrate();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final animate = AppMotion.animate(context);
+    final level = AboutLogo.levelFor(ref.watch(updateFlowProvider));
+    return SplashStage(
+      key: _stage,
+      ambient: SplashAmbient.calm,
+      excited: animate && _hover,
+      paused: widget.paused,
+      level: level,
+      iconSize: 148,
+      titleSize: 24,
+      subtitleSize: 12.5,
+      gap: 6,
+      iconBuilder: animate ? _button : null,
+    );
+  }
+
+  Widget _button(BuildContext context, Widget icon) => MouseRegion(
+    key: const ValueKey('about-logo'),
+    cursor: SystemMouseCursors.click,
+    onEnter: (_) => setState(() => _hover = true),
+    onExit: (_) => setState(() => _hover = false),
+    child: FocusTraversalOrder(
+      order: const NumericFocusOrder(2),
+      child: _detector(icon),
+    ),
+  );
+
+  Widget _detector(Widget icon) => FocusableActionDetector(
+    onShowFocusHighlight: (v) => setState(() => _focused = v),
+    actions: {
+      ActivateIntent: CallbackAction<ActivateIntent>(
+        onInvoke: (_) {
+          _replay();
+          return null;
+        },
+      ),
+    },
+    child: Tooltip(
+      message: 'Tocar a abertura de novo',
+      waitDuration: const Duration(milliseconds: 500),
+      excludeFromSemantics: true,
+      child: GestureDetector(
+        onTap: _replay,
+        child: Semantics(
+          button: true,
+          label: 'Ícone do Promptorium',
+          hint: 'Tocar a abertura de novo',
+          onTap: _replay,
+          excludeSemantics: true,
+          child: DecoratedBox(
+            key: const ValueKey('about-logo-ring'),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _focused ? AppColors.amber : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: icon,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _Link extends StatelessWidget {
@@ -353,44 +495,54 @@ class _NewsBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              version == null ? 'Novidades' : 'Novidades da $version',
-              key: const ValueKey('about-news-title'),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            if (date != null) ...[
-              const SizedBox(width: 8),
+        StaggeredItem(
+          index: 2,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
               Text(
-                formatDate(date),
-                key: const ValueKey('about-news-date'),
+                version == null ? 'Novidades' : 'Novidades da $version',
+                key: const ValueKey('about-news-title'),
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              if (date != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  formatDate(date),
+                  key: const ValueKey('about-news-date'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            key: const ValueKey('about-changelog'),
-            padding: const EdgeInsets.fromLTRB(0, 12, 4, 16),
-            child: section == null
-                ? const Text('Novidades indisponíveis.', style: muted)
-                : section.isEmpty
-                ? const Text(
-                    'Sem novidades para mostrar nesta versão.',
-                    style: muted,
-                  )
-                : MarkdownBody(
-                    key: const ValueKey('about-changelog-body'),
-                    data: section.markdown,
-                    styleSheet: _newsStyle(context),
-                  ),
+          child: StaggeredItem(
+            index: 3,
+            reveal: true,
+            child: SingleChildScrollView(
+              key: const ValueKey('about-changelog'),
+              padding: const EdgeInsets.fromLTRB(0, 12, 4, 16),
+              child: section == null
+                  ? const Text('Novidades indisponíveis.', style: muted)
+                  : section.isEmpty
+                  ? const Text(
+                      'Sem novidades para mostrar nesta versão.',
+                      style: muted,
+                    )
+                  : MarkdownBody(
+                      key: const ValueKey('about-changelog-body'),
+                      data: section.markdown,
+                      styleSheet: _newsStyle(context),
+                    ),
+            ),
           ),
         ),
       ],
