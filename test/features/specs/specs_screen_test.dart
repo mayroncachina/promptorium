@@ -648,8 +648,9 @@ void main() {
         'stay available', (tester) async {
       await pump(tester, const Size(1440, 900));
       final count = find.byKey(const ValueKey('spec-warnings-count'));
-      // sample: R1–R3 without "deve" and without a criterion.
-      expect(tester.widget<Text>(count).data, '6 avisos de estrutura');
+      // sample: R1–R3 without "deve" and without a criterion, and the
+      // unknown key `autor` (SPEC-063 R4).
+      expect(tester.widget<Text>(count).data, '7 avisos de estrutura');
       expect(find.byKey(const ValueKey('spec-warnings-list')), findsNothing);
       final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
       editor.controller!.text = sample.replaceFirst(
@@ -658,7 +659,7 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
-      expect(tester.widget<Text>(count).data, '5 avisos de estrutura');
+      expect(tester.widget<Text>(count).data, '6 avisos de estrutura');
       expect(readSpec(tmp), sample);
 
       await tester.tap(find.byKey(const ValueKey('spec-warnings-toggle')));
@@ -700,7 +701,7 @@ void main() {
         'avisos" opens the list', (tester) async {
       await pump(tester, const Size(1440, 900));
       await tapApprove(tester, checksDialog);
-      expect(find.text('A spec tem 6 avisos de estrutura'), findsOneWidget);
+      expect(find.text('A spec tem 7 avisos de estrutura'), findsOneWidget);
       await tester.tap(
         find.byKey(const ValueKey('spec-approve-show-warnings')),
       );
@@ -716,7 +717,7 @@ void main() {
       final semantics = tester.ensureSemantics();
       final toggle = find.byKey(const ValueKey('spec-warnings-toggle'));
       expect(
-        find.bySemanticsLabel('6 avisos de estrutura. Mostrar a lista'),
+        find.bySemanticsLabel('7 avisos de estrutura. Mostrar a lista'),
         findsOneWidget,
       );
       expect(await tabTo(tester, toggle), isTrue);
@@ -735,7 +736,8 @@ void main() {
       await tester.pump();
       await tester.pump();
       final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
-      expect(editor.controller!.selection.baseIndex, 10);
+      // The first warning is the unknown key `autor`, on line 5 (SPEC-063).
+      expect(editor.controller!.selection.baseIndex, 4);
 
       await tapApprove(tester, checksDialog);
       // The dialog opens on Cancelar; Tab reaches the others.

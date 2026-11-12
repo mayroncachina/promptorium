@@ -307,6 +307,9 @@ class SpecService {
         'O documento mudou antes da gravação. Verifique novamente.',
       );
     }
+    // SPEC-063 R2: a variation of `depende-de` is written with the right
+    // name.
+    text = SpecDocument.parse(text).withCanonicalDependsOn();
     final current = SpecDocument.parse(text);
     if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
       text = current.withMeta(dependsOn: spec.dependsOn);

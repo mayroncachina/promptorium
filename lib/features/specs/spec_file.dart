@@ -133,20 +133,111 @@ class SpecDocument {
     return v == null || '$v'.trim().isEmpty ? null : '$v'.trim();
   }
 
-  /// Whether the frontmatter has `depende-de` (even empty).
-  bool get hasDependsOn => frontmatter.containsKey(dependsOnKey);
+  /// Whether the frontmatter has `depende-de` (even empty) or one of its
+  /// variations (SPEC-063 R1).
+  bool get hasDependsOn =>
+      frontmatter.containsKey(dependsOnKey) || dependsOnAlias != null;
 
-  /// Frontmatter `depende-de`: `[SPEC-001, SPEC-002]` or `SPEC-001, SPEC-002`.
+  /// The variation of `depende-de` in the frontmatter, as written
+  /// (`depende`, `depends-on`…); null when there is none (SPEC-063 R1).
+  String? get dependsOnAlias {
+    for (final k in frontmatter.keys) {
+      if (k != dependsOnKey && isDependsOnAlias(k)) return k;
+    }
+    return null;
+  }
+
+  /// Frontmatter `depende-de`: `[SPEC-001, SPEC-002]` or `SPEC-001, SPEC-002`,
+  /// plus the codes of a variation of the key (SPEC-063 R1), without
+  /// repeats.
   List<String> get dependsOn {
-    final v = frontmatter[dependsOnKey];
+    final alias = dependsOnAlias;
+    final out = <String>[];
+    for (final v in [
+      frontmatter[dependsOnKey],
+      if (alias != null) frontmatter[alias],
+    ]) {
+      for (final c in _specCodes(v)) {
+        if (!out.contains(c)) out.add(c);
+      }
+    }
+    return out;
+  }
+
+  static List<String> _specCodes(Object? v) {
     final items = v is List
         ? v.map((e) => '$e')
-        : '${v ?? ''}'.split(RegExp(r'[\s,;]+'));
+        : '${v ?? ''}'.split(RegExp(r'[\s,;\[\]]+'));
     return [
       for (final i in items)
         if (RegExp(r'^SPEC-\d+$').hasMatch(i.trim().toUpperCase()))
           i.trim().toUpperCase(),
     ];
+  }
+
+  /// 1-based line of the variation's key in the file (SPEC-063 R2, R3).
+  int? get dependsOnAliasLine {
+    final alias = dependsOnAlias;
+    if (alias == null) return null;
+    return _frontmatterLineOf(alias);
+  }
+
+  /// 1-based line of [key] in the frontmatter block; null when absent.
+  int? frontmatterLineOf(String key) => _frontmatterLineOf(key);
+
+  int? _frontmatterLineOf(String key) {
+    if (!hasFrontmatter) return null;
+    final start = _frontmatterStart.firstMatch(text)!;
+    final before = text.substring(0, start.end).split('\n').length - 1;
+    final close = _fence.allMatches(text, start.end).first;
+    final lines = text.substring(start.end, close.start).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      final m = _anyKey.firstMatch(lines[i]);
+      if (m != null && m.group(1)!.trim() == key) return before + i + 1;
+    }
+    return null;
+  }
+
+  /// Text with the variation of `depende-de` replaced by `depende-de`
+  /// (the two lists together); the same text when there is none (SPEC-063
+  /// R2).
+  String withCanonicalDependsOn() {
+    final alias = dependsOnAlias;
+    if (alias == null) return text;
+    return withDependsOnFrom(alias);
+  }
+
+  /// Text with the frontmatter [key] turned into `depende-de`: its codes
+  /// join those of `depende-de` (SPEC-063 R4, "Trocar para depende-de").
+  String withDependsOnFrom(String key) {
+    if (!hasFrontmatter || !frontmatter.containsKey(key)) return text;
+    final alias = key;
+    final codes = [
+      ...dependsOn,
+      for (final c in _specCodes(frontmatter[key]))
+        if (!dependsOn.contains(c)) c,
+    ];
+    final start = _frontmatterStart.firstMatch(text)!;
+    final close = _fence.allMatches(text, start.end).first;
+    final lines = text.substring(start.end, close.start).split('\n');
+    final hasKey = frontmatter.containsKey(dependsOnKey);
+    final value = '[${codes.join(', ')}]';
+    final out = <String>[];
+    for (final l in lines) {
+      final m = _anyKey.firstMatch(l);
+      if (m != null && m.group(1)!.trim() == alias) {
+        // In its place, unless `depende-de` is already there.
+        if (!hasKey) {
+          out.add('$dependsOnKey: $value${l.endsWith('\r') ? '\r' : ''}');
+        }
+        continue;
+      }
+      out.add(l);
+    }
+    final next =
+        '${text.substring(0, start.end)}${out.join('\n')}'
+        '${text.substring(close.start)}';
+    return hasKey ? SpecDocument.parse(next).withMeta(dependsOn: codes) : next;
   }
 
   /// Frontmatter `subagentes` (invalid items are ignored).
@@ -893,6 +984,25 @@ class SpecSubagent {
 
 /// Frontmatter key of the spec dependencies.
 const dependsOnKey = 'depende-de';
+
+/// Variations of [dependsOnKey] read as it (SPEC-063 R1), lower case.
+const dependsOnAliases = {
+  'depende',
+  'depends',
+  'depends-on',
+  'depends_on',
+  'dependson',
+  'depende_de',
+  'dependencias',
+  'dependências',
+};
+
+/// Whether [key] is a variation of `depende-de` (any case).
+bool isDependsOnAlias(String key) =>
+    dependsOnAliases.contains(key.trim().toLowerCase());
+
+/// A frontmatter key at the start of a line (accents allowed).
+final _anyKey = RegExp(r'^([^\s:#\-][^:]*?)\s*:');
 
 /// Frontmatter key of the subagents of the spec.
 const subagentsKey = 'subagentes';
