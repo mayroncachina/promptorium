@@ -596,6 +596,51 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
+    test('R10 · the level comes from the download progress', () {
+      expect(AboutLogo.levelFor(UpdateUpToDate(DateTime(2026))), isNull);
+      expect(AboutLogo.levelFor(UpdateDownloading(_update)), 0);
+      expect(
+        AboutLogo.levelFor(
+          UpdateDownloading(
+            _update,
+            const DownloadProgress(received: 25, total: 100),
+          ),
+        ),
+        .25,
+      );
+      expect(
+        AboutLogo.levelFor(
+          UpdateDownloading(_update, const DownloadProgress(received: 25)),
+        ),
+        isNull,
+      );
+      expect(AboutLogo.levelFor(UpdateInstalling(_update)), isNull);
+    });
+
+    testWidgets('R10 · while downloading, the logo gets the level', (
+      tester,
+    ) async {
+      _size(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            changelogProvider.overrideWith((ref) async => _changelog),
+            _withState(
+              UpdateDownloading(
+                _update,
+                const DownloadProgress(received: 60, total: 100),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: AboutPromptoriumDialog()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.widget<SplashStage>(find.byType(SplashStage)).level, .6);
+    });
+
     testWidgets('R8 · with animations off the logo is no button', (
       tester,
     ) async {
