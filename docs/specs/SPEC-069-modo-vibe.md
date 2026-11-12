@@ -1,6 +1,7 @@
 ---
 id: SPEC-069
 status: rascunho
+issue: 196
 ---
 
 # Modo vibe code: uma tarefa sem spec escrita, com card, gate e PR
