@@ -862,6 +862,21 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         requiredDuringInsert: false,
         defaultValue: const Constant('[]'),
       ).withConverter<List<String>>($SpecsTable.$converterdependsOn);
+  static const VerificationMeta _hasPlanMeta = const VerificationMeta(
+    'hasPlan',
+  );
+  @override
+  late final GeneratedColumn<bool> hasPlan = GeneratedColumn<bool>(
+    'has_plan',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_plan" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
   @override
   late final GeneratedColumn<String> phase = GeneratedColumn<String>(
@@ -1044,6 +1059,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     stage,
     requirements,
     dependsOn,
+    hasPlan,
     phase,
     agentName,
     worktreePath,
@@ -1109,6 +1125,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
       );
     } else if (isInserting) {
       context.missing(_pathMeta);
+    }
+    if (data.containsKey('has_plan')) {
+      context.handle(
+        _hasPlanMeta,
+        hasPlan.isAcceptableOrUnknown(data['has_plan']!, _hasPlanMeta),
+      );
     }
     if (data.containsKey('phase')) {
       context.handle(
@@ -1281,6 +1303,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
           data['${effectivePrefix}depends_on'],
         )!,
       ),
+      hasPlan: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_plan'],
+      )!,
       phase: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}phase'],
@@ -1380,6 +1406,10 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// Codes of the specs that must be done first (frontmatter `depende-de`).
   final List<String> dependsOn;
 
+  /// The file has a `## Plano` (SPEC-062 R2, schema v23): "Planejada" in
+  /// the list while not approved yet.
+  final bool hasPlan;
+
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   final String? phase;
 
@@ -1436,6 +1466,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.stage,
     required this.requirements,
     required this.dependsOn,
+    required this.hasPlan,
     this.phase,
     this.agentName,
     this.worktreePath,
@@ -1478,6 +1509,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         $SpecsTable.$converterdependsOn.toSql(dependsOn),
       );
     }
+    map['has_plan'] = Variable<bool>(hasPlan);
     if (!nullToAbsent || phase != null) {
       map['phase'] = Variable<String>(phase);
     }
@@ -1529,6 +1561,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       stage: Value(stage),
       requirements: Value(requirements),
       dependsOn: Value(dependsOn),
+      hasPlan: Value(hasPlan),
       phase: phase == null && nullToAbsent
           ? const Value.absent()
           : Value(phase),
@@ -1590,6 +1623,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         json['requirements'],
       ),
       dependsOn: serializer.fromJson<List<String>>(json['dependsOn']),
+      hasPlan: serializer.fromJson<bool>(json['hasPlan']),
       phase: serializer.fromJson<String?>(json['phase']),
       agentName: serializer.fromJson<String?>(json['agentName']),
       worktreePath: serializer.fromJson<String?>(json['worktreePath']),
@@ -1626,6 +1660,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         requirements,
       ),
       'dependsOn': serializer.toJson<List<String>>(dependsOn),
+      'hasPlan': serializer.toJson<bool>(hasPlan),
       'phase': serializer.toJson<String?>(phase),
       'agentName': serializer.toJson<String?>(agentName),
       'worktreePath': serializer.toJson<String?>(worktreePath),
@@ -1654,6 +1689,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     SpecStage? stage,
     List<({String id, String text})>? requirements,
     List<String>? dependsOn,
+    bool? hasPlan,
     Value<String?> phase = const Value.absent(),
     Value<String?> agentName = const Value.absent(),
     Value<String?> worktreePath = const Value.absent(),
@@ -1679,6 +1715,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     stage: stage ?? this.stage,
     requirements: requirements ?? this.requirements,
     dependsOn: dependsOn ?? this.dependsOn,
+    hasPlan: hasPlan ?? this.hasPlan,
     phase: phase.present ? phase.value : this.phase,
     agentName: agentName.present ? agentName.value : this.agentName,
     worktreePath: worktreePath.present ? worktreePath.value : this.worktreePath,
@@ -1714,6 +1751,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.requirements.value
           : this.requirements,
       dependsOn: data.dependsOn.present ? data.dependsOn.value : this.dependsOn,
+      hasPlan: data.hasPlan.present ? data.hasPlan.value : this.hasPlan,
       phase: data.phase.present ? data.phase.value : this.phase,
       agentName: data.agentName.present ? data.agentName.value : this.agentName,
       worktreePath: data.worktreePath.present
@@ -1766,6 +1804,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('stage: $stage, ')
           ..write('requirements: $requirements, ')
           ..write('dependsOn: $dependsOn, ')
+          ..write('hasPlan: $hasPlan, ')
           ..write('phase: $phase, ')
           ..write('agentName: $agentName, ')
           ..write('worktreePath: $worktreePath, ')
@@ -1796,6 +1835,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     stage,
     requirements,
     dependsOn,
+    hasPlan,
     phase,
     agentName,
     worktreePath,
@@ -1825,6 +1865,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.stage == this.stage &&
           other.requirements == this.requirements &&
           other.dependsOn == this.dependsOn &&
+          other.hasPlan == this.hasPlan &&
           other.phase == this.phase &&
           other.agentName == this.agentName &&
           other.worktreePath == this.worktreePath &&
@@ -1852,6 +1893,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<SpecStage> stage;
   final Value<List<({String id, String text})>> requirements;
   final Value<List<String>> dependsOn;
+  final Value<bool> hasPlan;
   final Value<String?> phase;
   final Value<String?> agentName;
   final Value<String?> worktreePath;
@@ -1877,6 +1919,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.stage = const Value.absent(),
     this.requirements = const Value.absent(),
     this.dependsOn = const Value.absent(),
+    this.hasPlan = const Value.absent(),
     this.phase = const Value.absent(),
     this.agentName = const Value.absent(),
     this.worktreePath = const Value.absent(),
@@ -1903,6 +1946,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.stage = const Value.absent(),
     this.requirements = const Value.absent(),
     this.dependsOn = const Value.absent(),
+    this.hasPlan = const Value.absent(),
     this.phase = const Value.absent(),
     this.agentName = const Value.absent(),
     this.worktreePath = const Value.absent(),
@@ -1932,6 +1976,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? stage,
     Expression<String>? requirements,
     Expression<String>? dependsOn,
+    Expression<bool>? hasPlan,
     Expression<String>? phase,
     Expression<String>? agentName,
     Expression<String>? worktreePath,
@@ -1958,6 +2003,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (stage != null) 'stage': stage,
       if (requirements != null) 'requirements': requirements,
       if (dependsOn != null) 'depends_on': dependsOn,
+      if (hasPlan != null) 'has_plan': hasPlan,
       if (phase != null) 'phase': phase,
       if (agentName != null) 'agent_name': agentName,
       if (worktreePath != null) 'worktree_path': worktreePath,
@@ -1986,6 +2032,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<SpecStage>? stage,
     Value<List<({String id, String text})>>? requirements,
     Value<List<String>>? dependsOn,
+    Value<bool>? hasPlan,
     Value<String?>? phase,
     Value<String?>? agentName,
     Value<String?>? worktreePath,
@@ -2012,6 +2059,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       stage: stage ?? this.stage,
       requirements: requirements ?? this.requirements,
       dependsOn: dependsOn ?? this.dependsOn,
+      hasPlan: hasPlan ?? this.hasPlan,
       phase: phase ?? this.phase,
       agentName: agentName ?? this.agentName,
       worktreePath: worktreePath ?? this.worktreePath,
@@ -2067,6 +2115,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       map['depends_on'] = Variable<String>(
         $SpecsTable.$converterdependsOn.toSql(dependsOn.value),
       );
+    }
+    if (hasPlan.present) {
+      map['has_plan'] = Variable<bool>(hasPlan.value);
     }
     if (phase.present) {
       map['phase'] = Variable<String>(phase.value);
@@ -2128,6 +2179,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('stage: $stage, ')
           ..write('requirements: $requirements, ')
           ..write('dependsOn: $dependsOn, ')
+          ..write('hasPlan: $hasPlan, ')
           ..write('phase: $phase, ')
           ..write('agentName: $agentName, ')
           ..write('worktreePath: $worktreePath, ')
@@ -15282,6 +15334,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<SpecStage> stage,
   Value<List<({String id, String text})>> requirements,
   Value<List<String>> dependsOn,
+  Value<bool> hasPlan,
   Value<String?> phase,
   Value<String?> agentName,
   Value<String?> worktreePath,
@@ -15308,6 +15361,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<SpecStage> stage,
   Value<List<({String id, String text})>> requirements,
   Value<List<String>> dependsOn,
+  Value<bool> hasPlan,
   Value<String?> phase,
   Value<String?> agentName,
   Value<String?> worktreePath,
@@ -15567,6 +15621,11 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
   get dependsOn => $composableBuilder(
     column: $table.dependsOn,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<bool> get hasPlan => $composableBuilder(
+    column: $table.hasPlan,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get phase => $composableBuilder(
@@ -15935,6 +15994,11 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get hasPlan => $composableBuilder(
+    column: $table.hasPlan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get phase => $composableBuilder(
     column: $table.phase,
     builder: (column) => ColumnOrderings(column),
@@ -16087,6 +16151,9 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<List<String>, String> get dependsOn =>
       $composableBuilder(column: $table.dependsOn, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasPlan =>
+      $composableBuilder(column: $table.hasPlan, builder: (column) => column);
 
   GeneratedColumn<String> get phase =>
       $composableBuilder(column: $table.phase, builder: (column) => column);
@@ -16448,6 +16515,7 @@ class $$SpecsTableTableManager
                 Value<List<({String id, String text})>> requirements =
                     const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
+                Value<bool> hasPlan = const Value.absent(),
                 Value<String?> phase = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> worktreePath = const Value.absent(),
@@ -16473,6 +16541,7 @@ class $$SpecsTableTableManager
                 stage: stage,
                 requirements: requirements,
                 dependsOn: dependsOn,
+                hasPlan: hasPlan,
                 phase: phase,
                 agentName: agentName,
                 worktreePath: worktreePath,
@@ -16501,6 +16570,7 @@ class $$SpecsTableTableManager
                 Value<List<({String id, String text})>> requirements =
                     const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
+                Value<bool> hasPlan = const Value.absent(),
                 Value<String?> phase = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> worktreePath = const Value.absent(),
@@ -16526,6 +16596,7 @@ class $$SpecsTableTableManager
                 stage: stage,
                 requirements: requirements,
                 dependsOn: dependsOn,
+                hasPlan: hasPlan,
                 phase: phase,
                 agentName: agentName,
                 worktreePath: worktreePath,

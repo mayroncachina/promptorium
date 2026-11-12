@@ -191,6 +191,7 @@ class SpecService {
         requirements: reqs,
         dependsOn: doc.dependsOn,
         phase: doc.phase,
+        hasPlan: doc.design != null,
       );
     }
     var status = doc.status ?? existing.status;
@@ -220,6 +221,7 @@ class SpecService {
         existing.status != status ||
         existing.stage != stage ||
         existing.phase != doc.phase ||
+        existing.hasPlan != (doc.design != null) ||
         !_sameReqs(existing.requirements, reqs) ||
         existing.dependsOn.join(',') != deps.join(',')) {
       await _repo.update(
@@ -232,6 +234,7 @@ class SpecService {
           phase: Value(doc.phase),
           requirements: Value(reqs),
           dependsOn: Value(deps),
+          hasPlan: Value(doc.design != null),
         ),
       );
     }
@@ -304,6 +307,9 @@ class SpecService {
         'O documento mudou antes da gravação. Verifique novamente.',
       );
     }
+    // SPEC-063 R2: a variation of `depende-de` is written with the right
+    // name.
+    text = SpecDocument.parse(text).withCanonicalDependsOn();
     final current = SpecDocument.parse(text);
     if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
       text = current.withMeta(dependsOn: spec.dependsOn);
@@ -361,6 +367,7 @@ class SpecService {
       requirements: doc.requirements,
       dependsOn: doc.dependsOn,
       phase: doc.phase,
+      hasPlan: doc.design != null,
     );
   }
 

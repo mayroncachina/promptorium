@@ -108,6 +108,7 @@ void main() {
 
     test('prompt: spec embedded, done / now / later, commit and marker', () {
       final spec = Spec(
+        hasPlan: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',
@@ -266,6 +267,7 @@ id: SPEC-009
       'flutter test test/b_test.dart',
     ]);
     final spec = Spec(
+      hasPlan: false,
       id: 1,
       workspaceId: 1,
       code: 'SPEC-009',
@@ -321,6 +323,7 @@ status: aprovada
 - R1 → docs/mockups/spec-009/R1-lista.b.html
 ''';
     final spec = Spec(
+      hasPlan: false,
       id: 1,
       workspaceId: 1,
       code: 'SPEC-009',

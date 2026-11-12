@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,7 @@ void main() {
   late Directory tmp;
   late FakeQuestionOptions options;
   late ProviderContainer c;
+  late FakeApplier applier;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('promptorium-questions-focus-');
@@ -49,10 +51,13 @@ void main() {
         specQuestionOptionsProvider.overrideWith(
           (ref) => options = FakeQuestionOptions(ref),
         ),
-        specAnswerApplierProvider.overrideWith(FakeApplier.new),
+        specAnswerApplierProvider.overrideWith(
+          (ref) => applier = FakeApplier(ref),
+        ),
       ],
     );
     c.read(specQuestionOptionsProvider);
+    c.read(specAnswerApplierProvider);
   }
 
   Future<void> open(WidgetTester tester) async {
@@ -127,7 +132,7 @@ void main() {
     expect(
       find.descendant(
         of: key('spec-questions-close'),
-        matching: find.text('Esc'),
+        matching: find.text('Ctrl+Esc'),
       ),
       findsOneWidget,
     );
@@ -245,7 +250,10 @@ void main() {
     );
     await press(tester, LogicalKeyboardKey.digit2);
     expect(selected(tester), AnswerOption.other);
-    // Another option chosen from the field takes the focus back.
+    // Another option chosen from the field takes the focus back (the row
+    // of "Outras sugestões" pushes the options down: bring it into view).
+    await tester.ensureVisible(key('spec-question-option-alternative1'));
+    await tester.pump();
     await tester.tap(key('spec-question-option-alternative1'));
     await tester.pump();
     await tester.pump();
@@ -547,6 +555,441 @@ void main() {
     await tester.tap(key('spec-questions-discard'));
     await tester.pump();
     await releaseEditor(tester);
+  });
+
+  group('SPEC-060 keys of the review and the diff', () {
+    /// Opens the session and answers up to the review (P2 deferred).
+    Future<void> toReview(WidgetTester tester) async {
+      await pump(tester);
+      await open(tester);
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(key('spec-questions-defer'));
+      await tester.pump();
+      await tester.pump();
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      expect(key('spec-questions-review'), findsOneWidget);
+    }
+
+    Finder kbd(String button, String k) =>
+        find.descendant(of: key(button), matching: find.text(k));
+
+    testWidgets('R1, R2, R6: in the review Esc goes back to the last '
+        'question and Enter applies; the buttons show the keys', (
+      tester,
+    ) async {
+      await toReview(tester);
+      expect(kbd('spec-questions-previous', 'Esc'), findsOneWidget);
+      expect(kbd('spec-questions-apply', 'Enter'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(panel, findsOneWidget);
+      expect(subtitle(tester), endsWith('pergunta 3 de 3'));
+      // Back to the review, Enter applies.
+      await tester.tap(key('spec-questions-next'));
+      await tester.pump();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      expect(applier.calls, hasLength(1));
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: with the focus on Editar, Enter is the button\'s', (
+      tester,
+    ) async {
+      await toReview(tester);
+      Focus.of(
+        tester.element(
+          find
+              .descendant(
+                of: key('spec-questions-change-P2'),
+                matching: find.byType(Text),
+              )
+              .first,
+        ),
+      ).requestFocus();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(applier.calls, isEmpty);
+      expect(subtitle(tester), endsWith('pergunta 2 de 3'));
+      await press(tester, LogicalKeyboardKey.escape);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: Enter does nothing with no answer to apply', (
+      tester,
+    ) async {
+      await pump(tester);
+      await open(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(key('spec-questions-defer'));
+        await tester.pump();
+        await tester.pump();
+      }
+      expect(key('spec-questions-review'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.enter);
+      expect(key('spec-questions-review'), findsOneWidget);
+      expect(applier.calls, isEmpty);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3, R6: in the diff Esc goes back to the review keeping '
+        'the diff, and Enter saves', (tester) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      final updated = disk().replaceFirst(
+        'o sistema deve mostrar o grupo',
+        'o sistema deve mostrar o grupo e a contagem',
+      );
+      applier.next.complete(updated);
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.pump();
+      expect(kbd('spec-questions-back', 'Esc'), findsOneWidget);
+      expect(kbd('spec-questions-save', 'Enter'), findsOneWidget);
+      expect(kbd('spec-questions-discard', 'Delete'), findsOneWidget);
+
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(key('spec-questions-review'), findsOneWidget);
+      // Nothing changed: Enter brings the same diff, no new run.
+      await press(tester, LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(key('spec-questions-diff'), findsOneWidget);
+      expect(applier.calls, hasLength(1));
+
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => panel.evaluate().isEmpty);
+      expect(disk(), contains('e a contagem'));
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3: an answer changed after going back runs it again', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await press(tester, LogicalKeyboardKey.escape);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      applier.next = Completer<String>();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      // Without the box the decisions go straight in: a new diff, made now.
+      expect(applier.calls, hasLength(1));
+      expect(key('spec-questions-diff'), findsOneWidget);
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R4: the first Delete arms, the second discards; another '
+        'key, a click or 3 s disarm', (tester) async {
+      await toReview(tester);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.pump();
+      final hint = find.text('Descartar mudanças?');
+
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(panel, findsOneWidget);
+      expect(hint, findsOneWidget);
+      // Another key disarms.
+      await press(tester, LogicalKeyboardKey.keyA);
+      expect(hint, findsNothing);
+      // 3 s disarm.
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(hint, findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump();
+      expect(hint, findsNothing);
+      // A click disarms.
+      await press(tester, LogicalKeyboardKey.delete);
+      await tester.tapAt(tester.getCenter(key('spec-questions-diff')));
+      await tester.pump();
+      expect(hint, findsNothing);
+
+      await press(tester, LogicalKeyboardKey.delete);
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(panel, findsNothing);
+      expect(disk(), questionsSpec);
+      // The answers stay for the next time.
+      expect(answers(), isNotEmpty);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: Ctrl+Esc closes from the questions, the review and the '
+        'diff, keeping the answers; Esc still closes the questions', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+      expect(answers(), isNotEmpty);
+
+      await open(tester);
+      expect(subtitle(tester), contains('pergunta'));
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+
+      await open(tester);
+      await press(tester, LogicalKeyboardKey.escape);
+      expect(panel, findsNothing);
+
+      await open(tester);
+      // Straight to the review: the answers were kept.
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(key('spec-questions-next'));
+        await tester.pump();
+        await tester.pump();
+      }
+      expect(key('spec-questions-review'), findsOneWidget);
+      await tester.tap(key('spec-questions-update'));
+      await tester.pump();
+      await tester.tap(key('spec-questions-apply'));
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      expect(panel, findsNothing);
+      expect(disk(), questionsSpec);
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: while applying no key closes or goes back', (
+      tester,
+    ) async {
+      await toReview(tester);
+      await press(tester, LogicalKeyboardKey.enter);
+      await settleIo(tester, until: () => applier.calls.isNotEmpty);
+      expect(key('spec-questions-applying'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.escape);
+      await press(
+        tester,
+        LogicalKeyboardKey.escape,
+        hold: LogicalKeyboardKey.controlLeft,
+      );
+      await press(tester, LogicalKeyboardKey.delete);
+      expect(key('spec-questions-applying'), findsOneWidget);
+      applier.next.complete(disk());
+      await settleIo(
+        tester,
+        until: () => key('spec-questions-diff').evaluate().isNotEmpty,
+      );
+      await tester.tap(key('spec-questions-discard'));
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+  });
+
+  group('SPEC-061 three suggestions and "Outras sugestões"', () {
+    const first = [
+      QuestionAlternative(title: 'Menu da linha', consequence: 'Um clique.'),
+      QuestionAlternative(title: 'Tela do grupo', consequence: 'Outra tela.'),
+      QuestionAlternative(title: 'Arrastar', consequence: 'Mouse só.'),
+    ];
+    const fresh = [
+      QuestionAlternative(title: 'Atalho', consequence: 'Ctrl+G agrupa.'),
+      QuestionAlternative(title: 'Importar', consequence: 'De uma lista.'),
+      QuestionAlternative(title: 'Regra', consequence: 'Por etiqueta.'),
+    ];
+
+    Future<void> openWithThree(WidgetTester tester) async {
+      await pump(tester);
+      await open(tester);
+      options.of('P1').complete(first);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    Finder card(String o) => key('spec-question-option-$o');
+    Finder titleIn(String o, String t) =>
+        find.descendant(of: card(o), matching: find.text(t));
+    Finder badge(String o, String b) =>
+        find.descendant(of: card(o), matching: find.text(b));
+
+    Future<void> ctrlR(WidgetTester tester) => press(
+      tester,
+      LogicalKeyboardKey.keyR,
+      hold: LogicalKeyboardKey.controlLeft,
+    );
+
+    testWidgets('R1, R2: three alternatives with the keys 2–4, "Outra '
+        'resposta" on 5 and the button with Ctrl+R', (tester) async {
+      await openWithThree(tester);
+      expect(titleIn('alternative3', 'Arrastar'), findsOneWidget);
+      expect(
+        find.descendant(of: card('alternative3'), matching: find.text('4')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card('other'), matching: find.text('5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: key('spec-question-more'),
+          matching: find.text('Ctrl+R'),
+        ),
+        findsOneWidget,
+      );
+      await press(tester, LogicalKeyboardKey.digit4);
+      expect(selected(tester), AnswerOption.alternative3);
+      expect(answers()['P1']!.text, 'Arrastar');
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3, R4: Ctrl+R waits with the three replaced, out of the '
+        'keys, then shows three new ones without the ones shown', (
+      tester,
+    ) async {
+      await openWithThree(tester);
+      await ctrlR(tester);
+      expect(options.asked.last.avoid, [
+        'Menu da linha',
+        'Tela do grupo',
+        'Arrastar',
+      ]);
+      expect(options.asked.last.count, 3);
+      expect(find.text('Gerando outras…'), findsOneWidget);
+      for (var i = 0; i < 3; i++) {
+        expect(key('spec-question-wait-$i'), findsOneWidget);
+      }
+      expect(
+        tester.widget<OutlinedButton>(key('spec-question-more')).onPressed,
+        isNull,
+      );
+      // While waiting, Ctrl+R does nothing more.
+      await ctrlR(tester);
+      expect(options.pendingMore, hasLength(1));
+      options.pendingMore.single.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(titleIn('alternative3', 'Regra'), findsOneWidget);
+      expect(badge('alternative2', 'nova'), findsOneWidget);
+      expect(find.text('Outras sugestões'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.digit2);
+      expect(answers()['P1']!.text, 'Atalho');
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R4: the chosen alternative stays in its place, marked '
+        '"mantida"; the other two are replaced', (tester) async {
+      await openWithThree(tester);
+      await press(tester, LogicalKeyboardKey.digit3);
+      expect(answers()['P1']!.text, 'Tela do grupo');
+      await tester.tap(key('spec-question-more'));
+      await tester.pump();
+      expect(options.asked.last.count, 2);
+      expect(titleIn('alternative2', 'Tela do grupo'), findsOneWidget);
+      expect(key('spec-question-wait-0'), findsOneWidget);
+      expect(key('spec-question-wait-2'), findsOneWidget);
+      options.pendingMore.single.complete(fresh.take(2).toList());
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(titleIn('alternative2', 'Tela do grupo'), findsOneWidget);
+      expect(titleIn('alternative3', 'Importar'), findsOneWidget);
+      expect(badge('alternative2', 'mantida'), findsOneWidget);
+      expect(badge('alternative1', 'nova'), findsOneWidget);
+      expect(selected(tester), AnswerOption.alternative2);
+      expect(answers()['P1']!.text, 'Tela do grupo');
+
+      // The next visit shows the last set.
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await press(tester, LogicalKeyboardKey.arrowLeft);
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(options.pendingMore, hasLength(1));
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: Ctrl+R works in the field of "Outra resposta" and '
+        'keeps its text', (tester) async {
+      await openWithThree(tester);
+      await press(tester, LogicalKeyboardKey.digit5);
+      await tester.enterText(key('spec-question-other-text'), 'Pelo menu');
+      await tester.pump();
+      await ctrlR(tester);
+      expect(options.pendingMore, hasLength(1));
+      expect(
+        tester
+            .widget<TextField>(key('spec-question-other-text'))
+            .controller!
+            .text,
+        'Pelo menu',
+      );
+      expect(selected(tester), AnswerOption.other);
+      options.pendingMore.single.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: a failure keeps the last set and "Tentar de novo" asks '
+        'again', (tester) async {
+      await openWithThree(tester);
+      await ctrlR(tester);
+      options.pendingMore.single.completeError(StateError('x'));
+      await tester.pump();
+      await tester.pump();
+      expect(key('spec-question-more-failed'), findsOneWidget);
+      expect(titleIn('alternative1', 'Menu da linha'), findsOneWidget);
+      expect(key('spec-question-wait-0'), findsNothing);
+      await tester.tap(key('spec-question-more-retry'));
+      await tester.pump();
+      expect(options.pendingMore, hasLength(2));
+      expect(key('spec-question-more-failed'), findsNothing);
+      options.pendingMore.last.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      await releaseEditor(tester);
+    });
   });
 
   group('R10 motion', () {

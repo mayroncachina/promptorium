@@ -223,6 +223,38 @@ Future<Spec> createSpecFromConversation(
 
 typedef SavedPromptSeed = ({String command, String description, String body});
 
+/// The `/spec` prompt before SPEC-063: replaced when nobody edited it.
+const legacySpecPromptBody =
+    'Transforme a ideia abaixo numa spec em Markdown, em português, com '
+    'as seções:\n'
+    '## Objetivo\n## Contexto\n'
+    '## Requisitos (lista numerada; cada item verificável)\n'
+    '## Fora do escopo\n## Critérios de aceite\n## Perguntas em aberto\n'
+    'Seja conciso e não invente detalhes técnicos que não foram dados — '
+    'coloque-os em "Perguntas em aberto", $openQuestionsFormatHint.\n\n'
+    'Ideia: ';
+
+/// `/spec` (SPEC-063 R5): the frontmatter of the Promptorium, with
+/// dependencies always as `depende-de`.
+const specPromptBody =
+    'Transforme a ideia abaixo numa spec em Markdown, em português.\n'
+    'Comece pelo cabeçalho, exatamente neste formato:\n'
+    '---\n'
+    'id: SPEC-NNN\n'
+    'status: rascunho\n'
+    'depende-de: [SPEC-001]\n'
+    '---\n'
+    'A linha depende-de só entra se a spec depender de outra, e o nome da '
+    'chave é sempre depende-de (nunca "depende" nem "depends-on"), com os '
+    'códigos entre colchetes.\n'
+    'Depois, as seções:\n'
+    '## Objetivo\n## Contexto\n'
+    '## Requisitos (lista numerada; cada item verificável)\n'
+    '## Fora do escopo\n## Critérios de aceite\n## Perguntas em aberto\n'
+    'Seja conciso e não invente detalhes técnicos que não foram dados — '
+    'coloque-os em "Perguntas em aberto", $openQuestionsFormatHint.\n\n'
+    'Ideia: ';
+
 /// Inserted on the first run (plano, Fase 6 item 6).
 const defaultSavedPrompts = <SavedPromptSeed>[
   (
@@ -270,15 +302,7 @@ const defaultSavedPrompts = <SavedPromptSeed>[
   (
     command: 'spec',
     description: 'Transforma uma ideia solta em spec',
-    body:
-        'Transforme a ideia abaixo numa spec em Markdown, em português, com '
-        'as seções:\n'
-        '## Objetivo\n## Contexto\n'
-        '## Requisitos (lista numerada; cada item verificável)\n'
-        '## Fora do escopo\n## Critérios de aceite\n## Perguntas em aberto\n'
-        'Seja conciso e não invente detalhes técnicos que não foram dados — '
-        'coloque-os em "Perguntas em aberto", $openQuestionsFormatHint.\n\n'
-        'Ideia: ',
+    body: specPromptBody,
   ),
   (
     command: 'commit',
@@ -301,6 +325,15 @@ Future<void> seedSavedPrompts(
   SavedPromptsRepo repo,
   AppSettingsController settings,
 ) async {
+  // SPEC-063 R5: the old `/spec`, never edited, gets the new text.
+  final spec = await repo.getByCommand('spec');
+  if (spec != null && spec.body == legacySpecPromptBody) {
+    await repo.upsert(
+      command: 'spec',
+      body: specPromptBody,
+      description: spec.description,
+    );
+  }
   if (settings.get(AppSettingKeys.savedPromptsSeeded) == '1') return;
   for (final p in defaultSavedPrompts) {
     if (await repo.getByCommand(p.command) == null) {

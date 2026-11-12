@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -120,7 +121,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   var _update = true;
   AppliedAnswers? _applied;
   Map<String, Answer> _appliedAnswers = const {};
+  bool _appliedUpdate = true;
   bool _saving = false;
+
+  /// SPEC-060 R4: the first Delete arms "Descartar"; a second one within
+  /// [_discardWindow] discards.
+  bool _discardArmed = false;
+  Timer? _discardTimer;
+  static const _discardWindow = Duration(seconds: 3);
   final _other = TextEditingController();
   final _otherFocus = FocusNode(debugLabel: 'spec-question-other-text');
   final _options = {
@@ -164,6 +172,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       f.dispose();
     }
     _panelFocus.dispose();
+    _discardTimer?.cancel();
     super.dispose();
   }
 
@@ -209,6 +218,75 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
         .then((v) => _loaded[k] = v);
   }
 
+  // --- "Outras sugestões" (SPEC-061) -----------------------------------------
+
+  /// Questions whose new set is on the way.
+  final _moreBusy = <String>{};
+
+  /// Questions whose last "Outras sugestões" failed (R5).
+  final _moreFailed = <String>{};
+
+  /// After "Outras sugestões": the index of the alternative kept (the chosen
+  /// one), or -1 when every one is new (R4).
+  final _kept = <String, int>{};
+
+  String _qKey(OpenQuestion q) => '${q.id}|${q.text}';
+
+  /// Asks the Claude for a new set of alternatives for [q]; the chosen one,
+  /// if any, stays where it is.
+  Future<void> _more(OpenQuestion q) async {
+    final k = _qKey(q);
+    // After a failed first try the list is empty: this asks again.
+    final current = _loaded[k] ?? const <QuestionAlternative>[];
+    if (_moreBusy.contains(k)) return;
+    final a = _answers[q.id];
+    final i = a == null || !a.answered
+        ? -1
+        : alternativeOptions.indexOf(a.option);
+    final keep = i >= 0 && i < current.length ? i : null;
+    // The focus on an option that is going away goes to the column.
+    final f = FocusManager.instance.primaryFocus;
+    final leaving = [
+      for (final (j, o) in alternativeOptions.indexed)
+        if (j != keep) _options[o],
+    ];
+    if (leaving.contains(f)) _panelFocus.requestFocus();
+    setState(() {
+      _moreBusy.add(k);
+      _moreFailed.remove(k);
+    });
+    try {
+      final next = await ref
+          .read(specQuestionOptionsProvider)
+          .more(
+            widget.ws,
+            widget.specId,
+            widget.specText(),
+            q,
+            current: current,
+            keep: keep,
+          );
+      if (!mounted) return;
+      setState(() {
+        _loaded[k] = next;
+        _futures[k] = Future.value(next);
+        _kept[k] = keep ?? -1;
+      });
+      final n = next.length - (keep == null ? 0 : 1);
+      unawaited(
+        SemanticsService.sendAnnouncement(
+          View.of(context),
+          n == 1 ? '1 nova sugestão' : '$n novas sugestões',
+          TextDirection.ltr,
+        ),
+      );
+    } catch (_) {
+      if (mounted) setState(() => _moreFailed.add(k));
+    } finally {
+      if (mounted) setState(() => _moreBusy.remove(k));
+    }
+  }
+
   void _prefetch(OpenQuestion q) {
     _alternatives(q).ignore();
   }
@@ -216,13 +294,22 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   /// The options of [q] in the order shown: the suggestion, the
   /// alternatives that arrived and "Outra resposta" (SPEC-059 R3).
   List<AnswerOption> _optionsOf(OpenQuestion q) {
-    final alts = _loaded['${q.id}|${q.text}'] ?? const [];
+    final k = _qKey(q);
+    final alts = _loaded[k] ?? const [];
+    final busy = _moreBusy.contains(k);
     return [
       if (q.suggestion != null) AnswerOption.suggestion,
-      if (alts.isNotEmpty) AnswerOption.alternative1,
-      if (alts.length > 1) AnswerOption.alternative2,
+      for (final (i, o) in alternativeOptions.indexed)
+        // SPEC-061 R3: the ones being replaced are out of the keys.
+        if (i < alts.length && (!busy || _isKeptWhileBusy(q, i))) o,
       AnswerOption.other,
     ];
+  }
+
+  /// While a new set comes, the chosen alternative stays.
+  bool _isKeptWhileBusy(OpenQuestion q, int i) {
+    final a = _answers[q.id];
+    return a != null && a.answered && alternativeOptions.indexOf(a.option) == i;
   }
 
   /// The option shown as chosen: the stored answer, else the suggestion of
@@ -251,10 +338,12 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
         // SPEC-059 R6: straight to the field. The arrows of the radio
         // group put the focus back on the option right after.
         _otherFocus.requestFocus();
-      case AnswerOption.alternative1 || AnswerOption.alternative2:
+      case AnswerOption.alternative1 ||
+          AnswerOption.alternative2 ||
+          AnswerOption.alternative3:
         final alts = await _alternatives(q)
             .catchError((Object _) => const <QuestionAlternative>[]);
-        final i = o == AnswerOption.alternative1 ? 0 : 1;
+        final i = alternativeOptions.indexOf(o);
         if (i < alts.length) _store(q, Answer(option: o, text: alts[i].title));
     }
     if (mounted) setState(() {});
@@ -320,14 +409,59 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
 
   Future<void> _apply() async {
     final answers = {for (final q in _questions) q.id: ?_answers[q.id]};
+    // SPEC-060 R3: back from the diff with nothing changed, the diff that
+    // was already made comes back without running the Claude again.
+    if (_applied != null &&
+        _appliedUpdate == _update &&
+        mapEquals(answers, _appliedAnswers)) {
+      setState(() => _stage = _Stage.diff);
+      _focusPanel();
+      return;
+    }
     setState(() => _stage = _Stage.applying);
     final r = await widget.onApply(answers, _update);
     if (!mounted) return;
     setState(() {
       _applied = r;
       _appliedAnswers = answers;
+      _appliedUpdate = _update;
       _stage = r == null ? _Stage.review : _Stage.diff;
     });
+    _focusPanel();
+  }
+
+  /// "Voltar às respostas" (SPEC-060 R3: also Esc).
+  void _backToReview() {
+    _disarm();
+    setState(() => _stage = _Stage.review);
+    _focusPanel();
+  }
+
+  /// The column takes the focus, so Enter is the primary action again.
+  void _focusPanel() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _panelFocus.requestFocus();
+    });
+  }
+
+  void _arm() {
+    _discardTimer?.cancel();
+    _discardTimer = Timer(_discardWindow, _disarm);
+    setState(() => _discardArmed = true);
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        'Aperte Delete de novo em 3 segundos para descartar. '
+        'As respostas continuam guardadas.',
+        TextDirection.ltr,
+      ),
+    );
+  }
+
+  void _disarm() {
+    _discardTimer?.cancel();
+    _discardTimer = null;
+    if (_discardArmed && mounted) setState(() => _discardArmed = false);
   }
 
   Future<void> _save() async {
@@ -376,10 +510,13 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
   /// or Alt+←/→ change the question. Esc is the frame's.
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final q = _current;
-    if (_stage != _Stage.question || q == null) return KeyEventResult.ignored;
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (q != null && (_stage == _Stage.review || _stage == _Stage.diff)) {
+      return _onEndKey(event);
+    }
+    if (_stage != _Stage.question || q == null) return KeyEventResult.ignored;
     final kb = HardwareKeyboard.instance;
     final key = event.logicalKey;
     final inField = _otherFocus.hasFocus;
@@ -419,6 +556,11 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       _next();
       return KeyEventResult.handled;
     }
+    // SPEC-061 R2: "Outras sugestões", in the field too.
+    if (key == LogicalKeyboardKey.keyR && ctrl) {
+      unawaited(_more(q));
+      return KeyEventResult.handled;
+    }
     var n = _digits.indexOf(key);
     if (n < 0) n = _numpad.indexOf(key);
     if (n >= 0 && plain && !inField) {
@@ -431,6 +573,55 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// SPEC-060: in the review Esc goes back to the questions and Enter
+  /// applies; in "O que muda na spec" Enter saves, Esc goes back to the
+  /// review and Delete (twice) discards. Ctrl+Esc is the frame's (close).
+  KeyEventResult _onEndKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final kb = HardwareKeyboard.instance;
+    final key = event.logicalKey;
+    final plain =
+        !kb.isAltPressed &&
+        !kb.isControlPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed;
+    final delete = key == LogicalKeyboardKey.delete;
+    if (_discardArmed && !(delete && plain)) _disarm();
+    if (!plain) return KeyEventResult.ignored;
+    final esc = key == LogicalKeyboardKey.escape;
+    final enter =
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter;
+    if (!esc && !enter && !(delete && _stage == _Stage.diff)) {
+      return KeyEventResult.ignored;
+    }
+    // While saving, nothing (and Esc does not close).
+    if (_saving) return KeyEventResult.handled;
+    if (esc) {
+      _stage == _Stage.review ? _previous() : _backToReview();
+      return KeyEventResult.handled;
+    }
+    if (enter) {
+      // A focused button or checkbox takes its own Enter (SPEC-060 R2).
+      if (FocusManager.instance.primaryFocus != _panelFocus) {
+        return KeyEventResult.ignored;
+      }
+      if (_stage == _Stage.diff) {
+        unawaited(_save());
+      } else if (_answeredCount > 0) {
+        unawaited(_apply());
+      }
+      return KeyEventResult.handled;
+    }
+    if (_discardArmed) {
+      _disarm();
+      widget.onClose();
+    } else {
+      _arm();
+    }
+    return KeyEventResult.handled;
   }
 
   /// Left / right on a focused option: the radio group would take them to
@@ -469,47 +660,51 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
         '$_prefix · o que muda na spec · nada foi salvo ainda',
       ),
     };
-    return SpecQuestionsFocus(
-      title: title,
-      specCode: widget.specCode,
-      subtitle: subtitle,
-      focusNode: _panelFocus,
-      onKeyEvent: _onKey,
-      onClose: _stage == _Stage.applying ? null : widget.onClose,
-      turn: (_stage, _index),
-      scrollable: _stage != _Stage.diff && _stage != _Stage.applying,
-      // SPEC-059 R8: the diff takes the width of the area, up to 1100 px.
-      maxWidth: _stage == _Stage.diff ? 1100 : 720,
-      body: q == null
-          ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
-              child: Center(
-                child: Text(
-                  'A spec não tem perguntas em aberto.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+    // SPEC-060 R4: a click anywhere disarms "Descartar".
+    return Listener(
+      onPointerDown: (_) => _disarm(),
+      child: SpecQuestionsFocus(
+        title: title,
+        specCode: widget.specCode,
+        subtitle: subtitle,
+        focusNode: _panelFocus,
+        onKeyEvent: _onKey,
+        onClose: _stage == _Stage.applying || _saving ? null : widget.onClose,
+        turn: (_stage, _index),
+        scrollable: _stage != _Stage.diff && _stage != _Stage.applying,
+        // SPEC-059 R8: the diff takes the width of the area, up to 1100 px.
+        maxWidth: _stage == _Stage.diff ? 1100 : 720,
+        body: q == null
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: Text(
+                    'A spec não tem perguntas em aberto.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            )
-          : switch (_stage) {
-              _Stage.question => _questionView(q),
-              _Stage.review => _reviewView(),
-              _Stage.applying => _applyingView(),
-              _Stage.diff => _diffView(),
-            },
-      footer: q == null
-          ? QuestionFooter(
-              left: const [],
-              right: [
-                OutlinedButton(
-                  onPressed: widget.onClose,
-                  child: const Text('Fechar'),
-                ),
-              ],
-            )
-          : _footer(q),
+              )
+            : switch (_stage) {
+                _Stage.question => _questionView(q),
+                _Stage.review => _reviewView(),
+                _Stage.applying => _applyingView(),
+                _Stage.diff => _diffView(),
+              },
+        footer: q == null
+            ? QuestionFooter(
+                left: const [],
+                right: [
+                  OutlinedButton(
+                    onPressed: widget.onClose,
+                    child: const Text('Fechar'),
+                  ),
+                ],
+              )
+            : _footer(q),
+      ),
     );
   }
 
@@ -525,9 +720,12 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     return FutureBuilder<List<QuestionAlternative>>(
       future: _alternatives(q),
       builder: (context, snap) {
-        final alts = snap.data ?? const <QuestionAlternative>[];
+        final k = _qKey(q);
+        final alts = _loaded[k] ?? snap.data ?? const <QuestionAlternative>[];
         final loading = snap.connectionState != ConnectionState.done;
         final failed = snap.hasError;
+        final busy = _moreBusy.contains(k);
+        final kept = _kept[k];
         final note = q.suggestion == null
             ? 'A spec não traz sugestão; as opções foram propostas pelo '
                   'Claude.'
@@ -563,6 +761,12 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             _noteLine(q, note),
             if (_showExcerpt) ...[const SizedBox(height: 12), _excerpt(q)],
             const SizedBox(height: 16),
+            _moreRow(q, enabled: !loading && !busy, busy: busy),
+            if (_moreFailed.contains(k)) ...[
+              const SizedBox(height: 8),
+              _moreError(q),
+            ],
+            const SizedBox(height: 10),
             RadioGroup<AnswerOption>(
               groupValue: selected,
               onChanged: (o) {
@@ -587,16 +791,25 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                         badge: 'Sugestão da spec',
                       ),
                     for (final (i, alt) in alts.indexed)
-                      _option(
-                        q,
-                        i == 0
-                            ? AnswerOption.alternative1
-                            : AnswerOption.alternative2,
-                        selected,
-                        number: next(),
-                        title: alt.title,
-                        detail: alt.consequence,
-                      ),
+                      if (busy && !_isKeptWhileBusy(q, i))
+                        _OptionSkeleton(key: ValueKey('spec-question-wait-$i'))
+                      else
+                        _option(
+                          q,
+                          alternativeOptions[i],
+                          selected,
+                          number: next(),
+                          title: alt.title,
+                          detail: alt.consequence,
+                          badge: kept == null
+                              ? null
+                              : kept == i
+                              ? 'mantida'
+                              : 'nova',
+                          badgeColor: kept == i
+                              ? AppColors.teal
+                              : AppColors.textSecondary,
+                        ),
                     if (loading)
                       const _Hint(
                         key: ValueKey('spec-question-loading'),
@@ -740,6 +953,7 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     required String title,
     required int? number,
     String? badge,
+    Color badgeColor = AppColors.amber,
     String? detail,
     Widget? field,
   }) => QuestionOptionCard<AnswerOption>(
@@ -750,10 +964,96 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
     title: title,
     number: number,
     badge: badge,
+    badgeColor: badgeColor,
     detail: detail,
     field: field,
     focusNode: _options[o],
     onTap: () => unawaited(_choose(q, o)),
+  );
+
+  /// "RESPOSTAS" and "Outras sugestões · Ctrl+R" (SPEC-061 R2).
+  Widget _moreRow(
+    OpenQuestion q, {
+    required bool enabled,
+    required bool busy,
+  }) => Row(
+    children: [
+      const Expanded(
+        child: Text(
+          'RESPOSTAS',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.9,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+      Tooltip(
+        message: 'Pedir outras três sugestões ao Claude (Ctrl+R)',
+        child: OutlinedButton(
+          key: const ValueKey('spec-question-more'),
+          onPressed: enabled ? () => unawaited(_more(q)) : null,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.text,
+            side: const BorderSide(color: AppColors.border),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.refresh, size: 15),
+              const SizedBox(width: 6),
+              Text(
+                busy ? 'Gerando outras…' : 'Outras sugestões',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (!busy) ...[
+                const SizedBox(width: 8),
+                const ExcludeSemantics(child: StepKbd('Ctrl+R')),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// R5: the last set stays; "Tentar de novo" asks again.
+  Widget _moreError(OpenQuestion q) => Semantics(
+    liveRegion: true,
+    child: Container(
+      key: const ValueKey('spec-question-more-failed'),
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.red.withValues(alpha: .4)),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Não deu para gerar outras sugestões. As anteriores continuam '
+              'aqui.',
+              style: TextStyle(fontSize: 13, color: AppColors.text),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('spec-question-more-retry'),
+            onPressed: () => unawaited(_more(q)),
+            child: const Text('Tentar de novo'),
+          ),
+        ],
+      ),
+    ),
   );
 
   Widget _reviewView() => Column(
@@ -865,7 +1165,14 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
             onPressed: _stage == _Stage.review ? _previous : null,
             style: secondary,
             icon: const Icon(Icons.chevron_left, size: 18),
-            label: const Text('Voltar às perguntas', style: bold),
+            label: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Voltar às perguntas', style: bold),
+                SizedBox(width: 8),
+                ExcludeSemantics(child: StepKbd('Esc')),
+              ],
+            ),
           ),
         ],
         right: [
@@ -888,6 +1195,10 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.chevron_right, size: 18),
+                  const SizedBox(width: 8),
+                  const ExcludeSemantics(
+                    child: StepKbd('Enter', onAmber: true),
+                  ),
                 ],
               ),
             ),
@@ -896,21 +1207,62 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
       ),
       _Stage.diff => QuestionFooter(
         left: [
-          TextButton(
-            key: const ValueKey('spec-questions-discard'),
-            onPressed: _saving ? null : widget.onClose,
-            child: const Text('Descartar'),
-          ),
+          _discardArmed
+              ? OutlinedButton(
+                  key: const ValueKey('spec-questions-discard'),
+                  onPressed: _saving ? null : widget.onClose,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.red,
+                    backgroundColor: AppColors.red.withValues(alpha: .12),
+                    side: BorderSide(
+                      color: AppColors.red.withValues(alpha: .55),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Descartar mudanças?', style: bold),
+                      SizedBox(width: 8),
+                      ExcludeSemantics(child: StepKbd('Delete')),
+                      SizedBox(width: 6),
+                      Text('de novo'),
+                    ],
+                  ),
+                )
+              : TextButton(
+                  key: const ValueKey('spec-questions-discard'),
+                  onPressed: _saving ? null : widget.onClose,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Descartar'),
+                      SizedBox(width: 8),
+                      ExcludeSemantics(child: StepKbd('Delete')),
+                    ],
+                  ),
+                ),
         ],
         right: [
           OutlinedButton.icon(
             key: const ValueKey('spec-questions-back'),
-            onPressed: _saving
-                ? null
-                : () => setState(() => _stage = _Stage.review),
+            onPressed: _saving ? null : _backToReview,
             style: secondary,
             icon: const Icon(Icons.chevron_left, size: 18),
-            label: const Text('Voltar às respostas'),
+            label: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Voltar às respostas'),
+                SizedBox(width: 8),
+                ExcludeSemantics(child: StepKbd('Esc')),
+              ],
+            ),
           ),
           AppPressable(
             enabled: !_saving,
@@ -919,12 +1271,73 @@ class _SpecQuestionsPanelState extends ConsumerState<SpecQuestionsPanel> {
               onPressed: _saving ? null : _save,
               style: primary,
               icon: const Icon(Icons.check, size: 16),
-              label: const Text('Salvar na spec', style: bold),
+              label: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Salvar na spec', style: bold),
+                  SizedBox(width: 8),
+                  ExcludeSemantics(child: StepKbd('Enter', onAmber: true)),
+                ],
+              ),
             ),
           ),
         ],
       ),
     };
+  }
+}
+
+/// An alternative on the way (SPEC-061 R3): no text, out of the keys and
+/// of the focus.
+class _OptionSkeleton extends StatelessWidget {
+  const _OptionSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget bar(double f, double h) => FractionallySizedBox(
+      alignment: Alignment.centerLeft,
+      widthFactor: f,
+      child: Container(
+        height: h,
+        decoration: BoxDecoration(
+          color: AppColors.border,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ),
+    );
+    return ExcludeSemantics(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border.withValues(alpha: .6)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.border, width: 2),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  bar(.38, 11),
+                  const SizedBox(height: 9),
+                  bar(.82, 9),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

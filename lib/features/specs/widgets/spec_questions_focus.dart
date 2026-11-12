@@ -121,9 +121,15 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final r = widget.onKeyEvent?.call(node, event) ?? KeyEventResult.ignored;
     if (r != KeyEventResult.ignored) return r;
+    // SPEC-060 R5: Ctrl+Esc closes from any screen; Esc closes when the
+    // screen did not take it (the questions). While applying neither does
+    // anything (and the run is not cancelled).
+    final kb = HardwareKeyboard.instance;
     if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
-      // While applying, Esc does nothing (and does not cancel the run).
+        event.logicalKey == LogicalKeyboardKey.escape &&
+        !kb.isAltPressed &&
+        !kb.isShiftPressed &&
+        !kb.isMetaPressed) {
       widget.onClose?.call();
       return KeyEventResult.handled;
     }
@@ -286,7 +292,7 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
         ),
         const SizedBox(width: 12),
         Tooltip(
-          message: 'Fechar (Esc). As respostas ficam guardadas.',
+          message: 'Fechar (Ctrl+Esc). As respostas ficam guardadas.',
           child: OutlinedButton(
             key: const ValueKey('spec-questions-close'),
             onPressed: widget.onClose,
@@ -309,7 +315,7 @@ class _SpecQuestionsFocusState extends State<SpecQuestionsFocus>
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(width: 8),
-                ExcludeSemantics(child: StepKbd('Esc')),
+                ExcludeSemantics(child: StepKbd('Ctrl+Esc')),
               ],
             ),
           ),
@@ -429,6 +435,7 @@ class QuestionOptionCard<T> extends StatelessWidget {
     required this.onTap,
     this.focusNode,
     this.badge,
+    this.badgeColor = AppColors.amber,
     this.detail,
     this.field,
     this.trailing,
@@ -444,6 +451,10 @@ class QuestionOptionCard<T> extends StatelessWidget {
   final VoidCallback onTap;
   final FocusNode? focusNode;
   final String? badge;
+
+  /// Amber for "Sugestão da spec"; teal for "mantida" and grey for "nova"
+  /// (SPEC-061 R4).
+  final Color badgeColor;
   final String? detail;
 
   /// "Outra resposta": the text field inside the card.
@@ -502,7 +513,8 @@ class QuestionOptionCard<T> extends StatelessWidget {
                                     color: AppColors.text,
                                   ),
                                 ),
-                                if (badge != null) _Badge(badge!),
+                                if (badge != null)
+                                  _Badge(badge!, color: badgeColor),
                               ],
                             ),
                           ),
@@ -547,25 +559,22 @@ class QuestionOptionCard<T> extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge(this.text);
+  const _Badge(this.text, {this.color = AppColors.amber});
 
   final String text;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
     decoration: BoxDecoration(
-      color: AppColors.amberTint,
+      color: color.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(4),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.6)),
+      border: Border.all(color: color.withValues(alpha: 0.6)),
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.amber,
-      ),
+      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
     ),
   );
 }

@@ -19,6 +19,16 @@ enum SpecWarningKind {
   /// A requirement without "deve" (outside the EARS style).
   ears,
 
+  /// `depende-de` cites a spec that does not exist in the workspace
+  /// (SPEC-063 R3).
+  unknownDependency,
+
+  /// `depende-de` cites the spec itself (SPEC-063 R3).
+  selfDependency,
+
+  /// A frontmatter key the app does not know (SPEC-063 R4).
+  unknownFrontmatterKey,
+
   /// `## Perguntas em aberto` outside the `- P<n> · …` format, with
   /// suggestions counted as questions (SPEC-028 R3). Shown as its own
   /// notice above the editor, not in the strip.
@@ -48,11 +58,19 @@ class SpecWarning {
     required this.line,
     required this.message,
     required this.kind,
+    this.fixLabel,
+    this.key,
   });
 
   final int line;
   final String message;
   final SpecWarningKind kind;
+
+  /// The button of a warning that can be fixed ("Trocar para depende-de").
+  final String? fixLabel;
+
+  /// The frontmatter key the warning is about.
+  final String? key;
 
   @override
   bool operator ==(Object other) =>
@@ -71,9 +89,26 @@ class SpecWarning {
 final _ears = RegExp(r'\bdevem?\b', caseSensitive: false);
 final _verifyWord = RegExp(r'\bverificar:', caseSensitive: false);
 
+/// Frontmatter keys the app reads or writes (SPEC-063 R4); variations of
+/// `depende-de` are known too.
+const knownFrontmatterKeys = {
+  'id',
+  'status',
+  dependsOnKey,
+  'fase',
+  'design',
+  SpecDocument.autoPlanKey,
+  SpecDocument.previousStageKey,
+  SpecDocument.previousStatusKey,
+  subagentsKey,
+  'issue',
+};
+
 /// Structure warnings of a spec, in line order (SPEC-023 R8). They only
-/// inform: saving and approving go on.
-List<SpecWarning> lintSpec(String text) {
+/// inform: saving and approving go on. With [knownCodes] (the specs of the
+/// workspace), a dependency on a spec outside it is a warning too
+/// (SPEC-063 R3).
+List<SpecWarning> lintSpec(String text, {Set<String>? knownCodes}) {
   final doc = SpecDocument.parse(text);
   final reqs = doc.requirementLines;
   final criteria = parseCriteria(text);
@@ -158,6 +193,7 @@ List<SpecWarning> lintSpec(String text) {
       );
     }
   }
+  out.addAll(_frontmatterWarnings(doc, knownCodes));
   final scan = doc.openQuestionsScan;
   if (scan.offFormat) {
     out.add(
@@ -177,5 +213,67 @@ List<SpecWarning> lintSpec(String text) {
         ? a.line.compareTo(b.line)
         : a.kind.index.compareTo(b.kind.index),
   );
+  return out;
+}
+
+/// SPEC-063 R3, R4: dependencies that cannot hold and unknown keys.
+List<SpecWarning> _frontmatterWarnings(
+  SpecDocument doc,
+  Set<String>? knownCodes,
+) {
+  final out = <SpecWarning>[];
+  final depsKey = doc.frontmatter.containsKey(dependsOnKey)
+      ? dependsOnKey
+      : doc.dependsOnAlias;
+  final depsLine = depsKey == null ? null : doc.frontmatterLineOf(depsKey);
+  final deps = doc.dependsOn;
+  final self = doc.id;
+  if (depsLine != null && self != null && deps.contains(self)) {
+    out.add(
+      SpecWarning(
+        line: depsLine,
+        message: 'depende-de cita a própria spec ($self)',
+        kind: SpecWarningKind.selfDependency,
+      ),
+    );
+  }
+  if (depsLine != null && knownCodes != null && knownCodes.isNotEmpty) {
+    final missing = [
+      for (final c in deps)
+        if (c != self && !knownCodes.contains(c)) c,
+    ];
+    if (missing.isNotEmpty) {
+      final one = missing.length == 1;
+      final list = one
+          ? missing.single
+          : '${missing.take(missing.length - 1).join(', ')} e ${missing.last}';
+      out.add(
+        SpecWarning(
+          line: depsLine,
+          message:
+              'depende-de cita $list, que não ${one ? 'existe' : 'existem'} '
+              'neste workspace: a spec não vai esperar por '
+              '${one ? 'ela' : 'elas'}',
+          kind: SpecWarningKind.unknownDependency,
+        ),
+      );
+    }
+  }
+  for (final k in doc.frontmatter.keys) {
+    if (knownFrontmatterKeys.contains(k) || isDependsOnAlias(k)) continue;
+    final line = doc.frontmatterLineOf(k);
+    if (line == null) continue;
+    out.add(
+      SpecWarning(
+        line: line,
+        message:
+            'Chave desconhecida no cabeçalho: $k. Para dependência, o app lê '
+            'depende-de',
+        kind: SpecWarningKind.unknownFrontmatterKey,
+        fixLabel: 'Trocar para depende-de',
+        key: k,
+      ),
+    );
+  }
   return out;
 }

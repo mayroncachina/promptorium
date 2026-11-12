@@ -87,4 +87,24 @@ void main() {
     expect(row.archivedAt, equals(null));
     await db.close();
   });
+
+  test(
+    'v22 → v23 keeps the specs, none planned until the next reading',
+    () async {
+      final schema = await verifier.schemaAt(22);
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+        )
+        ..execute(
+          "INSERT INTO specs (id, workspace_id, code, title, path) "
+          "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md')",
+        );
+      final db = AppDatabase(schema.newConnection());
+      final row = await db.select(db.specs).getSingle();
+      expect(row.code, 'SPEC-001');
+      expect(row.hasPlan, isFalse);
+      await db.close();
+    },
+  );
 }

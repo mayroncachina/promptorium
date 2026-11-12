@@ -12,6 +12,7 @@ Spec s(
   List<String> deps = const [],
   int? sprintId,
 }) => Spec(
+  hasPlan: false,
   id: id,
   workspaceId: 1,
   code: 'SPEC-${id.toString().padLeft(3, '0')}',
