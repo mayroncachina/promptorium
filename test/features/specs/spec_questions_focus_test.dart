@@ -250,7 +250,10 @@ void main() {
     );
     await press(tester, LogicalKeyboardKey.digit2);
     expect(selected(tester), AnswerOption.other);
-    // Another option chosen from the field takes the focus back.
+    // Another option chosen from the field takes the focus back (the row
+    // of "Outras sugestões" pushes the options down: bring it into view).
+    await tester.ensureVisible(key('spec-question-option-alternative1'));
+    await tester.pump();
     await tester.tap(key('spec-question-option-alternative1'));
     await tester.pump();
     await tester.pump();
@@ -819,6 +822,172 @@ void main() {
       );
       await tester.tap(key('spec-questions-discard'));
       await tester.pump();
+      await releaseEditor(tester);
+    });
+  });
+
+  group('SPEC-061 three suggestions and "Outras sugestões"', () {
+    const first = [
+      QuestionAlternative(title: 'Menu da linha', consequence: 'Um clique.'),
+      QuestionAlternative(title: 'Tela do grupo', consequence: 'Outra tela.'),
+      QuestionAlternative(title: 'Arrastar', consequence: 'Mouse só.'),
+    ];
+    const fresh = [
+      QuestionAlternative(title: 'Atalho', consequence: 'Ctrl+G agrupa.'),
+      QuestionAlternative(title: 'Importar', consequence: 'De uma lista.'),
+      QuestionAlternative(title: 'Regra', consequence: 'Por etiqueta.'),
+    ];
+
+    Future<void> openWithThree(WidgetTester tester) async {
+      await pump(tester);
+      await open(tester);
+      options.of('P1').complete(first);
+      await tester.pump();
+      await tester.pump();
+    }
+
+    Finder card(String o) => key('spec-question-option-$o');
+    Finder titleIn(String o, String t) =>
+        find.descendant(of: card(o), matching: find.text(t));
+    Finder badge(String o, String b) =>
+        find.descendant(of: card(o), matching: find.text(b));
+
+    Future<void> ctrlR(WidgetTester tester) => press(
+      tester,
+      LogicalKeyboardKey.keyR,
+      hold: LogicalKeyboardKey.controlLeft,
+    );
+
+    testWidgets('R1, R2: three alternatives with the keys 2–4, "Outra '
+        'resposta" on 5 and the button with Ctrl+R', (tester) async {
+      await openWithThree(tester);
+      expect(titleIn('alternative3', 'Arrastar'), findsOneWidget);
+      expect(
+        find.descendant(of: card('alternative3'), matching: find.text('4')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card('other'), matching: find.text('5')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: key('spec-question-more'),
+          matching: find.text('Ctrl+R'),
+        ),
+        findsOneWidget,
+      );
+      await press(tester, LogicalKeyboardKey.digit4);
+      expect(selected(tester), AnswerOption.alternative3);
+      expect(answers()['P1']!.text, 'Arrastar');
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R3, R4: Ctrl+R waits with the three replaced, out of the '
+        'keys, then shows three new ones without the ones shown', (
+      tester,
+    ) async {
+      await openWithThree(tester);
+      await ctrlR(tester);
+      expect(options.asked.last.avoid, [
+        'Menu da linha',
+        'Tela do grupo',
+        'Arrastar',
+      ]);
+      expect(options.asked.last.count, 3);
+      expect(find.text('Gerando outras…'), findsOneWidget);
+      for (var i = 0; i < 3; i++) {
+        expect(key('spec-question-wait-$i'), findsOneWidget);
+      }
+      expect(
+        tester.widget<OutlinedButton>(key('spec-question-more')).onPressed,
+        isNull,
+      );
+      // While waiting, Ctrl+R does nothing more.
+      await ctrlR(tester);
+      expect(options.pendingMore, hasLength(1));
+      options.pendingMore.single.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(titleIn('alternative3', 'Regra'), findsOneWidget);
+      expect(badge('alternative2', 'nova'), findsOneWidget);
+      expect(find.text('Outras sugestões'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.digit2);
+      expect(answers()['P1']!.text, 'Atalho');
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R4: the chosen alternative stays in its place, marked '
+        '"mantida"; the other two are replaced', (tester) async {
+      await openWithThree(tester);
+      await press(tester, LogicalKeyboardKey.digit3);
+      expect(answers()['P1']!.text, 'Tela do grupo');
+      await tester.tap(key('spec-question-more'));
+      await tester.pump();
+      expect(options.asked.last.count, 2);
+      expect(titleIn('alternative2', 'Tela do grupo'), findsOneWidget);
+      expect(key('spec-question-wait-0'), findsOneWidget);
+      expect(key('spec-question-wait-2'), findsOneWidget);
+      options.pendingMore.single.complete(fresh.take(2).toList());
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(titleIn('alternative2', 'Tela do grupo'), findsOneWidget);
+      expect(titleIn('alternative3', 'Importar'), findsOneWidget);
+      expect(badge('alternative2', 'mantida'), findsOneWidget);
+      expect(badge('alternative1', 'nova'), findsOneWidget);
+      expect(selected(tester), AnswerOption.alternative2);
+      expect(answers()['P1']!.text, 'Tela do grupo');
+
+      // The next visit shows the last set.
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      await press(tester, LogicalKeyboardKey.arrowLeft);
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
+      expect(options.pendingMore, hasLength(1));
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R2: Ctrl+R works in the field of "Outra resposta" and '
+        'keeps its text', (tester) async {
+      await openWithThree(tester);
+      await press(tester, LogicalKeyboardKey.digit5);
+      await tester.enterText(key('spec-question-other-text'), 'Pelo menu');
+      await tester.pump();
+      await ctrlR(tester);
+      expect(options.pendingMore, hasLength(1));
+      expect(
+        tester
+            .widget<TextField>(key('spec-question-other-text'))
+            .controller!
+            .text,
+        'Pelo menu',
+      );
+      expect(selected(tester), AnswerOption.other);
+      options.pendingMore.single.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      await releaseEditor(tester);
+    });
+
+    testWidgets('R5: a failure keeps the last set and "Tentar de novo" asks '
+        'again', (tester) async {
+      await openWithThree(tester);
+      await ctrlR(tester);
+      options.pendingMore.single.completeError(StateError('x'));
+      await tester.pump();
+      await tester.pump();
+      expect(key('spec-question-more-failed'), findsOneWidget);
+      expect(titleIn('alternative1', 'Menu da linha'), findsOneWidget);
+      expect(key('spec-question-wait-0'), findsNothing);
+      await tester.tap(key('spec-question-more-retry'));
+      await tester.pump();
+      expect(options.pendingMore, hasLength(2));
+      expect(key('spec-question-more-failed'), findsNothing);
+      options.pendingMore.last.complete(fresh);
+      await tester.pump();
+      await tester.pump();
+      expect(titleIn('alternative1', 'Atalho'), findsOneWidget);
       await releaseEditor(tester);
     });
   });

@@ -28,14 +28,31 @@ class FakeQuestionOptions extends SpecQuestionOptions {
   Completer<List<QuestionAlternative>> of(String id) =>
       pending.putIfAbsent(id, Completer.new);
 
+  /// The [avoid] list and [count] of each call (SPEC-061).
+  final asked = <({String id, List<String> avoid, int count})>[];
+
+  /// The pending "Outras sugestões", in order.
+  final pendingMore = <Completer<List<QuestionAlternative>>>[];
+
   @override
   Future<List<QuestionAlternative>> generate(
     Workspace ws,
     String specText,
-    OpenQuestion q,
-  ) {
+    OpenQuestion q, {
+    List<QuestionAlternative> avoid = const [],
+    int count = alternativesPerQuestion,
+  }) {
     calls.add(q.id);
-    return of(q.id).future;
+    asked.add((
+      id: q.id,
+      avoid: [for (final a in avoid) a.title],
+      count: count,
+    ));
+    // "Outras sugestões" waits on a completer of its own.
+    if (avoid.isEmpty) return of(q.id).future;
+    final c = Completer<List<QuestionAlternative>>();
+    pendingMore.add(c);
+    return c.future;
   }
 }
 
