@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -340,8 +341,8 @@ void main() {
 
     tearDown(() => AppMotion.enabled = false);
 
-    testWidgets('plays once, the buttons answer during the intro and the '
-        'ticker stops at its end', (tester) async {
+    testWidgets('plays the intro, the buttons answer during it, and the logo '
+        'goes on in the calm rhythm (SPEC-066 R2)', (tester) async {
       AppMotion.enabled = true;
       _CheckingUpdateChecker.forces.clear();
       _size(tester);
@@ -358,8 +359,8 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 100));
       expect(
-        tester.widget<SplashStage>(find.byType(SplashStage)).loop,
-        isFalse,
+        tester.widget<SplashStage>(find.byType(SplashStage)).effectiveAmbient,
+        SplashAmbient.calm,
       );
       expect(tickers(), greaterThan(0));
       expect(timeline(tester).links, 0);
@@ -370,11 +371,13 @@ void main() {
       expect(find.text('Versão 9.1.0 disponível'), findsOneWidget);
 
       await tester.pump(SplashTimeline.introDuration);
-      await tester.pump();
-      expect(tickers(), 0);
+      await tester.pump(const Duration(seconds: 3));
+      expect(tickers(), greaterThan(0));
       final tl = timeline(tester);
       expect(tl.links, 1);
-      expect(tl.bubble(0).opacity, 0);
+      expect(tl.bubbles(), isNotEmpty);
+      await tester.pumpWidget(const SizedBox());
+      expect(tickers(), 0);
     });
 
     testWidgets('closing during the intro stops the ticker and each opening '
@@ -421,6 +424,151 @@ void main() {
       expect(tl.stageOpacity, 1);
       expect(tl.links, 1);
       expect(tl.bubble(0).opacity, 0);
+    });
+  });
+
+  group('SPEC-066 · the logo', () {
+    const logo = ValueKey('about-logo');
+    tearDown(() => AppMotion.enabled = false);
+
+    SplashTimeline timeline(WidgetTester tester) =>
+        (tester
+                    .widget<CustomPaint>(
+                      find.descendant(
+                        of: find.byType(SplashStage),
+                        matching: find.byType(CustomPaint),
+                      ),
+                    )
+                    .painter!
+                as SplashPainter)
+            .timeline();
+
+    Future<void> pumpAbout(WidgetTester tester, {bool reduced = false}) async {
+      AppMotion.enabled = true;
+      _size(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            changelogProvider.overrideWith((ref) async => _changelog),
+            appVersionProvider.overrideWith((ref) async => '0.8.0'),
+          ],
+          child: MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(
+                size: const Size(1440, 900),
+                disableAnimations: reduced,
+              ),
+              child: const Scaffold(body: AboutPromptoriumDialog()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(SplashTimeline.introDuration);
+      await tester.pump();
+    }
+
+    testWidgets('R4 · the mouse over the logo agitates it, and leaving calms '
+        'it down', (tester) async {
+      await pumpAbout(tester);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(find.byKey(logo)));
+      await tester.pump();
+      expect(
+        tester.widget<SplashStage>(find.byType(SplashStage)).excited,
+        isTrue,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(timeline(tester).excite, 1);
+      await mouse.moveTo(Offset.zero);
+      await tester.pump();
+      expect(
+        tester.widget<SplashStage>(find.byType(SplashStage)).excited,
+        isFalse,
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('R5 · a click plays the intro again', (tester) async {
+      await pumpAbout(tester);
+      expect(timeline(tester).outline, 1);
+      await tester.tap(find.byKey(logo));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(timeline(tester).outline, lessThan(1));
+      expect(timeline(tester).stageOpacity, 1);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
+      testWidgets('R5, R6 · ${key.keyLabel} with the focus on the logo plays '
+          'the intro', (tester) async {
+        await pumpAbout(tester);
+        Focus.of(tester.element(find.byKey(const ValueKey('about-logo-ring'))))
+            .requestFocus();
+        await tester.pump();
+        await tester.sendKeyEvent(key);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(timeline(tester).outline, lessThan(1));
+        await tester.pumpWidget(const SizedBox());
+      });
+    }
+
+    testWidgets('R6 · the reader hears a button that plays the intro', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await pumpAbout(tester);
+      expect(
+        tester.getSemantics(find.byKey(const ValueKey('about-logo-ring'))),
+        matchesSemantics(
+          label: 'Ícone do Promptorium',
+          hint: 'Tocar a abertura de novo',
+          isButton: true,
+          hasTapAction: true,
+        ),
+      );
+      await tester.pumpWidget(const SizedBox());
+      semantics.dispose();
+    });
+
+    testWidgets('R6 · Tab reaches the logo after the card and before the '
+        'links', (tester) async {
+      await pumpAbout(tester);
+      String? focused() {
+        final focus = FocusManager.instance.primaryFocus?.context;
+        String? name;
+        focus?.visitAncestorElements((e) {
+          final k = e.widget.key;
+          if (k is ValueKey<String> && k.value.startsWith('about-')) {
+            name = k.value;
+            return false;
+          }
+          return true;
+        });
+        return name;
+      }
+
+      // The focus starts on the action of the card (SPEC-038 R11).
+      expect(focused(), 'about-check-now');
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focused(), 'about-logo');
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(focused(), 'about-repo');
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('R8 · with animations off the logo is no button', (
+      tester,
+    ) async {
+      await pumpAbout(tester, reduced: true);
+      expect(find.byKey(logo), findsNothing);
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
     });
   });
 
@@ -1117,6 +1265,20 @@ void main() {
         expect(find.byKey(_about), findsNothing);
       });
     }
+
+    testWidgets('SPEC-066 R7 · the logo stops while the confirmation is over '
+        'the screen', (tester) async {
+      await downloading(tester);
+      SplashStage stage() =>
+          tester.widget<SplashStage>(find.byType(SplashStage));
+      expect(stage().paused, isFalse);
+      await _esc(tester);
+      expect(find.byKey(_closeConfirm), findsOneWidget);
+      expect(stage().paused, isTrue);
+      await tester.tap(find.text('Continuar baixando'));
+      await tester.pumpAndSettle();
+      expect(stage().paused, isFalse);
+    });
   });
 
   group('R10 · a query that fails', () {
