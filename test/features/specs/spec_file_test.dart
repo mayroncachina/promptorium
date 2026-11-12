@@ -428,6 +428,7 @@ id: SPEC-009
   test('refine prompt mentions the spec file', () {
     final p = refineSpecPrompt(
       const Spec(
+        hasPlan: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-002',
@@ -598,6 +599,7 @@ depende-de: [SPEC-001]
       expect(openQuestionsFormatHint, contains('"  - Sugestão: <texto>"'));
       final p = refineSpecPrompt(
         const Spec(
+          hasPlan: false,
           id: 1,
           workspaceId: 1,
           code: 'SPEC-002',

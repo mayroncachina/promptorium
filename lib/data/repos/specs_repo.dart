@@ -50,6 +50,7 @@ class SpecsRepo {
     List<SpecRequirement> requirements = const [],
     List<String>? dependsOn,
     String? phase,
+    bool hasPlan = false,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -67,6 +68,7 @@ class SpecsRepo {
           requirements: Value(requirements),
           dependsOn: Value.absentIfNull(dependsOn),
           phase: Value(phase),
+          hasPlan: Value(hasPlan),
         ),
       );
 

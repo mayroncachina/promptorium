@@ -42,6 +42,16 @@ SpecStatus? specStatusFromValue(String? value) {
   };
 }
 
+/// "Planejada" (SPEC-062 R2): a `## Plano` and not approved yet. Derived,
+/// never written to the file.
+bool specIsPlanned(SpecStatus status, {required bool hasPlan}) =>
+    hasPlan &&
+    (status == SpecStatus.idea ||
+        status == SpecStatus.draft ||
+        status == SpecStatus.review);
+
+const plannedLabel = 'Planejada';
+
 /// Label shown in the UI.
 String specStatusLabel(SpecStatus s) => switch (s) {
   SpecStatus.idea => 'Ideia',
