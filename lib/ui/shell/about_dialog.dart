@@ -13,6 +13,7 @@ import '../../features/splash/splash_stage.dart';
 import '../theme/motion.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/staggered_entrance.dart';
 import 'about_update_card.dart';
 import 'update_flow.dart';
 
@@ -156,19 +157,31 @@ class _AboutPromptoriumDialogState
                                     16,
                                     0,
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      _Header(installing: installing),
-                                      const SizedBox(height: 6),
-                                      UpdateCard(
-                                        actionFocus: _actionFocus,
-                                        cardFocus: _cardFocus,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      const Expanded(child: _News()),
-                                    ],
+                                  // The right column enters in a cascade
+                                  // (SPEC-066 R1).
+                                  child: StaggeredEntrance(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        StaggeredItem(
+                                          index: 0,
+                                          child: _Header(
+                                            installing: installing,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        StaggeredItem(
+                                          index: 1,
+                                          child: UpdateCard(
+                                            actionFocus: _actionFocus,
+                                            cardFocus: _cardFocus,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Expanded(child: _News()),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -459,44 +472,54 @@ class _NewsBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              version == null ? 'Novidades' : 'Novidades da $version',
-              key: const ValueKey('about-news-title'),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            if (date != null) ...[
-              const SizedBox(width: 8),
+        StaggeredItem(
+          index: 2,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
               Text(
-                formatDate(date),
-                key: const ValueKey('about-news-date'),
+                version == null ? 'Novidades' : 'Novidades da $version',
+                key: const ValueKey('about-news-title'),
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              if (date != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  formatDate(date),
+                  key: const ValueKey('about-news-date'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            key: const ValueKey('about-changelog'),
-            padding: const EdgeInsets.fromLTRB(0, 12, 4, 16),
-            child: section == null
-                ? const Text('Novidades indisponíveis.', style: muted)
-                : section.isEmpty
-                ? const Text(
-                    'Sem novidades para mostrar nesta versão.',
-                    style: muted,
-                  )
-                : MarkdownBody(
-                    key: const ValueKey('about-changelog-body'),
-                    data: section.markdown,
-                    styleSheet: _newsStyle(context),
-                  ),
+          child: StaggeredItem(
+            index: 3,
+            reveal: true,
+            child: SingleChildScrollView(
+              key: const ValueKey('about-changelog'),
+              padding: const EdgeInsets.fromLTRB(0, 12, 4, 16),
+              child: section == null
+                  ? const Text('Novidades indisponíveis.', style: muted)
+                  : section.isEmpty
+                  ? const Text(
+                      'Sem novidades para mostrar nesta versão.',
+                      style: muted,
+                    )
+                  : MarkdownBody(
+                      key: const ValueKey('about-changelog-body'),
+                      data: section.markdown,
+                      styleSheet: _newsStyle(context),
+                    ),
+            ),
           ),
         ),
       ],

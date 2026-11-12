@@ -97,6 +97,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9SPRb9HhTJTW2FPG6Em
 - **Clique toca a abertura.** É o jeito de "ver de novo" que a D4 deixava só para quem reabria a tela.
 - **Cascata curta.** 640 ms no total e o foco já na ação: quem abriu o Sobre para atualizar não espera a animação.
 - **A logo vira botão só com movimento.** Com movimento reduzido o clique não teria o que mostrar, então ela fica um ícone comum, fora do Tab.
+- **t2 · As linhas das novidades entram por uma máscara.** As novidades são um único Markdown (e os testes da SPEC-038 leem o bloco inteiro). Em vez de quebrá-lo em linhas, o bloco é descoberto de cima para baixo no ritmo das linhas: começa em 160 ms e termina junto com a sexta linha, em 580 ms.
 - **O frasco enche com o download (era P1).** O líquido já é a metáfora do laboratório trabalhando; enchê-lo com o progresso liga a logo ao cartão ao lado, sem texto novo.
 - **O ritmo calmo não para sozinho (era P2).** Ele já para com a janela fora de foco (R7), e o custo de um `CustomPaint` de 148 px é pequeno.
 

@@ -21,6 +21,7 @@ import 'package:promptorium/ui/shell/shortcut_sheet.dart';
 import 'package:promptorium/ui/shell/update_flow.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:promptorium/ui/theme/motion.dart';
+import 'package:promptorium/ui/widgets/staggered_entrance.dart';
 
 import '../helpers/test_db.dart';
 import 'app_shell_test.dart' show pumpShell;
@@ -560,6 +561,38 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(focused(), 'about-repo');
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('R1 · the right column enters in a cascade, with the focus on '
+        'the action of the card from the first frame', (tester) async {
+      AppMotion.enabled = true;
+      _size(tester);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            changelogProvider.overrideWith((ref) async => _changelog),
+            appVersionProvider.overrideWith((ref) async => '0.8.0'),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: AboutPromptoriumDialog()),
+          ),
+        ),
+      );
+      await tester.pump();
+      final header = find.ancestor(
+        of: find.text('Sobre'),
+        matching: find.byType(Opacity),
+      );
+      expect(tester.widget<Opacity>(header.first).opacity, lessThan(1));
+      var onAction = false;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
+        onAction = e.widget.key == _checkNow;
+        return !onAction;
+      });
+      expect(onAction, isTrue);
+      await tester.pump(StaggeredEntrance.total);
+      expect(header, findsNothing);
       await tester.pumpWidget(const SizedBox());
     });
 
