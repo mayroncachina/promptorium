@@ -1,6 +1,7 @@
 ---
 id: SPEC-067
 status: rascunho
+issue: 192
 ---
 
 # O protótipo mostra uma versão por tela
