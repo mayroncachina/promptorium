@@ -394,4 +394,111 @@ void main() {
       expect(_timeline(tester).bubbles(), isEmpty);
     });
   });
+
+  group('SPEC-066 R10 · the liquid follows the download', () {
+    const end = SplashTimeline.introSeconds;
+
+    test('the level sinks the liquid: empty at 0, full at 1 or null', () {
+      SplashTimeline at(double? level) => SplashTimeline(
+        elapsed: end,
+        ambient: SplashAmbient.calm,
+        level: level,
+      );
+      expect(at(0).liquidDy, 62);
+      expect(at(.5).liquidDy, 31);
+      expect(at(1).liquidDy, 0);
+      expect(at(null).liquidDy, 0);
+      // During the intro the liquid never rises above the level.
+      const early = SplashTimeline(elapsed: 2, level: .25);
+      expect(early.liquidDy, greaterThanOrEqualTo(62 * .75));
+    });
+
+    test('a burst sends the three bubbles up together, once', () {
+      SplashTimeline at(double burst) => SplashTimeline(
+        elapsed: end,
+        ambient: SplashAmbient.calm,
+        ambientClock: end + 0.3,
+        burst: burst,
+      );
+      expect(at(.6).bubbles().map((b) => b.i).toSet(), {0, 1, 2});
+      // The calm bubble of the moment plus the three of the burst, which
+      // rise together (the same height).
+      final burst = at(.6).bubbles();
+      expect(burst.length, 4);
+      final heights = burst.map((b) => b.dy).toList()..sort();
+      expect(heights.where((h) => h == heights.first).length, 3);
+      expect(at(SplashTimeline.burstSeconds + .1).bubbles().length, 1);
+    });
+
+    test('reduced motion follows the level, without bubbles', () {
+      const tl = SplashTimeline(
+        elapsed: 0,
+        reducedMotion: true,
+        ambient: SplashAmbient.calm,
+        level: .4,
+      );
+      expect(tl.liquidDy, closeTo(62 * .6, 1e-9));
+      expect(tl.bubbles(), isEmpty);
+    });
+
+    Widget host({double? level, bool reduced = false, Key? key}) => MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: reduced),
+        child: Scaffold(
+          body: Center(
+            child: SplashStage(
+              key: key,
+              ambient: SplashAmbient.calm,
+              level: level,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('the stage moves the liquid smoothly, and a cancel goes back '
+        'to full in 400 ms', (tester) async {
+      AppMotion.enabled = true;
+      addTearDown(() => AppMotion.enabled = false);
+      await tester.pumpWidget(host());
+      await tester.pump(SplashTimeline.introDuration);
+      await tester.pumpWidget(host(level: 0));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(_timeline(tester).level, inExclusiveRange(0, 1));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_timeline(tester).level, 0);
+      await tester.pumpWidget(host());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 420));
+      expect(_timeline(tester).level, isNull);
+      expect(_timeline(tester).liquidDy, 0);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('with animations off the level is shown at once', (
+      tester,
+    ) async {
+      AppMotion.enabled = true;
+      addTearDown(() => AppMotion.enabled = false);
+      await tester.pumpWidget(host(reduced: true));
+      await tester.pumpWidget(host(level: .3, reduced: true));
+      await tester.pump();
+      expect(_timeline(tester).level, .3);
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+    });
+
+    testWidgets('celebrate sends the burst', (tester) async {
+      AppMotion.enabled = true;
+      addTearDown(() => AppMotion.enabled = false);
+      final key = GlobalKey<SplashStageState>();
+      await tester.pumpWidget(host(key: key));
+      await tester.pump(SplashTimeline.introDuration);
+      key.currentState!.celebrate();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(_timeline(tester).burst, closeTo(.3, .05));
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
 }

@@ -74,8 +74,9 @@ class SplashStageState extends State<SplashStage>
   /// Mixing time between the calm and the agitated rhythms (R4).
   static const exciteSeconds = 0.4;
 
-  /// Time the liquid takes to follow a new level (R10).
-  static const levelSeconds = 0.3;
+  /// Time the liquid takes to cross the whole flask (R10): a cancel goes
+  /// back to full in at most this.
+  static const levelSeconds = 0.4;
 
   bool get _introRunning => _intro < SplashTimeline.introSeconds;
 
@@ -157,11 +158,9 @@ class SplashStageState extends State<SplashStage>
     _wave += dt / SplashTimeline.wavePeriod(ambient, _excite);
     final wantLevel = widget.level ?? 1.0;
     final from = _level ?? 1.0;
-    final k = (dt / levelSeconds).clamp(0.0, 1.0);
-    final next = from + (wantLevel - from) * k;
-    _level = (next - wantLevel).abs() < 1e-3 && widget.level == null
-        ? null
-        : next;
+    final maxStep = dt / levelSeconds;
+    final next = from + (wantLevel - from).clamp(-maxStep, maxStep);
+    _level = next == 1.0 && widget.level == null ? null : next;
     if (_burst != null) _burst = _burst! + dt;
     if (ambient == SplashAmbient.none && !_introRunning && _settled) {
       _ticker.stop();

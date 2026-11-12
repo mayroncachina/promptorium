@@ -310,17 +310,27 @@ class _Identity extends ConsumerWidget {
 /// screen is open (R2, R3). The mouse agitates it (R4), and a click, Enter or
 /// Space plays the intro again (R5, R6). With animations off it is a still
 /// icon, outside the Tab order (R8).
-class AboutLogo extends StatefulWidget {
+class AboutLogo extends ConsumerStatefulWidget {
   const AboutLogo({super.key, this.paused = false});
 
   /// Stops the flask where it is (R7).
   final bool paused;
 
+  /// Level of the liquid for [state] (R10): the download progress, 0 before
+  /// the first event, or null (full) when not downloading or without a known
+  /// size.
+  static double? levelFor(UpdateFlowState state) {
+    if (state is! UpdateDownloading) return null;
+    final progress = state.progress;
+    if (progress == null) return 0;
+    return progress.fraction;
+  }
+
   @override
-  State<AboutLogo> createState() => _AboutLogoState();
+  ConsumerState<AboutLogo> createState() => _AboutLogoState();
 }
 
-class _AboutLogoState extends State<AboutLogo> {
+class _AboutLogoState extends ConsumerState<AboutLogo> {
   final _stage = GlobalKey<SplashStageState>();
   bool _hover = false;
   bool _focused = false;
@@ -328,13 +338,26 @@ class _AboutLogoState extends State<AboutLogo> {
   void _replay() => _stage.currentState?.replay();
 
   @override
+  void initState() {
+    super.initState();
+    // The download ended: the three bubbles go up together (R10).
+    ref.listenManual(updateFlowProvider, (previous, next) {
+      if (previous is UpdateDownloading && next is UpdateInstalling) {
+        _stage.currentState?.celebrate();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final animate = AppMotion.animate(context);
+    final level = AboutLogo.levelFor(ref.watch(updateFlowProvider));
     return SplashStage(
       key: _stage,
       ambient: SplashAmbient.calm,
       excited: animate && _hover,
       paused: widget.paused,
+      level: level,
       iconSize: 148,
       titleSize: 24,
       subtitleSize: 12.5,
