@@ -109,11 +109,11 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/9SPRb9HhTJTW2FPG6Em
 
 ## Critérios de aceite
 
-- [ ] Depois da abertura, a logo segue no ritmo calmo enquanto o Sobre estiver aberto.
-- [ ] Com o mouse em cima, a logo fica agitada; ao sair, volta ao calmo sem salto.
-- [ ] Clicar na logo, ou Enter e Espaço com o foco nela, toca a abertura de novo.
-- [ ] A logo para com a janela fora de foco e com a confirmação do download por cima.
-- [ ] A coluna da direita entra em cascata em até 640 ms, com o foco já na ação do cartão.
-- [ ] Com movimento reduzido, nada se move e a logo não é um botão.
-- [ ] Enquanto baixa uma atualização, o líquido do frasco acompanha o progresso.
-- [ ] O splash continua igual.
+- [x] Depois da abertura, a logo segue no ritmo calmo enquanto o Sobre estiver aberto.
+- [x] Com o mouse em cima, a logo fica agitada; ao sair, volta ao calmo sem salto.
+- [x] Clicar na logo, ou Enter e Espaço com o foco nela, toca a abertura de novo.
+- [x] A logo para com a janela fora de foco e com a confirmação do download por cima.
+- [x] A coluna da direita entra em cascata em até 640 ms, com o foco já na ação do cartão.
+- [x] Com movimento reduzido, nada se move e a logo não é um botão.
+- [x] Enquanto baixa uma atualização, o líquido do frasco acompanha o progresso.
+- [x] O splash continua igual.
