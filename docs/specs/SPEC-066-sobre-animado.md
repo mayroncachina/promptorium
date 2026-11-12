@@ -1,6 +1,7 @@
 ---
 id: SPEC-066
 status: rascunho
+issue: 187
 ---
 
 # O Sobre com a logo viva
