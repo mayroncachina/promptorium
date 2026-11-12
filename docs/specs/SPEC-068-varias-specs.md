@@ -1,6 +1,7 @@
 ---
 id: SPEC-068
 status: rascunho
+issue: 194
 ---
 
 # Várias specs de uma conversa, revisadas e guardadas na Bandeja
