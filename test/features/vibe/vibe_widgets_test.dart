@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/sessions/widgets/session_style.dart';
+import 'package:promptorium/features/vibe/vibe_flow.dart';
+import 'package:promptorium/features/vibe/vibe_guard.dart';
 import 'package:promptorium/features/vibe/widgets/vibe_widgets.dart';
 
 import '../prompt/prompt_screen_test.dart' show pumpPrompt, pumpFor;
@@ -81,5 +84,69 @@ void main() {
     expect(find.text('vibe/007-botao-comprar-verde'), findsOneWidget);
     expect(find.text('Enviar para Review'), findsOneWidget);
     expect(find.byKey(const ValueKey('prompt-vibe')), findsNothing);
+  });
+
+  testWidgets('R5, R8, R13: the questions are alerts in the conversation, '
+      'with the focus on the main button and the request held', (tester) async {
+    final (db, _, c) = await pumpPrompt(tester);
+    final spec = await db
+        .into(db.specs)
+        .insertReturning(
+          SpecsCompanion.insert(
+            workspaceId: 1,
+            code: 'VIBE-007',
+            title: 'Botão Comprar verde',
+            path: 'docs/vibe/VIBE-007-botao.md',
+            kind: const Value(SpecKind.vibe),
+            stage: const Value(SpecStage.running),
+          ),
+        );
+    await (db.update(db.conversations)..where((x) => x.id.equals(1))).write(
+      ConversationsCompanion(specId: Value(spec.id)),
+    );
+    c
+        .read(vibeFlowProvider.notifier)
+        .hold(
+          1,
+          const VibePending(
+            ask: VibeAsk.unrelated,
+            text: 'Troca o texto da tela de login',
+          ),
+        );
+    await pumpFor(tester, 20);
+    expect(find.text('Isso parece outro assunto'), findsOneWidget);
+    expect(find.byKey(const ValueKey('vibe-held-request')), findsOneWidget);
+    final alert = tester.widget<Semantics>(
+      find.byKey(const ValueKey('vibe-unrelated')),
+    );
+    expect(alert.properties.liveRegion, isTrue);
+    expect(alert.properties.label, 'Isso parece outro assunto');
+    final primary = tester.widget<AmberButton>(
+      find.byKey(const ValueKey('vibe-unrelated-new')),
+    );
+    expect(primary.focusNode!.hasFocus, isTrue);
+    expect(find.text('Continuar nesta'), findsOneWidget);
+
+    c.read(vibeFlowProvider.notifier).dismiss(1);
+    c
+        .read(vibeFlowProvider.notifier)
+        .hold(
+          1,
+          const VibePending(
+            ask: VibeAsk.cap,
+            size: VibeSize(files: 18, lines: 520),
+          ),
+        );
+    await pumpFor(tester, 20);
+    expect(
+      find.text('Esta VIBE passou do teto: 18 arquivos · 520 linhas'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('origem: VIBE-007'), findsOneWidget);
+    final promote = tester.widget<AmberButton>(
+      find.byKey(const ValueKey('vibe-cap-promote')),
+    );
+    expect(promote.focusNode!.hasFocus, isTrue);
+    expect(find.text('Continuar como VIBE'), findsWidgets);
   });
 }

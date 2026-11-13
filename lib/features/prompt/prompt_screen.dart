@@ -30,6 +30,7 @@ import 'widgets/prompt_welcome.dart';
 import 'widgets/prompt_dialogs.dart';
 import 'widgets/prompt_side_panel.dart';
 import 'widgets/title_field.dart';
+import '../vibe/vibe_flow.dart' show vibeFlowProvider;
 import '../vibe/vibe_service.dart' show vibeSpecProvider;
 import '../vibe/widgets/vibe_widgets.dart';
 
@@ -138,6 +139,11 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
           images: prepared.images,
         );
         ref.read(selectedConversationProvider.notifier).select(id);
+      } else if (conv.specId != null) {
+        // SPEC-069 R5, R8: the cap and the subject come first.
+        await ref
+            .read(vibeFlowProvider.notifier)
+            .submit(conv.id, text, images: prepared.images);
       } else {
         await manager.send(conv.id, text, images: prepared.images);
       }
@@ -438,7 +444,22 @@ class _Header extends ConsumerWidget {
     // SPEC-069 R6, R7: the conversation of a VIBE has its bar.
     if (c?.specId case final id?) {
       final spec = ref.watch(vibeSpecProvider(id)).value;
-      if (spec != null) return VibeBar(spec: spec, busy: busy);
+      final ws = ref.watch(activeWorkspaceProvider);
+      if (spec != null) {
+        return VibeBar(
+          spec: spec,
+          busy: busy,
+          meter: ws == null || spec.worktreePath == null
+              ? null
+              : VibeMeter(
+                  spec: spec,
+                  workspacePath: ws.path,
+                  // The meter follows the answers.
+                  tick: c!.messageCount + (busy ? 0 : 1),
+                  conversationId: c.id,
+                ),
+        );
+      }
     }
     // SPEC-056 R2: the title becomes a field; the actions wait.
     if (c != null &&
@@ -641,12 +662,59 @@ class _Conversation extends ConsumerWidget {
         if (a != planReq) a,
     ];
 
+    // SPEC-069 R5, R8: a request of a VIBE waiting for a choice.
+    final pending = ref.watch(vibeFlowProvider.select((m) => m[c.id]));
+    final vibe = c.specId == null
+        ? null
+        : ref.watch(vibeSpecProvider(c.specId!)).value;
+    final question = pending == null || vibe == null || workspace == null
+        ? null
+        : Align(
+            alignment: Alignment.centerLeft,
+            child: VibeQuestion(
+              key: ValueKey('vibe-question-${c.id}-${pending.ask.name}'),
+              conversationId: c.id,
+              spec: vibe,
+              pending: pending,
+              workspace: workspace!,
+            ),
+          );
     final footer =
-        otherApprovals.isEmpty && planText == null && (busy || !lastIsAnswer)
+        question == null &&
+            otherApprovals.isEmpty &&
+            planText == null &&
+            (busy || !lastIsAnswer)
         ? null
         : Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (question != null) ...[
+                if (pending!.text.isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      key: const ValueKey('vibe-held-request'),
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.amberTint,
+                        border: Border.all(color: SessionColors.approvalBorder),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        pending.text,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                question,
+                const SizedBox(height: 8),
+              ],
               if (planText != null) ...[
                 Align(
                   alignment: Alignment.centerLeft,

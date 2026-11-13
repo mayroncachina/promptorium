@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/git/git_service.dart';
@@ -14,7 +15,10 @@ import '../project/project_config.dart';
 import '../prompt/conversation_manager.dart';
 import '../sessions/session_manager.dart'
     show slugify, sessionIdGeneratorProvider, vibeSessionPrefix;
+import '../prompt/prompt_actions.dart'
+    show TranscriptEntry, specMarkdown, transcriptOf;
 import '../specs/spec_service.dart';
+import 'vibe_guard.dart';
 
 /// The modo vibe code (SPEC-069): "Fazer como tarefa" asks the agent
 /// directly, with no spec written. The app writes a VIBE (a minimal spec,
@@ -254,7 +258,12 @@ class VibeService {
       if (conv != null) {
         await manager.note(conv.id, 'Verificando ${spec.code}…');
       }
-      final report =
+      // R6: a diff that touches a screen brings the prints to the Review.
+      final size = await vibeSize(git, base: base, ownFile: spec.path);
+      final prints = touchesScreen(size.paths)
+          ? await _prints(spec, git, start, config)
+          : null;
+      final gated =
           await StepGate(git: git, shell: _ref.read(shellRunnerProvider)).run(
             specCode: spec.code,
             steps: const ['R1'],
@@ -266,6 +275,13 @@ class VibeService {
               specCode: spec.code,
             ),
           );
+      final report = prints == null
+          ? gated
+          : GateReport(
+              checks: [...gated.checks, prints],
+              at: gated.at,
+              attempt: gated.attempt,
+            );
       if (conv != null) {
         await manager.note(conv.id, gateNote(report), error: !report.ok);
       }
@@ -288,6 +304,170 @@ class VibeService {
     } finally {
       gates.remove(specId);
     }
+  }
+
+  /// The prints of before and after (R6): `vibe.prints` takes them, the
+  /// "antes" in a throwaway worktree at the base (never the main checkout)
+  /// and the "depois" in the VIBE's; they are committed in the branch, so
+  /// the Review and the PR show them. Without the command they must already
+  /// be there (put by hand or by the agent).
+  Future<GateCheck> _prints(
+    Spec spec,
+    GitService git,
+    String? start,
+    ProjectConfig config,
+  ) async {
+    final dir = vibePrintsDir(spec.code);
+    final wt = git.repoRoot;
+    final before = File('$wt/$dir/antes.png');
+    final after = File('$wt/$dir/depois.png');
+    final cmd = config.vibe.printsCommand;
+    final out = StringBuffer();
+    if (cmd != null) {
+      await Directory('$wt/$dir').create(recursive: true);
+      final shell = _ref.read(shellRunnerProvider);
+      if (start != null) {
+        final tmp = await Directory.systemTemp.createTemp('vibe-antes-');
+        try {
+          await git.git(['worktree', 'add', '--detach', tmp.path, start]);
+          final r = await shell(
+            cmd.replaceAll('{saida}', before.path),
+            cwd: tmp.path,
+            timeout: config.gate.timeout,
+          );
+          if (!r.ok) out.writeln('antes: ${r.output.trim()}');
+        } on GitException catch (e) {
+          out.writeln('antes: $e');
+        } finally {
+          try {
+            await git.git(['worktree', 'remove', '--force', tmp.path]);
+          } on GitException {
+            /* already gone */
+          }
+          if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+        }
+      }
+      final r = await shell(
+        cmd.replaceAll('{saida}', after.path),
+        cwd: wt,
+        timeout: config.gate.timeout,
+      );
+      if (!r.ok) out.writeln('depois: ${r.output.trim()}');
+      await git.commitAll('${spec.code} R1: prints de antes e depois');
+    }
+    final ok = before.existsSync() && after.existsSync();
+    return GateCheck(
+      name: 'prints',
+      ok: ok,
+      output: ok
+          ? '$dir/antes.png e $dir/depois.png'
+          : 'O diff mexe em tela: ponha $dir/antes.png e $dir/depois.png '
+                '(ou configure vibe.prints no .promptorium/config.yml).\n$out',
+    );
+  }
+
+  /// "Virar spec" (R8): writes `SPEC-NNN` from the conversation, marked
+  /// `origem: VIBE-NNN`, in the VIBE's worktree. The row becomes the spec
+  /// and keeps the worktree, the branch, the code already done and the
+  /// conversation, so the work goes on at once. The prints of a VIBE that
+  /// touched a screen go into the spec as "Telas".
+  Future<Spec> promote(int specId, {List<TranscriptEntry>? transcript}) async {
+    final repo = _ref.read(specsRepoProvider);
+    final spec = await repo.getById(specId);
+    if (spec == null || spec.kind != SpecKind.vibe) {
+      throw const VibeException('Só uma VIBE vira spec.');
+    }
+    final ws = await _ref
+        .read(workspacesRepoProvider)
+        .getById(spec.workspaceId);
+    final wt = spec.worktreePath;
+    if (ws == null || wt == null || !Directory(wt).existsSync()) {
+      throw VibeException('${spec.code} não tem worktree.');
+    }
+    final conv = await repo.conversationOf(specId);
+    final entries =
+        transcript ??
+        (conv == null
+            ? const <TranscriptEntry>[]
+            : transcriptOf(
+                _ref.read(conversationTimelineProvider(conv.id)).items,
+              ));
+    final config = ProjectConfig.loadSync(ws.path);
+    final code = await nextSpecCode(repo, ws);
+    await repo.reserve(ws.id, code);
+    final slug = slugify(spec.title, maxLength: 40);
+    final rel = '${config.specsDir}/$code${slug.isEmpty ? '' : '-$slug'}.md';
+    final requests = [
+      for (final e in entries)
+        if (e.user) e.text.trim().replaceAll(RegExp(r'\s*\n\s*'), ' '),
+    ];
+    var text = specMarkdown(
+      code: code,
+      title: spec.title,
+      transcript: entries.isEmpty
+          ? [(user: true, text: spec.requirements.firstOrNull?.text ?? '')]
+          : entries,
+    );
+    final reqs = requests.isEmpty
+        ? [spec.requirements.firstOrNull?.text ?? spec.title]
+        : requests;
+    text = text.replaceFirst(
+      '## Requisitos\n\n- [ ] A definir',
+      '## Requisitos\n\n${[for (final (i, r) in reqs.indexed) '- R${i + 1} · $r'].join('\n')}',
+    );
+    final prints = vibePrintsDir(spec.code);
+    if (File('$wt/$prints/antes.png').existsSync() &&
+        File('$wt/$prints/depois.png').existsSync()) {
+      text =
+          '${text.trimRight()}\n\n## Telas\n\n'
+          'Prints da ${spec.code}, no lugar do mock.\n\n'
+          '| Antes | Depois |\n|---|---|\n'
+          '| ![antes](../$prints/antes.png) | ![depois](../$prints/depois.png) |\n';
+    }
+    text = SpecDocument.parse(text)
+        .withMeta(fields: {SpecDocument.originKey: spec.code});
+    final file = File('$wt/$rel');
+    await file.parent.create(recursive: true);
+    await file.writeAsString(text);
+    final git = _git(wt);
+    final old = File('$wt/${spec.path}');
+    if (old.existsSync()) old.deleteSync();
+    try {
+      await git.git(['add', '-A', '--', rel, spec.path]);
+      await git.git([
+        'commit',
+        '-q',
+        '-m',
+        '$code: vira spec (origem ${spec.code})',
+        '--',
+        rel,
+        spec.path,
+      ]);
+    } on GitException catch (e) {
+      debugPrint('vibe ${spec.code}: commit de $code — $e');
+    }
+    final doc = SpecDocument.parse(text);
+    await repo.update(
+      specId,
+      SpecsCompanion(
+        code: Value(code),
+        path: Value(rel),
+        kind: const Value(SpecKind.spec),
+        status: const Value(SpecStatus.draft),
+        title: Value(doc.title ?? spec.title),
+        requirements: Value(doc.requirements),
+      ),
+    );
+    if (conv != null) {
+      await _ref
+          .read(conversationManagerProvider.notifier)
+          .note(
+            conv.id,
+            '${spec.code} virou $code (origem: ${spec.code}), no mesmo '
+            'worktree e branch. O trabalho continua aqui.',
+          );
+    }
+    return (await repo.getById(specId))!;
   }
 
   /// The session row the Review works with (its queue, diff and merge are
