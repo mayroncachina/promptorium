@@ -8804,6 +8804,7 @@ final class Schema24 extends i0.VersionedSchema {
         _column_142,
         _column_143,
         _column_144,
+        _column_145,
       ],
       attachedDatabase: database,
     ),
@@ -9277,6 +9278,8 @@ class Shape39 extends i0.VersionedTable {
       columnsByName['origin_alias']! as i1.GeneratedColumn<String>;
   i1.GeneratedColumn<String> get originTitle =>
       columnsByName['origin_title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get inTray =>
+      columnsByName['in_tray']! as i1.GeneratedColumn<int>;
 }
 
 i1.GeneratedColumn<int> _column_140(String aliasedName) =>
@@ -9318,6 +9321,15 @@ i1.GeneratedColumn<String> _column_144(String aliasedName) =>
       true,
       type: i1.DriftSqlType.string,
       $customConstraints: 'NULL',
+    );
+i1.GeneratedColumn<int> _column_145(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'in_tray',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NOT NULL DEFAULT 0 CHECK (in_tray IN (0, 1))',
+      defaultValue: const i1.CustomExpression('0'),
     );
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema9 schema) from8To9,

@@ -13,6 +13,7 @@ Spec spec(
   int steps = 0,
 }) => Spec(
   hasPlan: false,
+  inTray: false,
   id: id,
   workspaceId: 1,
   code: code,

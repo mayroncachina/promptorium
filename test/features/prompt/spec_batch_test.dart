@@ -174,6 +174,7 @@ void main() {
         requirements: const [],
         dependsOn: const [],
         hasPlan: false,
+        inTray: false,
         autoAdvance: true,
         reviewRounds: 0,
         gateResends: 0,
