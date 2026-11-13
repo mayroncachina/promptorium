@@ -145,6 +145,12 @@ AutopilotPlan autopilotPlan(
   UnblockAt unblockAt = UnblockAt.review,
   bool Function(Spec)? locked,
 }) {
+  // SPEC-069 R9: "Executar tudo" and the Autopilot ignore the VIBEs: the
+  // person runs them in their conversation.
+  all = [
+    for (final s in all)
+      if (s.kind != SpecKind.vibe) s,
+  ];
   final byCode = specsByCode(all);
   final inScope = {for (final s in autopilotScope(all, active)) s.id};
   var running = all.where((s) => s.stage == SpecStage.running).length;
@@ -447,10 +453,14 @@ class Autopilot extends Notifier<Set<int>> {
         .first;
     if (started == 0 &&
         !waiting &&
-        !now.any((s) => s.stage == SpecStage.running)) {
+        !now.any(
+          (s) => s.stage == SpecStage.running && s.kind != SpecKind.vibe,
+        )) {
       _off(workspaceId);
       _waitingIds.remove(workspaceId);
-      final inReview = now.where((s) => s.stage == SpecStage.review).length;
+      final inReview = now
+          .where((s) => s.stage == SpecStage.review && s.kind != SpecKind.vibe)
+          .length;
       _announce(
         workspaceId,
         'Executar tudo terminou: $inReview '
