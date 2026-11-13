@@ -1048,6 +1048,60 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
       'REFERENCES sprints (id) ON DELETE SET NULL',
     ),
   );
+  static const VerificationMeta _originConversationIdMeta =
+      const VerificationMeta('originConversationId');
+  @override
+  late final GeneratedColumn<int> originConversationId = GeneratedColumn<int>(
+    'origin_conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originAnswerMeta = const VerificationMeta(
+    'originAnswer',
+  );
+  @override
+  late final GeneratedColumn<int> originAnswer = GeneratedColumn<int>(
+    'origin_answer',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originItemMeta = const VerificationMeta(
+    'originItem',
+  );
+  @override
+  late final GeneratedColumn<int> originItem = GeneratedColumn<int>(
+    'origin_item',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originAliasMeta = const VerificationMeta(
+    'originAlias',
+  );
+  @override
+  late final GeneratedColumn<String> originAlias = GeneratedColumn<String>(
+    'origin_alias',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originTitleMeta = const VerificationMeta(
+    'originTitle',
+  );
+  @override
+  late final GeneratedColumn<String> originTitle = GeneratedColumn<String>(
+    'origin_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1075,6 +1129,11 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     gateResends,
     rejectedHunks,
     sprintId,
+    originConversationId,
+    originAnswer,
+    originItem,
+    originAlias,
+    originTitle,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1246,6 +1305,48 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         sprintId.isAcceptableOrUnknown(data['sprint_id']!, _sprintIdMeta),
       );
     }
+    if (data.containsKey('origin_conversation_id')) {
+      context.handle(
+        _originConversationIdMeta,
+        originConversationId.isAcceptableOrUnknown(
+          data['origin_conversation_id']!,
+          _originConversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_answer')) {
+      context.handle(
+        _originAnswerMeta,
+        originAnswer.isAcceptableOrUnknown(
+          data['origin_answer']!,
+          _originAnswerMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_item')) {
+      context.handle(
+        _originItemMeta,
+        originItem.isAcceptableOrUnknown(data['origin_item']!, _originItemMeta),
+      );
+    }
+    if (data.containsKey('origin_alias')) {
+      context.handle(
+        _originAliasMeta,
+        originAlias.isAcceptableOrUnknown(
+          data['origin_alias']!,
+          _originAliasMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_title')) {
+      context.handle(
+        _originTitleMeta,
+        originTitle.isAcceptableOrUnknown(
+          data['origin_title']!,
+          _originTitleMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1367,6 +1468,26 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.int,
         data['${effectivePrefix}sprint_id'],
       ),
+      originConversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_conversation_id'],
+      ),
+      originAnswer: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_answer'],
+      ),
+      originItem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_item'],
+      ),
+      originAlias: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_alias'],
+      ),
+      originTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_title'],
+      ),
     );
   }
 
@@ -1456,6 +1577,20 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// Sprint of the spec (null = "Sem sprint"). Not in the file: a sync of the
   /// spec never touches it.
   final int? sprintId;
+
+  /// Conversation whose answer the spec came from (null = any other way).
+  /// Not in the file: the conversation belongs to the app, not the repo.
+  final int? originConversationId;
+
+  /// Index of the answer among the conversation's answers, and of the spec
+  /// among the answer's specs.
+  final int? originAnswer;
+  final int? originItem;
+
+  /// Code and title the spec had in the answer (`SPEC-A`): a regenerated
+  /// answer with the same pair counts as already created.
+  final String? originAlias;
+  final String? originTitle;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1482,6 +1617,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.gateResends,
     required this.rejectedHunks,
     this.sprintId,
+    this.originConversationId,
+    this.originAnswer,
+    this.originItem,
+    this.originAlias,
+    this.originTitle,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1547,6 +1687,21 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || sprintId != null) {
       map['sprint_id'] = Variable<int>(sprintId);
     }
+    if (!nullToAbsent || originConversationId != null) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId);
+    }
+    if (!nullToAbsent || originAnswer != null) {
+      map['origin_answer'] = Variable<int>(originAnswer);
+    }
+    if (!nullToAbsent || originItem != null) {
+      map['origin_item'] = Variable<int>(originItem);
+    }
+    if (!nullToAbsent || originAlias != null) {
+      map['origin_alias'] = Variable<String>(originAlias);
+    }
+    if (!nullToAbsent || originTitle != null) {
+      map['origin_title'] = Variable<String>(originTitle);
+    }
     return map;
   }
 
@@ -1599,6 +1754,21 @@ class Spec extends DataClass implements Insertable<Spec> {
       sprintId: sprintId == null && nullToAbsent
           ? const Value.absent()
           : Value(sprintId),
+      originConversationId: originConversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originConversationId),
+      originAnswer: originAnswer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originAnswer),
+      originItem: originItem == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originItem),
+      originAlias: originAlias == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originAlias),
+      originTitle: originTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originTitle),
     );
   }
 
@@ -1639,6 +1809,13 @@ class Spec extends DataClass implements Insertable<Spec> {
       gateResends: serializer.fromJson<int>(json['gateResends']),
       rejectedHunks: serializer.fromJson<int>(json['rejectedHunks']),
       sprintId: serializer.fromJson<int?>(json['sprintId']),
+      originConversationId: serializer.fromJson<int?>(
+        json['originConversationId'],
+      ),
+      originAnswer: serializer.fromJson<int?>(json['originAnswer']),
+      originItem: serializer.fromJson<int?>(json['originItem']),
+      originAlias: serializer.fromJson<String?>(json['originAlias']),
+      originTitle: serializer.fromJson<String?>(json['originTitle']),
     );
   }
   @override
@@ -1676,6 +1853,11 @@ class Spec extends DataClass implements Insertable<Spec> {
       'gateResends': serializer.toJson<int>(gateResends),
       'rejectedHunks': serializer.toJson<int>(rejectedHunks),
       'sprintId': serializer.toJson<int?>(sprintId),
+      'originConversationId': serializer.toJson<int?>(originConversationId),
+      'originAnswer': serializer.toJson<int?>(originAnswer),
+      'originItem': serializer.toJson<int?>(originItem),
+      'originAlias': serializer.toJson<String?>(originAlias),
+      'originTitle': serializer.toJson<String?>(originTitle),
     };
   }
 
@@ -1705,6 +1887,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     int? gateResends,
     int? rejectedHunks,
     Value<int?> sprintId = const Value.absent(),
+    Value<int?> originConversationId = const Value.absent(),
+    Value<int?> originAnswer = const Value.absent(),
+    Value<int?> originItem = const Value.absent(),
+    Value<String?> originAlias = const Value.absent(),
+    Value<String?> originTitle = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1735,6 +1922,13 @@ class Spec extends DataClass implements Insertable<Spec> {
     gateResends: gateResends ?? this.gateResends,
     rejectedHunks: rejectedHunks ?? this.rejectedHunks,
     sprintId: sprintId.present ? sprintId.value : this.sprintId,
+    originConversationId: originConversationId.present
+        ? originConversationId.value
+        : this.originConversationId,
+    originAnswer: originAnswer.present ? originAnswer.value : this.originAnswer,
+    originItem: originItem.present ? originItem.value : this.originItem,
+    originAlias: originAlias.present ? originAlias.value : this.originAlias,
+    originTitle: originTitle.present ? originTitle.value : this.originTitle,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1789,6 +1983,21 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.rejectedHunks.value
           : this.rejectedHunks,
       sprintId: data.sprintId.present ? data.sprintId.value : this.sprintId,
+      originConversationId: data.originConversationId.present
+          ? data.originConversationId.value
+          : this.originConversationId,
+      originAnswer: data.originAnswer.present
+          ? data.originAnswer.value
+          : this.originAnswer,
+      originItem: data.originItem.present
+          ? data.originItem.value
+          : this.originItem,
+      originAlias: data.originAlias.present
+          ? data.originAlias.value
+          : this.originAlias,
+      originTitle: data.originTitle.present
+          ? data.originTitle.value
+          : this.originTitle,
     );
   }
 
@@ -1819,7 +2028,12 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
           ..write('rejectedHunks: $rejectedHunks, ')
-          ..write('sprintId: $sprintId')
+          ..write('sprintId: $sprintId, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originAnswer: $originAnswer, ')
+          ..write('originItem: $originItem, ')
+          ..write('originAlias: $originAlias, ')
+          ..write('originTitle: $originTitle')
           ..write(')'))
         .toString();
   }
@@ -1851,6 +2065,11 @@ class Spec extends DataClass implements Insertable<Spec> {
     gateResends,
     rejectedHunks,
     sprintId,
+    originConversationId,
+    originAnswer,
+    originItem,
+    originAlias,
+    originTitle,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1880,7 +2099,12 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.boardOrder == this.boardOrder &&
           other.gateResends == this.gateResends &&
           other.rejectedHunks == this.rejectedHunks &&
-          other.sprintId == this.sprintId);
+          other.sprintId == this.sprintId &&
+          other.originConversationId == this.originConversationId &&
+          other.originAnswer == this.originAnswer &&
+          other.originItem == this.originItem &&
+          other.originAlias == this.originAlias &&
+          other.originTitle == this.originTitle);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1909,6 +2133,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<int> gateResends;
   final Value<int> rejectedHunks;
   final Value<int?> sprintId;
+  final Value<int?> originConversationId;
+  final Value<int?> originAnswer;
+  final Value<int?> originItem;
+  final Value<String?> originAlias;
+  final Value<String?> originTitle;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1935,6 +2164,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
     this.sprintId = const Value.absent(),
+    this.originConversationId = const Value.absent(),
+    this.originAnswer = const Value.absent(),
+    this.originItem = const Value.absent(),
+    this.originAlias = const Value.absent(),
+    this.originTitle = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1962,6 +2196,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
     this.sprintId = const Value.absent(),
+    this.originConversationId = const Value.absent(),
+    this.originAnswer = const Value.absent(),
+    this.originItem = const Value.absent(),
+    this.originAlias = const Value.absent(),
+    this.originTitle = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1992,6 +2231,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<int>? gateResends,
     Expression<int>? rejectedHunks,
     Expression<int>? sprintId,
+    Expression<int>? originConversationId,
+    Expression<int>? originAnswer,
+    Expression<int>? originItem,
+    Expression<String>? originAlias,
+    Expression<String>? originTitle,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2019,6 +2263,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (gateResends != null) 'gate_resends': gateResends,
       if (rejectedHunks != null) 'rejected_hunks': rejectedHunks,
       if (sprintId != null) 'sprint_id': sprintId,
+      if (originConversationId != null)
+        'origin_conversation_id': originConversationId,
+      if (originAnswer != null) 'origin_answer': originAnswer,
+      if (originItem != null) 'origin_item': originItem,
+      if (originAlias != null) 'origin_alias': originAlias,
+      if (originTitle != null) 'origin_title': originTitle,
     });
   }
 
@@ -2048,6 +2298,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<int>? gateResends,
     Value<int>? rejectedHunks,
     Value<int?>? sprintId,
+    Value<int?>? originConversationId,
+    Value<int?>? originAnswer,
+    Value<int?>? originItem,
+    Value<String?>? originAlias,
+    Value<String?>? originTitle,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2075,6 +2330,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       gateResends: gateResends ?? this.gateResends,
       rejectedHunks: rejectedHunks ?? this.rejectedHunks,
       sprintId: sprintId ?? this.sprintId,
+      originConversationId: originConversationId ?? this.originConversationId,
+      originAnswer: originAnswer ?? this.originAnswer,
+      originItem: originItem ?? this.originItem,
+      originAlias: originAlias ?? this.originAlias,
+      originTitle: originTitle ?? this.originTitle,
     );
   }
 
@@ -2164,6 +2424,21 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (sprintId.present) {
       map['sprint_id'] = Variable<int>(sprintId.value);
     }
+    if (originConversationId.present) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId.value);
+    }
+    if (originAnswer.present) {
+      map['origin_answer'] = Variable<int>(originAnswer.value);
+    }
+    if (originItem.present) {
+      map['origin_item'] = Variable<int>(originItem.value);
+    }
+    if (originAlias.present) {
+      map['origin_alias'] = Variable<String>(originAlias.value);
+    }
+    if (originTitle.present) {
+      map['origin_title'] = Variable<String>(originTitle.value);
+    }
     return map;
   }
 
@@ -2194,7 +2469,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
           ..write('rejectedHunks: $rejectedHunks, ')
-          ..write('sprintId: $sprintId')
+          ..write('sprintId: $sprintId, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originAnswer: $originAnswer, ')
+          ..write('originItem: $originItem, ')
+          ..write('originAlias: $originAlias, ')
+          ..write('originTitle: $originTitle')
           ..write(')'))
         .toString();
   }
@@ -15350,6 +15630,11 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int> gateResends,
   Value<int> rejectedHunks,
   Value<int?> sprintId,
+  Value<int?> originConversationId,
+  Value<int?> originAnswer,
+  Value<int?> originItem,
+  Value<String?> originAlias,
+  Value<String?> originTitle,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -15377,6 +15662,11 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> gateResends,
   Value<int> rejectedHunks,
   Value<int?> sprintId,
+  Value<int?> originConversationId,
+  Value<int?> originAnswer,
+  Value<int?> originItem,
+  Value<String?> originAlias,
+  Value<String?> originTitle,
 });
 
 final class $$SpecsTableReferences
@@ -15695,6 +15985,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<int> get rejectedHunks => $composableBuilder(
     column: $table.rejectedHunks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16069,6 +16384,31 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16216,6 +16556,31 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<int> get rejectedHunks => $composableBuilder(
     column: $table.rejectedHunks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
     builder: (column) => column,
   );
 
@@ -16531,6 +16896,11 @@ class $$SpecsTableTableManager
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
                 Value<int?> sprintId = const Value.absent(),
+                Value<int?> originConversationId = const Value.absent(),
+                Value<int?> originAnswer = const Value.absent(),
+                Value<int?> originItem = const Value.absent(),
+                Value<String?> originAlias = const Value.absent(),
+                Value<String?> originTitle = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -16557,6 +16927,11 @@ class $$SpecsTableTableManager
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
                 sprintId: sprintId,
+                originConversationId: originConversationId,
+                originAnswer: originAnswer,
+                originItem: originItem,
+                originAlias: originAlias,
+                originTitle: originTitle,
               ),
           createCompanionCallback:
               ({
@@ -16586,6 +16961,11 @@ class $$SpecsTableTableManager
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
                 Value<int?> sprintId = const Value.absent(),
+                Value<int?> originConversationId = const Value.absent(),
+                Value<int?> originAnswer = const Value.absent(),
+                Value<int?> originItem = const Value.absent(),
+                Value<String?> originAlias = const Value.absent(),
+                Value<String?> originTitle = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -16612,6 +16992,11 @@ class $$SpecsTableTableManager
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
                 sprintId: sprintId,
+                originConversationId: originConversationId,
+                originAnswer: originAnswer,
+                originItem: originItem,
+                originAlias: originAlias,
+                originTitle: originTitle,
               ),
           withReferenceMapper: (p0) => p0
               .map(
