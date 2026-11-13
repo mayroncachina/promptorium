@@ -8,6 +8,7 @@ import '../theme/tokens.dart';
 import '../widgets/app_icon.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/cta_button.dart';
+import '../../features/vibe/widgets/vibe_widgets.dart' show showVibeStartDialog;
 import 'brand_activity.dart';
 import 'navigation.dart';
 import 'notification_center.dart';
@@ -58,6 +59,8 @@ class TitleBar extends StatelessWidget {
               section: section,
               onTap: onAction,
             ),
+            // SPEC-069 R1: the menu of "Nova spec" in the Quadro.
+            if (section == AppSection.tasks) _NewSpecMenu(onNewSpec: onAction),
           ],
         ],
       ),
@@ -317,6 +320,42 @@ class _SearchButton extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The menu next to "Nova spec" in the Quadro (SPEC-069 R1): "Nova spec"
+/// and "Fazer como tarefa".
+class _NewSpecMenu extends ConsumerWidget {
+  const _NewSpecMenu({required this.onNewSpec});
+
+  final VoidCallback onNewSpec;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<String>(
+      key: const ValueKey('title-action-menu'),
+      tooltip: 'Mais formas de começar',
+      icon: const Icon(Icons.expand_more, size: 18),
+      onSelected: (v) {
+        if (v == 'spec') return onNewSpec();
+        final ws = ref.read(activeWorkspaceProvider);
+        if (ws != null) showVibeStartDialog(context, workspace: ws);
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'spec', child: Text('Nova spec')),
+        PopupMenuItem(
+          key: ValueKey('title-action-vibe'),
+          value: 'vibe',
+          child: Row(
+            children: [
+              Icon(Icons.bolt, size: 16, color: AppColors.lilac),
+              SizedBox(width: 8),
+              Text('Fazer como tarefa'),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

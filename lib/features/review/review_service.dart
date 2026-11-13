@@ -2691,7 +2691,11 @@ class ReviewService {
     required String workspacePath,
     required String worktreesBase,
   }) {
-    if (!branch.startsWith('pr/') || branch.length <= 3) {
+    // `vibe/…`: the branch of a VIBE (SPEC-069 R1).
+    final own =
+        (branch.startsWith('pr/') && branch.length > 3) ||
+        (branch.startsWith('vibe/') && branch.length > 5);
+    if (!own) {
       return 'A branch da sessão ("$branch") não é uma branch pr/… criada '
           'pelo Promptorium; faça o merge manualmente.';
     }

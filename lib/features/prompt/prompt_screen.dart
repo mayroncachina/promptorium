@@ -30,6 +30,8 @@ import 'widgets/prompt_welcome.dart';
 import 'widgets/prompt_dialogs.dart';
 import 'widgets/prompt_side_panel.dart';
 import 'widgets/title_field.dart';
+import '../vibe/vibe_service.dart' show vibeSpecProvider;
+import '../vibe/widgets/vibe_widgets.dart';
 
 /// Prompt screen (docs/mockups/Prompt.dc.html): conversation history ·
 /// conversation + composer · context and saved prompts. Conversations run in
@@ -353,6 +355,17 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                 ? draftCtl.set(draft.copyWith(mode: m))
                                 : manager.setMode(conv.id, m),
                             busy: busy,
+                            // SPEC-069 R1: "Fazer como tarefa".
+                            onVibe: ws == null || conv?.specId != null
+                                ? null
+                                : () async {
+                                    final id = await showVibeStartDialog(
+                                      context,
+                                      workspace: ws,
+                                      initial: _text.text,
+                                    );
+                                    if (id != null) _text.clear();
+                                  },
                             onSend: () => _send(ws, conv),
                             onStop: () {
                               if (conv != null) manager.stop(conv.id);
@@ -422,6 +435,11 @@ class _Header extends ConsumerWidget {
     const decoration = BoxDecoration(
       border: Border(bottom: BorderSide(color: AppColors.border)),
     );
+    // SPEC-069 R6, R7: the conversation of a VIBE has its bar.
+    if (c?.specId case final id?) {
+      final spec = ref.watch(vibeSpecProvider(id)).value;
+      if (spec != null) return VibeBar(spec: spec, busy: busy);
+    }
     // SPEC-056 R2: the title becomes a field; the actions wait.
     if (c != null &&
         renaming?.id == c.id &&
