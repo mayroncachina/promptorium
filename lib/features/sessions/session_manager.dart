@@ -20,6 +20,8 @@ import '../../core/providers/provider_preferences.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
+import '../../core/mcp/app_mcp_config.dart';
+import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../../data/repos/durable_state_repo.dart';
@@ -240,6 +242,11 @@ class _Proc {
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
+
+  /// Link of the process to the Promptorium MCP (SPEC-052): revoked and
+  /// its file removed when the process ends.
+  McpRunLink? mcp;
+  AppMcpServer? mcpServer;
 
   /// Bytes of the hooks log already shown.
   int hookOffset = 0;
@@ -999,6 +1006,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         ? environment
         : {...?environment, ...marking};
     final ManagedAgentRun process;
+    McpRunLink? mcpLink;
     try {
       if (session.provider != 'claude') {
         final saved = session.runConfig == null
@@ -1054,11 +1062,28 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
       } else if (session.provider == 'claude') {
         final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
+        // SPEC-052 R1: the app's MCP server, with a token of this process.
+        mcpLink = await openMcpRun(
+          ref,
+          workspaceId: session.workspaceId,
+          sessionId: id,
+          access: McpAccess.write,
+          specId: session.specId,
+          steps: session.steps,
+          title: title,
+          skipApproval:
+              options.permissionMode == ClaudePermissionMode.skipPermissions,
+        );
         process = ClaudeRun(
           await ClaudeProcess.start(
             options.copyWith(
               autocompact: ref.read(runPrefsProvider).autocompact,
               settingsFile: settingsFile,
+              mcpConfigs: [...options.mcpConfigs, ?mcpLink?.configPath],
+              allowedTools: [
+                ...options.allowedTools,
+                ...?mcpLink?.allowedTools,
+              ],
             ),
             workingDirectory: cwd,
             executable: ref.read(claudeExecutableProvider),
@@ -1072,17 +1097,22 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
       }
     } catch (e) {
+      await closeMcpRun(ref.read(appMcpServerProvider), mcpLink);
       await _note(id, 'Falha ao iniciar ${session.provider}: $e', error: true);
       await _repo.setStatus(id, SessionStatus.failed);
       throw SessionException('Falha ao iniciar ${session.provider}: $e');
     }
-    final p = _Proc(
-      process,
-      title,
-      baseCost,
-      skipPermissions:
-          options.permissionMode == ClaudePermissionMode.skipPermissions,
-    )..markedRoot = marking.isEmpty ? null : (root ?? cwd);
+    final p =
+        _Proc(
+            process,
+            title,
+            baseCost,
+            skipPermissions:
+                options.permissionMode == ClaudePermissionMode.skipPermissions,
+          )
+          ..markedRoot = marking.isEmpty ? null : (root ?? cwd)
+          ..mcp = mcpLink
+          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _procs[id] = p;
     if (p.markedRoot != null) {
       ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
@@ -1375,6 +1405,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         }),
       );
     }
+    // SPEC-052 R2: the token dies with the process.
+    await closeMcpRun(p.mcpServer, p.mcp);
     if (!ref.mounted || _shuttingDown) return;
     if (p.released) {
       _publish();

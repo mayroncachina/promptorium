@@ -47,6 +47,13 @@ abstract final class AppSettingKeys {
   static const disabledPlugins = 'agent.disabledPlugins';
   static const disabledMcpServers = 'agent.disabledMcpServers';
 
+  /// Promptorium MCP server of the app's runs, `0` to turn it off
+  /// (SPEC-052 R10; on by default, P2).
+  static const mcpServer = 'mcp.servidor';
+
+  /// Specs one run may create through the server (SPEC-052 R9; default 10).
+  static const mcpCreationLimit = 'mcp.limiteCriacoes';
+
   /// Plugins and MCP servers seen in the last `system/init` (JSON).
   static const knownExtensions = 'agent.knownExtensions';
 
