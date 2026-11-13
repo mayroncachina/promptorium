@@ -15,6 +15,7 @@ import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/prompt_dialogs.dart';
 import 'widgets/spec_batch_dialog.dart';
+import 'widgets/split_specs_dialog.dart';
 import 'widgets/title_field.dart';
 
 /// Organizing the conversations of the Prompt (SPEC-056): archive with
@@ -379,12 +380,13 @@ enum ConversationMenuAction {
   archive,
   unarchive,
   toSpec,
+  split,
   continueSession,
 }
 
 /// The menu of [c] (right click on the row, ⋯ of the row or of the header):
 /// Renomear (F2), Arquivar (or Desarquivar), a separator, Transformar em
-/// spec and Continuar como sessão (R1). [items] = its loaded timeline, when
+/// spec, Dividir em specs (SPEC-068 R2) and Continuar como sessão (R1). [items] = its loaded timeline, when
 /// known; [renameIn] = where Renomear edits the title.
 Future<void> showConversationMenu(
   BuildContext context,
@@ -476,6 +478,13 @@ Future<void> showConversationMenu(
         enabled: !busy && hasAnswer,
       ),
       entry(
+        ConversationMenuAction.split,
+        Icons.call_split,
+        'Dividir em specs',
+        enabled: !busy && hasAnswer,
+        shortcut: 'novo',
+      ),
+      entry(
         ConversationMenuAction.continueSession,
         Icons.terminal,
         'Continuar como sessão',
@@ -495,6 +504,11 @@ Future<void> showConversationMenu(
     case ConversationMenuAction.toSpec:
       final loaded = items ?? await _loadedItems(ref, c.id);
       if (context.mounted) await conversationToSpec(context, ref, c, loaded);
+    case ConversationMenuAction.split:
+      final loaded = items ?? await _loadedItems(ref, c.id);
+      if (context.mounted) {
+        await splitIntoSpecs(context, ref, c, transcriptOf(loaded));
+      }
     case ConversationMenuAction.continueSession:
       await showContinueSessionDialog(context, c);
   }

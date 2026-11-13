@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/specs_repo.dart';
@@ -72,6 +73,7 @@ Future<Harness> pumpPrompt(
   WidgetTester tester, {
   required String answer,
   Future<void> Function(Harness h)? before,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(1440, 900);
   tester.view.devicePixelRatio = 1;
@@ -115,6 +117,7 @@ Future<Harness> pumpPrompt(
     overrides: [
       ...sessionOverrides(db: db, cli: FakeCli(), notifier: FakeNotifier()),
       workspaceFilesProvider.overrideWith((ref, root) async => const []),
+      ...overrides,
     ],
   );
   final h = Harness(tmp, db, ws, container);

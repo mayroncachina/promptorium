@@ -33,8 +33,10 @@ Future<List<Spec>> showSpecBatch(
   int? answer,
 }) async {
   final repo = ref.read(specsRepoProvider);
-  final t = await ref.read(answerSpecTargetProvider((c, null)).future);
-  final specs = await repo.watchByWorkspace(t.ws.id).first;
+  final ws = await ref.read(workspacesRepoProvider).getById(c.workspaceId);
+  if (ws == null) return const [];
+  final specs = await repo.watchByWorkspace(ws.id).first;
+  final next = await nextSpecNumber(repo, ws);
   final origin = answer == null ? null : (conversationId: c.id, answer: answer);
   if (!context.mounted) return const [];
   final entries = await showAppDialog<List<SpecBatchEntry>>(
@@ -42,22 +44,22 @@ Future<List<Spec>> showSpecBatch(
     builder: (_) => SpecBatchDialog(
       entries: batchEntries(items, specs, origin),
       existing: {for (final s in specs) s.code},
-      nextNumber: int.parse(t.nextCode.substring(5)),
+      nextNumber: next,
     ),
   );
   if (entries == null || !context.mounted) return const [];
   try {
     // The numbers are planned again: another spec may have come meanwhile.
-    final now = await repo.watchByWorkspace(t.ws.id).first;
+    final now = await repo.watchByWorkspace(ws.id).first;
     final plan = planBatch(
       entries,
       existing: {for (final s in now) s.code},
-      nextNumber: await nextSpecNumber(repo, t.ws),
+      nextNumber: await nextSpecNumber(repo, ws),
     );
     final created = await createSpecBatch(
       ref.read(specServiceProvider),
       repo,
-      t.ws,
+      ws,
       entries,
       plan,
       origin: origin,
