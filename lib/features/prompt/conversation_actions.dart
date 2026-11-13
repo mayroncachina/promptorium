@@ -10,9 +10,11 @@ import '../../ui/widgets/app_toast.dart';
 import '../sessions/timeline.dart';
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
+import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
 import 'widgets/prompt_dialogs.dart';
+import 'widgets/spec_batch_dialog.dart';
 import 'widgets/title_field.dart';
 
 /// Organizing the conversations of the Prompt (SPEC-056): archive with
@@ -319,9 +321,17 @@ Future<void> conversationToSpec(
   Conversation c,
   List<TimelineItem> items,
 ) async {
-  final written = lastAnswerSpec(items);
+  final written = lastAnswerSpecs(items);
+  if (written != null && written.specs.length > 1) {
+    // SPEC-068 R3: two or more go through the review list.
+    await showSpecBatch(context, ref, c, [
+      for (var i = 0; i < written.specs.length; i++)
+        SpecBatchItem.of(i, written.specs[i]),
+    ], answer: written.answer);
+    return;
+  }
   if (written != null) {
-    await primaryAnswerSpec(context, ref, c, written);
+    await primaryAnswerSpec(context, ref, c, written.specs.single);
     return;
   }
   if (lastAnswer(items) == null) {
