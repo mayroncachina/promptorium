@@ -1234,12 +1234,42 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           .read(prototypeServiceProvider)
           .vary(ws, spec, c.text, selected: selected, request: request);
       final r = await run;
-      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      _variationsReady(spec, r);
       return true;
     } catch (e) {
       _snack('Falha no pedido: $e');
       return false;
     }
+  }
+
+  /// SPEC-067 R5: "R2 · variação D pronta e mostrada no canvas", with
+  /// "Ver versões" (the list filtered on that screen).
+  void _variationsReady(Spec spec, PrototypeOutcome r) {
+    final made = [for (final f in r.created) ?parseMockupName(f)];
+    if (made.isEmpty) {
+      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      return;
+    }
+    final names = [
+      for (final m in made) '${m.requirement} · variação ${m.letterLabel}',
+    ];
+    final msg = [
+      made.length == 1
+          ? '${names.single} pronta e mostrada no canvas'
+          : '${names.join(', ')} prontas e mostradas no canvas',
+      if (r.restored.isNotEmpty)
+        'Restauradas (o agente alterou): ${r.restored.join(', ')}.',
+    ].join('. ');
+    final req = made.first.requirement;
+    _snack(
+      msg,
+      action: SnackBarAction(
+        key: const ValueKey('proto-ready-versions'),
+        label: 'Ver versões',
+        onPressed: () =>
+            ref.read(prototypeUiProvider(spec.id).notifier).showVersionsOf(req),
+      ),
+    );
   }
 
   String _outcomeText(PrototypeOutcome r, String none) => [
@@ -1392,9 +1422,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  /// Card that gets the focus after deleting [gone] (R10): the next one
-  /// after the last deleted, else the previous; the empty slot when the
-  /// requirement was left without screens.
+  /// Card that gets the focus after deleting [gone] (R10): the card of the
+  /// last deleted screen's requirement, which now shows another version
+  /// (SPEC-067 R7), or its empty slot; both are focused by requirement.
   String? _focusAfterDelete(
     List<MockupScreen> before,
     List<MockupScreen> gone,
@@ -1402,16 +1432,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   ) {
     final files = {for (final x in gone) x.file};
     final last = before.lastIndexWhere((x) => files.contains(x.file));
-    if (last < 0) return null;
-    final req = before[last].requirement;
-    if (!left.any((x) => x.requirement == req)) return req;
-    for (var i = last + 1; i < before.length; i++) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    for (var i = last - 1; i >= 0; i--) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    return null;
+    return last < 0 ? null : before[last].requirement;
   }
 
   /// "Desfazer" (SPEC-027 R6): files, index and `## Protótipo` lines.
@@ -1429,17 +1450,26 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       if (!mounted || removed.screens.isEmpty) return;
       ref
           .read(prototypeUiProvider(spec.id).notifier)
-          .focusOn(removed.screens.first.file);
+          .focusOn(removed.screens.first.requirement);
     } catch (e) {
       _snack('Falha ao desfazer: $e');
     }
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {SnackBarAction? action}) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showAppToast(SnackBar(content: Text(msg)));
+      ..showAppToast(
+        SnackBar(
+          content: Text(msg),
+          action: action,
+          persist: action == null ? null : false,
+          duration: action == null
+              ? const Duration(milliseconds: 4000)
+              : const Duration(seconds: 8),
+        ),
+      );
   }
 
   /// The status strip of a long action (R3; in Protótipo the generation

@@ -29,6 +29,7 @@ class PrototypeUiState {
     this.chosen,
     this.narrow = false,
     this.versionsTab = false,
+    this.versionsFilter,
     this.focusTarget,
     this.focusTick = 0,
     this.askTick = 0,
@@ -51,7 +52,10 @@ class PrototypeUiState {
 
   final bool versionsTab;
 
-  /// Card (file) or empty slot (`R<n>`) that gets the focus after a
+  /// Requirement "Versões" is filtered on (SPEC-067 R3); null = all.
+  final String? versionsFilter;
+
+  /// Card or empty slot (both by requirement, `R<n>`) that gets the focus after a
   /// deletion (SPEC-027 R10); [focusTick] changes on every request.
   final String? focusTarget;
   final int focusTick;
@@ -66,6 +70,7 @@ class PrototypeUiState {
     String? Function()? chosen,
     bool? narrow,
     bool? versionsTab,
+    String? Function()? versionsFilter,
     String? focusTarget,
     int? focusTick,
     int? askTick,
@@ -76,6 +81,9 @@ class PrototypeUiState {
     chosen: chosen == null ? this.chosen : chosen(),
     narrow: narrow ?? this.narrow,
     versionsTab: versionsTab ?? this.versionsTab,
+    versionsFilter: versionsFilter == null
+        ? this.versionsFilter
+        : versionsFilter(),
     focusTarget: focusTarget ?? this.focusTarget,
     focusTick: focusTick ?? this.focusTick,
     askTick: askTick ?? this.askTick,
@@ -115,7 +123,28 @@ class PrototypeUi extends Notifier<PrototypeUiState> {
 
   void setNarrow(bool v) => state = state.copyWith(narrow: v);
 
-  void showVersions(bool v) => state = state.copyWith(versionsTab: v);
+  /// The tabs: "Versões" by its title lists every screen (SPEC-067 R3).
+  void showVersions(bool v) =>
+      state = state.copyWith(versionsTab: v, versionsFilter: () => null);
+
+  /// "Versões" filtered on [requirement] (SPEC-067 R3).
+  void showVersionsOf(String requirement) => state = state.copyWith(
+    versionsTab: true,
+    versionsFilter: () => requirement,
+  );
+
+  /// "Todas as telas" / Esc (SPEC-067 R3, R4).
+  void clearFilter() => state = state.copyWith(versionsFilter: () => null);
+
+  /// The card now shows [file] instead of [old]: it stays selected (R4).
+  void replaceSelected(String? old, String file) {
+    if (old == null || !state.selected.contains(old)) return;
+    state = state.copyWith(
+      selected: {...state.selected}
+        ..remove(old)
+        ..add(file),
+    );
+  }
 
   /// "Limpar seleção" (Esc, SPEC-027 R3).
   void clear() {
@@ -127,6 +156,7 @@ class PrototypeUi extends Notifier<PrototypeUiState> {
   void askVariation(String file) => state = state.copyWith(
     selected: {file},
     versionsTab: false,
+    versionsFilter: () => null,
     askTick: state.askTick + 1,
   );
 
@@ -181,6 +211,12 @@ String? compareTarget(PrototypeState s, PrototypeUiState ui) {
 /// Approved file of [requirement] (from `## Protótipo`), by file name.
 String? approvedFile(Map<String, String> approved, String requirement) =>
     approved[requirement]?.split('/').last;
+
+/// Files shown on the canvas, one per requirement (SPEC-067 R1).
+List<String> shownFiles(PrototypeState s, Map<String, String> approved) => [
+  for (final r in s.requirements)
+    ?shownScreen(s, r, approved: approvedFile(approved, r))?.file,
+];
 
 /// Opens [path] in the system's default browser (R6).
 Future<void> openInBrowser(WidgetRef ref, String path) async {
@@ -427,7 +463,6 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
   /// One node per card (file) and per empty slot (`R<n>`), for the focus
   /// after a deletion (R10).
   final _nodes = <String, FocusNode>{};
-  String? _focused;
   String? _pendingFocus;
 
   FocusNode _node(String id) =>
@@ -456,7 +491,19 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
   void _deleteKey(PrototypeState s, PrototypeUiState ui) {
     final onDelete = widget.onDelete;
     if (onDelete == null) return;
-    final focused = _focused;
+    // The focused card, by its requirement's node (the slot and the card
+    // share it, so a stale "last focused" file could name a deleted one).
+    final req = _nodes.entries
+        .where((e) => e.value.hasPrimaryFocus)
+        .firstOrNull
+        ?.key;
+    final focused = req == null
+        ? null
+        : shownScreen(
+            s,
+            req,
+            approved: approvedFile(widget.approved, req),
+          )?.file;
     final files = focused != null && !ui.selected.contains(focused)
         ? {focused}
         : ui.selected;
@@ -501,9 +548,10 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
         ),
       );
     });
+    // Only shown versions stay selected (SPEC-067 R7).
     ref.listen(
-      prototypeScreensProvider(key).select((x) => x.screens),
-      (_, screens) => uiCtrl.prune([for (final x in screens) x.file]),
+      prototypeScreensProvider(key),
+      (_, next) => uiCtrl.prune(shownFiles(next, widget.approved)),
     );
     ref.listen(
       prototypeUiProvider(spec.id).select((u) => u.focusTick),
@@ -517,13 +565,36 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
     }
     final w = 360.0 * ui.zoom / 100;
     final h = w * thumbnailSize.height / thumbnailSize.width;
-    final count = s.screens.length;
+    // SPEC-067 R1: one card per requirement, with its shown version.
+    final shown = [
+      for (final r in s.requirements)
+        ?shownScreen(s, r, approved: approvedFile(widget.approved, r)),
+    ];
+    final count = shown.length;
+    // SPEC-067 R5: a variation is generated over its screen's card.
+    final variationOf = <String, (String, String)>{
+      if (job != null && job.isVariation)
+        for (final t in job.targets)
+          if (parseMockupName(t) case final m?)
+            if (s.requirements.contains(m.requirement))
+              m.requirement: (
+                t,
+                'Gerando variação ${m.letterLabel} de ${m.requirement}…',
+              ),
+    };
     final multi = ui.selected.length >= 2;
     final empty = s.emptyRequirements;
 
     Widget card(MockupScreen x) => _ScreenCard(
-      key: ValueKey('proto-cardbox-${x.file}'),
+      key: ValueKey('proto-cardbox-${x.requirement}'),
       screen: x,
+      versions: s.variationsOf(x.requirement).length,
+      isNew: s.index.unseen.contains(x.file),
+      generating: variationOf[x.requirement],
+      onVersions: () {
+        uiCtrl.select(x.file);
+        uiCtrl.showVersionsOf(x.requirement);
+      },
       width: w,
       height: h,
       selected: ui.selected.contains(x.file),
@@ -531,14 +602,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       approved: approvedFile(widget.approved, x.requirement) == x.file,
       png: s.thumbs[x.file],
       browserMissing: s.browserMissing,
-      focusNode: _node(x.file),
-      onFocus: (on) {
-        if (on) {
-          _focused = x.file;
-        } else if (_focused == x.file) {
-          _focused = null;
-        }
-      },
+      focusNode: _node(x.requirement),
       onTap: () => uiCtrl.select(
         x.file,
         add: HardwareKeyboard.instance.isControlPressed,
@@ -631,10 +695,11 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       if (job != null && job.isVariation)
         for (final t in job.targets)
           if (parseMockupName(t) case final m?)
-            pending(
-              'Gerando variação ${m.letter.toUpperCase()} de ${m.requirement}…',
-              t,
-            ),
+            if (!variationOf.containsKey(m.requirement))
+              pending(
+                'Gerando variação ${m.letter.toUpperCase()} de ${m.requirement}…',
+                t,
+              ),
       if ((job != null && !job.isVariation) || screensAction != null)
         pending('Gerando telas da spec…', 'spec', run: screensAction),
     ];
@@ -643,7 +708,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
     int n(String r) => int.tryParse(r.substring(1)) ?? 0;
     final items =
         <(int, String, Widget)>[
-          for (final x in s.screens) (x.number, x.letter, card(x)),
+          for (final x in shown) (x.number, x.letter, card(x)),
           for (final r in empty) (n(r), '', emptySlot(r)),
         ]..sort((a, b) {
           final c = a.$1.compareTo(b.$1);
@@ -656,7 +721,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       job != null || screensAction != null ? 'gerando…' : 'salvo',
     ].join(' · ');
     final selectedScreens = [
-      for (final x in s.screens)
+      for (final x in shown)
         if (ui.selected.contains(x.file)) x,
     ];
     return ColoredBox(
@@ -791,6 +856,167 @@ class _LetterBadge extends StatelessWidget {
   );
 }
 
+/// `D · 4` after the title (SPEC-067 R2, R8): the shown letter and how
+/// many versions; it opens "Versões" for that requirement.
+class _VersionChip extends StatelessWidget {
+  const _VersionChip({
+    super.key,
+    required this.screen,
+    required this.versions,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MockupScreen screen;
+  final int versions;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.amber : AppColors.textSecondary;
+    final radius = BorderRadius.circular(4);
+    return Semantics(
+      container: true,
+      button: true,
+      label:
+          'Variação ${screen.letterLabel}, $versions versões: ver versões de '
+          '${screen.requirement}',
+      child: Material(
+        color: selected ? AppColors.amberTint : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(
+            color: selected ? AppColors.amber : AppColors.border,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          focusColor: AppColors.amber.withValues(alpha: .25),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${screen.letterLabel} · $versions',
+                    style: TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(Icons.layers_outlined, size: 11, color: color),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "nova" on a card (SPEC-067 R5): amber, until it is seen.
+class _NewPill extends StatelessWidget {
+  const _NewPill({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+    decoration: BoxDecoration(
+      color: AppColors.amber,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: const Text(
+      'nova',
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: AppColors.onAmber,
+      ),
+    ),
+  );
+}
+
+/// "Gerando variação E de R2…" over the card's thumbnail (SPEC-067 R5).
+class _GeneratingOver extends StatelessWidget {
+  const _GeneratingOver({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+    child: ColoredBox(
+      color: AppColors.background.withValues(alpha: .75),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ActionSpinner(size: 16, color: AppColors.teal),
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.teal),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Edges of the cards stacked behind a thumbnail with two or more versions
+/// (SPEC-067 R2); takes the place of the gap above the thumbnail.
+class _Stacked extends StatelessWidget {
+  const _Stacked({super.key, required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 6,
+    width: double.infinity,
+    child: CustomPaint(painter: _StackedEdges(selected)),
+  );
+}
+
+class _StackedEdges extends CustomPainter {
+  const _StackedEdges(this.selected);
+
+  final bool selected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final (inset, top, alpha) in [(14.0, 0.5, .5), (7.0, 3.0, .8)]) {
+      paint.color = (selected ? AppColors.amber : AppColors.border).withValues(
+        alpha: alpha,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(inset, top, size.width - inset, top + 16),
+          const Radius.circular(8),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StackedEdges old) => old.selected != selected;
+}
+
 /// "Aprovada" in the card label, outside the thumbnail (SPEC-027 R1).
 class _ApprovedPill extends StatelessWidget {
   const _ApprovedPill({super.key});
@@ -820,6 +1046,10 @@ class _ScreenCard extends StatefulWidget {
   const _ScreenCard({
     super.key,
     required this.screen,
+    required this.versions,
+    required this.onVersions,
+    this.isNew = false,
+    this.generating,
     required this.width,
     required this.height,
     required this.selected,
@@ -828,7 +1058,6 @@ class _ScreenCard extends StatefulWidget {
     required this.png,
     required this.browserMissing,
     required this.focusNode,
-    required this.onFocus,
     required this.onTap,
     required this.onOpen,
     required this.onAsk,
@@ -837,6 +1066,16 @@ class _ScreenCard extends StatefulWidget {
   });
 
   final MockupScreen screen;
+
+  /// Versions of the requirement (SPEC-067 R2: two or more show the chip).
+  final int versions;
+  final VoidCallback onVersions;
+
+  /// "nova" after the letter (SPEC-067 R5).
+  final bool isNew;
+
+  /// Target file and text of a variation being generated over this card.
+  final (String, String)? generating;
   final double width;
   final double height;
   final bool selected;
@@ -845,7 +1084,6 @@ class _ScreenCard extends StatefulWidget {
   final String? png;
   final bool browserMissing;
   final FocusNode focusNode;
-  final ValueChanged<bool> onFocus;
   final VoidCallback onTap;
   final VoidCallback onOpen;
   final VoidCallback onAsk;
@@ -882,13 +1120,11 @@ class _ScreenCardState extends State<_ScreenCard> {
                 button: true,
                 selected: sel,
                 label:
-                    'Tela ${x.spokenName}${widget.approved ? ', aprovada' : ''}',
+                    'Tela ${x.spokenName}${widget.approved ? ', aprovada' : ''}'
+                    '${widget.isNew ? ', nova' : ''}',
                 child: InkWell(
                   focusNode: widget.focusNode,
-                  onFocusChange: (on) {
-                    setState(() => _focus = on);
-                    widget.onFocus(on);
-                  },
+                  onFocusChange: (on) => setState(() => _focus = on),
                   onTap: () {
                     widget.onTap();
                     widget.focusNode.requestFocus();
@@ -901,12 +1137,12 @@ class _ScreenCardState extends State<_ScreenCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ExcludeSemantics(
-                          child: SizedBox(
-                            height: 20,
-                            child: Row(
-                              children: [
-                                Text(
+                        SizedBox(
+                          height: 20,
+                          child: Row(
+                            children: [
+                              ExcludeSemantics(
+                                child: Text(
                                   x.requirement,
                                   style: TextStyle(
                                     fontSize: 12,
@@ -916,8 +1152,10 @@ class _ScreenCardState extends State<_ScreenCard> {
                                         : AppColors.text,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Flexible(
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: ExcludeSemantics(
                                   child: Text(
                                     x.title,
                                     key: ValueKey('proto-title-${x.file}'),
@@ -929,24 +1167,67 @@ class _ScreenCardState extends State<_ScreenCard> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                _LetterBadge(
-                                  x.letterLabel,
+                              ),
+                              const SizedBox(width: 6),
+                              if (widget.versions >= 2)
+                                _VersionChip(
                                   key: ValueKey('proto-letter-${x.file}'),
+                                  screen: x,
+                                  versions: widget.versions,
                                   selected: sel,
+                                  onTap: widget.onVersions,
+                                )
+                              else
+                                ExcludeSemantics(
+                                  child: _LetterBadge(
+                                    x.letterLabel,
+                                    key: ValueKey('proto-letter-${x.file}'),
+                                    selected: sel,
+                                  ),
                                 ),
-                                const Spacer(),
-                                if (widget.approved)
-                                  _ApprovedPill(
-                                    key: ValueKey(
-                                      'proto-card-approved-${x.file}',
+                              // Narrow cards (zoom out) shrink the pills
+                              // instead of overflowing.
+                              if (widget.isNew) ...[
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: ExcludeSemantics(
+                                      child: _NewPill(
+                                        key: ValueKey(
+                                          'proto-card-new-${x.file}',
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                ),
                               ],
-                            ),
+                              const Spacer(),
+                              if (widget.approved)
+                                Flexible(
+                                  flex: 4,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: ExcludeSemantics(
+                                      child: _ApprovedPill(
+                                        key: ValueKey(
+                                          'proto-card-approved-${x.file}',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        if (widget.versions >= 2)
+                          _Stacked(
+                            key: ValueKey('proto-stack-${x.requirement}'),
+                            selected: sel,
+                          )
+                        else
+                          const SizedBox(height: 6),
                         Container(
                           key: ValueKey('proto-frame-${x.file}'),
                           height: widget.height,
@@ -967,6 +1248,14 @@ class _ScreenCardState extends State<_ScreenCard> {
                                 browserMissing: widget.browserMissing,
                                 onOpen: widget.onOpen,
                               ),
+                              if (widget.generating case (
+                                final target,
+                                final text,
+                              ))
+                                _GeneratingOver(
+                                  key: ValueKey('proto-generating-$target'),
+                                  text: text,
+                                ),
                               if (widget.multi)
                                 Positioned(
                                   left: 8,
@@ -1615,6 +1904,88 @@ class PrototypePanel extends ConsumerStatefulWidget {
 class _PrototypePanelState extends ConsumerState<PrototypePanel> {
   final _request = TextEditingController();
   final _requestFocus = FocusNode(debugLabel: 'proto-request');
+  final _listFocus = FocusNode(debugLabel: 'proto-versions-list');
+
+  /// Requirement and files that were "nova" when the filtered list opened
+  /// on it: they keep the label there while it stays open (SPEC-067 R5).
+  String? _freshReq;
+  Set<String> _fresh = const {};
+  bool _seeing = false;
+
+  PrototypeKey get _key => (root: widget.ws.path, code: widget.spec.code);
+
+  /// [x] becomes the shown version of its requirement (SPEC-067 R4); the
+  /// card keeps its selection.
+  void _show(PrototypeState s, MockupScreen x) {
+    final req = x.requirement;
+    final prev = shownScreen(
+      s,
+      req,
+      approved: approvedFile(widget.approved, req),
+    );
+    if (prev?.file == x.file) return;
+    ref
+        .read(prototypeUiProvider(widget.spec.id).notifier)
+        .replaceSelected(prev?.file, x.file);
+    if (_freshReq == req) setState(() => _fresh = const {});
+    unawaited(
+      ref.read(prototypeServiceProvider).show(widget.ws, widget.spec, x),
+    );
+  }
+
+  /// The filtered list open on [req] sees its new variations (R5).
+  void _see(PrototypeState s, String req) {
+    final unseen = {
+      for (final x in s.variationsOf(req))
+        if (s.index.unseen.contains(x.file)) x.file,
+    };
+    if (_freshReq != req) {
+      _freshReq = req;
+      _fresh = const {};
+    }
+    if (unseen.isEmpty || _seeing) return;
+    _seeing = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _seeing = false;
+      if (!mounted) return;
+      setState(() => _fresh = {..._fresh, ...unseen});
+      unawaited(
+        ref
+            .read(prototypeServiceProvider)
+            .markSeen(widget.ws, widget.spec, req),
+      );
+    });
+  }
+
+  /// ↑/↓ change the shown version, Esc goes back to every screen (R4).
+  KeyEventResult _listKey(KeyEvent e, String req) {
+    if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final k = e.logicalKey;
+    if (k == LogicalKeyboardKey.escape) {
+      ref.read(prototypeUiProvider(widget.spec.id).notifier).clearFilter();
+      return KeyEventResult.handled;
+    }
+    // Read now: the previous key already changed the shown version.
+    final s = ref.read(prototypeScreensProvider(_key));
+    final vars = s.variationsOf(req);
+    final shown = shownScreen(
+      s,
+      req,
+      approved: approvedFile(widget.approved, req),
+    );
+    final step = k == LogicalKeyboardKey.arrowDown
+        ? 1
+        : k == LogicalKeyboardKey.arrowUp
+        ? -1
+        : 0;
+    if (step == 0 || vars.isEmpty) return KeyEventResult.ignored;
+    final i = shown == null ? -1 : vars.indexOf(shown);
+    final next = (i + step).clamp(0, vars.length - 1);
+    if (next != i) _show(s, vars[next]);
+    return KeyEventResult.handled;
+  }
 
   @override
   void initState() {
@@ -1626,18 +1997,147 @@ class _PrototypePanelState extends ConsumerState<PrototypePanel> {
   void dispose() {
     _request.dispose();
     _requestFocus.dispose();
+    _listFocus.dispose();
     super.dispose();
+  }
+
+  /// "Versões" filtered on [req] (SPEC-067 R3, R4, R8).
+  Widget _filtered(PrototypeState s, String req, List<MockupScreen> vars) {
+    final uiCtrl = ref.read(prototypeUiProvider(widget.spec.id).notifier);
+    final approvedName = approvedFile(widget.approved, req);
+    final shown = shownScreen(s, req, approved: approvedName);
+    final dir = '${widget.ws.path}/${mockupDir(widget.spec.code)}';
+    final n = vars.length;
+    return Column(
+      key: const ValueKey('proto-versions-filtered'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$req · ${vars.first.title} · $n ${n == 1 ? 'versão' : 'versões'}',
+                  key: const ValueKey('proto-versions-title'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('proto-versions-all'),
+                onPressed: uiCtrl.clearFilter,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.amber,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 28),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: Text('Todas as telas (${s.screens.length})'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Focus(
+            focusNode: _listFocus,
+            onKeyEvent: (_, e) => _listKey(e, req),
+            child: Semantics(
+              container: true,
+              explicitChildNodes: true,
+              label: 'Versões de $req, escolha a mostrada no canvas',
+              child: ListView(
+                key: const ValueKey('proto-versions'),
+                children: [
+                  for (final x in vars)
+                    _VersionOption(
+                      key: ValueKey('proto-version-${x.file}'),
+                      screen: x,
+                      shown: x == shown,
+                      approved: x.file == approvedName,
+                      isNew:
+                          s.index.unseen.contains(x.file) ||
+                          (_freshReq == req && _fresh.contains(x.file)),
+                      time: screenTime(s, dir, x.file),
+                      png: s.thumbs[x.file],
+                      browserMissing: s.browserMissing,
+                      onOpen: () => openInBrowser(ref, '$dir/${x.file}'),
+                      onTap: () {
+                        _show(s, x);
+                        _listFocus.requestFocus();
+                      },
+                      onDelete: widget.onDelete == null
+                          ? null
+                          : () => widget.onDelete!([x]),
+                      deleteReason: widget.deleteReason,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            KeyHint('↑'),
+            KeyHint('↓'),
+            Text(
+              'trocam a versão mostrada no canvas ·',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+            KeyHint('Esc'),
+            Text(
+              'volta para todas',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        if (n >= 2) ...[
+          const SizedBox(height: 8),
+          ProtoButton(
+            key: const ValueKey('proto-versions-compare'),
+            label: 'Comparar as $n lado a lado',
+            onTap: () => uiCtrl.compare(req, chosen: shown?.file),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final spec = widget.spec;
-    final s = ref.watch(
-      prototypeScreensProvider((root: widget.ws.path, code: spec.code)),
-    );
+    final s = ref.watch(prototypeScreensProvider(_key));
     final ui = ref.watch(prototypeUiProvider(spec.id));
     final uiCtrl = ref.read(prototypeUiProvider(spec.id).notifier);
     final busy = ref.watch(prototypeJobsProvider).containsKey(spec.id);
+    // The filtered list takes the focus when it opens (R4: ↑/↓ at once).
+    ref.listen(
+      prototypeUiProvider(spec.id)
+          .select((u) => u.versionsTab ? u.versionsFilter : null),
+      (_, req) {
+        // Leaving the list ends "nova" for what it showed.
+        _freshReq = null;
+        _fresh = const {};
+        if (req == null) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _listFocus.requestFocus();
+        });
+      },
+    );
     // "Pedir variação" of a card (SPEC-027 R1a).
     ref.listen(
       prototypeUiProvider(spec.id).select((u) => u.askTick),
@@ -1686,7 +2186,17 @@ class _PrototypePanelState extends ConsumerState<PrototypePanel> {
                   reverse: true,
                   children: [
                     for (final h in s.index.history.reversed)
-                      _HistoryEntry(entry: h, onChip: (f) => uiCtrl.select(f)),
+                      _HistoryEntry(
+                        entry: h,
+                        // SPEC-067 R4: the chip's version goes on the card.
+                        onChip: (f) {
+                          final x = s.screens
+                              .where((x) => x.file == f)
+                              .firstOrNull;
+                          if (x != null) _show(s, x);
+                          uiCtrl.select(f);
+                        },
+                      ),
                   ],
                 ),
         ),
@@ -1757,7 +2267,11 @@ class _PrototypePanelState extends ConsumerState<PrototypePanel> {
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
-    final versions = reqOrder.isEmpty
+    final filter = ui.versionsTab ? ui.versionsFilter : null;
+    if (filter != null && byReq.containsKey(filter)) _see(s, filter);
+    final versions = filter != null && byReq[filter] != null
+        ? _filtered(s, filter, byReq[filter]!)
+        : reqOrder.isEmpty
         ? const Center(
             child: Text(
               'Nenhuma variação ainda.',
@@ -1987,6 +2501,230 @@ class _VersionRowState extends State<_VersionRow> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One version of the filtered "Versões" (SPEC-067 R3, R8): a radio
+/// option with thumbnail, letter, file, time, "Aprovada", "nova" and its
+/// trash button.
+class _VersionOption extends StatefulWidget {
+  const _VersionOption({
+    super.key,
+    required this.screen,
+    required this.shown,
+    required this.approved,
+    required this.isNew,
+    required this.time,
+    required this.png,
+    required this.browserMissing,
+    required this.onOpen,
+    required this.onTap,
+    required this.onDelete,
+    required this.deleteReason,
+  });
+
+  final MockupScreen screen;
+  final bool shown;
+  final bool approved;
+  final bool isNew;
+  final DateTime? time;
+  final String? png;
+  final bool browserMissing;
+  final VoidCallback onOpen;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+  final String? deleteReason;
+
+  @override
+  State<_VersionOption> createState() => _VersionOptionState();
+}
+
+class _VersionOptionState extends State<_VersionOption> {
+  bool _hot = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final x = widget.screen;
+    final on = widget.shown;
+    final t = widget.time;
+    final enabled = widget.onDelete != null;
+    final radius = BorderRadius.circular(8);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: on ? AppColors.amberTint : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: on ? AppColors.amber : Colors.transparent),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                container: true,
+                inMutuallyExclusiveGroup: true,
+                checked: on,
+                button: true,
+                label: [
+                  'Variação ${x.letterLabel}',
+                  x.file,
+                  if (t != null) _hhmm(t),
+                  if (widget.approved) 'aprovada',
+                  if (widget.isNew) 'nova',
+                ].join(', '),
+                child: InkWell(
+                  key: ValueKey('proto-show-${x.file}'),
+                  canRequestFocus: false,
+                  onTap: widget.onTap,
+                  onDoubleTap: widget.onOpen,
+                  borderRadius: radius,
+                  child: ExcludeSemantics(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        children: [
+                          Icon(
+                            on
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            key: ValueKey(
+                              on
+                                  ? 'proto-shown-${x.file}'
+                                  : 'proto-notshown-${x.file}',
+                            ),
+                            size: 16,
+                            color: on ? AppColors.amber : AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 64,
+                            height: 40,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: widget.png == null
+                                ? const ColoredBox(
+                                    color: AppColors.surfaceRaised,
+                                  )
+                                : _Thumb(
+                                    file: x.file,
+                                    png: widget.png,
+                                    browserMissing: widget.browserMissing,
+                                    onOpen: widget.onOpen,
+                                  ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 6,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Variação ${x.letterLabel}',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (widget.approved)
+                                      Text(
+                                        'Aprovada',
+                                        key: ValueKey(
+                                          'proto-approved-${x.file}',
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.teal,
+                                        ),
+                                      ),
+                                    if (widget.isNew)
+                                      _Badge(
+                                        'nova',
+                                        AppColors.amber,
+                                        'proto-version-new-${x.file}',
+                                      ),
+                                  ],
+                                ),
+                                Text(
+                                  x.file,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.mono,
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                if (t != null)
+                                  Text(
+                                    _hhmm(t),
+                                    style: const TextStyle(
+                                      fontFamily: AppFonts.mono,
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Tooltip(
+              message: !enabled
+                  ? widget.deleteReason ?? deleteBusyHint
+                  : widget.approved
+                  ? 'Apagar esta variação tira a aprovação da spec'
+                  : 'Apagar ${x.file}',
+              excludeFromSemantics: true,
+              child: Semantics(
+                container: true,
+                button: true,
+                enabled: enabled,
+                label: widget.approved
+                    ? 'Apagar ${x.file}, a variação aprovada: tira a '
+                          'aprovação da spec'
+                    : 'Apagar ${x.file}',
+                child: InkWell(
+                  key: ValueKey('proto-remove-${x.file}'),
+                  onTap: widget.onDelete,
+                  onHover: (v) => setState(() => _hot = v),
+                  onFocusChange: (v) => setState(() => _hot = v),
+                  borderRadius: BorderRadius.circular(6),
+                  focusColor: AppColors.red.withValues(alpha: .15),
+                  hoverColor: AppColors.red.withValues(alpha: .1),
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: ExcludeSemantics(
+                      child: Icon(
+                        Icons.delete_outline,
+                        size: 16,
+                        color: !enabled
+                            ? AppColors.textDisabled
+                            : _hot
+                            ? AppColors.red
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+        ),
       ),
     );
   }
