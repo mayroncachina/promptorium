@@ -503,10 +503,10 @@ class PrototypeService {
     Set<String> approved = const {},
   }) async {
     final dir = '${ws.path}/${mockupDir(spec.code)}';
-    final files = <String, List<int>>{};
+    final bytes = <String, List<int>>{};
     for (final s in screens) {
       final f = File('$dir/${s.file}');
-      if (await f.exists()) files[s.file] = await f.readAsBytes();
+      if (await f.exists()) bytes[s.file] = await f.readAsBytes();
     }
     final index = await PrototypeIndex.read(dir);
     final entries = <String, ScreenMeta>{
@@ -532,22 +532,32 @@ class PrototypeService {
       for (final r in emptied.keys)
         if (!index.emptied.containsKey(r)) r,
     };
+    // SPEC-067 R7: a deleted shown version falls back to the approved one,
+    // else the newest left (shownScreen).
+    final files = {for (final s in screens) s.file};
+    final unshown = {
+      for (final e in index.shown.entries)
+        if (files.contains(e.value)) e.key: e.value,
+    };
     await index
         .copyWith(
           screens: {...index.screens}
             ..removeWhere((k, _) => entries.containsKey(k)),
           emptied: {...index.emptied, ...emptied},
+          shown: {...index.shown}
+            ..removeWhere((k, _) => unshown.containsKey(k)),
         )
         .write(dir);
     await _reload(ws, spec);
     return RemovedScreens(
       screens: [
         for (final s in screens)
-          if (files.containsKey(s.file)) s,
+          if (bytes.containsKey(s.file)) s,
       ],
-      files: files,
+      files: bytes,
       entries: entries,
       emptied: added,
+      shown: unshown,
     );
   }
 
@@ -565,9 +575,24 @@ class PrototypeService {
         .copyWith(
           screens: {...index.screens, ...removed.entries},
           emptied: {...index.emptied}..removeWhere((k, _) => back.contains(k)),
+          shown: {...index.shown, ...removed.shown},
         )
         .write(dir);
     await _reload(ws, spec);
+  }
+
+  /// Makes [screen] the shown version of its requirement (SPEC-067 R4,
+  /// R6): saved in `index.json` › `mostrada`; the card changes at once.
+  Future<void> show(Workspace ws, Spec spec, MockupScreen screen) async {
+    final dir = '${ws.path}/${mockupDir(spec.code)}';
+    final key = (root: ws.path, code: spec.code);
+    if (_ref.exists(prototypeScreensProvider(key))) {
+      _ref.read(prototypeScreensProvider(key).notifier).showLocally(screen);
+    }
+    final index = await PrototypeIndex.read(dir);
+    await index
+        .copyWith(shown: {...index.shown, screen.requirement: screen.file})
+        .write(dir);
   }
 }
 
@@ -581,6 +606,7 @@ class RemovedScreens {
     required this.entries,
     this.emptied = const {},
     this.prototypeLines = const {},
+    this.shown = const {},
   });
 
   final List<MockupScreen> screens;
@@ -598,12 +624,16 @@ class RemovedScreens {
   /// screens (R5), put back by "Desfazer".
   final Map<String, String> prototypeLines;
 
+  /// Requirement → shown file (`mostrada`) the deletion dropped.
+  final Map<String, String> shown;
+
   RemovedScreens withLines(Map<String, String> lines) => RemovedScreens(
     screens: screens,
     files: files,
     entries: entries,
     emptied: emptied,
     prototypeLines: lines,
+    shown: shown,
   );
 }
 
@@ -659,6 +689,38 @@ class PrototypeState {
     for (final s in screens)
       if (s.requirement == requirement) s,
   ];
+
+  /// Requirements with screens, in order (one card each, SPEC-067 R1).
+  List<String> get requirements => [
+    ...{for (final s in screens) s.requirement},
+  ];
+}
+
+/// Newest of [screens]: by the time in `index.json`, then by letter.
+MockupScreen newestScreen(PrototypeState s, List<MockupScreen> screens) {
+  final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+  return screens.reduce((a, b) {
+    final ta = s.index.screens[a.file]?.createdAt ?? epoch;
+    final tb = s.index.screens[b.file]?.createdAt ?? epoch;
+    final c = ta.compareTo(tb);
+    return (c != 0 ? c > 0 : a.letter.compareTo(b.letter) > 0) ? a : b;
+  });
+}
+
+/// Version of [requirement] its card shows (SPEC-067 R6): the saved choice
+/// (`mostrada`) while the file exists, else the [approved] file, else the
+/// newest; null without screens.
+MockupScreen? shownScreen(
+  PrototypeState s,
+  String requirement, {
+  String? approved,
+}) {
+  final vars = s.variationsOf(requirement);
+  if (vars.isEmpty) return null;
+  final saved = s.index.shown[requirement];
+  return vars.where((v) => v.file == saved).firstOrNull ??
+      vars.where((v) => v.file == approved).firstOrNull ??
+      newestScreen(s, vars);
 }
 
 /// Whether the folder is watched (off in widget tests: no real FS events
@@ -728,6 +790,14 @@ class PrototypeScreens extends Notifier<PrototypeState> {
     );
     return true;
   }
+
+  /// [screen] becomes the shown version before `index.json` is written
+  /// (SPEC-067 R4: the card changes at once).
+  void showLocally(MockupScreen screen) => state = state.copyWith(
+    index: state.index.copyWith(
+      shown: {...state.index.shown, screen.requirement: screen.file},
+    ),
+  );
 
   Future<void> _thumbnails() async {
     if (_thumbing) {

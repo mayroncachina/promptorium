@@ -51,7 +51,7 @@ class PrototypeUiState {
 
   final bool versionsTab;
 
-  /// Card (file) or empty slot (`R<n>`) that gets the focus after a
+  /// Card or empty slot (both by requirement, `R<n>`) that gets the focus after a
   /// deletion (SPEC-027 R10); [focusTick] changes on every request.
   final String? focusTarget;
   final int focusTick;
@@ -181,6 +181,12 @@ String? compareTarget(PrototypeState s, PrototypeUiState ui) {
 /// Approved file of [requirement] (from `## Protótipo`), by file name.
 String? approvedFile(Map<String, String> approved, String requirement) =>
     approved[requirement]?.split('/').last;
+
+/// Files shown on the canvas, one per requirement (SPEC-067 R1).
+List<String> shownFiles(PrototypeState s, Map<String, String> approved) => [
+  for (final r in s.requirements)
+    ?shownScreen(s, r, approved: approvedFile(approved, r))?.file,
+];
 
 /// Opens [path] in the system's default browser (R6).
 Future<void> openInBrowser(WidgetRef ref, String path) async {
@@ -427,7 +433,6 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
   /// One node per card (file) and per empty slot (`R<n>`), for the focus
   /// after a deletion (R10).
   final _nodes = <String, FocusNode>{};
-  String? _focused;
   String? _pendingFocus;
 
   FocusNode _node(String id) =>
@@ -456,7 +461,19 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
   void _deleteKey(PrototypeState s, PrototypeUiState ui) {
     final onDelete = widget.onDelete;
     if (onDelete == null) return;
-    final focused = _focused;
+    // The focused card, by its requirement's node (the slot and the card
+    // share it, so a stale "last focused" file could name a deleted one).
+    final req = _nodes.entries
+        .where((e) => e.value.hasPrimaryFocus)
+        .firstOrNull
+        ?.key;
+    final focused = req == null
+        ? null
+        : shownScreen(
+            s,
+            req,
+            approved: approvedFile(widget.approved, req),
+          )?.file;
     final files = focused != null && !ui.selected.contains(focused)
         ? {focused}
         : ui.selected;
@@ -501,9 +518,10 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
         ),
       );
     });
+    // Only shown versions stay selected (SPEC-067 R7).
     ref.listen(
-      prototypeScreensProvider(key).select((x) => x.screens),
-      (_, screens) => uiCtrl.prune([for (final x in screens) x.file]),
+      prototypeScreensProvider(key),
+      (_, next) => uiCtrl.prune(shownFiles(next, widget.approved)),
     );
     ref.listen(
       prototypeUiProvider(spec.id).select((u) => u.focusTick),
@@ -517,13 +535,20 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
     }
     final w = 360.0 * ui.zoom / 100;
     final h = w * thumbnailSize.height / thumbnailSize.width;
-    final count = s.screens.length;
+    // SPEC-067 R1: one card per requirement, with its shown version.
+    final shown = [
+      for (final r in s.requirements)
+        ?shownScreen(s, r, approved: approvedFile(widget.approved, r)),
+    ];
+    final count = shown.length;
     final multi = ui.selected.length >= 2;
     final empty = s.emptyRequirements;
 
     Widget card(MockupScreen x) => _ScreenCard(
-      key: ValueKey('proto-cardbox-${x.file}'),
+      key: ValueKey('proto-cardbox-${x.requirement}'),
       screen: x,
+      versions: s.variationsOf(x.requirement).length,
+      onVersions: () => uiCtrl.showVersions(true),
       width: w,
       height: h,
       selected: ui.selected.contains(x.file),
@@ -531,14 +556,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       approved: approvedFile(widget.approved, x.requirement) == x.file,
       png: s.thumbs[x.file],
       browserMissing: s.browserMissing,
-      focusNode: _node(x.file),
-      onFocus: (on) {
-        if (on) {
-          _focused = x.file;
-        } else if (_focused == x.file) {
-          _focused = null;
-        }
-      },
+      focusNode: _node(x.requirement),
       onTap: () => uiCtrl.select(
         x.file,
         add: HardwareKeyboard.instance.isControlPressed,
@@ -643,7 +661,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
     int n(String r) => int.tryParse(r.substring(1)) ?? 0;
     final items =
         <(int, String, Widget)>[
-          for (final x in s.screens) (x.number, x.letter, card(x)),
+          for (final x in shown) (x.number, x.letter, card(x)),
           for (final r in empty) (n(r), '', emptySlot(r)),
         ]..sort((a, b) {
           final c = a.$1.compareTo(b.$1);
@@ -656,7 +674,7 @@ class _PrototypeCanvasState extends ConsumerState<PrototypeCanvas> {
       job != null || screensAction != null ? 'gerando…' : 'salvo',
     ].join(' · ');
     final selectedScreens = [
-      for (final x in s.screens)
+      for (final x in shown)
         if (ui.selected.contains(x.file)) x,
     ];
     return ColoredBox(
@@ -791,6 +809,114 @@ class _LetterBadge extends StatelessWidget {
   );
 }
 
+/// `D · 4` after the title (SPEC-067 R2, R8): the shown letter and how
+/// many versions; it opens "Versões" for that requirement.
+class _VersionChip extends StatelessWidget {
+  const _VersionChip({
+    super.key,
+    required this.screen,
+    required this.versions,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MockupScreen screen;
+  final int versions;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? AppColors.amber : AppColors.textSecondary;
+    final radius = BorderRadius.circular(4);
+    return Semantics(
+      container: true,
+      button: true,
+      label:
+          'Variação ${screen.letterLabel}, $versions versões: ver versões de '
+          '${screen.requirement}',
+      child: Material(
+        color: selected ? AppColors.amberTint : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(
+            color: selected ? AppColors.amber : AppColors.border,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          focusColor: AppColors.amber.withValues(alpha: .25),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${screen.letterLabel} · $versions',
+                    style: TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(Icons.layers_outlined, size: 11, color: color),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Edges of the cards stacked behind a thumbnail with two or more versions
+/// (SPEC-067 R2); takes the place of the gap above the thumbnail.
+class _Stacked extends StatelessWidget {
+  const _Stacked({super.key, required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 6,
+    width: double.infinity,
+    child: CustomPaint(painter: _StackedEdges(selected)),
+  );
+}
+
+class _StackedEdges extends CustomPainter {
+  const _StackedEdges(this.selected);
+
+  final bool selected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final (inset, top, alpha) in [(14.0, 0.5, .5), (7.0, 3.0, .8)]) {
+      paint.color = (selected ? AppColors.amber : AppColors.border).withValues(
+        alpha: alpha,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(inset, top, size.width - inset, top + 16),
+          const Radius.circular(8),
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StackedEdges old) => old.selected != selected;
+}
+
 /// "Aprovada" in the card label, outside the thumbnail (SPEC-027 R1).
 class _ApprovedPill extends StatelessWidget {
   const _ApprovedPill({super.key});
@@ -820,6 +946,8 @@ class _ScreenCard extends StatefulWidget {
   const _ScreenCard({
     super.key,
     required this.screen,
+    required this.versions,
+    required this.onVersions,
     required this.width,
     required this.height,
     required this.selected,
@@ -828,7 +956,6 @@ class _ScreenCard extends StatefulWidget {
     required this.png,
     required this.browserMissing,
     required this.focusNode,
-    required this.onFocus,
     required this.onTap,
     required this.onOpen,
     required this.onAsk,
@@ -837,6 +964,10 @@ class _ScreenCard extends StatefulWidget {
   });
 
   final MockupScreen screen;
+
+  /// Versions of the requirement (SPEC-067 R2: two or more show the chip).
+  final int versions;
+  final VoidCallback onVersions;
   final double width;
   final double height;
   final bool selected;
@@ -845,7 +976,6 @@ class _ScreenCard extends StatefulWidget {
   final String? png;
   final bool browserMissing;
   final FocusNode focusNode;
-  final ValueChanged<bool> onFocus;
   final VoidCallback onTap;
   final VoidCallback onOpen;
   final VoidCallback onAsk;
@@ -885,10 +1015,7 @@ class _ScreenCardState extends State<_ScreenCard> {
                     'Tela ${x.spokenName}${widget.approved ? ', aprovada' : ''}',
                 child: InkWell(
                   focusNode: widget.focusNode,
-                  onFocusChange: (on) {
-                    setState(() => _focus = on);
-                    widget.onFocus(on);
-                  },
+                  onFocusChange: (on) => setState(() => _focus = on),
                   onTap: () {
                     widget.onTap();
                     widget.focusNode.requestFocus();
@@ -901,12 +1028,12 @@ class _ScreenCardState extends State<_ScreenCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ExcludeSemantics(
-                          child: SizedBox(
-                            height: 20,
-                            child: Row(
-                              children: [
-                                Text(
+                        SizedBox(
+                          height: 20,
+                          child: Row(
+                            children: [
+                              ExcludeSemantics(
+                                child: Text(
                                   x.requirement,
                                   style: TextStyle(
                                     fontSize: 12,
@@ -916,8 +1043,10 @@ class _ScreenCardState extends State<_ScreenCard> {
                                         : AppColors.text,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Flexible(
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: ExcludeSemantics(
                                   child: Text(
                                     x.title,
                                     key: ValueKey('proto-title-${x.file}'),
@@ -929,24 +1058,43 @@ class _ScreenCardState extends State<_ScreenCard> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                _LetterBadge(
-                                  x.letterLabel,
+                              ),
+                              const SizedBox(width: 6),
+                              if (widget.versions >= 2)
+                                _VersionChip(
                                   key: ValueKey('proto-letter-${x.file}'),
+                                  screen: x,
+                                  versions: widget.versions,
                                   selected: sel,
+                                  onTap: widget.onVersions,
+                                )
+                              else
+                                ExcludeSemantics(
+                                  child: _LetterBadge(
+                                    x.letterLabel,
+                                    key: ValueKey('proto-letter-${x.file}'),
+                                    selected: sel,
+                                  ),
                                 ),
-                                const Spacer(),
-                                if (widget.approved)
-                                  _ApprovedPill(
+                              const Spacer(),
+                              if (widget.approved)
+                                ExcludeSemantics(
+                                  child: _ApprovedPill(
                                     key: ValueKey(
                                       'proto-card-approved-${x.file}',
                                     ),
                                   ),
-                              ],
-                            ),
+                                ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        if (widget.versions >= 2)
+                          _Stacked(
+                            key: ValueKey('proto-stack-${x.requirement}'),
+                            selected: sel,
+                          )
+                        else
+                          const SizedBox(height: 6),
                         Container(
                           key: ValueKey('proto-frame-${x.file}'),
                           height: widget.height,

@@ -72,6 +72,19 @@ void main() {
     expect(PrototypeIndex.decode('lixo').screens, isEmpty);
   });
 
+  test('SPEC-067 R6: "mostrada" round-trips; an old index.json without it '
+      'opens normally', () {
+    final i = const PrototypeIndex(shown: {'R2': 'R2-login.b.html'});
+    expect(i.encode(), contains('"mostrada"'));
+    expect(PrototypeIndex.decode(i.encode()).shown, {'R2': 'R2-login.b.html'});
+    final old = PrototypeIndex.decode(
+      '{"telas": {"R1-lista.html": {"descricao": "x"}}, "historico": []}',
+    );
+    expect(old.shown, isEmpty);
+    expect(old.screens['R1-lista.html']!.description, 'x');
+    expect(const PrototypeIndex().encode(), isNot(contains('mostrada')));
+  });
+
   test('R9: approving writes "## Protótipo", another variation of the same '
       'requirement replaces the line, the status does not change', () {
     final once = SpecDocument.parse(spec)

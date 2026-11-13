@@ -1392,9 +1392,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  /// Card that gets the focus after deleting [gone] (R10): the next one
-  /// after the last deleted, else the previous; the empty slot when the
-  /// requirement was left without screens.
+  /// Card that gets the focus after deleting [gone] (R10): the card of the
+  /// last deleted screen's requirement, which now shows another version
+  /// (SPEC-067 R7), or its empty slot; both are focused by requirement.
   String? _focusAfterDelete(
     List<MockupScreen> before,
     List<MockupScreen> gone,
@@ -1402,16 +1402,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   ) {
     final files = {for (final x in gone) x.file};
     final last = before.lastIndexWhere((x) => files.contains(x.file));
-    if (last < 0) return null;
-    final req = before[last].requirement;
-    if (!left.any((x) => x.requirement == req)) return req;
-    for (var i = last + 1; i < before.length; i++) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    for (var i = last - 1; i >= 0; i--) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    return null;
+    return last < 0 ? null : before[last].requirement;
   }
 
   /// "Desfazer" (SPEC-027 R6): files, index and `## Protótipo` lines.
@@ -1429,7 +1420,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       if (!mounted || removed.screens.isEmpty) return;
       ref
           .read(prototypeUiProvider(spec.id).notifier)
-          .focusOn(removed.screens.first.file);
+          .focusOn(removed.screens.first.requirement);
     } catch (e) {
       _snack('Falha ao desfazer: $e');
     }
