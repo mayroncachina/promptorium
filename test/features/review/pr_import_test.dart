@@ -10,7 +10,6 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/pr_import.dart';
 import 'package:promptorium/features/review/review_service.dart';
-import 'package:promptorium/features/sessions/session_manager.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
@@ -144,8 +143,9 @@ void main() {
     await gitIn(repo, ['add', 'pr$n.txt']);
     await gitIn(repo, ['commit', '-q', '-m', 'PR $n']);
     final sha = (await gitIn(repo, ['rev-parse', 'HEAD'])).trim();
-    if (!fork)
+    if (!fork) {
       await gitIn(repo, ['push', '-q', 'origin', 'HEAD:refs/heads/$head']);
+    }
     await gitIn(repo, ['push', '-q', 'origin', 'HEAD:refs/pull/$n/head']);
     await gitIn(repo, ['checkout', '-q', 'main']);
     await gitIn(repo, ['branch', '-q', '-D', 'tmp-$n']);
