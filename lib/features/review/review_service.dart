@@ -14,6 +14,7 @@ import '../../core/git/agent_trailer.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
 import '../project/project_memory.dart';
+import '../vibe/vibe_numbers.dart';
 import '../specs/spec_service.dart';
 import '../tasks/task_actions.dart';
 import 'pr_babysitter.dart';
@@ -2322,7 +2323,8 @@ class ReviewService {
     MergeOptions options = const MergeOptions(),
   }) async {
     final c = await _context(sessionId);
-    final s = c.session, ws = c.workspace, task = c.task, spec = c.spec;
+    final s = c.session, ws = c.workspace, task = c.task;
+    var spec = c.spec;
     if (s.status == SessionStatus.merged) {
       throw const ReviewException('O merge desta sessão já foi feito.');
     }
@@ -2400,6 +2402,26 @@ class ReviewService {
       if (problem != null) throw ReviewException(problem);
     } on GitException catch (e) {
       throw ReviewException('Falha ao ler o repositório principal: $e');
+    }
+
+    // SPEC-069 R12: a VIBE (or the spec it became) whose number the base
+    // already has moves to the next free one before the merge.
+    if (spec case final current?) {
+      try {
+        final moved = await renumberIfTaken(
+          repo: _ref.read(specsRepoProvider),
+          ws: ws,
+          spec: current,
+          main: main,
+          worktree: wt,
+          base: base,
+        );
+        if (moved != null) {
+          spec = await _ref.read(specsRepoProvider).getById(current.id);
+        }
+      } on Exception catch (e) {
+        throw ReviewException('Falha ao renumerar ${current.code}: $e');
+      }
     }
 
     await _ref.read(sessionManagerProvider.notifier).release(s.id);

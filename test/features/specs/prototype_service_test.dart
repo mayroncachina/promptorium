@@ -33,6 +33,7 @@ class AgentCall {
 Spec specRow(String path) => Spec(
   hasPlan: false,
   inTray: false,
+  kind: SpecKind.spec,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-022',

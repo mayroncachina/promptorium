@@ -189,6 +189,7 @@ void main() {
       final spec = Spec(
         hasPlan: false,
         inTray: false,
+        kind: SpecKind.spec,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',
@@ -331,6 +332,7 @@ void main() {
       final spec = Spec(
         hasPlan: false,
         inTray: false,
+        kind: SpecKind.spec,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',
