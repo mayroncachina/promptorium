@@ -30,6 +30,7 @@ void main() {
     dependsOn: const [],
     hasPlan: false,
     inTray: inTray,
+    kind: SpecKind.spec,
     autoAdvance: true,
     reviewRounds: 0,
     gateResends: 0,

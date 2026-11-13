@@ -175,6 +175,7 @@ void main() {
         dependsOn: const [],
         hasPlan: false,
         inTray: false,
+        kind: SpecKind.spec,
         autoAdvance: true,
         reviewRounds: 0,
         gateResends: 0,
