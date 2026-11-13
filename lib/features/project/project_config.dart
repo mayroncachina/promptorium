@@ -229,6 +229,7 @@ class VibeConfig {
     this.dir = defaultDir,
     this.maxFiles = defaultMaxFiles,
     this.maxLines = defaultMaxLines,
+    this.printsCommand,
   });
 
   static const defaultDir = 'docs/vibe';
@@ -242,7 +243,14 @@ class VibeConfig {
   final int maxFiles;
   final int maxLines;
 
+  /// `prints`: the command that takes a print of the app (R6), run in the
+  /// worktree at the base (antes) and in the VIBE's (depois); `{saida}` is
+  /// the PNG to write. Null = the prints are put there by hand (or by the
+  /// agent).
+  final String? printsCommand;
+
   bool get isDefault =>
+      printsCommand == null &&
       dir == defaultDir &&
       maxFiles == defaultMaxFiles &&
       maxLines == defaultMaxLines;
@@ -252,10 +260,11 @@ class VibeConfig {
       other is VibeConfig &&
       other.dir == dir &&
       other.maxFiles == maxFiles &&
-      other.maxLines == maxLines;
+      other.maxLines == maxLines &&
+      other.printsCommand == printsCommand;
 
   @override
-  int get hashCode => Object.hash(dir, maxFiles, maxLines);
+  int get hashCode => Object.hash(dir, maxFiles, maxLines, printsCommand);
 }
 
 @immutable
@@ -501,6 +510,7 @@ class ProjectConfig {
         maxFiles:
             integer(teto['arquivos'], min: 1) ?? VibeConfig.defaultMaxFiles,
         maxLines: integer(teto['linhas'], min: 1) ?? VibeConfig.defaultMaxLines,
+        printsCommand: str(vb['prints']),
       ),
       mergeMethod:
           ['merge', 'squash', 'rebase'].contains(map('merge')['metodo'])
@@ -665,6 +675,9 @@ class ProjectConfig {
     if (!vibe.isDefault) {
       b.writeln('vibe:');
       if (vibe.dir != VibeConfig.defaultDir) b.writeln('  pasta: ${vibe.dir}');
+      if (vibe.printsCommand != null) {
+        b.writeln('  prints: ${_quote(vibe.printsCommand!)}');
+      }
       if (vibe.maxFiles != VibeConfig.defaultMaxFiles ||
           vibe.maxLines != VibeConfig.defaultMaxLines) {
         b

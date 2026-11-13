@@ -10,6 +10,10 @@ import '../../../ui/widgets/app_toast.dart';
 import '../../prompt/conversation_manager.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../board/spec_runner.dart' show gateRunningProvider;
+import '../../project/project_config.dart';
+import '../../specs/spec_service.dart' show nextSpecCode;
+import '../vibe_flow.dart';
+import '../vibe_guard.dart';
 import '../vibe_service.dart';
 
 /// Purple of the VIBE (SPEC-069 R9): the badge, the card's edge.
@@ -559,6 +563,340 @@ class VibeBar extends ConsumerWidget {
                 : () => _review(context, ref),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The size of the VIBE, always in view (R6, R13): a meter with the whole
+/// text, red past the cap. [tick] changes when the agent answers.
+class VibeMeter extends ConsumerWidget {
+  const VibeMeter({
+    super.key,
+    required this.spec,
+    required this.workspacePath,
+    required this.tick,
+    this.conversationId,
+  });
+
+  final Spec spec;
+  final String workspacePath;
+  final int tick;
+  final int? conversationId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final size = ref.watch(vibeSizeProvider((spec.id, tick))).value;
+    final cap =
+        ref.watch(projectConfigProvider(workspacePath)).value?.vibe ??
+        const VibeConfig();
+    if (size == null) return const SizedBox.shrink();
+    final threshold = ref.read(vibeFlowProvider.notifier).threshold(spec.id);
+    final over = size.over(cap);
+    if (conversationId case final id?
+        when spec.kind == SpecKind.vibe &&
+            size.over(cap, threshold: threshold)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          ref.read(vibeFlowProvider.notifier).capReached(id, size);
+        }
+      });
+    }
+    final color = over ? AppColors.red : AppColors.textSecondary;
+    final text = size.label(cap);
+    return Semantics(
+      key: ValueKey('vibe-meter-${spec.code}'),
+      label: 'Tamanho da VIBE',
+      value: over ? '$text, passou do teto' : text,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: 150,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '${size.files}/${cap.maxFiles} arquivos',
+                  style: TextStyle(fontSize: 11, color: color),
+                ),
+                const Spacer(),
+                Text(
+                  '${size.lines}/${cap.maxLines} linhas',
+                  style: TextStyle(fontSize: 11, color: color),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: size.ratio(cap).clamp(0, 1).toDouble(),
+                minHeight: 4,
+                color: over ? AppColors.red : AppColors.teal,
+                backgroundColor: AppColors.border,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The question held before a request runs (R5, R8), as an alert in the
+/// conversation with the focus on its main button (R13).
+class VibeQuestion extends ConsumerStatefulWidget {
+  const VibeQuestion({
+    super.key,
+    required this.conversationId,
+    required this.spec,
+    required this.pending,
+    required this.workspace,
+  });
+
+  final int conversationId;
+  final Spec spec;
+  final VibePending pending;
+  final Workspace workspace;
+
+  @override
+  ConsumerState<VibeQuestion> createState() => _VibeQuestionState();
+}
+
+class _VibeQuestionState extends ConsumerState<VibeQuestion> {
+  final _primary = FocusNode();
+  bool _busy = false;
+  String? _nextSpec;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _primary.requestFocus();
+    });
+    if (widget.pending.ask == VibeAsk.cap) {
+      nextSpecCode(ref.read(specsRepoProvider), widget.workspace).then((c) {
+        if (mounted) setState(() => _nextSpec = c);
+      }, onError: (_) {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _primary.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run(Future<void> Function() job) async {
+    setState(() => _busy = true);
+    try {
+      await job();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showAppToast(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flow = ref.read(vibeFlowProvider.notifier);
+    final p = widget.pending;
+    final c = widget.conversationId;
+    final spec = widget.spec;
+    if (p.ask == VibeAsk.unrelated) {
+      return _card(
+        key: const ValueKey('vibe-unrelated'),
+        border: vibeColor.withValues(alpha: .6),
+        icon: const Icon(Icons.add, size: 16, color: vibeColor),
+        title: 'Isso parece outro assunto',
+        body:
+            '“${p.text}” não tem a ver com ${spec.title}'
+            '${p.reason.isEmpty ? '' : ' (${p.reason})'}. Numa VIBE própria, '
+            'vira um PR separado e pode ser mergeado sozinho.',
+        actions: [
+          AmberButton(
+            key: const ValueKey('vibe-unrelated-new'),
+            label: 'Abrir VIBE nova',
+            height: 34,
+            focusNode: _primary,
+            busy: _busy,
+            onTap: () => _run(() async {
+              final id = await flow.openNew(c, widget.workspace);
+              if (id != null) {
+                ref.read(selectedConversationProvider.notifier).select(id);
+              }
+            }),
+          ),
+          SmallButton(
+            key: const ValueKey('vibe-unrelated-continue'),
+            label: 'Continuar nesta',
+            height: 34,
+            onTap: _busy
+                ? null
+                : () => _run(() => flow.continueHere(c, spec.id)),
+          ),
+        ],
+      );
+    }
+    final size = p.size;
+    final next = _nextSpec ?? 'SPEC-…';
+    Widget option(String title, String text, {required bool main}) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: main ? SessionColors.approvalBg : AppColors.panelSolid,
+          border: Border.all(
+            color: main ? SessionColors.approvalBorder : AppColors.border,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    return _card(
+      key: const ValueKey('vibe-cap'),
+      border: SessionColors.stopBorder,
+      icon: const Icon(
+        Icons.warning_amber_rounded,
+        size: 16,
+        color: AppColors.red,
+      ),
+      title:
+          'Esta VIBE passou do teto'
+          '${size == null ? '' : ': ${size.files} arquivos · ${size.lines} linhas'}',
+      body:
+          'O agente parou antes de continuar. Uma tarefa deste tamanho '
+          'costuma pedir requisitos e critérios.',
+      extra: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            option(
+              'Virar spec',
+              'O app escreve a $next a partir da conversa. Ela assume o '
+                  'código já feito e o trabalho continua na hora; fica '
+                  'marcada origem: ${spec.code}.',
+              main: true,
+            ),
+            const SizedBox(width: 10),
+            option(
+              'Continuar como VIBE',
+              'Segue sem spec. O teto volta a perguntar a cada 50% a mais.',
+              main: false,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        SmallButton(
+          key: const ValueKey('vibe-cap-continue'),
+          label: 'Continuar como VIBE',
+          height: 34,
+          onTap: _busy
+              ? null
+              : () => _run(() => flow.continueAsVibe(c, spec.id)),
+        ),
+        AmberButton(
+          key: const ValueKey('vibe-cap-promote'),
+          label: 'Virar spec',
+          height: 34,
+          focusNode: _primary,
+          busy: _busy,
+          onTap: () => _run(() => flow.promote(c, spec.id)),
+        ),
+      ],
+      actionsAtEnd: true,
+    );
+  }
+
+  Widget _card({
+    required Key key,
+    required Color border,
+    required Widget icon,
+    required String title,
+    required String body,
+    required List<Widget> actions,
+    Widget? extra,
+    bool actionsAtEnd = false,
+  }) {
+    return Semantics(
+      key: key,
+      container: true,
+      liveRegion: true,
+      label: title,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 760),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaisedSolid,
+          border: Border.all(color: border),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                icon,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              body,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            if (extra != null) ...[const SizedBox(height: 10), extra],
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: actionsAtEnd
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              children: [
+                for (final (i, a) in actions.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  a,
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
