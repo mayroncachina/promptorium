@@ -196,6 +196,7 @@ class PrototypeIndex {
     this.screens = const {},
     this.history = const [],
     this.emptied = const {},
+    this.shown = const {},
   });
 
   static const fileName = 'index.json';
@@ -206,14 +207,19 @@ class PrototypeIndex {
   /// Requirements left without a screen by a deletion (`semTela`, R7).
   final Map<String, EmptiedRequirement> emptied;
 
+  /// Requirement → file shown on its card (`mostrada`, SPEC-067 R6).
+  final Map<String, String> shown;
+
   PrototypeIndex copyWith({
     Map<String, ScreenMeta>? screens,
     List<PrototypeRequest>? history,
     Map<String, EmptiedRequirement>? emptied,
+    Map<String, String>? shown,
   }) => PrototypeIndex(
     screens: screens ?? this.screens,
     history: history ?? this.history,
     emptied: emptied ?? this.emptied,
+    shown: shown ?? this.shown,
   );
 
   String encode() => const JsonEncoder.withIndent('  ').convert({
@@ -225,6 +231,8 @@ class PrototypeIndex {
       'semTela': {
         for (final k in emptied.keys.toList()..sort()) k: emptied[k]!.toJson(),
       },
+    if (shown.isNotEmpty)
+      'mostrada': {for (final k in shown.keys.toList()..sort()) k: shown[k]},
   });
 
   static PrototypeIndex decode(String? raw) {
@@ -234,7 +242,13 @@ class PrototypeIndex {
       if (j is! Map) return const PrototypeIndex();
       final t = j['telas'];
       final e = j['semTela'];
+      final m = j['mostrada'];
       return PrototypeIndex(
+        shown: {
+          if (m is Map)
+            for (final x in m.entries)
+              if (x.value is String) '${x.key}': x.value as String,
+        },
         emptied: {
           if (e is Map)
             for (final x in e.entries)

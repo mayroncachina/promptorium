@@ -337,7 +337,12 @@ void main() {
       contains('novo `docs/mockups/spec-022/R1-lista.b.html`'),
     );
     expect(File('$mockups/R1-lista.html').readAsStringSync(), '<p>A</p>');
-    expect(cardText('R1-lista.b.html', 'B'), findsOneWidget);
+    // SPEC-067 R1: the new variation takes R1's card (one per screen).
+    expect(cardText('R1-lista.b.html', 'B · 2'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('proto-card-R1-lista.html')),
+      findsNothing,
+    );
     expect(find.textContaining('Variação criada.'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('proto-chip-R1-lista.b.html')),
@@ -1081,64 +1086,184 @@ void main() {
     File('$mockups/R1-lista.b.html').writeAsStringSync('<p>B</p>');
     File('$mockups/R1-lista.c.html').writeAsStringSync('<p>C</p>');
     await pump(tester);
-    await openPrototype(tester);
-    // Comparison of R1 open, on B.
-    await tapCard(tester, 'R1-lista.b.html');
+    await settleIo(tester);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await settleIo(
+      tester,
+      until: () => key('proto-card-R1-lista.c.html').evaluate().isNotEmpty,
+    );
+    // Comparison of R1 open, on C (the shown one, SPEC-067 R1).
+    await tapCard(tester, 'R1-lista.c.html');
     await tester.tap(key('proto-compare'));
     await settleIo(tester);
-    expect(key('proto-variation-R1-lista.b.html'), findsOneWidget);
+    expect(key('proto-variation-R1-lista.c.html'), findsOneWidget);
     // Deleted from "Versões" while comparing.
     await tester.tap(key('proto-tab-versions'));
     await tester.pump();
-    await tester.tap(key('proto-remove-R1-lista.b.html'));
+    await tester.tap(key('proto-remove-R1-lista.c.html'));
     await tester.pump();
     await tester.tap(key('proto-remove-confirm'));
     await settleIo(
       tester,
-      until: () => key('proto-variation-R1-lista.b.html').evaluate().isEmpty,
+      until: () => key('proto-variation-R1-lista.c.html').evaluate().isEmpty,
     );
     expect(key('proto-variation-R1-lista.html'), findsOneWidget);
-    expect(key('proto-variation-R1-lista.c.html'), findsOneWidget);
+    expect(key('proto-variation-R1-lista.b.html'), findsOneWidget);
     expect(announced, ['1 tela apagada']);
     await tester.tap(key('proto-compare-back'));
     await tester.pump();
 
-    // Two selected on the canvas, deleted together.
-    await tapCard(tester, 'R1-lista.html');
-    await ctrlTap(tester, 'R1-lista.c.html');
+    // Two selected on the canvas (R1 now shows B), deleted together.
+    await tapCard(tester, 'R1-lista.b.html');
+    await ctrlTap(tester, 'R2-detalhe.html');
     await tester.tap(key('proto-selection-delete'));
     await tester.pump();
     await tester.tap(key('proto-remove-confirm'));
     await settleIo(
       tester,
       until: () =>
-          key('proto-card-R1-lista.c.html').evaluate().isEmpty &&
-          key('proto-empty-R1').evaluate().isNotEmpty,
+          key('proto-card-R1-lista.html').evaluate().isNotEmpty &&
+          key('proto-empty-R2').evaluate().isNotEmpty,
     );
     expect(find.text('2 telas apagadas.'), findsOneWidget);
     expect(announced.last, '2 telas apagadas');
     expect(key('proto-selection-bar'), findsNothing);
-    expect(key('proto-check-R2-detalhe.html'), findsNothing);
-    // R1 was left empty: the focus is on its slot ("Gerar tela do R1").
-    expect(focusedIn(key('proto-empty-R1')), isTrue);
-    expect(focusedIn(key('proto-empty-generate-R1')), isTrue);
+    expect(key('proto-check-R1-lista.html'), findsNothing);
+    // R2 was left empty: the focus is on its slot ("Gerar tela do R2").
+    expect(focusedIn(key('proto-empty-R2')), isTrue);
+    expect(focusedIn(key('proto-empty-generate-R2')), isTrue);
 
-    // A card in the middle: the focus goes to the next one.
+    // The shown version of a screen with more: the card stays, now with
+    // the version left, and keeps the focus.
     await tester.runAsync(() async {
+      File('$mockups/R2-detalhe.html').writeAsStringSync('<p>2</p>');
       File('$mockups/R2-detalhe.b.html').writeAsStringSync('<p>2B</p>');
       File('$mockups/R3-fim.html').writeAsStringSync('<p>3</p>');
     });
     await reloadScreens(tester, 'R3-fim.html');
-    await tapCard(tester, 'R2-detalhe.html');
+    await tapCard(tester, 'R2-detalhe.b.html');
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pump();
     await tester.tap(key('proto-remove-confirm'));
     await settleIo(
       tester,
       until: () =>
-          key('proto-card-R2-detalhe.html').evaluate().isEmpty &&
-          focusedIn(key('proto-card-R2-detalhe.b.html')),
+          key('proto-card-R2-detalhe.b.html').evaluate().isEmpty &&
+          key('proto-card-R2-detalhe.html').evaluate().isNotEmpty &&
+          focusedIn(key('proto-card-R2-detalhe.html')),
     );
-    expect(focusedIn(key('proto-card-R2-detalhe.b.html')), isTrue);
+    expect(focusedIn(key('proto-card-R2-detalhe.html')), isTrue);
+  });
+
+  // --- SPEC-067 ------------------------------------------------------------
+
+  testWidgets('SPEC-067 R1 R2: one card per screen with the shown version '
+      '(saved choice, else approved, else newest); "D · 4" only with two or '
+      'more, with the stacked edge and its spoken label', (tester) async {
+    for (final l in ['b', 'c', 'd']) {
+      File('$mockups/R1-lista.$l.html').writeAsStringSync('<p>$l</p>');
+    }
+    final semantics = tester.ensureSemantics();
+    await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await settleIo(
+      tester,
+      until: () => key('proto-card-R1-lista.d.html').evaluate().isNotEmpty,
+    );
+    // Newest without a choice or an approval; the others are not cards.
+    for (final f in ['R1-lista.html', 'R1-lista.b.html', 'R1-lista.c.html']) {
+      expect(key('proto-card-$f'), findsNothing, reason: f);
+    }
+    expect(
+      find.text('docs/mockups/spec-022/ · 2 telas · salvo'),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: key('proto-letter-R1-lista.d.html'),
+        matching: find.text('D · 4'),
+      ),
+      findsOneWidget,
+    );
+    expect(key('proto-stack-R1'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Variação D, 4 versões: ver versões de R1'),
+      findsOneWidget,
+    );
+    // R2 has one version: plain "A", no stack.
+    expect(
+      find.descendant(
+        of: key('proto-letter-R2-detalhe.html'),
+        matching: find.text('A'),
+      ),
+      findsOneWidget,
+    );
+    expect(key('proto-stack-R2'), findsNothing);
+    // The chip opens "Versões".
+    await tester.tap(key('proto-letter-R1-lista.d.html'));
+    // The card has onDoubleTap: the tap is decided after the timeout.
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(key('proto-versions'), findsOneWidget);
+
+    // A saved choice wins over the newest; the menu acts on it (R7).
+    await tester.runAsync(
+      () =>
+          const PrototypeIndex(shown: {'R1': 'R1-lista.b.html'}).write(mockups),
+    );
+    await reloadScreens(tester, 'R1-lista.b.html');
+    expect(key('proto-card-R1-lista.d.html'), findsNothing);
+    await tester.tap(key('proto-tab-ask'));
+    await tester.pump();
+    await tapCard(tester, 'R1-lista.b.html');
+    expect(find.text('Selecionada: R1'), findsOneWidget);
+    await tester.tap(key('proto-more-R1-lista.b.html'));
+    await tester.pump();
+    await tester.tap(key('proto-menu-open'));
+    await settleIo(tester, until: () => runner.opened.isNotEmpty);
+    expect(runner.opened, ['$mockups/R1-lista.b.html']);
+    semantics.dispose();
+  });
+
+  testWidgets('SPEC-067 R1 R7: without a choice the approved version is '
+      'shown with "Aprovada"; deleting the shown one falls back to the '
+      'approved, else the newest left', (tester) async {
+    File('${tmp.path}/specs/SPEC-022-prototipo.md').writeAsStringSync(
+      '${spec.trimRight()}\n\n## Protótipo\n\n'
+      '- R1 → docs/mockups/spec-022/R1-lista.b.html\n',
+    );
+    File('$mockups/R1-lista.b.html').writeAsStringSync('<p>B</p>');
+    File('$mockups/R1-lista.c.html').writeAsStringSync('<p>C</p>');
+    await tester.runAsync(
+      () =>
+          const PrototypeIndex(shown: {'R1': 'R1-lista.c.html'}).write(mockups),
+    );
+    await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await settleIo(
+      tester,
+      until: () => key('proto-card-R1-lista.c.html').evaluate().isNotEmpty,
+    );
+    expect(key('proto-card-approved-R1-lista.c.html'), findsNothing);
+    // Deleting the shown C: B, the approved one, takes the card.
+    await tapCard(tester, 'R1-lista.c.html');
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    await tester.tap(key('proto-remove-confirm'));
+    await settleIo(
+      tester,
+      until: () => key('proto-card-R1-lista.b.html').evaluate().isNotEmpty,
+    );
+    expect(key('proto-card-approved-R1-lista.b.html'), findsOneWidget);
+    expect(
+      (await tester.runAsync(() => PrototypeIndex.read(mockups)))!.shown,
+      isEmpty,
+    );
+    expect(
+      find.descendant(
+        of: key('proto-letter-R1-lista.b.html'),
+        matching: find.text('B · 2'),
+      ),
+      findsOneWidget,
+    );
   });
 }
