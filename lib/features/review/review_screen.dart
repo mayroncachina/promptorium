@@ -38,6 +38,7 @@ import '../board/widgets/wave_graph.dart' show dependencyWaves;
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
 import 'widgets/pr_panel.dart';
+import 'widgets/pr_import_dialog.dart';
 import 'widgets/review_all_files.dart';
 import 'widgets/review_dialogs.dart';
 import 'widgets/persisted_comment.dart';
@@ -349,6 +350,11 @@ class _ReviewSidebar extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
               child: ReviewModeTabs(workspaceId: ws.id),
+            ),
+          if (ref.watch(activeWorkspaceProvider) case final ws?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+              child: PrImportButton(workspace: ws),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),

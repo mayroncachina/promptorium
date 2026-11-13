@@ -54,8 +54,10 @@ Map<String, GraphPr> mergePrSources(
   Map<String, PrWatch> watches,
 ) {
   final sessionOf = <String, String>{};
+  final sessionOfUrl = <String, String>{};
   for (final s in sessions) {
     if (s.branch.isNotEmpty) sessionOf[s.branch] = s.id;
+    if (s.prUrl case final url?) sessionOfUrl[url] = s.id;
   }
   final out = <String, GraphPr>{
     for (final p in listed)
@@ -64,7 +66,8 @@ Map<String, GraphPr> mergePrSources(
           number: p.number,
           url: p.url,
           ci: p.ci,
-          sessionId: sessionOf[p.headRefName],
+          // A PR brought from a fork lives on `pr/<n>-…` (SPEC-050 R3).
+          sessionId: sessionOf[p.headRefName] ?? sessionOfUrl[p.url],
         ),
   };
   for (final s in sessions) {

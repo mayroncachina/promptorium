@@ -15,6 +15,7 @@ import '../../../ui/widgets/app_toast.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../../board/board_screen.dart' show boardSelectedSpecProvider;
 import '../../review/review_service.dart' show selectedReviewProvider;
+import '../../review/widgets/pr_import_dialog.dart' show showPrImportDialog;
 import '../releases/releases_tab.dart' show openExternal, formatReleaseDateTime;
 import '../repository_info.dart';
 import 'commit_log.dart';
@@ -442,7 +443,26 @@ class _CommitPanelState extends ConsumerState<CommitPanel> {
                       () => _openReview(reviewSession),
                       key: const ValueKey('graph-open-review'),
                     )
-                  else if (openPr?.url != null || slug != null)
+                  else if (openPr != null && ws != null) ...[
+                    // SPEC-050 R2: a PR with no session comes into the app.
+                    linkButton(
+                      'Trazer para o app',
+                      () => unawaited(
+                        showPrImportDialog(
+                          context,
+                          workspace: ws,
+                          number: openPr.number,
+                        ),
+                      ),
+                      key: const ValueKey('graph-bring-pr'),
+                    ),
+                    if (openPr.url != null)
+                      linkButton(
+                        'Abrir no GitHub',
+                        () => unawaited(openExternal(ref, openPr.url!)),
+                        key: const ValueKey('graph-open-github'),
+                      ),
+                  ] else if (openPr?.url != null || slug != null)
                     linkButton(
                       'Abrir no GitHub',
                       () => unawaited(
