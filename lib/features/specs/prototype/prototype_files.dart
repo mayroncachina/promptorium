@@ -197,6 +197,7 @@ class PrototypeIndex {
     this.history = const [],
     this.emptied = const {},
     this.shown = const {},
+    this.unseen = const {},
   });
 
   static const fileName = 'index.json';
@@ -210,16 +211,22 @@ class PrototypeIndex {
   /// Requirement → file shown on its card (`mostrada`, SPEC-067 R6).
   final Map<String, String> shown;
 
+  /// Variations not seen yet (`novas`, SPEC-067 R5): "nova" on the card and
+  /// in "Versões".
+  final Set<String> unseen;
+
   PrototypeIndex copyWith({
     Map<String, ScreenMeta>? screens,
     List<PrototypeRequest>? history,
     Map<String, EmptiedRequirement>? emptied,
     Map<String, String>? shown,
+    Set<String>? unseen,
   }) => PrototypeIndex(
     screens: screens ?? this.screens,
     history: history ?? this.history,
     emptied: emptied ?? this.emptied,
     shown: shown ?? this.shown,
+    unseen: unseen ?? this.unseen,
   );
 
   String encode() => const JsonEncoder.withIndent('  ').convert({
@@ -233,6 +240,7 @@ class PrototypeIndex {
       },
     if (shown.isNotEmpty)
       'mostrada': {for (final k in shown.keys.toList()..sort()) k: shown[k]},
+    if (unseen.isNotEmpty) 'novas': unseen.toList()..sort(),
   });
 
   static PrototypeIndex decode(String? raw) {
@@ -244,6 +252,7 @@ class PrototypeIndex {
       final e = j['semTela'];
       final m = j['mostrada'];
       return PrototypeIndex(
+        unseen: {for (final f in j['novas'] as List? ?? const []) '$f'},
         shown: {
           if (m is Map)
             for (final x in m.entries)

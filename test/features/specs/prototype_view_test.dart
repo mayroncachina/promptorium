@@ -1266,4 +1266,188 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('SPEC-067 R3 R4 R8: "D · 4" opens "Versões" filtered on the '
+      'screen; a click or ↑/↓ changes the card at once and saves it; Esc and '
+      '"Todas as telas" show every screen; "Comparar as 4"', (tester) async {
+    for (final l in ['b', 'c', 'd']) {
+      File('$mockups/R1-lista.$l.html').writeAsStringSync('<p>$l</p>');
+    }
+    final semantics = tester.ensureSemantics();
+    await pump(tester);
+    await tester.tap(find.byKey(const ValueKey('spec-mode-prototype')));
+    await settleIo(
+      tester,
+      until: () => key('proto-card-R1-lista.d.html').evaluate().isNotEmpty,
+    );
+    await tester.tap(key('proto-letter-R1-lista.d.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump();
+    expect(key('proto-versions-filtered'), findsOneWidget);
+    expect(find.text('R1 · Lista · 4 versões'), findsOneWidget);
+    expect(find.text('Todas as telas (5)'), findsOneWidget);
+    expect(key('proto-version-R2-detalhe.html'), findsNothing);
+    for (final f in ['R1-lista.html', 'R1-lista.b.html', 'R1-lista.c.html']) {
+      expect(key('proto-notshown-$f'), findsOneWidget, reason: f);
+    }
+    expect(key('proto-shown-R1-lista.d.html'), findsOneWidget);
+    expect(find.text('Comparar as 4 lado a lado'), findsOneWidget);
+    expect(find.text('Selecionada: R1'), findsNothing); // "Versões" tab
+    // R8: a group of options with one checked.
+    expect(
+      tester.getSemantics(
+        find.bySemanticsLabel(RegExp('^Variação D, R1-lista.d.html')),
+      ),
+      isSemantics(
+        isInMutuallyExclusiveGroup: true,
+        hasCheckedState: true,
+        isChecked: true,
+      ),
+    );
+    expect(
+      tester.getSemantics(
+        find.bySemanticsLabel(RegExp('^Variação B, R1-lista.b.html')),
+      ),
+      isSemantics(
+        isInMutuallyExclusiveGroup: true,
+        hasCheckedState: true,
+        isChecked: false,
+      ),
+    );
+
+    /// Waits for index.json to say R1 shows [file].
+    Future<Map<String, String>> saved(String file) async {
+      final f = File('$mockups/${PrototypeIndex.fileName}');
+      await settleIo(
+        tester,
+        until: () =>
+            f.existsSync() &&
+            PrototypeIndex.decode(f.readAsStringSync()).shown['R1'] == file,
+      );
+      return PrototypeIndex.decode(f.readAsStringSync()).shown;
+    }
+
+    // A click: the card changes at once, the choice goes to index.json.
+    await tester.tap(key('proto-show-R1-lista.b.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(key('proto-card-R1-lista.b.html'), findsOneWidget);
+    expect(key('proto-card-R1-lista.d.html'), findsNothing);
+    expect(key('proto-shown-R1-lista.b.html'), findsOneWidget);
+    expect(await saved('R1-lista.b.html'), {'R1': 'R1-lista.b.html'});
+    // The card stayed selected on the new version.
+    expect(
+      tester
+          .widget<Semantics>(key('proto-card-R1-lista.b.html'))
+          .properties
+          .selected,
+      isTrue,
+    );
+
+    // ↑/↓ with the focus on the list.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(key('proto-card-R1-lista.c.html'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(key('proto-card-R1-lista.html'), findsOneWidget);
+    expect(await saved('R1-lista.html'), {'R1': 'R1-lista.html'});
+
+    // Esc: every screen, grouped as before.
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(key('proto-versions-filtered'), findsNothing);
+    expect(key('proto-version-R2-detalhe.html'), findsOneWidget);
+
+    // "Todas as telas" too; the tab title always lists everything.
+    await tester.tap(key('proto-letter-R1-lista.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(key('proto-versions-filtered'), findsOneWidget);
+    await tester.tap(key('proto-versions-all'));
+    await tester.pump();
+    expect(key('proto-versions-filtered'), findsNothing);
+    await tester.tap(key('proto-letter-R1-lista.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(key('proto-tab-ask'));
+    await tester.pump();
+    await tester.tap(key('proto-tab-versions'));
+    await tester.pump();
+    expect(key('proto-versions-filtered'), findsNothing);
+    expect(key('proto-version-R2-detalhe.html'), findsOneWidget);
+
+    // "Comparar as 4 lado a lado".
+    await tester.tap(key('proto-letter-R1-lista.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(key('proto-versions-compare'));
+    await settleIo(tester);
+    expect(find.text('SPEC-022 · R1 · Lista'), findsOneWidget);
+    expect(key('proto-variation-R1-lista.d.html'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('SPEC-067 R5: a variation is generated over its card; when '
+      'ready it is the shown one, "nova" on the card, and the notice\'s '
+      '"Ver versões" opens the filtered list, which sees it', (tester) async {
+    final release = Completer<void>();
+    agentWait = (_) => release.future;
+    agentWrites = () =>
+        File('$mockups/R1-lista.b.html').writeAsStringSync('<p>B</p>');
+    final c = await pump(tester);
+    await openPrototype(tester);
+    await tapCard(tester, 'R1-lista.html');
+    await tester.enterText(key('proto-request'), 'mais denso');
+    await tester.pump();
+    await tester.tap(key('proto-send'));
+    await settleIo(tester, until: () => prompts.isNotEmpty);
+    // Over R1's card, no new place on the canvas.
+    expect(
+      find.descendant(
+        of: key('proto-cardbox-R1'),
+        matching: key('proto-generating-R1-lista.b.html'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Gerando variação B de R1…'), findsOneWidget);
+    release.complete();
+    await settleIo(
+      tester,
+      until: () =>
+          c.read(prototypeJobsProvider).isEmpty &&
+          key('proto-card-R1-lista.b.html').evaluate().isNotEmpty,
+    );
+    expect(key('proto-card-R1-lista.html'), findsNothing);
+    expect(key('proto-card-new-R1-lista.b.html'), findsOneWidget);
+    var index = (await tester.runAsync(() => PrototypeIndex.read(mockups)))!;
+    expect(index.shown, {'R1': 'R1-lista.b.html'});
+    expect(index.unseen, {'R1-lista.b.html'});
+    expect(
+      find.text('R1 · variação B pronta e mostrada no canvas'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Ver versões'));
+    await tester.pump();
+    await tester.pump();
+    expect(key('proto-versions-filtered'), findsOneWidget);
+    expect(key('proto-shown-R1-lista.b.html'), findsOneWidget);
+    // Seen: still "nova" in the open list, no longer on the card.
+    expect(key('proto-version-new-R1-lista.b.html'), findsOneWidget);
+    expect(key('proto-card-new-R1-lista.b.html'), findsNothing);
+    await settleIo(
+      tester,
+      until: () =>
+          !File('$mockups/${PrototypeIndex.fileName}')
+              .readAsStringSync()
+              .contains('novas'),
+    );
+    index = (await tester.runAsync(() => PrototypeIndex.read(mockups)))!;
+    expect(index.unseen, isEmpty);
+    // Leaving and coming back: no "nova".
+    await tester.tap(key('proto-versions-all'));
+    await tester.pump();
+    await tester.tap(key('proto-letter-R1-lista.b.html'));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(key('proto-version-new-R1-lista.b.html'), findsNothing);
+  });
 }
