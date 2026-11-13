@@ -71,6 +71,7 @@ class NewSessionRequest {
     this.baseBranch,
     this.environment,
     this.duelId,
+    this.prUrl,
   });
 
   final Workspace workspace;
@@ -118,6 +119,11 @@ class NewSessionRequest {
 
   /// Best-of-N attempt (`spec_duels.id`) the session runs.
   final int? duelId;
+
+  /// PR the session works on from the start ("Trazer PR", SPEC-050 R3);
+  /// stored before the process starts, so its hooks already refuse the
+  /// forced pushes (R7).
+  final String? prUrl;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -321,7 +327,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } else {
         branch = await git.currentBranch() ?? 'HEAD';
       }
@@ -358,6 +364,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseBranch: base,
       duelId: r.duelId,
     );
+    if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
@@ -617,7 +624,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             rethrow;
           }
         }
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
@@ -1106,10 +1113,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     _publish();
   }
 
-  /// A new session / fork worktree: `copiar:` and `preparar:` of the
+  /// A new session / fork / PR worktree: `copiar:` and `preparar:` of the
   /// project's config. Failure removes the worktree (nothing was done in
   /// it yet) and is reported to the caller.
-  Future<void> _setupWorktree(String root, CreatedWorktree wt) async {
+  Future<void> setupWorktree(String root, CreatedWorktree wt) async {
     final config = ProjectConfig.loadSync(root);
     final wc = config.worktree;
     if (wc.copy.isEmpty && wc.prepare == null) return;
@@ -1180,11 +1187,16 @@ class SessionManager extends Notifier<SessionManagerState> {
           if (settings.get(h.settingKey) != '0') h,
       };
       final config = root == null ? null : ProjectConfig.loadSync(root);
+      // A PR brought into the app (SPEC-050 R7): its published history is
+      // someone else's, so no forced push of any kind.
+      final row = await _repo.getById(id);
+      final foreignPr = row?.prUrl != null && row?.specId == null;
       return await hooks.prepare(
         id,
         enabled: enabled,
         rules: blockRules(
           projectGlobs: config?.blockedCommands ?? const [],
+          extra: foreignPr ? prForcePushRules : const [],
           root: root,
           cwd: cwd,
         ),

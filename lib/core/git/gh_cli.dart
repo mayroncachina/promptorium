@@ -634,7 +634,9 @@ CiState ciStateOf(Iterable<String> states) {
   return running ? CiState.running : CiState.passed;
 }
 
-/// An open PR with its checks (`gh pr list --json statusCheckRollup`).
+/// An open PR with its checks (`gh pr list --json statusCheckRollup`) and,
+/// for "Trazer PR" (SPEC-050 R1), who opened it, where it comes from and
+/// where it goes.
 @immutable
 class GhOpenPr {
   const GhOpenPr({
@@ -642,12 +644,56 @@ class GhOpenPr {
     required this.url,
     required this.headRefName,
     this.ci = CiState.none,
+    this.title = '',
+    this.author = '',
+    this.baseRefName = '',
+    this.isCrossRepository = false,
+    this.maintainerCanModify = false,
+    this.isDraft = false,
+    this.updatedAt,
+    this.headOwner = '',
+    this.headRefOid = '',
+    this.body = '',
+    this.checks = const [],
+    this.state = 'OPEN',
   });
 
   final int number;
   final String url;
   final String headRefName;
   final CiState ci;
+  final String title;
+
+  /// Login of who opened it (`lucas-andrade`).
+  final String author;
+  final String baseRefName;
+
+  /// The head lives in a fork.
+  final bool isCrossRepository;
+
+  /// The fork lets the maintainers push to the head branch.
+  final bool maintainerCanModify;
+  final bool isDraft;
+  final DateTime? updatedAt;
+
+  /// Owner of the head repository (the fork's, for [isCrossRepository]).
+  final String headOwner;
+  final String headRefOid;
+
+  /// Description (Markdown; only `gh pr view` asks for it).
+  final String body;
+
+  /// (name, state) of every check (`SUCCESS`, `FAILURE`, `PENDING`…).
+  final List<(String, String)> checks;
+
+  /// `OPEN` / `MERGED` / `CLOSED`.
+  final String state;
+
+  /// Names of the checks that failed.
+  List<String> get failedChecks => [
+    for (final (name, state) in checks)
+      if (ciStateOf([state]) == CiState.failed) name,
+  ];
 }
 
 /// State of one entry of `statusCheckRollup`: a check run's conclusion
@@ -661,8 +707,50 @@ String rollupState(Map<Object?, Object?> c) {
   return state.isEmpty ? 'PENDING' : state;
 }
 
+/// Fields of `gh pr list` / `gh pr view` for an open PR (SPEC-050 R1).
+const ghOpenPrFields =
+    'number,url,title,author,headRefName,baseRefName,isCrossRepository,'
+    'maintainerCanModify,isDraft,updatedAt,headRepositoryOwner,headRefOid,'
+    'state,statusCheckRollup';
+
+/// One PR of `gh pr list` / `gh pr view --json [ghOpenPrFields]` (null =
+/// no number or URL).
+GhOpenPr? parseGhOpenPr(Map<Object?, Object?> p) {
+  final n = _int(p['number']);
+  final url = p['url'];
+  if (n == null || url is! String) return null;
+  final checks = <(String, String)>[
+    if (p['statusCheckRollup'] case final List rollup)
+      for (final c in rollup.whereType<Map>())
+        (
+          _str(c['name']).isEmpty ? _str(c['context']) : _str(c['name']),
+          rollupState(c),
+        ),
+  ];
+  String login(Object? v) => v is Map ? _str(v['login']) : '';
+  return GhOpenPr(
+    number: n,
+    url: url,
+    headRefName: _str(p['headRefName']),
+    ci: ciStateOf(checks.map((c) => c.$2)),
+    title: _str(p['title']),
+    author: login(p['author']),
+    baseRefName: _str(p['baseRefName']),
+    isCrossRepository: p['isCrossRepository'] == true,
+    maintainerCanModify: p['maintainerCanModify'] == true,
+    isDraft: p['isDraft'] == true,
+    updatedAt: _date(p['updatedAt']),
+    headOwner: login(p['headRepositoryOwner']),
+    headRefOid: _str(p['headRefOid']),
+    body: _str(p['body']),
+    checks: checks,
+    state: _str(p['state']).isEmpty ? 'OPEN' : _str(p['state']),
+  );
+}
+
 extension GhOpenPrs on GhCli {
-  /// The open PRs with the state of their CI (SPEC-045 R4).
+  /// The open PRs with the state of their CI (SPEC-045 R4) and the fields
+  /// of "Trazer PR" (SPEC-050 R1).
   Future<List<GhOpenPr>> prListOpen({int limit = 100}) async {
     final j = await _json([
       'pr',
@@ -672,22 +760,30 @@ extension GhOpenPrs on GhCli {
       '--limit',
       '$limit',
       '--json',
-      'number,url,headRefName,statusCheckRollup',
+      ghOpenPrFields,
     ]);
     return [
       if (j is List)
-        for (final p in j.whereType<Map>())
-          if (_int(p['number']) case final n? when p['url'] is String)
-            GhOpenPr(
-              number: n,
-              url: p['url'] as String,
-              headRefName: _str(p['headRefName']),
-              ci: ciStateOf([
-                if (p['statusCheckRollup'] case final List checks)
-                  for (final c in checks.whereType<Map>()) rollupState(c),
-              ]),
-            ),
+        for (final p in j.whereType<Map>()) ?parseGhOpenPr(p),
     ];
+  }
+
+  /// One PR by number or URL, with its description, even when it is not in
+  /// [prListOpen] (SPEC-050 R1).
+  Future<GhOpenPr> prView(String ref) async {
+    if (ref.isEmpty || ref.startsWith('-')) {
+      throw GhException('PR inválido: "$ref"');
+    }
+    final j = await _json([
+      'pr',
+      'view',
+      ref,
+      '--json',
+      '$ghOpenPrFields,body',
+    ]);
+    final pr = j is Map ? parseGhOpenPr(j) : null;
+    if (pr == null) throw GhException('resposta inválida do gh pr view');
+    return pr;
   }
 }
 
