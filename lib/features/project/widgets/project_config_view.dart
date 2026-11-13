@@ -177,6 +177,13 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late final _port = TextEditingController(
     text: _saved.worktree.basePort?.toString() ?? '',
   );
+  late final _dev = TextEditingController(text: _saved.dev?.command ?? '');
+  late final _devReady = TextEditingController(
+    text: _saved.dev?.readyText ?? '',
+  );
+  late final _devPath = TextEditingController(
+    text: _saved.dev == null || _saved.dev!.path == '/' ? '' : _saved.dev!.path,
+  );
   late bool _reviewerOn = _saved.reviewer.enabled;
   late final _reviewerModel = TextEditingController(
     text: _saved.reviewer.model,
@@ -212,6 +219,9 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       _copy,
       _prepare,
       _port,
+      _dev,
+      _devReady,
+      _devPath,
       _reviewerModel,
       _reviewerBudget,
       _reviewerRounds,
@@ -266,6 +276,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       prepare: _text(_prepare),
       basePort: int.tryParse(_port.text.trim()),
     ),
+    dev: () => _devConfig,
     reviewer: ReviewerConfig(
       enabled: _reviewerOn,
       model: _text(_reviewerModel) ?? const ReviewerConfig().model,
@@ -278,6 +289,20 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     ),
     git: GitConfig(markAgentCommits: _markAgents),
   );
+
+  /// `dev:` from the three fields (SPEC-051 R1); empty command = none.
+  DevServerConfig? get _devConfig {
+    final command = _text(_dev);
+    if (command == null) return null;
+    var path = _text(_devPath) ?? '/';
+    if (!path.startsWith('/')) path = '/$path';
+    final ready = _text(_devReady);
+    return DevServerConfig(
+      command: command,
+      readyText: ready == 'porta' ? null : ready,
+      path: path,
+    );
+  }
 
   bool get _dirty => _current != _saved;
 
@@ -709,6 +734,27 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
         const ValueKey('config-port'),
         _port,
         'porta base: ex.: 4000 (PROMPTORIUM_PORT = base + índice)',
+      ),
+      _label(
+        'Servidor de desenvolvimento',
+        'o app sobe no worktree da spec · sem porta base, escolhe uma livre',
+      ),
+      _field(
+        const ValueKey('config-dev'),
+        _dev,
+        r'comando: ex.: npm run dev -- --port $PROMPTORIUM_PORT',
+      ),
+      const SizedBox(height: 6),
+      _field(
+        const ValueKey('config-dev-ready'),
+        _devReady,
+        'pronto: vazio = a porta responde HTTP; ou um texto do log',
+      ),
+      const SizedBox(height: 6),
+      _field(
+        const ValueKey('config-dev-path'),
+        _devPath,
+        'caminho do preview: ex.: /login (padrão /)',
       ),
       _label(
         'Revisor automático',

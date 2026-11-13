@@ -61,6 +61,44 @@ void main() {
     );
   });
 
+  test('dev: (SPEC-051 R1): short and long forms, round trip, absent = '
+      'null', () {
+    expect(ProjectConfig.parse('specs: docs/specs\n').dev, isNull);
+    expect(const ProjectConfig().toYaml(), isNot(contains('dev:')));
+
+    final short = ProjectConfig.parse(
+      r'dev: npm run dev -- --port $PROMPTORIUM_PORT'
+      '\n',
+    );
+    expect(
+      short.dev,
+      const DevServerConfig(
+        command: r'npm run dev -- --port $PROMPTORIUM_PORT',
+      ),
+    );
+    expect(short.dev!.readyText, isNull);
+    expect(short.dev!.path, '/');
+    expect(short.toYaml(), contains('dev: "npm run dev -- --port'));
+    expect(ProjectConfig.parse(short.toYaml()), short);
+
+    final long = ProjectConfig.parse(
+      'dev:\n  comando: vite\n  pronto: ready in\n  caminho: login\n',
+    );
+    expect(long.dev!.command, 'vite');
+    expect(long.dev!.readyText, 'ready in');
+    expect(long.dev!.path, '/login');
+    expect(long.toYaml(), contains('dev:\n  comando: vite\n'));
+    expect(ProjectConfig.parse(long.toYaml()), long);
+
+    final port = ProjectConfig.parse(
+      'dev:\n  comando: vite\n  pronto: porta\n',
+    );
+    expect(port.dev!.readyText, isNull);
+    expect(port.dev!.isShort, isTrue);
+    expect(ProjectConfig.parse('dev:\n  pronto: porta\n').dev, isNull);
+    expect(long.copyWith(dev: () => null).toYaml(), isNot(contains('dev:')));
+  });
+
   test('validateSpecsDir', () {
     expect(ProjectConfig.validateSpecsDir('specs'), isNull);
     expect(ProjectConfig.validateSpecsDir('docs/specs'), isNull);
