@@ -216,6 +216,7 @@ Future<Spec> createSpecFromConversation(
     code: code,
     title: title,
     path: rel,
+    inTray: true,
   );
 }
 

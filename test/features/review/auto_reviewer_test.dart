@@ -196,6 +196,7 @@ void main() {
     final prompt = reviewerPrompt(
       spec: Spec(
         hasPlan: false,
+        inTray: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',

@@ -42,6 +42,7 @@ class _Settings extends AppSettingsController {
 
 Spec specRow(int id, String code, String title) => Spec(
   hasPlan: false,
+  inTray: false,
   id: id,
   workspaceId: 1,
   code: code,

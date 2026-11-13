@@ -49,7 +49,7 @@ import 'widgets/step_trace_panel.dart';
 import 'widgets/subagents_editor.dart';
 import '../board/widgets/subagent_status.dart' show specSubagentsProvider;
 import '../board/board_rules.dart'
-    show canArchiveSpec, canDeleteSpec, specStageLabel, stepsOf;
+    show canArchiveSpec, canDeleteSpec, isInTray, specStageLabel, stepsOf;
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
 
@@ -1000,7 +1000,27 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _saved = r.text;
       _controller!.text = r.text;
       ref.read(specDirtyProvider.notifier).set(false);
-      _snack('${spec.code} aprovada.');
+      final saved = r.spec;
+      if (!isInTray(saved)) {
+        _snack('${spec.code} aprovada.');
+        return;
+      }
+      // SPEC-068 R8: approving does not put it on the Quadro.
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showAppToast(
+          SnackBar(
+            key: const ValueKey('spec-approved-tray'),
+            content: Text('${spec.code} aprovada · na Bandeja do Quadro'),
+            action: SnackBarAction(
+              key: const ValueKey('spec-approved-take'),
+              label: 'Levar para o Backlog',
+              onPressed: () => unawaited(
+                ref.read(specsRepoProvider).setInTray([saved.id], false),
+              ),
+            ),
+          ),
+        );
     });
   }
 

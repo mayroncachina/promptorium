@@ -20,8 +20,10 @@ import 'plan_ready.dart';
 import 'prompt_actions.dart';
 import 'refine_changes.dart';
 import 'refine_origin.dart';
+import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
+import 'widgets/spec_batch_dialog.dart';
 import 'widgets/conversation_list.dart';
 import 'widgets/prompt_composer.dart';
 import 'widgets/prompt_welcome.dart';
@@ -721,8 +723,20 @@ class _Conversation extends ConsumerWidget {
       emptyText: 'Sem mensagens ainda.',
       editInfo: progress == null ? null : (t) => progress.edits[t.id],
       answerFooter: (item) {
-        final spec = detectAnswerSpec(item.text);
-        return spec == null ? null : AnswerSpecBar(conversation: c, spec: spec);
+        final specs = detectAnswerSpecs(item.text);
+        if (specs.isEmpty) return null;
+        if (specs.length == 1) {
+          return AnswerSpecBar(conversation: c, spec: specs.single);
+        }
+        final answer = finishedAnswers(snap.items).indexOf(item);
+        return AnswerSpecsBar(
+          conversation: c,
+          items: [
+            for (var i = 0; i < specs.length; i++)
+              SpecBatchItem.of(i, specs[i]),
+          ],
+          answer: answer < 0 ? null : answer,
+        );
       },
     );
   }

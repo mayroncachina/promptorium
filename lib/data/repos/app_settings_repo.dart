@@ -60,6 +60,9 @@ abstract final class AppSettingKeys {
   /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
   static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';
 
+  /// Quadro: the Bandeja is open (`1` / `0`; SPEC-068 R7).
+  static String boardTrayOpen(int workspaceId) => 'board.trayOpen.$workspaceId';
+
   /// Sprint chosen on the Quadro (SPEC-042 R2).
   static String boardSprint(int workspaceId) => 'board.sprint.$workspaceId';
 
