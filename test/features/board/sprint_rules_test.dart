@@ -9,6 +9,8 @@ Spec spec(
   SpecStage stage = SpecStage.backlog,
   List<String> deps = const [],
 }) => Spec(
+  hasPlan: false,
+  inTray: false,
   id: id,
   workspaceId: 1,
   code: 'SPEC-${id.toString().padLeft(3, '0')}',

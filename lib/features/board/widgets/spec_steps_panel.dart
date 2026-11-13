@@ -601,7 +601,7 @@ class _StepRow extends ConsumerWidget {
           padding: EdgeInsets.zero,
           iconSize: 14,
           tooltip: 'Marcar',
-          color: AppColors.panel,
+          color: AppColors.panelSolid,
           icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
           onSelected: (v) => switch (v) {
             'done' =>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Tremor · ritmo, regras e movimento reduzido</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.chip{height:28px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(10,12,16,.35);color:#A0A8B6;font-size:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.quiet{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#A0A8B6;font-weight:500;white-space:nowrap}
+.col{border-radius:16px;border:1px solid rgba(255,255,255,.07);background:rgba(25,29,36,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);display:flex;flex-direction:column}
+.colh{display:flex;align-items:center;gap:8px;padding:14px 14px 10px;font:600 12px 'IBM Plex Sans';letter-spacing:.08em;color:#C9CED8}
+.dot{width:7px;height:7px;border-radius:4px}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;color:#8A93A3;font-size:12px}
+.card{margin:0 10px;border-radius:12px;background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);padding:12px 12px 10px}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.cta svg{transition:transform .12s ease-out}
+.cta .sheen{position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:translateX(-140%) skewX(-18deg)}
+.cta:focus-visible,.fill:focus-visible,.ghost:focus-visible,.seg button:focus-visible{outline:2px solid #FFD08A;outline-offset:3px}
+.fill:disabled{background:rgba(242,165,65,.28);color:rgba(26,18,6,.75);cursor:not-allowed}
+.cta.live{transition:background .12s ease-out,box-shadow .12s ease-out,transform .1s ease-out}
+.cta.live:hover{background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)}
+.cta.live:hover svg{transform:rotate(90deg)}
+.cta.live:hover .sheen{animation:sheen .45s ease-out 1}
+.cta.live:active{transform:scale(.97);box-shadow:0 0 10px rgba(242,165,65,.3)}
+.cta.live:focus-visible{outline:2px solid #FFD08A;outline-offset:3px}
+@keyframes sheen{0%{transform:translateX(-140%) skewX(-18deg);opacity:1}100%{transform:translateX(300%) skewX(-18deg);opacity:1}}
+.cta.breathe{animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(242,165,65,0)}50%{box-shadow:0 0 0 1px rgba(242,165,65,.45),0 0 26px rgba(242,165,65,.5)}}
+.seg{display:inline-flex;position:relative;padding:3px;gap:2px;border-radius:11px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.seg button{position:relative;z-index:1;height:32px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg button[aria-checked=true]{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.fill{height:30px;padding:0 14px;border:0;border-radius:15px;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ghost{height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#F2A541;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.guide{position:absolute;border-left:1px dashed rgba(79,209,181,.7)}
+@media (prefers-reduced-motion: reduce){.cta,.cta svg,.cta.live{transition:background .12s linear}.cta.live:hover svg{transform:none}.cta.live:hover .sheen{animation:none}.cta.live:active{transform:none}.cta.breathe{animation:none}}
+
+.att{border:1.5px solid #F2A541!important;box-shadow:0 0 0 3px rgba(242,165,65,.18),0 0 22px rgba(242,165,65,.22)}
+.selo{position:absolute;top:-11px;right:12px;height:22px;padding:0 9px;border-radius:11px;background:#F2A541;color:#1A1206;font:600 11px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.motivo{font-size:12px;color:#E7E9EE;margin:-4px 0 10px}
+.ghost-shake{position:absolute;inset:0;border-radius:12px;border:1.5px solid rgba(242,165,65,.35);pointer-events:none}
+@keyframes tremor{0%,100%{transform:none}.7%{transform:translateX(-3px) rotate(-.6deg)}1.4%{transform:translateX(3px) rotate(.6deg)}2.1%{transform:translateX(-2px) rotate(-.4deg)}2.8%{transform:translateX(2px) rotate(.4deg)}3.5%{transform:translateX(-1px)}4.2%{transform:none}}
+@keyframes tremor5{0%,100%{transform:none}1.4%{transform:translateX(-3px) rotate(-.6deg)}2.8%{transform:translateX(3px) rotate(.6deg)}4.2%{transform:translateX(-2px) rotate(-.4deg)}5.6%{transform:translateX(2px) rotate(.4deg)}7%{transform:translateX(-1px)}8.4%{transform:none}}
+.treme{animation:tremor 10s ease-in-out infinite}
+.treme.vez2{animation-delay:5s}
+.treme.so{animation:tremor5 5s ease-in-out infinite}
+.treme:hover,.treme:focus-within{animation:none}
+.card:focus-visible,nav button:focus-visible{outline:2px solid #FFD08A;outline-offset:3px}
+.lane{position:relative;height:30px;border-radius:8px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06)}
+.tick{position:absolute;top:5px;height:20px;border-radius:5px;font:600 11px 'IBM Plex Sans';color:#1A1206;display:flex;align-items:center;justify-content:center}
+.sw{display:inline-flex;width:40px;height:22px;border-radius:11px;background:#F2A541;position:relative}
+.sw::after{content:'';position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:8px;background:#1A1206}
+.marcas::before,.marcas::after{content:'';position:absolute;top:28%;height:44%;width:5px;border-left:2px solid rgba(242,165,65,.7);border-right:2px solid rgba(242,165,65,.35)}
+.marcas::before{left:-13px}.marcas::after{right:-13px}
+@media (prefers-reduced-motion: reduce){.treme{animation:none}}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px"><div class="dots" aria-hidden="true"></div><div style="position:absolute;inset:0;padding:28px 36px">
+ <h1 style="margin:0;font-size:22px;font-weight:600">Tremor de atenção · ritmo e regras</h1>
+ <p style="margin:6px 0 0;color:#A0A8B6;font-size:13px">pequeno, rápido e raro: um "ei" de 420 ms, não um alarme</p>
+ <div class="g" style="border-radius:16px;padding:16px 18px;margin-top:20px"><div style="font-weight:600;font-size:14px;margin-bottom:12px">Um tremor, quadro a quadro (deslocamento ampliado 3× no desenho; traço = repouso)</div><div style="display:flex;justify-content:space-between"><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(0px) rotate(0deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">0 ms · +0 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(-9px) rotate(-1.7999999999999998deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">70 ms · -3 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(9px) rotate(1.7999999999999998deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">140 ms · +3 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(-6px) rotate(-1.2000000000000002deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">210 ms · -2 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(6px) rotate(1.2000000000000002deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">280 ms · +2 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(-3px) rotate(0deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">350 ms · -1 px</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:150px;height:64px;position:relative"><div style="position:absolute;inset:0;border-radius:10px;border:1px dashed rgba(255,255,255,.18)"></div><div class="att" style="position:absolute;inset:0;border-radius:10px;background:rgba(34,39,50,.75);transform:translateX(0px) rotate(0deg);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div></div><span class="mono" style="font-size:11px;color:#A0A8B6">420 ms · +0 px</span></div></div></div>
+ <div class="g" style="border-radius:16px;padding:16px 18px;margin-top:16px"><div style="font-weight:600;font-size:14px">Um minuto com dois cards esperando (A e B)</div>
+  <p style="margin:4px 0 12px;font-size:12px;color:#A0A8B6">A treme ao entrar em "precisa de você" e revezam a cada 5 s. Aos 12 s o mouse passa sobre B (faixa hachurada): B foi visto e sai da vez. A segue sozinho e, no 6.º tremor (30 s), para e fica só com o halo até o motivo mudar.</p>
+  <div class="lane" style="width:1280px"><span class="tick" style="left:0.0px;width:34px;background:#F2A541">A1</span><span class="tick" style="left:103.33333333333333px;width:34px;background:#4FD1B5">B1</span><span class="tick" style="left:206.66666666666666px;width:34px;background:#F2A541">A2</span><span class="tick" style="left:310.0px;width:34px;background:#F2A541">A3</span><span class="tick" style="left:413.3333333333333px;width:34px;background:#F2A541">A4</span><span class="tick" style="left:516.6666666666667px;width:34px;background:#F2A541">A5</span><span class="tick" style="left:620.0px;width:34px;background:#F2A541">A6</span><span title="mouse sobre B" style="position:absolute;left:248.0px;top:2px;height:24px;width:41.333333333333336px;border-radius:6px;background:repeating-linear-gradient(45deg,rgba(79,209,181,.25) 0 6px,transparent 6px 12px);border:1px dashed rgba(79,209,181,.7)"></span><span style="position:absolute;left:661.3333333333334px;top:6px;font:500 12px IBM Plex Sans;color:#A0A8B6">depois do 6.º: só o halo, sem tremor, até o motivo mudar</span></div><div style="position:relative;height:20px"><span class="mono" style="position:absolute;left:0.0px;top:4px;font-size:11px;color:#A0A8B6">0 s</span><span class="mono" style="position:absolute;left:206.66666666666666px;top:4px;font-size:11px;color:#A0A8B6">10 s</span><span class="mono" style="position:absolute;left:413.3333333333333px;top:4px;font-size:11px;color:#A0A8B6">20 s</span><span class="mono" style="position:absolute;left:620.0px;top:4px;font-size:11px;color:#A0A8B6">30 s</span><span class="mono" style="position:absolute;left:826.6666666666666px;top:4px;font-size:11px;color:#A0A8B6">40 s</span><span class="mono" style="position:absolute;left:1033.3333333333335px;top:4px;font-size:11px;color:#A0A8B6">50 s</span><span class="mono" style="position:absolute;left:1240.0px;top:4px;font-size:11px;color:#A0A8B6">60 s</span></div></div>
+ <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px">
+  <div class="g" style="border-radius:16px;padding:16px 18px"><div style="font-weight:600;font-size:14px">Quando para</div><ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:#C9CED8;line-height:1.5"><li style="margin:6px 0"><b>Para</b> com o mouse em cima, foco do teclado ou card selecionado: conta como "visto".</li><li style="margin:6px 0"><b>Espera</b> durante arraste, diálogo, menu ou paleta, e com a janela sem foco.</li><li style="margin:6px 0"><b>No máximo 6</b> tremores seguidos por card; depois só o halo, até o motivo mudar.</li><li style="margin:6px 0"><b>Nunca dois</b> cards ao mesmo tempo: revezam na ordem da fila de atenção.</li><li style="margin:6px 0"><b>Custo:</b> 420 ms de quadros a cada 5 s; entre um e outro, nenhum quadro (Timer).</li></ul></div>
+  <div class="g" style="border-radius:16px;padding:16px 18px"><div style="font-weight:600;font-size:14px;margin-bottom:12px">Sem tremor · e ao vivo</div><div style="display:flex;gap:16px;align-items:center"><div style="width:180px;height:64px;border-radius:10px;background:rgba(34,39,50,.75);border:1.5px solid #F2A541;box-shadow:0 0 0 3px rgba(242,165,65,.28);display:flex;align-items:center;justify-content:center;font-size:12px">SPEC-012</div><span style="font-size:12px;color:#A0A8B6;line-height:1.6">Movimento reduzido ou opção desligada:<br>nada treme; fica o brilho fixo da SPEC-030 R6.</span></div>
+   <div style="margin-top:14px;font-size:12px;color:#A0A8B6">Ao vivo (passe o mouse para parar):</div><div style="width:260px;margin-top:20px"><article class="card att treme so" tabindex="0" aria-label="SPEC-012 · Exportar relatório em PDF · precisa de você: Etapa 3 · aprovar o plano" style="position:relative;margin:0 10px 10px;margin:0"><span class="selo"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M2 2h8v6H5l-3 2z" fill="#1A1206"/></svg>Precisa de você</span><div style="display:flex;justify-content:space-between" class="mono"><span style="font-size:11px;color:#A0A8B6">SPEC-012</span><span style="font:500 11px 'IBM Plex Sans';color:#A0A8B6">Em execução</span></div><div style="font-weight:600;font-size:13px;margin:6px 0 10px">Exportar relatório em PDF</div><div class="motivo">Etapa 3 · aprovar o plano</div><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;gap:5px;align-items:center"><span style="width:9px;height:9px;border-radius:5px;background:#4FD1B5"></span><span style="width:9px;height:9px;border-radius:5px;background:#4FD1B5"></span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 12 12"><path d="M2 2h8v6H5l-3 2z" fill="#F2A541"/></svg><span style="width:9px;height:9px;border-radius:5px;border:1.5px solid #7C8595"></span><span style="width:9px;height:9px;border-radius:5px;border:1.5px solid #7C8595"></span></div><span class="mono" style="font-size:11px;color:#A0A8B6">2/5</span></div></article></div></div>
+ </div></div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

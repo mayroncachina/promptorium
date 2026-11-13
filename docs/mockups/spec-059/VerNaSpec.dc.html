@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Trecho da spec junto da pergunta</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1);box-shadow:0 0 16px rgba(242,165,65,.25)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sep{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+/* Item em destaque do Prompt */
+.hero{position:relative;width:48px;height:58px;border-radius:13px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+ background:linear-gradient(160deg,rgba(242,165,65,.20),rgba(79,209,181,.10));border:1px solid rgba(242,165,65,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.hero span.lb{font:600 10.5px 'IBM Plex Sans';color:#E7E9EE;letter-spacing:.01em}
+.hero.hov{background:linear-gradient(160deg,rgba(242,165,65,.28),rgba(79,209,181,.14));border-color:rgba(242,165,65,.5)}
+.hero.on{background:linear-gradient(160deg,rgba(242,165,65,.34),rgba(242,165,65,.16));border-color:rgba(242,165,65,.7);box-shadow:0 0 0 1px rgba(242,165,65,.25),0 0 22px rgba(242,165,65,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+.hero.on span.lb{color:#FFD08A}
+.hero.foc{outline:2px solid #FFD08A;outline-offset:3px}
+.live{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:#4FD1B5;box-shadow:0 0 0 2px rgba(10,12,16,.9),0 0 10px rgba(79,209,181,.8);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:5}
+.note.warn{background:#F2A541}
+.arrow{position:absolute;border-top:1px dashed rgba(79,209,181,.8);z-index:5}
+.mode{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.mode.sel{border-color:rgba(242,165,65,.6);box-shadow:0 0 0 1px rgba(242,165,65,.3),inset 0 1px 0 rgba(255,255,255,.06);background:rgba(242,165,65,.07)}
+.mode h3{margin:0;font:600 15px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.mode p{margin:0;font-size:13px;color:#A0A8B6;line-height:1.45}
+.lvl{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font:500 11px 'IBM Plex Sans';width:max-content}
+.ex{display:block;text-align:left;width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.35);color:#C9CED8;font:400 12.5px 'IBM Plex Sans'}
+.ex::before{content:'“';color:#7C8595;margin-right:2px}
+.ex::after{content:'”';color:#7C8595;margin-left:1px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:10px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09)}
+.seg b{height:28px;padding:0 12px;border-radius:7px;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg b.on{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.conv{padding:9px 10px;border-radius:10px;font-size:12.5px;color:#C9CED8;display:flex;flex-direction:column;gap:3px}
+.conv small{font-size:11px;color:#7C8595}
+.tile{border-radius:16px;padding:20px;position:relative}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+table.k{border-collapse:collapse;font-size:12.5px;width:100%}
+table.k td,table.k th{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+table.k th{font:600 11px 'IBM Plex Sans';color:#7C8595;letter-spacing:.06em;text-transform:uppercase}
+@media (prefers-reduced-motion: reduce){.live{animation:none}}
+</style>
+<style>
+.lst{position:absolute;left:72px;top:60px;bottom:44px;width:250px;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.srow{padding:9px 10px;border-radius:9px;font-size:13px;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
+.srow small{font:500 11px 'JetBrains Mono';color:#A0A8B6}
+.srow.sel{background:rgba(242,165,65,.1);border-color:rgba(242,165,65,.4)}
+.ed{position:absolute;left:334px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.edh{height:56px;display:flex;align-items:center;gap:10px;padding:0 14px 0 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.edh h2{margin:0;font:600 16px 'IBM Plex Sans'}
+.code{padding:12px 0;font:400 13px/1.75 'JetBrains Mono';white-space:pre;color:#C9CED8}
+.code i{font-style:normal;display:inline-block;width:46px;text-align:right;padding-right:14px;color:#5B6372}
+.panel{position:absolute;right:8px;top:116px;bottom:44px;width:430px;border-left:1px solid rgba(255,255,255,.08);background:#161A21;padding:18px;display:flex;flex-direction:column;gap:12px;border-radius:0 0 16px 0}
+.focus{position:absolute;left:72px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden;background:#11141A;border:1px solid rgba(255,255,255,.08)}
+.fh{height:56px;display:flex;align-items:center;gap:12px;padding:0 12px 0 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.fh .t{font:600 14px 'IBM Plex Sans'}
+.fh .s{font:500 12px 'IBM Plex Sans';color:#A0A8B6}
+.col{position:absolute;left:50%;transform:translateX(-50%);width:720px;display:flex;flex-direction:column;gap:14px}
+.steps{display:flex;gap:6px;justify-content:center}
+.st{min-width:64px;height:30px;padding:0 10px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font:600 12px 'JetBrains Mono';border:1px solid rgba(255,255,255,.12);color:#A0A8B6}
+.st.ok{border-color:rgba(79,209,181,.45);background:rgba(79,209,181,.08);color:#7BE3CC}
+.st.on{border-color:#F2A541;background:rgba(242,165,65,.12);color:#FFC879}
+.st.later{border-style:dashed}
+.q{font:600 22px/1.4 'IBM Plex Sans';color:#F1F3F6;text-align:left;margin:4px 0 0}
+.q b{color:#F2A541;font-family:'JetBrains Mono';font-size:18px;margin-right:6px}
+.ctx{font-size:12.5px;color:#A0A8B6;display:flex;align-items:center;gap:8px}
+.ctx a{color:#F2A541;text-decoration:none;font-weight:500}
+.opt{display:flex;gap:14px;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(25,29,36,.6)}
+.opt.on{border-color:#F2A541;background:rgba(242,165,65,.08);box-shadow:0 0 0 1px rgba(242,165,65,.25)}
+.opt.foc{outline:2px solid #FFD08A;outline-offset:3px}
+.rad{width:18px;height:18px;border-radius:9px;border:2px solid #5B6372;flex:none;margin-top:2px}
+.opt.on .rad{border-color:#F2A541;background:radial-gradient(circle,#F2A541 0 4px,transparent 5px)}
+.ot{flex:1}.ot b{font:600 14.5px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.ot p{margin:4px 0 0;font-size:13px;color:#A0A8B6;line-height:1.5}
+.tag{font:500 11px 'IBM Plex Sans';color:#FFC879;border:1px solid rgba(242,165,65,.45);border-radius:6px;padding:1px 7px}
+.key{font:500 11px 'JetBrains Mono';color:#7C8595;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px;height:20px;flex:none}
+.free{margin-top:8px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(10,12,16,.5);padding:10px 12px;font-size:13.5px;color:#7C8595;min-height:42px}
+.free.on{border-color:#F2A541;color:#E7E9EE;min-height:88px}
+.ff{position:absolute;left:0;right:0;bottom:0;height:68px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;background:#11141A}
+.ffin{width:720px;display:flex;align-items:center;gap:10px}
+.btn{height:38px;padding:0 14px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#E7E9EE;font:500 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.btn.pri{background:#F2A541;color:#1A1206;border:0;font-weight:600}
+.btn kbd{font:500 10.5px 'JetBrains Mono';opacity:.75}
+.close{height:32px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#C9CED8;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.excerpt{border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.55);font:400 12.5px/1.7 'JetBrains Mono';white-space:pre;color:#A0A8B6;padding:8px 0;overflow:hidden}
+.excerpt i{font-style:normal;display:inline-block;width:40px;text-align:right;padding-right:12px;color:#5B6372}
+.excerpt .ln{display:block}.excerpt .hl{background:rgba(242,165,65,.1);display:block;color:#E7E9EE;box-shadow:inset 2px 0 0 #F2A541}
+.rv{display:flex;gap:14px;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(25,29,36,.6)}
+.rv .id{font:600 13px 'JetBrains Mono';color:#F2A541;width:28px;flex:none}
+.rv h4{margin:0;font:600 14px 'IBM Plex Sans'}
+.rv p{margin:6px 0 0;font-size:13px;color:#C9CED8;display:flex;gap:6px}
+.rv .ed2{margin-left:auto;color:#F2A541;font:500 12px 'IBM Plex Sans';white-space:nowrap}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V9a5 5 0 0 1 10 0v4l1 1H4zM8 17h4"/></svg>
+ <button class="cta" aria-label="Nova spec"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4v12M4 10h12"/></svg><span>Nova spec</span></button>
+</header><nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0"><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14M3 10h14M3 15h9"/></svg><span class="badge">7</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm3 4-2 5-5 2 2-5 5-2Z"/></svg></div><div class="sep"></div><div class="hero " role="button" aria-label="Prompt"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4H6.5A3.5 3.5 0 0 0 3 7.5v7A3.5 3.5 0 0 0 6.5 18H8v3.2l4.2-3.2h5.3a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M7.5 9.8h5.5M7.5 13.2h3.5"/><path d="M18.5 1.5l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z" fill="#F2A541" stroke="none"/></svg><span class="lb">Prompt</span></div><div class="sep"></div><div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg><span class="badge">2</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a4 4 0 0 0 8 0M14 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h10v10H5zM8 3v3M12 3v3"/></svg></div><div style="flex:1"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg></div></nav><footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>2 sessões ativas</span><span style="flex:1"></span><span class="mono">0.13.0</span></footer><section class="focus" role="dialog" aria-modal="true" aria-label="Responder perguntas"><div class="fh"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg><span class="t">Responder perguntas</span><span class="s">SPEC-012 · Grupos de máquinas · pergunta 3 de 4</span><span style="flex:1"></span><span class="s">salvo automaticamente</span><button class="close"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l10 10M15 5 5 15"/></svg>Fechar <span class="mono" style="font-size:10.5px;color:#7C8595">Esc</span></button></div><div class="col" style="top:84px"><div class="steps" role="tablist" aria-label="Perguntas"><span class="st ok"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#7BE3CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3 3 7-7"/></svg>P1</span><span class="st ok"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#7BE3CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3 3 7-7"/></svg>P2</span><span class="st on">P3</span><span class="st ">P4</span></div><p class="q"><b>P3</b>Ao agrupar máquinas que já pertencem a outro grupo, o sistema deve movê-las, pedir confirmação ou recusar?</p><div class="ctx"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg>Linhas 8–10 de Perguntas em aberto · <a href="#">Esconder trecho <svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12l3-3 3 3"/></svg></a></div><div class="excerpt"><span class="ln"><i>6</i>- P2 · O filtro de grupo deve ser lembrado entre as sessões?</span><span class="ln"><i>7</i>  - Sugestão: voltar para "All hosts" ao abrir.</span><span class="ln hl"><i>8</i>- P3 · Ao agrupar máquinas de outro grupo, mover, pedir</span><span class="ln hl"><i>9</i>  confirmação ou recusar?</span><span class="ln hl"><i>10</i>  - Sugestão: pedir confirmação, listando as máquinas.</span><span class="ln"><i>11</i>- P4 · Excluir um grupo apaga as máquinas?</span><span class="ln"><i>12</i>  - Sugestão: não; as máquinas voltam para "Sem grupo".</span></div><div class="opt on" role="radio" aria-checked="true"><span class="rad"></span><div class="ot"><b>Pedir confirmação<span class="tag">Sugestão da spec</span></b><p>Lista as máquinas que mudam de grupo e pede para confirmar.</p></div><span class="key">1</span></div><div class="opt" role="radio" aria-checked="false"><span class="rad"></span><div class="ot"><b>Mover sem perguntar</b><p>Mais rápido; o aviso depois de agrupar mostra quantas mudaram.</p></div><span class="key">2</span></div><div class="opt" role="radio" aria-checked="false"><span class="rad"></span><div class="ot"><b>Recusar</b><p>Avisa que as máquinas já têm grupo; é preciso tirá-las antes.</p></div><span class="key">3</span></div><div class="opt" role="radio" aria-checked="false"><span class="rad"></span><div class="ot"><b>Outra resposta</b><div class="free">Escreva a sua resposta…</div></div><span class="key">4</span></div></div><div class="ff"><div class="ffin"><button class="btn"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#E7E9EE" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l-5 5 5 5"/></svg>Anterior</button><span style="flex:1"></span><button class="btn"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#E7E9EE" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 6v4l3 2"/></svg>Deixar para depois</button><button class="btn pri">Próxima<svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg><kbd>Enter</kbd></button></div></div></section><div class="note" style="left:1160px;top:250px;z-index:9">← “Ver na spec” abre o trecho aqui, sem sair</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

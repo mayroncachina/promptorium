@@ -24,6 +24,75 @@ class StepColorTransition extends StatelessWidget {
   );
 }
 
+/// The segment of an active step breathes (SPEC-065 R2): opacity 100% →
+/// 40% → 100% in [period], while [active]. Off, or with reduced motion, it
+/// is fully opaque and no ticker runs (R3, R4).
+class StepPulse extends StatefulWidget {
+  const StepPulse({super.key, required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  static const period = Duration(milliseconds: 2400);
+
+  /// Lowest opacity of the pulse.
+  static const low = .4;
+
+  @override
+  State<StepPulse> createState() => _StepPulseState();
+}
+
+class _StepPulseState extends State<StepPulse>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _c;
+
+  void _sync() {
+    final run = widget.active && AppMotion.animate(context);
+    if (run && _c == null) {
+      _c = AnimationController(vsync: this, duration: StepPulse.period)
+        ..repeat();
+    } else if (!run && _c != null) {
+      _c!.dispose();
+      _c = null;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant StepPulse old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _c?.dispose();
+    super.dispose();
+  }
+
+  /// Opacity at [t] of the period: 1 → [StepPulse.low] → 1, eased.
+  static double opacityAt(double t) {
+    final half = t < .5 ? t * 2 : (1 - t) * 2;
+    return 1 - (1 - StepPulse.low) * Curves.easeInOut.transform(half);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _c;
+    if (c == null) return widget.child;
+    return AnimatedBuilder(
+      animation: c,
+      child: widget.child,
+      builder: (_, child) => Opacity(opacity: opacityAt(c.value), child: child),
+    );
+  }
+}
+
 /// The ball of a step: a ring in the status colour that fills while its check
 /// draws itself, once, when the step is concluded (R9). A step already done
 /// when this mounts shows the finished check.

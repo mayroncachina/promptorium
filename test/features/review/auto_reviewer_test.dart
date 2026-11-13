@@ -195,6 +195,8 @@ void main() {
       'own reviewer agent', () {
     final prompt = reviewerPrompt(
       spec: Spec(
+        hasPlan: false,
+        inTray: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',

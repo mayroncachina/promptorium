@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 21;
+const appSchemaVersion = 24;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -127,6 +127,10 @@ class Specs extends Table {
       .map(const StringListConverter())
       .withDefault(const Constant('[]'))();
 
+  /// The file has a `## Plano` (SPEC-062 R2, schema v23): "Planejada" in
+  /// the list while not approved yet.
+  BoolColumn get hasPlan => boolean().withDefault(const Constant(false))();
+
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   TextColumn get phase => text().nullable()();
 
@@ -183,6 +187,29 @@ class Specs extends Table {
     #id,
     onDelete: KeyAction.setNull,
   )();
+
+  // --- origin in the Prompt (SPEC-068 R6, schema v24) ------------------------
+
+  /// Conversation whose answer the spec came from (null = any other way).
+  /// Not in the file: the conversation belongs to the app, not the repo.
+  IntColumn get originConversationId => integer().nullable()();
+
+  /// Index of the answer among the conversation's answers, and of the spec
+  /// among the answer's specs.
+  IntColumn get originAnswer => integer().nullable()();
+  IntColumn get originItem => integer().nullable()();
+
+  /// Code and title the spec had in the answer (`SPEC-A`): a regenerated
+  /// answer with the same pair counts as already created.
+  TextColumn get originAlias => text().nullable()();
+  TextColumn get originTitle => text().nullable()();
+
+  // --- the Bandeja of the Quadro (SPEC-068 R7, R8, schema v24) --------------
+
+  /// Waits in the Bandeja: a new spec enters here, approving keeps it here,
+  /// and only "Levar para o Backlog" puts it on the Quadro. False for every
+  /// spec that already existed (they stay where they were).
+  BoolColumn get inTray => boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -597,6 +624,9 @@ class Conversations extends Table {
   /// Spec text when the refine conversation was created (SPEC-026 R8,
   /// schema v18). Null for other modes and older conversations.
   TextColumn get refineBaseText => text().nullable()();
+
+  /// When it was archived (SPEC-056 R4, schema v22). Null = active.
+  DateTimeColumn get archivedAt => dateTime().nullable()();
 }
 
 /// Raw stream-json lines of a conversation (same format as [SessionEvents]).
@@ -1024,6 +1054,39 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('specs') &&
                 !await _hasColumn('specs', 'sprint_id')) {
               await m.addColumn(v.specs, v.specs.sprintId);
+            }
+          },
+          // v22: archived conversations of the Prompt (SPEC-056 R4).
+          from21To22: (m, v) async {
+            if (await _hasTable('conversations') &&
+                !await _hasColumn('conversations', 'archived_at')) {
+              await m.addColumn(v.conversations, v.conversations.archivedAt);
+            }
+          },
+          // v23: specs with a `## Plano` (SPEC-062 R2); filled by the next
+          // reading of the files.
+          from22To23: (m, v) async {
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'has_plan')) {
+              await m.addColumn(v.specs, v.specs.hasPlan);
+            }
+          },
+          // v24: where a spec created from a Prompt answer came from
+          // (SPEC-068 R6), null for every spec that already exists; and the
+          // Bandeja (R7, R8), off for them: the Quadro keeps its cards.
+          from23To24: (m, v) async {
+            if (!await _hasTable('specs')) return;
+            for (final c in [
+              v.specs.originConversationId,
+              v.specs.originAnswer,
+              v.specs.originItem,
+              v.specs.originAlias,
+              v.specs.originTitle,
+              v.specs.inTray,
+            ]) {
+              if (!await _hasColumn('specs', c.name)) {
+                await m.addColumn(v.specs, c);
+              }
             }
           },
         ),

@@ -31,6 +31,8 @@ class AgentCall {
 }
 
 Spec specRow(String path) => Spec(
+  hasPlan: false,
+  inTray: false,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-022',
@@ -376,5 +378,54 @@ void main() {
     expect(index.emptied, isEmpty);
     expect(index.history.last.request, 'Gerar tela do R1');
     expect(index.history.last.requirements, ['R1']);
+  });
+
+  test('SPEC-067 R6 R7: the shown version is the saved choice, else the '
+      'approved one, else the newest; show() saves it and deleting it falls '
+      'back (undo brings the choice back)', () async {
+    Directory(dir()).createSync(recursive: true);
+    for (final f in ['R1-lista.html', 'R1-lista.b.html', 'R1-lista.c.html']) {
+      File('${dir()}/$f').writeAsStringSync('<p>$f</p>');
+    }
+    // B was made last (after a deleted C came back): time beats letter.
+    await PrototypeIndex(
+      screens: {
+        'R1-lista.html': ScreenMeta(createdAt: DateTime(2026, 11, 1, 9)),
+        'R1-lista.b.html': ScreenMeta(createdAt: DateTime(2026, 11, 1, 11)),
+        'R1-lista.c.html': ScreenMeta(createdAt: DateTime(2026, 11, 1, 10)),
+      },
+    ).write(dir());
+    // What reopening the spec reads.
+    var state = const PrototypeState();
+    Future<void> reopen() async => state = PrototypeState(
+      screens: await listScreens(dir()),
+      index: await PrototypeIndex.read(dir()),
+    );
+    String? shown({String? approved}) =>
+        shownScreen(state, 'R1', approved: approved)?.file;
+    await reopen();
+
+    expect(state.requirements, ['R1']);
+    expect(shown(), 'R1-lista.b.html');
+    expect(shown(approved: 'R1-lista.html'), 'R1-lista.html');
+    expect(shownScreen(state, 'R9'), isNull);
+
+    final service = c.read(prototypeServiceProvider);
+    final row = specRow('specs/SPEC-022.md');
+    final r1c = parseMockupName('R1-lista.c.html')!;
+    await service.show(ws, row, r1c);
+    expect((await PrototypeIndex.read(dir())).shown, {'R1': 'R1-lista.c.html'});
+    await reopen();
+    expect(shown(approved: 'R1-lista.html'), 'R1-lista.c.html');
+
+    final removed = await service.removeAll(ws, row, [r1c]);
+    expect((await PrototypeIndex.read(dir())).shown, isEmpty);
+    await reopen();
+    expect(shown(approved: 'R1-lista.html'), 'R1-lista.html');
+    expect(shown(), 'R1-lista.b.html');
+    await service.restore(ws, row, removed);
+    expect((await PrototypeIndex.read(dir())).shown, {'R1': 'R1-lista.c.html'});
+    await reopen();
+    expect(shown(), 'R1-lista.c.html');
   });
 }

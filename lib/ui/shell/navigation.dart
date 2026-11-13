@@ -9,6 +9,9 @@ enum AppSection {
   home('Início', null),
   project('Projeto', 'Novo projeto'),
   sessions('Sessões', 'Nova sessão'),
+
+  /// The chat with the project: right below Projeto, the one featured item
+  /// of the sidebar (SPEC-055).
   prompt('Prompt', 'Nova conversa'),
   specs('Specs', 'Nova spec'),
 
@@ -36,22 +39,25 @@ enum AppSection {
   /// Contextual primary action in the title bar (null = no button).
   final String? actionLabel;
 
-  /// Main sidebar items, in the order of the work (plano F10, UX v2):
-  /// Início · Projeto · Specs · Quadro · Sessões · Review · Repositório ·
-  /// Código · Prompt · Ferramentas. [agents] stands for "Ferramentas" (Agentes / Skills / MCP
-  /// as tabs).
+  /// Main sidebar items, in the order of the work (plano F10, UX v2,
+  /// SPEC-055 R1): Início · Projeto · Prompt · Specs · Quadro · Sessões ·
+  /// Review · Repositório · Código · Ferramentas. [agents] stands for
+  /// "Ferramentas" (Agentes / Skills / MCP as tabs).
   static const navItems = [
     home,
     project,
+    prompt,
     specs,
     tasks,
     sessions,
     review,
     repository,
     code,
-    prompt,
     agents,
   ];
+
+  /// The bigger item with a label, between separators (SPEC-055 R2).
+  bool get featured => this == prompt;
 
   /// Screens shown as tabs of "Ferramentas".
   static const toolTabs = [agents, skills, mcp];
@@ -74,7 +80,8 @@ enum AppSection {
 
   /// Version of the shortcut layout; a change shows a one-time notice.
   /// 4: Repositório after Review, Ferramentas on Ctrl+0 (SPEC-044).
-  static const shortcutsVersion = 4;
+  /// 5: Prompt on Ctrl+3, below Projeto (SPEC-055 R6).
+  static const shortcutsVersion = 5;
 
   /// Sidebar / palette name: the tools group is "Ferramentas".
   String get navLabel => this == agents ? 'Ferramentas' : label;

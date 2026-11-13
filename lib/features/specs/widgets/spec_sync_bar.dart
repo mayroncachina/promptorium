@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/provider_preferences.dart';
+import '../../../ui/theme/tokens.dart';
 import '../../../data/providers.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
@@ -255,6 +256,25 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
     await _showText('Relatório · ${spec.code}', lines.join('\n'));
   }
 
+  static final _quiet = ButtonStyle(
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? AppColors.textDisabled
+          : states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)
+          ? AppColors.amber
+          : AppColors.textSecondary,
+    ),
+    textStyle: const WidgetStatePropertyAll(
+      TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+    ),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    ),
+    minimumSize: const WidgetStatePropertyAll(Size(0, 28)),
+    visualDensity: VisualDensity.compact,
+  );
+
   @override
   Widget build(BuildContext context) {
     ref.watch(workspaceWatcherProvider);
@@ -273,25 +293,47 @@ class _SpecSyncBarState extends ConsumerState<SpecSyncBar> {
         runSpacing: 2,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Text(
-            'Pasta de specs: $folder/',
-            key: const ValueKey('specs-folder'),
-            style: const TextStyle(fontSize: 11),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.folder_outlined,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Pasta de specs: $folder/',
+                key: const ValueKey('specs-folder'),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-          TextButton(
+          // Secondary actions: quiet until hovered, so the screen's own
+          // actions (Nova spec, Executar) stay the loud ones.
+          TextButton.icon(
             key: const ValueKey('specs-sync'),
+            style: _quiet,
             onPressed: busy || _syncing ? null : _sync,
-            child: Text(_syncing ? 'Sincronizando…' : 'Sincronizar specs'),
+            icon: const Icon(Icons.sync, size: 14),
+            label: Text(_syncing ? 'Sincronizando…' : 'Sincronizar specs'),
           ),
-          TextButton(
+          TextButton.icon(
             key: const ValueKey('specs-verify'),
+            style: _quiet,
             onPressed: busy || !widget.canVerify ? null : _verify,
-            child: const Text('Verificar implementação'),
+            icon: const Icon(Icons.fact_check_outlined, size: 14),
+            label: const Text('Verificar implementação'),
           ),
           if (widget.selected != null)
-            TextButton(
+            TextButton.icon(
+              style: _quiet,
               onPressed: _report,
-              child: const Text('Relatório / origem'),
+              icon: const Icon(Icons.description_outlined, size: 14),
+              label: const Text('Relatório / origem'),
             ),
           if (widget.selected?.stage == SpecStage.done && !busy)
             TextButton(

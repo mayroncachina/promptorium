@@ -113,41 +113,125 @@ void main() {
     expect(file.readAsStringSync(), newFormatSpec);
   });
 
-  test('the alternatives of a question: read-only run, at most two', () async {
-    final run = c
-        .read(specQuestionOptionsProvider)
-        .forQuestion(
-          ws,
-          1,
-          newFormatSpec,
-          const OpenQuestion(id: 'P2', text: 'Lembrar?', suggestion: 'Não'),
-        );
+  test(
+    'the alternatives of a question: read-only run, at most three (SPEC-061)',
+    () async {
+      final run = c
+          .read(specQuestionOptionsProvider)
+          .forQuestion(
+            ws,
+            1,
+            newFormatSpec,
+            const OpenQuestion(id: 'P2', text: 'Lembrar?', suggestion: 'Não'),
+          );
+      await settle();
+      final args = cli.args.single;
+      expect(jsonDecode(option(args, '--json-schema')), questionOptionsSchema);
+      final prompt = '${cli.last.writtenJson.single['message']['content']}';
+      expect(prompt, contains('Pergunta P2: Lembrar?'));
+      expect(prompt, contains('Sugestão da spec: Não'));
+      expect(prompt, isNot(contains('Já mostradas')));
+      cli.last.emit(
+        resultLine({
+          'options': [
+            {'title': 'Lembrar', 'consequence': 'Guarda por usuário.'},
+            {'title': 'Perguntar', 'consequence': 'Pede ao abrir.'},
+            {'title': 'Esquecer', 'consequence': 'Volta ao padrão.'},
+            {'title': 'Demais', 'consequence': ''},
+          ],
+        }),
+      );
+      final alts = await run;
+      expect(alts.map((a) => a.title), ['Lembrar', 'Perguntar', 'Esquecer']);
+      // Cached: no new run for the same question.
+      await c
+          .read(specQuestionOptionsProvider)
+          .forQuestion(
+            ws,
+            1,
+            newFormatSpec,
+            const OpenQuestion(id: 'P2', text: 'Lembrar?', suggestion: 'Não'),
+          );
+      expect(cli.args, hasLength(1));
+    },
+  );
+  test('SPEC-061 R4: "Outras sugestões" asks for a new set without the ones '
+      'already shown, keeps the chosen one in its place and replaces the '
+      'cache', () async {
+    const q = OpenQuestion(id: 'P2', text: 'Lembrar?', suggestion: 'Não');
+    final options = c.read(specQuestionOptionsProvider);
+    final first = options.forQuestion(ws, 1, newFormatSpec, q);
     await settle();
-    final args = cli.args.single;
-    expect(jsonDecode(option(args, '--json-schema')), questionOptionsSchema);
-    final prompt = '${cli.last.writtenJson.single['message']['content']}';
-    expect(prompt, contains('Pergunta P2: Lembrar?'));
-    expect(prompt, contains('Sugestão da spec: Não'));
     cli.last.emit(
       resultLine({
         'options': [
           {'title': 'Lembrar', 'consequence': 'Guarda por usuário.'},
           {'title': 'Perguntar', 'consequence': 'Pede ao abrir.'},
-          {'title': 'Demais', 'consequence': ''},
+          {'title': 'Esquecer', 'consequence': 'Volta ao padrão.'},
         ],
       }),
     );
-    final alts = await run;
-    expect(alts.map((a) => a.title), ['Lembrar', 'Perguntar']);
-    // Cached: no new run for the same question.
-    await c
-        .read(specQuestionOptionsProvider)
-        .forQuestion(
-          ws,
-          1,
-          newFormatSpec,
-          const OpenQuestion(id: 'P2', text: 'Lembrar?', suggestion: 'Não'),
-        );
-    expect(cli.args, hasLength(1));
+    final current = await first;
+
+    // The second one was chosen: it stays, two new ones come.
+    final more = options.more(
+      ws,
+      1,
+      newFormatSpec,
+      q,
+      current: current,
+      keep: 1,
+    );
+    await settle();
+    expect(cli.args, hasLength(2));
+    final prompt = '${cli.last.writtenJson.single['message']['content']}';
+    expect(prompt, contains('Já mostradas (não repita nem reformule):'));
+    expect(prompt, contains('- Lembrar: Guarda por usuário.'));
+    expect(prompt, contains('- Esquecer: Volta ao padrão.'));
+    expect(prompt, contains('Proponha só 2 respostas.'));
+    cli.last.emit(
+      resultLine({
+        'options': [
+          // A repeated one is dropped even when the Claude sends it.
+          {'title': 'lembrar', 'consequence': 'De novo.'},
+          {'title': 'Por workspace', 'consequence': 'Cada pasta lembra.'},
+          {'title': 'Por sessão', 'consequence': 'Some ao fechar.'},
+        ],
+      }),
+    );
+    final next = await more;
+    expect(next.map((a) => a.title), [
+      'Por workspace',
+      'Perguntar',
+      'Por sessão',
+    ]);
+    // The next visit shows the new set, with no new run.
+    expect(
+      (await options.forQuestion(ws, 1, newFormatSpec, q)).map((a) => a.title),
+      ['Por workspace', 'Perguntar', 'Por sessão'],
+    );
+    expect(cli.args, hasLength(2));
+
+    // Nothing chosen: three new ones, none of the five shown before.
+    final again = options.more(ws, 1, newFormatSpec, q, current: next);
+    await settle();
+    final p2 = '${cli.last.writtenJson.single['message']['content']}';
+    for (final t in ['Lembrar', 'Esquecer', 'Por workspace', 'Por sessão']) {
+      expect(p2, contains('- $t:'));
+    }
+    expect(p2, isNot(contains('Proponha só')));
+    cli.last.emit(
+      resultLine({
+        'options': [
+          {'title': 'Perguntar', 'consequence': 'Repetida.'},
+        ],
+      }),
+    );
+    // Only repeated ones: an error, and the cache stays as it was.
+    await expectLater(again, throwsStateError);
+    expect(
+      (await options.forQuestion(ws, 1, newFormatSpec, q)).map((a) => a.title),
+      ['Por workspace', 'Perguntar', 'Por sessão'],
+    );
   });
 }

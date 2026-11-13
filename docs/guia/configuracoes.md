@@ -18,6 +18,16 @@ Modelo (Sonnet, Opus, Haiku, Fable ou padrão do CLI) e esforço padrão para Se
 
 **Suspender por inatividade**: 5, 15 (padrão), 30 ou 60 minutos, ou nunca.
 
+### Aparência
+
+O app usa o tema **Vidro**: painéis translúcidos sobre um fundo escuro com duas luzes (âmbar no alto à esquerda e teal embaixo à direita) e uma grade de pontos. A barra lateral, o cabeçalho e o rodapé flutuam soltos das bordas, e só o que está vivo brilha: o item ativo da barra lateral, a spec rodando, o que precisa de você. Diálogos abrem sobre um desfoque da tela.
+
+**Efeitos de vidro**: Ligados (padrão) ou Desligados. Desligados, o fundo fica liso e nada desfoca. O layout e as cores dos painéis continuam os mesmos. Desligue numa placa de vídeo fraca, num desktop sem aceleração gráfica ou se preferir o visual opaco (veja o requisito mínimo em [Instalação](instalacao.md#requisito-mínimo)).
+
+Para desligar só numa execução, abra o app com `PROMPTORIUM_SEM_VIDRO=1`.
+
+**Tremer cards que precisam de você**: Ligado (padrão) ou Desligado. Ligado, o cartão que espera revisão no Quadro dá um tremor curto a cada 5 s, um por vez e no máximo 6 vezes seguidas ([Quadro](quadro.md#tremor-de-atenção)). Desligado, fica só o halo. Com movimento reduzido no sistema, nunca treme e a opção aparece como Desligado.
+
 ### Automações (hooks)
 
 Hooks gerenciados pelo app nas sessões: "Bloquear comandos perigosos", "Formatar ao editar" e "Registrar fim da sessão". Precisam de `python3`.

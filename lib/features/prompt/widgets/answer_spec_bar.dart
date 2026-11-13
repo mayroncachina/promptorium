@@ -534,6 +534,7 @@ class _AnswerSpecPreviewState extends State<_AnswerSpecPreview> {
       _apply
           ? 'id e status atuais da ${target!.code} são mantidos.'
           : 'id vira $code e o status, rascunho.',
+      ?dependsOnAliasAdjust(_markdown.text),
     ].join(' ');
     final blocked = target == null ? null : applyBlockedReason(target);
 
