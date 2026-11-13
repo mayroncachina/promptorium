@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../claude/run_extensions.dart' show runSettingsDirProvider;
+import '../../features/prompt/conversation_manager.dart'
+    show conversationManagerProvider;
+import '../../features/sessions/session_manager.dart'
+    show sessionManagerProvider;
 import 'app_mcp_server.dart';
 import 'app_mcp_tools.dart';
 
@@ -55,13 +59,32 @@ Future<void> deleteMcpConfig(String path) async {
   try {
     final f = File(path);
     if (await f.exists()) await f.delete();
+  } on PathNotFoundException {
+    // already gone
   } catch (e) {
     debugPrint('servidor MCP: $path não removido — $e');
   }
 }
 
 /// The tools the server serves.
-final appMcpToolsProvider = Provider<McpToolbox>((ref) => AppMcpTools());
+final appMcpToolsProvider = Provider<McpToolbox>(
+  (ref) => AppMcpTools(
+    ref,
+    // R8: the timeline of the run marks what the agent created.
+    onCreated: (grant, text) {
+      if (!ref.mounted) return;
+      final conversation = grant.conversationId;
+      final done = conversation == null
+          ? ref
+                .read(sessionManagerProvider.notifier)
+                .note(grant.sessionId, text)
+          : ref
+                .read(conversationManagerProvider.notifier)
+                .note(conversation, text);
+      done.catchError((Object e) => debugPrint('servidor MCP: nota — $e'));
+    },
+  ),
+);
 
 /// The app's MCP server (null in tests: they override it). Bound on the
 /// first run that needs it (or by the splash) and closed with the app.
