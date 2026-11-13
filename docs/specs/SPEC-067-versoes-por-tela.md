@@ -1,6 +1,6 @@
 ---
 id: SPEC-067
-status: rascunho
+status: aprovada
 issue: 192
 ---
 
@@ -79,7 +79,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/VQgGqnbEkAkyVoFiY3L
 
 ## Critérios de aceite
 
-- [ ] O canvas mostra uma carta por tela, com a letra da versão mostrada e o número de versões.
-- [ ] Clicar na letra abre a aba Versões só com as versões daquela tela.
-- [ ] Escolher outra versão troca a carta na hora e a escolha volta ao reabrir a spec.
-- [ ] Uma variação nova aparece na carta da tela, marcada como "nova".
+- [x] O canvas mostra uma carta por tela, com a letra da versão mostrada e o número de versões.
+- [x] Clicar na letra abre a aba Versões só com as versões daquela tela.
+- [x] Escolher outra versão troca a carta na hora e a escolha volta ao reabrir a spec.
+- [x] Uma variação nova aparece na carta da tela, marcada como "nova".
