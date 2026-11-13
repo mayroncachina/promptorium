@@ -1,6 +1,6 @@
 ---
 id: SPEC-068
-status: rascunho
+status: aprovada
 issue: 194
 ---
 
@@ -120,7 +120,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MSbtTP5X5KuTDei7Bcw
 
 ## Critérios de aceite
 
-- [ ] Uma resposta com três specs oferece criar as três, com os números e o `depende-de` certos.
-- [ ] "Dividir em specs" transforma uma conversa em várias specs, revisadas antes de criar.
-- [ ] Pedir de novo não cria a mesma spec duas vezes.
-- [ ] As specs criadas ficam na Bandeja do Quadro; as aprovadas só vão para o Backlog quando você as leva.
+- [x] Uma resposta com três specs oferece criar as três, com os números e o `depende-de` certos.
+- [x] "Dividir em specs" transforma uma conversa em várias specs, revisadas antes de criar.
+- [x] Pedir de novo não cria a mesma spec duas vezes.
+- [x] As specs criadas ficam na Bandeja do Quadro; as aprovadas só vão para o Backlog quando você as leva.
