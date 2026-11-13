@@ -21,6 +21,7 @@ import 'graph_sources.dart';
 import 'graph_watcher.dart';
 import 'lane_layout.dart';
 import 'spec_branch.dart';
+import '../../../ui/theme/ambient.dart';
 
 /// The Grafo tab (SPEC-045; docs/mockups/spec-045/1-grafo.png).
 final graphTab = RepositoryTab(
@@ -1194,10 +1195,9 @@ class _PulseDot extends StatefulWidget {
   State<_PulseDot> createState() => _PulseDotState();
 }
 
-class _PulseDotState extends State<_PulseDot>
-    with SingleTickerProviderStateMixin {
+class _PulseDotState extends State<_PulseDot> {
   late final AnimationController _c = AnimationController(
-    vsync: this,
+    vsync: AmbientVsync(context),
     duration: const Duration(milliseconds: 1200),
   );
 

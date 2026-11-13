@@ -72,4 +72,67 @@ void main() {
     expect(await db.select(db.sprints).get(), isEmpty);
     await db.close();
   });
+
+  test('v21 → v22 keeps the conversations, all active', () async {
+    final schema = await verifier.schemaAt(21);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO conversations (id, workspace_id, title, model) "
+        "VALUES (1, 1, 'Como funciona o carrinho?', 'sonnet')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.conversations).getSingle();
+    expect(row.title, 'Como funciona o carrinho?');
+    expect(row.archivedAt, equals(null));
+    await db.close();
+  });
+
+  test(
+    'v22 → v23 keeps the specs, none planned until the next reading',
+    () async {
+      final schema = await verifier.schemaAt(22);
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+        )
+        ..execute(
+          "INSERT INTO specs (id, workspace_id, code, title, path) "
+          "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md')",
+        );
+      final db = AppDatabase(schema.newConnection());
+      final row = await db.select(db.specs).getSingle();
+      expect(row.code, 'SPEC-001');
+      expect(row.hasPlan, isFalse);
+      await db.close();
+    },
+  );
+
+  test(
+    'v23 → v24 keeps the specs on the Quadro, with no origin in the Prompt',
+    () async {
+      final schema = await verifier.schemaAt(23);
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+        )
+        ..execute(
+          "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+          "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md', "
+          "'approved')",
+        );
+      final db = AppDatabase(schema.newConnection());
+      final row = await db.select(db.specs).getSingle();
+      expect(row.code, 'SPEC-001');
+      expect(row.status, SpecStatus.approved);
+      expect(row.originConversationId, equals(null));
+      expect(row.originAnswer, equals(null));
+      expect(row.originItem, equals(null));
+      expect(row.originAlias, equals(null));
+      expect(row.originTitle, equals(null));
+      // The Bandeja is for new specs: the ones on the Quadro stay there.
+      expect(row.inTray, isFalse);
+      await db.close();
+    },
+  );
 }

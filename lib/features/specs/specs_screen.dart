@@ -33,6 +33,7 @@ import 'prototype/prototype_service.dart';
 import 'prototype/prototype_view.dart';
 import 'spec_lint.dart';
 import 'spec_planner.dart';
+import 'spec_editor_handle.dart';
 import 'spec_service.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
@@ -48,7 +49,7 @@ import 'widgets/step_trace_panel.dart';
 import 'widgets/subagents_editor.dart';
 import '../board/widgets/subagent_status.dart' show specSubagentsProvider;
 import '../board/board_rules.dart'
-    show canArchiveSpec, canDeleteSpec, specStageLabel, stepsOf;
+    show canArchiveSpec, canDeleteSpec, isInTray, specStageLabel, stepsOf;
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
 
@@ -511,7 +512,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   static const _lintDelay = Duration(milliseconds: 300);
   final _editorFocus = FocusNode(debugLabel: 'spec-editor');
 
-  /// "Responder perguntas" open beside the editor (SPEC-028 R6).
+  /// "Responder perguntas" open over the area (SPEC-028 R6, SPEC-059 R1).
   bool _questionsOpen = false;
 
   /// First-level suggestions counted as questions, marked in the editor
@@ -529,10 +530,15 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     _actions = ref.read(specActionProvider.notifier);
     _nav = ref.read(navigationProvider.notifier);
     _nav.leaveGuard = _guardLeave;
+    _editorHandle = ref.read(specEditorHandleProvider);
   }
+
+  late final SpecEditorHandle _editorHandle;
+  Future<bool> Function()? _boundSave;
 
   @override
   void dispose() {
+    _editorHandle.unbind(_boundSave);
     // R9: the screen is rebuilt on every visit; keep what was not saved.
     final id = _loadedSpecId, text = _controller?.text;
     if (id != null && text != null && _dirty) {
@@ -665,8 +671,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   /// Structure warnings of [text] and the editor marks of the suggestions
   /// counted as questions (SPEC-028 R2).
+  /// Codes of the workspace's specs, for the dependency warnings
+  /// (SPEC-063 R3); empty until the list arrives.
+  Set<String> _knownCodes = const {};
+
   void _setWarnings(String text) {
-    _warnings = lintSpec(text);
+    _warnings = lintSpec(text, knownCodes: _knownCodes);
     final scan = SpecDocument.parse(text).openQuestionsScan;
     _questionMarks.value = {
       for (final l in scan.suggestionLines) l - 1: AppColors.amber,
@@ -717,6 +727,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       // automatic plan no longer touches it (SPEC-037 R13, D7).
       final doc = SpecDocument.parse(c.text);
       if (doc.autoPlanned) c.text = doc.withAutoPlan(false);
+      // SPEC-063 R2: the variation of `depende-de` gets the right name.
+      if (doc.dependsOnAlias != null) {
+        c.text = SpecDocument.parse(c.text).withCanonicalDependsOn();
+      }
       final text = c.text;
       final saved = await ref.read(specServiceProvider).save(ws, spec, text);
       if (!mounted || _docSpecId != spec.id) return saved;
@@ -910,7 +924,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final questions = doc.openQuestions;
     // The format notice has its own strip (SPEC-028 R3).
     final warnings = [
-      for (final w in lintSpec(c.text))
+      for (final w in lintSpec(c.text, knownCodes: _knownCodes))
         if (w.kind != SpecWarningKind.openQuestionsFormat) w,
     ];
     if (questions.isNotEmpty || warnings.isNotEmpty) {
@@ -986,7 +1000,27 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       _saved = r.text;
       _controller!.text = r.text;
       ref.read(specDirtyProvider.notifier).set(false);
-      _snack('${spec.code} aprovada.');
+      final saved = r.spec;
+      if (!isInTray(saved)) {
+        _snack('${spec.code} aprovada.');
+        return;
+      }
+      // SPEC-068 R8: approving does not put it on the Quadro.
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showAppToast(
+          SnackBar(
+            key: const ValueKey('spec-approved-tray'),
+            content: Text('${spec.code} aprovada · na Bandeja do Quadro'),
+            action: SnackBarAction(
+              key: const ValueKey('spec-approved-take'),
+              label: 'Levar para o Backlog',
+              onPressed: () => unawaited(
+                ref.read(specsRepoProvider).setInTray([saved.id], false),
+              ),
+            ),
+          ),
+        );
     });
   }
 
@@ -1056,8 +1090,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
 
   // --- perguntas em aberto (SPEC-028) ---------------------------------------------
 
-  /// "Responder perguntas" (R6): the panel beside the editor, in the place
-  /// of the steps panel (the Protótipo mode goes back to the split view).
+  /// "Responder perguntas" (R6): the session in the center, over the list
+  /// and the editor (SPEC-059 R1); the Protótipo mode goes back to the split
+  /// view.
   void _openQuestions() {
     if (!mounted || _controller == null) return;
     setState(() {
@@ -1071,7 +1106,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   void _closeQuestions() {
     if (!mounted) return;
     setState(() => _questionsOpen = false);
-    _editorFocus.requestFocus();
+    // After the frame: the editor leaves the excluded focus first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _editorFocus.requestFocus();
+    });
   }
 
   /// "Corrigir formato" (R3): the section in the R1 format, in the editor
@@ -1083,6 +1121,24 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     c.text = doc.withOpenQuestions(doc.openQuestions);
     setState(() => _setWarnings(c.text));
     _snack('Formato das perguntas corrigido. Revise e salve.');
+  }
+
+  /// "Trocar para depende-de" on an unknown key (SPEC-063 R4).
+  void _fixWarning(SpecWarning w) {
+    final c = _controller;
+    final k = w.key;
+    if (c == null || k == null) return;
+    c.text = SpecDocument.parse(c.text).withDependsOnFrom(k);
+    setState(() => _setWarnings(c.text));
+  }
+
+  /// "Trocar agora" (SPEC-063 R2): the variation becomes `depende-de` in
+  /// the editor; saving is the person's.
+  void _fixDependsOnAlias() {
+    final c = _controller;
+    if (c == null) return;
+    c.text = SpecDocument.parse(c.text).withCanonicalDependsOn();
+    setState(() => _setWarnings(c.text));
   }
 
   /// "Aplicar respostas" (R10): `## Decisões` written on the editor text
@@ -1198,12 +1254,42 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           .read(prototypeServiceProvider)
           .vary(ws, spec, c.text, selected: selected, request: request);
       final r = await run;
-      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      _variationsReady(spec, r);
       return true;
     } catch (e) {
       _snack('Falha no pedido: $e');
       return false;
     }
+  }
+
+  /// SPEC-067 R5: "R2 · variação D pronta e mostrada no canvas", with
+  /// "Ver versões" (the list filtered on that screen).
+  void _variationsReady(Spec spec, PrototypeOutcome r) {
+    final made = [for (final f in r.created) ?parseMockupName(f)];
+    if (made.isEmpty) {
+      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      return;
+    }
+    final names = [
+      for (final m in made) '${m.requirement} · variação ${m.letterLabel}',
+    ];
+    final msg = [
+      made.length == 1
+          ? '${names.single} pronta e mostrada no canvas'
+          : '${names.join(', ')} prontas e mostradas no canvas',
+      if (r.restored.isNotEmpty)
+        'Restauradas (o agente alterou): ${r.restored.join(', ')}.',
+    ].join('. ');
+    final req = made.first.requirement;
+    _snack(
+      msg,
+      action: SnackBarAction(
+        key: const ValueKey('proto-ready-versions'),
+        label: 'Ver versões',
+        onPressed: () =>
+            ref.read(prototypeUiProvider(spec.id).notifier).showVersionsOf(req),
+      ),
+    );
   }
 
   String _outcomeText(PrototypeOutcome r, String none) => [
@@ -1356,9 +1442,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  /// Card that gets the focus after deleting [gone] (R10): the next one
-  /// after the last deleted, else the previous; the empty slot when the
-  /// requirement was left without screens.
+  /// Card that gets the focus after deleting [gone] (R10): the card of the
+  /// last deleted screen's requirement, which now shows another version
+  /// (SPEC-067 R7), or its empty slot; both are focused by requirement.
   String? _focusAfterDelete(
     List<MockupScreen> before,
     List<MockupScreen> gone,
@@ -1366,16 +1452,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   ) {
     final files = {for (final x in gone) x.file};
     final last = before.lastIndexWhere((x) => files.contains(x.file));
-    if (last < 0) return null;
-    final req = before[last].requirement;
-    if (!left.any((x) => x.requirement == req)) return req;
-    for (var i = last + 1; i < before.length; i++) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    for (var i = last - 1; i >= 0; i--) {
-      if (!files.contains(before[i].file)) return before[i].file;
-    }
-    return null;
+    return last < 0 ? null : before[last].requirement;
   }
 
   /// "Desfazer" (SPEC-027 R6): files, index and `## Protótipo` lines.
@@ -1393,17 +1470,26 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       if (!mounted || removed.screens.isEmpty) return;
       ref
           .read(prototypeUiProvider(spec.id).notifier)
-          .focusOn(removed.screens.first.file);
+          .focusOn(removed.screens.first.requirement);
     } catch (e) {
       _snack('Falha ao desfazer: $e');
     }
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {SnackBarAction? action}) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showAppToast(SnackBar(content: Text(msg)));
+      ..showAppToast(
+        SnackBar(
+          content: Text(msg),
+          action: action,
+          persist: action == null ? null : false,
+          duration: action == null
+              ? const Duration(milliseconds: 4000)
+              : const Duration(seconds: 8),
+        ),
+      );
   }
 
   /// The status strip of a long action (R3; in Protótipo the generation
@@ -1494,6 +1580,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       return NewSpecView(workspace: ws, onCreated: _onSpecCreated);
     }
     final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    _knownCodes = {for (final s in allSpecs) s.code};
     final showArchived = ref.watch(showArchivedProvider);
     final archivedCount = allSpecs
         .where((s) => s.status == SpecStatus.archived)
@@ -1510,6 +1597,10 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     if (spec != null && spec.id != _loadedSpecId) {
       _loadedSpecId = spec.id;
       Future.microtask(() => _load(ws, spec));
+    }
+    if (spec != null) {
+      final save = _boundSave = () async => await _save(ws, spec) != null;
+      _editorHandle.bind(spec.id, save, () => _dirty);
     }
     // While another spec is on the way the controller has the old text,
     // which says nothing about [spec].
@@ -1676,12 +1767,17 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           ],
                     lineMarks: _questionMarks,
                     questionsNotice: formatNotice?.message,
+                    dependsNotice: locked || readOnly
+                        ? null
+                        : dependsOnAliasNotice(doc, spec.code),
+                    onFixDepends: _fixDependsOnAlias,
                     onFixQuestions: _fixQuestionsFormat,
                     onAnswerQuestions: _openQuestions,
                     warningsOpen: _warningsOpen,
                     onToggleWarnings: () =>
                         setState(() => _warningsOpen = !_warningsOpen),
                     onWarning: _goToLine,
+                    onFixWarning: _fixWarning,
                     lockedBanner: locked
                         ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
                               'não é editável. Use "Clonar para alterar" '
@@ -1741,6 +1837,12 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   onSave: ready && !readOnly ? () => _save(ws, spec) : null,
                   lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
                   statusLabel: planLock?.chip,
+                  planned:
+                      spec != null &&
+                      specIsPlanned(
+                        doc.status ?? spec.status,
+                        hasPlan: doc.design != null,
+                      ),
                   lockAlert: (held && action!.kind.long) || planLock != null,
                   zoom: const ZoomControl(editorKey: SpecsScreen.editorKey),
                   actions: spec == null
@@ -1872,22 +1974,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
               ),
             ),
             SizedBox(
-              width: questionsOpen ? 440 : sideW,
+              width: sideW,
               child: spec == null
                   ? const ColoredBox(color: AppColors.panel)
-                  : questionsOpen
-                  ? SpecQuestionsPanel(
-                      key: ValueKey('spec-questions-${spec.id}'),
-                      ws: ws,
-                      specId: spec.id,
-                      specCode: spec.code,
-                      specText: () => _controller?.text ?? '',
-                      questions: questions,
-                      onClose: _closeQuestions,
-                      onApply: (answers, update) =>
-                          _applyAnswers(ws, spec, answers, update),
-                      onSave: (text) => _saveAnswers(ws, spec, text),
-                    )
                   : proto
                   ? CallbackShortcuts(
                       bindings: undoBindings,
@@ -1969,7 +2058,24 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         );
       },
     );
-    return Column(
+    // SPEC-059 R1: the session covers the area (list and editor), which
+    // stays as it was underneath, out of the focus.
+    final questionsSession = questionsOpen
+        ? SpecQuestionsPanel(
+            key: ValueKey('spec-questions-${spec.id}'),
+            ws: ws,
+            specId: spec.id,
+            specCode: spec.code,
+            specTitle: doc.title ?? spec.title,
+            specText: () => _controller?.text ?? '',
+            questions: questions,
+            onClose: _closeQuestions,
+            onApply: (answers, update) =>
+                _applyAnswers(ws, spec, answers, update),
+            onSave: (text) => _saveAnswers(ws, spec, text),
+          )
+        : null;
+    final screen = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SpecSyncBar(
@@ -1994,6 +2100,17 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
             child: content,
           ),
         ),
+      ],
+    );
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ExcludeFocus(
+            excluding: questionsSession != null,
+            child: screen,
+          ),
+        ),
+        if (questionsSession != null) Positioned.fill(child: questionsSession),
       ],
     );
   }
@@ -2037,7 +2154,17 @@ class _EditorBody extends StatelessWidget {
     this.questionsNotice,
     this.onFixQuestions,
     this.onAnswerQuestions,
+    this.dependsNotice,
+    this.onFixDepends,
+    this.onFixWarning,
   });
+
+  final ValueChanged<SpecWarning>? onFixWarning;
+
+  /// A variation of `depende-de` (SPEC-063 R2): the notice above the
+  /// editor with "Trocar agora".
+  final String? dependsNotice;
+  final VoidCallback? onFixDepends;
 
   final FocusNode? focusNode;
 
@@ -2122,20 +2249,27 @@ class _EditorBody extends StatelessWidget {
                 open: warningsOpen,
                 onToggle: onToggleWarnings ?? () {},
                 onSelect: onWarning ?? (_) {},
+                onFix: onFixWarning,
               ),
             ),
         ],
       ),
     );
-    if (questionsNotice != null) {
+    if (questionsNotice != null || dependsNotice != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SpecQuestionsFormatNotice(
-            message: questionsNotice!,
-            onFix: onFixQuestions,
-            onAnswer: onAnswerQuestions,
-          ),
+          if (dependsNotice != null)
+            SpecDependsAliasNotice(
+              message: dependsNotice!,
+              onFix: onFixDepends,
+            ),
+          if (questionsNotice != null)
+            SpecQuestionsFormatNotice(
+              message: questionsNotice!,
+              onFix: onFixQuestions,
+              onAnswer: onAnswerQuestions,
+            ),
           Expanded(child: body),
         ],
       );
@@ -2256,6 +2390,75 @@ class SpecQuestionsFormatNotice extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// The text of the notice for a variation of `depende-de` (SPEC-063 R2);
+/// null when the frontmatter has none.
+String? dependsOnAliasNotice(SpecDocument doc, String code) {
+  final alias = doc.dependsOnAlias;
+  if (alias == null) return null;
+  final deps = doc.dependsOn;
+  final who = deps.isEmpty
+      ? 'a lista está vazia'
+      : '$code espera ${_joinCodes(deps)}';
+  return 'A chave "$alias" foi lida como "$dependsOnKey": $who. '
+      'Ao salvar, o nome fica certo no arquivo.';
+}
+
+String _joinCodes(List<String> codes) => codes.length == 1
+    ? 'a ${codes.single}'
+    : '${codes.take(codes.length - 1).map((c) => 'a $c').join(', ')} '
+          'e a ${codes.last}';
+
+/// "A chave … foi lida como depende-de" (SPEC-063 R2), above the editor,
+/// with "Trocar agora" (changes the editor text, without saving).
+class SpecDependsAliasNotice extends StatelessWidget {
+  const SpecDependsAliasNotice({super.key, required this.message, this.onFix});
+
+  final String message;
+  final VoidCallback? onFix;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    liveRegion: true,
+    child: Container(
+      key: const ValueKey('spec-depends-alias'),
+      padding: const EdgeInsets.fromLTRB(20, 10, 16, 10),
+      decoration: const BoxDecoration(
+        color: SessionColors.approvalBg,
+        border: Border(bottom: BorderSide(color: SessionColors.approvalBorder)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 16, color: AppColors.amber),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              key: const ValueKey('spec-depends-alias-text'),
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.45,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            key: const ValueKey('spec-depends-alias-fix'),
+            onPressed: onFix,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.text,
+              side: const BorderSide(color: AppColors.amber),
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text('Trocar agora', style: TextStyle(fontSize: 12.5)),
+          ),
+        ],
+      ),
     ),
   );
 }

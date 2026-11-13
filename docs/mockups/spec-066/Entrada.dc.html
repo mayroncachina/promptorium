@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrada em cascata</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0B0E}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.col{width:300px;height:430px;border:1px solid #2E3542;border-radius:12px;background:#14171D;padding:12px 14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.h{height:22px;display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:600}
+.card{height:72px;border:1px solid #252B35;border-radius:8px;background:#1A1E26;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.l1{height:9px;border-radius:5px;background:#3A4250}
+.l2{height:7px;border-radius:4px;background:#2A313D}
+.nt{font-size:13px;font-weight:600;margin-top:4px}
+.li{display:flex;gap:8px;align-items:center}
+.dot{flex:none;width:4px;height:4px;border-radius:50%;background:#7C8595}
+.t{font-family:'JetBrains Mono',monospace;font-size:14px;color:#4FD1B5}
+.cap{font-size:12px;color:#A0A8B6}
+th,td{text-align:left;padding:7px 16px 7px 0;font-size:13px;border-bottom:1px solid #1F2430}
+th{color:#7C8595;font-weight:500}
+td.m{font-family:'JetBrains Mono',monospace;color:#E7E9EE}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:#0A0B0E;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45;padding:64px 80px">
+<h2 style="font-size:24px;font-weight:600">A coluna da direita entra em cascata</h2>
+<p style="font-size:14px;color:#A0A8B6;margin-top:6px">Cada parte aparece em 220 ms, subindo 8 px. O foco já está na ação do cartão desde o primeiro quadro.</p>
+<div style="display:flex;gap:28px;margin-top:36px">
+
+<div style="display:flex;flex-direction:column;gap:10px"><span class="t">0 ms</span>
+<div class="col"><div class="h" style="opacity:.25;transform:translateY(6px)"><span>Sobre</span><span style="color:#A0A8B6">✕</span></div></div>
+<span class="cap">o cabeçalho começa a subir</span></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><span class="t">120 ms</span>
+<div class="col"><div class="h"><span>Sobre</span><span style="color:#A0A8B6">✕</span></div>
+<div class="card" style="opacity:.55;transform:translateY(4px);outline:2px solid #F2A541;outline-offset:2px"><div class="l1" style="width:70%"></div><div class="l2" style="width:45%"></div></div>
+<p class="nt" style="opacity:.2;transform:translateY(7px)">Novidades da 0.15.0</p></div>
+<span class="cap">o cartão, 60 ms depois; o foco já nele</span></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><span class="t">320 ms</span>
+<div class="col"><div class="h"><span>Sobre</span><span style="color:#A0A8B6">✕</span></div>
+<div class="card" style="outline:2px solid #F2A541;outline-offset:2px"><div class="l1" style="width:70%"></div><div class="l2" style="width:45%"></div></div>
+<p class="nt">Novidades da 0.15.0</p>
+<div class="li"><span class="dot"></span><div class="l2" style="width:88%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:80%"></div></div>
+<div class="li" style="opacity:.6;transform:translateY(3px)"><span class="dot"></span><div class="l2" style="width:84%"></div></div>
+<div class="li" style="opacity:.25;transform:translateY(6px)"><span class="dot"></span><div class="l2" style="width:76%"></div></div></div>
+<span class="cap">as linhas, 40 ms uma da outra</span></div>
+
+<div style="display:flex;flex-direction:column;gap:10px"><span class="t">640 ms</span>
+<div class="col"><div class="h"><span>Sobre</span><span style="color:#A0A8B6">✕</span></div>
+<div class="card" style="outline:2px solid #F2A541;outline-offset:2px"><div class="l1" style="width:70%"></div><div class="l2" style="width:45%"></div></div>
+<p class="nt">Novidades da 0.15.0</p>
+<div class="li"><span class="dot"></span><div class="l2" style="width:88%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:80%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:84%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:76%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:82%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:70%"></div></div>
+<div class="li"><span class="dot"></span><div class="l2" style="width:78%"></div></div></div>
+<span class="cap">tudo no lugar; da sétima linha em diante, junto com a sexta</span></div>
+</div>
+
+<table style="border-collapse:collapse;margin-top:36px">
+<thead><tr><th>Parte</th><th>Começa em</th><th>Duração</th><th>Movimento</th></tr></thead>
+<tbody>
+<tr><td>Cabeçalho "Sobre"</td><td class="m">0 ms</td><td class="m">220 ms</td><td>opacidade 0 → 1, sobe 8 px · AppMotion.enter</td></tr>
+<tr><td>Cartão de atualização</td><td class="m">60 ms</td><td class="m">220 ms</td><td>idem</td></tr>
+<tr><td>"Novidades da …"</td><td class="m">120 ms</td><td class="m">220 ms</td><td>idem</td></tr>
+<tr><td>Linhas das novidades (1 a 6, depois juntas)</td><td class="m">160 ms + 40 ms × n</td><td class="m">220 ms</td><td>idem · teto de 640 ms</td></tr>
+</tbody>
+</table>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

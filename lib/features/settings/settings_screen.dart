@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
+import '../../ui/theme/glass.dart';
 import '../../ui/theme/tokens.dart';
 import '../agents/widgets/agent_style.dart';
+import '../board/attention_shake.dart' show attentionShakeEnabledProvider;
 import '../board/orchestrator/orchestrator_rules.dart';
 import '../project/project_config.dart';
 import '../project/widgets/project_config_view.dart';
@@ -166,6 +168,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
+                SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
                   title: 'Automações',
                   intro:
@@ -531,6 +534,90 @@ class _SessionsSection extends ConsumerWidget {
               'andamento nem pergunta pendente, é fechado depois deste tempo '
               'para liberar memória. A sessão continua na lista.',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The Vidro theme's effects (SPEC-049 R6).
+class _AppearanceSection extends ConsumerWidget {
+  const _AppearanceSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final on = ref.watch(glassEffectsProvider);
+    final byEnv = glassDisabledByEnvironment();
+    final shakeOn = ref.watch(attentionShakeEnabledProvider);
+    final reduced = MediaQuery.disableAnimationsOf(context);
+    final settings = ref.read(appSettingsProvider.notifier);
+    return _Page(
+      title: 'Aparência',
+      intro:
+          'O tema Vidro: painéis translúcidos, luzes no fundo e desfoque '
+          'atrás de diálogos, e o tremor dos cards que precisam de você.',
+      effect: _Effect(
+        on
+            ? 'Efeitos ligados: fundo com luzes e diálogos sobre desfoque.'
+            : 'Efeitos desligados: fundo liso e nada desfoca. O layout e as '
+                  'cores dos painéis são os mesmos.',
+      ),
+      children: [
+        AgentCard(
+          title: 'Efeitos de vidro',
+          children: [
+            choices(
+              keyPrefix: 'settings-glass',
+              values: const [('on', 'Ligados'), ('off', 'Desligados')],
+              selected: on ? 'on' : 'off',
+              onTap: byEnv
+                  ? (_) {}
+                  : (v) => v == 'on'
+                        ? settings.remove(AppSettingKeys.glassEffects)
+                        : settings.set(AppSettingKeys.glassEffects, 'false'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              byEnv
+                  ? 'Desligados por PROMPTORIUM_SEM_VIDRO nesta execução.'
+                  : 'Desligue numa placa de vídeo fraca, num desktop sem '
+                        'aceleração gráfica ou se preferir o visual opaco.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        // SPEC-054 R7: the stop of the moving content (WCAG 2.2.2).
+        AgentCard(
+          title: 'Tremer cards que precisam de você',
+          children: [
+            choices(
+              keyPrefix: 'settings-shake',
+              values: const [('on', 'Ligado'), ('off', 'Desligado')],
+              selected: shakeOn && !reduced ? 'on' : 'off',
+              onTap: reduced
+                  ? (_) {}
+                  : (v) => v == 'on'
+                        ? settings.remove(AppSettingKeys.attentionShake)
+                        : settings.set(AppSettingKeys.attentionShake, 'false'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              reduced
+                  ? 'O sistema pede movimento reduzido: nenhum card treme. '
+                        'Fica o brilho fixo de "precisa de você".'
+                  : 'No Quadro, um tremor curto a cada 5 s no card que espera '
+                        'revisão, um card por vez e no máximo 6 vezes '
+                        'seguidas. Desligado, fica só o halo.',
+              key: const ValueKey('settings-shake-note'),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),

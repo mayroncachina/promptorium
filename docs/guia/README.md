@@ -11,7 +11,7 @@
 9. [Repositório](repositorio.md): releases, o que falta lançar, Criar release e o acompanhamento do workflow.
 10. [Código](codigo.md): árvore, editor, terminal, problemas, git e busca.
 11. [Ferramentas](ferramentas.md): agentes, skills e servidores MCP.
-12. [Configurações](configuracoes.md): consumo, execução de specs, sessões, hooks, provedores, backups.
+12. [Configurações](configuracoes.md): consumo, execução de specs, sessões, aparência, hooks, provedores, backups.
 13. [Atalhos de teclado](atalhos.md)
 14. [Instalação](instalacao.md): pacotes, script, Flatpak e atualizações.
 15. [Desenvolvimento](desenvolvimento.md): requisitos, pacotes, testes, build, release e estrutura do código.

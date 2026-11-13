@@ -1,10 +1,12 @@
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../../../ui/widgets/motion_enter.dart';
@@ -12,11 +14,18 @@ import '../edit_diff.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
 import '../timeline_provider.dart';
+import '../tool_expanded.dart';
 import 'session_activity.dart';
 import 'session_style.dart';
 
 /// Edit diffs of a session timeline, per snapshot.
 final _sessionDiffs = Expando<Map<String, EditDiff>>('edit diffs');
+
+/// Diffs of the edits of [snap], by tool id (SPEC-026 R3: a Write after an
+/// edit of the same file is compared with the text it knows). Computed once
+/// per snapshot.
+Map<String, EditDiff> sessionEditDiffs(TimelineSnapshot snap, String? root) =>
+    _sessionDiffs[snap] ??= editDiffsOf(snap.items, root: root);
 
 /// Center column of the Sessions screen: user bubbles, Claude's text (live
 /// while streaming), tool cards with results, subagent messages nested under
@@ -43,19 +52,35 @@ class TimelineView extends ConsumerWidget {
     final since = ref.watch(
       sessionManagerProvider.select((s) => s.live[sessionId]?.busySince),
     );
-    // SPEC-026 R3: a Write after an edit of the same file in this session
-    // is compared with the text it knows.
-    final diffs = _sessionDiffs[snap] ??= editDiffsOf(snap.items, root: root);
-    return TimelineListView(
-      key: ValueKey('timeline-$sessionId'),
-      editInfo: (t) => diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
-      footer: since == null
-          ? null
-          : SessionActivity(items: snap.items, since: since),
-      items: snap.items,
-      loading: snap.loading,
-      root: root,
-      waitingTools: waitingTools,
+    final diffs = sessionEditDiffs(snap, root);
+    // SPEC-058: a click expands the card over the screen; after the close,
+    // the card comes back focused.
+    ref.watch(
+      toolExpandedProvider.select(
+        (s) => s == null || s.open || s.sessionId != sessionId
+            ? null
+            : (s.toolId, s.seq),
+      ),
+    );
+    final expanded = ref.read(toolExpandedProvider.notifier);
+    final reveal = expanded.revealFor(sessionId);
+    return ToolExpandHost(
+      onOpen: (t, origin) => expanded.open(sessionId, t.id, origin: origin),
+      cards: expanded.cards(sessionId),
+      reveal: reveal,
+      child: TimelineListView(
+        key: ValueKey('timeline-$sessionId'),
+        reveal: reveal,
+        editInfo: (t) =>
+            diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
+        footer: since == null
+            ? null
+            : SessionActivity(items: snap.items, since: since),
+        items: snap.items,
+        loading: snap.loading,
+        root: root,
+        waitingTools: waitingTools,
+      ),
     );
   }
 }
@@ -77,6 +102,7 @@ class TimelineListView extends StatefulWidget {
     this.emptyText = 'Nenhum evento ainda.',
     this.answerFooter,
     this.editInfo,
+    this.reveal,
   });
 
   final List<TimelineItem> items;
@@ -97,6 +123,9 @@ class TimelineListView extends StatefulWidget {
   /// Diff, target and marks of an edit card (Prompt refine, SPEC-026);
   /// null = the card works them out from the tool input.
   final EditInfo? Function(ToolItem tool)? editInfo;
+
+  /// Card to scroll into view, when off screen (SPEC-058 R8).
+  final ToolReveal? reveal;
 
   @override
   State<TimelineListView> createState() => _TimelineListViewState();
@@ -122,6 +151,11 @@ class _TimelineListViewState extends State<TimelineListView> {
   /// Frame of each recent arrival.
   final _recent = ListQueue<Duration>();
 
+  final _scroll = ScrollController();
+
+  /// Positions of the items built now (on screen or in the cache extent).
+  final _built = <int>{};
+
   Duration get _frame => SchedulerBinding.instance.currentSystemFrameTimeStamp;
 
   bool _isArriving(int idx) =>
@@ -131,11 +165,71 @@ class _TimelineListViewState extends State<TimelineListView> {
   void initState() {
     super.initState();
     _seen = _arrivedFrom = widget.items.length;
+    if (widget.reveal != null) _reveal(widget.reveal!);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Position of the top-level item that holds tool [id] (itself or a
+  /// subagent card under it); -1 = none.
+  static int _itemOf(List<TimelineItem> items, String id) {
+    for (var i = 0; i < items.length; i++) {
+      final it = items[i];
+      if (it is ToolItem &&
+          (it.id == id || findTool(it.children, id) != null)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /// Scrolls card [r] into view (SPEC-058 R8): a card on screen moves only
+  /// as much as needed; one the list has not built is looked for a viewport
+  /// at a time, towards its side.
+  void _reveal(ToolReveal r) {
+    if (r.taken) return;
+    final idx = _itemOf(widget.items, r.toolId);
+    if (idx < 0) return;
+    var tries = 0;
+    void step(Duration _) {
+      if (!mounted || r.taken || !_scroll.hasClients) return;
+      final cards = context
+          .getInheritedWidgetOfExactType<ToolExpandHost>()
+          ?.cards;
+      final card = cards?.contextOf(r.toolId);
+      if (card != null) {
+        for (final policy in const [
+          ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+        ]) {
+          Scrollable.ensureVisible(card, alignmentPolicy: policy);
+        }
+        return;
+      }
+      final pos = _scroll.position;
+      // Reversed list: older items (lower positions) sit further up.
+      final older = _built.isEmpty || idx < _built.reduce(math.min);
+      final to = (pos.pixels + (older ? .8 : -.8) * pos.viewportDimension)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (++tries > 200 || to == pos.pixels) return;
+      pos.jumpTo(to);
+      SchedulerBinding.instance
+        ..addPostFrameCallback(step)
+        ..scheduleFrame();
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback(step);
   }
 
   @override
   void didUpdateWidget(covariant TimelineListView old) {
     super.didUpdateWidget(old);
+    final r = widget.reveal;
+    if (r != null && !identical(r, old.reveal)) _reveal(r);
     // The list is mutated in place, so old.items cannot tell what is new.
     final items = widget.items;
     final count = items.length;
@@ -182,6 +276,7 @@ class _TimelineListViewState extends State<TimelineListView> {
     }
     final extra = foot == null ? 0 : 1;
     return ListView.builder(
+      controller: _scroll,
       reverse: true,
       padding: const EdgeInsets.all(20),
       itemCount: items.length + extra,
@@ -224,6 +319,8 @@ class _TimelineListViewState extends State<TimelineListView> {
             : null;
         return _ItemEntrance(
           key: ValueKey(idx),
+          index: idx,
+          built: _built,
           arriving: _isArriving(idx),
           settled: idx < _settled,
           child: _wrap(
@@ -250,11 +347,16 @@ const _footerKey = 'timeline-footer';
 class _ItemEntrance extends StatefulWidget {
   const _ItemEntrance({
     super.key,
+    required this.index,
+    required this.built,
     required this.arriving,
     required this.settled,
     required this.child,
   });
 
+  /// Position in the list, kept in [built] while mounted.
+  final int index;
+  final Set<int> built;
   final bool arriving;
 
   /// A burst caught up with this item: it stops moving, if it still is.
@@ -267,6 +369,18 @@ class _ItemEntrance extends StatefulWidget {
 
 class _ItemEntranceState extends State<_ItemEntrance> {
   late final bool _enters = widget.arriving;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.built.add(widget.index);
+  }
+
+  @override
+  void dispose() {
+    widget.built.remove(widget.index);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => _enters
@@ -541,8 +655,10 @@ Color toolColor(String name) => switch (name) {
   _ => AppColors.textSecondary,
 };
 
-/// One tool call: name + target + summary; click expands the result.
-/// Task / Agent cards show the subagent's messages indented below.
+/// One tool call: name + target + summary. A click expands the result over
+/// the Sessions screen (SPEC-058), or in place where no [ToolExpandHost] is
+/// around (Prompt). Task / Agent cards show the subagent's messages indented
+/// below.
 class ToolCard extends StatefulWidget {
   const ToolCard({
     super.key,
@@ -577,8 +693,76 @@ String _subagentSummary(ToolItem t) {
   return secs < 1 ? tools : '$tools · ${formatDuration(end.difference(start))}';
 }
 
-class _ToolCardState extends State<ToolCard> {
+class _ToolCardState extends State<ToolCard>
+    with SingleTickerProviderStateMixin {
   bool _open = false;
+  final _focus = FocusNode(debugLabel: 'tool card');
+  ToolExpandHost? _host;
+
+  /// Amber highlight after the expanded view closes (SPEC-058 R8).
+  AnimationController? _flash;
+  static const _flashTime = Duration(milliseconds: 1200);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final host = ToolExpandHost.maybeOf(context);
+    if (!identical(host?.cards, _host?.cards)) {
+      _host?.cards.remove(widget.tool.id, context);
+      host?.cards.add(widget.tool.id, context, _rect);
+    }
+    _host = host;
+    final r = host?.reveal;
+    if (r != null && !r.taken && r.toolId == widget.tool.id) {
+      r.taken = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _comeBack());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ToolCard old) {
+    super.didUpdateWidget(old);
+    if (old.tool.id != widget.tool.id) {
+      _host?.cards.remove(old.tool.id, context);
+      _host?.cards.add(widget.tool.id, context, _rect);
+    }
+  }
+
+  /// Focus and an amber highlight that fades in 1.2 s (R8).
+  void _comeBack() {
+    if (!mounted) return;
+    _focus.requestFocus();
+    final c = _flash ??= AnimationController(vsync: this, duration: _flashTime);
+    setState(() {
+      c.forward(from: 0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _host?.cards.remove(widget.tool.id, context);
+    _flash?.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  final _box = GlobalKey(debugLabel: 'tool card box');
+
+  /// Global rectangle of the card (null when not laid out).
+  Rect? _rect() {
+    final box = _box.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize || !box.attached) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  void _tap() {
+    final host = _host;
+    if (host == null) {
+      setState(() => _open = !_open);
+      return;
+    }
+    host.onOpen(widget.tool, _rect());
+  }
 
   static const _mono = TextStyle(
     fontFamily: AppFonts.mono,
@@ -596,7 +780,9 @@ class _ToolCardState extends State<ToolCard> {
     final waiting = !denied && widget.waitingTools.contains(t.id);
     final running = !t.done && !waiting && !denied;
     final stats = editStats(t.name, t.input);
-    final canOpen = t.done || denied;
+    final expands = _host != null;
+    // The expanded view also follows a call still running (SPEC-058 R1).
+    final canOpen = t.done || denied || (expands && running);
     final border = running
         ? SessionColors.runningToolBorder
         : (waiting ? SessionColors.approvalBorder : AppColors.border);
@@ -671,10 +857,11 @@ class _ToolCardState extends State<ToolCard> {
     final header = Semantics(
       container: true,
       button: canOpen,
-      expanded: canOpen ? _open : null,
+      expanded: canOpen && !expands ? _open : null,
       child: InkWell(
         key: ValueKey('tool-toggle-${t.id}'),
-        onTap: canOpen ? () => setState(() => _open = !_open) : null,
+        focusNode: _focus,
+        onTap: canOpen ? _tap : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           child: Row(
@@ -682,7 +869,7 @@ class _ToolCardState extends State<ToolCard> {
               if (running) ...[
                 const Dot(AppColors.teal),
                 const SizedBox(width: 10),
-              ] else if (isEdit && canOpen) ...[
+              ] else if (isEdit && canOpen && !expands) ...[
                 Icon(
                   _open ? Icons.expand_more : Icons.chevron_right,
                   size: 14,
@@ -724,11 +911,10 @@ class _ToolCardState extends State<ToolCard> {
     // SPEC-026 R2: an edit shows its diff; the tool output only on error.
     final showDiff = diff != null && (denied || !t.isError);
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Container(
+    final flash = _flash;
+    Widget card(Widget child) {
+      if (flash == null || flash.isDismissed || flash.isCompleted) {
+        return Container(
           key: ValueKey('tool-${t.id}'),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
@@ -736,7 +922,41 @@ class _ToolCardState extends State<ToolCard> {
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: border),
           ),
-          child: Column(
+          child: child,
+        );
+      }
+      // Reduced motion: the highlight stays whole, then goes at once.
+      final fades = AppMotion.animate(context);
+      return AnimatedBuilder(
+        animation: flash,
+        child: child,
+        builder: (context, child) {
+          final k = flash.isCompleted
+              ? 1.0
+              : (fades ? Curves.easeIn.transform(flash.value) : 0.0);
+          return Container(
+            key: ValueKey('tool-${t.id}'),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Color.lerp(AppColors.amberTint, bg, k),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: Color.lerp(AppColors.amber, border, k)!,
+              ),
+            ),
+            child: child,
+          );
+        },
+      );
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        key: _box,
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: card(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,

@@ -169,14 +169,24 @@ List<String> nextSteps(
   return [open.first.id];
 }
 
-/// The card only shows approved (or finished) specs: drafts and ideas stay
-/// in the Specs screen.
+/// The card only shows approved specs taken out of the Bandeja (or
+/// finished, or already running): drafts, ideas and approved specs that
+/// wait stay in the Bandeja (SPEC-068 R7, R8).
 bool isOnBoard(Spec spec, {bool showArchived = false}) =>
     spec.status == SpecStatus.archived
     ? showArchived
-    : spec.status == SpecStatus.approved ||
+    : (spec.status == SpecStatus.approved && !spec.inTray) ||
           spec.status == SpecStatus.done ||
           spec.stage != SpecStage.backlog;
+
+/// Specs of the Bandeja (SPEC-068 R7): not archived and not on the Quadro.
+bool isInTray(Spec spec) =>
+    spec.status != SpecStatus.archived && !isOnBoard(spec);
+
+/// The Bandeja takes an approved spec to the Backlog; a draft is approved
+/// in its spec first (R8).
+bool canTakeFromTray(Spec spec) =>
+    isInTray(spec) && spec.status == SpecStatus.approved;
 
 /// A spec never executed (no worktree, still in Backlog) may be deleted.
 bool canDeleteSpec(Spec spec) =>

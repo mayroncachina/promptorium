@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../../../ui/theme/ambient.dart';
 
 /// Small pieces shared by the steps of the Projeto screen
 /// (docs/mockups/Projeto-*.dc.html, canvas "Promptorium — Novo projeto").
@@ -312,11 +313,7 @@ class PlannerBusy extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      const SizedBox(
-        width: 14,
-        height: 14,
-        child: CircularProgressIndicator(strokeWidth: 2, color: projectLilac),
-      ),
+      const AmbientSpinner(size: 14, strokeWidth: 2, color: projectLilac),
       const SizedBox(width: 8),
       Text(label, style: const TextStyle(fontSize: 12, color: projectLilac)),
     ],

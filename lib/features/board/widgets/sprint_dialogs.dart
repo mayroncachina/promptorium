@@ -535,7 +535,7 @@ class _OrganizeDialogState extends ConsumerState<_OrganizeDialog> {
                       PopupMenuButton<SprintFilter>(
                         key: const ValueKey('sprint-organize-source'),
                         tooltip: 'Mostrar',
-                        color: AppColors.panel,
+                        color: AppColors.panelSolid,
                         onSelected: (f) => setState(() => _source = f),
                         itemBuilder: (_) => [
                           for (final f in [
@@ -634,7 +634,7 @@ class _OrganizeDialogState extends ConsumerState<_OrganizeDialog> {
               PopupMenuButton<int>(
                 key: const ValueKey('sprint-organize-target'),
                 tooltip: 'Mover para',
-                color: AppColors.panel,
+                color: AppColors.panelSolid,
                 onSelected: (id) =>
                     setState(() => _target = id < 0 ? null : id),
                 itemBuilder: (_) => [

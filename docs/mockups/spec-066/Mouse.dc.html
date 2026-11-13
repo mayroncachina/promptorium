@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mouse sobre a logo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0B0E}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.lnk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#F2A541;text-decoration:none}
+.tip{position:absolute;left:50%;top:-40px;transform:translateX(-50%);padding:5px 9px;border-radius:6px;background:#252B35;border:1px solid #3A4250;color:#E7E9EE;font-size:12px;white-space:nowrap}
+.pm-wave{animation:pm-wave 2.2s linear infinite}
+.pm-bubble{transform-box:fill-box;transform-origin:center;opacity:0;animation:pm-bubble 2.4s ease-in infinite}
+.pm-b2{animation-delay:.8s}.pm-b3{animation-delay:1.6s}
+.pm-node{animation:pm-lit .9s ease-in-out .3s infinite}
+.pm-n2{animation-delay:.6s}.pm-n3{animation-delay:0s}
+.pm-caret{animation:pm-blink 1s steps(1) infinite}
+.pm-glow{animation:pm-breathe .9s ease-in-out infinite alternate}
+.row{display:flex;gap:14px;align-items:flex-start}
+.k{flex:none;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#1A1E26;border:1px solid #2E3542;color:#4FD1B5;font-family:'JetBrains Mono',monospace;font-size:13px}
+.rt{font-size:15px;font-weight:600;color:#E7E9EE}
+.rs{font-size:13px;color:#A0A8B6;margin-top:2px}
+@keyframes pm-wave{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+@keyframes pm-bubble{0%{opacity:0;transform:translateY(0) scale(.6)}20%{opacity:1}80%{opacity:.9}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+@keyframes pm-lit{0%,45%,100%{stroke:#F2A541;filter:none}18%{stroke:#FFD08A;filter:drop-shadow(0 0 8px rgba(255,208,138,.9))}}
+@keyframes pm-blink{0%{opacity:1}50%{opacity:0}}
+@keyframes pm-breathe{from{opacity:.4}to{opacity:.6}}
+@media (prefers-reduced-motion: reduce){.pm-wave,.pm-bubble,.pm-node,.pm-caret,.pm-glow{animation:none!important}.pm-bubble{opacity:0!important}}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:#0A0B0E;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<div style="position:absolute;left:120px;top:110px;width:540px;height:680px;background:#0E1014;border:1px solid #252B35;border-radius:16px;display:flex;flex-direction:column;align-items:center;padding:40px 30px 30px">
+<p class="mono" style="align-self:flex-start;font-size:12px;color:#7C8595">coluna da esquerda do Sobre · ampliada 1,8×</p>
+<div style="flex:1;display:flex;align-items:center">
+<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+<div style="position:relative;width:266px;height:266px;border-radius:28px">
+<span class="tip" role="tooltip">Tocar a abertura de novo</span>
+<span class="pm-glow" style="position:absolute;inset:40px;border-radius:50%;background:#4FD1B5;filter:blur(60px)"></span>
+<svg width="266" height="266" viewBox="0 0 200 200" role="img" aria-label="Ícone do Promptorium agitado" style="position:relative;display:block"><defs><clipPath id="pmm-inside"><path d="M91 78 V104 L52 162 Q47 170 57 170 H143 Q153 170 148 162 L109 104 V78 Z"></path></clipPath></defs>
+<g clip-path="url(#pmm-inside)"><g class="pm-wave"><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124 V200 H0 Z" fill="#0E5E55"></path><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124" fill="none" stroke="#4FD1B5" stroke-width="3"></path></g><circle class="pm-bubble" cx="100" cy="118" r="5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b2" cx="94" cy="122" r="3.5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b3" cx="104" cy="120" r="2.5" fill="#7FE6D2"></circle></g>
+<path d="M78 136 L92 145 L78 154" fill="none" stroke="#B8FFF2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></path><rect class="pm-caret" x="98" y="151" width="22" height="5" rx="2" fill="#B8FFF2"></rect>
+<path d="M84 70 H116 M91 72 V104 L50 164 Q44 176 58 176 H142 Q156 176 150 164 L109 104 V72" fill="none" stroke="#F2A541" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"></path>
+<line x1="89" y1="47" x2="109" y2="35" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line><line x1="118" y1="42" x2="116" y2="52" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line>
+<circle class="pm-node" cx="82" cy="51" r="9" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle class="pm-node pm-n2" cx="119" cy="30" r="12" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle class="pm-node pm-n3" cx="115" cy="58" r="6.5" fill="#0E5E55" stroke="#FFD08A" stroke-width="4" style="filter:drop-shadow(0 0 8px rgba(255,208,138,.9))"></circle></svg>
+<svg width="26" height="30" viewBox="0 0 26 30" aria-hidden="true" style="position:absolute;left:170px;top:178px"><path d="M9 2 C9 0.6 11 0.6 11 2 V12 L13 12 V9.5 C13 8.2 15 8.2 15 9.5 V12.5 L17 12.5 V10.8 C17 9.5 19 9.5 19 10.8 V13 L20.5 13 V12 C20.5 10.8 22.5 10.8 22.5 12 V20 C22.5 25 19.5 28 15 28 H13.5 C10.5 28 8.6 26.6 7 24.2 L3 18 C2.2 16.8 3.8 15.6 4.8 16.6 L9 21 Z" fill="#FFFFFF" stroke="#0A0B0E" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+</div>
+<div style="text-align:center"><h1 style="font-size:40px;font-weight:600;letter-spacing:.4px;line-height:1.2">Promptorium</h1><p style="font-size:20px;color:#A0A8B6;margin-top:6px">o laboratório de onde operam seus agentes</p></div>
+</div>
+</div>
+<p class="mono" style="font-size:18px;color:#A0A8B6">v0.15.0 · Linux</p>
+</div>
+
+<div style="position:absolute;left:740px;top:150px;width:580px;display:flex;flex-direction:column;gap:26px">
+<h2 style="font-size:24px;font-weight:600">Com o mouse em cima, o frasco agita</h2>
+<div class="row"><span class="k">1</span><div><p class="rt">Onda e bolhas no ritmo do splash</p><p class="rs">A onda volta a 2,2 s por ciclo e sobem as três bolhas, uma a cada 0,8 s.</p></div></div>
+<div class="row"><span class="k">2</span><div><p class="rt">Os nós acendem em sequência</p><p class="rs">Do menor ao maior, a cada 0,9 s, com o contorno em âmbar-claro e um brilho curto.</p></div></div>
+<div class="row"><span class="k">3</span><div><p class="rt">Mãozinha e a dica</p><p class="rs">"Tocar a abertura de novo" aparece depois de 500 ms parado em cima.</p></div></div>
+<div class="row"><span class="k">4</span><div><p class="rt">Clique, Enter ou Espaço tocam a abertura</p><p class="rs">Do contorno se desenhando ao brilho. Cliques durante a abertura não reiniciam.</p></div></div>
+<div class="row"><span class="k">5</span><div><p class="rt">Ao sair, volta ao calmo em 400 ms</p><p class="rs">Os dois ritmos se misturam, sem salto na onda nem nas bolhas.</p></div></div>
+<div style="display:flex;gap:16px;align-items:center;margin-top:6px;padding:16px;border:1px solid #252B35;border-radius:10px;background:#0E1014">
+<div style="flex:none;width:72px;height:72px;border-radius:12px;outline:2px solid #F2A541;outline-offset:3px;display:flex;align-items:center;justify-content:center;background:#0E1014">
+<svg width="60" height="60" viewBox="0 0 200 200" aria-hidden="true"><path d="M84 70 H116 M91 72 V104 L50 164 Q44 176 58 176 H142 Q156 176 150 164 L109 104 V72" fill="none" stroke="#F2A541" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="82" cy="51" r="9" fill="#0E5E55" stroke="#F2A541" stroke-width="5"></circle><circle cx="119" cy="30" r="12" fill="#0E5E55" stroke="#F2A541" stroke-width="5"></circle><circle cx="115" cy="58" r="6.5" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle></svg>
+</div>
+<div><p class="rt">No teclado</p><p class="rs">A logo entra no Tab depois do cartão de atualização e antes dos links. O leitor de tela ouve "Ícone do Promptorium, botão, tocar a abertura de novo".</p></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

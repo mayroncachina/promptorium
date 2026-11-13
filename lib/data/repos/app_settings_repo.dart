@@ -2,6 +2,17 @@ import '../db/app_database.dart';
 
 /// Keys stored in `app_settings`.
 abstract final class AppSettingKeys {
+  /// Glass effects of the Vidro theme, `false` to turn them off (SPEC-049 R6).
+  static const glassEffects = 'aparencia.vidro';
+
+  /// Shake of the cards that need the person, `false` to turn it off
+  /// (SPEC-054 R7).
+  static const attentionShake = 'aparencia.tremor';
+
+  /// Right panel of the Prompt collapsed in its strip (`1` / `0`;
+  /// SPEC-056 R8).
+  static const promptPanelCollapsed = 'prompt.painelRecolhido';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 
@@ -48,6 +59,9 @@ abstract final class AppSettingKeys {
 
   /// Quadro: "Ocultar concluídas" of a workspace (`1` / `0`; SPEC-019 R3).
   static String boardHideDone(int workspaceId) => 'board.hideDone.$workspaceId';
+
+  /// Quadro: the Bandeja is open (`1` / `0`; SPEC-068 R7).
+  static String boardTrayOpen(int workspaceId) => 'board.trayOpen.$workspaceId';
 
   /// Sprint chosen on the Quadro (SPEC-042 R2).
   static String boardSprint(int workspaceId) => 'board.sprint.$workspaceId';

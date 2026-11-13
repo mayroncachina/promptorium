@@ -147,7 +147,7 @@ class SprintSelector extends ConsumerWidget {
     final closed = closedSprints(sprints);
     return MenuAnchor(
       style: const MenuStyle(
-        backgroundColor: WidgetStatePropertyAll(AppColors.surfaceRaised),
+        backgroundColor: WidgetStatePropertyAll(AppColors.surfaceRaisedSolid),
       ),
       menuChildren: [
         if (sprints.isNotEmpty) ...[

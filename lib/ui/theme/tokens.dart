@@ -3,14 +3,26 @@ import 'package:flutter/painting.dart';
 /// Design tokens copied from the mockups (docs/mockups/*.dc.html).
 /// See docs/plano-implementacao.md, Fase 1 item 5.
 abstract final class AppColors {
-  /// Window / page background.
-  static const background = Color(0xFF0E1014);
+  /// Page background and the wells inside panels (code blocks, fields): a
+  /// 30% black (SPEC-049 R1, R3). Over a [panelSolid] it composes to
+  /// [backgroundSolid], so a well keeps its depth; over the backdrop it only
+  /// dims it a little, and the lights still show.
+  static const background = Color(0x4D000000);
+
+  /// The opaque page colour: the window itself, text drawn on amber, and
+  /// anything that must hide what is behind it.
+  static const backgroundSolid = Color(0xFF0E1014);
 
   /// Border of text fields: 3:1 against the background (SPEC-039 R12).
   static const inputBorder = Color(0xFF626C7C);
 
-  /// Panels, sidebars, cards.
-  static const panel = Color(0xFF14171D);
+  /// Panels, sidebars, cards: glass (SPEC-049 R3). Over [backgroundSolid]
+  /// it composes to [panelSolid], the colour panels had before the glass.
+  static const panel = Color(0x8C191D24);
+
+  /// [panel] when it must not let anything through: surfaces content scrolls
+  /// under, menus, tooltips.
+  static const panelSolid = Color(0xFF14171D);
 
   /// Borders and dividers.
   static const border = Color(0xFF252B35);
@@ -24,8 +36,16 @@ abstract final class AppColors {
   /// Accent: amber (active nav item, primary actions).
   static const amber = Color(0xFFF2A541);
 
+  /// Light amber: the active Prompt item and keyboard focus rings
+  /// (SPEC-055 R3).
+  static const amberLight = Color(0xFFFFD08A);
+
   /// Accent: teal (success, running, CLI connected).
   static const teal = Color(0xFF4FD1B5);
+
+  /// "Planejada" (SPEC-062 R4): a yellow apart from the amber of "Em
+  /// revisão" and of the primary button.
+  static const yellow = Color(0xFFE8C547);
 
   /// Accent: blue (info, links).
   static const blue = Color(0xFF8EA4C8);
@@ -36,8 +56,13 @@ abstract final class AppColors {
   /// Accent: lilac (subagents, AI actions).
   static const lilac = Color(0xFFC79BF2);
 
-  /// Raised controls on panels (workspace selector, chips).
-  static const surfaceRaised = Color(0xFF1A1E26);
+  /// Raised controls on panels (workspace selector, chips): glass, a step
+  /// lighter than [panel]. Over [backgroundSolid] it composes to
+  /// [surfaceRaisedSolid].
+  static const surfaceRaised = Color(0x99222732);
+
+  /// [surfaceRaised] when it must not let anything through.
+  static const surfaceRaisedSolid = Color(0xFF1A1E26);
 
   /// Border of a card or button under the mouse.
   static const borderHover = Color(0xFF3A4250);
@@ -116,7 +141,9 @@ abstract final class CanvasColors {
   static const running = Color(0xFFF08A4B);
   static const review = Color(0xFFE07AB0);
   static const needsInput = AppColors.amber;
-  static const verifying = AppColors.teal;
+
+  /// Purple, like the card's bar and "R2 verificando" (SPEC-065 R5).
+  static const verifying = AppColors.lilac;
   static const pending = AppColors.textMuted;
 
   /// Agent nodes and reference links (distinct from the running orange).

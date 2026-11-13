@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
 import 'package:promptorium/features/specs/new_spec_view.dart';
 import 'package:promptorium/features/specs/spec_design.dart';
 import 'package:promptorium/features/specs/spec_draft.dart';
@@ -662,6 +664,45 @@ void main() {
 
       c.read(cliStatusProvider.notifier).set(CliStatus.connected);
       await settleIo(tester, until: () => !key('new-spec-no-cli').present);
+      expect(enabled(tester, 'new-spec-plan'), isTrue);
+    });
+  });
+
+  group('SPEC-057 importar arquivo', () {
+    testWidgets('the field has the import button, the limit and the hint', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(key('idea-import'), findsOneWidget);
+      expect(
+        find.textContaining('Já tem um documento? Importe o texto dele.'),
+        findsOneWidget,
+      );
+      await tester.enterText(key('new-spec-idea'), 'a' * (ideaMaxChars + 10));
+      await tester.pump();
+      final field = tester.widget<TextField>(key('new-spec-idea'));
+      expect(field.controller!.text.length, ideaMaxChars);
+      expect(find.text('40.000 / 40.000'), findsOneWidget);
+    });
+
+    testWidgets('dropping a TXT fills the idea and lets it be planned', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(enabled(tester, 'new-spec-plan'), isFalse);
+      final f = File('${tmp.path}/ideia.txt')
+        ..writeAsStringSync('Lembrete de consulta por WhatsApp.\n');
+      tester.widget<DropTarget>(key('idea-drop')).onDragDone!(
+        DropDoneDetails(
+          files: [DropItemFile(f.path)],
+          localPosition: Offset.zero,
+          globalPosition: Offset.zero,
+        ),
+      );
+      await settleIo(tester, until: () => key('idea-source').present);
+      final field = tester.widget<TextField>(key('new-spec-idea'));
+      expect(field.controller!.text, 'Lembrete de consulta por WhatsApp.');
+      expect(find.text('ideia.txt'), findsOneWidget);
       expect(enabled(tester, 'new-spec-plan'), isTrue);
     });
   });

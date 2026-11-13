@@ -71,6 +71,7 @@ class SpecService {
 
   final SpecsRepo _repo;
   final SessionsRepo? _sessions;
+  bool _firstReading = false;
   final TrashFolder? _trash;
 
   /// Reads `specs/SPEC-*.md`, inserts the files missing from the table and
@@ -133,6 +134,10 @@ class SpecService {
         }
       }
       final codes = candidates.keys.toList()..sort();
+      // SPEC-068 R7: a new spec waits in the Bandeja, except on the first
+      // reading of a project (its approved specs go to the Quadro, as
+      // before the Bandeja).
+      _firstReading = await _repo.isEmpty(ws.id);
       for (final code in codes) {
         final entry = MapEntry(code, candidates[code]!);
         if (entry.value.length != 1) {
@@ -150,6 +155,7 @@ class SpecService {
         }
       }
     } finally {
+      _firstReading = false;
       issues[ws.id] = List.unmodifiable(foundIssues);
       _collecting = null;
       onIssues?.call(ws.id, issues[ws.id]!);
@@ -191,6 +197,8 @@ class SpecService {
         requirements: reqs,
         dependsOn: doc.dependsOn,
         phase: doc.phase,
+        hasPlan: doc.design != null,
+        inTray: !_firstReading,
       );
     }
     var status = doc.status ?? existing.status;
@@ -215,16 +223,31 @@ class SpecService {
     // `depende-de` absent from the file keeps the stored list (written by
     // the schema v8 migration or the Projeto screen until the next save).
     final deps = doc.hasDependsOn ? doc.dependsOn : existing.dependsOn;
+    // SPEC-068 R8: approving keeps the spec in the Bandeja (a spec that
+    // was a draft before the Bandeja existed included) until it is taken.
+    // "Reabrir" (from concluded) goes back to the Quadro, not here.
+    final toTray =
+        status == SpecStatus.approved &&
+        const {
+          SpecStatus.draft,
+          SpecStatus.review,
+          SpecStatus.idea,
+        }.contains(existing.status) &&
+        stage == SpecStage.backlog &&
+        !existing.inTray;
     if (existing.title != title ||
         existing.path != rel ||
         existing.status != status ||
         existing.stage != stage ||
         existing.phase != doc.phase ||
+        existing.hasPlan != (doc.design != null) ||
         !_sameReqs(existing.requirements, reqs) ||
-        existing.dependsOn.join(',') != deps.join(',')) {
+        existing.dependsOn.join(',') != deps.join(',') ||
+        toTray) {
       await _repo.update(
         existing.id,
         SpecsCompanion(
+          inTray: toTray ? const Value(true) : const Value.absent(),
           title: Value(title),
           path: Value(rel),
           status: Value(status),
@@ -232,6 +255,7 @@ class SpecService {
           phase: Value(doc.phase),
           requirements: Value(reqs),
           dependsOn: Value(deps),
+          hasPlan: Value(doc.design != null),
         ),
       );
     }
@@ -304,6 +328,9 @@ class SpecService {
         'O documento mudou antes da gravação. Verifique novamente.',
       );
     }
+    // SPEC-063 R2: a variation of `depende-de` is written with the right
+    // name.
+    text = SpecDocument.parse(text).withCanonicalDependsOn();
     final current = SpecDocument.parse(text);
     if (!current.hasDependsOn && spec.dependsOn.isNotEmpty) {
       text = current.withMeta(dependsOn: spec.dependsOn);
@@ -361,6 +388,8 @@ class SpecService {
       requirements: doc.requirements,
       dependsOn: doc.dependsOn,
       phase: doc.phase,
+      hasPlan: doc.design != null,
+      inTray: true,
     );
   }
 

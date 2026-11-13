@@ -16,6 +16,7 @@ import '../sessions/widgets/session_style.dart';
 import '../specs/spec_service.dart' show selectedSpecProvider;
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
+import 'widgets/split_specs_dialog.dart';
 
 /// "Plano pronto" of the Planejar mode (UX v2, U4; DT-26).
 ///
@@ -222,6 +223,20 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
     _snack('${spec.code} criada em ${spec.path} (rascunho)');
   });
 
+  /// "Dividir em specs" (SPEC-068 R2): the conversation and the plan.
+  Future<void> _split() => _run(() async {
+    final c = widget.conversation;
+    final ws = await _workspace();
+    await savePlanFile(ws.path, c.title, widget.plan);
+    if (!mounted) return;
+    final items = ref.read(conversationTimelineProvider(c.id)).items;
+    final created = await splitIntoSpecs(context, ref, c, [
+      ...transcriptOf(items),
+      (user: false, text: widget.plan),
+    ]);
+    if (created.isNotEmpty) await _deny(_denyForSpec);
+  });
+
   Future<void> _keepPlanning() => _run(() async {
     await _deny(_denyKeepPlanning);
     ref.read(planDraftsProvider.notifier).clear(widget.conversation.id);
@@ -321,6 +336,14 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
                   border: SessionColors.approvalBorder,
                   background: Colors.transparent,
                   onTap: _busy ? null : _asSpec,
+                ),
+                SmallButton(
+                  key: const ValueKey('plan-split'),
+                  label: 'Dividir em specs',
+                  color: AppColors.amber,
+                  border: SessionColors.approvalBorder,
+                  background: Colors.transparent,
+                  onTap: _busy ? null : _split,
                 ),
                 if (pending)
                   SmallButton(

@@ -136,10 +136,58 @@ final sessionEventsProvider = StreamProvider.family<List<SessionEvent>, String>(
   (ref, sessionId) => ref.watch(sessionsRepoProvider).watchEvents(sessionId),
 );
 
+/// Every conversation of a workspace, archived ones included (activity, the
+/// inbox and refine lookups still see them). The Prompt list reads
+/// [conversationListsProvider].
 final conversationsProvider = StreamProvider.family<List<Conversation>, int>(
   (ref, workspaceId) =>
       ref.watch(conversationsRepoProvider).watchByWorkspace(workspaceId),
 );
+
+/// Active and archived conversations of a workspace (SPEC-056 R6).
+@immutable
+class ConversationLists {
+  const ConversationLists({this.active = const [], this.archived = const []});
+
+  /// Split of [all] (newest activity first): active keep that order, archived
+  /// go newest archive first.
+  factory ConversationLists.of(List<Conversation> all) {
+    final active = <Conversation>[];
+    final archived = <Conversation>[];
+    for (final c in all) {
+      (c.archivedAt == null ? active : archived).add(c);
+    }
+    archived.sort((a, b) {
+      final byTime = b.archivedAt!.compareTo(a.archivedAt!);
+      return byTime != 0 ? byTime : b.id.compareTo(a.id);
+    });
+    return ConversationLists(active: active, archived: archived);
+  }
+
+  static const empty = ConversationLists();
+
+  final List<Conversation> active;
+  final List<Conversation> archived;
+
+  Conversation? byId(int? id) {
+    if (id == null) return null;
+    for (final c in active) {
+      if (c.id == id) return c;
+    }
+    for (final c in archived) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+}
+
+final conversationListsProvider = Provider.family<ConversationLists, int>((
+  ref,
+  workspaceId,
+) {
+  final all = ref.watch(conversationsProvider(workspaceId)).value;
+  return all == null ? ConversationLists.empty : ConversationLists.of(all);
+});
 
 /// Auto-dispose: only the Prompt screen listens (no drift stream left open
 /// after leaving it).

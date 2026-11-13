@@ -292,15 +292,15 @@ void main() {
           for (final k in ['spec-refine', 'spec-design'])
             if (key(k).evaluate().isNotEmpty) k,
         ];
-        if (!inBar.contains('spec-design')) {
+        if (!inBar.contains('spec-refine')) {
           await tester.tap(key('spec-more'));
           await tester.pumpAndSettle();
-          expect(find.text('Planejar de novo'), findsOneWidget);
+          expect(find.text('Refinar com IA'), findsOneWidget);
           expectNoOverflow(tester);
         }
-        // "Planejar" leaves before "Refinar com IA".
-        if (inBar.contains('spec-design')) {
-          expect(inBar, contains('spec-refine'));
+        // SPEC-062 R1: "Refinar com IA" leaves before "Planejar de novo".
+        if (inBar.contains('spec-refine')) {
+          expect(inBar, contains('spec-design'));
         }
       });
     }

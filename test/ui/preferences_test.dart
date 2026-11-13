@@ -73,8 +73,10 @@ Future<void> ctrl(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.pumpAndSettle();
 }
 
-bool active(WidgetTester tester, AppSection s) =>
-    tester.widget<SideBarItem>(find.byKey(ValueKey('nav-${s.name}'))).active;
+bool active(WidgetTester tester, AppSection s) {
+  final w = tester.widget(find.byKey(ValueKey('nav-${s.name}')));
+  return w is SideBarFeaturedItem ? w.active : (w as SideBarItem).active;
+}
 
 void main() {
   testWidgets('zoom per editor and last screen persist across restarts', (
@@ -84,10 +86,10 @@ void main() {
     addTearDown(db.close);
 
     var c = await pumpLoadedShell(tester, db);
-    await ctrl(tester, LogicalKeyboardKey.digit8); // Código
+    await ctrl(tester, LogicalKeyboardKey.digit9); // Código
     await ctrl(tester, LogicalKeyboardKey.equal);
     await ctrl(tester, LogicalKeyboardKey.equal);
-    await ctrl(tester, LogicalKeyboardKey.digit3); // Specs
+    await ctrl(tester, LogicalKeyboardKey.digit4); // Specs
     await ctrl(tester, LogicalKeyboardKey.minus);
     expect(find.text('90%'), findsOneWidget);
     await unmount(tester, c);
@@ -101,31 +103,36 @@ void main() {
     c = await pumpLoadedShell(tester, db);
     expect(active(tester, AppSection.specs), isTrue);
     expect(find.text('90%'), findsOneWidget);
-    await ctrl(tester, LogicalKeyboardKey.digit8);
+    await ctrl(tester, LogicalKeyboardKey.digit9);
     expect(find.text('120%'), findsOneWidget);
     await unmount(tester, c);
   });
 
-  testWidgets('SPEC-044 R1: the new shortcut layout (Repositório, Ctrl+0) is '
-      'told once to who knew the old one', (tester) async {
+  testWidgets('SPEC-044 R1, SPEC-055 R6: the new shortcut layout (Prompt on '
+      'Ctrl+3, Ctrl+0) is told once to who knew the old one', (tester) async {
     final db = memoryDatabase();
     addTearDown(db.close);
     final repo = AppSettingsRepo(db);
     await tester.runAsync(() async {
       await repo.set(AppSettingKeys.lastSection, 'home');
-      await repo.set(AppSettingKeys.shortcutsVersion, '3');
+      await repo.set(AppSettingKeys.shortcutsVersion, '4');
     });
     var c = await pumpLoadedShell(tester, db);
     await tester.pump();
     final notice = find.byKey(const ValueKey('shortcuts-changed'));
     expect(notice, findsOneWidget);
-    expect(
-      find.descendant(
-        of: notice,
-        matching: find.textContaining('Ctrl 7 Repositório'),
-      ),
-      findsOneWidget,
-    );
+    for (final shortcut in [
+      'Ctrl 3 Prompt',
+      'Ctrl 4 Specs',
+      'Ctrl 8 Repositório',
+      'Ctrl 9 Código',
+    ]) {
+      expect(
+        find.descendant(of: notice, matching: find.textContaining(shortcut)),
+        findsOneWidget,
+        reason: shortcut,
+      );
+    }
     expect(
       find.descendant(
         of: notice,
@@ -136,7 +143,7 @@ void main() {
     await tester.pump(const Duration(seconds: 11));
     await tester.pumpAndSettle();
     await unmount(tester, c);
-    expect((await repo.getAll())[AppSettingKeys.shortcutsVersion], '4');
+    expect((await repo.getAll())[AppSettingKeys.shortcutsVersion], '5');
 
     c = await pumpLoadedShell(tester, db);
     await tester.pump();

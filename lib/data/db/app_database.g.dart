@@ -862,6 +862,21 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         requiredDuringInsert: false,
         defaultValue: const Constant('[]'),
       ).withConverter<List<String>>($SpecsTable.$converterdependsOn);
+  static const VerificationMeta _hasPlanMeta = const VerificationMeta(
+    'hasPlan',
+  );
+  @override
+  late final GeneratedColumn<bool> hasPlan = GeneratedColumn<bool>(
+    'has_plan',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_plan" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
   @override
   late final GeneratedColumn<String> phase = GeneratedColumn<String>(
@@ -1033,6 +1048,73 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
       'REFERENCES sprints (id) ON DELETE SET NULL',
     ),
   );
+  static const VerificationMeta _originConversationIdMeta =
+      const VerificationMeta('originConversationId');
+  @override
+  late final GeneratedColumn<int> originConversationId = GeneratedColumn<int>(
+    'origin_conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originAnswerMeta = const VerificationMeta(
+    'originAnswer',
+  );
+  @override
+  late final GeneratedColumn<int> originAnswer = GeneratedColumn<int>(
+    'origin_answer',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originItemMeta = const VerificationMeta(
+    'originItem',
+  );
+  @override
+  late final GeneratedColumn<int> originItem = GeneratedColumn<int>(
+    'origin_item',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originAliasMeta = const VerificationMeta(
+    'originAlias',
+  );
+  @override
+  late final GeneratedColumn<String> originAlias = GeneratedColumn<String>(
+    'origin_alias',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originTitleMeta = const VerificationMeta(
+    'originTitle',
+  );
+  @override
+  late final GeneratedColumn<String> originTitle = GeneratedColumn<String>(
+    'origin_title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inTrayMeta = const VerificationMeta('inTray');
+  @override
+  late final GeneratedColumn<bool> inTray = GeneratedColumn<bool>(
+    'in_tray',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("in_tray" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1044,6 +1126,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     stage,
     requirements,
     dependsOn,
+    hasPlan,
     phase,
     agentName,
     worktreePath,
@@ -1059,6 +1142,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     gateResends,
     rejectedHunks,
     sprintId,
+    originConversationId,
+    originAnswer,
+    originItem,
+    originAlias,
+    originTitle,
+    inTray,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1109,6 +1198,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
       );
     } else if (isInserting) {
       context.missing(_pathMeta);
+    }
+    if (data.containsKey('has_plan')) {
+      context.handle(
+        _hasPlanMeta,
+        hasPlan.isAcceptableOrUnknown(data['has_plan']!, _hasPlanMeta),
+      );
     }
     if (data.containsKey('phase')) {
       context.handle(
@@ -1224,6 +1319,54 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         sprintId.isAcceptableOrUnknown(data['sprint_id']!, _sprintIdMeta),
       );
     }
+    if (data.containsKey('origin_conversation_id')) {
+      context.handle(
+        _originConversationIdMeta,
+        originConversationId.isAcceptableOrUnknown(
+          data['origin_conversation_id']!,
+          _originConversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_answer')) {
+      context.handle(
+        _originAnswerMeta,
+        originAnswer.isAcceptableOrUnknown(
+          data['origin_answer']!,
+          _originAnswerMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_item')) {
+      context.handle(
+        _originItemMeta,
+        originItem.isAcceptableOrUnknown(data['origin_item']!, _originItemMeta),
+      );
+    }
+    if (data.containsKey('origin_alias')) {
+      context.handle(
+        _originAliasMeta,
+        originAlias.isAcceptableOrUnknown(
+          data['origin_alias']!,
+          _originAliasMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_title')) {
+      context.handle(
+        _originTitleMeta,
+        originTitle.isAcceptableOrUnknown(
+          data['origin_title']!,
+          _originTitleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('in_tray')) {
+      context.handle(
+        _inTrayMeta,
+        inTray.isAcceptableOrUnknown(data['in_tray']!, _inTrayMeta),
+      );
+    }
     return context;
   }
 
@@ -1281,6 +1424,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
           data['${effectivePrefix}depends_on'],
         )!,
       ),
+      hasPlan: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_plan'],
+      )!,
       phase: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}phase'],
@@ -1341,6 +1488,30 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.int,
         data['${effectivePrefix}sprint_id'],
       ),
+      originConversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_conversation_id'],
+      ),
+      originAnswer: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_answer'],
+      ),
+      originItem: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_item'],
+      ),
+      originAlias: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_alias'],
+      ),
+      originTitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_title'],
+      ),
+      inTray: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}in_tray'],
+      )!,
     );
   }
 
@@ -1379,6 +1550,10 @@ class Spec extends DataClass implements Insertable<Spec> {
 
   /// Codes of the specs that must be done first (frontmatter `depende-de`).
   final List<String> dependsOn;
+
+  /// The file has a `## Plano` (SPEC-062 R2, schema v23): "Planejada" in
+  /// the list while not approved yet.
+  final bool hasPlan;
 
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   final String? phase;
@@ -1426,6 +1601,25 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// Sprint of the spec (null = "Sem sprint"). Not in the file: a sync of the
   /// spec never touches it.
   final int? sprintId;
+
+  /// Conversation whose answer the spec came from (null = any other way).
+  /// Not in the file: the conversation belongs to the app, not the repo.
+  final int? originConversationId;
+
+  /// Index of the answer among the conversation's answers, and of the spec
+  /// among the answer's specs.
+  final int? originAnswer;
+  final int? originItem;
+
+  /// Code and title the spec had in the answer (`SPEC-A`): a regenerated
+  /// answer with the same pair counts as already created.
+  final String? originAlias;
+  final String? originTitle;
+
+  /// Waits in the Bandeja: a new spec enters here, approving keeps it here,
+  /// and only "Levar para o Backlog" puts it on the Quadro. False for every
+  /// spec that already existed (they stay where they were).
+  final bool inTray;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1436,6 +1630,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.stage,
     required this.requirements,
     required this.dependsOn,
+    required this.hasPlan,
     this.phase,
     this.agentName,
     this.worktreePath,
@@ -1451,6 +1646,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.gateResends,
     required this.rejectedHunks,
     this.sprintId,
+    this.originConversationId,
+    this.originAnswer,
+    this.originItem,
+    this.originAlias,
+    this.originTitle,
+    required this.inTray,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1478,6 +1679,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         $SpecsTable.$converterdependsOn.toSql(dependsOn),
       );
     }
+    map['has_plan'] = Variable<bool>(hasPlan);
     if (!nullToAbsent || phase != null) {
       map['phase'] = Variable<String>(phase);
     }
@@ -1515,6 +1717,22 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || sprintId != null) {
       map['sprint_id'] = Variable<int>(sprintId);
     }
+    if (!nullToAbsent || originConversationId != null) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId);
+    }
+    if (!nullToAbsent || originAnswer != null) {
+      map['origin_answer'] = Variable<int>(originAnswer);
+    }
+    if (!nullToAbsent || originItem != null) {
+      map['origin_item'] = Variable<int>(originItem);
+    }
+    if (!nullToAbsent || originAlias != null) {
+      map['origin_alias'] = Variable<String>(originAlias);
+    }
+    if (!nullToAbsent || originTitle != null) {
+      map['origin_title'] = Variable<String>(originTitle);
+    }
+    map['in_tray'] = Variable<bool>(inTray);
     return map;
   }
 
@@ -1529,6 +1747,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       stage: Value(stage),
       requirements: Value(requirements),
       dependsOn: Value(dependsOn),
+      hasPlan: Value(hasPlan),
       phase: phase == null && nullToAbsent
           ? const Value.absent()
           : Value(phase),
@@ -1566,6 +1785,22 @@ class Spec extends DataClass implements Insertable<Spec> {
       sprintId: sprintId == null && nullToAbsent
           ? const Value.absent()
           : Value(sprintId),
+      originConversationId: originConversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originConversationId),
+      originAnswer: originAnswer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originAnswer),
+      originItem: originItem == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originItem),
+      originAlias: originAlias == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originAlias),
+      originTitle: originTitle == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originTitle),
+      inTray: Value(inTray),
     );
   }
 
@@ -1590,6 +1825,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         json['requirements'],
       ),
       dependsOn: serializer.fromJson<List<String>>(json['dependsOn']),
+      hasPlan: serializer.fromJson<bool>(json['hasPlan']),
       phase: serializer.fromJson<String?>(json['phase']),
       agentName: serializer.fromJson<String?>(json['agentName']),
       worktreePath: serializer.fromJson<String?>(json['worktreePath']),
@@ -1605,6 +1841,14 @@ class Spec extends DataClass implements Insertable<Spec> {
       gateResends: serializer.fromJson<int>(json['gateResends']),
       rejectedHunks: serializer.fromJson<int>(json['rejectedHunks']),
       sprintId: serializer.fromJson<int?>(json['sprintId']),
+      originConversationId: serializer.fromJson<int?>(
+        json['originConversationId'],
+      ),
+      originAnswer: serializer.fromJson<int?>(json['originAnswer']),
+      originItem: serializer.fromJson<int?>(json['originItem']),
+      originAlias: serializer.fromJson<String?>(json['originAlias']),
+      originTitle: serializer.fromJson<String?>(json['originTitle']),
+      inTray: serializer.fromJson<bool>(json['inTray']),
     );
   }
   @override
@@ -1626,6 +1870,7 @@ class Spec extends DataClass implements Insertable<Spec> {
         requirements,
       ),
       'dependsOn': serializer.toJson<List<String>>(dependsOn),
+      'hasPlan': serializer.toJson<bool>(hasPlan),
       'phase': serializer.toJson<String?>(phase),
       'agentName': serializer.toJson<String?>(agentName),
       'worktreePath': serializer.toJson<String?>(worktreePath),
@@ -1641,6 +1886,12 @@ class Spec extends DataClass implements Insertable<Spec> {
       'gateResends': serializer.toJson<int>(gateResends),
       'rejectedHunks': serializer.toJson<int>(rejectedHunks),
       'sprintId': serializer.toJson<int?>(sprintId),
+      'originConversationId': serializer.toJson<int?>(originConversationId),
+      'originAnswer': serializer.toJson<int?>(originAnswer),
+      'originItem': serializer.toJson<int?>(originItem),
+      'originAlias': serializer.toJson<String?>(originAlias),
+      'originTitle': serializer.toJson<String?>(originTitle),
+      'inTray': serializer.toJson<bool>(inTray),
     };
   }
 
@@ -1654,6 +1905,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     SpecStage? stage,
     List<({String id, String text})>? requirements,
     List<String>? dependsOn,
+    bool? hasPlan,
     Value<String?> phase = const Value.absent(),
     Value<String?> agentName = const Value.absent(),
     Value<String?> worktreePath = const Value.absent(),
@@ -1669,6 +1921,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     int? gateResends,
     int? rejectedHunks,
     Value<int?> sprintId = const Value.absent(),
+    Value<int?> originConversationId = const Value.absent(),
+    Value<int?> originAnswer = const Value.absent(),
+    Value<int?> originItem = const Value.absent(),
+    Value<String?> originAlias = const Value.absent(),
+    Value<String?> originTitle = const Value.absent(),
+    bool? inTray,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1679,6 +1937,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     stage: stage ?? this.stage,
     requirements: requirements ?? this.requirements,
     dependsOn: dependsOn ?? this.dependsOn,
+    hasPlan: hasPlan ?? this.hasPlan,
     phase: phase.present ? phase.value : this.phase,
     agentName: agentName.present ? agentName.value : this.agentName,
     worktreePath: worktreePath.present ? worktreePath.value : this.worktreePath,
@@ -1698,6 +1957,14 @@ class Spec extends DataClass implements Insertable<Spec> {
     gateResends: gateResends ?? this.gateResends,
     rejectedHunks: rejectedHunks ?? this.rejectedHunks,
     sprintId: sprintId.present ? sprintId.value : this.sprintId,
+    originConversationId: originConversationId.present
+        ? originConversationId.value
+        : this.originConversationId,
+    originAnswer: originAnswer.present ? originAnswer.value : this.originAnswer,
+    originItem: originItem.present ? originItem.value : this.originItem,
+    originAlias: originAlias.present ? originAlias.value : this.originAlias,
+    originTitle: originTitle.present ? originTitle.value : this.originTitle,
+    inTray: inTray ?? this.inTray,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1714,6 +1981,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.requirements.value
           : this.requirements,
       dependsOn: data.dependsOn.present ? data.dependsOn.value : this.dependsOn,
+      hasPlan: data.hasPlan.present ? data.hasPlan.value : this.hasPlan,
       phase: data.phase.present ? data.phase.value : this.phase,
       agentName: data.agentName.present ? data.agentName.value : this.agentName,
       worktreePath: data.worktreePath.present
@@ -1751,6 +2019,22 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.rejectedHunks.value
           : this.rejectedHunks,
       sprintId: data.sprintId.present ? data.sprintId.value : this.sprintId,
+      originConversationId: data.originConversationId.present
+          ? data.originConversationId.value
+          : this.originConversationId,
+      originAnswer: data.originAnswer.present
+          ? data.originAnswer.value
+          : this.originAnswer,
+      originItem: data.originItem.present
+          ? data.originItem.value
+          : this.originItem,
+      originAlias: data.originAlias.present
+          ? data.originAlias.value
+          : this.originAlias,
+      originTitle: data.originTitle.present
+          ? data.originTitle.value
+          : this.originTitle,
+      inTray: data.inTray.present ? data.inTray.value : this.inTray,
     );
   }
 
@@ -1766,6 +2050,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('stage: $stage, ')
           ..write('requirements: $requirements, ')
           ..write('dependsOn: $dependsOn, ')
+          ..write('hasPlan: $hasPlan, ')
           ..write('phase: $phase, ')
           ..write('agentName: $agentName, ')
           ..write('worktreePath: $worktreePath, ')
@@ -1780,7 +2065,13 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
           ..write('rejectedHunks: $rejectedHunks, ')
-          ..write('sprintId: $sprintId')
+          ..write('sprintId: $sprintId, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originAnswer: $originAnswer, ')
+          ..write('originItem: $originItem, ')
+          ..write('originAlias: $originAlias, ')
+          ..write('originTitle: $originTitle, ')
+          ..write('inTray: $inTray')
           ..write(')'))
         .toString();
   }
@@ -1796,6 +2087,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     stage,
     requirements,
     dependsOn,
+    hasPlan,
     phase,
     agentName,
     worktreePath,
@@ -1811,6 +2103,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     gateResends,
     rejectedHunks,
     sprintId,
+    originConversationId,
+    originAnswer,
+    originItem,
+    originAlias,
+    originTitle,
+    inTray,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1825,6 +2123,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.stage == this.stage &&
           other.requirements == this.requirements &&
           other.dependsOn == this.dependsOn &&
+          other.hasPlan == this.hasPlan &&
           other.phase == this.phase &&
           other.agentName == this.agentName &&
           other.worktreePath == this.worktreePath &&
@@ -1839,7 +2138,13 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.boardOrder == this.boardOrder &&
           other.gateResends == this.gateResends &&
           other.rejectedHunks == this.rejectedHunks &&
-          other.sprintId == this.sprintId);
+          other.sprintId == this.sprintId &&
+          other.originConversationId == this.originConversationId &&
+          other.originAnswer == this.originAnswer &&
+          other.originItem == this.originItem &&
+          other.originAlias == this.originAlias &&
+          other.originTitle == this.originTitle &&
+          other.inTray == this.inTray);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -1852,6 +2157,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<SpecStage> stage;
   final Value<List<({String id, String text})>> requirements;
   final Value<List<String>> dependsOn;
+  final Value<bool> hasPlan;
   final Value<String?> phase;
   final Value<String?> agentName;
   final Value<String?> worktreePath;
@@ -1867,6 +2173,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<int> gateResends;
   final Value<int> rejectedHunks;
   final Value<int?> sprintId;
+  final Value<int?> originConversationId;
+  final Value<int?> originAnswer;
+  final Value<int?> originItem;
+  final Value<String?> originAlias;
+  final Value<String?> originTitle;
+  final Value<bool> inTray;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -1877,6 +2189,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.stage = const Value.absent(),
     this.requirements = const Value.absent(),
     this.dependsOn = const Value.absent(),
+    this.hasPlan = const Value.absent(),
     this.phase = const Value.absent(),
     this.agentName = const Value.absent(),
     this.worktreePath = const Value.absent(),
@@ -1892,6 +2205,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
     this.sprintId = const Value.absent(),
+    this.originConversationId = const Value.absent(),
+    this.originAnswer = const Value.absent(),
+    this.originItem = const Value.absent(),
+    this.originAlias = const Value.absent(),
+    this.originTitle = const Value.absent(),
+    this.inTray = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -1903,6 +2222,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.stage = const Value.absent(),
     this.requirements = const Value.absent(),
     this.dependsOn = const Value.absent(),
+    this.hasPlan = const Value.absent(),
     this.phase = const Value.absent(),
     this.agentName = const Value.absent(),
     this.worktreePath = const Value.absent(),
@@ -1918,6 +2238,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.gateResends = const Value.absent(),
     this.rejectedHunks = const Value.absent(),
     this.sprintId = const Value.absent(),
+    this.originConversationId = const Value.absent(),
+    this.originAnswer = const Value.absent(),
+    this.originItem = const Value.absent(),
+    this.originAlias = const Value.absent(),
+    this.originTitle = const Value.absent(),
+    this.inTray = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -1932,6 +2258,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? stage,
     Expression<String>? requirements,
     Expression<String>? dependsOn,
+    Expression<bool>? hasPlan,
     Expression<String>? phase,
     Expression<String>? agentName,
     Expression<String>? worktreePath,
@@ -1947,6 +2274,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<int>? gateResends,
     Expression<int>? rejectedHunks,
     Expression<int>? sprintId,
+    Expression<int>? originConversationId,
+    Expression<int>? originAnswer,
+    Expression<int>? originItem,
+    Expression<String>? originAlias,
+    Expression<String>? originTitle,
+    Expression<bool>? inTray,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1958,6 +2291,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (stage != null) 'stage': stage,
       if (requirements != null) 'requirements': requirements,
       if (dependsOn != null) 'depends_on': dependsOn,
+      if (hasPlan != null) 'has_plan': hasPlan,
       if (phase != null) 'phase': phase,
       if (agentName != null) 'agent_name': agentName,
       if (worktreePath != null) 'worktree_path': worktreePath,
@@ -1973,6 +2307,13 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (gateResends != null) 'gate_resends': gateResends,
       if (rejectedHunks != null) 'rejected_hunks': rejectedHunks,
       if (sprintId != null) 'sprint_id': sprintId,
+      if (originConversationId != null)
+        'origin_conversation_id': originConversationId,
+      if (originAnswer != null) 'origin_answer': originAnswer,
+      if (originItem != null) 'origin_item': originItem,
+      if (originAlias != null) 'origin_alias': originAlias,
+      if (originTitle != null) 'origin_title': originTitle,
+      if (inTray != null) 'in_tray': inTray,
     });
   }
 
@@ -1986,6 +2327,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<SpecStage>? stage,
     Value<List<({String id, String text})>>? requirements,
     Value<List<String>>? dependsOn,
+    Value<bool>? hasPlan,
     Value<String?>? phase,
     Value<String?>? agentName,
     Value<String?>? worktreePath,
@@ -2001,6 +2343,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<int>? gateResends,
     Value<int>? rejectedHunks,
     Value<int?>? sprintId,
+    Value<int?>? originConversationId,
+    Value<int?>? originAnswer,
+    Value<int?>? originItem,
+    Value<String?>? originAlias,
+    Value<String?>? originTitle,
+    Value<bool>? inTray,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2012,6 +2360,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       stage: stage ?? this.stage,
       requirements: requirements ?? this.requirements,
       dependsOn: dependsOn ?? this.dependsOn,
+      hasPlan: hasPlan ?? this.hasPlan,
       phase: phase ?? this.phase,
       agentName: agentName ?? this.agentName,
       worktreePath: worktreePath ?? this.worktreePath,
@@ -2027,6 +2376,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       gateResends: gateResends ?? this.gateResends,
       rejectedHunks: rejectedHunks ?? this.rejectedHunks,
       sprintId: sprintId ?? this.sprintId,
+      originConversationId: originConversationId ?? this.originConversationId,
+      originAnswer: originAnswer ?? this.originAnswer,
+      originItem: originItem ?? this.originItem,
+      originAlias: originAlias ?? this.originAlias,
+      originTitle: originTitle ?? this.originTitle,
+      inTray: inTray ?? this.inTray,
     );
   }
 
@@ -2067,6 +2422,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       map['depends_on'] = Variable<String>(
         $SpecsTable.$converterdependsOn.toSql(dependsOn.value),
       );
+    }
+    if (hasPlan.present) {
+      map['has_plan'] = Variable<bool>(hasPlan.value);
     }
     if (phase.present) {
       map['phase'] = Variable<String>(phase.value);
@@ -2113,6 +2471,24 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (sprintId.present) {
       map['sprint_id'] = Variable<int>(sprintId.value);
     }
+    if (originConversationId.present) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId.value);
+    }
+    if (originAnswer.present) {
+      map['origin_answer'] = Variable<int>(originAnswer.value);
+    }
+    if (originItem.present) {
+      map['origin_item'] = Variable<int>(originItem.value);
+    }
+    if (originAlias.present) {
+      map['origin_alias'] = Variable<String>(originAlias.value);
+    }
+    if (originTitle.present) {
+      map['origin_title'] = Variable<String>(originTitle.value);
+    }
+    if (inTray.present) {
+      map['in_tray'] = Variable<bool>(inTray.value);
+    }
     return map;
   }
 
@@ -2128,6 +2504,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('stage: $stage, ')
           ..write('requirements: $requirements, ')
           ..write('dependsOn: $dependsOn, ')
+          ..write('hasPlan: $hasPlan, ')
           ..write('phase: $phase, ')
           ..write('agentName: $agentName, ')
           ..write('worktreePath: $worktreePath, ')
@@ -2142,7 +2519,13 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('boardOrder: $boardOrder, ')
           ..write('gateResends: $gateResends, ')
           ..write('rejectedHunks: $rejectedHunks, ')
-          ..write('sprintId: $sprintId')
+          ..write('sprintId: $sprintId, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originAnswer: $originAnswer, ')
+          ..write('originItem: $originItem, ')
+          ..write('originAlias: $originAlias, ')
+          ..write('originTitle: $originTitle, ')
+          ..write('inTray: $inTray')
           ..write(')'))
         .toString();
   }
@@ -5862,6 +6245,17 @@ class $ConversationsTable extends Conversations
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -5882,6 +6276,7 @@ class $ConversationsTable extends Conversations
     refineSpecCode,
     refineOrigin,
     refineBaseText,
+    archivedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6024,6 +6419,12 @@ class $ConversationsTable extends Conversations
         ),
       );
     }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -6105,6 +6506,10 @@ class $ConversationsTable extends Conversations
         DriftSqlType.string,
         data['${effectivePrefix}refine_base_text'],
       ),
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
     );
   }
 
@@ -6153,6 +6558,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
   /// Spec text when the refine conversation was created (SPEC-026 R8,
   /// schema v18). Null for other modes and older conversations.
   final String? refineBaseText;
+
+  /// When it was archived (SPEC-056 R4, schema v22). Null = active.
+  final DateTime? archivedAt;
   const Conversation({
     this.runConfig,
     required this.id,
@@ -6172,6 +6580,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     this.refineSpecCode,
     this.refineOrigin,
     this.refineBaseText,
+    this.archivedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6207,6 +6616,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     }
     if (!nullToAbsent || refineBaseText != null) {
       map['refine_base_text'] = Variable<String>(refineBaseText);
+    }
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
     }
     return map;
   }
@@ -6245,6 +6657,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineBaseText: refineBaseText == null && nullToAbsent
           ? const Value.absent()
           : Value(refineBaseText),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
     );
   }
 
@@ -6272,6 +6687,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineSpecCode: serializer.fromJson<String?>(json['refineSpecCode']),
       refineOrigin: serializer.fromJson<String?>(json['refineOrigin']),
       refineBaseText: serializer.fromJson<String?>(json['refineBaseText']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
     );
   }
   @override
@@ -6296,6 +6712,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       'refineSpecCode': serializer.toJson<String?>(refineSpecCode),
       'refineOrigin': serializer.toJson<String?>(refineOrigin),
       'refineBaseText': serializer.toJson<String?>(refineBaseText),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
     };
   }
 
@@ -6318,6 +6735,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     Value<String?> refineSpecCode = const Value.absent(),
     Value<String?> refineOrigin = const Value.absent(),
     Value<String?> refineBaseText = const Value.absent(),
+    Value<DateTime?> archivedAt = const Value.absent(),
   }) => Conversation(
     runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
@@ -6343,6 +6761,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineBaseText: refineBaseText.present
         ? refineBaseText.value
         : this.refineBaseText,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
@@ -6376,6 +6795,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineBaseText: data.refineBaseText.present
           ? data.refineBaseText.value
           : this.refineBaseText,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
     );
   }
 
@@ -6399,7 +6821,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ..write('updatedAt: $updatedAt, ')
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
-          ..write('refineBaseText: $refineBaseText')
+          ..write('refineBaseText: $refineBaseText, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
@@ -6424,6 +6847,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineSpecCode,
     refineOrigin,
     refineBaseText,
+    archivedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -6446,7 +6870,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           other.updatedAt == this.updatedAt &&
           other.refineSpecCode == this.refineSpecCode &&
           other.refineOrigin == this.refineOrigin &&
-          other.refineBaseText == this.refineBaseText);
+          other.refineBaseText == this.refineBaseText &&
+          other.archivedAt == this.archivedAt);
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
@@ -6468,6 +6893,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<String?> refineSpecCode;
   final Value<String?> refineOrigin;
   final Value<String?> refineBaseText;
+  final Value<DateTime?> archivedAt;
   const ConversationsCompanion({
     this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
@@ -6487,6 +6913,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineSpecCode = const Value.absent(),
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
+    this.archivedAt = const Value.absent(),
   });
   ConversationsCompanion.insert({
     this.runConfig = const Value.absent(),
@@ -6507,6 +6934,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineSpecCode = const Value.absent(),
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
+    this.archivedAt = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        title = Value(title),
        model = Value(model);
@@ -6529,6 +6957,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<String>? refineSpecCode,
     Expression<String>? refineOrigin,
     Expression<String>? refineBaseText,
+    Expression<DateTime>? archivedAt,
   }) {
     return RawValuesInsertable({
       if (runConfig != null) 'run_config': runConfig,
@@ -6549,6 +6978,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       if (refineSpecCode != null) 'refine_spec_code': refineSpecCode,
       if (refineOrigin != null) 'refine_origin': refineOrigin,
       if (refineBaseText != null) 'refine_base_text': refineBaseText,
+      if (archivedAt != null) 'archived_at': archivedAt,
     });
   }
 
@@ -6571,6 +7001,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<String?>? refineSpecCode,
     Value<String?>? refineOrigin,
     Value<String?>? refineBaseText,
+    Value<DateTime?>? archivedAt,
   }) {
     return ConversationsCompanion(
       runConfig: runConfig ?? this.runConfig,
@@ -6591,6 +7022,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       refineSpecCode: refineSpecCode ?? this.refineSpecCode,
       refineOrigin: refineOrigin ?? this.refineOrigin,
       refineBaseText: refineBaseText ?? this.refineBaseText,
+      archivedAt: archivedAt ?? this.archivedAt,
     );
   }
 
@@ -6651,6 +7083,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     if (refineBaseText.present) {
       map['refine_base_text'] = Variable<String>(refineBaseText.value);
     }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
+    }
     return map;
   }
 
@@ -6674,7 +7109,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
           ..write('updatedAt: $updatedAt, ')
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
-          ..write('refineBaseText: $refineBaseText')
+          ..write('refineBaseText: $refineBaseText, ')
+          ..write('archivedAt: $archivedAt')
           ..write(')'))
         .toString();
   }
@@ -15229,6 +15665,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<SpecStage> stage,
   Value<List<({String id, String text})>> requirements,
   Value<List<String>> dependsOn,
+  Value<bool> hasPlan,
   Value<String?> phase,
   Value<String?> agentName,
   Value<String?> worktreePath,
@@ -15244,6 +15681,12 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int> gateResends,
   Value<int> rejectedHunks,
   Value<int?> sprintId,
+  Value<int?> originConversationId,
+  Value<int?> originAnswer,
+  Value<int?> originItem,
+  Value<String?> originAlias,
+  Value<String?> originTitle,
+  Value<bool> inTray,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -15255,6 +15698,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<SpecStage> stage,
   Value<List<({String id, String text})>> requirements,
   Value<List<String>> dependsOn,
+  Value<bool> hasPlan,
   Value<String?> phase,
   Value<String?> agentName,
   Value<String?> worktreePath,
@@ -15270,6 +15714,12 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> gateResends,
   Value<int> rejectedHunks,
   Value<int?> sprintId,
+  Value<int?> originConversationId,
+  Value<int?> originAnswer,
+  Value<int?> originItem,
+  Value<String?> originAlias,
+  Value<String?> originTitle,
+  Value<bool> inTray,
 });
 
 final class $$SpecsTableReferences
@@ -15516,6 +15966,11 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<bool> get hasPlan => $composableBuilder(
+    column: $table.hasPlan,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get phase => $composableBuilder(
     column: $table.phase,
     builder: (column) => ColumnFilters(column),
@@ -15583,6 +16038,36 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<int> get rejectedHunks => $composableBuilder(
     column: $table.rejectedHunks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get inTray => $composableBuilder(
+    column: $table.inTray,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -15882,6 +16367,11 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get hasPlan => $composableBuilder(
+    column: $table.hasPlan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get phase => $composableBuilder(
     column: $table.phase,
     builder: (column) => ColumnOrderings(column),
@@ -15949,6 +16439,36 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<int> get rejectedHunks => $composableBuilder(
     column: $table.rejectedHunks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get inTray => $composableBuilder(
+    column: $table.inTray,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16035,6 +16555,9 @@ class $$SpecsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<List<String>, String> get dependsOn =>
       $composableBuilder(column: $table.dependsOn, builder: (column) => column);
 
+  GeneratedColumn<bool> get hasPlan =>
+      $composableBuilder(column: $table.hasPlan, builder: (column) => column);
+
   GeneratedColumn<String> get phase =>
       $composableBuilder(column: $table.phase, builder: (column) => column);
 
@@ -16098,6 +16621,34 @@ class $$SpecsTableAnnotationComposer
     column: $table.rejectedHunks,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get originConversationId => $composableBuilder(
+    column: $table.originConversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get originAnswer => $composableBuilder(
+    column: $table.originAnswer,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get originItem => $composableBuilder(
+    column: $table.originItem,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originAlias => $composableBuilder(
+    column: $table.originAlias,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get originTitle => $composableBuilder(
+    column: $table.originTitle,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get inTray =>
+      $composableBuilder(column: $table.inTray, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -16395,6 +16946,7 @@ class $$SpecsTableTableManager
                 Value<List<({String id, String text})>> requirements =
                     const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
+                Value<bool> hasPlan = const Value.absent(),
                 Value<String?> phase = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> worktreePath = const Value.absent(),
@@ -16410,6 +16962,12 @@ class $$SpecsTableTableManager
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
                 Value<int?> sprintId = const Value.absent(),
+                Value<int?> originConversationId = const Value.absent(),
+                Value<int?> originAnswer = const Value.absent(),
+                Value<int?> originItem = const Value.absent(),
+                Value<String?> originAlias = const Value.absent(),
+                Value<String?> originTitle = const Value.absent(),
+                Value<bool> inTray = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -16420,6 +16978,7 @@ class $$SpecsTableTableManager
                 stage: stage,
                 requirements: requirements,
                 dependsOn: dependsOn,
+                hasPlan: hasPlan,
                 phase: phase,
                 agentName: agentName,
                 worktreePath: worktreePath,
@@ -16435,6 +16994,12 @@ class $$SpecsTableTableManager
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
                 sprintId: sprintId,
+                originConversationId: originConversationId,
+                originAnswer: originAnswer,
+                originItem: originItem,
+                originAlias: originAlias,
+                originTitle: originTitle,
+                inTray: inTray,
               ),
           createCompanionCallback:
               ({
@@ -16448,6 +17013,7 @@ class $$SpecsTableTableManager
                 Value<List<({String id, String text})>> requirements =
                     const Value.absent(),
                 Value<List<String>> dependsOn = const Value.absent(),
+                Value<bool> hasPlan = const Value.absent(),
                 Value<String?> phase = const Value.absent(),
                 Value<String?> agentName = const Value.absent(),
                 Value<String?> worktreePath = const Value.absent(),
@@ -16463,6 +17029,12 @@ class $$SpecsTableTableManager
                 Value<int> gateResends = const Value.absent(),
                 Value<int> rejectedHunks = const Value.absent(),
                 Value<int?> sprintId = const Value.absent(),
+                Value<int?> originConversationId = const Value.absent(),
+                Value<int?> originAnswer = const Value.absent(),
+                Value<int?> originItem = const Value.absent(),
+                Value<String?> originAlias = const Value.absent(),
+                Value<String?> originTitle = const Value.absent(),
+                Value<bool> inTray = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -16473,6 +17045,7 @@ class $$SpecsTableTableManager
                 stage: stage,
                 requirements: requirements,
                 dependsOn: dependsOn,
+                hasPlan: hasPlan,
                 phase: phase,
                 agentName: agentName,
                 worktreePath: worktreePath,
@@ -16488,6 +17061,12 @@ class $$SpecsTableTableManager
                 gateResends: gateResends,
                 rejectedHunks: rejectedHunks,
                 sprintId: sprintId,
+                originConversationId: originConversationId,
+                originAnswer: originAnswer,
+                originItem: originItem,
+                originAlias: originAlias,
+                originTitle: originTitle,
+                inTray: inTray,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -19435,6 +20014,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<String?> refineSpecCode,
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
+      Value<DateTime?> archivedAt,
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
@@ -19456,6 +20036,7 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<String?> refineSpecCode,
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
+      Value<DateTime?> archivedAt,
     });
 
 final class $$ConversationsTableReferences
@@ -19608,6 +20189,11 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<String> get refineBaseText => $composableBuilder(
     column: $table.refineBaseText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19772,6 +20358,11 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -19883,6 +20474,11 @@ class $$ConversationsTableAnnotationComposer
 
   GeneratedColumn<String> get refineBaseText => $composableBuilder(
     column: $table.refineBaseText,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => column,
   );
 
@@ -20009,6 +20605,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineSpecCode = const Value.absent(),
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
               }) => ConversationsCompanion(
                 runConfig: runConfig,
                 id: id,
@@ -20028,6 +20625,7 @@ class $$ConversationsTableTableManager
                 refineSpecCode: refineSpecCode,
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
+                archivedAt: archivedAt,
               ),
           createCompanionCallback:
               ({
@@ -20049,6 +20647,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineSpecCode = const Value.absent(),
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
               }) => ConversationsCompanion.insert(
                 runConfig: runConfig,
                 id: id,
@@ -20068,6 +20667,7 @@ class $$ConversationsTableTableManager
                 refineSpecCode: refineSpecCode,
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
+                archivedAt: archivedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

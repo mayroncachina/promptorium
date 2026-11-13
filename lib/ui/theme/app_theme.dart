@@ -12,20 +12,27 @@ abstract final class AppTheme {
     (states) =>
         states.contains(WidgetState.pressed) ||
             states.contains(WidgetState.focused)
-        ? AppColors.background.withValues(alpha: .1)
+        ? AppColors.backgroundSolid.withValues(alpha: .1)
         : Colors.transparent,
   );
 
   static ThemeData dark() {
     const scheme = ColorScheme.dark(
       primary: AppColors.amber,
-      onPrimary: AppColors.background,
+      onPrimary: AppColors.backgroundSolid,
       secondary: AppColors.teal,
-      onSecondary: AppColors.background,
+      onSecondary: AppColors.backgroundSolid,
       tertiary: AppColors.lilac,
       error: AppColors.red,
-      onError: AppColors.background,
+      onError: AppColors.backgroundSolid,
       surface: AppColors.panel,
+      // Menus, dropdowns and other popups float over content without a
+      // blur: they stay opaque (SPEC-049 R3).
+      surfaceContainerLowest: AppColors.panelSolid,
+      surfaceContainerLow: AppColors.panelSolid,
+      surfaceContainer: AppColors.panelSolid,
+      surfaceContainerHigh: AppColors.panelSolid,
+      surfaceContainerHighest: AppColors.panelSolid,
       onSurface: AppColors.text,
       onSurfaceVariant: AppColors.textSecondary,
       outline: AppColors.border,
@@ -38,7 +45,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       fontFamily: AppFonts.sans,
       scaffoldBackgroundColor: AppColors.background,
-      canvasColor: AppColors.background,
+      canvasColor: AppColors.panelSolid,
       dividerColor: AppColors.border,
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
@@ -53,7 +60,7 @@ abstract final class AppTheme {
         behavior: SnackBarBehavior.floating,
         width: 520,
         elevation: 6,
-        backgroundColor: AppColors.surfaceRaised,
+        backgroundColor: AppColors.surfaceRaisedSolid,
         actionTextColor: AppColors.amber,
         contentTextStyle: const TextStyle(color: AppColors.text, fontSize: 13),
         shape: RoundedRectangleBorder(

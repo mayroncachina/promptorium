@@ -126,11 +126,7 @@ void main() {
     );
     expect(
       node(),
-      isSemantics(
-        isButton: true,
-        hasExpandedState: true,
-        isExpanded: false,
-      ),
+      isSemantics(isButton: true, hasExpandedState: true, isExpanded: false),
     );
 
     // Tab focus, then Enter.

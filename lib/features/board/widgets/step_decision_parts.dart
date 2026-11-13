@@ -11,6 +11,7 @@ import '../orchestrator/orchestrator_rules.dart';
 import '../step_decision.dart';
 import '../step_gate.dart';
 import 'spec_canvas.dart' show DashedBorderPainter;
+import '../../../ui/theme/ambient.dart';
 
 /// Most options shown, and the row of "Outra resposta" after them.
 const stepDecisionOtherRow = stepDecisionMaxOptions;
@@ -514,12 +515,11 @@ class StepDecisionShimmer extends StatefulWidget {
   State<StepDecisionShimmer> createState() => _StepDecisionShimmerState();
 }
 
-class _StepDecisionShimmerState extends State<StepDecisionShimmer>
-    with SingleTickerProviderStateMixin {
+class _StepDecisionShimmerState extends State<StepDecisionShimmer> {
   static const _half = Duration(milliseconds: 700);
 
   late final AnimationController _c = AnimationController(
-    vsync: this,
+    vsync: AmbientVsync(context),
     duration: _half,
     value: 1,
   );

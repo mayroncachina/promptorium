@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Nova spec · estados e movimento</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.chip{height:28px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(10,12,16,.35);color:#A0A8B6;font-size:12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.quiet{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#A0A8B6;font-weight:500;white-space:nowrap}
+.col{border-radius:16px;border:1px solid rgba(255,255,255,.07);background:rgba(25,29,36,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.05);display:flex;flex-direction:column}
+.colh{display:flex;align-items:center;gap:8px;padding:14px 14px 10px;font:600 12px 'IBM Plex Sans';letter-spacing:.08em;color:#C9CED8}
+.dot{width:7px;height:7px;border-radius:4px}
+.empty{flex:1;display:flex;align-items:center;justify-content:center;color:#7C8595;font-size:12px}
+.card{margin:0 10px;border-radius:12px;background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);padding:12px 12px 10px}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.cta svg{transition:transform .12s ease-out}
+.cta .sheen{position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:translateX(-140%) skewX(-18deg)}
+.cta:focus-visible,.fill:focus-visible,.ghost:focus-visible,.seg button:focus-visible{outline:2px solid #FFD08A;outline-offset:3px}
+.fill:disabled{background:rgba(242,165,65,.28);color:rgba(26,18,6,.75);cursor:not-allowed}
+.cta.live{transition:background .12s ease-out,box-shadow .12s ease-out,transform .1s ease-out}
+.cta.live:hover{background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)}
+.cta.live:hover svg{transform:rotate(90deg)}
+.cta.live:hover .sheen{animation:sheen .45s ease-out 1}
+.cta.live:active{transform:scale(.97);box-shadow:0 0 10px rgba(242,165,65,.3)}
+.cta.live:focus-visible{outline:2px solid #FFD08A;outline-offset:3px}
+@keyframes sheen{0%{transform:translateX(-140%) skewX(-18deg);opacity:1}100%{transform:translateX(300%) skewX(-18deg);opacity:1}}
+.cta.breathe{animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(242,165,65,0)}50%{box-shadow:0 0 0 1px rgba(242,165,65,.45),0 0 26px rgba(242,165,65,.5)}}
+.seg{display:inline-flex;position:relative;padding:3px;gap:2px;border-radius:11px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.seg button{position:relative;z-index:1;height:32px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg button[aria-checked=true]{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.fill{height:30px;padding:0 14px;border:0;border-radius:15px;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.ghost{height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:#F2A541;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.guide{position:absolute;border-left:1px dashed rgba(79,209,181,.7)}
+@media (prefers-reduced-motion: reduce){.cta,.cta svg,.cta.live{transition:background .12s linear}.cta.live:hover svg{transform:none}.cta.live:hover .sheen{animation:none}.cta.live:active{transform:none}.cta.breathe{animation:none}}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px"><div class="dots" aria-hidden="true"></div><div style="position:absolute;inset:0;padding:28px 36px;overflow:hidden">
+ <div style="display:flex;align-items:baseline;gap:16px"><h1 style="margin:0;font-size:22px;font-weight:600">"Nova spec" · estados e movimento</h1><span style="color:#A0A8B6;font-size:13px">uma resposta curta e com propósito; nada roda em laço sem motivo</span></div>
+ <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px"><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">1 · Repouso</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta " aria-label="Nova spec"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span class="sheen" aria-hidden="true"></span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">Âmbar cheio, texto <span class="mono">onAmber</span>. Nenhum quadro pedido.</div></div><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">2 · Mouse em cima</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta" style="background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)"><svg style="transform:rotate(90deg)" aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span aria-hidden="true" style="position:absolute;top:0;bottom:0;left:40%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg)"></span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">Em até 120 ms: fundo <span class="mono">#F6B662</span>, brilho em volta, "+" gira 90° e um reflexo cruza uma vez (450 ms). Ao sair, volta sem repetir.</div></div><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">3 · Pressionado</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta" style="transform:scale(.97);background:#E89A36;box-shadow:0 0 10px rgba(242,165,65,.3)"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">Encolhe para 97% em 100 ms e o brilho baixa. Ao soltar abre a nova spec na hora: a animação nunca atrasa a ação.</div></div><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">4 · Foco do teclado</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta" style="outline:2px solid #FFD08A;outline-offset:3px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">Anel de 2 px <span class="mono">#FFD08A</span> com 3 px de folga, contraste ≥ 3:1 sobre o vidro. Não depende do mouse.</div></div><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">5 · Atenção (workspace sem specs)</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta" style="box-shadow:0 0 0 1px rgba(242,165,65,.45),0 0 26px rgba(242,165,65,.5)"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">O brilho respira num ciclo de 2,4 s no relógio de ambiente (24 q/s). Para de vez ao passar o mouse, focar ou criar a primeira spec.</div></div><div class="g" style="border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:190px">
+ <div style="font-weight:600;font-size:14px">6 · Movimento reduzido</div>
+ <div style="height:64px;border-radius:12px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;position:relative"><button class="cta" style="background:#F6B662"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span></button></div>
+ <div style="font-size:12px;color:#A0A8B6;line-height:1.55">Sem giro, reflexo, encolher ou respiração. Mouse em cima e pressionar só mudam a cor; o anel de foco continua.</div></div></div>
+ <div class="g" style="margin-top:18px;border-radius:16px;padding:16px 18px">
+  <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:14px">Mouse em cima, quadro a quadro</span>
+   <span style="font-size:12px;color:#A0A8B6">Teste ao vivo: passe o mouse, clique e use Tab → <button class="cta live" aria-label="Nova spec"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span class="sheen" aria-hidden="true"></span></button></span></div>
+  <div style="display:flex;margin-top:12px"><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px"><div style="height:56px;display:flex;align-items:center"><button class="cta " aria-label="Nova spec"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span class="sheen" aria-hidden="true"></span></button></div><span class="mono" style="font-size:11px;color:#A0A8B6">0 ms</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px"><div style="height:56px;display:flex;align-items:center"><button class="cta" style="background:#F4AE52;box-shadow:0 0 12px rgba(242,165,65,.3)"><svg style="transform:rotate(15deg)" aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span aria-hidden="true" style="position:absolute;top:0;bottom:0;left:-10%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg)"></span></button></div><span class="mono" style="font-size:11px;color:#A0A8B6">60 ms</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px"><div style="height:56px;display:flex;align-items:center"><button class="cta" style="background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)"><svg style="transform:rotate(90deg)" aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span aria-hidden="true" style="position:absolute;top:0;bottom:0;left:20%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg)"></span></button></div><span class="mono" style="font-size:11px;color:#A0A8B6">120 ms</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px"><div style="height:56px;display:flex;align-items:center"><button class="cta" style="background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)"><svg style="transform:rotate(90deg)" aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span aria-hidden="true" style="position:absolute;top:0;bottom:0;left:70%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg)"></span></button></div><span class="mono" style="font-size:11px;color:#A0A8B6">300 ms</span></div><div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:10px"><div style="height:56px;display:flex;align-items:center"><button class="cta" style="background:#F6B662;box-shadow:0 0 0 1px rgba(242,165,65,.5),0 0 22px rgba(242,165,65,.45)"><svg style="transform:rotate(90deg)" aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M7 2v10M2 7h10"/></svg><span>Nova spec</span><span aria-hidden="true" style="position:absolute;top:0;bottom:0;left:130%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg)"></span></button></div><span class="mono" style="font-size:11px;color:#A0A8B6">450 ms · fim</span></div></div>
+ </div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+  <div class="g" style="border-radius:16px;padding:16px 18px">
+   <div style="font-weight:600;font-size:14px">Respiração de atenção · 2,4 s</div>
+   <svg aria-label="Curva do brilho: sobe e desce suave em 2,4 s" width="600" height="92" viewBox="0 0 600 92" style="margin-top:10px">
+    <path d="M0 80 C 100 80, 150 12, 300 12 S 500 80, 600 80" fill="none" stroke="#F2A541" stroke-width="2"/>
+    <path d="M0 86H600" stroke="rgba(255,255,255,.12)"/>
+    <text x="0" y="16" fill="#A0A8B6" font-size="11" font-family="JetBrains Mono">brilho .5</text>
+    <text x="270" y="40" fill="#A0A8B6" font-size="11" font-family="JetBrains Mono">1,2 s</text>
+    <text x="548" y="60" fill="#A0A8B6" font-size="11" font-family="JetBrains Mono">2,4 s</text>
+   </svg>
+  </div>
+  <div class="g" style="border-radius:16px;padding:16px 18px;font-size:12px;color:#A0A8B6;line-height:1.7">
+   <div style="font-weight:600;font-size:14px;color:#E7E9EE;margin-bottom:6px">Custo</div>
+   Mouse em cima, pressionar e foco: animações de uma vez só (~0,5 s), depois nenhum quadro.<br>
+   Respiração: relógio de ambiente, <span class="mono">24 q/s</span>, só com o workspace vazio.<br>
+   Parado: <span class="mono">0</span> quadros. Movimento reduzido: só cor.
+  </div>
+ </div>
+</div></div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

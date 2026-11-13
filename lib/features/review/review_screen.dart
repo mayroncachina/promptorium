@@ -1965,7 +1965,7 @@ extension on _ReviewMainState {
               isDense: true,
               underline: const SizedBox.shrink(),
               style: const TextStyle(fontSize: 12, color: AppColors.text),
-              dropdownColor: AppColors.panel,
+              dropdownColor: AppColors.panelSolid,
               items: [
                 const DropdownMenuItem<String?>(
                   value: null,
@@ -2286,7 +2286,7 @@ class _MoreMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MenuAnchor(
     style: const MenuStyle(
-      backgroundColor: WidgetStatePropertyAll(AppColors.panel),
+      backgroundColor: WidgetStatePropertyAll(AppColors.panelSolid),
     ),
     menuChildren: [
       for (final e in entries)
