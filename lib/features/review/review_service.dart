@@ -986,36 +986,7 @@ class ReviewService {
     if (decoded is! List) {
       throw const ReviewException('Comentários do PR inválidos');
     }
-    final rows = <Map>[
-      for (final page in decoded)
-        if (page is List) ...page.whereType<Map>() else if (page is Map) page,
-    ];
-    final replies = <String, List<Map>>{};
-    for (final row in rows) {
-      if (row['in_reply_to_id'] != null) {
-        replies.putIfAbsent('${row['in_reply_to_id']}', () => []).add(row);
-      }
-    }
-    String author(Map row) =>
-        row['user'] is Map ? '${row['user']['login'] ?? '?'}' : '?';
-    return [
-      for (final row in rows)
-        if (row['in_reply_to_id'] == null)
-          PrComment(
-            author: author(row),
-            externalId: 'github:${row['id']}',
-            path: row['path'] as String?,
-            line: (row['line'] as num? ?? row['original_line'] as num?)
-                ?.toInt(),
-            commitSha: row['commit_id'] as String?,
-            body: [
-              '${row['body'] ?? ''}',
-              for (final reply in replies['${row['id']}'] ?? <Map>[])
-                '@${author(reply)}: ${reply['body'] ?? ''}',
-            ].join('\n'),
-            at: DateTime.tryParse('${row['created_at']}') ?? DateTime(1970),
-          ),
-    ];
+    return parsePrInlineComments(decoded);
   }
 
   /// Pushes the session's branch when it has commits the PR does not.
