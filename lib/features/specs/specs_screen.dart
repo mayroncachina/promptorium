@@ -1234,12 +1234,42 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
           .read(prototypeServiceProvider)
           .vary(ws, spec, c.text, selected: selected, request: request);
       final r = await run;
-      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      _variationsReady(spec, r);
       return true;
     } catch (e) {
       _snack('Falha no pedido: $e');
       return false;
     }
+  }
+
+  /// SPEC-067 R5: "R2 · variação D pronta e mostrada no canvas", with
+  /// "Ver versões" (the list filtered on that screen).
+  void _variationsReady(Spec spec, PrototypeOutcome r) {
+    final made = [for (final f in r.created) ?parseMockupName(f)];
+    if (made.isEmpty) {
+      _snack(_outcomeText(r, 'O agente não criou variação.'));
+      return;
+    }
+    final names = [
+      for (final m in made) '${m.requirement} · variação ${m.letterLabel}',
+    ];
+    final msg = [
+      made.length == 1
+          ? '${names.single} pronta e mostrada no canvas'
+          : '${names.join(', ')} prontas e mostradas no canvas',
+      if (r.restored.isNotEmpty)
+        'Restauradas (o agente alterou): ${r.restored.join(', ')}.',
+    ].join('. ');
+    final req = made.first.requirement;
+    _snack(
+      msg,
+      action: SnackBarAction(
+        key: const ValueKey('proto-ready-versions'),
+        label: 'Ver versões',
+        onPressed: () =>
+            ref.read(prototypeUiProvider(spec.id).notifier).showVersionsOf(req),
+      ),
+    );
   }
 
   String _outcomeText(PrototypeOutcome r, String none) => [
@@ -1426,11 +1456,20 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
-  void _snack(String msg) {
+  void _snack(String msg, {SnackBarAction? action}) {
     if (!mounted) return;
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
-      ..showAppToast(SnackBar(content: Text(msg)));
+      ..showAppToast(
+        SnackBar(
+          content: Text(msg),
+          action: action,
+          persist: action == null ? null : false,
+          duration: action == null
+              ? const Duration(milliseconds: 4000)
+              : const Duration(seconds: 8),
+        ),
+      );
   }
 
   /// The status strip of a long action (R3; in Protótipo the generation
