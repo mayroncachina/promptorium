@@ -149,6 +149,33 @@ void main() {
     );
   });
 
+  testWidgets('Servidor de desenvolvimento: the fields write dev: in the '
+      'short and the long form (SPEC-051 R1)', (tester) async {
+    File('${tmp.path}/${ProjectConfig.filePath}')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('specs: docs/specs\n');
+    await pumpView(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('config-dev-path')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(find.byKey(const ValueKey('config-dev')), 'vite');
+    await tester.enterText(
+      find.byKey(const ValueKey('config-dev-path')),
+      'login',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('config-save')));
+    await tester.tap(find.byKey(const ValueKey('config-save')));
+    await pumpUntil(tester, () => ProjectConfig.loadSync(tmp.path).dev != null);
+    final dev = ProjectConfig.loadSync(tmp.path).dev!;
+    expect(dev.command, 'vite');
+    expect(dev.readyText, isNull);
+    expect(dev.path, '/login');
+    expect(ProjectConfig.loadSync(tmp.path).specsDir, 'docs/specs');
+  });
+
   testWidgets('status: since and count of marked commits (R1, R5)', (
     tester,
   ) async {

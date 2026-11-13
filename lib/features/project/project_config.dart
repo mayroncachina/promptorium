@@ -33,6 +33,12 @@ import '../specs/spec_file.dart';
 ///   copiar: [.env]           # copied from the root into new worktrees
 ///   preparar: npm ci         # run once in a new worktree
 ///   porta-base: 4000         # PROMPTORIUM_PORT = porta-base + index
+/// dev: npm run dev -- --port $PROMPTORIUM_PORT   # servidor (SPEC-051)
+/// # ou a forma longa:
+/// # dev:
+/// #   comando: npm run dev -- --port $PROMPTORIUM_PORT
+/// #   pronto: porta          # ou um texto do log ("ready in")
+/// #   caminho: /login        # página aberta no preview
 /// revisor:                   # automatic reviewer of a finished spec
 ///   ligado: true
 ///   modelo: haiku
@@ -122,6 +128,62 @@ class WorktreeConfig {
 
   @override
   int get hashCode => Object.hash(Object.hashAll(copy), prepare, basePort);
+}
+
+/// `dev:` of the config: the development server of a worktree (SPEC-051 R1).
+@immutable
+class DevServerConfig {
+  const DevServerConfig({
+    required this.command,
+    this.readyText,
+    this.path = '/',
+  });
+
+  /// Shell command run in the worktree (`npm run dev -- --port …`).
+  final String command;
+
+  /// `pronto:` — null = `porta` (the port answers HTTP); else a text that
+  /// shows up in the log when the server is up.
+  final String? readyText;
+
+  /// `caminho:` — page opened by the preview (always starts with `/`).
+  final String path;
+
+  /// Short form (`dev: <comando>`) is enough.
+  bool get isShort => readyText == null && path == '/';
+
+  /// Reads both forms of R1; null when there is no command.
+  static DevServerConfig? fromYaml(Object? v) {
+    String? str(Object? x) {
+      final s = x == null || x is Map || x is List ? '' : '$x'.trim();
+      return s.isEmpty ? null : s;
+    }
+
+    if (v is Map) {
+      final command = str(v['comando']);
+      if (command == null) return null;
+      final ready = str(v['pronto']);
+      var path = str(v['caminho']) ?? '/';
+      if (!path.startsWith('/')) path = '/$path';
+      return DevServerConfig(
+        command: command,
+        readyText: ready == null || ready == 'porta' ? null : ready,
+        path: path,
+      );
+    }
+    final command = str(v);
+    return command == null ? null : DevServerConfig(command: command);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is DevServerConfig &&
+      other.command == command &&
+      other.readyText == readyText &&
+      other.path == path;
+
+  @override
+  int get hashCode => Object.hash(command, readyText, path);
 }
 
 /// `revisor:` of the config: automatic review of a finished spec.
@@ -237,6 +299,7 @@ class ProjectConfig {
     this.verification,
     this.blockedCommands = const [],
     this.worktree = const WorktreeConfig(),
+    this.dev,
     this.reviewer = const ReviewerConfig(),
     this.autopilot = const AutopilotConfig(),
     this.releases = const ReleasesConfig(),
@@ -279,6 +342,10 @@ class ProjectConfig {
   /// `bloquear-comandos:` (glob, `*` = anything), added to the built-in list.
   final List<String> blockedCommands;
   final WorktreeConfig worktree;
+
+  /// `dev:` (SPEC-051); null = no development server (the old "Abrir
+  /// preview :porta" stays).
+  final DevServerConfig? dev;
   final ReviewerConfig reviewer;
   final AutopilotConfig autopilot;
   final ReleasesConfig releases;
@@ -319,6 +386,7 @@ class ProjectConfig {
     VerificationConfig? Function()? verification,
     List<String>? blockedCommands,
     WorktreeConfig? worktree,
+    DevServerConfig? Function()? dev,
     ReviewerConfig? reviewer,
     AutopilotConfig? autopilot,
     ReleasesConfig? releases,
@@ -341,6 +409,7 @@ class ProjectConfig {
     verification: verification == null ? this.verification : verification(),
     blockedCommands: blockedCommands ?? this.blockedCommands,
     worktree: worktree ?? this.worktree,
+    dev: dev == null ? this.dev : dev(),
     reviewer: reviewer ?? this.reviewer,
     autopilot: autopilot ?? this.autopilot,
     releases: releases ?? this.releases,
@@ -481,6 +550,7 @@ class ProjectConfig {
         prepare: str(w['preparar']),
         basePort: integer(w['porta-base'], min: 1),
       ),
+      dev: DevServerConfig.fromYaml(root['dev']),
       reviewer: ReviewerConfig(
         enabled: boolean(r['ligado']) ?? dr.enabled,
         model: str(r['modelo']) ?? dr.model,
@@ -561,6 +631,17 @@ class ProjectConfig {
       }
       if (worktree.basePort != null) {
         b.writeln('  porta-base: ${worktree.basePort}');
+      }
+    }
+    if (dev case final d?) {
+      if (d.isShort) {
+        b.writeln('dev: ${_quote(d.command)}');
+      } else {
+        b
+          ..writeln('dev:')
+          ..writeln('  comando: ${_quote(d.command)}')
+          ..writeln('  pronto: ${_quote(d.readyText ?? 'porta')}');
+        if (d.path != '/') b.writeln('  caminho: ${_quote(d.path)}');
       }
     }
     if (mergeMethod != 'merge') {
