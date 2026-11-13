@@ -27,6 +27,14 @@ class SpecsRepo {
           ))
           .getSingleOrNull();
 
+  /// The workspace has no spec registered yet.
+  Future<bool> isEmpty(int workspaceId) async =>
+      (await (_db.select(_t)
+                ..where((s) => s.workspaceId.equals(workspaceId))
+                ..limit(1))
+              .get())
+          .isEmpty;
+
   /// Highest `SPEC-NNN` number registered in the workspace (0 = none).
   Future<int> maxNumber(int workspaceId) async {
     final rows = await (_db.select(
@@ -51,6 +59,7 @@ class SpecsRepo {
     List<String>? dependsOn,
     String? phase,
     bool hasPlan = false,
+    bool inTray = false,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -69,6 +78,7 @@ class SpecsRepo {
           dependsOn: Value.absentIfNull(dependsOn),
           phase: Value(phase),
           hasPlan: Value(hasPlan),
+          inTray: Value(inTray),
         ),
       );
 
@@ -79,9 +89,23 @@ class SpecsRepo {
   Future<int> setStatus(int id, SpecStatus status) =>
       update(id, SpecsCompanion(status: Value(status)));
 
-  /// Column of the Quadro.
-  Future<int> setStage(int id, SpecStage stage) =>
-      update(id, SpecsCompanion(stage: Value(stage)));
+  /// Column of the Quadro. Leaving the Backlog also leaves the Bandeja
+  /// (SPEC-068 R7): a spec that ran is on the Quadro for good.
+  Future<int> setStage(int id, SpecStage stage) => update(
+    id,
+    SpecsCompanion(
+      stage: Value(stage),
+      inTray: stage == SpecStage.backlog
+          ? const Value.absent()
+          : const Value(false),
+    ),
+  );
+
+  /// "Levar para o Backlog" ([inTray] false) and its "Desfazer" (true),
+  /// SPEC-068 R8.
+  Future<void> setInTray(Iterable<int> ids, bool inTray) => (_db.update(
+    _t,
+  )..where((s) => s.id.isIn(ids))).write(SpecsCompanion(inTray: Value(inTray)));
 
   Future<int> setAgent(int id, String? agent) => update(
     id,

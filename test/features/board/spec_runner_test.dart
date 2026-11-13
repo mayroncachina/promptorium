@@ -109,6 +109,7 @@ void main() {
     test('prompt: spec embedded, done / now / later, commit and marker', () {
       final spec = Spec(
         hasPlan: false,
+        inTray: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-001',
@@ -268,6 +269,7 @@ id: SPEC-009
     ]);
     final spec = Spec(
       hasPlan: false,
+      inTray: false,
       id: 1,
       workspaceId: 1,
       code: 'SPEC-009',
@@ -324,6 +326,7 @@ status: aprovada
 ''';
     final spec = Spec(
       hasPlan: false,
+      inTray: false,
       id: 1,
       workspaceId: 1,
       code: 'SPEC-009',

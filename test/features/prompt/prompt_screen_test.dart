@@ -243,6 +243,9 @@ void main() {
     expect(find.text('· 2 itens · 1 arquivo'), findsOneWidget);
     // No generic approval card for it.
     expect(find.byKey(const ValueKey('approve-req-plan')), findsNothing);
+    // SPEC-068 R2: next to "Transformar em spec".
+    expect(find.byKey(const ValueKey('plan-split')), findsOneWidget);
+    expect(find.text('Dividir em specs'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('plan-keep-planning')));
     await pumpFor(tester);

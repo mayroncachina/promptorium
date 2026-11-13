@@ -47,6 +47,9 @@ void main() {
 
   testWidgets('1100×700 with every filter: the filters fold into one chip, '
       'nothing overlaps and both buttons stay (R9)', (tester) async {
+    // A width check needs the app's fonts (SPEC-036 R16): with the test
+    // font the Bandeja (SPEC-068 R7) alone pushed the bar past 1100 px.
+    await loadAppFonts();
     await pumpCanvas(
       tester,
       specs,

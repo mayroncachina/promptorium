@@ -87,6 +87,7 @@ void main() {
         );
         Spec spec(SpecStage stage) => Spec(
           hasPlan: false,
+          inTray: false,
           id: 1,
           workspaceId: 1,
           code: 'SPEC-001',

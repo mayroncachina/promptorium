@@ -429,6 +429,7 @@ id: SPEC-009
     final p = refineSpecPrompt(
       const Spec(
         hasPlan: false,
+        inTray: false,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-002',
@@ -600,6 +601,7 @@ depende-de: [SPEC-001]
       final p = refineSpecPrompt(
         const Spec(
           hasPlan: false,
+          inTray: false,
           id: 1,
           workspaceId: 1,
           code: 'SPEC-002',
