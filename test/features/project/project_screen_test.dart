@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
@@ -12,6 +13,7 @@ import 'package:promptorium/core/claude/readonly_run.dart'
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
+import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
@@ -644,6 +646,98 @@ void main() {
     expect(tester.takeException(), isNull);
     await unmount(tester, c);
   }, timeout: const Timeout(Duration(minutes: 3)));
+
+  testWidgets('SPEC-057: Visão imports a file into "Conte a ideia"', (
+    tester,
+  ) async {
+    final (c, _) = await pumpProject(tester, data: const ProjectPlanData());
+    expect(find.byKey(const ValueKey('idea-import')), findsOneWidget);
+    expect(
+      find.textContaining('Já tem uma proposta escrita? Importe o texto dela.'),
+      findsOneWidget,
+    );
+    final tmp = Directory.systemTemp.createTempSync('project-idea-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final f = File('${tmp.path}/proposta-escola.md')
+      ..writeAsStringSync('## Público\nDonos de escolas pequenas.\n');
+    tester
+        .widget<DropTarget>(find.byKey(const ValueKey('idea-drop')))
+        .onDragDone!(
+      DropDoneDetails(
+        files: [DropItemFile(f.path)],
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ),
+    );
+    for (var i = 0; i < 20; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+      if (find.byKey(const ValueKey('idea-source')).evaluate().isNotEmpty) {
+        break;
+      }
+    }
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey('project-idea')),
+    );
+    expect(field.controller!.text, '## Público\nDonos de escolas pequenas.');
+    expect(
+      find.text('Markdown · 37 caracteres carregados no campo'),
+      findsOneWidget,
+    );
+    expect(find.text('37 / 40.000'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('project-idea')),
+      'a' * (ideaMaxChars + 1),
+    );
+    await tester.pump();
+    expect(field.controller!.text.length, ideaMaxChars);
+    await unmount(tester, c);
+  });
+
+  testWidgets('SPEC-057: in the minimum window the choice scrolls into view', (
+    tester,
+  ) async {
+    final (c, _) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(),
+      size: const Size(1100 - 56, 700 - 72),
+    );
+    final idea = find.byKey(const ValueKey('project-idea'));
+    await tester.enterText(idea, 'App para escola de dança.');
+    await tester.pump();
+    final tmp = Directory.systemTemp.createTempSync('project-idea-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final f = File('${tmp.path}/proposta.txt')..writeAsStringSync('Pix.');
+    tester
+        .widget<DropTarget>(find.byKey(const ValueKey('idea-drop')))
+        .onDragDone!(
+      DropDoneDetails(
+        files: [DropItemFile(f.path)],
+        localPosition: Offset.zero,
+        globalPosition: Offset.zero,
+      ),
+    );
+    final confirm = find.byKey(const ValueKey('idea-choice-confirm'));
+    for (var i = 0; i < 20 && confirm.evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // No ensureVisible: the field scrolled the choice into the window.
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(idea).controller!.text,
+      'App para escola de dança.\n\nPix.',
+    );
+    await unmount(tester, c);
+  });
 
   testWidgets('every step fits the minimum window (1100×700)', (tester) async {
     for (final step in ProjectStep.values) {

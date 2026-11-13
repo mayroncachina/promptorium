@@ -24,6 +24,8 @@ import 'package:promptorium/ui/widgets/app_dialog.dart';
 import '../../helpers/test_db.dart';
 
 const _spec = Spec(
+  hasPlan: false,
+  inTray: false,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-012',

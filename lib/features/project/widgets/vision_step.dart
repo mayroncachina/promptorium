@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
+import '../../ideas/widgets/idea_field.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
@@ -98,62 +99,62 @@ class _IdeaBoxState extends State<_IdeaBox> {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 640),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Conte a ideia',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Um parágrafo: o que é, para quem, o que precisa ter primeiro. '
-              'O planner devolve visão, stack e roadmap de uma vez; você '
-              'revisa cada parte antes de criar. Ou converse com ele pelo '
-              'campo de baixo.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('project-idea'),
-              controller: _text,
-              minLines: 4,
-              maxLines: 10,
-              style: const TextStyle(fontSize: 13, color: AppColors.text),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText:
+    child: SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Conte a ideia',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Um parágrafo: o que é, para quem, o que precisa ter primeiro. '
+                'O planner devolve visão, stack e roadmap de uma vez; você '
+                'revisa cada parte antes de criar. Ou converse com ele pelo '
+                'campo de baixo. Já tem uma proposta escrita? Importe o texto '
+                'dela.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              IdeaField(
+                fieldKey: const ValueKey('project-idea'),
+                controller: _text,
+                maxLines: 10,
+                hint:
                     'App para escola de dança: turmas, matrícula, presença '
                     'pelo celular e cobrança mensal por Pix…',
-                hintStyle: TextStyle(color: AppColors.textMuted),
+                onChanged: (_) => setState(() {}),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                AmberButton(
-                  key: const ValueKey('project-propose-all'),
-                  label: 'Gerar proposta completa',
-                  onTap: _text.text.trim().isEmpty
-                      ? null
-                      : () => widget.onPropose(_text.text),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'visão + stack + roadmap · ~3 chamadas do planner',
-                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  AmberButton(
+                    key: const ValueKey('project-propose-all'),
+                    label: 'Gerar proposta completa',
+                    onTap: _text.text.trim().isEmpty
+                        ? null
+                        : () => widget.onPropose(_text.text),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'visão + stack + roadmap · ~3 chamadas do planner',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     ),

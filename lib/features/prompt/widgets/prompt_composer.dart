@@ -54,6 +54,7 @@ class PromptComposer extends ConsumerStatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.workspaceRoot,
+    this.hintText,
     required this.attachments,
     required this.onAttach,
     required this.onRemoveAttachment,
@@ -77,6 +78,9 @@ class PromptComposer extends ConsumerStatefulWidget {
 
   /// Root for `git ls-files` (null = no workspace).
   final String? workspaceRoot;
+
+  /// Placeholder of the field (null = the default one).
+  final String? hintText;
   final List<String> attachments;
   final ValueChanged<String> onAttach;
   final ValueChanged<String> onRemoveAttachment;
@@ -311,11 +315,12 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           height: 1.5,
                           color: AppColors.text,
                         ),
-                        decoration: const InputDecoration.collapsed(
+                        decoration: InputDecoration.collapsed(
                           hintText:
+                              widget.hintText ??
                               'Pergunte qualquer coisa…  @ anexa arquivo  '
-                              '/ usa um prompt salvo',
-                          hintStyle: TextStyle(
+                                  '/ usa um prompt salvo',
+                          hintStyle: const TextStyle(
                             fontSize: 14,
                             color: AppColors.textMuted,
                           ),
@@ -649,7 +654,7 @@ class _ProviderButton extends StatelessWidget {
         return PopupMenuButton<String>(
           key: const ValueKey('prompt-provider'),
           tooltip: 'Provedor',
-          color: AppColors.surfaceRaised,
+          color: AppColors.surfaceRaisedSolid,
           position: PopupMenuPosition.over,
           onSelected: (id) => onSelected(all.firstWhere((p) => p.id == id)),
           itemBuilder: (_) => [
@@ -731,7 +736,7 @@ class _ModelButton extends StatelessWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('prompt-model'),
       tooltip: 'Modelo (vale a partir da próxima mensagem)',
-      color: AppColors.surfaceRaised,
+      color: AppColors.surfaceRaisedSolid,
       position: PopupMenuPosition.over,
       onSelected: onSelected,
       itemBuilder: (_) => [

@@ -391,7 +391,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
             listenable: _focus,
             builder: (_, child) => Container(
               decoration: BoxDecoration(
-                color: AppColors.panel,
+                color: AppColors.panelSolid,
                 border: Border.all(
                   color: _focus.hasPrimaryFocus
                       ? AppColors.amber
@@ -576,7 +576,7 @@ class SpecFolderState extends ConsumerState<SpecFolder> {
     width: collapsed ? folderCollapsedWidth : 190,
     padding: const EdgeInsets.only(left: 12, right: 4),
     decoration: const BoxDecoration(
-      color: AppColors.panel,
+      color: AppColors.panelSolid,
       border: Border(
         top: BorderSide(color: AppColors.border),
         left: BorderSide(color: AppColors.border),

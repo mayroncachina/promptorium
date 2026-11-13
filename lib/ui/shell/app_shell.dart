@@ -33,6 +33,7 @@ import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
+import '../theme/glass.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_toast.dart';
 import 'command_palette.dart';
@@ -381,43 +382,56 @@ class _AppShellState extends ConsumerState<AppShell> {
           autofocus: true,
           child: Scaffold(
             backgroundColor: AppColors.background,
-            body: Column(
-              children: [
-                TitleBar(
-                  section: section,
-                  onOpenPalette: _openPalette,
-                  onAction: () => _onAction(section),
-                  onWorkspace: () => showWorkspacePicker(context),
-                ),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SideBar(active: section, onSelect: _goNav),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: SectionTransition(
-                                section: section,
-                                child: KeyedSubtree(
-                                  key: ValueKey('screen-${section.name}'),
-                                  child: _screenFor(section),
+            // The shell floats in glass over the backdrop (SPEC-049 R2).
+            body: Padding(
+              padding: const EdgeInsets.all(shellGap),
+              child: Column(
+                children: [
+                  AppGlass(
+                    radius: 14,
+                    child: TitleBar(
+                      section: section,
+                      onOpenPalette: _openPalette,
+                      onAction: () => _onAction(section),
+                      onWorkspace: () => showWorkspacePicker(context),
+                    ),
+                  ),
+                  const SizedBox(height: shellGap),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AppGlass(
+                          radius: 16,
+                          child: SideBar(active: section, onSelect: _goNav),
+                        ),
+                        const SizedBox(width: shellGap),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: SectionTransition(
+                                  section: section,
+                                  child: KeyedSubtree(
+                                    key: ValueKey('screen-${section.name}'),
+                                    child: _screenFor(section),
+                                  ),
                                 ),
                               ),
-                            ),
-                            // Approvals of sessions / conversations that are
-                            // not on screen, answerable from anywhere.
-                            const Positioned.fill(child: GlobalApprovals()),
-                            const FirstRunHost(),
-                          ],
+                              // Approvals of sessions / conversations that are
+                              // not on screen, answerable from anywhere.
+                              const Positioned.fill(child: GlobalApprovals()),
+                              const FirstRunHost(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const StatusFooter(),
-              ],
+                  const SizedBox(height: shellGap),
+                  const AppGlass(radius: 12, child: StatusFooter()),
+                ],
+              ),
             ),
           ),
         ),

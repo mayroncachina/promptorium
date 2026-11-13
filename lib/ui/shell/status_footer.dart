@@ -140,10 +140,6 @@ class _StatusFooterState extends ConsumerState<StatusFooter> {
     return Container(
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: const BoxDecoration(
-        color: AppColors.panel,
-        border: Border(top: BorderSide(color: AppColors.border)),
-      ),
       child: DefaultTextStyle(
         style: const TextStyle(
           fontFamily: AppFonts.sans,

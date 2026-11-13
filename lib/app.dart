@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'features/splash/splash_screen.dart';
 import 'ui/shell/app_shell.dart';
 import 'ui/theme/app_theme.dart';
+import 'ui/theme/glass.dart';
 
 class PromptoriumApp extends StatelessWidget {
   const PromptoriumApp({super.key, this.showSplash = true});
@@ -18,6 +19,11 @@ class PromptoriumApp extends StatelessWidget {
       theme: AppTheme.dark(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.dark,
+      // The Vidro backdrop behind every screen and dialog (SPEC-049 R1).
+      builder: (context, child) => Stack(
+        fit: StackFit.expand,
+        children: [const GlassBackdrop(), ?child],
+      ),
       home: _Root(showSplash: showSplash),
     );
   }

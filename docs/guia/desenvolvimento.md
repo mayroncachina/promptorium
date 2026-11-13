@@ -82,6 +82,23 @@ Os testes de **integração** (`test/integration/`) chamam o Claude Code CLI de 
 flutter test --run-skipped -t integration test/integration
 ```
 
+## Desempenho
+
+`PROMPTORIUM_QUADROS=<arquivo>` faz o app gravar, a cada 5 s, o p50, o p90 e o p99 dos tempos de build e raster dos quadros e quantos passaram de 16,7 ms (SPEC-049). Para medir e comparar:
+
+```bash
+flutter build linux --profile
+scripts/medir_quadros.py percorrer antes.jsonl          # percorre as telas e fecha o app
+scripts/medir_quadros.py percorrer depois.jsonl --app outro/bundle/promptorium
+scripts/medir_quadros.py resumo antes.jsonl depois.jsonl
+```
+
+O script precisa de X11 com `xdotool` e `wmctrl`. Ele só manda teclas para a janela do processo que abriu e para se outra janela estiver em foco. Variáveis extras vão como `NOME=valor` (por exemplo, `LIBGL_ALWAYS_SOFTWARE=1` para renderização por software ou `XDG_DATA_HOME=…` para uma pasta de dados de teste), e `taskset -c 0,1` antes do comando limita os núcleos. `--fotos PASTA` grava um PNG de cada tela.
+
+Para medir o custo de um quadro de cada tela, junte `PROMPTORIUM_QUADROS_CONTINUO=1`: o app pede um quadro depois do outro mesmo parado, e o arquivo mostra quanto custa redesenhar aquela tela 60 vezes por segundo.
+
+Animações que repetem sem fim (pulsos, ondas, spinners de algo que leva minutos) usam `AmbientVsync(context)` em vez de `vsync: this`: elas avançam a 24 quadros/s, e não a cada vsync. No Linux cada quadro redesenha a janela toda, então um laço a 60 quadros/s custa uma tela inteira 60 vezes por segundo enquanto durar.
+
 ## Build e pacotes
 
 ```bash

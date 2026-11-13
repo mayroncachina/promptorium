@@ -9,6 +9,7 @@ import '../../ui/shell/footer_stats.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
+import '../ideas/widgets/idea_field.dart';
 import '../project/project_config.dart';
 import '../project/project_plan.dart' show PlanMessage;
 import '../project/widgets/project_widgets.dart';
@@ -299,7 +300,8 @@ class _IdeaState extends ConsumerState<_Idea> {
               const SizedBox(height: 4),
               const Text(
                 'Uma ou duas frases: o que muda e para quem. O planner lê o '
-                'repositório, faz poucas perguntas e monta a spec com você.',
+                'repositório, faz poucas perguntas e monta a spec com você. '
+                'Já tem um documento? Importe o texto dele.',
                 style: TextStyle(
                   fontSize: 12,
                   height: 1.4,
@@ -307,18 +309,13 @@ class _IdeaState extends ConsumerState<_Idea> {
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('new-spec-idea'),
+              IdeaField(
+                fieldKey: const ValueKey('new-spec-idea'),
                 controller: _text,
                 autofocus: true,
-                minLines: 4,
-                maxLines: 8,
-                style: const TextStyle(fontSize: 13, color: AppColors.text),
-                decoration: _fieldDecoration(
-                  hint:
-                      'Avisar o paciente antes da consulta, para reduzir as '
-                      'faltas…',
-                ),
+                hint:
+                    'Avisar o paciente antes da consulta, para reduzir as '
+                    'faltas…',
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 12),

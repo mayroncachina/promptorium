@@ -20,6 +20,7 @@ void main() {
   late FakeCli cli;
   late ProviderContainer c;
   late Workspace ws;
+  late FakeNotifier notifier;
 
   Future<void> settle() async {
     for (var i = 0; i < 40; i++) {
@@ -52,7 +53,7 @@ void main() {
       sessionOverrides(
         db: memoryDatabase(),
         cli: cli,
-        notifier: FakeNotifier(),
+        notifier: notifier = FakeNotifier(),
         worktreesBase: '${tmp.path}/wt',
       ),
     );
@@ -90,6 +91,67 @@ void main() {
     expect(after['SPEC-003']!.stage, SpecStage.backlog);
     expect(cli.processes, hasLength(1));
   });
+
+  test('SPEC-063 R1: a spec with "depende:" waits for its dependency in '
+      '"Executar tudo"', () async {
+    File('$repo/specs/SPEC-004.md').writeAsStringSync(
+      '---\nid: SPEC-004\nstatus: aprovada\ndesign: dispensado\n'
+      'depende: [SPEC-001]\n---\n\n# SPEC-004\n\n## Requisitos\n\n- R1 · a\n',
+    );
+    await c.read(specServiceProvider).sync(ws);
+    expect((await specs())['SPEC-004']!.dependsOn, ['SPEC-001']);
+    await c.read(autopilotProvider.notifier).start(ws.id);
+    await settle();
+    final after = await specs();
+    expect(after['SPEC-001']!.stage, SpecStage.running);
+    expect(after['SPEC-004']!.stage, SpecStage.backlog);
+  });
+
+  test('SPEC-064 R6: the waiting spec starts when its dependency reaches '
+      'Review, with a notice; the end too', () async {
+    await c.read(autopilotProvider.notifier).start(ws.id);
+    await settle();
+    var now = await specs();
+    expect(now['SPEC-002']!.stage, SpecStage.backlog);
+    final repo = c.read(specsRepoProvider);
+    await repo.setStage(now['SPEC-003']!.id, SpecStage.review);
+    await c.read(autopilotProvider.notifier).tick(ws.id);
+    await settle();
+    now = await specs();
+    expect(now['SPEC-002']!.stage, SpecStage.running);
+    expect(
+      notifier.shown.map((n) => n.$2),
+      contains('SPEC-002 começou: a SPEC-003 chegou em Review.'),
+    );
+    // Everything in Review: the autopilot turns off and says so.
+    for (final k in ['SPEC-001', 'SPEC-002']) {
+      await repo.setStage(now[k]!.id, SpecStage.review);
+    }
+    await c.read(autopilotProvider.notifier).tick(ws.id);
+    await settle();
+    expect(c.read(autopilotProvider.notifier).isOn(ws.id), isFalse);
+    expect(
+      notifier.shown.map((n) => n.$2),
+      contains('Executar tudo terminou: 3 specs em Review.'),
+    );
+  });
+
+  test(
+    'SPEC-064 R3: with Feito, a dependency in Review does not release',
+    () async {
+      final pilot = c.read(autopilotProvider.notifier);
+      await pilot.setUnblockAt(ws.id, UnblockAt.done);
+      await pilot.start(ws.id);
+      await settle();
+      final now = await specs();
+      await c
+          .read(specsRepoProvider)
+          .setStage(now['SPEC-003']!.id, SpecStage.review);
+      await pilot.tick(ws.id);
+      await settle();
+      expect((await specs())['SPEC-002']!.stage, SpecStage.backlog);
+    },
+  );
 
   test('R11: sem sprint Ativa, age como hoje', () async {
     await c.read(autopilotProvider.notifier).start(ws.id);

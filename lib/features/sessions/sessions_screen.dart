@@ -11,6 +11,7 @@ import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
+import 'tool_expanded.dart';
 import 'widgets/composer.dart';
 import 'widgets/diff_raw_views.dart';
 import 'widgets/session_list_panel.dart';
@@ -18,6 +19,7 @@ import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
 import 'widgets/side_panel.dart';
 import 'widgets/timeline_view.dart';
+import 'widgets/tool_expanded_view.dart';
 
 enum SessionTab { timeline, terminal, diff, raw }
 
@@ -69,6 +71,11 @@ class SessionsScreen extends ConsumerWidget {
     }
     selected ??= sessions.isEmpty ? null : sessions.first;
     final splitId = ref.watch(splitSessionProvider);
+    // SPEC-058: the expanded tool covers the list, the panes and the panel;
+    // they stay mounted below, out of the Tab order.
+    final expanded = ref.watch(
+      toolExpandedProvider.select((s) => s?.open ?? false),
+    );
     Session? second;
     for (final s in sessions) {
       if (s.id == splitId && s.id != selected?.id) second = s;
@@ -79,7 +86,7 @@ class SessionsScreen extends ConsumerWidget {
         final narrow = c.maxWidth < 1100;
         final left = narrow ? 240.0 : 280.0;
         final right = narrow ? 260.0 : 300.0;
-        return ColoredBox(
+        final layout = ColoredBox(
           color: AppColors.background,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,6 +155,23 @@ class SessionsScreen extends ConsumerWidget {
               ),
             ],
           ),
+        );
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ExcludeFocus(
+              excluding: expanded,
+              child: ExcludeSemantics(excluding: expanded, child: layout),
+            ),
+            ToolExpandedOverlay(
+              rootOf: (id) {
+                for (final s in sessions) {
+                  if (s.id == id) return s.worktreePath;
+                }
+                return null;
+              },
+            ),
+          ],
         );
       },
     );

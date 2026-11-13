@@ -7,7 +7,7 @@ import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../sessions/widgets/session_style.dart';
-import '../spec_file.dart' show specStatusLabel;
+import '../spec_file.dart' show plannedLabel, specStatusLabel;
 import 'spec_action_banner.dart' show ActionSpinner;
 
 /// Editor modes of the spec (SPEC-024 R2) and the prototype of the screens
@@ -42,6 +42,7 @@ class SpecAction {
     this.unavailableReason,
     this.destructive = false,
     this.busy = false,
+    this.priority = 0,
   });
 
   /// Stable name (`refine`, `design`, `approve`, `clone`, `compare`,
@@ -68,6 +69,10 @@ class SpecAction {
   /// The action is running: gerund label and progress (SPEC-025 R2).
   final bool busy;
 
+  /// Without room, the secondaries of lower priority go to the menu first
+  /// (SPEC-062 R1: "Refinar com IA" before "Planejar de novo").
+  final int priority;
+
   bool get enabled => onTap != null;
 
   /// Tooltip shown: what it does, or why it is unavailable.
@@ -86,6 +91,7 @@ class SpecAction {
     unavailableReason: unavailableReason,
     destructive: destructive,
     busy: busy,
+    priority: priority,
   );
 
   /// Unavailable while another action runs; [running] = the gerund label of
@@ -100,6 +106,7 @@ class SpecAction {
     unavailableReason: running == null ? reason : 'Em andamento.',
     destructive: destructive,
     busy: running != null,
+    priority: priority,
   );
 }
 
@@ -282,6 +289,7 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
       tooltip: refineTooltip,
       onTap: s.onRefine,
       unavailableReason: why,
+      priority: -1,
     ),
     SpecAction(
       id: 'design',
@@ -358,23 +366,31 @@ int fitActions(List<double> widths, double available) {
     for (final a in actions)
       if (a.emphasis == SpecActionEmphasis.menu) a,
   ];
-  final widths = [for (final a in secondary) widthOf(a) + gap];
+  // SPEC-062 R1: the ones that stay are picked by priority (stable), and
+  // keep their order in the bar.
+  final ranked = [...secondary]
+    ..sort((a, b) => b.priority.compareTo(a.priority));
+  final widths = [for (final a in ranked) widthOf(a) + gap];
   var room = available;
   for (final a in primary) {
     room -= widthOf(a) + gap;
   }
   if (menu.isNotEmpty) room -= moreWidth + gap;
   var kept = fitActions(widths, room);
-  if (kept < secondary.length && menu.isEmpty) {
+  if (kept < ranked.length && menu.isEmpty) {
     kept = fitActions(widths, room - moreWidth - gap);
   }
-  final shown = {...secondary.take(kept), ...primary};
+  final shown = {...ranked.take(kept), ...primary};
   return (
     bar: [
       for (final a in actions)
         if (shown.contains(a)) a,
     ],
-    menu: [for (final a in secondary.skip(kept)) a.toMenu(), ...menu],
+    menu: [
+      for (final a in secondary)
+        if (!shown.contains(a)) a.toMenu(),
+      ...menu,
+    ],
   );
 }
 
@@ -437,6 +453,7 @@ class SpecHeader extends StatelessWidget {
     this.lockLabel,
     this.statusLabel,
     this.lockAlert = false,
+    this.planned = false,
   });
 
   final String title;
@@ -464,6 +481,10 @@ class SpecHeader extends StatelessWidget {
   /// Takes the place of the status next to the title (SPEC-037 R10).
   final String? statusLabel;
   final bool lockAlert;
+
+  /// The editor's text has a `## Plano` and the spec is not approved:
+  /// "Planejada" (SPEC-062 R3).
+  final bool planned;
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +521,12 @@ class SpecHeader extends StatelessWidget {
             ),
             if (status != null) ...[
               const SizedBox(width: 10),
-              StatusBadge(status: status!, locked: locked, label: statusLabel),
+              StatusBadge(
+                status: status!,
+                locked: locked,
+                label: statusLabel,
+                planned: planned,
+              ),
             ],
           ],
         ),
@@ -672,10 +698,14 @@ class StatusBadge extends StatelessWidget {
     required this.status,
     this.locked = false,
     this.label,
+    this.planned = false,
   });
 
   final SpecStatus status;
   final bool locked;
+
+  /// "Planejada" in yellow (SPEC-062 R3).
+  final bool planned;
 
   /// Takes the place of the status: "Na fila" (SPEC-037 R10).
   final String? label;
@@ -684,10 +714,13 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final queued = label != null;
     final approved = status == SpecStatus.approved && !queued;
+    final plan = planned && !queued && !approved;
     final color = queued
         ? AppColors.amber
         : approved
         ? AppColors.teal
+        : plan
+        ? AppColors.yellow
         : AppColors.textSecondary;
     final icon = locked
         ? Icons.lock_outline
@@ -710,6 +743,8 @@ class StatusBadge extends StatelessWidget {
               ? SessionColors.approvalBorder
               : approved
               ? SessionColors.runningToolBorder
+              : plan
+              ? AppColors.yellow.withValues(alpha: .45)
               : AppColors.border,
         ),
       ),
@@ -726,7 +761,7 @@ class StatusBadge extends StatelessWidget {
             const SizedBox(width: 5),
           ],
           Text(
-            label ?? specStatusLabel(status),
+            label ?? (plan ? plannedLabel : specStatusLabel(status)),
             maxLines: 1,
             softWrap: false,
             style: TextStyle(
@@ -991,7 +1026,7 @@ class _SpecMoreButtonState extends State<SpecMoreButton>
       childFocusNode: _focus,
       alignmentOffset: const Offset(0, 6),
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(AppColors.panel),
+        backgroundColor: const WidgetStatePropertyAll(AppColors.panelSolid),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(4)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
@@ -1314,6 +1349,12 @@ class SaveState extends StatelessWidget {
             trailing: const Kbd('Ctrl+S'),
             height: 30,
             fontSize: 13,
+            // Unsaved work is the next thing to do: the button says so
+            // (after "Planejar" the Plano lives only in the editor).
+            color: AppColors.amber,
+            border: AppColors.amber.withValues(alpha: .55),
+            background: AppColors.amber.withValues(alpha: .12),
+            fontWeight: FontWeight.w600,
             focusColor: AppColors.amber.withValues(alpha: .25),
             onTap: onSave,
           ),

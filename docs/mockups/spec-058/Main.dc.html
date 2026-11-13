@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Bash ampliado</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1);box-shadow:0 0 16px rgba(242,165,65,.25)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sep{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+/* Item em destaque do Prompt */
+.hero{position:relative;width:48px;height:58px;border-radius:13px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+ background:linear-gradient(160deg,rgba(242,165,65,.20),rgba(79,209,181,.10));border:1px solid rgba(242,165,65,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.hero span.lb{font:600 10.5px 'IBM Plex Sans';color:#E7E9EE;letter-spacing:.01em}
+.hero.hov{background:linear-gradient(160deg,rgba(242,165,65,.28),rgba(79,209,181,.14));border-color:rgba(242,165,65,.5)}
+.hero.on{background:linear-gradient(160deg,rgba(242,165,65,.34),rgba(242,165,65,.16));border-color:rgba(242,165,65,.7);box-shadow:0 0 0 1px rgba(242,165,65,.25),0 0 22px rgba(242,165,65,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+.hero.on span.lb{color:#FFD08A}
+.hero.foc{outline:2px solid #FFD08A;outline-offset:3px}
+.live{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:#4FD1B5;box-shadow:0 0 0 2px rgba(10,12,16,.9),0 0 10px rgba(79,209,181,.8);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:5}
+.note.warn{background:#F2A541}
+.arrow{position:absolute;border-top:1px dashed rgba(79,209,181,.8);z-index:5}
+.mode{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.mode.sel{border-color:rgba(242,165,65,.6);box-shadow:0 0 0 1px rgba(242,165,65,.3),inset 0 1px 0 rgba(255,255,255,.06);background:rgba(242,165,65,.07)}
+.mode h3{margin:0;font:600 15px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.mode p{margin:0;font-size:13px;color:#A0A8B6;line-height:1.45}
+.lvl{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font:500 11px 'IBM Plex Sans';width:max-content}
+.ex{display:block;text-align:left;width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.35);color:#C9CED8;font:400 12.5px 'IBM Plex Sans'}
+.ex::before{content:'“';color:#7C8595;margin-right:2px}
+.ex::after{content:'”';color:#7C8595;margin-left:1px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:10px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09)}
+.seg b{height:28px;padding:0 12px;border-radius:7px;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg b.on{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.conv{padding:9px 10px;border-radius:10px;font-size:12.5px;color:#C9CED8;display:flex;flex-direction:column;gap:3px}
+.conv small{font-size:11px;color:#7C8595}
+.tile{border-radius:16px;padding:20px;position:relative}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+table.k{border-collapse:collapse;font-size:12.5px;width:100%}
+table.k td,table.k th{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+table.k th{font:600 11px 'IBM Plex Sans';color:#7C8595;letter-spacing:.06em;text-transform:uppercase}
+@media (prefers-reduced-motion: reduce){.live{animation:none}}
+</style>
+<style>
+.lst{position:absolute;left:72px;top:60px;bottom:44px;width:280px;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.srow{padding:9px 10px;border-radius:9px;font-size:13px;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
+.srow small{font-size:11px;color:#A0A8B6}
+.srow.sel{background:rgba(242,165,65,.1);border-color:rgba(242,165,65,.4)}
+.mid{position:absolute;top:60px;bottom:44px;border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.shd{height:52px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px;font-weight:600}
+.tl{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.ai{font-size:13.5px;line-height:1.55;color:#D5D9E0;max-width:680px}
+.tc{max-width:640px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(25,29,36,.75);font:400 12px 'JetBrains Mono';overflow:hidden}
+.tc .h{display:flex;align-items:center;gap:10px;padding:7px 10px}
+.tc .h .n{min-width:44px}
+.tc .h .tg{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#E7E9EE}
+.tc .out{border-top:1px solid rgba(255,255,255,.08);padding:8px 10px 8px 64px;color:#A0A8B6;white-space:pre;line-height:1.5;overflow:hidden}
+.tc.hl{border-color:#F2A541;box-shadow:0 0 0 2px rgba(242,165,65,.35),0 0 24px rgba(242,165,65,.25)}
+.exp{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12)}
+.side{position:absolute;right:8px;top:60px;bottom:44px;width:300px;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;font-size:12px}
+.kv{display:flex;justify-content:space-between;color:#A0A8B6}.kv b{font-weight:400;color:#E7E9EE}
+.big{position:absolute;left:72px;right:8px;top:60px;bottom:44px;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;
+ background:#12151B;border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.bh{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 10px 0 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.tool{height:26px;padding:0 9px;border-radius:7px;display:inline-flex;align-items:center;font:600 12px 'JetBrains Mono'}
+.bh .tg{flex:1;min-width:0;font:500 13px 'JetBrains Mono';color:#E7E9EE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font:500 11.5px 'IBM Plex Sans';color:#A0A8B6;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.bt{height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(10,12,16,.35);color:#E7E9EE;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.bt kbd{font:500 10.5px 'JetBrains Mono';color:#A0A8B6}
+.bt.close{border-color:rgba(242,165,65,.45);color:#FFC879}
+.bt.foc{outline:2px solid #FFD08A;outline-offset:2px}
+.nav2{display:inline-flex;border:1px solid rgba(255,255,255,.12);border-radius:8px;overflow:hidden}
+.nav2 span{height:28px;padding:0 9px;display:inline-flex;align-items:center;gap:5px;font:500 11.5px 'IBM Plex Sans';color:#C9CED8}
+.nav2 span+span{border-left:1px solid rgba(255,255,255,.12)}
+.sub{height:40px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.06);font:500 12px 'IBM Plex Sans';color:#A0A8B6}
+.sub .tab{height:40px;display:inline-flex;align-items:center;border-bottom:2px solid transparent}
+.sub .tab.on{color:#F2A541;border-color:#F2A541}
+.code{flex:1;display:flex;overflow:hidden;font:400 12.5px/1.65 'JetBrains Mono'}
+.gut{flex:none;width:56px;text-align:right;padding:10px 12px 0 0;color:#5B6372;white-space:pre;user-select:none}
+.txt{flex:1;min-width:0;padding:10px 16px 0 6px;color:#C9CED8;white-space:pre;overflow:hidden}
+.ok{color:#7BE3CC}.er{color:#FFB4A3}.dim{color:#7C8595}.kw{color:#C7A6FF}.st{color:#FFC879}
+.diffc{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);overflow:hidden;font:400 12.5px/1.65 'JetBrains Mono'}
+.dcol{overflow:hidden;border-right:1px solid rgba(255,255,255,.06)}
+.dh{height:30px;display:flex;align-items:center;padding:0 12px;font:600 11px 'IBM Plex Sans';letter-spacing:.06em;color:#7C8595;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06)}
+.dl{display:flex;white-space:pre}.dl i{font-style:normal;width:44px;flex:none;text-align:right;padding-right:10px;color:#5B6372}
+.dl.add{background:rgba(79,209,181,.1)}.dl.add span{color:#B6F0E3}
+.dl.del{background:rgba(255,120,95,.1)}.dl.del span{color:#FFC3B6}
+.dl.emp{background:repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0 6px,transparent 6px 12px)}
+.find{position:absolute;right:24px;top:110px;display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 10px;border-radius:9px;background:#1C2028;border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:12.5px;z-index:4}
+.find .q{width:180px;height:26px;border-radius:6px;background:rgba(10,12,16,.6);border:1px solid #F2A541;display:flex;align-items:center;padding:0 8px;font:500 12px 'JetBrains Mono'}
+mark{background:rgba(242,165,65,.4);color:#FFF3DD;border-radius:2px}
+.frame{position:absolute;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#0E1116}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V9a5 5 0 0 1 10 0v4l1 1H4zM8 17h4"/></svg>
+ <button class="cta" aria-label="Nova sessão"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4v12M4 10h12"/></svg><span>Nova sessão</span></button>
+</header><nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0"><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14M3 10h14M3 15h9"/></svg><span class="badge">7</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm3 4-2 5-5 2 2-5 5-2Z"/></svg></div><div class="sep"></div><div class="hero " role="button" aria-label="Prompt"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4H6.5A3.5 3.5 0 0 0 3 7.5v7A3.5 3.5 0 0 0 6.5 18H8v3.2l4.2-3.2h5.3a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M7.5 9.8h5.5M7.5 13.2h3.5"/><path d="M18.5 1.5l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z" fill="#F2A541" stroke="none"/></svg><span class="lb">Prompt</span></div><div class="sep"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div><div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg><span class="badge">2</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a4 4 0 0 0 8 0M14 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h10v10H5zM8 3v3M12 3v3"/></svg></div><div style="flex:1"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg></div></nav><footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>2 sessões ativas</span><span style="flex:1"></span><span class="mono">0.13.0</span></footer><aside class="g lst"><div class="cap" style="padding:6px 8px 6px">Sessões</div><div class="srow sel"><span>SPEC-021 · Lembretes por WhatsApp</span><small>etapa 3 de 5 · executando</small></div><div class="srow"><span>SPEC-019 · Login com Google</span><small>aguardando review</small></div><div class="srow"><span>Corrigir teste do carrinho</span><small>concluída · 12 min</small></div><div class="srow"><span>SPEC-018 · Rodapé novo</span><small>concluída · ontem</small></div></aside><aside class="g side"><span class="cap">Detalhes</span>
+ <div class="kv"><span>Worktree</span><b class="mono" style="font-size:11.5px">spec/021-lembretes</b></div>
+ <div class="kv"><span>Modelo</span><b>opus</b></div><div class="kv"><span>Tokens</span><b class="mono" style="font-size:11.5px">142 mil</b></div>
+ <span class="cap" style="margin-top:12px">Arquivos alterados</span>
+ <div class="kv"><b class="mono" style="font-size:11.5px">lib/lembretes/agenda.dart</b><span class="ok">+48</span></div>
+ <div class="kv"><b class="mono" style="font-size:11.5px">test/lembretes_test.dart</b><span class="ok">+61</span></div></aside><section class="g mid" style="left:364px;right:320px"><div class="shd">SPEC-021 · Lembretes por WhatsApp<span class="meta" style="margin-left:auto"><span style="width:7px;height:7px;border-radius:4px;background:#4FD1B5"></span>executando · etapa 3 de 5</span></div><div class="tl"><div class="ai">Vou rodar os testes da agenda para ver o que falta.</div><div class="tc"><div class="h"><span class="n" style="color:#A9C4FF">Read</span><span class="tg">lib/lembretes/agenda.dart</span><span class="dim">186 linhas</span></div></div><div class="tc hl"><div class="h"><span class="n" style="color:#C7A6FF">Bash</span><span class="tg">flutter test test/lembretes_test.dart</span><span class="er">1 falhou</span></div></div><div class="ai">Um teste falhou: a remarcação pega o primeiro horário do dia, não o próximo livre. Vou corrigir.</div><div class="tc"><div class="h"><span class="n" style="color:#7BE3CC">Edit</span><span class="tg">lib/lembretes/agenda.dart</span><span class="ok">+9</span> <span class="er">−3</span></div></div><div class="tc"><div class="h"><span class="n" style="color:#7BE3CC">Write</span><span class="tg">test/lembretes_test.dart</span><span class="ok">+61</span></div></div><div class="tc"><div class="h"><span class="n" style="color:#C7A6FF">Bash</span><span class="tg">flutter test test/lembretes_test.dart</span><span class="ok">5 passaram</span></div></div></div></section><section class="big" role="dialog" aria-modal="true" aria-label="Bash ampliado">
+ <div class="bh"><span class="tool" style="color:#C7A6FF;background:rgba(199,166,255,.14)">Bash</span><span class="tg">flutter test test/lembretes_test.dart</span><span class="meta"><span class="er">● 1 falhou</span></span><span class="meta"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 6v4l3 2"/></svg>7,2 s</span><span class="meta">25 linhas · cabe inteira</span>
+  <span class="nav2" aria-label="Navegar entre ferramentas"><span><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12l4-4 4 4"/></svg>Anterior</span><span>Próxima<svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg></span></span>
+  <button class="bt"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h9v10H7zM4 13V3h9"/></svg>Copiar</button>
+  <button class="bt close"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#FFC879" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l10 10M15 5 5 15"/></svg>Fechar <kbd>Esc</kbd></button></div>
+ <div class="sub"><span class="tab on">Saída</span><span class="tab">Comando</span><span style="margin-left:auto;display:inline-flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14M3 10h11a3 3 0 0 1 0 6h-4M12 14l-2 2 2 2M3 15h4"/></svg>Quebrar linhas</span><span style="display:inline-flex;align-items:center;gap:6px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg>Buscar <span class="mono" style="font-size:10.5px">Ctrl F</span></span></div>
+ <div class="code"><div class="gut">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25</div><div class="txt"><span class="dim">$ flutter test test/lembretes_test.dart</span>
+00:02 +0: loading test/lembretes_test.dart
+00:03 +1: agenda › cria o lembrete para a consulta
+00:03 +2: agenda › usa o fuso da clínica
+00:04 +3: agenda › manda às 9 h do dia anterior
+00:04 +4: agenda › pula feriados
+<span class="er">00:05 +4 -1: agenda › <mark>remarca</mark> para horário livre [E]</span>
+<span class="er">  Expected: &lt;2026-11-12 10:00:00.000&gt;</span>
+<span class="er">    Actual: &lt;2026-11-12 09:00:00.000&gt;</span>
+
+<span class="dim">  package:matcher                 expect</span>
+  test/lembretes_test.dart 88:7    main.&lt;fn&gt;.&lt;fn&gt;
+
+  O primeiro horário do dia (09:00) já está ocupado pela consulta 4312.
+  O teste espera o próximo horário livre: 10:00.
+
+00:05 +5 -1: agenda › não manda para quem já confirmou
+00:06 +6 -1: agenda › <mark>remarca</mark> mantém o profissional
+00:06 +7 -1: whatsapp › monta a mensagem com os botões
+00:06 +8 -1: whatsapp › escapa o nome do paciente
+00:07 +9 -1: whatsapp › trata número sem DDD
+00:07 +10 -1: whatsapp › não envia fora do horário comercial
+<span class="er">00:07 +11 -1: Some tests failed.</span>
+
+<span class="dim">Test summary: 11 passed, 1 failed (7,2 s)</span></div></div><div class="find"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><div class="q">remarca<span style="width:1.5px;height:14px;background:#FFD08A;margin-left:1px"></span></div><span class="meta">2 de 3</span><span class="exp" style="border:0"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12l4-4 4 4"/></svg></span><span class="exp" style="border:0"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg></span></div></section><div class="note" style="left:500px;top:740px;z-index:9">ocupa tudo entre o trilho e a borda; trilho e topo continuam</div><div class="note" style="right:30px;top:214px;z-index:9">↑ busca na saída inteira, sem corte</div><div class="note" style="left:500px;top:772px;z-index:9">↑↓ ou J/K passam para a ferramenta vizinha</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart' show SmallButton;
+import '../../../ui/theme/ambient.dart';
 
 /// The shape of a spec while its file is on the way (SPEC-034 R10): title,
 /// section, line, section, line. The shine runs only while the skeleton is
@@ -18,10 +19,9 @@ class SpecSkeleton extends StatefulWidget {
   State<SpecSkeleton> createState() => _SpecSkeletonState();
 }
 
-class _SpecSkeletonState extends State<SpecSkeleton>
-    with SingleTickerProviderStateMixin {
+class _SpecSkeletonState extends State<SpecSkeleton> {
   late final AnimationController _shine = AnimationController(
-    vsync: this,
+    vsync: AmbientVsync(context),
     duration: SpecSkeleton.shinePeriod,
   );
   late final Animation<Offset> _pass = Tween(

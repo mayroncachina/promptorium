@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/saved_prompts_repo.dart';
@@ -111,6 +113,8 @@ final storedEvents = <Map<String, dynamic>>[
 Future<(AppDatabase, FakeCli)> pumpScreen(
   WidgetTester tester, {
   Size size = const Size(1440, 900),
+  List<Map<String, dynamic>>? events,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -144,7 +148,7 @@ Future<(AppDatabase, FakeCli)> pumpScreen(
         ),
       );
   var seq = 0;
-  for (final e in storedEvents) {
+  for (final e in events ?? storedEvents) {
     await db
         .into(db.sessionEvents)
         .insert(
@@ -163,6 +167,7 @@ Future<(AppDatabase, FakeCli)> pumpScreen(
       sessionChangesProvider.overrideWith(
         (ref, id) async => const SessionChanges(),
       ),
+      ...overrides,
     ],
   );
   await container.read(appSettingsProvider.notifier).load();
@@ -262,13 +267,18 @@ void main() {
       findsOneWidget,
     );
 
-    // Clicking a finished card expands its result.
+    // Clicking a finished card expands its result over the screen
+    // (SPEC-058); Esc brings the layout back.
     expect(find.textContaining('erro grave'), findsNothing);
     await tester.tap(
       find.descendant(of: bash, matching: find.text('flutter analyze')),
     );
     await tester.pump();
+    expect(find.byKey(const ValueKey('tool-expanded')), findsOneWidget);
     expect(find.textContaining('erro grave'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('tool-expanded')), findsNothing);
 
     // Raw log tab lists the stored rows.
     await tester.tap(find.byKey(const ValueKey('session-tab-raw')));

@@ -188,6 +188,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (msg.isEmpty) return;
     final conv = await _repo.getById(id);
     if (conv == null) throw ConversationException('Conversa $id não existe.');
+    // SPEC-056 R7: a message brings an archived conversation back.
+    if (conv.archivedAt != null) await _repo.unarchive(id);
     var r = _runs[id];
     final mode = PromptMode.fromName(conv.mode);
     if (r != null && (r.mode != mode || r.model != conv.model)) {

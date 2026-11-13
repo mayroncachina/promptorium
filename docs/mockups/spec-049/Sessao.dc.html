@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sessão do agente em vidro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05070A}
+.glass{background:rgba(22,27,36,.52);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 20px 50px rgba(0,0,0,.35);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+.glass2{background:rgba(30,36,48,.55);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+button{font-family:'IBM Plex Sans',sans-serif;cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; background: radial-gradient(700px 520px at 55% 30%, rgba(242,165,65,.09), transparent 62%), radial-gradient(900px 700px at 0% 110%, rgba(79,209,181,.10), transparent 60%), #05070A">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size: 28px 28px"></div>
+
+  <nav aria-label="Seções" class="glass" style="position: absolute; left: 16px; top: 16px; bottom: 16px; width: 64px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 64px 0 14px; box-sizing: border-box">
+    <sc-for list="{{nav}}" as="n" hint-placeholder-count="7">
+      <button aria-label="{{n.label}}" style="width: 44px; height: 44px; border-radius: 12px; border: 1px solid {{n.borda}}; background: {{n.bg}}; display: flex; align-items: center; justify-content: center; box-shadow: {{n.glow}}">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="{{n.cor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{n.d}}"></path></svg>
+      </button>
+    </sc-for>
+  </nav>
+
+  <aside class="glass" aria-label="Etapas" style="position: absolute; left: 96px; top: 16px; bottom: 16px; width: 300px; border-radius: 18px; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+    <span style="padding: 0 8px; font: 500 13px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-040</span>
+    <h1 style="margin: 2px 8px 16px; font-size: 20px; font-weight: 600">Ditado por voz</h1>
+    <sc-for list="{{etapas}}" as="e" hint-placeholder-count="10">
+      <div style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 10px; border-radius: 10px; background: {{e.bg}}; border: 1px solid {{e.borda}}">
+        <span style="width: 10px; height: 10px; border-radius: 5px; background: {{e.cor}}; box-shadow: {{e.glow}}; border: {{e.anel}}"></span>
+        <span style="width: 30px; font: 500 13px 'JetBrains Mono', monospace; color: #A0A8B6">{{e.r}}</span>
+        <span style="flex: 1; font-size: 14px; color: {{e.texto}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{e.n}}</span>
+      </div>
+    </sc-for>
+  </aside>
+
+  <section aria-label="Sessão" style="position: absolute; left: 412px; right: 352px; top: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 14px">
+    <header class="glass" style="height: 56px; border-radius: 16px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 20px; flex-shrink: 0">
+      <span style="width: 8px; height: 8px; border-radius: 4px; background: #F2A541; box-shadow: 0 0 12px #F2A541"></span>
+      <span style="font-size: 15px; font-weight: 600">R4 · Transcrever no computador</span>
+      <div style="flex: 1"></div>
+      <span style="height: 28px; padding: 0 10px; border-radius: 14px; display: flex; align-items: center; font: 500 12px 'JetBrains Mono', monospace; color: #C9CED8; border: 1px solid rgba(255,255,255,.1)">sonnet</span>
+      <button style="height: 34px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(242,122,110,.4); background: rgba(242,122,110,.08); color: #F27A6E; font-size: 13px; font-weight: 500">Parar</button>
+    </header>
+
+    <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 4px 6px; overflow: hidden">
+      <div class="glass2" style="align-self: flex-end; max-width: 560px; border-radius: 14px 14px 4px 14px; padding: 12px 16px; font-size: 14px; line-height: 21px">Execute a etapa R4 da SPEC-040. O áudio não pode sair do computador.</div>
+      <p style="margin: 6px 4px 0; max-width: 620px; font-size: 15px; line-height: 23px; color: #DDE1E8">Vou ligar a transcrição local ao botão de microfone e garantir que nada vá para a rede. Começo pelos arquivos do ditado.</p>
+      <sc-for list="{{ferramentas}}" as="f" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 14px; border-radius: 12px; max-width: 620px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07)">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="{{f.cor}}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="{{f.d}}"></path></svg>
+          <span style="font: 500 13px 'JetBrains Mono', monospace; color: {{f.cor}}">{{f.k}}</span>
+          <span style="flex: 1; font-size: 14px; color: #C9CED8">{{f.t}}</span>
+          <span style="font-size: 12px; color: #8A93A3">{{f.s}}</span>
+        </div>
+      </sc-for>
+      <div style="display: flex; align-items: center; gap: 10px; margin: 4px; font-size: 14px; color: #F2A541">
+        <span aria-hidden="true" style="display: flex; gap: 4px"><span style="width: 6px; height: 6px; border-radius: 3px; background: #F2A541; opacity: .4"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: #F2A541; opacity: .7"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: #F2A541"></span></span>
+        Escrevendo os testes da transcrição
+      </div>
+    </div>
+
+    <form class="glass" style="flex-shrink: 0; border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px">
+      <label for="msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Mensagem para o agente</label>
+      <textarea id="msg" rows="2" placeholder="Fale com o agente ou descreva o próximo passo…" style="resize: none; border: 0; outline: none; background: transparent; color: #E7E9EE; font: 15px/22px 'IBM Plex Sans', sans-serif; padding: 4px 6px"></textarea>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="font-size: 12px; color: #8A93A3">Enter envia · Shift+Enter quebra a linha</span>
+        <div style="flex: 1"></div>
+        <button type="button" aria-label="Ditar por voz (Ctrl+Shift+M)" style="width: 40px; height: 40px; border-radius: 20px; border: 1px solid rgba(79,209,181,.4); background: rgba(79,209,181,.1); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 18px rgba(79,209,181,.2)">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#4FD1B5" stroke-width="1.6" stroke-linecap="round"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5"></rect><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2"></path></svg>
+        </button>
+        <button type="submit" style="height: 40px; padding: 0 18px; border: 0; border-radius: 12px; background: #F2A541; color: #1A1206; font-size: 14px; font-weight: 600">Enviar</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="glass" aria-label="Gate da etapa" style="position: absolute; right: 16px; top: 16px; bottom: 16px; width: 320px; border-radius: 18px; padding: 22px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+    <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">GATE DA ETAPA</h2>
+    <span style="font-size: 14px; line-height: 21px; color: #C9CED8">Roda quando o agente terminar. A etapa só avança se tudo passar.</span>
+    <sc-for list="{{gate}}" as="g" hint-placeholder-count="4">
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 12px; background: rgba(255,255,255,.03); border: 1px dashed rgba(255,255,255,.12)">
+        <span style="width: 14px; height: 14px; border-radius: 7px; border: 1.6px solid #8A93A3"></span>
+        <span style="flex: 1; font-size: 14px; color: #C9CED8">{{g}}</span>
+        <span style="font-size: 12px; color: #8A93A3">aguardando</span>
+      </div>
+    </sc-for>
+    <div style="height: 1px; margin: 6px 0; background: rgba(255,255,255,.07)"></div>
+    <h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">CRITÉRIO DA ETAPA</h2>
+    <p style="margin: 0; font-size: 14px; line-height: 21px; color: #DDE1E8">Transcrever deve rodar no computador, sem enviar o áudio a nenhum serviço.</p>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const icons = [['Início', 'M3 9.5 10 3l7 6.5V17H3z'], ['Quadro', 'M3 3h5v14H3zM12 3h5v8h-5z'], ['Sessões', 'M3 4h14v10H3zM7 17h6'], ['Review', 'M4 10l4 4 8-9'], ['Repositório', 'M6 3v14M6 7c6 0 8 2 8 6M14 13a2 2 0 1 0 0 .1M6 3a1 1 0 1 0 0 .1'], ['Código', 'M7 6 3 10l4 4M13 6l4 4-4 4'], ['Prompts', 'M4 4h12v9H8l-4 3z']];
+    const nav = icons.map(([label, d], i) => { const on = i === 2; return { label, d, cor: on ? '#F2A541' : '#A0A8B6', bg: on ? 'rgba(242,165,65,.12)' : 'transparent', borda: on ? 'rgba(242,165,65,.4)' : 'transparent', glow: on ? '0 0 18px rgba(242,165,65,.25)' : 'none' }; });
+    const nomes = ['Botão de microfone', 'Baixar o modelo de voz', 'Microfone ligado à vista', 'Transcrever no computador', 'Texto vai para o campo', 'Falhas não perdem a fala', 'Seção nas Configurações', 'Pacote instala tudo', 'Teclado e 1100×700', 'Download em segundo plano'];
+    const etapas = nomes.map((n, i) => {
+      const done = i < 3, live = i === 3;
+      return { r: 'R' + (i + 1), n,
+        cor: done ? '#5BC88A' : live ? '#F2A541' : 'transparent', anel: done || live ? '0' : '1.5px solid #5C6575',
+        glow: live ? '0 0 10px #F2A541' : 'none', texto: done ? '#A0A8B6' : live ? '#E7E9EE' : '#C9CED8',
+        bg: live ? 'rgba(242,165,65,.1)' : 'transparent', borda: live ? 'rgba(242,165,65,.35)' : 'transparent' };
+    });
+    const ferramentas = [
+      { k: 'Leu', t: 'Arquivos do ditado e do composer', s: 'feito', cor: '#8EC5FF', d: 'M2 3h5l1 1h6v9H2z' },
+      { k: 'Editou', t: 'Transcrição local ligada ao botão', s: 'feito', cor: '#5BC88A', d: 'M3 13l1-4 7-7 3 3-7 7z' },
+      { k: 'Rodou', t: 'Testes da área do ditado', s: 'feito', cor: '#C59BFF', d: 'M4 3l9 5-9 5z' },
+    ];
+    const gate = ['Testes', 'Lint', 'Build', 'Verificar dos critérios'];
+    return { nav, etapas, ferramentas, gate };
+  }
+}
+</script>
+</body>
+</html>

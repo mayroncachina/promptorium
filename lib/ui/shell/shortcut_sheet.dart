@@ -26,8 +26,8 @@ class ShortcutGroup {
 /// and the `CallbackShortcuts` of each screen.
 const shortcutGroups = [
   ShortcutGroup('Navegação', [
-    ShortcutEntry('Início · Projeto · Specs · Quadro · Sessões', 'Ctrl+1 … 5'),
-    ShortcutEntry('Review · Repositório · Código · Prompt', 'Ctrl+6 … 9'),
+    ShortcutEntry('Início · Projeto · Prompt · Specs · Quadro', 'Ctrl+1 … 5'),
+    ShortcutEntry('Sessões · Review · Repositório · Código', 'Ctrl+6 … 9'),
     ShortcutEntry('Ferramentas', 'Ctrl+0'),
     ShortcutEntry('Paleta de comandos', 'Ctrl+K'),
     ShortcutEntry('Ir para arquivo (Código)', 'Ctrl+P'),

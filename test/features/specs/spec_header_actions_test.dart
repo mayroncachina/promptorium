@@ -1,4 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:promptorium/data/db/app_database.dart';
+import 'package:promptorium/features/specs/spec_file.dart';
+import 'package:promptorium/ui/theme/tokens.dart';
 import 'package:promptorium/features/specs/widgets/spec_header.dart';
 
 void _noop() {}
@@ -44,7 +48,8 @@ void main() {
       );
       final r = layoutSpecActions(l, (_) => 100, 1000);
       expect(ids(r.bar), ['refine', 'design', 'approve']);
-      expect(ids(layoutSpecActions(l, (_) => 100, 270).menu), ['approve']);
+      // SPEC-062 R1: without room, "Refinar com IA" goes to the menu first.
+      expect(ids(layoutSpecActions(l, (_) => 100, 270).menu), ['refine']);
     });
 
     test('R3: draft in the backlog: Refinar com IA, Planejar, Aprovar '
@@ -197,16 +202,16 @@ void main() {
       _ => 90,
     };
 
-    test('"Planejar" goes to the menu first, then "Refinar com IA"; the '
-        'primary never', () {
+    test('SPEC-062 R1: "Refinar com IA" goes to the menu first, then '
+        '"Planejar de novo"; the primary never; the bar keeps its order', () {
       // Everything: 130+8 + 115+8 + 90+8 = 359 (no menu button needed).
       var r = layoutSpecActions(draft, width, 359);
       expect(ids(r.bar), ['refine', 'design', 'approve']);
       expect(r.menu, isEmpty);
 
       r = layoutSpecActions(draft, width, 330);
-      expect(ids(r.bar), ['refine', 'approve']);
-      expect(ids(r.menu), ['design']);
+      expect(ids(r.bar), ['design', 'approve']);
+      expect(ids(r.menu), ['refine']);
       expect(r.menu.single.emphasis, SpecActionEmphasis.menu);
 
       r = layoutSpecActions(draft, width, 200);
@@ -229,6 +234,31 @@ void main() {
       );
       final r = layoutSpecActions(l, width, 200);
       expect(ids(r.menu), ['refine', 'design', 'delete']);
+    });
+  });
+
+  group('SPEC-062 Planejada', () {
+    test('R2: planned while not approved, with a plan', () {
+      for (final st in [SpecStatus.idea, SpecStatus.draft, SpecStatus.review]) {
+        expect(specIsPlanned(st, hasPlan: true), isTrue, reason: '$st');
+        expect(specIsPlanned(st, hasPlan: false), isFalse, reason: '$st');
+      }
+      for (final st in [
+        SpecStatus.approved,
+        SpecStatus.done,
+        SpecStatus.archived,
+      ]) {
+        expect(specIsPlanned(st, hasPlan: true), isFalse, reason: '$st');
+      }
+    });
+
+    test('R4: the yellow of "Planejada" is not the amber and reads on the '
+        'panel', () {
+      expect(AppColors.yellow, isNot(AppColors.amber));
+      double lum(Color c) => c.computeLuminance();
+      final ratio =
+          (lum(AppColors.yellow) + 0.05) / (lum(AppColors.panelSolid) + 0.05);
+      expect(ratio, greaterThanOrEqualTo(4.5));
     });
   });
 }

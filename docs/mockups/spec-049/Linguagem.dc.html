@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Linguagem visual em vidro</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05070A}
+.glass{background:rgba(22,27,36,.52);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 20px 50px rgba(0,0,0,.35);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%)}
+.glass2{background:rgba(30,36,48,.55);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.07);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; box-sizing: border-box; padding: 56px 64px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif; background: #05070A; display: flex; flex-direction: column; gap: 36px">
+  <div style="display: flex; align-items: flex-end; gap: 24px">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+      <span style="font: 500 13px 'JetBrains Mono', monospace; color: #F2A541; letter-spacing: .08em">LINGUAGEM VISUAL</span>
+      <h1 style="margin: 0; font-size: 36px; font-weight: 600; letter-spacing: -.015em">Vidro escuro, luz só onde importa</h1>
+    </div>
+    <p style="margin: 0; width: 520px; font-size: 15px; line-height: 23px; color: #C9CED8">Os painéis deixam ver o fundo, mas o conteúdo continua legível. O brilho marca o que está vivo ou precisa de você, nunca a decoração.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+    <section style="position: relative; height: 300px; border-radius: 20px; overflow: hidden; background: radial-gradient(260px 200px at 25% 30%, rgba(242,165,65,.55), transparent 70%), radial-gradient(260px 220px at 80% 80%, rgba(79,209,181,.5), transparent 70%), #0A0D12">
+      <div class="glass" style="position: absolute; left: 24px; top: 24px; right: 24px; bottom: 24px; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+        <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">NÍVEL 1 · CASCA</span>
+        <span style="font: 500 14px 'JetBrains Mono', monospace; color: #E7E9EE">fundo 52% · desfoque 22</span>
+        <span style="font-size: 14px; line-height: 21px; color: #C9CED8">Barra lateral, cabeçalho, colunas e painéis.</span>
+        <div class="glass2" style="margin-top: auto; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">NÍVEL 2 · CARTÃO</span>
+          <span style="font: 500 14px 'JetBrains Mono', monospace">fundo 55% · desfoque 14</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="glass" style="height: 300px; box-sizing: border-box; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">BORDA E LUZ</span>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="height: 52px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: #C9CED8">Borda de 1 px, branco a 8%</div>
+        <div style="height: 52px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.1); display: flex; align-items: center; padding: 0 16px; font-size: 14px; color: #C9CED8">Fio de luz no topo, 1 px</div>
+        <div style="height: 52px; border-radius: 12px; border: 1px solid rgba(242,165,65,.45); box-shadow: 0 0 26px rgba(242,165,65,.2); display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 14px; color: #F2A541"><span style="width: 8px; height: 8px; border-radius: 4px; background: #F2A541; box-shadow: 0 0 10px #F2A541"></span>Brilho: só estado vivo</div>
+      </div>
+    </section>
+
+    <section class="glass" style="height: 300px; box-sizing: border-box; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">COR</span>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{cores}}" as="c" hint-placeholder-count="6">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="height: 44px; border-radius: 10px; background: {{c.v}}; box-shadow: 0 0 18px {{c.g}}"></span>
+            <span style="font-size: 13px; color: #E7E9EE">{{c.n}}</span>
+            <span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{c.v}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; flex: 1; min-height: 0">
+    <section class="glass" style="border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">TIPO E FORMA</span>
+      <span style="font-size: 26px; font-weight: 600; letter-spacing: -.01em">IBM Plex Sans 600</span>
+      <span style="font: 500 16px 'JetBrains Mono', monospace; color: #C9CED8">JetBrains Mono · códigos e shas</span>
+      <span style="font-size: 14px; line-height: 21px; color: #C9CED8">Rótulos em caixa alta com espaço de 6%. Raios de 20 (casca), 14 (cartão) e 10 (controle). Respiro de 16 entre painéis.</span>
+    </section>
+    <section class="glass" style="border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #A0A8B6">MOVIMENTO</span>
+      <sc-for list="{{movimento}}" as="m" hint-placeholder-count="3">
+        <div style="display: flex; align-items: baseline; gap: 12px">
+          <span style="width: 64px; font: 500 14px 'JetBrains Mono', monospace; color: #4FD1B5">{{m.t}}</span>
+          <span style="flex: 1; font-size: 14px; line-height: 21px; color: #C9CED8">{{m.d}}</span>
+        </div>
+      </sc-for>
+    </section>
+    <section class="glass" style="border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 12px; border-color: rgba(142,197,255,.25)">
+      <span style="font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #8EC5FF">NO FLUTTER</span>
+      <sc-for list="{{flutter}}" as="f" hint-placeholder-count="3">
+        <span style="font-size: 14px; line-height: 21px; color: #C9CED8">{{f}}</span>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      cores: [
+        { n: 'Âmbar · ação', v: '#F2A541', g: 'rgba(242,165,65,.3)' },
+        { n: 'Teal · vivo', v: '#4FD1B5', g: 'rgba(79,209,181,.3)' },
+        { n: 'Verde · feito', v: '#5BC88A', g: 'rgba(91,200,138,.25)' },
+        { n: 'Azul · review', v: '#8EC5FF', g: 'rgba(142,197,255,.25)' },
+        { n: 'Vermelho · falha', v: '#F27A6E', g: 'rgba(242,122,110,.25)' },
+        { n: 'Fundo', v: '#05070A', g: 'transparent' },
+      ],
+      movimento: [
+        { t: '120 ms', d: 'Hover e foco: a borda acende, sem mover nada.' },
+        { t: '220 ms', d: 'Painéis entram com fade e 8 px de deslize.' },
+        { t: '2 s', d: 'Pulso lento só no ponto do que está rodando.' },
+      ],
+      flutter: [
+        'Vidro com BackdropFilter e ImageFilter.blur, num só nível por região: desfoque empilhado pesa na GPU.',
+        'O fundo com brilho e pontos é pintado uma vez, atrás de tudo, num RepaintBoundary.',
+        'Sem composição de vidro (alguns Linux, modo de economia), cai para o painel opaco atual com a mesma borda.',
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

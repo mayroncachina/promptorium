@@ -54,6 +54,9 @@ void main() {
     await pumpCanvas(
       tester,
       specs,
+      // The test font is 1 em wide: 1800 px is the room of a 1440 px
+      // window with the app's font, the filters beside the Bandeja.
+      size: const Size(1800, 900),
       overrides: (db) => [
         specServiceProvider.overrideWithValue(service = _FakeService(db)),
         pendingCriteriaProvider.overrideWith((ref, id) async => pending),

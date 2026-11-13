@@ -225,52 +225,49 @@ void main() {
     });
   });
 
-  test(
-    'a read-only Claude run ("Planejar", reviewer) gets it too',
-    () async {
-      final cli = FakeCli();
-      final c = ProviderContainer(
-        overrides: [
-          databaseOverride(memoryDatabase()),
-          claudeProcessStarterProvider.overrideWithValue(cli.start),
-          runSettingsDirProvider.overrideWithValue('${tmp.path}/run'),
-        ],
-      );
-      addTearDown(c.dispose);
-      final settings = c.read(appSettingsProvider.notifier);
-      await settings.load();
-      await settings.set(
-        AppSettingKeys.disabledMcpServers,
-        jsonEncode(['youtrack']),
-      );
-      final run = Provider(
-        (ref) =>
-            () => runReadOnlyClaude(
-              ref,
-              cwd: tmp.path,
-              options: const ClaudeOptions(sessionId: 'design-1'),
-              prompt: 'Leia e responda',
-            ),
-      );
-      final done = c.read(run)();
-      await until(() async => cli.args.isNotEmpty);
-      final args = cli.args.single;
-      final path = args[args.indexOf('--settings') + 1];
-      expect(jsonDecode(File(path).readAsStringSync()), {
-        'deniedMcpServers': [
-          {'serverName': 'youtrack'},
-        ],
-      });
-      cli.last.emit(
-        jsonEncode({
-          'type': 'result',
-          'subtype': 'success',
-          'result': 'ok',
-          'session_id': 'design-1',
-          'total_cost_usd': 0,
-        }),
-      );
-      await done;
-    },
-  );
+  test('a read-only Claude run ("Planejar", reviewer) gets it too', () async {
+    final cli = FakeCli();
+    final c = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        claudeProcessStarterProvider.overrideWithValue(cli.start),
+        runSettingsDirProvider.overrideWithValue('${tmp.path}/run'),
+      ],
+    );
+    addTearDown(c.dispose);
+    final settings = c.read(appSettingsProvider.notifier);
+    await settings.load();
+    await settings.set(
+      AppSettingKeys.disabledMcpServers,
+      jsonEncode(['youtrack']),
+    );
+    final run = Provider(
+      (ref) =>
+          () => runReadOnlyClaude(
+            ref,
+            cwd: tmp.path,
+            options: const ClaudeOptions(sessionId: 'design-1'),
+            prompt: 'Leia e responda',
+          ),
+    );
+    final done = c.read(run)();
+    await until(() async => cli.args.isNotEmpty);
+    final args = cli.args.single;
+    final path = args[args.indexOf('--settings') + 1];
+    expect(jsonDecode(File(path).readAsStringSync()), {
+      'deniedMcpServers': [
+        {'serverName': 'youtrack'},
+      ],
+    });
+    cli.last.emit(
+      jsonEncode({
+        'type': 'result',
+        'subtype': 'success',
+        'result': 'ok',
+        'session_id': 'design-1',
+        'total_cost_usd': 0,
+      }),
+    );
+    await done;
+  });
 }

@@ -236,8 +236,6 @@ final updateCheckerProvider = NotifierProvider<UpdateChecker, AvailableUpdate?>(
 /// How the last query ended; null when none is on record.
 final lastCheckProvider = Provider<UpdateCheckResult?>(
   (ref) => UpdateCheckResult.parse(
-    ref.watch(
-      appSettingsProvider.select((s) => s[UpdateChecker.resultKey]),
-    ),
+    ref.watch(appSettingsProvider.select((s) => s[UpdateChecker.resultKey])),
   ),
 );

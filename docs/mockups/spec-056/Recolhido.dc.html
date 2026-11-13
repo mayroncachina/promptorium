@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel da direita recolhido</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;
+ background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{position:relative;overflow:hidden;height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1);box-shadow:0 0 16px rgba(242,165,65,.25)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sep{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+/* Item em destaque do Prompt */
+.hero{position:relative;width:48px;height:58px;border-radius:13px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+ background:linear-gradient(160deg,rgba(242,165,65,.20),rgba(79,209,181,.10));border:1px solid rgba(242,165,65,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.hero span.lb{font:600 10.5px 'IBM Plex Sans';color:#E7E9EE;letter-spacing:.01em}
+.hero.hov{background:linear-gradient(160deg,rgba(242,165,65,.28),rgba(79,209,181,.14));border-color:rgba(242,165,65,.5)}
+.hero.on{background:linear-gradient(160deg,rgba(242,165,65,.34),rgba(242,165,65,.16));border-color:rgba(242,165,65,.7);box-shadow:0 0 0 1px rgba(242,165,65,.25),0 0 22px rgba(242,165,65,.35),inset 0 1px 0 rgba(255,255,255,.1)}
+.hero.on span.lb{color:#FFD08A}
+.hero.foc{outline:2px solid #FFD08A;outline-offset:3px}
+.live{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:4px;background:#4FD1B5;box-shadow:0 0 0 2px rgba(10,12,16,.9),0 0 10px rgba(79,209,181,.8);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:5}
+.note.warn{background:#F2A541}
+.arrow{position:absolute;border-top:1px dashed rgba(79,209,181,.8);z-index:5}
+.mode{border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.mode.sel{border-color:rgba(242,165,65,.6);box-shadow:0 0 0 1px rgba(242,165,65,.3),inset 0 1px 0 rgba(255,255,255,.06);background:rgba(242,165,65,.07)}
+.mode h3{margin:0;font:600 15px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.mode p{margin:0;font-size:13px;color:#A0A8B6;line-height:1.45}
+.lvl{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font:500 11px 'IBM Plex Sans';width:max-content}
+.ex{display:block;text-align:left;width:100%;padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.35);color:#C9CED8;font:400 12.5px 'IBM Plex Sans'}
+.ex::before{content:'“';color:#7C8595;margin-right:2px}
+.ex::after{content:'”';color:#7C8595;margin-left:1px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:10px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09)}
+.seg b{height:28px;padding:0 12px;border-radius:7px;color:#A0A8B6;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px}
+.seg b.on{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.conv{padding:9px 10px;border-radius:10px;font-size:12.5px;color:#C9CED8;display:flex;flex-direction:column;gap:3px}
+.conv small{font-size:11px;color:#7C8595}
+.tile{border-radius:16px;padding:20px;position:relative}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+table.k{border-collapse:collapse;font-size:12.5px;width:100%}
+table.k td,table.k th{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+table.k th{font:600 11px 'IBM Plex Sans';color:#7C8595;letter-spacing:.06em;text-transform:uppercase}
+@media (prefers-reduced-motion: reduce){.live{animation:none}}
+</style>
+<style>
+.lst{position:absolute;left:72px;top:60px;bottom:44px;width:260px;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.grp{font:600 11px 'IBM Plex Sans';color:#A0A8B6;padding:10px 8px 4px}
+.row{position:relative;padding:8px 10px;border-radius:9px;display:flex;align-items:center;gap:8px;font-size:13px;color:#E7E9EE;border:1px solid transparent}
+.row .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.row .t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t small{font-size:11px;color:#A0A8B6}
+.row.sel{background:rgba(242,165,65,.1);border-color:rgba(242,165,65,.4)}
+.row.hov{background:rgba(255,255,255,.05)}
+.ib{width:28px;height:28px;border-radius:7px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ib.on{background:rgba(255,255,255,.08)}
+.ib:focus-visible,.ib.foc{outline:2px solid #FFD08A;outline-offset:2px}
+.mid{position:absolute;top:60px;bottom:44px;border-radius:16px;display:flex;flex-direction:column;overflow:hidden}
+.hd{height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px 0 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.hd h2{margin:0;font:600 15px 'IBM Plex Sans';flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px}
+.sb{height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(10,12,16,.35);color:#C9CED8;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.msg{max-width:640px;font-size:13.5px;line-height:1.55}
+.me{align-self:flex-end;background:rgba(242,165,65,.12);border:1px solid rgba(242,165,65,.25);border-radius:14px 14px 4px 14px;padding:10px 14px}
+.ai{color:#D5D9E0}
+.menu{position:absolute;z-index:8;width:248px;border-radius:12px;padding:6px;background:#1C2028;border:1px solid rgba(255,255,255,.1);box-shadow:0 14px 40px rgba(0,0,0,.55)}
+.mi{height:34px;border-radius:7px;display:flex;align-items:center;gap:10px;padding:0 10px;font-size:13px;color:#E7E9EE}
+.mi kbd{margin-left:auto;font:500 11px 'JetBrains Mono';color:#A0A8B6}
+.mi.hl{background:rgba(242,165,65,.12);color:#FFD08A}
+.mdiv{height:1px;background:rgba(255,255,255,.08);margin:5px 4px}
+.side{position:absolute;right:8px;top:60px;bottom:44px;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.kv{display:flex;justify-content:space-between;font-size:12px;color:#A0A8B6}
+.kv b{font-weight:400;color:#E7E9EE}
+.sp{border-radius:9px;padding:9px 10px;font-size:12px}
+.fld{height:34px;flex:1;min-width:0;border-radius:8px;border:1px solid #F2A541;box-shadow:0 0 0 3px rgba(242,165,65,.18);background:rgba(10,12,16,.55);display:flex;align-items:center;padding:0 10px;font:600 15px 'IBM Plex Sans';color:#E7E9EE}
+.fld .selt{background:rgba(242,165,65,.35);border-radius:2px}
+.fld .car{width:1.5px;height:18px;background:#FFD08A;margin-left:1px}
+.hint{font:500 11px 'IBM Plex Sans';color:#A0A8B6;white-space:nowrap}
+.toast{position:absolute;z-index:9;display:flex;align-items:center;gap:12px;height:44px;padding:0 8px 0 14px;border-radius:12px;background:#1C2028;border:1px solid rgba(255,255,255,.12);box-shadow:0 14px 40px rgba(0,0,0,.55);font-size:13px}
+.lnk{height:30px;padding:0 10px;border-radius:7px;border:0;background:rgba(242,165,65,.14);color:#FFC879;font:600 12px 'IBM Plex Sans'}
+.tabs{display:flex;padding:3px;gap:2px;margin:2px 4px 6px;border-radius:10px;background:rgba(10,12,16,.4);border:1px solid rgba(255,255,255,.09)}
+.tabs b{flex:1;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:6px;font:500 12px 'IBM Plex Sans';color:#A0A8B6}
+.tabs b.on{color:#F2A541;background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.tabs i{font-style:normal;font:500 10.5px 'JetBrains Mono';color:#7C8595}
+.banner{margin:14px 20px 0;border-radius:12px;padding:10px 12px 10px 14px;display:flex;align-items:center;gap:10px;font-size:13px;background:rgba(160,168,182,.08);border:1px solid rgba(160,168,182,.25)}
+.strip{position:absolute;right:8px;top:60px;bottom:44px;width:48px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0}
+.err{font:500 11.5px 'IBM Plex Sans';color:#FFB4A3;display:flex;align-items:center;gap:6px}
+</style>
+</helmet>
+<div class="app" style="width:1440px;height:900px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V9a5 5 0 0 1 10 0v4l1 1H4zM8 17h4"/></svg>
+ <button class="cta" aria-label="Nova conversa"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4v12M4 10h12"/></svg><span>Nova conversa</span></button>
+</header><nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0"><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h14M3 10h14M3 15h9"/></svg><span class="badge">7</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm3 4-2 5-5 2 2-5 5-2Z"/></svg></div><div class="sep"></div><div class="hero on" role="button" aria-label="Prompt"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFD08A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4H6.5A3.5 3.5 0 0 0 3 7.5v7A3.5 3.5 0 0 0 6.5 18H8v3.2l4.2-3.2h5.3a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M7.5 9.8h5.5M7.5 13.2h3.5"/><path d="M18.5 1.5l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z" fill="#FFD08A" stroke="none"/></svg><span class="lb">Prompt</span></div><div class="sep"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg><span class="badge">2</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a4 4 0 0 0 8 0M14 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6h10v10H5zM8 3v3M12 3v3"/></svg></div><div style="flex:1"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg></div></nav><footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>2 sessões ativas</span><span style="flex:1"></span><span class="mono">0.13.0</span></footer><aside class="g lst" aria-label="Conversas" style="width:260px"><div class="cap" style="padding:6px 8px 4px">Conversas</div><div class="grp">Hoje</div><div class="row "><div class="t"><span>Como funciona o carrinho?</span><small>Perguntar · 6 mensagens</small></div></div><div class="row sel"><div class="t"><span>Plano: cupom de desconto</span><small>Planejar · 12 mensagens</small></div><button class="ib" aria-label="Mais ações" title="Mais ações"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10h.01M10 10h.01M15 10h.01"/></svg></button></div><div class="row "><div class="t"><span>Trocar cor do botão Comprar</span><small>Editar · 4 mensagens</small></div></div><div class="grp">Anteriores</div><div class="row "><div class="t"><span>Onde ficam as imagens?</span><small>Perguntar · 2 mensagens</small></div></div><div class="row "><div class="t"><span>Erro no checkout</span><small>Perguntar · 9 mensagens</small></div></div><div class="row "><div class="t"><span>Rodapé com redes sociais</span><small>Editar · 7 mensagens</small></div></div><div style="flex:1"></div><button class="row" style="background:transparent;color:#A0A8B6;font-size:12.5px;border-top:1px solid rgba(255,255,255,.07);border-radius:0 0 9px 9px;width:100%;text-align:left"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v4H3zM4.5 8v8h11V8M8 11h4"/></svg><span style="flex:1">Arquivadas</span><span class="mono" style="font-size:11px">4</span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l3 3 3-3"/></svg></button></aside><section class="g mid" style="left:344px;right:64px"><div class="hd"><h2>Plano: cupom de desconto</h2><button class="sb"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg>Transformar em spec</button><button class="sb"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg>Continuar como sessão</button><button class="ib" aria-label="Mais ações da conversa" title="Mais ações da conversa"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10h.01M10 10h.01M15 10h.01"/></svg></button></div><div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:22px 28px;overflow:hidden">
+ <div class="msg me">Quero dar um cupom de desconto de 10% na primeira compra. Como você faria?</div>
+ <div class="msg ai"><b style="color:#E7E9EE">Plano proposto</b> · 4 passos<br>1. Criar a tabela <span class="mono" style="font-size:12px;color:#7BE3CC">cupons</span> com código, percentual e validade.<br>2. Campo “Tenho um cupom” no carrinho.<br>3. Validar o cupom no checkout e aplicar o desconto.<br>4. Limitar a um uso por cliente.</div>
+ <div class="msg me">Pode limitar só para quem nunca comprou?</div>
+ <div class="msg ai">Sim. No passo 4, o cupom passa a valer só para clientes sem pedidos anteriores. Atualizei o plano; quer que eu siga?</div>
+</div></section><div class="g2" style="position:absolute;left:344px;right:64px;bottom:52px;border-radius:16px;padding:12px 12px 10px">
+ <div style="min-height:44px;font-size:14px;padding:4px 6px"><span style="color:#7C8595">Escreva como se fosse uma mensagem… use @ para citar um arquivo</span></div>
+ <div style="display:flex;align-items:center;gap:10px">
+  <div class="seg" role="radiogroup" aria-label="Modo"><b class=""><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12ZM8.2 8.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1M10 13.5v.1"/></svg>Perguntar</b><b class="on"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h12M4 10h8M4 15h5M15 13l2 2 3-4"/></svg>Planejar</b><b class=""><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l1-4 8-8 3 3-8 8zM11 6l3 3"/></svg>Editar</b></div>
+  <span style="flex:1"></span>
+  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 10 3zM5 9.5a5 5 0 0 0 10 0M10 14.5V17"/></svg>
+  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9l-5.5 5.5a3 3 0 0 1-4.2-4.2L11 4.6a2 2 0 0 1 2.8 2.8L8.2 13"/></svg>
+  <span style="width:34px;height:34px;border-radius:10px;background:#F2A541;display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15V5M5.5 9.5 10 5l4.5 4.5"/></svg></span>
+ </div></div><aside class="g strip" aria-label="Painel de contexto recolhido">
+ <button class="ib foc" aria-label="Mostrar painel · Ctrl+Alt+B" title="Mostrar painel · Ctrl+Alt+B"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM12.5 4v12M9 8l-2 2 2 2"/></svg></button>
+ <div class="sep" style="width:24px;height:1px;background:rgba(255,255,255,.1);margin:2px 0"></div>
+ <button class="ib" aria-label="Contexto" title="Contexto"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM10 9v4.5M10 6.6v.1"/></svg></button>
+ <div style="position:relative"><button class="ib" aria-label="Arquivos citados · 1" title="Arquivos citados · 1"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h6l3 3v11H6zM12 3v3h3"/></svg></button><span class="badge" style="top:-2px;right:-2px;min-width:14px;height:14px;font-size:9px">1</span></div>
+ <button class="ib" aria-label="Prompts salvos" title="Prompts salvos"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10v14l-5-3-5 3z"/></svg></button>
+ <div style="flex:1"></div>
+ <span class="mono" style="font-size:10px;color:#A0A8B6;writing-mode:vertical-rl;transform:rotate(180deg);padding-bottom:6px">18,4 mil tokens</span></aside><div class="g2" role="tooltip" style="position:absolute;right:66px;top:104px;border-radius:9px;padding:6px 10px;font-size:12px;z-index:7;background:#1C2028">Mostrar painel <span class="mono" style="color:#A0A8B6;margin-left:6px">Ctrl+Alt+B</span></div><div class="note" style="right:70px;top:230px">faixa de 48 px: abrir, e atalhos para cada seção</div><div class="note" style="left:364px;top:122px">↑ a conversa ganha 232 px</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -216,7 +216,7 @@ const _terminalTheme = TerminalTheme(
   brightWhite: Colors.white,
   searchHitBackground: SessionColors.approvalBorder,
   searchHitBackgroundCurrent: AppColors.amber,
-  searchHitForeground: AppColors.background,
+  searchHitForeground: AppColors.backgroundSolid,
 );
 
 /// "Terminal" tab.

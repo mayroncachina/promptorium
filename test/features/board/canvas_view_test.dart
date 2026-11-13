@@ -17,6 +17,8 @@ import 'package:promptorium/ui/theme/tokens.dart';
 
 import 'canvas_fixture.dart';
 
+import 'package:promptorium/ui/theme/ambient.dart';
+
 double scaleOf(WidgetTester tester) => tester
     .widget<InteractiveViewer>(byKey('board-graph'))
     .transformationController!
@@ -387,7 +389,8 @@ void main() {
       await pumpCanvas(tester, const [
         CanvasSpec('SPEC-001', steps: [StepStatus.running]),
       ]);
-      expect(tester.hasRunningAnimations, true);
+      // The dot loops on the ambient clock (a timer between its ticks).
+      expect(AmbientTicker.debugActive, greaterThan(0));
 
       tester.platformDispatcher.accessibilityFeaturesTestValue =
           const FakeAccessibilityFeatures(disableAnimations: true);
@@ -396,6 +399,7 @@ void main() {
       );
       await pumpFor(tester);
       expect(tester.hasRunningAnimations, false);
+      expect(AmbientTicker.debugActive, 0);
     });
 
     testWidgets('no running step: no animation', (tester) async {
@@ -404,6 +408,7 @@ void main() {
       ]);
       await pumpFor(tester);
       expect(tester.hasRunningAnimations, false);
+      expect(AmbientTicker.debugActive, 0);
     });
 
     testWidgets('the legend has the five step states, both links, agent and '

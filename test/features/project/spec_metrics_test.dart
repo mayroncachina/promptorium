@@ -5,6 +5,8 @@ import 'package:promptorium/features/project/spec_metrics.dart';
 void main() {
   test('cost, time per step, gate fixes, review rounds and hunks', () {
     final spec = Spec(
+      hasPlan: false,
+      inTray: false,
       id: 1,
       workspaceId: 1,
       code: 'SPEC-001',

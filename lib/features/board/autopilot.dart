@@ -62,6 +62,177 @@ class AutopilotSchedule {
           lastRun.day != now.day);
 }
 
+/// When a spec that waits is released (SPEC-064 R3): its dependency in
+/// Review (today's rule, the branch starts from the dependency's) or only
+/// in Feito (after the merge).
+enum UnblockAt {
+  review('Review'),
+  done('Feito');
+
+  const UnblockAt(this.label);
+  final String label;
+
+  static UnblockAt parse(String? v) => v == 'feito' ? done : review;
+  String get value => this == done ? 'feito' : 'review';
+}
+
+/// A spec of [AutopilotPlan.wait]: what it waits for (SPEC-064 R1).
+@immutable
+class AutopilotWait {
+  const AutopilotWait(
+    this.spec, {
+    this.waitingFor = const [],
+    this.reason,
+    this.planning = false,
+  });
+
+  final Spec spec;
+
+  /// Codes of the dependencies not released yet.
+  final List<String> waitingFor;
+
+  /// Why, when it is not a dependency ("na fila: limite de 3 em paralelo").
+  final String? reason;
+
+  /// Held by the automatic plan (SPEC-037 R13): the end of the round ticks
+  /// again.
+  final bool planning;
+}
+
+/// A spec the autopilot never starts, and why (SPEC-064 R1).
+@immutable
+class AutopilotSkip {
+  const AutopilotSkip(this.spec, this.reason);
+
+  final Spec spec;
+  final String reason;
+}
+
+/// What "Executar tudo" does now (SPEC-064 R1): the preview and [Autopilot]
+/// use the same plan, so they never differ.
+@immutable
+class AutopilotPlan {
+  const AutopilotPlan({
+    this.start = const [],
+    this.wait = const [],
+    this.skip = const [],
+    this.parallel,
+    this.unblockAt = UnblockAt.review,
+  });
+
+  final List<Spec> start;
+  final List<AutopilotWait> wait;
+  final List<AutopilotSkip> skip;
+  final int? parallel;
+  final UnblockAt unblockAt;
+
+  /// Specs "Executar N specs" counts: start now + wait.
+  int get count => start.length + wait.length;
+
+  bool get nothingToDo => start.isEmpty && wait.isEmpty;
+}
+
+String _joinCodes(List<String> c) =>
+    c.length == 1 ? c.single : '${c.take(c.length - 1).join(', ')} e ${c.last}';
+
+/// The plan of the autopilot for [all] (SPEC-064 R1): with an [active]
+/// sprint only its specs; [parallel] specs running at most; dependencies
+/// released at [unblockAt]; [locked] = specs held by the automatic plan.
+AutopilotPlan autopilotPlan(
+  List<Spec> all,
+  Sprint? active, {
+  int? parallel,
+  UnblockAt unblockAt = UnblockAt.review,
+  bool Function(Spec)? locked,
+}) {
+  final byCode = specsByCode(all);
+  final inScope = {for (final s in autopilotScope(all, active)) s.id};
+  var running = all.where((s) => s.stage == SpecStage.running).length;
+  final review = unblockAt == UnblockAt.review;
+  final start = <Spec>[];
+  final wait = <AutopilotWait>[];
+  final skip = <AutopilotSkip>[];
+  for (final s in all) {
+    if (s.stage != SpecStage.backlog ||
+        s.status == SpecStatus.done ||
+        s.status == SpecStatus.archived) {
+      continue;
+    }
+    if (!inScope.contains(s.id)) {
+      skip.add(AutopilotSkip(s, 'está fora da sprint ativa'));
+      continue;
+    }
+    if (!isOnBoard(s)) {
+      skip.add(AutopilotSkip(s, 'ainda não foi aprovada'));
+      continue;
+    }
+    final blockers = specBlockers(s, byCode, reviewUnblocks: review);
+    // A dependency outside the active sprint is never pulled in.
+    final outside = [
+      for (final c in blockers)
+        if (active != null && byCode[c]?.sprintId != active.id) c,
+    ];
+    if (outside.isNotEmpty) {
+      skip.add(
+        AutopilotSkip(
+          s,
+          'depende de ${_joinCodes(outside)}, que '
+          '${outside.length == 1 ? 'está' : 'estão'} em outra sprint',
+        ),
+      );
+      continue;
+    }
+    if (blockers.isNotEmpty) {
+      wait.add(AutopilotWait(s, waitingFor: blockers));
+      continue;
+    }
+    // The new branch starts from one dependency in Review only.
+    if (review) {
+      final inReview = [
+        for (final c in s.dependsOn)
+          if (byCode[c] case final d? when d.stage == SpecStage.review) c,
+      ];
+      if (inReview.length > 1 && s.worktreePath == null) {
+        wait.add(
+          AutopilotWait(
+            s,
+            waitingFor: inReview,
+            reason:
+                'depende de ${_joinCodes(inReview)} em Review: falta o merge '
+                'de ao menos uma',
+          ),
+        );
+        continue;
+      }
+    }
+    if (locked?.call(s) ?? false) {
+      wait.add(
+        AutopilotWait(
+          s,
+          reason: 'o plano automático ainda está rodando',
+          planning: true,
+        ),
+      );
+      continue;
+    }
+    if (parallel != null && running >= parallel) {
+      wait.add(
+        AutopilotWait(s, reason: 'na fila: limite de $parallel em paralelo'),
+      );
+      continue;
+    }
+    start.add(s);
+    running++;
+  }
+  return AutopilotPlan(
+    start: start,
+    wait: wait,
+    skip: skip,
+    parallel: parallel,
+    unblockAt: unblockAt,
+  );
+}
+
 /// Quadro on autopilot (play / stop): while on for a workspace, every
 /// approved spec in Backlog starts by itself as soon as its dependencies
 /// are in Review or Feito (those still in Review are not merged, so the new
@@ -75,8 +246,44 @@ class Autopilot extends Notifier<Set<int>> {
 
   bool isOn(int workspaceId) => state.contains(workspaceId);
 
+  /// SPEC-064 R3: when waiting specs are released, by workspace.
+  static String unblockKey(int workspaceId) => 'autopilot.liberar.$workspaceId';
+
+  UnblockAt unblockAtOf(int workspaceId) => UnblockAt.parse(
+    ref.read(appSettingsProvider.notifier).get(unblockKey(workspaceId)),
+  );
+
+  Future<void> setUnblockAt(int workspaceId, UnblockAt v) => ref
+      .read(appSettingsProvider.notifier)
+      .set(unblockKey(workspaceId), v.value);
+
+  /// What "Executar tudo" would do now in [workspaceId] (SPEC-064 R1).
+  Future<AutopilotPlan> planFor(int workspaceId, {UnblockAt? unblockAt}) async {
+    final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
+    final parallel = ws == null
+        ? null
+        : ProjectConfig.loadSync(ws.path).autopilot.parallel;
+    final all = await ref
+        .read(specsRepoProvider)
+        .watchByWorkspace(workspaceId)
+        .first;
+    final active = await ref.read(sprintsRepoProvider).active(workspaceId);
+    final planner = ref.read(specAutoPlannerProvider);
+    return autopilotPlan(
+      all,
+      active,
+      parallel: parallel,
+      unblockAt: unblockAt ?? unblockAtOf(workspaceId),
+      locked: (s) => planner.lockOf(s.id) != null,
+    );
+  }
+
   /// Budget of the day of a scheduled start (beats `orcamento-dia`).
   final Map<int, double> _budgetToday = {};
+
+  /// Specs that were waiting at the last tick, by workspace (SPEC-064 R6:
+  /// "SPEC-002 começou: a SPEC-001 chegou em Review").
+  final Map<int, Set<int>> _waitingIds = {};
   final Map<int, DateTime> _lastScheduled = {};
 
   AutopilotSchedule? scheduleOf(int workspaceId) => AutopilotSchedule.decode(
@@ -205,54 +412,76 @@ class Autopilot extends Notifier<Set<int>> {
   }
 
   /// Starts what can start now, up to `autopilot.paralelo` specs running at
-  /// once. Called on play and when a spec reaches Review.
+  /// once. Called on play and when a spec reaches Review. Uses the same
+  /// [autopilotPlan] as the preview (SPEC-064).
   Future<void> tick(int workspaceId) async {
     if (!isOn(workspaceId)) return;
     if (await checkBudget(workspaceId)) return;
-    final ws = await ref.read(workspacesRepoProvider).getById(workspaceId);
-    final parallel = ws == null
-        ? null
-        : ProjectConfig.loadSync(ws.path).autopilot.parallel;
-    final specs = ref.read(specsRepoProvider);
-    final all = await specs.watchByWorkspace(workspaceId).first;
-    final byCode = specsByCode(all);
-    var running = all.where((s) => s.stage == SpecStage.running).length;
+    final plan = await planFor(workspaceId);
+    final review = plan.unblockAt == UnblockAt.review;
+    final wasWaiting = _waitingIds[workspaceId] ?? const <int>{};
     var started = 0;
-    var waiting = false;
-    // Only the active sprint (SPEC-042 R11); a dependency outside it blocks,
-    // and is never pulled in.
-    final active = await ref.read(sprintsRepoProvider).active(workspaceId);
-    for (final s in autopilotScope(all, active)) {
-      if (parallel != null && running >= parallel) break;
-      if (!isOnBoard(s) ||
-          s.stage != SpecStage.backlog ||
-          s.status == SpecStatus.done) {
-        continue;
-      }
-      if (specBlockers(s, byCode, reviewUnblocks: true).isNotEmpty) continue;
-      // SPEC-037 R13: the end of the round calls this again.
-      if (ref.read(specAutoPlannerProvider).lockOf(s.id) != null) {
-        waiting = true;
-        continue;
-      }
+    for (final s in plan.start) {
       try {
         // With "Abrir Executar em Automático" on, in Automático
         // (SPEC-035 R19).
-        await ref.read(specRunnerProvider).runAuto(s.id, reviewUnblocks: true);
+        await ref
+            .read(specRunnerProvider)
+            .runAuto(s.id, reviewUnblocks: review);
         started++;
-        running++;
+        if (wasWaiting.contains(s.id)) {
+          _announce(workspaceId, startedAfterWait(s, plan.unblockAt));
+        }
       } catch (e) {
         debugPrint('autopilot: ${s.code} não iniciada — $e');
       }
     }
+    _waitingIds[workspaceId] = {for (final w in plan.wait) w.spec.id};
+    // SPEC-037 R13: the end of the round calls this again.
+    final waiting = plan.wait.any((w) => w.planning);
     // Nothing started now and nothing running: the last spec is finished
     // (or what is left cannot start by itself), so the autopilot turns off.
-    final now = await specs.watchByWorkspace(workspaceId).first;
+    final now = await ref
+        .read(specsRepoProvider)
+        .watchByWorkspace(workspaceId)
+        .first;
     if (started == 0 &&
         !waiting &&
         !now.any((s) => s.stage == SpecStage.running)) {
       _off(workspaceId);
+      _waitingIds.remove(workspaceId);
+      final inReview = now.where((s) => s.stage == SpecStage.review).length;
+      _announce(
+        workspaceId,
+        'Executar tudo terminou: $inReview '
+        '${inReview == 1 ? 'spec' : 'specs'} em Review.',
+      );
     }
+  }
+
+  /// "SPEC-002 começou: a SPEC-001 chegou em Review." (SPEC-064 R6).
+  static String startedAfterWait(Spec s, UnblockAt at) {
+    final deps = s.dependsOn;
+    final who = deps.length == 1
+        ? 'a ${deps.single} chegou'
+        : 'as dependências chegaram';
+    return '${s.code} começou: $who em ${at.label}.';
+  }
+
+  /// A notice in the app's list and on the desktop (SPEC-064 R6).
+  void _announce(int workspaceId, String body) {
+    unawaited(
+      ref
+          .read(notificationsRepoProvider)
+          .add(title: 'Executar tudo', body: body, section: 'tasks')
+          .catchError((_) {}),
+    );
+    unawaited(
+      ref
+          .read(appNotifierProvider)
+          .show('Executar tudo', body)
+          .catchError((_) {}),
+    );
   }
 }
 
