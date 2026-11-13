@@ -1,6 +1,6 @@
 ---
 id: SPEC-069
-status: rascunho
+status: aprovada
 issue: 196
 ---
 
@@ -139,8 +139,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/SN6Vr7scmPenUgLaod5
 
 ## Critérios de aceite
 
-- [ ] Um pedido feito por "Fazer como tarefa" vira um card no Quadro e termina num PR, sem escrever spec.
-- [ ] A VIBE nunca mexe no checkout principal.
-- [ ] Passar do teto para e oferece virar spec, sem perder o trabalho.
-- [ ] O gate e o Review são obrigatórios; os prints de antes e depois aparecem quando há tela.
-- [ ] Uma VIBE descartada some do Quadro, com o worktree e a branch.
+- [x] Um pedido feito por "Fazer como tarefa" vira um card no Quadro e termina num PR, sem escrever spec.
+- [x] A VIBE nunca mexe no checkout principal.
+- [x] Passar do teto para e oferece virar spec, sem perder o trabalho.
+- [x] O gate e o Review são obrigatórios; os prints de antes e depois aparecem quando há tela.
+- [x] Uma VIBE descartada some do Quadro, com o worktree e a branch.
