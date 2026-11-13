@@ -418,6 +418,15 @@ class Specs extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> inTray = GeneratedColumn<int>(
+    'in_tray',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT 0 CHECK (in_tray IN (0, 1))',
+    defaultValue: const CustomExpression('0'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -450,6 +459,7 @@ class Specs extends Table with TableInfo {
     originItem,
     originAlias,
     originTitle,
+    inTray,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;

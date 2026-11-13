@@ -28,8 +28,16 @@ class CanvasSpec {
     this.agent,
     this.skills = const [],
     this.sessionStatus = SessionStatus.completed,
+    this.status = SpecStatus.approved,
+    this.inTray = false,
+    this.conversationId,
   });
   final String code;
+
+  /// SPEC-068: the Bandeja (status, waiting in it, conversation of origin).
+  final SpecStatus status;
+  final bool inTray;
+  final int? conversationId;
   final String? title;
   final SpecStage stage;
   final List<StepStatus> steps;
@@ -110,8 +118,10 @@ Future<(ProviderContainer, AppDatabase)> pumpCanvas(
             code: f.code,
             title: f.title ?? f.code,
             path: 'specs/${f.code}.md',
-            status: const Value(SpecStatus.approved),
+            status: Value(f.status),
             stage: Value(f.stage),
+            inTray: Value(f.inTray),
+            originConversationId: Value(f.conversationId),
             requirements: Value([
               for (var i = 1; i <= f.steps.length; i++)
                 (id: 'R$i', text: stepText(f.code, 'R$i')),

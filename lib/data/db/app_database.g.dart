@@ -1102,6 +1102,19 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _inTrayMeta = const VerificationMeta('inTray');
+  @override
+  late final GeneratedColumn<bool> inTray = GeneratedColumn<bool>(
+    'in_tray',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("in_tray" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1134,6 +1147,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     originItem,
     originAlias,
     originTitle,
+    inTray,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1347,6 +1361,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('in_tray')) {
+      context.handle(
+        _inTrayMeta,
+        inTray.isAcceptableOrUnknown(data['in_tray']!, _inTrayMeta),
+      );
+    }
     return context;
   }
 
@@ -1488,6 +1508,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.string,
         data['${effectivePrefix}origin_title'],
       ),
+      inTray: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}in_tray'],
+      )!,
     );
   }
 
@@ -1591,6 +1615,11 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// answer with the same pair counts as already created.
   final String? originAlias;
   final String? originTitle;
+
+  /// Waits in the Bandeja: a new spec enters here, approving keeps it here,
+  /// and only "Levar para o Backlog" puts it on the Quadro. False for every
+  /// spec that already existed (they stay where they were).
+  final bool inTray;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1622,6 +1651,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.originItem,
     this.originAlias,
     this.originTitle,
+    required this.inTray,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1702,6 +1732,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || originTitle != null) {
       map['origin_title'] = Variable<String>(originTitle);
     }
+    map['in_tray'] = Variable<bool>(inTray);
     return map;
   }
 
@@ -1769,6 +1800,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       originTitle: originTitle == null && nullToAbsent
           ? const Value.absent()
           : Value(originTitle),
+      inTray: Value(inTray),
     );
   }
 
@@ -1816,6 +1848,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       originItem: serializer.fromJson<int?>(json['originItem']),
       originAlias: serializer.fromJson<String?>(json['originAlias']),
       originTitle: serializer.fromJson<String?>(json['originTitle']),
+      inTray: serializer.fromJson<bool>(json['inTray']),
     );
   }
   @override
@@ -1858,6 +1891,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       'originItem': serializer.toJson<int?>(originItem),
       'originAlias': serializer.toJson<String?>(originAlias),
       'originTitle': serializer.toJson<String?>(originTitle),
+      'inTray': serializer.toJson<bool>(inTray),
     };
   }
 
@@ -1892,6 +1926,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<int?> originItem = const Value.absent(),
     Value<String?> originAlias = const Value.absent(),
     Value<String?> originTitle = const Value.absent(),
+    bool? inTray,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1929,6 +1964,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originItem: originItem.present ? originItem.value : this.originItem,
     originAlias: originAlias.present ? originAlias.value : this.originAlias,
     originTitle: originTitle.present ? originTitle.value : this.originTitle,
+    inTray: inTray ?? this.inTray,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -1998,6 +2034,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       originTitle: data.originTitle.present
           ? data.originTitle.value
           : this.originTitle,
+      inTray: data.inTray.present ? data.inTray.value : this.inTray,
     );
   }
 
@@ -2033,7 +2070,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('originAnswer: $originAnswer, ')
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
-          ..write('originTitle: $originTitle')
+          ..write('originTitle: $originTitle, ')
+          ..write('inTray: $inTray')
           ..write(')'))
         .toString();
   }
@@ -2070,6 +2108,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originItem,
     originAlias,
     originTitle,
+    inTray,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2104,7 +2143,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.originAnswer == this.originAnswer &&
           other.originItem == this.originItem &&
           other.originAlias == this.originAlias &&
-          other.originTitle == this.originTitle);
+          other.originTitle == this.originTitle &&
+          other.inTray == this.inTray);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -2138,6 +2178,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<int?> originItem;
   final Value<String?> originAlias;
   final Value<String?> originTitle;
+  final Value<bool> inTray;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -2169,6 +2210,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originItem = const Value.absent(),
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
+    this.inTray = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -2201,6 +2243,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originItem = const Value.absent(),
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
+    this.inTray = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -2236,6 +2279,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<int>? originItem,
     Expression<String>? originAlias,
     Expression<String>? originTitle,
+    Expression<bool>? inTray,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2269,6 +2313,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (originItem != null) 'origin_item': originItem,
       if (originAlias != null) 'origin_alias': originAlias,
       if (originTitle != null) 'origin_title': originTitle,
+      if (inTray != null) 'in_tray': inTray,
     });
   }
 
@@ -2303,6 +2348,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<int?>? originItem,
     Value<String?>? originAlias,
     Value<String?>? originTitle,
+    Value<bool>? inTray,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2335,6 +2381,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       originItem: originItem ?? this.originItem,
       originAlias: originAlias ?? this.originAlias,
       originTitle: originTitle ?? this.originTitle,
+      inTray: inTray ?? this.inTray,
     );
   }
 
@@ -2439,6 +2486,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (originTitle.present) {
       map['origin_title'] = Variable<String>(originTitle.value);
     }
+    if (inTray.present) {
+      map['in_tray'] = Variable<bool>(inTray.value);
+    }
     return map;
   }
 
@@ -2474,7 +2524,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('originAnswer: $originAnswer, ')
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
-          ..write('originTitle: $originTitle')
+          ..write('originTitle: $originTitle, ')
+          ..write('inTray: $inTray')
           ..write(')'))
         .toString();
   }
@@ -15635,6 +15686,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<int?> originItem,
   Value<String?> originAlias,
   Value<String?> originTitle,
+  Value<bool> inTray,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -15667,6 +15719,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int?> originItem,
   Value<String?> originAlias,
   Value<String?> originTitle,
+  Value<bool> inTray,
 });
 
 final class $$SpecsTableReferences
@@ -16010,6 +16063,11 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<String> get originTitle => $composableBuilder(
     column: $table.originTitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get inTray => $composableBuilder(
+    column: $table.inTray,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16409,6 +16467,11 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get inTray => $composableBuilder(
+    column: $table.inTray,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16583,6 +16646,9 @@ class $$SpecsTableAnnotationComposer
     column: $table.originTitle,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get inTray =>
+      $composableBuilder(column: $table.inTray, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -16901,6 +16967,7 @@ class $$SpecsTableTableManager
                 Value<int?> originItem = const Value.absent(),
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
+                Value<bool> inTray = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -16932,6 +16999,7 @@ class $$SpecsTableTableManager
                 originItem: originItem,
                 originAlias: originAlias,
                 originTitle: originTitle,
+                inTray: inTray,
               ),
           createCompanionCallback:
               ({
@@ -16966,6 +17034,7 @@ class $$SpecsTableTableManager
                 Value<int?> originItem = const Value.absent(),
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
+                Value<bool> inTray = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -16997,6 +17066,7 @@ class $$SpecsTableTableManager
                 originItem: originItem,
                 originAlias: originAlias,
                 originTitle: originTitle,
+                inTray: inTray,
               ),
           withReferenceMapper: (p0) => p0
               .map(

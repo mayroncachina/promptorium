@@ -557,6 +557,20 @@
             "default_dart": null,
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "in_tray",
+            "getter_name": "inTray",
+            "moor_type": "bool",
+            "nullable": false,
+            "customConstraints": null,
+            "defaultConstraints": "CHECK (\"in_tray\" IN (0, 1))",
+            "dialectAwareDefaultConstraints": {
+              "sqlite": "CHECK (\"in_tray\" IN (0, 1))"
+            },
+            "default_dart": "const CustomExpression('0')",
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -3229,7 +3243,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"specs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"code\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'draft', \"path\" TEXT NOT NULL, \"stage\" TEXT NOT NULL DEFAULT 'backlog', \"requirements\" TEXT NOT NULL DEFAULT '[]', \"depends_on\" TEXT NOT NULL DEFAULT '[]', \"has_plan\" INTEGER NOT NULL DEFAULT 0 CHECK (\"has_plan\" IN (0, 1)), \"phase\" TEXT NULL, \"agent_name\" TEXT NULL, \"worktree_path\" TEXT NULL, \"branch\" TEXT NULL, \"base_branch\" TEXT NULL, \"auto_advance\" INTEGER NOT NULL DEFAULT 1 CHECK (\"auto_advance\" IN (0, 1)), \"worktree_index\" INTEGER NULL, \"prepared_at\" INTEGER NULL, \"review_phase\" TEXT NULL, \"review_rounds\" INTEGER NOT NULL DEFAULT 0, \"merge_override\" TEXT NULL, \"board_order\" INTEGER NULL, \"gate_resends\" INTEGER NOT NULL DEFAULT 0, \"rejected_hunks\" INTEGER NOT NULL DEFAULT 0, \"sprint_id\" INTEGER NULL REFERENCES sprints (id) ON DELETE SET NULL, \"origin_conversation_id\" INTEGER NULL, \"origin_answer\" INTEGER NULL, \"origin_item\" INTEGER NULL, \"origin_alias\" TEXT NULL, \"origin_title\" TEXT NULL, UNIQUE (\"workspace_id\", \"code\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"specs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"code\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'draft', \"path\" TEXT NOT NULL, \"stage\" TEXT NOT NULL DEFAULT 'backlog', \"requirements\" TEXT NOT NULL DEFAULT '[]', \"depends_on\" TEXT NOT NULL DEFAULT '[]', \"has_plan\" INTEGER NOT NULL DEFAULT 0 CHECK (\"has_plan\" IN (0, 1)), \"phase\" TEXT NULL, \"agent_name\" TEXT NULL, \"worktree_path\" TEXT NULL, \"branch\" TEXT NULL, \"base_branch\" TEXT NULL, \"auto_advance\" INTEGER NOT NULL DEFAULT 1 CHECK (\"auto_advance\" IN (0, 1)), \"worktree_index\" INTEGER NULL, \"prepared_at\" INTEGER NULL, \"review_phase\" TEXT NULL, \"review_rounds\" INTEGER NOT NULL DEFAULT 0, \"merge_override\" TEXT NULL, \"board_order\" INTEGER NULL, \"gate_resends\" INTEGER NOT NULL DEFAULT 0, \"rejected_hunks\" INTEGER NOT NULL DEFAULT 0, \"sprint_id\" INTEGER NULL REFERENCES sprints (id) ON DELETE SET NULL, \"origin_conversation_id\" INTEGER NULL, \"origin_answer\" INTEGER NULL, \"origin_item\" INTEGER NULL, \"origin_alias\" TEXT NULL, \"origin_title\" TEXT NULL, \"in_tray\" INTEGER NOT NULL DEFAULT 0 CHECK (\"in_tray\" IN (0, 1)), UNIQUE (\"workspace_id\", \"code\"));"
         }
       ]
     },

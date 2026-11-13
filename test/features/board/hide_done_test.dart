@@ -6,6 +6,11 @@ import 'package:promptorium/features/board/board_screen.dart';
 
 import 'canvas_fixture.dart';
 
+/// The test font draws every glyph 1 em wide: an 1800 px window gives the
+/// filters the room a 1440 px one has with the app's font (next to the
+/// Bandeja, SPEC-068 R7).
+const wide = Size(1800, 900);
+
 /// "Ocultar concluídas" in Colunas and Canvas (SPEC-019 R1–R7).
 void main() {
   String chipText(WidgetTester tester) => tester
@@ -43,7 +48,7 @@ void main() {
       'the chip counts them and the canvas button follows (R1, R2, R5, R7)', (
     tester,
   ) async {
-    await pumpCanvas(tester, const [
+    await pumpCanvas(tester, size: wide, const [
       CanvasSpec('SPEC-001', stage: SpecStage.done),
       CanvasSpec('SPEC-002', deps: ['SPEC-001']),
       CanvasSpec('SPEC-003', stage: SpecStage.done),
@@ -90,7 +95,7 @@ void main() {
 
   testWidgets('the chip counts only the concluded cards that pass the other '
       'filters (R5)', (tester) async {
-    await pumpCanvas(tester, const [
+    await pumpCanvas(tester, size: wide, const [
       CanvasSpec('SPEC-001', stage: SpecStage.done),
       CanvasSpec('SPEC-002', stage: SpecStage.done),
       CanvasSpec(
@@ -112,7 +117,7 @@ void main() {
       'concluídas"; nothing hidden keeps the filters message (R6)', (
     tester,
   ) async {
-    await pumpCanvas(tester, const [
+    await pumpCanvas(tester, size: wide, const [
       CanvasSpec('SPEC-001', stage: SpecStage.done),
       CanvasSpec('SPEC-002', stage: SpecStage.done),
     ]);
@@ -133,7 +138,7 @@ void main() {
 
   testWidgets('no concluded card hidden: the empty board keeps "Nenhum cartão '
       'passa pelos filtros." (R6)', (tester) async {
-    await pumpCanvas(tester, const [
+    await pumpCanvas(tester, size: wide, const [
       CanvasSpec('SPEC-001', stage: SpecStage.done),
       CanvasSpec('SPEC-002'),
     ]);
@@ -148,7 +153,7 @@ void main() {
 
   testWidgets('the filter is per project: B opens without it, A gets it back '
       '(R4)', (tester) async {
-    final (c, db) = await pumpCanvas(tester, const [
+    final (c, db) = await pumpCanvas(tester, size: wide, const [
       CanvasSpec('SPEC-001', stage: SpecStage.done),
       CanvasSpec('SPEC-002'),
     ]);

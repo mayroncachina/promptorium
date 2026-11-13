@@ -204,6 +204,13 @@ class Specs extends Table {
   TextColumn get originAlias => text().nullable()();
   TextColumn get originTitle => text().nullable()();
 
+  // --- the Bandeja of the Quadro (SPEC-068 R7, R8, schema v24) --------------
+
+  /// Waits in the Bandeja: a new spec enters here, approving keeps it here,
+  /// and only "Levar para o Backlog" puts it on the Quadro. False for every
+  /// spec that already existed (they stay where they were).
+  BoolColumn get inTray => boolean().withDefault(const Constant(false))();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {workspaceId, code},
@@ -1065,7 +1072,8 @@ class AppDatabase extends _$AppDatabase {
             }
           },
           // v24: where a spec created from a Prompt answer came from
-          // (SPEC-068 R6); null for every spec that already exists.
+          // (SPEC-068 R6), null for every spec that already exists; and the
+          // Bandeja (R7, R8), off for them: the Quadro keeps its cards.
           from23To24: (m, v) async {
             if (!await _hasTable('specs')) return;
             for (final c in [
@@ -1074,6 +1082,7 @@ class AppDatabase extends _$AppDatabase {
               v.specs.originItem,
               v.specs.originAlias,
               v.specs.originTitle,
+              v.specs.inTray,
             ]) {
               if (!await _hasColumn('specs', c.name)) {
                 await m.addColumn(v.specs, c);

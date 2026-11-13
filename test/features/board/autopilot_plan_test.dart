@@ -13,6 +13,7 @@ Spec s(
   int? sprintId,
 }) => Spec(
   hasPlan: false,
+  inTray: false,
   id: id,
   workspaceId: 1,
   code: 'SPEC-${id.toString().padLeft(3, '0')}',

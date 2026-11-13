@@ -50,6 +50,7 @@ import 'widgets/spec_canvas.dart';
 import 'widgets/spec_focus_view.dart';
 import 'widgets/sprint_dialogs.dart';
 import 'widgets/sprint_selector.dart';
+import 'widgets/board_tray.dart';
 import 'widgets/board_view_switch.dart';
 import 'widgets/wave_graph.dart' show dependencyWaves, nextWave;
 
@@ -404,9 +405,8 @@ class BoardScreen extends ConsumerWidget {
                 : const [],
           ),
     ];
-    final drafts = specs
-        .where((s) => s.status != SpecStatus.archived && !isOnBoard(s))
-        .length;
+    final drafts = specs.where(isInTray).length;
+    final trayOpen = ref.watch(boardTrayOpenProvider);
     final filter = ref.watch(boardFilterProvider);
     final manager = ref.watch(sessionManagerProvider);
     final preps = ref.watch(worktreePrepProvider);
@@ -484,8 +484,8 @@ class BoardScreen extends ConsumerWidget {
             drafts == 0
                 ? 'Nenhuma spec ainda. Crie uma em Specs ou planeje '
                       'o projeto em Projeto.'
-                : 'Nenhuma spec aprovada. Aprove uma spec na tela '
-                      'Specs para ela entrar no quadro.',
+                : 'Nenhuma spec no quadro. Aprove uma spec e leve-a da '
+                      'Bandeja para o Backlog.',
           )
         : visible.isEmpty && hiddenDone > 0
         ? _Empty(
@@ -537,6 +537,16 @@ class BoardScreen extends ConsumerWidget {
             all: [for (final d in cards) d.spec],
             attention: attention,
             parallel: parallel,
+          );
+    // SPEC-068 R7: the Bandeja opens left of the Backlog.
+    Widget withTray(Widget child) => !trayOpen
+        ? child
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BoardTray(workspaceId: ws.id, specs: specs),
+              Expanded(child: child),
+            ],
           );
     return Shortcuts(
       shortcuts: const {
@@ -596,53 +606,57 @@ class BoardScreen extends ConsumerWidget {
                       d.spec.id: specAttentionReason(ref, d),
                   },
                   selected: selectedId,
-                  child: selected == null || view != BoardView.columns
-                      ? body
-                      : Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(child: body),
-                            Container(
-                              key: const ValueKey('board-side-panel'),
-                              width: 360,
-                              padding: const EdgeInsets.all(16),
-                              decoration: const BoxDecoration(
-                                color: AppColors.panel,
-                                border: Border(
-                                  left: BorderSide(color: AppColors.border),
+                  child: withTray(
+                    selected == null || view != BoardView.columns
+                        ? body
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(child: body),
+                              Container(
+                                key: const ValueKey('board-side-panel'),
+                                width: 360,
+                                padding: const EdgeInsets.all(16),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.panel,
+                                  border: Border(
+                                    left: BorderSide(color: AppColors.border),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: IconButton(
+                                        key: const ValueKey('board-side-close'),
+                                        tooltip: 'Fechar',
+                                        iconSize: 16,
+                                        visualDensity: VisualDensity.compact,
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        onPressed: () => ref
+                                            .read(
+                                              boardSelectedSpecProvider
+                                                  .notifier,
+                                            )
+                                            .select(null),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: SpecStepsPanel(
+                                        specId: selected.spec.id,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: IconButton(
-                                      key: const ValueKey('board-side-close'),
-                                      tooltip: 'Fechar',
-                                      iconSize: 16,
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                      onPressed: () => ref
-                                          .read(
-                                            boardSelectedSpecProvider.notifier,
-                                          )
-                                          .select(null),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: SpecStepsPanel(
-                                      specId: selected.spec.id,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
             ],
@@ -1080,7 +1094,7 @@ class _Header extends ConsumerWidget {
                   child: leftRow,
                 )
               : leftRow;
-          // The strip and the drafts shorten with an ellipsis (R9).
+          // The strip shortens with an ellipsis (R9).
           final stripRow = Row(
             key: const ValueKey('board-bar-strip'),
             mainAxisSize: MainAxisSize.min,
@@ -1100,31 +1114,17 @@ class _Header extends ConsumerWidget {
                   ),
                 ),
               ),
-              if (drafts > 0) ...[
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Tooltip(
-                    message: '$drafts em rascunho fora do quadro',
-                    child: Text(
-                      '$drafts em rascunho fora do quadro',
-                      textWidthBasis: TextWidthBasis.longestLine,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           );
-          // Agendar and Executar tudo never leave the bar (R9).
+          // Agendar and Executar tudo never leave the bar (R9), and neither
+          // does the Bandeja, which replaced "N em rascunho fora do quadro"
+          // (SPEC-068 R7).
           final actions = Row(
             key: const ValueKey('board-bar-right'),
             mainAxisSize: MainAxisSize.min,
             children: [
+              BoardTrayButton(count: drafts, compact: folded),
+              const SizedBox(width: 8),
               Builder(
                 builder: (context) {
                   ref.watch(appSettingsProvider);
