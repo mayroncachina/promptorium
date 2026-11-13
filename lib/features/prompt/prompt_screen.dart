@@ -31,7 +31,8 @@ import 'widgets/prompt_dialogs.dart';
 import 'widgets/prompt_side_panel.dart';
 import 'widgets/title_field.dart';
 import '../vibe/vibe_flow.dart' show vibeFlowProvider;
-import '../vibe/vibe_service.dart' show vibeSpecProvider;
+import '../vibe/vibe_service.dart' show VibeService, vibeSpecProvider;
+import '../vibe/widgets/vibe_card.dart' show confirmDiscardVibe;
 import '../vibe/widgets/vibe_widgets.dart';
 
 /// Prompt screen (docs/mockups/Prompt.dc.html): conversation history ·
@@ -449,6 +450,18 @@ class _Header extends ConsumerWidget {
         return VibeBar(
           spec: spec,
           busy: busy,
+          // SPEC-069 R10.
+          discard: !VibeService.canDiscard(spec)
+              ? null
+              : SmallButton(
+                  key: const ValueKey('vibe-discard'),
+                  label: 'Descartar',
+                  icon: Icons.delete_outline,
+                  height: 34,
+                  onTap: busy
+                      ? null
+                      : () => confirmDiscardVibe(context, ref, spec),
+                ),
           meter: ws == null || spec.worktreePath == null
               ? null
               : VibeMeter(

@@ -470,6 +470,74 @@ class VibeService {
     return (await repo.getById(specId))!;
   }
 
+  /// Whether [spec] can still be discarded (R10): never once merged.
+  static bool canDiscard(Spec spec) =>
+      spec.kind == SpecKind.vibe &&
+      spec.stage != SpecStage.done &&
+      spec.status != SpecStatus.done;
+
+  /// "Descartar VIBE" (R10): removes the worktree, the branch `vibe/…` and
+  /// the conversation, and the card leaves the Quadro. The number is not
+  /// given back and nothing can be undone. A merged VIBE is refused.
+  Future<void> discard(int specId) async {
+    final repo = _ref.read(specsRepoProvider);
+    final spec = await repo.getById(specId);
+    if (spec == null) return;
+    final sessions = _ref.read(sessionsRepoProvider);
+    final rows = await sessions.bySpec(specId);
+    if (!canDiscard(spec) ||
+        rows.any(
+          (s) => s.status == SessionStatus.merged || s.mergeCommit != null,
+        )) {
+      throw VibeException(
+        '${spec.code} já foi mergeada: não dá para descartar.',
+      );
+    }
+    final ws = await _ref
+        .read(workspacesRepoProvider)
+        .getById(spec.workspaceId);
+    final conv = await repo.conversationOf(specId);
+    if (conv != null) {
+      await _ref.read(conversationManagerProvider.notifier).stop(conv.id);
+    }
+    if (ws != null) {
+      final main = _git(ws.path);
+      final wt = spec.worktreePath;
+      if (wt != null && wt != ws.path) {
+        try {
+          await main.removeWorktree(wt, force: true);
+        } on GitException catch (e) {
+          debugPrint('vibe ${spec.code}: worktree — $e');
+          if (Directory(wt).existsSync() && wt.startsWith(main.worktreesBase)) {
+            Directory(wt).deleteSync(recursive: true);
+            await main.git(['worktree', 'prune']).catchError((_) => '');
+          }
+        }
+      }
+      final branch = spec.branch;
+      if (branch != null && branch.startsWith('vibe/')) {
+        try {
+          await main.deleteBranch(branch, force: true);
+        } on GitException catch (e) {
+          debugPrint('vibe ${spec.code}: branch — $e');
+        }
+      }
+    }
+    // R12: the number stays reserved.
+    await repo.reserve(spec.workspaceId, spec.code);
+    for (final s in rows) {
+      await sessions.delete(s.id);
+    }
+    if (conv != null) {
+      await _ref.read(conversationsRepoProvider).delete(conv.id);
+      if (_ref.read(selectedConversationProvider) == conv.id) {
+        _ref.read(selectedConversationProvider.notifier).select(null);
+      }
+    }
+    await _ref.read(appSettingsProvider.notifier).remove(vibeCapKey(specId));
+    await repo.delete(specId);
+  }
+
   /// The session row the Review works with (its queue, diff and merge are
   /// by session): one per VIBE, reused at each "Enviar para Review".
   Future<String> _reviewSession(

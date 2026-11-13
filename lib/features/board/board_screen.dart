@@ -25,6 +25,7 @@ import '../../ui/widgets/app_icon.dart';
 import '../specs/widgets/spec_action_banner.dart' show ActionSpinner;
 import 'autopilot.dart';
 import 'board_rules.dart';
+import '../vibe/widgets/vibe_card.dart' show VibeCard;
 import 'spec_runner.dart'
     show gateRunningProvider, specRunnerProvider, worktreePrepProvider;
 import 'step_gate.dart' show tailLines;
@@ -1663,6 +1664,8 @@ class SpecCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // SPEC-069 R9: a VIBE has its own card, that opens its conversation.
+    if (data.spec.kind == SpecKind.vibe) return VibeCard(spec: data.spec);
     final spec = data.spec;
     final last = data.lastSession;
     final alive =
