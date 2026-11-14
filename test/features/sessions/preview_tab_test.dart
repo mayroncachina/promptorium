@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/dev/dev_server.dart';
+import 'package:promptorium/core/dev/preview_browser.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/sessions/session_dev.dart';
 import 'package:promptorium/features/sessions/widgets/dev_server_control.dart';
+import 'package:promptorium/features/sessions/widgets/point_button.dart';
 import 'package:promptorium/features/sessions/widgets/preview_tab.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
@@ -148,7 +150,10 @@ void main() {
     expect(sent, isEmpty);
 
     await tester.tap(find.byKey(const ValueKey('dev-stop')));
-    await settle(tester);
+    await settleUntil(
+      tester,
+      () => find.text('Servidor parado').evaluate().isNotEmpty,
+    );
     expect(signals.first, (48211, ProcessSignal.sigterm));
     expect(find.text('Servidor parado'), findsOneWidget);
   });
@@ -167,13 +172,19 @@ void main() {
       process.exit(1);
       await Future<void>.delayed(const Duration(milliseconds: 50));
     });
-    await settle(tester);
+    await settleUntil(
+      tester,
+      () => find
+          .text('Falhou · o comando terminou (código 1)')
+          .evaluate()
+          .isNotEmpty,
+    );
     expect(find.text('Falhou · o comando terminou (código 1)'), findsWidgets);
     expect(find.byKey(const ValueKey('dev-show-logs')), findsOneWidget);
     expect(find.byKey(const ValueKey('preview-retry')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('preview-send-error')));
-    await settle(tester);
+    await settleUntil(tester, () => sent.isNotEmpty);
     expect(sent, hasLength(1));
     expect(sent.single, contains('falhou: o comando terminou (código 1)'));
     expect(sent.single, contains('Error: Cannot find module "vite"'));
@@ -189,7 +200,10 @@ void main() {
     proc.cmd[39120] = 'vite --port 4003';
     final r = await pump(tester);
     await tester.tap(find.byKey(const ValueKey('dev-start')));
-    await settle(tester);
+    await settleUntil(
+      tester,
+      () => find.text('Falhou · porta 4003 ocupada').evaluate().isNotEmpty,
+    );
     expect(find.text('Falhou · porta 4003 ocupada'), findsOneWidget);
     expect(find.byKey(const ValueKey('preview-port-taken')), findsOneWidget);
     expect(
@@ -257,6 +271,59 @@ void main() {
     expect(find.byKey(const ValueKey('preview-leftover-31877')), findsNothing);
   });
 
+  testWidgets('no ar :porta shows Abrir preview, Apontar and Parar '
+      'servidor; without Chrome or Chromium Apontar is off with the reason '
+      '(R2, R9)', (tester) async {
+    final r = registry();
+    final opened = <Uri>[];
+    await tester.binding.setSurfaceSize(const Size(1300, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          devServerRegistryProvider.overrideWithValue(r),
+          previewBrowserProvider.overrideWithValue(
+            PreviewBrowser(
+              findBrowser: () async => null,
+              profileBase: tmp.path,
+              fallback: (u) async => opened.add(u),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) => DevServerControl(
+                dev: dev,
+                onShowLogs: () {},
+                onOpenPreview: (s) => openPreviewWindow(ref, context, s),
+                extra: const [PointButton(sessionId: 's1', dev: dev)],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    r.of(dev.worktree).useRunning(4003);
+    await settle(tester);
+    expect(find.text('No ar :4003'), findsOneWidget);
+    expect(find.text('Abrir preview'), findsOneWidget);
+    expect(find.text('Apontar'), findsOneWidget);
+    expect(find.text('Esquecer'), findsOneWidget); // not started by the app
+    final tip = tester.widget<Tooltip>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('dev-point')),
+        matching: find.byType(Tooltip),
+      ),
+    );
+    expect(tip.message, previewInstallHint);
+
+    await tester.tap(find.byKey(const ValueKey('dev-open-preview')));
+    await settle(tester);
+    expect(opened, [Uri.parse('http://localhost:4003/')]);
+  });
+
   test('uptime and the error message', () {
     expect(uptimeLabel(const Duration(seconds: 20)), 'há menos de 1 min');
     expect(uptimeLabel(const Duration(minutes: 4)), 'há 4 min');
@@ -271,5 +338,11 @@ Future<void> settle(WidgetTester tester) async {
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
     await tester.pump();
+  }
+}
+
+Future<void> settleUntil(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 50 && !done(); i++) {
+    await settle(tester);
   }
 }

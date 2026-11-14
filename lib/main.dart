@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/claude/usage_poller.dart';
 import 'core/dev/dev_server.dart';
+import 'core/dev/preview_browser.dart';
 import 'core/git/git_service.dart';
 import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
@@ -64,8 +65,10 @@ Future<void> main() async {
   );
   // A worktree that goes away (merge, discard) stops its development server
   // first (SPEC-051 R5).
-  GitService.beforeRemoveWorktree = (path) =>
-      container.read(devServerRegistryProvider).stopWorktree(path);
+  GitService.beforeRemoveWorktree = (path) => Future.wait([
+    container.read(devServerRegistryProvider).stopWorktree(path),
+    container.read(previewBrowserProvider).close(path),
+  ]);
   await windowManager.setPreventClose(true);
   final closeHandler = _CloseHandler(container);
   windowManager.addListener(closeHandler);
@@ -141,6 +144,11 @@ class _CloseHandler with WindowListener {
             .read(devServerRegistryProvider)
             .stopAll()
             .timeout(const Duration(seconds: 8)),
+        // The preview's Chromium windows (SPEC-051 R10).
+        container
+            .read(previewBrowserProvider)
+            .closeAll()
+            .timeout(const Duration(seconds: 4)),
       ]);
     } catch (e) {
       debugPrint('encerramento: $e');
