@@ -16,6 +16,7 @@ import 'tool_expanded.dart';
 import 'widgets/composer.dart';
 import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
+import 'widgets/point_button.dart';
 import 'widgets/preview_tab.dart';
 import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
@@ -582,6 +583,17 @@ class _Header extends ConsumerWidget {
                     onShowLogs: () => ref
                         .read(sessionTabProvider(s.id).notifier)
                         .set(SessionTab.preview),
+                    onOpenPreview: (server) =>
+                        openPreviewWindow(ref, context, server),
+                    extra: [
+                      PointButton(
+                        sessionId: s.id,
+                        dev: dev,
+                        onPicked: () => ref
+                            .read(sessionTabProvider(s.id).notifier)
+                            .set(SessionTab.timeline),
+                      ),
+                    ],
                   ),
                 SmallButton(
                   key: const ValueKey('session-open-terminal'),
