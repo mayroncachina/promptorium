@@ -42,7 +42,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/EJJySojbvLABbm9JbKR
 | `4-atualizado.png` | A cópia nova aberta, com o aviso "Atualizado para a 0.17.0" e "Ver novidades" | R6 |
 | `5-logo.png` | A logo do Sobre depois da abertura: só bolhas, sem dica nem anel de foco, e o que muda em relação à SPEC-066 | R7 |
 
-Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221)
+Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221) · PR: [#222](https://github.com/mayroncachina/promptorium/pull/222)
 
 ## Requisitos
 
