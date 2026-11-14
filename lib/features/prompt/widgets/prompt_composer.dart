@@ -71,6 +71,7 @@ class PromptComposer extends ConsumerStatefulWidget {
     required this.busy,
     required this.onSend,
     required this.onStop,
+    this.onVibe,
   });
 
   final TextEditingController controller;
@@ -102,6 +103,9 @@ class PromptComposer extends ConsumerStatefulWidget {
   final bool busy;
   final VoidCallback onSend;
   final VoidCallback onStop;
+
+  /// "Fazer como tarefa" (SPEC-069 R1); null hides it.
+  final VoidCallback? onVibe;
 
   @override
   ConsumerState<PromptComposer> createState() => _PromptComposerState();
@@ -369,6 +373,19 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                                   color: AppColors.textSecondary,
                                 ),
                               ),
+                              if (widget.onVibe case final onVibe?)
+                                SmallButton(
+                                  key: const ValueKey('prompt-vibe'),
+                                  label: 'Fazer como tarefa',
+                                  icon: Icons.bolt,
+                                  height: 28,
+                                  color: AppColors.lilac,
+                                  background: Colors.transparent,
+                                  semanticLabel:
+                                      'Fazer como tarefa: pede direto ao '
+                                      'agente num worktree próprio, sem spec',
+                                  onTap: onVibe,
+                                ),
                             ],
                           ),
                         ),

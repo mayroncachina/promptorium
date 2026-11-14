@@ -18,6 +18,7 @@ import 'review_screen_test.dart' show secondFile;
 final _spec = Spec(
   hasPlan: false,
   inTray: false,
+  kind: SpecKind.spec,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-007',

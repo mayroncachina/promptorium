@@ -316,12 +316,21 @@ class GitService {
 
   /// Creates branch `pr/<slug>` in `<worktreesBase>/<repoName>-<slug>`,
   /// starting at [baseBranch] (default: HEAD).
-  Future<CreatedWorktree> addWorktree(String slug, {String? baseBranch}) async {
-    if (!slugPattern.hasMatch(slug)) {
+  ///
+  /// [prefix] `vibe` gives `vibe/<slug>` in `<repoName>-vibe-<slug>` (the
+  /// VIBEs, SPEC-069 R1).
+  Future<CreatedWorktree> addWorktree(
+    String slug, {
+    String? baseBranch,
+    String prefix = 'pr',
+  }) async {
+    if (!slugPattern.hasMatch(slug) || !slugPattern.hasMatch(prefix)) {
       throw GitException('slug inválido: "$slug"');
     }
-    final path = '$worktreesBase/$repoName-$slug';
-    final branch = 'pr/$slug';
+    final path = prefix == 'pr'
+        ? '$worktreesBase/$repoName-$slug'
+        : '$worktreesBase/$repoName-$prefix-$slug';
+    final branch = '$prefix/$slug';
     if (await Directory(path).exists()) {
       throw GitException('o diretório do worktree já existe: $path');
     }

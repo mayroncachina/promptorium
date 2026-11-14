@@ -28,6 +28,7 @@ import 'spec_runner_test.dart' show resultLine;
 Spec spec(int id, String code, List<String> deps, {SpecStage? stage}) => Spec(
   hasPlan: false,
   inTray: false,
+  kind: SpecKind.spec,
   id: id,
   workspaceId: 1,
   code: code,

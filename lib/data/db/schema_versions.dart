@@ -9391,7 +9391,7 @@ final class Schema25 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape39 specs = Shape39(
+  late final Shape40 specs = Shape40(
     source: i0.VersionedTable(
       entityName: 'specs',
       withoutRowId: false,
@@ -9429,6 +9429,7 @@ final class Schema25 extends i0.VersionedSchema {
         _column_143,
         _column_144,
         _column_145,
+        _column_146,
       ],
       attachedDatabase: database,
     ),
@@ -9542,7 +9543,7 @@ final class Schema25 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape37 conversations = Shape37(
+  late final Shape41 conversations = Shape41(
     source: i0.VersionedTable(
       entityName: 'conversations',
       withoutRowId: false,
@@ -9568,6 +9569,7 @@ final class Schema25 extends i0.VersionedSchema {
         _column_122,
         _column_123,
         _column_138,
+        _column_147,
       ],
       attachedDatabase: database,
     ),
@@ -9713,7 +9715,7 @@ final class Schema25 extends i0.VersionedSchema {
     ),
     alias: null,
   );
-  late final Shape40 reviewComments = Shape40(
+  late final Shape29 reviewComments = Shape29(
     source: i0.VersionedTable(
       entityName: 'review_comments',
       withoutRowId: false,
@@ -9721,8 +9723,7 @@ final class Schema25 extends i0.VersionedSchema {
       tableConstraints: [],
       columns: [
         _column_0,
-        _column_146,
-        _column_147,
+        _column_18,
         _column_86,
         _column_87,
         _column_88,
@@ -9845,6 +9846,648 @@ class Shape40 extends i0.VersionedTable {
   Shape40({required super.source, required super.alias}) : super.aliased();
   i1.GeneratedColumn<int> get id =>
       columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get workspaceId =>
+      columnsByName['workspace_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get code =>
+      columnsByName['code']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get status =>
+      columnsByName['status']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get path =>
+      columnsByName['path']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get stage =>
+      columnsByName['stage']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get requirements =>
+      columnsByName['requirements']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get dependsOn =>
+      columnsByName['depends_on']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get hasPlan =>
+      columnsByName['has_plan']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get phase =>
+      columnsByName['phase']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get agentName =>
+      columnsByName['agent_name']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get worktreePath =>
+      columnsByName['worktree_path']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get branch =>
+      columnsByName['branch']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get baseBranch =>
+      columnsByName['base_branch']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get autoAdvance =>
+      columnsByName['auto_advance']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get worktreeIndex =>
+      columnsByName['worktree_index']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get preparedAt =>
+      columnsByName['prepared_at']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get reviewPhase =>
+      columnsByName['review_phase']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get reviewRounds =>
+      columnsByName['review_rounds']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get mergeOverride =>
+      columnsByName['merge_override']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get boardOrder =>
+      columnsByName['board_order']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get gateResends =>
+      columnsByName['gate_resends']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get rejectedHunks =>
+      columnsByName['rejected_hunks']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get sprintId =>
+      columnsByName['sprint_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get originConversationId =>
+      columnsByName['origin_conversation_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get originAnswer =>
+      columnsByName['origin_answer']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get originItem =>
+      columnsByName['origin_item']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get originAlias =>
+      columnsByName['origin_alias']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get originTitle =>
+      columnsByName['origin_title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get inTray =>
+      columnsByName['in_tray']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get kind =>
+      columnsByName['kind']! as i1.GeneratedColumn<String>;
+}
+
+i1.GeneratedColumn<String> _column_146(String aliasedName) =>
+    i1.GeneratedColumn<String>(
+      'kind',
+      aliasedName,
+      false,
+      type: i1.DriftSqlType.string,
+      $customConstraints: 'NOT NULL DEFAULT \'spec\'',
+      defaultValue: const i1.CustomExpression('\'spec\''),
+    );
+
+class Shape41 extends i0.VersionedTable {
+  Shape41({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<String> get runConfig =>
+      columnsByName['run_config']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get workspaceId =>
+      columnsByName['workspace_id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get title =>
+      columnsByName['title']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get provider =>
+      columnsByName['provider']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get model =>
+      columnsByName['model']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get sessionId =>
+      columnsByName['session_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get createdAt =>
+      columnsByName['created_at']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get claudeSessionId =>
+      columnsByName['claude_session_id']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get mode =>
+      columnsByName['mode']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get tokensIn =>
+      columnsByName['tokens_in']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get tokensOut =>
+      columnsByName['tokens_out']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<double> get costUsd =>
+      columnsByName['cost_usd']! as i1.GeneratedColumn<double>;
+  i1.GeneratedColumn<int> get messageCount =>
+      columnsByName['message_count']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get refineSpecCode =>
+      columnsByName['refine_spec_code']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get refineOrigin =>
+      columnsByName['refine_origin']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<String> get refineBaseText =>
+      columnsByName['refine_base_text']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<int> get archivedAt =>
+      columnsByName['archived_at']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get specId =>
+      columnsByName['spec_id']! as i1.GeneratedColumn<int>;
+}
+
+i1.GeneratedColumn<int> _column_147(String aliasedName) =>
+    i1.GeneratedColumn<int>(
+      'spec_id',
+      aliasedName,
+      true,
+      type: i1.DriftSqlType.int,
+      $customConstraints: 'NULL',
+    );
+
+final class Schema26 extends i0.VersionedSchema {
+  Schema26({required super.database}) : super(version: 26);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    workspaces,
+    sprints,
+    specs,
+    specSteps,
+    tasks,
+    sessions,
+    sessionEvents,
+    conversations,
+    conversationEvents,
+    savedPrompts,
+    agentSettings,
+    mcpToolRules,
+    appSettings,
+    projectPlans,
+    specDrafts,
+    autopilotStates,
+    reviewDrafts,
+    pendingNotices,
+    reviewComments,
+    specCriteria,
+    specSuggestions,
+    notifications,
+    specDuels,
+    stepRuns,
+  ];
+  late final Shape0 workspaces = Shape0(
+    source: i0.VersionedTable(
+      entityName: 'workspaces',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_0, _column_1, _column_2, _column_3],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape35 sprints = Shape35(
+    source: i0.VersionedTable(
+      entityName: 'sprints',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_4,
+        _column_2,
+        _column_133,
+        _column_134,
+        _column_135,
+        _column_136,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape40 specs = Shape40(
+    source: i0.VersionedTable(
+      entityName: 'specs',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['UNIQUE(workspace_id, code)'],
+      columns: [
+        _column_0,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_7,
+        _column_8,
+        _column_9,
+        _column_10,
+        _column_11,
+        _column_139,
+        _column_12,
+        _column_13,
+        _column_14,
+        _column_15,
+        _column_16,
+        _column_17,
+        _column_81,
+        _column_82,
+        _column_83,
+        _column_84,
+        _column_85,
+        _column_97,
+        _column_102,
+        _column_103,
+        _column_137,
+        _column_140,
+        _column_141,
+        _column_142,
+        _column_143,
+        _column_144,
+        _column_145,
+        _column_146,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape32 specSteps = Shape32(
+    source: i0.VersionedTable(
+      entityName: 'spec_steps',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(spec_id, step)'],
+      columns: [
+        _column_18,
+        _column_19,
+        _column_20,
+        _column_21,
+        _column_22,
+        _column_23,
+        _column_24,
+        _column_25,
+        _column_26,
+        _column_29,
+        _column_124,
+        _column_125,
+        _column_126,
+        _column_127,
+        _column_128,
+        _column_129,
+        _column_130,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape3 tasks = Shape3(
+    source: i0.VersionedTable(
+      entityName: 'tasks',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['UNIQUE(workspace_id, code)'],
+      columns: [
+        _column_0,
+        _column_27,
+        _column_4,
+        _column_5,
+        _column_6,
+        _column_28,
+        _column_13,
+        _column_29,
+        _column_30,
+        _column_11,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape27 sessions = Shape27(
+    source: i0.VersionedTable(
+      entityName: 'sessions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(id)'],
+      columns: [
+        _column_52,
+        _column_117,
+        _column_118,
+        _column_31,
+        _column_4,
+        _column_32,
+        _column_13,
+        _column_33,
+        _column_34,
+        _column_35,
+        _column_36,
+        _column_37,
+        _column_38,
+        _column_27,
+        _column_39,
+        _column_40,
+        _column_41,
+        _column_42,
+        _column_43,
+        _column_44,
+        _column_45,
+        _column_16,
+        _column_46,
+        _column_47,
+        _column_99,
+        _column_104,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape5 sessionEvents = Shape5(
+    source: i0.VersionedTable(
+      entityName: 'session_events',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['UNIQUE(session_id, seq)'],
+      columns: [
+        _column_0,
+        _column_48,
+        _column_49,
+        _column_50,
+        _column_51,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape41 conversations = Shape41(
+    source: i0.VersionedTable(
+      entityName: 'conversations',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_118,
+        _column_0,
+        _column_4,
+        _column_6,
+        _column_52,
+        _column_38,
+        _column_53,
+        _column_3,
+        _column_54,
+        _column_55,
+        _column_42,
+        _column_43,
+        _column_41,
+        _column_56,
+        _column_57,
+        _column_121,
+        _column_122,
+        _column_123,
+        _column_138,
+        _column_147,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape7 conversationEvents = Shape7(
+    source: i0.VersionedTable(
+      entityName: 'conversation_events',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['UNIQUE(conversation_id, seq)'],
+      columns: [
+        _column_0,
+        _column_58,
+        _column_49,
+        _column_50,
+        _column_51,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape8 savedPrompts = Shape8(
+    source: i0.VersionedTable(
+      entityName: 'saved_prompts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_0, _column_59, _column_60, _column_61, _column_62],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape9 agentSettings = Shape9(
+    source: i0.VersionedTable(
+      entityName: 'agent_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(agent_name, scope)'],
+      columns: [
+        _column_63,
+        _column_64,
+        _column_34,
+        _column_65,
+        _column_66,
+        _column_67,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape10 mcpToolRules = Shape10(
+    source: i0.VersionedTable(
+      entityName: 'mcp_tool_rules',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(server, tool)'],
+      columns: [_column_68, _column_69, _column_70],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape11 appSettings = Shape11(
+    source: i0.VersionedTable(
+      entityName: 'app_settings',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY("key")'],
+      columns: [_column_71, _column_72],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape12 projectPlans = Shape12(
+    source: i0.VersionedTable(
+      entityName: 'project_plans',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(workspace_id)'],
+      columns: [
+        _column_4,
+        _column_73,
+        _column_74,
+        _column_75,
+        _column_41,
+        _column_3,
+        _column_76,
+        _column_77,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape34 specDrafts = Shape34(
+    source: i0.VersionedTable(
+      entityName: 'spec_drafts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(workspace_id)'],
+      columns: [
+        _column_4,
+        _column_74,
+        _column_75,
+        _column_41,
+        _column_3,
+        _column_76,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape13 autopilotStates = Shape13(
+    source: i0.VersionedTable(
+      entityName: 'autopilot_states',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(workspace_id)'],
+      columns: [_column_4, _column_78],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape14 reviewDrafts = Shape14(
+    source: i0.VersionedTable(
+      entityName: 'review_drafts',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(session_id)'],
+      columns: [_column_79, _column_80, _column_76],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape15 pendingNotices = Shape15(
+    source: i0.VersionedTable(
+      entityName: 'pending_notices',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [_column_0, _column_48, _column_61, _column_3],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape42 reviewComments = Shape42(
+    source: i0.VersionedTable(
+      entityName: 'review_comments',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_148,
+        _column_149,
+        _column_86,
+        _column_87,
+        _column_88,
+        _column_89,
+        _column_61,
+        _column_90,
+        _column_30,
+        _column_91,
+        _column_92,
+        _column_119,
+        _column_120,
+        _column_117,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape19 specCriteria = Shape19(
+    source: i0.VersionedTable(
+      entityName: 'spec_criteria',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: ['PRIMARY KEY(spec_id, criterion)'],
+      columns: [_column_18, _column_93, _column_94, _column_95, _column_96],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape21 specSuggestions = Shape21(
+    source: i0.VersionedTable(
+      entityName: 'spec_suggestions',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_18,
+        _column_21,
+        _column_39,
+        _column_61,
+        _column_98,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape23 notifications = Shape23(
+    source: i0.VersionedTable(
+      entityName: 'notifications',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_6,
+        _column_61,
+        _column_100,
+        _column_21,
+        _column_101,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape26 specDuels = Shape26(
+    source: i0.VersionedTable(
+      entityName: 'spec_duels',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_18,
+        _column_105,
+        _column_106,
+        _column_107,
+        _column_108,
+        _column_109,
+        _column_110,
+        _column_111,
+        _column_112,
+        _column_113,
+        _column_114,
+        _column_115,
+        _column_116,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+  late final Shape33 stepRuns = Shape33(
+    source: i0.VersionedTable(
+      entityName: 'step_runs',
+      withoutRowId: false,
+      isStrict: false,
+      tableConstraints: [],
+      columns: [
+        _column_0,
+        _column_18,
+        _column_19,
+        _column_124,
+        _column_38,
+        _column_40,
+        _column_21,
+        _column_131,
+        _column_132,
+        _column_3,
+      ],
+      attachedDatabase: database,
+    ),
+    alias: null,
+  );
+}
+
+class Shape42 extends i0.VersionedTable {
+  Shape42({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<int> get specId =>
       columnsByName['spec_id']! as i1.GeneratedColumn<int>;
   i1.GeneratedColumn<String> get sessionId =>
@@ -9877,7 +10520,7 @@ class Shape40 extends i0.VersionedTable {
       columnsByName['created_at']! as i1.GeneratedColumn<int>;
 }
 
-i1.GeneratedColumn<int> _column_146(String aliasedName) =>
+i1.GeneratedColumn<int> _column_148(String aliasedName) =>
     i1.GeneratedColumn<int>(
       'spec_id',
       aliasedName,
@@ -9885,7 +10528,7 @@ i1.GeneratedColumn<int> _column_146(String aliasedName) =>
       type: i1.DriftSqlType.int,
       $customConstraints: 'NULL REFERENCES specs(id)ON DELETE CASCADE',
     );
-i1.GeneratedColumn<String> _column_147(String aliasedName) =>
+i1.GeneratedColumn<String> _column_149(String aliasedName) =>
     i1.GeneratedColumn<String>(
       'session_id',
       aliasedName,
@@ -9911,6 +10554,7 @@ i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema23 schema) from22To23,
   required Future<void> Function(i1.Migrator m, Schema24 schema) from23To24,
   required Future<void> Function(i1.Migrator m, Schema25 schema) from24To25,
+  required Future<void> Function(i1.Migrator m, Schema26 schema) from25To26,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -9999,6 +10643,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from24To25(migrator, schema);
         return 25;
+      case 25:
+        final schema = Schema26(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from25To26(migrator, schema);
+        return 26;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -10023,6 +10672,7 @@ i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema23 schema) from22To23,
   required Future<void> Function(i1.Migrator m, Schema24 schema) from23To24,
   required Future<void> Function(i1.Migrator m, Schema25 schema) from24To25,
+  required Future<void> Function(i1.Migrator m, Schema26 schema) from25To26,
 }) => i0.VersionedSchema.stepByStepHelper(
   step: migrationSteps(
     from8To9: from8To9,
@@ -10042,5 +10692,6 @@ i1.OnUpgrade stepByStep({
     from22To23: from22To23,
     from23To24: from23To24,
     from24To25: from24To25,
+    from25To26: from25To26,
   ),
 );

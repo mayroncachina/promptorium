@@ -119,7 +119,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NVC9Pyp1mQBbmMDp7Kh
 
 ## Decisões
 
-Na implementação, P1 a P5 seguiram a recomendação. A migração de P1 é a v25 provisória: a numeração final fica para a integração com a SPEC-069 e a SPEC-052.
+Na implementação, P1 a P5 seguiram a recomendação. A migração de P1 é a v26: entrou depois da v25 da SPEC-069 (#207), e a SPEC-052 vem em seguida, na v27.
 
 Perguntas em aberto, com a recomendação de cada uma:
 

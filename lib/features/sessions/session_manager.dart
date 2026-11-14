@@ -28,6 +28,7 @@ import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
+import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
@@ -39,6 +40,11 @@ import 'timeline_provider.dart';
 export '../../core/claude/claude_cli.dart' show claudeProcessStarterProvider;
 
 /// Generates session ids (`--session-id`, UUID v4).
+/// Prefix of the session row that carries a VIBE through the Review
+/// (SPEC-069 R7): the VIBE talks in a conversation of the Prompt, so what
+/// the Review sends to that session goes to the conversation.
+const vibeSessionPrefix = 'vibe-';
+
 final sessionIdGeneratorProvider = Provider<String Function()>(
   (ref) => const Uuid().v4,
 );
@@ -399,6 +405,18 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> send(String id, String text) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
+    // SPEC-069 R7: the Review talks to a VIBE in its conversation.
+    if (id.startsWith(vibeSessionPrefix)) {
+      final s = await _repo.getById(id);
+      final conv = s?.specId == null
+          ? null
+          : await ref.read(specsRepoProvider).conversationOf(s!.specId!);
+      if (conv == null) {
+        throw const SessionException('A conversa desta VIBE não existe mais.');
+      }
+      await ref.read(conversationManagerProvider.notifier).send(conv.id, msg);
+      return;
+    }
     final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
@@ -532,6 +550,9 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   Future<void> _resume(String id) async {
+    if (id.startsWith(vibeSessionPrefix)) {
+      throw const SessionException('Esta VIBE continua na conversa do Prompt.');
+    }
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não encontrada.');
     if (s.status == SessionStatus.merged) {

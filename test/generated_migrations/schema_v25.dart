@@ -427,6 +427,15 @@ class Specs extends Table with TableInfo {
     $customConstraints: 'NOT NULL DEFAULT 0 CHECK (in_tray IN (0, 1))',
     defaultValue: const CustomExpression('0'),
   );
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT \'spec\'',
+    defaultValue: const CustomExpression('\'spec\''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -460,6 +469,7 @@ class Specs extends Table with TableInfo {
     originAlias,
     originTitle,
     inTray,
+    kind,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1349,6 +1359,14 @@ class Conversations extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -1370,6 +1388,7 @@ class Conversations extends Table with TableInfo {
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2137,18 +2156,10 @@ class ReviewComments extends Table with TableInfo {
   late final GeneratedColumn<int> specId = GeneratedColumn<int>(
     'spec_id',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NULL REFERENCES specs(id)ON DELETE CASCADE',
-  );
-  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
-    'session_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NULL REFERENCES sessions(id)ON DELETE CASCADE',
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES specs(id)ON DELETE CASCADE',
   );
   late final GeneratedColumn<int> round = GeneratedColumn<int>(
     'round',
@@ -2262,7 +2273,6 @@ class ReviewComments extends Table with TableInfo {
   List<GeneratedColumn> get $columns => [
     id,
     specId,
-    sessionId,
     round,
     author,
     path,
@@ -3043,13 +3053,6 @@ class DatabaseAtV25 extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'specs',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'sessions',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('review_comments', kind: UpdateKind.delete)],

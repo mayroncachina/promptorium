@@ -1116,6 +1116,16 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     defaultValue: const Constant(false),
   );
   @override
+  late final GeneratedColumnWithTypeConverter<SpecKind, String> kind =
+      GeneratedColumn<String>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(SpecKind.spec.name),
+      ).withConverter<SpecKind>($SpecsTable.$converterkind);
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     workspaceId,
@@ -1148,6 +1158,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     originAlias,
     originTitle,
     inTray,
+    kind,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1512,6 +1523,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.bool,
         data['${effectivePrefix}in_tray'],
       )!,
+      kind: $SpecsTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
     );
   }
 
@@ -1528,6 +1545,8 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
   $converterrequirements = const RequirementListConverter();
   static TypeConverter<List<String>, String> $converterdependsOn =
       const StringListConverter();
+  static JsonTypeConverter2<SpecKind, String, String> $converterkind =
+      const EnumNameConverter<SpecKind>(SpecKind.values);
 }
 
 class Spec extends DataClass implements Insertable<Spec> {
@@ -1620,6 +1639,10 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// and only "Levar para o Backlog" puts it on the Quadro. False for every
   /// spec that already existed (they stay where they were).
   final bool inTray;
+
+  /// A spec written by the person or a VIBE ("Fazer como tarefa"). Every
+  /// spec that already existed is a spec.
+  final SpecKind kind;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1652,6 +1675,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.originAlias,
     this.originTitle,
     required this.inTray,
+    required this.kind,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1733,6 +1757,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       map['origin_title'] = Variable<String>(originTitle);
     }
     map['in_tray'] = Variable<bool>(inTray);
+    {
+      map['kind'] = Variable<String>($SpecsTable.$converterkind.toSql(kind));
+    }
     return map;
   }
 
@@ -1801,6 +1828,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? const Value.absent()
           : Value(originTitle),
       inTray: Value(inTray),
+      kind: Value(kind),
     );
   }
 
@@ -1849,6 +1877,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       originAlias: serializer.fromJson<String?>(json['originAlias']),
       originTitle: serializer.fromJson<String?>(json['originTitle']),
       inTray: serializer.fromJson<bool>(json['inTray']),
+      kind: $SpecsTable.$converterkind.fromJson(
+        serializer.fromJson<String>(json['kind']),
+      ),
     );
   }
   @override
@@ -1892,6 +1923,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       'originAlias': serializer.toJson<String?>(originAlias),
       'originTitle': serializer.toJson<String?>(originTitle),
       'inTray': serializer.toJson<bool>(inTray),
+      'kind': serializer.toJson<String>(
+        $SpecsTable.$converterkind.toJson(kind),
+      ),
     };
   }
 
@@ -1927,6 +1961,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> originAlias = const Value.absent(),
     Value<String?> originTitle = const Value.absent(),
     bool? inTray,
+    SpecKind? kind,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1965,6 +2000,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias: originAlias.present ? originAlias.value : this.originAlias,
     originTitle: originTitle.present ? originTitle.value : this.originTitle,
     inTray: inTray ?? this.inTray,
+    kind: kind ?? this.kind,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -2035,6 +2071,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.originTitle.value
           : this.originTitle,
       inTray: data.inTray.present ? data.inTray.value : this.inTray,
+      kind: data.kind.present ? data.kind.value : this.kind,
     );
   }
 
@@ -2071,7 +2108,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
-          ..write('inTray: $inTray')
+          ..write('inTray: $inTray, ')
+          ..write('kind: $kind')
           ..write(')'))
         .toString();
   }
@@ -2109,6 +2147,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias,
     originTitle,
     inTray,
+    kind,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2144,7 +2183,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.originItem == this.originItem &&
           other.originAlias == this.originAlias &&
           other.originTitle == this.originTitle &&
-          other.inTray == this.inTray);
+          other.inTray == this.inTray &&
+          other.kind == this.kind);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -2179,6 +2219,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> originAlias;
   final Value<String?> originTitle;
   final Value<bool> inTray;
+  final Value<SpecKind> kind;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -2211,6 +2252,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.kind = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -2244,6 +2286,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.kind = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -2280,6 +2323,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? originAlias,
     Expression<String>? originTitle,
     Expression<bool>? inTray,
+    Expression<String>? kind,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2314,6 +2358,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (originAlias != null) 'origin_alias': originAlias,
       if (originTitle != null) 'origin_title': originTitle,
       if (inTray != null) 'in_tray': inTray,
+      if (kind != null) 'kind': kind,
     });
   }
 
@@ -2349,6 +2394,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? originAlias,
     Value<String?>? originTitle,
     Value<bool>? inTray,
+    Value<SpecKind>? kind,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2382,6 +2428,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       originAlias: originAlias ?? this.originAlias,
       originTitle: originTitle ?? this.originTitle,
       inTray: inTray ?? this.inTray,
+      kind: kind ?? this.kind,
     );
   }
 
@@ -2489,6 +2536,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (inTray.present) {
       map['in_tray'] = Variable<bool>(inTray.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(
+        $SpecsTable.$converterkind.toSql(kind.value),
+      );
+    }
     return map;
   }
 
@@ -2525,7 +2577,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
-          ..write('inTray: $inTray')
+          ..write('inTray: $inTray, ')
+          ..write('kind: $kind')
           ..write(')'))
         .toString();
   }
@@ -6256,6 +6309,15 @@ class $ConversationsTable extends Conversations
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -6277,6 +6339,7 @@ class $ConversationsTable extends Conversations
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6425,6 +6488,12 @@ class $ConversationsTable extends Conversations
         archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
     return context;
   }
 
@@ -6510,6 +6579,10 @@ class $ConversationsTable extends Conversations
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
       ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
     );
   }
 
@@ -6561,6 +6634,11 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 
   /// When it was archived (SPEC-056 R4, schema v22). Null = active.
   final DateTime? archivedAt;
+
+  /// The VIBE of the conversation (SPEC-069 R4, schema v25), or the spec it
+  /// became ("Virar spec"): the agent runs in that spec's worktree, never in
+  /// the workspace root. Null = a free conversation.
+  final int? specId;
   const Conversation({
     this.runConfig,
     required this.id,
@@ -6581,6 +6659,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     this.refineOrigin,
     this.refineBaseText,
     this.archivedAt,
+    this.specId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6619,6 +6698,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
     }
     return map;
   }
@@ -6660,6 +6742,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
     );
   }
 
@@ -6688,6 +6773,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineOrigin: serializer.fromJson<String?>(json['refineOrigin']),
       refineBaseText: serializer.fromJson<String?>(json['refineBaseText']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
+      specId: serializer.fromJson<int?>(json['specId']),
     );
   }
   @override
@@ -6713,6 +6799,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       'refineOrigin': serializer.toJson<String?>(refineOrigin),
       'refineBaseText': serializer.toJson<String?>(refineBaseText),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
+      'specId': serializer.toJson<int?>(specId),
     };
   }
 
@@ -6736,6 +6823,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     Value<String?> refineOrigin = const Value.absent(),
     Value<String?> refineBaseText = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
   }) => Conversation(
     runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
@@ -6762,6 +6850,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
         ? refineBaseText.value
         : this.refineBaseText,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    specId: specId.present ? specId.value : this.specId,
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
@@ -6798,6 +6887,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
+      specId: data.specId.present ? data.specId.value : this.specId,
     );
   }
 
@@ -6822,7 +6912,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
           ..write('refineBaseText: $refineBaseText, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('specId: $specId')
           ..write(')'))
         .toString();
   }
@@ -6848,6 +6939,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   );
   @override
   bool operator ==(Object other) =>
@@ -6871,7 +6963,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           other.refineSpecCode == this.refineSpecCode &&
           other.refineOrigin == this.refineOrigin &&
           other.refineBaseText == this.refineBaseText &&
-          other.archivedAt == this.archivedAt);
+          other.archivedAt == this.archivedAt &&
+          other.specId == this.specId);
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
@@ -6894,6 +6987,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<String?> refineOrigin;
   final Value<String?> refineBaseText;
   final Value<DateTime?> archivedAt;
+  final Value<int?> specId;
   const ConversationsCompanion({
     this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
@@ -6914,6 +7008,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.specId = const Value.absent(),
   });
   ConversationsCompanion.insert({
     this.runConfig = const Value.absent(),
@@ -6935,6 +7030,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.specId = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        title = Value(title),
        model = Value(model);
@@ -6958,6 +7054,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<String>? refineOrigin,
     Expression<String>? refineBaseText,
     Expression<DateTime>? archivedAt,
+    Expression<int>? specId,
   }) {
     return RawValuesInsertable({
       if (runConfig != null) 'run_config': runConfig,
@@ -6979,6 +7076,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       if (refineOrigin != null) 'refine_origin': refineOrigin,
       if (refineBaseText != null) 'refine_base_text': refineBaseText,
       if (archivedAt != null) 'archived_at': archivedAt,
+      if (specId != null) 'spec_id': specId,
     });
   }
 
@@ -7002,6 +7100,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<String?>? refineOrigin,
     Value<String?>? refineBaseText,
     Value<DateTime?>? archivedAt,
+    Value<int?>? specId,
   }) {
     return ConversationsCompanion(
       runConfig: runConfig ?? this.runConfig,
@@ -7023,6 +7122,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       refineOrigin: refineOrigin ?? this.refineOrigin,
       refineBaseText: refineBaseText ?? this.refineBaseText,
       archivedAt: archivedAt ?? this.archivedAt,
+      specId: specId ?? this.specId,
     );
   }
 
@@ -7086,6 +7186,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
     return map;
   }
 
@@ -7110,7 +7213,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
           ..write('refineBaseText: $refineBaseText, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('specId: $specId')
           ..write(')'))
         .toString();
   }
@@ -10901,7 +11005,7 @@ class ReviewCommentRow extends DataClass
   final int id;
 
   /// The spec reviewed; null for a PR brought into the app without one
-  /// (SPEC-050, schema v25), whose comments go by [sessionId].
+  /// (SPEC-050, schema v26), whose comments go by [sessionId].
   final int? specId;
 
   /// The session of a PR without spec (SPEC-050 P1).
@@ -15752,6 +15856,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<SpecKind> kind,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -15785,6 +15890,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<SpecKind> kind,
 });
 
 final class $$SpecsTableReferences
@@ -16135,6 +16241,12 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     column: $table.inTray,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<SpecKind, SpecKind, String> get kind =>
+      $composableBuilder(
+        column: $table.kind,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   $$WorkspacesTableFilterComposer get workspaceId {
     final $$WorkspacesTableFilterComposer composer = $composerBuilder(
@@ -16537,6 +16649,11 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -16714,6 +16831,9 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<bool> get inTray =>
       $composableBuilder(column: $table.inTray, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SpecKind, String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -17033,6 +17153,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<SpecKind> kind = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -17065,6 +17186,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                kind: kind,
               ),
           createCompanionCallback:
               ({
@@ -17100,6 +17222,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<SpecKind> kind = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -17132,6 +17255,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                kind: kind,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -20173,6 +20297,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
       Value<DateTime?> archivedAt,
+      Value<int?> specId,
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
@@ -20195,6 +20320,7 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
       Value<DateTime?> archivedAt,
+      Value<int?> specId,
     });
 
 final class $$ConversationsTableReferences
@@ -20352,6 +20478,11 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get specId => $composableBuilder(
+    column: $table.specId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20521,6 +20652,11 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -20639,6 +20775,9 @@ class $$ConversationsTableAnnotationComposer
     column: $table.archivedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get specId =>
+      $composableBuilder(column: $table.specId, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -20764,6 +20903,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
               }) => ConversationsCompanion(
                 runConfig: runConfig,
                 id: id,
@@ -20784,6 +20924,7 @@ class $$ConversationsTableTableManager
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
                 archivedAt: archivedAt,
+                specId: specId,
               ),
           createCompanionCallback:
               ({
@@ -20806,6 +20947,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
               }) => ConversationsCompanion.insert(
                 runConfig: runConfig,
                 id: id,
@@ -20826,6 +20968,7 @@ class $$ConversationsTableTableManager
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
                 archivedAt: archivedAt,
+                specId: specId,
               ),
           withReferenceMapper: (p0) => p0
               .map(

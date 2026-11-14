@@ -15,6 +15,27 @@ enum SpecStatus { draft, review, approved, done, idea, archived }
 /// the spec is the card); kept for the rows written before.
 enum TaskStatus { backlog, running, review, done }
 
+/// What a row of `specs` is (SPEC-069 R3, schema v25): a spec written by
+/// the person, or a VIBE, the minimal spec "Fazer como tarefa" writes by
+/// itself (`docs/vibe/VIBE-NNN-<slug>.md`, its own number series).
+enum SpecKind {
+  spec('SPEC'),
+  vibe('VIBE');
+
+  const SpecKind(this.prefix);
+
+  /// Prefix of the code (`SPEC-001`, `VIBE-007`).
+  final String prefix;
+
+  /// The kind of a code (`VIBE-007` → vibe); null when it is neither.
+  static SpecKind? ofCode(String code) {
+    for (final k in values) {
+      if (RegExp('^${k.prefix}-\\d+\$').hasMatch(code)) return k;
+    }
+    return null;
+  }
+}
+
 /// Column of a spec in the Quadro (schema v8).
 enum SpecStage { backlog, running, review, done }
 

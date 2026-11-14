@@ -571,6 +571,20 @@
             "default_dart": "const CustomExpression('0')",
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "kind",
+            "getter_name": "kind",
+            "moor_type": "string",
+            "nullable": false,
+            "customConstraints": null,
+            "default_dart": "const CustomExpression('\\'spec\\'')",
+            "default_client_dart": null,
+            "dsl_features": [],
+            "type_converter": {
+              "dart_expr": "const EnumNameConverter<SpecKind>(SpecKind.values)",
+              "dart_type_name": "SpecKind"
+            }
           }
         ],
         "is_virtual": false,
@@ -1652,6 +1666,16 @@
             "default_dart": null,
             "default_client_dart": null,
             "dsl_features": []
+          },
+          {
+            "name": "spec_id",
+            "getter_name": "specId",
+            "moor_type": "int",
+            "nullable": true,
+            "customConstraints": null,
+            "default_dart": null,
+            "default_client_dart": null,
+            "dsl_features": []
           }
         ],
         "is_virtual": false,
@@ -2407,8 +2431,7 @@
     {
       "id": 18,
       "references": [
-        2,
-        5
+        2
       ],
       "type": "table",
       "data": {
@@ -2435,7 +2458,7 @@
             "name": "spec_id",
             "getter_name": "specId",
             "moor_type": "int",
-            "nullable": true,
+            "nullable": false,
             "customConstraints": null,
             "defaultConstraints": "REFERENCES specs (id) ON DELETE CASCADE",
             "dialectAwareDefaultConstraints": {
@@ -2448,32 +2471,6 @@
                 "foreign_key": {
                   "to": {
                     "table": "specs",
-                    "column": "id"
-                  },
-                  "initially_deferred": false,
-                  "on_update": null,
-                  "on_delete": "cascade"
-                }
-              }
-            ]
-          },
-          {
-            "name": "session_id",
-            "getter_name": "sessionId",
-            "moor_type": "string",
-            "nullable": true,
-            "customConstraints": null,
-            "defaultConstraints": "REFERENCES sessions (id) ON DELETE CASCADE",
-            "dialectAwareDefaultConstraints": {
-              "sqlite": "REFERENCES sessions (id) ON DELETE CASCADE"
-            },
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [
-              {
-                "foreign_key": {
-                  "to": {
-                    "table": "sessions",
                     "column": "id"
                   },
                   "initially_deferred": false,
@@ -3270,7 +3267,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"specs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"code\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'draft', \"path\" TEXT NOT NULL, \"stage\" TEXT NOT NULL DEFAULT 'backlog', \"requirements\" TEXT NOT NULL DEFAULT '[]', \"depends_on\" TEXT NOT NULL DEFAULT '[]', \"has_plan\" INTEGER NOT NULL DEFAULT 0 CHECK (\"has_plan\" IN (0, 1)), \"phase\" TEXT NULL, \"agent_name\" TEXT NULL, \"worktree_path\" TEXT NULL, \"branch\" TEXT NULL, \"base_branch\" TEXT NULL, \"auto_advance\" INTEGER NOT NULL DEFAULT 1 CHECK (\"auto_advance\" IN (0, 1)), \"worktree_index\" INTEGER NULL, \"prepared_at\" INTEGER NULL, \"review_phase\" TEXT NULL, \"review_rounds\" INTEGER NOT NULL DEFAULT 0, \"merge_override\" TEXT NULL, \"board_order\" INTEGER NULL, \"gate_resends\" INTEGER NOT NULL DEFAULT 0, \"rejected_hunks\" INTEGER NOT NULL DEFAULT 0, \"sprint_id\" INTEGER NULL REFERENCES sprints (id) ON DELETE SET NULL, \"origin_conversation_id\" INTEGER NULL, \"origin_answer\" INTEGER NULL, \"origin_item\" INTEGER NULL, \"origin_alias\" TEXT NULL, \"origin_title\" TEXT NULL, \"in_tray\" INTEGER NOT NULL DEFAULT 0 CHECK (\"in_tray\" IN (0, 1)), UNIQUE (\"workspace_id\", \"code\"));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"specs\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"code\" TEXT NOT NULL, \"title\" TEXT NOT NULL, \"status\" TEXT NOT NULL DEFAULT 'draft', \"path\" TEXT NOT NULL, \"stage\" TEXT NOT NULL DEFAULT 'backlog', \"requirements\" TEXT NOT NULL DEFAULT '[]', \"depends_on\" TEXT NOT NULL DEFAULT '[]', \"has_plan\" INTEGER NOT NULL DEFAULT 0 CHECK (\"has_plan\" IN (0, 1)), \"phase\" TEXT NULL, \"agent_name\" TEXT NULL, \"worktree_path\" TEXT NULL, \"branch\" TEXT NULL, \"base_branch\" TEXT NULL, \"auto_advance\" INTEGER NOT NULL DEFAULT 1 CHECK (\"auto_advance\" IN (0, 1)), \"worktree_index\" INTEGER NULL, \"prepared_at\" INTEGER NULL, \"review_phase\" TEXT NULL, \"review_rounds\" INTEGER NOT NULL DEFAULT 0, \"merge_override\" TEXT NULL, \"board_order\" INTEGER NULL, \"gate_resends\" INTEGER NOT NULL DEFAULT 0, \"rejected_hunks\" INTEGER NOT NULL DEFAULT 0, \"sprint_id\" INTEGER NULL REFERENCES sprints (id) ON DELETE SET NULL, \"origin_conversation_id\" INTEGER NULL, \"origin_answer\" INTEGER NULL, \"origin_item\" INTEGER NULL, \"origin_alias\" TEXT NULL, \"origin_title\" TEXT NULL, \"in_tray\" INTEGER NOT NULL DEFAULT 0 CHECK (\"in_tray\" IN (0, 1)), \"kind\" TEXT NOT NULL DEFAULT 'spec', UNIQUE (\"workspace_id\", \"code\"));"
         }
       ]
     },
@@ -3315,7 +3312,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"conversations\" (\"run_config\" TEXT NULL, \"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"title\" TEXT NOT NULL, \"provider\" TEXT NOT NULL DEFAULT 'claude', \"model\" TEXT NOT NULL, \"session_id\" TEXT NULL REFERENCES sessions (id) ON DELETE SET NULL, \"created_at\" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)), \"claude_session_id\" TEXT NULL, \"mode\" TEXT NOT NULL DEFAULT 'ask', \"tokens_in\" INTEGER NOT NULL DEFAULT 0, \"tokens_out\" INTEGER NOT NULL DEFAULT 0, \"cost_usd\" REAL NOT NULL DEFAULT 0.0, \"message_count\" INTEGER NOT NULL DEFAULT 0, \"updated_at\" INTEGER NULL, \"refine_spec_code\" TEXT NULL, \"refine_origin\" TEXT NULL, \"refine_base_text\" TEXT NULL, \"archived_at\" INTEGER NULL);"
+          "sql": "CREATE TABLE IF NOT EXISTS \"conversations\" (\"run_config\" TEXT NULL, \"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"workspace_id\" INTEGER NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE, \"title\" TEXT NOT NULL, \"provider\" TEXT NOT NULL DEFAULT 'claude', \"model\" TEXT NOT NULL, \"session_id\" TEXT NULL REFERENCES sessions (id) ON DELETE SET NULL, \"created_at\" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)), \"claude_session_id\" TEXT NULL, \"mode\" TEXT NOT NULL DEFAULT 'ask', \"tokens_in\" INTEGER NOT NULL DEFAULT 0, \"tokens_out\" INTEGER NOT NULL DEFAULT 0, \"cost_usd\" REAL NOT NULL DEFAULT 0.0, \"message_count\" INTEGER NOT NULL DEFAULT 0, \"updated_at\" INTEGER NULL, \"refine_spec_code\" TEXT NULL, \"refine_origin\" TEXT NULL, \"refine_base_text\" TEXT NULL, \"archived_at\" INTEGER NULL, \"spec_id\" INTEGER NULL);"
         }
       ]
     },
@@ -3414,7 +3411,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"review_comments\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"spec_id\" INTEGER NULL REFERENCES specs (id) ON DELETE CASCADE, \"session_id\" TEXT NULL REFERENCES sessions (id) ON DELETE CASCADE, \"round\" INTEGER NOT NULL, \"author\" TEXT NOT NULL, \"path\" TEXT NULL, \"line\" INTEGER NULL, \"body\" TEXT NOT NULL, \"severity\" TEXT NULL, \"requirement\" TEXT NULL, \"verdict\" TEXT NULL, \"commit_sha\" TEXT NULL, \"resolved\" INTEGER NOT NULL DEFAULT 0 CHECK (\"resolved\" IN (0, 1)), \"resolved_at\" INTEGER NULL, \"external_id\" TEXT NULL, \"created_at\" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"review_comments\" (\"id\" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \"spec_id\" INTEGER NOT NULL REFERENCES specs (id) ON DELETE CASCADE, \"round\" INTEGER NOT NULL, \"author\" TEXT NOT NULL, \"path\" TEXT NULL, \"line\" INTEGER NULL, \"body\" TEXT NOT NULL, \"severity\" TEXT NULL, \"requirement\" TEXT NULL, \"verdict\" TEXT NULL, \"commit_sha\" TEXT NULL, \"resolved\" INTEGER NOT NULL DEFAULT 0 CHECK (\"resolved\" IN (0, 1)), \"resolved_at\" INTEGER NULL, \"external_id\" TEXT NULL, \"created_at\" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)));"
         }
       ]
     },
