@@ -981,7 +981,7 @@ void main() {
     final repo = e.c.read(reviewCommentsRepoProvider);
     await repo.insertAll([
       ReviewCommentsCompanion.insert(
-        specId: 1,
+        specId: Value(1),
         round: 1,
         author: 'revisor',
         body: 'Padronize a caixa.',
@@ -989,7 +989,7 @@ void main() {
         line: const Value(2),
       ),
       ReviewCommentsCompanion.insert(
-        specId: 1,
+        specId: Value(1),
         round: 1,
         author: 'pr',
         body: '@ana: e esta linha?',
@@ -1085,7 +1085,7 @@ void main() {
     expect(comments(), 'OK');
     await e.c.read(reviewCommentsRepoProvider).insertAll([
       ReviewCommentsCompanion.insert(
-        specId: 1,
+        specId: Value(1),
         round: 1,
         author: 'revisor',
         body: 'falta teste',

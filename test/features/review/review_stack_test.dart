@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/step_gate.dart';
 import 'package:promptorium/features/review/conflict_resolution.dart';
+import 'package:promptorium/features/review/pr_import.dart';
 import 'package:promptorium/features/review/review_logic.dart';
 import 'package:promptorium/features/review/review_stack.dart';
 import 'package:promptorium/features/review/widgets/conflict_resolution_panel.dart';
@@ -36,6 +37,44 @@ List<List<String>> ids(List<ReviewStack> s) => [
 ];
 
 void main() {
+  group('SPEC-050 R5 · PR trazido na fila', () {
+    const pr = ImportedPr(
+      number: 214,
+      url: 'https://github.com/o/r/pull/214',
+      author: 'lucas-andrade',
+    );
+    ReviewItem imported(ImportedPr p) => ReviewItem(
+      session: session(id: 'p'),
+      imported: p,
+    );
+
+    test('o card mostra "PR #n · @autor" e "Sem spec"', () {
+      expect(queueCardMeta(imported(pr)), 'PR #214 · @lucas-andrade');
+      expect(showsNoSpec(imported(pr)), isTrue);
+      final loose = item('t1');
+      expect(showsNoSpec(loose), isFalse);
+      expect(queueCardMeta(loose), isNot(contains('PR #')));
+      expect(
+        queueCardMeta(item('a', code: 'SPEC-029', specId: 1)),
+        startsWith('SPEC-029 · '),
+      );
+    });
+
+    test('sai da fila quando o PR é mergeado ou fechado', () {
+      expect(importedLeavesQueue(pr), isFalse);
+      expect(importedLeavesQueue(pr.copyWith(state: 'MERGED')), isTrue);
+      expect(importedLeavesQueue(pr.copyWith(state: 'CLOSED')), isTrue);
+    });
+
+    test('vai com as avulsas sem spec, depois das specs', () {
+      final items = [imported(pr), item('a', code: 'SPEC-029', specId: 1)];
+      expect(ids(orderQueue(items)), [
+        ['a'],
+        ['p'],
+      ]);
+    });
+  });
+
   group('orderQueue (R1, R2)', () {
     test('a stack of three goes from the base to the top, before the loose '
         'specs; tasks go last', () {

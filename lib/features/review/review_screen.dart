@@ -25,6 +25,7 @@ import 'auto_reviewer.dart';
 import 'pr_babysitter.dart';
 import '../specs/spec_service.dart';
 import 'review_service.dart';
+import 'pr_import.dart' show importedPrOf;
 import '../../core/system/worktree_launcher.dart';
 import '../project/widgets/project_config_view.dart' show configFocusProvider;
 import '../settings/settings_sections.dart';
@@ -38,6 +39,8 @@ import '../board/widgets/wave_graph.dart' show dependencyWaves;
 import 'widgets/spec_review_panel.dart';
 import 'widgets/review_diff_view.dart';
 import 'widgets/pr_panel.dart';
+import 'widgets/imported_pr_panel.dart';
+import 'widgets/pr_import_dialog.dart';
 import 'widgets/review_all_files.dart';
 import 'widgets/review_dialogs.dart';
 import 'widgets/persisted_comment.dart';
@@ -336,10 +339,13 @@ class _ReviewSidebar extends ConsumerWidget {
         : ref.watch(reviewSinceProvider((since.$1, since.$3))).value;
     final changedPaths = sinceDetail?.files.map((f) => f.path).toSet();
     final specId = detail?.session.specId;
-    final rows = specId == null
-        ? <ReviewCommentRow>[]
-        : ref.watch(reviewCommentsProvider(specId)).value ??
-              <ReviewCommentRow>[];
+    final rows = specId != null
+        ? ref.watch(reviewCommentsProvider(specId)).value ??
+              <ReviewCommentRow>[]
+        : detail?.session.prUrl != null
+        ? ref.watch(sessionReviewCommentsProvider(detail!.session.id)).value ??
+              <ReviewCommentRow>[]
+        : <ReviewCommentRow>[];
     return ColoredBox(
       color: AppColors.panel,
       child: ListView(
@@ -349,6 +355,11 @@ class _ReviewSidebar extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
               child: ReviewModeTabs(workspaceId: ws.id),
+            ),
+          if (ref.watch(activeWorkspaceProvider) case final ws?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+              child: PrImportButton(workspace: ws),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
@@ -445,10 +456,7 @@ class _QueueTile extends ConsumerWidget {
     final (icon, color) = mergeStateLook(status.state);
     final code = item.spec?.code ?? item.task?.code;
     final motherCode = mother?.spec?.code ?? mother?.task?.code;
-    final meta = [
-      ?code,
-      s.agentName?.isNotEmpty ?? false ? s.agentName! : 'sem agente',
-    ].join(' · ');
+    final meta = queueCardMeta(item);
     final radius = BorderRadius.circular(8);
     final card = Material(
       color: selected ? SessionColors.selectedBg : Colors.transparent,
@@ -478,14 +486,25 @@ class _QueueTile extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                meta,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      meta,
+                      key: ValueKey('review-item-meta-${s.id}'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  if (showsNoSpec(item)) ...[
+                    const SizedBox(width: 6),
+                    NoSpecPill(key: ValueKey('review-item-nospec-${s.id}')),
+                  ],
+                ],
               ),
               if (_stacked)
                 Text(
@@ -557,6 +576,24 @@ class _QueueTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// "Sem spec": a PR brought into the app (SPEC-050 R5).
+class NoSpecPill extends StatelessWidget {
+  const NoSpecPill({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.borderHover),
+    ),
+    child: const Text(
+      'Sem spec',
+      style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+    ),
+  );
 }
 
 class _RailPainter extends CustomPainter {
@@ -716,9 +753,15 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
   /// [round]: only that round's comments, open or treated (SPEC-010 R5).
   List<AnchoredComment> _persisted(List<DiffFile> files, {int? round}) {
     final spec = widget.item.spec;
-    if (spec == null || !_commentsVisible) return [];
-    final rows = ref.watch(reviewCommentsProvider(spec.id)).value ?? [];
-    final shifts = ref.watch(reviewAnchorProvider((_id, spec.id))).value ?? {};
+    if (!_commentsVisible) return [];
+    // A PR brought into the app keeps its comments by session (SPEC-050 R6).
+    if (spec == null && widget.item.imported == null) return [];
+    final rows = spec != null
+        ? ref.watch(reviewCommentsProvider(spec.id)).value ?? []
+        : ref.watch(sessionReviewCommentsProvider(_id)).value ?? [];
+    final shifts = spec != null
+        ? ref.watch(reviewAnchorProvider((_id, spec.id))).value ?? {}
+        : ref.watch(sessionAnchorProvider(_id)).value ?? {};
     return [
       for (final c in rows)
         if (round == null
@@ -847,12 +890,15 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   Future<void> _requestChanges() async {
     final comments = ref.read(reviewDraftProvider(_id)).comments;
-    final selectedRows = widget.item.spec == null
-        ? <ReviewCommentRow>[]
-        : (ref.read(reviewCommentsProvider(widget.item.spec!.id)).value ??
-                  <ReviewCommentRow>[])
-              .where((c) => _selectedComments.contains(c.id) && !c.resolved)
-              .toList();
+    final selectedRows =
+        (widget.item.spec != null
+                ? ref.read(reviewCommentsProvider(widget.item.spec!.id)).value
+                : widget.item.imported != null
+                ? ref.read(sessionReviewCommentsProvider(_id)).value
+                : null)
+            ?.where((c) => _selectedComments.contains(c.id) && !c.resolved)
+            .toList() ??
+        <ReviewCommentRow>[];
     final preview = [
       ...comments,
       for (final c in selectedRows)
@@ -875,6 +921,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         comments,
         note: note,
         selected: selectedRows,
+        // SPEC-050 R8: what the PR's panel has ticked.
+        replyInPr:
+            importedPrOf(ref.read(appSettingsProvider), _id)?.replyInPr ??
+            false,
       );
       _selectedComments.clear();
       ref.read(reviewDraftProvider(_id).notifier).clearComments();
@@ -976,10 +1026,37 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       widget.item.spec == null
           ? null
           : () => ref.read(autoReviewerProvider).skip(widget.item.spec!.id),
-    'pr' => () => _run(
+    'pr' || 'checks' => () => _run(
       'Verificar PR',
       () => ref.read(prBabysitterProvider.notifier).check(_id),
     ),
+    // SPEC-050 R6: a PR brought into the app.
+    'decisao' =>
+      widget.item.session.prUrl == null
+          ? null
+          : () => unawaited(_service.openUrl(widget.item.session.prUrl!)),
+    'base' => () async {
+      final ahead = await _service.remoteAhead(_id, fetch: true);
+      if (!mounted || !await confirmImportedUpdate(context, ahead.local)) {
+        return;
+      }
+      await _run('Atualizar', () async {
+        final r = await _service.updateFromRemote(_id);
+        ref.invalidate(rebaseStatusProvider(_id));
+        ref.invalidate(importedAheadProvider(_id));
+        ref.invalidate(mergeReadinessProvider(_id));
+        _toast(
+          r.inProgress
+              ? 'Conflito ao refazer os commits locais · resolva abaixo'
+              : 'Branch do PR atualizada',
+        );
+      });
+    },
+    'gate' => () => _run('Verificar', () async {
+      final r = await _service.runProjectGate(_id);
+      ref.invalidate(mergeReadinessProvider(_id));
+      _toast(r.ok ? 'Gate do projeto passou' : 'Gate falhou: ${r.summary}');
+    }),
     'comentarios' => () {
       _filter(visible: true, onlyOpen: true);
       ref
@@ -988,15 +1065,16 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       // To the first open comment that sits on a file of the diff.
       final spec = widget.item.spec;
       final files = ref.read(reviewDetailProvider(_id)).value?.files ?? [];
-      final first = spec == null
-          ? null
-          : (ref.read(reviewCommentsProvider(spec.id)).value ?? [])
-                .where(
-                  (c) =>
-                      isOpenReviewComment(c) &&
-                      files.any((f) => f.path == c.path),
-                )
-                .firstOrNull;
+      final first =
+          (spec == null
+                  ? ref.read(sessionReviewCommentsProvider(_id)).value ?? []
+                  : ref.read(reviewCommentsProvider(spec.id)).value ?? [])
+              .where(
+                (c) =>
+                    isOpenReviewComment(c) &&
+                    files.any((f) => f.path == c.path),
+              )
+              .firstOrNull;
       if (first != null) {
         ref.read(_selectedFileProvider.notifier).select(first.path);
         ref.read(reviewScrollTargetProvider.notifier)
@@ -1721,6 +1799,19 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                           child: Text(i.action!),
                         ),
                 ),
+              if (widget.item.imported != null)
+                const Padding(
+                  key: ValueKey('review-readiness-nospec'),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Text(
+                    'Critérios de aceite, etapas e revisor automático não '
+                    'entram aqui: este PR não tem spec.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
               TextButton(
                 onPressed: _refresh,
                 child: const Text('Verificar de novo'),
@@ -1729,6 +1820,11 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
           ),
         ),
         PrPanel(session: s, localConflict: _conflict),
+        if (widget.item.imported != null)
+          ImportedPrPanel(
+            sessionId: _id,
+            merged: s.status == SessionStatus.merged,
+          ),
         if (widget.item.spec != null)
           SpecReviewPanel(
             key: _specPanelKey,
@@ -2252,6 +2348,17 @@ class _Subtitle extends StatelessWidget {
     );
   }
 }
+
+/// [reviewAnchorProvider] of a PR brought into the app (comments by
+/// session, SPEC-050 R6).
+final sessionAnchorProvider = FutureProvider.family<AnchorShifts, String>((
+  ref,
+  sessionId,
+) async {
+  final rows = await ref.watch(sessionReviewCommentsProvider(sessionId).future);
+  ref.watch(reviewDetailProvider(sessionId));
+  return ref.read(reviewServiceProvider).anchorShifts(sessionId, rows);
+});
 
 final reviewAnchorProvider = FutureProvider.family<AnchorShifts, (String, int)>(
   (ref, key) async {

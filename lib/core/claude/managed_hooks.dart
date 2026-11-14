@@ -69,6 +69,20 @@ const builtinBlockRules = [
   BlockRule('git worktree remove', r'\bgit\b[^;&|]*\bworktree\s+remove\b'),
 ];
 
+/// Extra rules of a session on a PR brought into the app (SPEC-050 R7):
+/// `git push --force*`, `git push -f*` and `git push --force-with-lease*`
+/// anywhere in the push, and a `+refspec` (a forced push too).
+const prForcePushRules = [
+  BlockRule(
+    'git push --force* (PR trazido)',
+    r'\bgit\b[^;&|]*\bpush\b[^;&|]*\s(--force\S*|-f\S*|-[A-Za-z]*f[A-Za-z]*)(\s|$|;|&|\|)',
+  ),
+  BlockRule(
+    'git push +refspec (PR trazido)',
+    r'\bgit\b[^;&|]*\bpush\b[^;&|]*\s\+\S',
+  ),
+];
+
 /// `bloquear-comandos:` glob → [BlockRule]: `*` is anything; the pattern
 /// may appear anywhere in the command.
 BlockRule globRule(String glob) {
@@ -76,16 +90,18 @@ BlockRule globRule(String glob) {
   return BlockRule(glob, re);
 }
 
-/// Every rule of a session: built-in, the project's and, for a session in a
+/// Every rule of a session: built-in, the project's, [extra] and, for a session in a
 /// worktree, `git -C <root>` / `cd <root>` (the main repository is not
 /// touched from a worktree).
 List<BlockRule> blockRules({
   List<String> projectGlobs = const [],
   String? root,
   String? cwd,
+  List<BlockRule> extra = const [],
 }) => [
   ...builtinBlockRules,
   for (final g in projectGlobs) globRule(g),
+  ...extra,
   if (root != null && cwd != null && root != cwd) ...[
     BlockRule(
       'git -C na raiz do repositório',

@@ -283,6 +283,52 @@ class GitConfig {
   int get hashCode => markAgentCommits.hashCode;
 }
 
+/// `vibe:` of the config (SPEC-069): the folder of the VIBEs and the size
+/// past which a VIBE stops and asks (`teto`, R6, R8).
+@immutable
+class VibeConfig {
+  const VibeConfig({
+    this.dir = defaultDir,
+    this.maxFiles = defaultMaxFiles,
+    this.maxLines = defaultMaxLines,
+    this.printsCommand,
+  });
+
+  static const defaultDir = 'docs/vibe';
+  static const defaultMaxFiles = 15;
+  static const defaultMaxLines = 400;
+
+  /// Folder of the `VIBE-NNN-<slug>.md` files, relative to the workspace.
+  final String dir;
+
+  /// `teto`: changed files and lines (added + removed) against the base.
+  final int maxFiles;
+  final int maxLines;
+
+  /// `prints`: the command that takes a print of the app (R6), run in the
+  /// worktree at the base (antes) and in the VIBE's (depois); `{saida}` is
+  /// the PNG to write. Null = the prints are put there by hand (or by the
+  /// agent).
+  final String? printsCommand;
+
+  bool get isDefault =>
+      printsCommand == null &&
+      dir == defaultDir &&
+      maxFiles == defaultMaxFiles &&
+      maxLines == defaultMaxLines;
+
+  @override
+  bool operator ==(Object other) =>
+      other is VibeConfig &&
+      other.dir == dir &&
+      other.maxFiles == maxFiles &&
+      other.maxLines == maxLines &&
+      other.printsCommand == printsCommand;
+
+  @override
+  int get hashCode => Object.hash(dir, maxFiles, maxLines, printsCommand);
+}
+
 @immutable
 class ProjectConfig {
   const ProjectConfig({
@@ -304,6 +350,7 @@ class ProjectConfig {
     this.autopilot = const AutopilotConfig(),
     this.releases = const ReleasesConfig(),
     this.git = const GitConfig(),
+    this.vibe = const VibeConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
@@ -350,6 +397,12 @@ class ProjectConfig {
   final AutopilotConfig autopilot;
   final ReleasesConfig releases;
   final GitConfig git;
+
+  /// `vibe:` (SPEC-069).
+  final VibeConfig vibe;
+
+  /// Folder of the VIBE files (SPEC-069 R3), relative to the workspace.
+  String get vibeDir => vibe.dir;
   final String mergeMethod;
   final String? host, hostType;
 
@@ -391,6 +444,7 @@ class ProjectConfig {
     AutopilotConfig? autopilot,
     ReleasesConfig? releases,
     GitConfig? git,
+    VibeConfig? vibe,
     String? mergeMethod,
     String? host,
     String? hostType,
@@ -414,6 +468,7 @@ class ProjectConfig {
     autopilot: autopilot ?? this.autopilot,
     releases: releases ?? this.releases,
     git: git ?? this.git,
+    vibe: vibe ?? this.vibe,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
@@ -511,7 +566,21 @@ class ProjectConfig {
     final r = map('revisor');
     final a = map('autopilot');
     final rel = map('releases');
+    final vb = map('vibe');
+    final teto = vb['teto'] is Map
+        ? (vb['teto'] as Map).cast<Object?, Object?>()
+        : const <Object?, Object?>{};
+    final vibeDir = str(vb['pasta']);
     return ProjectConfig(
+      vibe: VibeConfig(
+        dir: vibeDir != null && validateSpecsDir(vibeDir) == null
+            ? vibeDir
+            : VibeConfig.defaultDir,
+        maxFiles:
+            integer(teto['arquivos'], min: 1) ?? VibeConfig.defaultMaxFiles,
+        maxLines: integer(teto['linhas'], min: 1) ?? VibeConfig.defaultMaxLines,
+        printsCommand: str(vb['prints']),
+      ),
       mergeMethod:
           ['merge', 'squash', 'rebase'].contains(map('merge')['metodo'])
           ? '${map('merge')['metodo']}'
@@ -683,6 +752,20 @@ class ProjectConfig {
     }
     if (autoResolveConflicts) {
       b.writeln('review:\n  resolver-conflitos: automatico');
+    }
+    if (!vibe.isDefault) {
+      b.writeln('vibe:');
+      if (vibe.dir != VibeConfig.defaultDir) b.writeln('  pasta: ${vibe.dir}');
+      if (vibe.printsCommand != null) {
+        b.writeln('  prints: ${_quote(vibe.printsCommand!)}');
+      }
+      if (vibe.maxFiles != VibeConfig.defaultMaxFiles ||
+          vibe.maxLines != VibeConfig.defaultMaxLines) {
+        b
+          ..writeln('  teto:')
+          ..writeln('    arquivos: ${vibe.maxFiles}')
+          ..writeln('    linhas: ${vibe.maxLines}');
+      }
     }
     return b.toString();
   }

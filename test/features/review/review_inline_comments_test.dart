@@ -33,7 +33,7 @@ void main() {
           .into(db.reviewComments)
           .insert(
             ReviewCommentsCompanion.insert(
-              specId: 1,
+              specId: Value(1),
               round: 2,
               author: 'revisor',
               body: 'corrigir erro',
@@ -134,7 +134,7 @@ void main() {
         String? verdict,
         int round = 1,
       }) => ReviewCommentsCompanion.insert(
-        specId: 1,
+        specId: Value(1),
         round: round,
         author: author,
         body: body,

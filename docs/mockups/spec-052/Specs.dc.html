@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Rascunho criado pelo agente em Specs</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014} a{color:#8EA4C8} a:hover{color:#B7C6DE}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <dc-import name="Lateral" atual="Specs" hint-size="56px,900px"></dc-import>
+  <aside aria-label="Specs" style="width: 360px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 6px; background: #11141A; border-right: 1px solid #252B35">
+    <div style="padding: 4px 6px 8px; display: flex; align-items: center; justify-content: space-between"><span style="font-size: 14px; font-weight: 600; color: #A0A8B6">Rascunhos · 5</span><span style="font-size: 13px; color: #A0A8B6">Backlog</span></div>
+    <sc-for list="{{specs}}" as="s" hint-placeholder-count="6">
+      <button aria-current="{{s.atual}}" style="box-sizing: border-box; margin-left: {{s.recuo}}; padding: 11px 14px; display: flex; flex-direction: column; gap: 5px; text-align: left; background: {{s.bg}}; border: 1px solid {{s.borda}}; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+        <span style="display: flex; align-items: center; gap: 8px"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">{{s.code}}</span><sc-if value="{{s.agente}}" hint-placeholder-val="{{ true }}"><span style="padding: 1px 7px; border: 1px solid #4A3A5E; border-radius: 999px; font-size: 12px; color: #C79BF2">Criada pelo agente</span></sc-if></span>
+        <span style="font-size: 15px; font-weight: 600">{{s.title}}</span>
+        <span style="font-size: 13px; color: #A0A8B6">{{s.info}}</span>
+      </button>
+    </sc-for>
+  </aside>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="box-sizing: border-box; padding: 18px 28px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #252B35">
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+        <span style="display: flex; align-items: center; gap: 10px"><span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-053</span><span style="padding: 2px 9px; background: #1A1E26; border: 1px solid #252B35; border-radius: 999px; font-size: 12px; color: #A0A8B6">rascunho</span><span style="padding: 2px 9px; border: 1px solid #4A3A5E; border-radius: 999px; font-size: 12px; color: #C79BF2">Criada pelo agente</span></span>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 600">Exportar o relatório do Review em PDF</h1>
+      </div>
+      <button style="height: 40px; padding: 0 16px; border: 1px solid #3A4250; border-radius: 8px; background: #1A1E26; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Refinar</button>
+      <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Aprovar</button>
+      <button aria-label="Mais ações" style="width: 40px; height: 40px; border: 1px solid #3A4250; border-radius: 8px; background: #1A1E26; color: #E7E9EE; font: 600 16px 'IBM Plex Sans', sans-serif">⋯</button>
+    </header>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 22px 28px; display: flex; gap: 24px">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+        <div role="note" style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #1A1622; border: 1px solid #4A3A5E; border-radius: 10px; font-size: 14px; line-height: 20px">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="#C79BF2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1.5 L8.4 5.6 L12.5 7 L8.4 8.4 L7 12.5 L5.6 8.4 L1.5 7 L5.6 5.6 Z"></path></svg>
+          <span style="flex: 1">Criada pelo agente na sessão <strong style="font-weight: 600">Planejar o export do Review</strong>, hoje às 16:12, com a sua aprovação. É um rascunho: nada roda até você aprovar.</span>
+          <a href="Main.dc.html" style="font-size: 14px; font-weight: 500">Abrir a sessão</a>
+        </div>
+        <section aria-label="Conteúdo da spec" style="flex: 1; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; font-size: 15px; line-height: 24px; color: #C9CED8">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #E7E9EE">Objetivo</h2>
+          <p style="margin: 0">Hoje o relatório do gate e "O que a resolução decidiu" só existem na tela do Review. Esta spec gera um PDF com os dois, para anexar ao PR ou mandar para quem não usa o app.</p>
+          <h2 style="margin: 0; font-size: 16px; font-weight: 600; color: #E7E9EE">Requisitos</h2>
+          <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px">
+            <li><code style="font: 13px 'JetBrains Mono', monospace">R1</code> · O Review deve oferecer "Exportar PDF" no painel "Pronto para merge?".</li>
+            <li><code style="font: 13px 'JetBrains Mono', monospace">R2</code> · O PDF deve trazer os critérios, o último gate e as resoluções de conflito.</li>
+            <li><code style="font: 13px 'JetBrains Mono', monospace">R3</code> · O arquivo deve ser salvo em <code style="font: 13px 'JetBrains Mono', monospace">.promptorium/relatorios/</code>.</li>
+            <li style="color: #F2A541"><code style="font: 13px 'JetBrains Mono', monospace">R4</code> · Capa com o logo do projeto. <span style="font-size: 13px">· aviso do lint</span></li>
+            <li><code style="font: 13px 'JetBrains Mono', monospace">R5</code> · O PDF deve ter no máximo 2 MB.</li>
+          </ul>
+        </section>
+      </div>
+      <aside aria-label="Origem e filhas" style="width: 320px; display: flex; flex-direction: column; gap: 14px">
+        <section style="box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #252B35; border-radius: 10px; background: #14171D">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Filhas · 2</h2>
+          <div style="display: flex; flex-direction: column; gap: 2px; font-size: 14px"><code style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-054</code><span>Gerar o PDF com o relatório do gate</span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px; font-size: 14px"><code style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-055</code><span>Botão Exportar PDF no Review</span></div>
+          <span style="font-size: 13px; color: #A0A8B6">Criadas numa aprovação só, com <code style="font: 12px 'JetBrains Mono', monospace">depende-de: SPEC-053</code>.</span>
+        </section>
+        <section style="box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 8px; border: 1px solid #252B35; border-radius: 10px; background: #14171D; font-size: 14px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Frontmatter</h2>
+          <code style="display: block; white-space: pre; font: 13px/20px 'JetBrains Mono', monospace; color: #C9CED8">id: SPEC-053
+status: rascunho
+depende-de: SPEC-043
+origem: agente
+sessao: 6f2c…a91e</code>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = (code, title, info, o = {}) => ({ code, title, info, agente: !!o.agente, atual: o.atual ? 'true' : 'false', bg: o.atual ? '#1F2430' : '#14171D', borda: o.atual ? '#3A4250' : '#252B35', recuo: o.filha ? '18px' : '0' });
+    return { specs: [
+      s('SPEC-053', 'Exportar o relatório do Review em PDF', '5 requisitos · 2 filhas', { agente: true, atual: true }),
+      s('SPEC-054', 'Gerar o PDF com o relatório do gate', 'filha da SPEC-053 · 3 requisitos', { agente: true, filha: true }),
+      s('SPEC-055', 'Botão Exportar PDF no Review', 'filha da SPEC-053 · 2 requisitos', { agente: true, filha: true }),
+      s('SPEC-050', 'Trazer um PR qualquer para o app', '7 requisitos'),
+      s('SPEC-051', 'Preview com apontar e pedir', '8 requisitos'),
+    ] };
+  }
+}
+</script>
+</body>
+</html>

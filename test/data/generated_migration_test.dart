@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/db/app_database.dart';
+import 'package:promptorium/data/repos/review_comments_repo.dart';
 
 import '../generated_migrations/schema.dart';
 
@@ -135,4 +136,106 @@ void main() {
       await db.close();
     },
   );
+
+  test('v24 → v25 keeps every spec as a spec and no conversation on a '
+      'VIBE', () async {
+    final schema = await verifier.schemaAt(24);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+        "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md', "
+        "'approved')",
+      )
+      ..execute(
+        "INSERT INTO conversations (id, workspace_id, title, model) "
+        "VALUES (1, 1, 'Oi', 'inherit')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.specs).getSingle();
+    expect(row.code, 'SPEC-001');
+    expect(row.kind, SpecKind.spec);
+    final conv = await db.select(db.conversations).getSingle();
+    expect(conv.specId, equals(null));
+    await db.close();
+  });
+
+  test('v25 → v26 (SPEC-050 P1) keeps the comments of the specs '
+      'and takes those of a PR without spec, by session', () async {
+    final schema = await verifier.schemaAt(25);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path) "
+        "VALUES (1, 1, 'SPEC-001', 'x', 'specs/x.md')",
+      )
+      ..execute(
+        "INSERT INTO sessions (id, workspace_id, worktree_path, branch, "
+        "status, model, started_at) "
+        "VALUES ('s1', 1, '/wt', 'feat/x', 'completed', 'sonnet', 0)",
+      )
+      ..execute(
+        "INSERT INTO review_comments (spec_id, round, author, body, "
+        "external_id, path, line) "
+        "VALUES (1, 1, 'pr', '@ana: renomeie', 'github:9', 'a.dart', 3)",
+      )
+      ..execute(
+        "INSERT INTO review_comments (spec_id, round, author, body) "
+        "VALUES (1, 2, 'humano', 'Ajustes pedidos.')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final rows = await (db.select(
+      db.reviewComments,
+    )..orderBy([(c) => OrderingTerm.asc(c.id)])).get();
+    expect(rows.map((r) => (r.specId, r.sessionId, r.author, r.round)), [
+      (1, null, 'pr', 1),
+      (1, null, 'humano', 2),
+    ]);
+    expect(rows.first.externalId, 'github:9');
+    expect(rows.first.path, 'a.dart');
+    // A comment of the session, with no spec; the external id is unique by
+    // session, so reading the PR again never duplicates it.
+    final repo = ReviewCommentsRepo(db);
+    final row = ReviewCommentsCompanion.insert(
+      sessionId: const Value('s1'),
+      round: 1,
+      author: 'pr',
+      body: '@ana: renomeie',
+      externalId: const Value('github:9'),
+    );
+    await repo.insertExternal(row);
+    await repo.insertExternal(row);
+    final mine = await repo.bySession('s1');
+    expect(mine, hasLength(1));
+    expect(mine.single.specId, equals(null));
+    expect(await repo.bySpec(1), hasLength(2));
+    await db.close();
+  });
+  test('v26 → v27 (SPEC-052) keeps the specs, none created by the agent, and '
+      'no notes', () async {
+    final schema = await verifier.schemaAt(26);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+        "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md', "
+        "'approved')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.specs).getSingle();
+    expect(row.code, 'SPEC-001');
+    expect(row.status, SpecStatus.approved);
+    expect(row.agentSession, equals(null));
+    expect(await db.select(db.specNotes).get(), isEmpty);
+    await db
+        .into(db.specNotes)
+        .insert(
+          SpecNotesCompanion.insert(specId: 1, note: 'Comecei pela tabela.'),
+        );
+    expect(
+      (await db.select(db.specNotes).getSingle()).note,
+      'Comecei pela tabela.',
+    );
+    await db.close();
+  });
 }

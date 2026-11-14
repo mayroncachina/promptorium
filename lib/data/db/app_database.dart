@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 24;
+const appSchemaVersion = 27;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -211,6 +211,18 @@ class Specs extends Table {
   /// spec that already existed (they stay where they were).
   BoolColumn get inTray => boolean().withDefault(const Constant(false))();
 
+  // --- the VIBE (SPEC-069 R3, schema v25) ------------------------------------
+
+  /// A spec written by the person or a VIBE ("Fazer como tarefa"). Every
+  /// spec that already existed is a spec.
+  TextColumn get kind =>
+      textEnum<SpecKind>().withDefault(Constant(SpecKind.spec.name))();
+
+  // --- created by the agent (SPEC-052 R6, schema v27) ------------------------
+  /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
+  /// created through the Promptorium MCP); null for the others.
+  TextColumn get agentSession => text().nullable()();
+
   @override
   List<Set<Column>> get uniqueKeys => [
     {workspaceId, code},
@@ -334,8 +346,21 @@ class ReviewDrafts extends Table {
 @DataClassName('ReviewCommentRow')
 class ReviewComments extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get specId =>
-      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// The spec reviewed; null for a PR brought into the app without one
+  /// (SPEC-050, schema v26), whose comments go by [sessionId].
+  IntColumn get specId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// The session of a PR without spec (SPEC-050 P1).
+  TextColumn get sessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
 
   /// 1, 2… (the round that asked for it).
   IntColumn get round => integer()();
@@ -627,6 +652,11 @@ class Conversations extends Table {
 
   /// When it was archived (SPEC-056 R4, schema v22). Null = active.
   DateTimeColumn get archivedAt => dateTime().nullable()();
+
+  /// The VIBE of the conversation (SPEC-069 R4, schema v25), or the spec it
+  /// became ("Virar spec"): the agent runs in that spec's worktree, never in
+  /// the workspace root. Null = a free conversation.
+  IntColumn get specId => integer().nullable()();
 }
 
 /// Raw stream-json lines of a conversation (same format as [SessionEvents]).
@@ -726,6 +756,24 @@ class SpecDrafts extends Table {
   Set<Column> get primaryKey => {workspaceId};
 }
 
+/// Progress notes the agent wrote through the Promptorium MCP
+/// (`anotar_andamento`, SPEC-052 R7, schema v27): the newest shows on the
+/// card of the Quadro, all of them in the history of the spec. They never
+/// conclude a step.
+class SpecNotes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// Session (or Claude session of a conversation) that wrote it.
+  TextColumn get sessionId => text().nullable()();
+
+  /// Steps of the session when it wrote (`R3`, `R2,R3`).
+  TextColumn get steps => text().nullable()();
+  TextColumn get note => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -761,6 +809,7 @@ class AppSettings extends Table {
     Notifications,
     SpecDuels,
     StepRuns,
+    SpecNotes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -875,10 +924,19 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  Future<void> _reviewExternalIndex() => customStatement(
-    'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external '
-    'ON review_comments(spec_id, external_id) WHERE external_id IS NOT NULL',
-  );
+  Future<void> _reviewExternalIndex() async {
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external '
+      'ON review_comments(spec_id, external_id) WHERE external_id IS NOT NULL',
+    );
+    if (await _hasColumn('review_comments', 'session_id')) {
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external_session '
+        'ON review_comments(session_id, external_id) '
+        'WHERE spec_id IS NULL AND external_id IS NOT NULL',
+      );
+    }
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1087,6 +1145,45 @@ class AppDatabase extends _$AppDatabase {
               if (!await _hasColumn('specs', c.name)) {
                 await m.addColumn(v.specs, c);
               }
+            }
+          },
+          // v25: the VIBE (SPEC-069 R3, R4): every spec that exists is a
+          // spec, and no conversation works on one yet.
+          from24To25: (m, v) async {
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'kind')) {
+              await m.addColumn(v.specs, v.specs.kind);
+            }
+            if (await _hasTable('conversations') &&
+                !await _hasColumn('conversations', 'spec_id')) {
+              await m.addColumn(v.conversations, v.conversations.specId);
+            }
+          },
+          // v26 (SPEC-050 P1): comments of a PR brought into the
+          // app without a spec go by session; `spec_id` becomes optional.
+          // The table is rebuilt (SQLite cannot drop a NOT NULL), every
+          // comment of a spec is kept, and the indexes are made again.
+          from25To26: (m, v) async {
+            if (!await _hasTable('review_comments')) return;
+            await m.alterTable(
+              TableMigration(
+                v.reviewComments,
+                newColumns: [v.reviewComments.sessionId],
+              ),
+            );
+            await _reviewExternalIndex();
+          },
+          // v27: progress notes of the agent (SPEC-052 R7) and the origin of the
+          // specs it creates (R6).
+          from26To27: (m, v) async {
+            if (!await _hasTable('spec_notes')) {
+              await m.createTable(v.specNotes);
+            }
+            // And the session of a spec created by the agent (R6), filled by
+            // the next reading of the files.
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'agent_session')) {
+              await m.addColumn(v.specs, v.specs.agentSession);
             }
           },
         ),

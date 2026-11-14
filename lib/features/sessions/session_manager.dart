@@ -21,6 +21,9 @@ import '../../core/providers/provider_preferences.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
+import '../../core/mcp/app_mcp_config.dart';
+import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../../data/repos/durable_state_repo.dart';
@@ -29,6 +32,7 @@ import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
+import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
@@ -40,6 +44,11 @@ import 'timeline_provider.dart';
 export '../../core/claude/claude_cli.dart' show claudeProcessStarterProvider;
 
 /// Generates session ids (`--session-id`, UUID v4).
+/// Prefix of the session row that carries a VIBE through the Review
+/// (SPEC-069 R7): the VIBE talks in a conversation of the Prompt, so what
+/// the Review sends to that session goes to the conversation.
+const vibeSessionPrefix = 'vibe-';
+
 final sessionIdGeneratorProvider = Provider<String Function()>(
   (ref) => const Uuid().v4,
 );
@@ -72,6 +81,7 @@ class NewSessionRequest {
     this.baseBranch,
     this.environment,
     this.duelId,
+    this.prUrl,
   });
 
   final Workspace workspace;
@@ -119,6 +129,11 @@ class NewSessionRequest {
 
   /// Best-of-N attempt (`spec_duels.id`) the session runs.
   final int? duelId;
+
+  /// PR the session works on from the start ("Trazer PR", SPEC-050 R3);
+  /// stored before the process starts, so its hooks already refuse the
+  /// forced pushes (R7).
+  final String? prUrl;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -242,6 +257,11 @@ class _Proc {
   Map<String, dynamic>? lastJson;
   int? lastSeq;
 
+  /// Link of the process to the Promptorium MCP (SPEC-052): revoked and
+  /// its file removed when the process ends.
+  McpRunLink? mcp;
+  AppMcpServer? mcpServer;
+
   /// Bytes of the hooks log already shown.
   int hookOffset = 0;
   StreamSubscription<ClaudeEvent>? sub;
@@ -322,7 +342,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } else {
         branch = await git.currentBranch() ?? 'HEAD';
       }
@@ -359,6 +379,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseBranch: base,
       duelId: r.duelId,
     );
+    if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
@@ -397,6 +418,18 @@ class SessionManager extends Notifier<SessionManagerState> {
   }) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
+    // SPEC-069 R7: the Review talks to a VIBE in its conversation.
+    if (id.startsWith(vibeSessionPrefix)) {
+      final s = await _repo.getById(id);
+      final conv = s?.specId == null
+          ? null
+          : await ref.read(specsRepoProvider).conversationOf(s!.specId!);
+      if (conv == null) {
+        throw const SessionException('A conversa desta VIBE não existe mais.');
+      }
+      await ref.read(conversationManagerProvider.notifier).send(conv.id, msg);
+      return;
+    }
     final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
@@ -539,6 +572,9 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   Future<void> _resume(String id) async {
+    if (id.startsWith(vibeSessionPrefix)) {
+      throw const SessionException('Esta VIBE continua na conversa do Prompt.');
+    }
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não encontrada.');
     if (s.status == SessionStatus.merged) {
@@ -631,7 +667,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             rethrow;
           }
         }
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
@@ -701,9 +737,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     final p = _procs[id];
     final req = _take(id, requestId);
     if (p == null || req == null) return;
-    final suggestion = req.permissionSuggestions.isEmpty
-        ? null
-        : req.permissionSuggestions.first;
+    // SPEC-052 R4: criar_* only ever "nesta sessão".
+    final suggestions = alwaysAllowSuggestions(
+      req.toolName,
+      req.permissionSuggestions,
+    );
+    final suggestion = suggestions.isEmpty ? null : suggestions.first;
     await p.process.approve(
       requestId,
       updatedPermissions: always && suggestion != null ? [suggestion] : null,
@@ -1013,6 +1052,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         ? environment
         : {...?environment, ...marking};
     final ManagedAgentRun process;
+    McpRunLink? mcpLink;
     try {
       if (session.provider != 'claude') {
         final saved = session.runConfig == null
@@ -1068,11 +1108,28 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
       } else if (session.provider == 'claude') {
         final settingsFile = await _prepareHooks(id, cwd: cwd, root: root);
+        // SPEC-052 R1: the app's MCP server, with a token of this process.
+        mcpLink = await openMcpRun(
+          ref,
+          workspaceId: session.workspaceId,
+          sessionId: id,
+          access: McpAccess.write,
+          specId: session.specId,
+          steps: session.steps,
+          title: title,
+          skipApproval:
+              options.permissionMode == ClaudePermissionMode.skipPermissions,
+        );
         process = ClaudeRun(
           await ClaudeProcess.start(
             options.copyWith(
               autocompact: ref.read(runPrefsProvider).autocompact,
               settingsFile: settingsFile,
+              mcpConfigs: [...options.mcpConfigs, ?mcpLink?.configPath],
+              allowedTools: [
+                ...options.allowedTools,
+                ...?mcpLink?.allowedTools,
+              ],
             ),
             workingDirectory: cwd,
             executable: ref.read(claudeExecutableProvider),
@@ -1086,17 +1143,22 @@ class SessionManager extends Notifier<SessionManagerState> {
         );
       }
     } catch (e) {
+      await closeMcpRun(ref.read(appMcpServerProvider), mcpLink);
       await _note(id, 'Falha ao iniciar ${session.provider}: $e', error: true);
       await _repo.setStatus(id, SessionStatus.failed);
       throw SessionException('Falha ao iniciar ${session.provider}: $e');
     }
-    final p = _Proc(
-      process,
-      title,
-      baseCost,
-      skipPermissions:
-          options.permissionMode == ClaudePermissionMode.skipPermissions,
-    )..markedRoot = marking.isEmpty ? null : (root ?? cwd);
+    final p =
+        _Proc(
+            process,
+            title,
+            baseCost,
+            skipPermissions:
+                options.permissionMode == ClaudePermissionMode.skipPermissions,
+          )
+          ..markedRoot = marking.isEmpty ? null : (root ?? cwd)
+          ..mcp = mcpLink
+          ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _procs[id] = p;
     if (p.markedRoot != null) {
       ref.read(markedSessionsProvider.notifier).add(id, p.markedRoot!);
@@ -1120,10 +1182,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     _publish();
   }
 
-  /// A new session / fork worktree: `copiar:` and `preparar:` of the
+  /// A new session / fork / PR worktree: `copiar:` and `preparar:` of the
   /// project's config. Failure removes the worktree (nothing was done in
   /// it yet) and is reported to the caller.
-  Future<void> _setupWorktree(String root, CreatedWorktree wt) async {
+  Future<void> setupWorktree(String root, CreatedWorktree wt) async {
     final config = ProjectConfig.loadSync(root);
     final wc = config.worktree;
     if (wc.copy.isEmpty && wc.prepare == null) return;
@@ -1194,11 +1256,16 @@ class SessionManager extends Notifier<SessionManagerState> {
           if (settings.get(h.settingKey) != '0') h,
       };
       final config = root == null ? null : ProjectConfig.loadSync(root);
+      // A PR brought into the app (SPEC-050 R7): its published history is
+      // someone else's, so no forced push of any kind.
+      final row = await _repo.getById(id);
+      final foreignPr = row?.prUrl != null && row?.specId == null;
       return await hooks.prepare(
         id,
         enabled: enabled,
         rules: blockRules(
           projectGlobs: config?.blockedCommands ?? const [],
+          extra: foreignPr ? prForcePushRules : const [],
           root: root,
           cwd: cwd,
         ),
@@ -1389,6 +1456,8 @@ class SessionManager extends Notifier<SessionManagerState> {
         }),
       );
     }
+    // SPEC-052 R2: the token dies with the process.
+    await closeMcpRun(p.mcpServer, p.mcp);
     if (!ref.mounted || _shuttingDown) return;
     if (p.released) {
       _publish();

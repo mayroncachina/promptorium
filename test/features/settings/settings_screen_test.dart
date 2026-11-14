@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/managed_hooks.dart';
 import 'package:promptorium/core/claude/run_extensions.dart';
 import 'package:promptorium/core/claude/run_prefs.dart';
+import 'package:promptorium/core/mcp/app_mcp_config.dart';
+import 'package:promptorium/core/mcp/app_mcp_server.dart';
+import 'package:promptorium/core/mcp/app_mcp_tools.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/settings/settings_screen.dart';
 import 'package:promptorium/features/settings/settings_sections.dart';
@@ -144,7 +147,8 @@ void main() {
       'context limit and the plugins / MCP servers of the app runs', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1100, 1400);
+    // Tall: the card of the Promptorium MCP (SPEC-052) comes first.
+    tester.view.physicalSize = const Size(1100, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final c = ProviderContainer(
@@ -240,4 +244,101 @@ void main() {
     expect(c.read(runExtensionsProvider).plugins, isEmpty);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Servidor MCP do Promptorium (SPEC-052 R10): on by default, '
+      'the tools and their approval, the limit, and turning it off takes '
+      '--mcp-config out of the new runs', (tester) async {
+    tester.view.physicalSize = const Size(1300, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final server = AppMcpServer(_NoTools());
+    final c = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        appMcpServerProvider.overrideWithValue(server),
+      ],
+    );
+    addTearDown(c.dispose);
+    final settings = c.read(appSettingsProvider.notifier);
+    await tester.runAsync(() => settings.load());
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: const Scaffold(body: SettingsScreen()),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('settings-nav-specRuns')));
+    await tester.pump();
+
+    expect(find.text('SERVIDOR MCP DO PROMPTORIUM'), findsOneWidget);
+    final on = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('settings-app-mcp-on')),
+    );
+    expect(on.value, isTrue);
+    expect(find.text('Sobe com a próxima sessão ou conversa'), findsOneWidget);
+    for (final t in appMcpCatalog) {
+      expect(find.text(t.name), findsOneWidget);
+      expect(find.text(t.summary), findsOneWidget);
+      final approval = tester.widget<Text>(
+        find.byKey(ValueKey('settings-app-mcp-approval-${t.name}')),
+      );
+      expect(approval.data, t.write ? 'Sempre pede' : 'Liberada');
+    }
+
+    // The limit of R9.
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-app-mcp-limit')),
+      '4',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(settings.get(AppSettingKeys.mcpCreationLimit), '4');
+    expect(appMcpCreationLimit(c.read(appSettingsProvider)), 4);
+    expect(
+      find.byKey(const ValueKey('settings-changed-specRuns')),
+      findsOneWidget,
+    );
+
+    // Off: the next runs get no file.
+    await tester.tap(find.byKey(const ValueKey('settings-app-mcp-on')));
+    await tester.pump();
+    expect(settings.get(AppSettingKeys.mcpServer), '0');
+    expect(
+      find.text('Desligado: as próximas execuções não recebem o servidor.'),
+      findsOneWidget,
+    );
+    final link = await tester.runAsync(
+      () => openMcpRun(
+        c.read(_refProvider),
+        workspaceId: 1,
+        sessionId: 's',
+        access: McpAccess.write,
+      ),
+    );
+    expect(link, isNull);
+    expect(server.running, isFalse);
+
+    // On again, by the reset of the section too.
+    await tester.tap(find.byKey(const ValueKey('settings-reset-spec-runs')));
+    await tester.pump();
+    expect(settings.get(AppSettingKeys.mcpServer), isNull);
+    expect(settings.get(AppSettingKeys.mcpCreationLimit), isNull);
+    expect(tester.takeException(), isNull);
+  });
+}
+
+/// The Ref of a provider, to call [openMcpRun] from a test.
+final _refProvider = Provider<Ref>((ref) => ref);
+
+/// The toolbox is never called here.
+class _NoTools implements McpToolbox {
+  @override
+  List<McpToolDef> get catalog => appMcpCatalog;
+
+  @override
+  Future<McpToolOutcome> call(McpGrant g, String t, Map<String, Object?> a) =>
+      throw UnimplementedError();
 }

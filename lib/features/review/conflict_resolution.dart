@@ -1071,7 +1071,7 @@ class ConflictResolver {
     try {
       await _ref.read(reviewCommentsRepoProvider).insertAll([
         ReviewCommentsCompanion.insert(
-          specId: spec.id,
+          specId: Value(spec.id),
           round: 0,
           author: resolutionAuthor,
           body: body,

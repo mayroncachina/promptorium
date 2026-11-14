@@ -35,19 +35,70 @@ class SpecsRepo {
               .get())
           .isEmpty;
 
-  /// Highest `SPEC-NNN` number registered in the workspace (0 = none).
-  Future<int> maxNumber(int workspaceId) async {
+  /// Highest `SPEC-NNN` number registered in the workspace (0 = none);
+  /// [kind] vibe looks at the `VIBE-NNN` series (SPEC-069 R3). Numbers
+  /// reserved by [reserve] count even after their row is gone: a discarded
+  /// VIBE never gives its number back (R10, R12).
+  Future<int> maxNumber(
+    int workspaceId, {
+    SpecKind kind = SpecKind.spec,
+  }) async {
     final rows = await (_db.select(
       _t,
     )..where((s) => s.workspaceId.equals(workspaceId))).get();
-    var max = 0;
+    final re = RegExp('^${kind.prefix}-(\\d+)\$');
+    var max = int.tryParse(await _reserved(workspaceId, kind) ?? '') ?? 0;
     for (final r in rows) {
-      final m = RegExp(r'^SPEC-(\d+)$').firstMatch(r.code);
+      final m = re.firstMatch(r.code);
       final n = m == null ? 0 : int.parse(m.group(1)!);
       if (n > max) max = n;
     }
     return max;
   }
+
+  /// App setting with the highest number reserved in a series.
+  static String reservedKey(int workspaceId, SpecKind kind) =>
+      'numero.${kind.prefix}.$workspaceId';
+
+  Future<String?> _reserved(int workspaceId, SpecKind kind) async =>
+      (await (_db.select(_db.appSettings)
+                ..where((s) => s.key.equals(reservedKey(workspaceId, kind))))
+              .getSingleOrNull())
+          ?.value;
+
+  /// [code] is taken for good in its series (SPEC-069 R12): the number is
+  /// reserved in the database the moment the VIBE (or the spec it becomes)
+  /// is born.
+  Future<void> reserve(int workspaceId, String code) async {
+    final kind = SpecKind.ofCode(code);
+    if (kind == null) return;
+    final n = int.parse(code.substring(kind.prefix.length + 1));
+    final cur = int.tryParse(await _reserved(workspaceId, kind) ?? '') ?? 0;
+    if (n <= cur) return;
+    await _db
+        .into(_db.appSettings)
+        .insertOnConflictUpdate(
+          AppSettingsCompanion.insert(
+            key: reservedKey(workspaceId, kind),
+            value: '$n',
+          ),
+        );
+  }
+
+  /// The VIBE (or the spec it became) [conversationId] works on.
+  Future<Spec?> ofConversation(int conversationId) async {
+    final c = await (_db.select(
+      _db.conversations,
+    )..where((x) => x.id.equals(conversationId))).getSingleOrNull();
+    return c?.specId == null ? null : getById(c!.specId!);
+  }
+
+  /// The conversation of a VIBE (null = none).
+  Future<Conversation?> conversationOf(int specId) =>
+      (_db.select(_db.conversations)
+            ..where((x) => x.specId.equals(specId))
+            ..limit(1))
+          .getSingleOrNull();
 
   Future<Spec> insert({
     required int workspaceId,
@@ -60,6 +111,9 @@ class SpecsRepo {
     String? phase,
     bool hasPlan = false,
     bool inTray = false,
+    SpecKind kind = SpecKind.spec,
+    SpecStage? stage,
+    String? agentSession,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -70,15 +124,19 @@ class SpecsRepo {
           path: path,
           status: Value(status),
           stage: Value(
-            status == SpecStatus.done || status == SpecStatus.archived
-                ? SpecStage.done
-                : SpecStage.backlog,
+            stage ??
+                (status == SpecStatus.done || status == SpecStatus.archived
+                    ? SpecStage.done
+                    : SpecStage.backlog),
           ),
+          kind: Value(kind),
           requirements: Value(requirements),
           dependsOn: Value.absentIfNull(dependsOn),
           phase: Value(phase),
           hasPlan: Value(hasPlan),
-          inTray: Value(inTray),
+          // A VIBE never waits in the Bandeja (SPEC-069 R9).
+          inTray: Value(inTray && kind == SpecKind.spec),
+          agentSession: Value(agentSession),
         ),
       );
 

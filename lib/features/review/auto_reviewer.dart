@@ -249,6 +249,53 @@ String reviewerPrompt({
   return b.toString().trimRight();
 }
 
+/// Prompt of "Rodar revisor" on a PR brought into the app (SPEC-050 R6):
+/// the PR's title and description stand in for the spec.
+String prReviewerPrompt({
+  required String title,
+  required String body,
+  required String diff,
+  required int round,
+  List<ReviewCommentRow> previous = const [],
+  String? memory,
+}) {
+  final b = StringBuffer()
+    ..writeln(
+      'Revise o pull request "$title" (rodada $round). Ele não tem spec.',
+    )
+    ..writeln()
+    ..writeln('<descricao-do-pr>')
+    ..writeln(body.trim().isEmpty ? '(sem descrição)' : body.trimRight())
+    ..writeln('</descricao-do-pr>');
+  if (memory != null && memory.trim().isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Memória do projeto:')
+      ..writeln(memory.trim());
+  }
+  if (previous.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Apontamentos anteriores (confira se foram resolvidos):');
+    for (final c in previous) {
+      b.writeln('- rodada ${c.round}: ${c.path ?? 'geral'} — ${c.body}');
+    }
+  }
+  b
+    ..writeln()
+    ..writeln(
+      'Não há critérios de aceite: deixe "criterios" vazio. Em cada '
+      'comentário, informe o arquivo e a linha do arquivo novo, como numerada '
+      'no diff (linha 0 = o arquivo todo; sem arquivo = comentário geral).',
+    )
+    ..writeln()
+    ..writeln('Diff da branch contra a base:')
+    ..writeln('```diff')
+    ..writeln(diff.trimRight())
+    ..writeln('```');
+  return b.toString().trimRight();
+}
+
 /// Automatic review of a finished spec (F5): a read-only run with a
 /// structured verdict. "corrigir" with rounds left → a `REVn` step with the
 /// comments runs like any step (gate included) and the reviewer runs again;
@@ -357,7 +404,7 @@ class AutoReviewer {
     final head = await git.headSha();
     await _ref.read(reviewCommentsRepoProvider).insertAll([
       ReviewCommentsCompanion.insert(
-        specId: specId,
+        specId: Value(specId),
         round: round,
         author: 'revisor',
         body: verdict.summary.isEmpty
@@ -368,7 +415,7 @@ class AutoReviewer {
       ),
       for (final c in verdict.comments)
         ReviewCommentsCompanion.insert(
-          specId: specId,
+          specId: Value(specId),
           round: round,
           author: 'revisor',
           path: Value(c.path),
@@ -411,7 +458,7 @@ class AutoReviewer {
     if (failure != null) {
       await _ref.read(reviewCommentsRepoProvider).insertAll([
         ReviewCommentsCompanion.insert(
-          specId: specId,
+          specId: Value(specId),
           round: spec.reviewRounds + 1,
           author: 'revisor',
           body: '${AutoReviewer.failurePrefix}: $failure',
@@ -437,6 +484,125 @@ class AutoReviewer {
           )
           .catchError((_) {}),
     );
+  }
+
+  /// Sessions of PRs without spec being reviewed now.
+  final Set<String> _runningSessions = {};
+
+  bool isRunningSession(String sessionId) =>
+      _runningSessions.contains(sessionId);
+
+  /// "Rodar revisor" on a PR brought into the app (SPEC-050 R6): off by
+  /// default, run only on demand. The verdict and the comments go to the
+  /// session's history (no spec, no criteria, no `REVn` step); a failure
+  /// becomes a comment too.
+  Future<void> reviewSession(
+    String sessionId, {
+    required String title,
+    String body = '',
+  }) async {
+    if (!_runningSessions.add(sessionId)) return;
+    final repo = _ref.read(reviewCommentsRepoProvider);
+    final previous = await repo.bySession(sessionId);
+    final round = previous.isEmpty
+        ? 1
+        : previous.map((c) => c.round).reduce((a, b) => a > b ? a : b) + 1;
+    try {
+      final s = await _ref.read(sessionsRepoProvider).getById(sessionId);
+      if (s == null) return;
+      final ws = await _ref.read(workspacesRepoProvider).getById(s.workspaceId);
+      if (ws == null) return;
+      final config = ProjectConfig.loadSync(ws.path);
+      final git = _ref.read(gitServiceFactoryProvider)(s.worktreePath);
+      final diff = await _diffAgainst(git, s.baseBranch ?? 'main');
+      final r = await runReadOnlyClaude(
+        _ref,
+        workspaceId: ws.id,
+        cwd: s.worktreePath,
+        timeout: timeout,
+        options: ClaudeOptions(
+          model: config.reviewer.model,
+          appendSystemPrompt: builtinReviewerPrompt,
+          permissionMode: ClaudePermissionMode.defaultMode,
+          disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,
+          jsonSchema: jsonEncode(reviewerSchema),
+          maxBudgetUsd: config.reviewer.budgetUsd > 0
+              ? config.reviewer.budgetUsd
+              : null,
+          includePartialMessages: false,
+        ),
+        prompt: prReviewerPrompt(
+          title: title,
+          body: body,
+          diff: diff,
+          round: round,
+          previous: [
+            for (final c in previous)
+              if (c.author == 'revisor') c,
+          ],
+          memory: ProjectMemory.loadSync(ws.path).toPrompt(),
+        ),
+      );
+      final verdict = ReviewerVerdict.parse(structuredOutput(r));
+      if (verdict == null) {
+        throw const PlannerException('O revisor não devolveu um veredito.');
+      }
+      final head = await git.headSha();
+      await repo.insertAll([
+        ReviewCommentsCompanion.insert(
+          sessionId: Value(sessionId),
+          round: round,
+          author: 'revisor',
+          body: verdict.summary.isEmpty
+              ? (verdict.approve ? 'Aprovado.' : 'Correções pedidas.')
+              : verdict.summary,
+          verdict: Value(verdict.approve ? 'aprovar' : 'corrigir'),
+          commitSha: Value(head),
+        ),
+        for (final c in verdict.comments)
+          ReviewCommentsCompanion.insert(
+            sessionId: Value(sessionId),
+            round: round,
+            author: 'revisor',
+            path: Value(c.path),
+            line: Value(c.line),
+            body: c.text,
+            severity: Value(c.severity),
+            commitSha: Value(head),
+          ),
+      ]);
+    } catch (e) {
+      debugPrint('revisor do PR da sessão $sessionId: $e');
+      await repo.insertAll([
+        ReviewCommentsCompanion.insert(
+          sessionId: Value(sessionId),
+          round: round,
+          author: 'revisor',
+          body: '${AutoReviewer.failurePrefix}: $e',
+        ),
+      ]);
+    } finally {
+      _runningSessions.remove(sessionId);
+    }
+  }
+
+  /// `git diff <merge-base with base>` of a worktree (cut at [maxDiff]).
+  Future<String> _diffAgainst(GitService git, String base) async {
+    try {
+      final mb = (await git.git(['merge-base', base, 'HEAD'])).trim();
+      final d = await git.git([
+        'diff',
+        '--no-color',
+        '--no-ext-diff',
+        '--unified=3',
+        mb,
+      ]);
+      return d.length <= maxDiff
+          ? d
+          : '${d.substring(0, maxDiff)}\n…(diff cortado em $maxDiff caracteres)';
+    } on GitException catch (e) {
+      return '(diff indisponível: $e)';
+    }
   }
 
   /// "Pular revisor" (Review screen) / interrupted run: straight to the user.

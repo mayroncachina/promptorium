@@ -26,6 +26,7 @@ import '../../helpers/test_db.dart';
 const _spec = Spec(
   hasPlan: false,
   inTray: false,
+  kind: SpecKind.spec,
   id: 7,
   workspaceId: 1,
   code: 'SPEC-012',

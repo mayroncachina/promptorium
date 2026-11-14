@@ -28,20 +28,27 @@ class SpecException implements Exception {
 }
 
 /// Next `SPEC-NNN` of the workspace: 1 + the highest number found in the
-/// `specs` table or in `<workspace>/specs/SPEC-*`.
-Future<String> nextSpecCode(SpecsRepo repo, Workspace workspace) async {
-  var max = await repo.maxNumber(workspace.id);
+/// `specs` table or in `<workspace>/specs/SPEC-*`. [kind] vibe gives the
+/// next `VIBE-NNN`, from `docs/vibe/` (SPEC-069 R3): the series never meet.
+Future<String> nextSpecCode(
+  SpecsRepo repo,
+  Workspace workspace, {
+  SpecKind kind = SpecKind.spec,
+}) async {
+  var max = await repo.maxNumber(workspace.id, kind: kind);
+  final config = ProjectConfig.loadSync(workspace.path);
   final dir = Directory(
-    '${workspace.path}/${ProjectConfig.loadSync(workspace.path).specsDir}',
+    '${workspace.path}/${kind == SpecKind.vibe ? config.vibeDir : config.specsDir}',
   );
   if (await dir.exists()) {
+    final re = RegExp('^${kind.prefix}-(\\d+)');
     await for (final f in dir.list()) {
       final name = f.uri.pathSegments.where((s) => s.isNotEmpty).last;
-      final m = RegExp(r'^SPEC-(\d+)').firstMatch(name);
+      final m = re.firstMatch(name);
       if (m != null) max = math.max(max, int.parse(m.group(1)!));
     }
   }
-  return 'SPEC-${(max + 1).toString().padLeft(3, '0')}';
+  return '${kind.prefix}-${(max + 1).toString().padLeft(3, '0')}';
 }
 
 /// Spec files of a workspace (`specs/SPEC-*.md`) ↔ `specs` table.
@@ -88,50 +95,22 @@ class SpecService {
     final foundIssues = <String>[];
     _collecting = foundIssues;
     try {
-      final specsDir = ProjectConfig.loadSync(ws.path).specsDir;
-      final dir = Directory('${ws.path}/$specsDir');
-      if (!await dir.exists()) return;
-      final candidates = <String, List<({String rel, SpecDocument doc})>>{};
-      await for (final f in dir.list(followLinks: false)) {
-        if (f is! File || !f.path.toLowerCase().endsWith('.md')) continue;
-        final name = f.uri.pathSegments.last;
-        // Editor and atomic-save leftovers (`.#x.md`, `~x.md`) are not specs.
-        if (name.startsWith('.') || name.startsWith('~')) continue;
-        final rel = '$specsDir/$name';
-        try {
-          final text = await f.readAsString();
-          final doc = SpecDocument.parse(text);
-          final nameCode = specCodeFromFileName(name);
-          if (text.trimLeft().startsWith('---')) {
-            final match = RegExp(
-              r'^---\s*\r?\n([\s\S]*?)^---\s*$',
-              multiLine: true,
-            ).firstMatch(text);
-            if (match == null || loadYaml(match.group(1)!) is! YamlMap) {
-              if (nameCode != null) _issue('$rel: frontmatter inválido.');
-              continue;
-            }
-          }
-          final code = _codeOf(doc, name);
-          if (code == null) continue;
-          if (doc.id != null &&
-              (!RegExp(r'^SPEC-\d+$').hasMatch(doc.id!) ||
-                  (nameCode != null && doc.id != nameCode))) {
-            _issue('$rel: ID divergente ou inválido.');
-            continue;
-          }
-          if (doc.rawStatus != null && doc.status == null) {
-            _issue('$rel: status desconhecido (${doc.rawStatus}).');
-            continue;
-          }
-          candidates.putIfAbsent(code, () => []).add((rel: rel, doc: doc));
-        } on YamlException {
-          _issue('$rel: YAML inválido.');
-        } on FileSystemException {
-          _issue('$rel: não foi possível ler o arquivo.');
-        } on FormatException {
-          _issue('$rel: conteúdo inválido; use Markdown em UTF-8.');
-        }
+      final config = ProjectConfig.loadSync(ws.path);
+      // SPEC-069 R3: the VIBEs are read like the specs, from their folder.
+      final folders = <(String, SpecKind)>[
+        (config.specsDir, SpecKind.spec),
+        if (config.vibeDir != config.specsDir) (config.vibeDir, SpecKind.vibe),
+      ];
+      final candidates =
+          <String, List<({String rel, SpecDocument doc, SpecKind kind})>>{};
+      for (final (folder, kind) in folders) {
+        final dir = Directory('${ws.path}/$folder');
+        if (!await dir.exists()) continue;
+        await _collect(dir, folder, kind, candidates);
+      }
+      if (candidates.isEmpty &&
+          !await Directory('${ws.path}/${config.specsDir}').exists()) {
+        return;
       }
       final codes = candidates.keys.toList()..sort();
       // SPEC-068 R7: a new spec waits in the Bandeja, except on the first
@@ -147,10 +126,16 @@ class SpecService {
           continue;
         }
         final file = entry.value.single;
-        await _upsert(ws, code: entry.key, rel: file.rel, doc: file.doc);
+        await _upsert(
+          ws,
+          code: entry.key,
+          rel: file.rel,
+          doc: file.doc,
+          kind: file.kind,
+        );
       }
       for (final spec in await _repo.watchByWorkspace(ws.id).first) {
-        if (!await File('${ws.path}/${spec.path}').exists()) {
+        if (!_fileFor(ws, spec).existsSync()) {
           _issue('${spec.code}: arquivo ausente (${spec.path}).');
         }
       }
@@ -159,6 +144,60 @@ class SpecService {
       issues[ws.id] = List.unmodifiable(foundIssues);
       _collecting = null;
       onIssues?.call(ws.id, issues[ws.id]!);
+    }
+  }
+
+  Future<void> _collect(
+    Directory dir,
+    String folder,
+    SpecKind kind,
+    Map<String, List<({String rel, SpecDocument doc, SpecKind kind})>>
+    candidates,
+  ) async {
+    await for (final f in dir.list(followLinks: false)) {
+      if (f is! File || !f.path.toLowerCase().endsWith('.md')) continue;
+      final name = f.uri.pathSegments.last;
+      // Editor and atomic-save leftovers (`.#x.md`, `~x.md`) are not specs.
+      if (name.startsWith('.') || name.startsWith('~')) continue;
+      final rel = '$folder/$name';
+      try {
+        final text = await f.readAsString();
+        final doc = SpecDocument.parse(text);
+        final nameCode = specCodeFromFileName(name, kind: kind);
+        if (text.trimLeft().startsWith('---')) {
+          final match = RegExp(
+            r'^---\s*\r?\n([\s\S]*?)^---\s*$',
+            multiLine: true,
+          ).firstMatch(text);
+          if (match == null || loadYaml(match.group(1)!) is! YamlMap) {
+            if (nameCode != null) _issue('$rel: frontmatter inválido.');
+            continue;
+          }
+        }
+        final code = _codeOf(doc, name, kind);
+        if (code == null) continue;
+        if (doc.id != null &&
+            (!RegExp('^${kind.prefix}-\\d+\$').hasMatch(doc.id!) ||
+                (nameCode != null && doc.id != nameCode))) {
+          _issue('$rel: ID divergente ou inválido.');
+          continue;
+        }
+        if (doc.rawStatus != null && doc.status == null) {
+          _issue('$rel: status desconhecido (${doc.rawStatus}).');
+          continue;
+        }
+        candidates.putIfAbsent(code, () => []).add((
+          rel: rel,
+          doc: doc,
+          kind: kind,
+        ));
+      } on YamlException {
+        _issue('$rel: YAML inválido.');
+      } on FileSystemException {
+        _issue('$rel: não foi possível ler o arquivo.');
+      } on FormatException {
+        _issue('$rel: conteúdo inválido; use Markdown em UTF-8.');
+      }
     }
   }
 
@@ -172,10 +211,12 @@ class SpecService {
     return sessions.any((s) => !s.status.isTerminal);
   }
 
-  static String? _codeOf(SpecDocument doc, String fileName) {
+  static String? _codeOf(SpecDocument doc, String fileName, SpecKind kind) {
     final id = doc.id;
-    if (id != null && RegExp(r'^SPEC-\d+$').hasMatch(id)) return id;
-    return specCodeFromFileName(fileName);
+    if (id != null && RegExp('^${kind.prefix}-\\d+\$').hasMatch(id)) {
+      return id;
+    }
+    return specCodeFromFileName(fileName, kind: kind);
   }
 
   Future<Spec> _upsert(
@@ -183,8 +224,11 @@ class SpecService {
     required String code,
     required String rel,
     required SpecDocument doc,
+    SpecKind? kind,
   }) async {
     final title = doc.title ?? code;
+    // The folder decides the series; the frontmatter `kind` follows it.
+    final k = kind ?? SpecKind.ofCode(code) ?? doc.kind;
     final reqs = doc.requirements;
     final existing = await _repo.getByCode(ws.id, code);
     if (existing == null) {
@@ -199,6 +243,8 @@ class SpecService {
         phase: doc.phase,
         hasPlan: doc.design != null,
         inTray: !_firstReading,
+        kind: k,
+        agentSession: doc.agentSession,
       );
     }
     var status = doc.status ?? existing.status;
@@ -234,7 +280,8 @@ class SpecService {
           SpecStatus.idea,
         }.contains(existing.status) &&
         stage == SpecStage.backlog &&
-        !existing.inTray;
+        !existing.inTray &&
+        k == SpecKind.spec;
     if (existing.title != title ||
         existing.path != rel ||
         existing.status != status ||
@@ -243,6 +290,8 @@ class SpecService {
         existing.hasPlan != (doc.design != null) ||
         !_sameReqs(existing.requirements, reqs) ||
         existing.dependsOn.join(',') != deps.join(',') ||
+        existing.kind != k ||
+        existing.agentSession != doc.agentSession ||
         toTray) {
       await _repo.update(
         existing.id,
@@ -256,6 +305,8 @@ class SpecService {
           requirements: Value(reqs),
           dependsOn: Value(deps),
           hasPlan: Value(doc.design != null),
+          kind: Value(k),
+          agentSession: Value(doc.agentSession),
         ),
       );
     }
@@ -297,7 +348,18 @@ class SpecService {
     if (!isSafeSpecPath(spec.path)) {
       throw SpecException('Caminho de spec inválido: ${spec.path}');
     }
-    return File('${ws.path}/${spec.path}');
+    return _fileFor(ws, spec);
+  }
+
+  /// The file of [spec]: in the workspace, or, before the merge, in its
+  /// worktree. A VIBE (and the spec it becomes, SPEC-069 R3, R8) is written
+  /// in its own worktree and reaches the workspace only with the merge.
+  static File _fileFor(Workspace ws, Spec spec) {
+    final root = File('${ws.path}/${spec.path}');
+    final wt = spec.worktreePath;
+    if (root.existsSync() || wt == null) return root;
+    final own = File('$wt/${spec.path}');
+    return own.existsSync() ? own : root;
   }
 
   /// File text (null when the file does not exist).
@@ -346,11 +408,37 @@ class SpecService {
 
   /// "Nova spec": `specs/SPEC-NNN-<slug>.md` with [body], or the text
   /// [render] builds for the new code (default template).
+  ///
+  /// [agentSession]: a spec the agent created through the Promptorium MCP
+  /// (SPEC-052 R6): `origem: agente` and `sessao: <id>` in the frontmatter,
+  /// written after the queued syncs (two calls never race on a number).
   Future<Spec> create(
     Workspace ws, {
     required String title,
     String? body,
     String Function(String code)? render,
+    String? agentSession,
+  }) {
+    if (agentSession == null) {
+      return _create(ws, title: title, body: body, render: render);
+    }
+    return _serial(
+      () => _create(
+        ws,
+        title: title,
+        body: body,
+        render: render,
+        agentSession: agentSession,
+      ),
+    );
+  }
+
+  Future<Spec> _create(
+    Workspace ws, {
+    required String title,
+    String? body,
+    String Function(String code)? render,
+    String? agentSession,
   }) async {
     final t = title.trim();
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
@@ -367,8 +455,13 @@ class SpecService {
     } on FileSystemException {
       throw SpecException('O arquivo $rel já existe.');
     }
-    final text =
+    var text =
         body ?? render?.call(code) ?? newSpecMarkdown(code: code, title: t);
+    if (agentSession != null) {
+      text = SpecDocument.parse(text).withMeta(
+        fields: {specOriginKey: specOriginAgent, specSessionKey: agentSession},
+      );
+    }
     try {
       await file.writeAsString(text);
     } on FileSystemException {
@@ -390,6 +483,7 @@ class SpecService {
       phase: doc.phase,
       hasPlan: doc.design != null,
       inTray: true,
+      agentSession: doc.agentSession,
     );
   }
 

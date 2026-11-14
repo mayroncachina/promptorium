@@ -66,6 +66,7 @@ class AgentStartOptions {
     this.agentsJson,
     this.mcpAllowedTools = const [],
     this.mcpDisallowedTools = const [],
+    this.appAllowedTools = const [],
   });
 
   final String workingDirectory;
@@ -105,6 +106,10 @@ class AgentStartOptions {
 
   /// MCP tools marked "Bloqueado" (always applied).
   final List<String> mcpDisallowedTools;
+
+  /// Read tools of the app's own MCP server (SPEC-052 R3): allowed in every
+  /// mode, read-only ones included, because they never write.
+  final List<String> appAllowedTools;
 }
 
 /// One running agent process (a conversation turn loop).

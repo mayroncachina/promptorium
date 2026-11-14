@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/claude_cli.dart';
 import '../../core/git/git_service.dart';
+import '../../core/mcp/app_mcp_config.dart';
 import '../../core/process/orphans.dart';
 import '../../core/process/process_runner.dart';
 import '../../data/providers.dart';
@@ -212,6 +213,19 @@ class RestoreSessionsStep extends StartupStep {
           "UPDATE specs SET review_phase = 'human' "
           "WHERE review_phase = 'auto' AND stage = 'review'",
         );
+    // SPEC-052 R1: the MCP server listens while the app is open (when on).
+    final mcp = ctx.ref.read(appMcpServerProvider);
+    if (mcp != null && appMcpEnabled(ctx.ref.read(appSettingsProvider))) {
+      unawaited(
+        ctx.ref
+            .read(appMcpPurgeProvider.future)
+            .then((_) => mcp.start())
+            .then(
+              (_) {},
+              onError: (Object e) => debugPrint('servidor MCP não subiu — $e'),
+            ),
+      );
+    }
     unawaited(
       ctx.ref.read(autopilotProvider.notifier).restore().catchError((Object e) {
         debugPrint('autopilot não retomado — $e');
