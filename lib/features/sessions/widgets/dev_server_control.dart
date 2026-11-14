@@ -84,55 +84,59 @@ class DevServerControl extends ConsumerWidget {
       port: dev.port,
       environment: dev.environment,
     );
+    // SmallButton fills the width a Wrap offers: each one keeps its own.
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        pill,
-        ...switch (s.status) {
-          DevServerStatus.stopped => [
-            SmallButton(
-              key: const ValueKey('dev-start'),
-              label: 'Iniciar servidor',
-              icon: Icons.play_arrow,
-              color: AppColors.teal,
-              onTap: start,
-            ),
-          ],
-          DevServerStatus.starting => [
-            SmallButton(
-              key: const ValueKey('dev-stop'),
-              label: 'Parar',
-              onTap: s.stop,
-            ),
-          ],
-          DevServerStatus.running => [
-            SmallButton(
-              key: const ValueKey('dev-open-preview'),
-              label: 'Abrir preview',
-              onTap: () => onOpenPreview == null
-                  ? s.url == null
-                        ? null
-                        : openUrl(s.url!)
-                  : onOpenPreview!(s),
-            ),
-            ...extra,
-            SmallButton(
-              key: const ValueKey('dev-stop'),
-              label: s.external ? 'Esquecer' : 'Parar servidor',
-              onTap: s.stop,
-            ),
-          ],
-          DevServerStatus.failed => [
-            SmallButton(
-              key: const ValueKey('dev-show-logs'),
-              label: 'Ver logs',
-              onTap: onShowLogs,
-            ),
-          ],
-        },
+        for (final w in [pill, ...buttons(s, start)]) IntrinsicWidth(child: w),
       ],
     );
   }
+
+  List<Widget> buttons(DevServer s, VoidCallback start) => [
+    ...switch (s.status) {
+      DevServerStatus.stopped => [
+        SmallButton(
+          key: const ValueKey('dev-start'),
+          label: 'Iniciar servidor',
+          icon: Icons.play_arrow,
+          color: AppColors.teal,
+          onTap: start,
+        ),
+      ],
+      DevServerStatus.starting => [
+        SmallButton(
+          key: const ValueKey('dev-stop'),
+          label: 'Parar',
+          onTap: s.stop,
+        ),
+      ],
+      DevServerStatus.running => [
+        SmallButton(
+          key: const ValueKey('dev-open-preview'),
+          label: 'Abrir preview',
+          onTap: () => onOpenPreview == null
+              ? s.url == null
+                    ? null
+                    : openUrl(s.url!)
+              : onOpenPreview!(s),
+        ),
+        ...extra,
+        SmallButton(
+          key: const ValueKey('dev-stop'),
+          label: s.external ? 'Esquecer' : 'Parar servidor',
+          onTap: s.stop,
+        ),
+      ],
+      DevServerStatus.failed => [
+        SmallButton(
+          key: const ValueKey('dev-show-logs'),
+          label: 'Ver logs',
+          onTap: onShowLogs,
+        ),
+      ],
+    },
+  ];
 }

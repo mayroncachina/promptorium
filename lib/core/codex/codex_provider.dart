@@ -329,6 +329,16 @@ class CodexRun implements ManagedAgentRun {
     });
   }
 
+  /// The selected model takes images (the `image` modality); else the
+  /// app sends pictures as files (SPEC-051 R8).
+  bool get supportsImages =>
+      _models
+          .where((m) => m.id == options.model)
+          .firstOrNull
+          ?.modalities
+          .contains('image') ??
+      false;
+
   @override
   Future<void> send(String text, {List<ImagePart> images = const []}) async {
     if (_busy) {

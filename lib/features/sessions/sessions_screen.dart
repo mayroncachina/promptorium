@@ -9,6 +9,7 @@ import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
+import 'preview_reload.dart';
 import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
@@ -387,6 +388,16 @@ class _SessionMain extends ConsumerWidget {
             provider: s.provider,
             permissionMode: s.permissionMode,
             root: s.worktreePath,
+            onPointAnother: dev == null
+                ? null
+                : () => pointElement(ref, context, sessionId: s.id, dev: dev),
+            onSentWithElements: dev == null
+                ? null
+                : () => watchPreviewReload(
+                    ProviderScope.containerOf(context, listen: false),
+                    s.id,
+                    dev.worktree,
+                  ),
             canSend: () =>
                 ref.read(sessionTerminalsProvider.notifier).isRunning(s.id)
                 ? 'Feche o terminal interativo desta sessão antes de enviar.'
@@ -575,82 +586,86 @@ class _Header extends ConsumerWidget {
               alignment: WrapAlignment.end,
               spacing: 6,
               runSpacing: 6,
+              // SmallButton fills the width a Wrap offers: each keeps its own.
               children: [
-                if (dev != null)
-                  DevServerControl(
-                    key: ValueKey('session-dev-${s.id}'),
-                    dev: dev,
-                    onShowLogs: () => ref
-                        .read(sessionTabProvider(s.id).notifier)
-                        .set(SessionTab.preview),
-                    onOpenPreview: (server) =>
-                        openPreviewWindow(ref, context, server),
-                    extra: [
-                      PointButton(
-                        sessionId: s.id,
-                        dev: dev,
-                        onPicked: () => ref
-                            .read(sessionTabProvider(s.id).notifier)
-                            .set(SessionTab.timeline),
-                      ),
-                    ],
-                  ),
-                SmallButton(
-                  key: const ValueKey('session-open-terminal'),
-                  label: 'Abrir terminal',
-                  onTap: () {
-                    ref
-                        .read(sessionTabProvider(s.id).notifier)
-                        .set(SessionTab.terminal);
-                    if (!alive) {
-                      ref.read(sessionTerminalsProvider.notifier).open(s);
-                    }
-                  },
-                ),
-                SmallButton(
-                  key: const ValueKey('session-fork'),
-                  label: 'Fork',
-                  onTap: () => showForkDialog(context, s),
-                ),
-                if (previewPort != null)
+                for (final w in <Widget>[
+                  if (dev != null)
+                    DevServerControl(
+                      key: ValueKey('session-dev-${s.id}'),
+                      dev: dev,
+                      onShowLogs: () => ref
+                          .read(sessionTabProvider(s.id).notifier)
+                          .set(SessionTab.preview),
+                      onOpenPreview: (server) =>
+                          openPreviewWindow(ref, context, server),
+                      extra: [
+                        PointButton(
+                          sessionId: s.id,
+                          dev: dev,
+                          onPicked: () => ref
+                              .read(sessionTabProvider(s.id).notifier)
+                              .set(SessionTab.timeline),
+                        ),
+                      ],
+                    ),
                   SmallButton(
-                    key: ValueKey('session-preview-${s.id}'),
-                    label: 'Abrir preview :$previewPort',
-                    onTap: () => openPreview(previewPort),
-                  ),
-                if (pane == 'B')
-                  SmallButton(
-                    key: const ValueKey('session-pane-close'),
-                    label: '×',
-                    onTap: () =>
-                        ref.read(splitSessionProvider.notifier).set(null),
-                  ),
-                if (canResume)
-                  SmallButton(
-                    key: const ValueKey('session-resume'),
-                    label: 'Retomar',
-                    color: AppColors.teal,
-                    onTap: () async {
-                      try {
-                        if (s.status == SessionStatus.interrupted ||
-                            s.status == SessionStatus.failed) {
-                          await manager.send(s.id, 'Continue de onde parou.');
-                        } else {
-                          await manager.resume(s.id);
-                        }
-                      } catch (e) {
-                        if (context.mounted) _snack(context, e);
+                    key: const ValueKey('session-open-terminal'),
+                    label: 'Abrir terminal',
+                    onTap: () {
+                      ref
+                          .read(sessionTabProvider(s.id).notifier)
+                          .set(SessionTab.terminal);
+                      if (!alive) {
+                        ref.read(sessionTerminalsProvider.notifier).open(s);
                       }
                     },
-                  )
-                else
-                  SmallButton(
-                    key: const ValueKey('session-stop'),
-                    label: 'Parar',
-                    color: AppColors.red,
-                    border: SessionColors.stopBorder,
-                    onTap: () => manager.stop(s.id),
                   ),
+                  SmallButton(
+                    key: const ValueKey('session-fork'),
+                    label: 'Fork',
+                    onTap: () => showForkDialog(context, s),
+                  ),
+                  if (previewPort != null)
+                    SmallButton(
+                      key: ValueKey('session-preview-${s.id}'),
+                      label: 'Abrir preview :$previewPort',
+                      onTap: () => openPreview(previewPort),
+                    ),
+                  if (pane == 'B')
+                    SmallButton(
+                      key: const ValueKey('session-pane-close'),
+                      label: '×',
+                      onTap: () =>
+                          ref.read(splitSessionProvider.notifier).set(null),
+                    ),
+                  if (canResume)
+                    SmallButton(
+                      key: const ValueKey('session-resume'),
+                      label: 'Retomar',
+                      color: AppColors.teal,
+                      onTap: () async {
+                        try {
+                          if (s.status == SessionStatus.interrupted ||
+                              s.status == SessionStatus.failed) {
+                            await manager.send(s.id, 'Continue de onde parou.');
+                          } else {
+                            await manager.resume(s.id);
+                          }
+                        } catch (e) {
+                          if (context.mounted) _snack(context, e);
+                        }
+                      },
+                    )
+                  else
+                    SmallButton(
+                      key: const ValueKey('session-stop'),
+                      label: 'Parar',
+                      color: AppColors.red,
+                      border: SessionColors.stopBorder,
+                      onTap: () => manager.stop(s.id),
+                    ),
+                ])
+                  IntrinsicWidth(child: w),
               ],
             ),
           ),

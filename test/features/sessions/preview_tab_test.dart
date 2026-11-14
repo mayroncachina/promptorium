@@ -114,7 +114,12 @@ void main() {
     expect(text(tester, 'preview-state'), 'Parado');
 
     await tester.tap(find.byKey(const ValueKey('dev-start')));
-    await settle(tester);
+    await settleUntil(
+      tester,
+      () =>
+          find.text('Iniciando… :4003').evaluate().isNotEmpty &&
+          r.of(dev.worktree).pid != null,
+    );
     expect(find.text('Iniciando… :4003'), findsOneWidget);
     expect(find.byKey(const ValueKey('dev-stop')), findsOneWidget);
     expect(text(tester, 'preview-process'), 'PID 48211 · grupo 48211');
@@ -306,7 +311,18 @@ void main() {
       ),
     );
     r.of(dev.worktree).useRunning(4003);
-    await settle(tester);
+    Tooltip tooltip() => tester.widget<Tooltip>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('dev-point')),
+        matching: find.byType(Tooltip),
+      ),
+    );
+    await settleUntil(
+      tester,
+      () =>
+          find.byKey(const ValueKey('dev-point')).evaluate().isNotEmpty &&
+          tooltip().message == previewInstallHint,
+    );
     expect(find.text('No ar :4003'), findsOneWidget);
     expect(find.text('Abrir preview'), findsOneWidget);
     expect(find.text('Apontar'), findsOneWidget);
@@ -320,7 +336,7 @@ void main() {
     expect(tip.message, previewInstallHint);
 
     await tester.tap(find.byKey(const ValueKey('dev-open-preview')));
-    await settle(tester);
+    await settleUntil(tester, () => opened.isNotEmpty);
     expect(opened, [Uri.parse('http://localhost:4003/')]);
   });
 

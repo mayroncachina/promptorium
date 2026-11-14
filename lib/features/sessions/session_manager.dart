@@ -10,6 +10,7 @@ import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_cli.dart';
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_process.dart';
+import '../../core/codex/codex_provider.dart' show CodexRun;
 import '../../core/claude/managed_hooks.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
@@ -389,7 +390,11 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   /// Sends a user message; resumes the session (`--resume`, same worktree)
   /// when it has no live process.
-  Future<void> send(String id, String text) async {
+  Future<void> send(
+    String id,
+    String text, {
+    List<ImagePart> images = const [],
+  }) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
     final notices = await _takeNotices(id);
@@ -419,7 +424,16 @@ class SessionManager extends Notifier<SessionManagerState> {
     proc.busySince = DateTime.now();
     proc.lastActivity = DateTime.now();
     _publish();
-    await proc.process.send(msg);
+    await proc.process.send(msg, images: images);
+  }
+
+  /// Whether a message with images can go to the live process of [id] as
+  /// images: a Codex model without the `image` modality cannot (SPEC-051
+  /// R8). No live process = unknown (false).
+  bool acceptsImages(String id) {
+    final p = _procs[id]?.process;
+    if (p == null) return false;
+    return p is! CodexRun || p.supportsImages;
   }
 
   /// Line of the app in the session's timeline (gate results, hooks…).
