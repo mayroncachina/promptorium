@@ -1,6 +1,6 @@
 ---
 id: SPEC-051
-status: proposta
+status: aprovada
 depende-de: SPEC-022
 issue: 126
 ---
@@ -119,19 +119,19 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/JuYPGhSJ1qxkPKxMkAa
 
 ## Critérios de aceite
 
-- [ ] `dev:` é lido na forma curta e na longa, e sem a chave o botão de hoje não muda [R1] verificar: flutter test test/features/project/project_config_test.dart
-- [ ] O servidor passa por parado, iniciando, no ar e falhou, com a condição `pronto` de porta e de texto no log [R2] verificar: flutter test test/core/dev/dev_server_test.dart
-- [ ] Porta ocupada por outro processo não sobe nada, mostra PID e comando e nunca mata o processo [R3] verificar: flutter test test/core/dev/dev_server_test.dart
-- [ ] A aba Preview mostra estado, logs com limite de 2.000 linhas e manda o erro para a sessão [R4] verificar: flutter test test/features/sessions/preview_tab_test.dart
-- [ ] Parar mata o grupo inteiro, inclusive os filhos do comando [R5] verificar: flutter test test/core/dev/dev_server_test.dart
-- [ ] Os registros de uma execução que caiu são encontrados ao abrir e podem ser encerrados [R5] verificar: flutter test test/core/dev/dev_server_test.dart
-- [ ] O Chromium do preview abre com perfil próprio e CDP só em 127.0.0.1, e um segundo clique reaproveita a janela [R6, R10] verificar: flutter test test/core/dev/preview_browser_test.dart
-- [ ] O seletor gerado é único na página e o clique é capturado sem chegar à página [R7] verificar: flutter test test/core/dev/picker_script_test.dart
-- [ ] O pedido sai com o texto do elemento e os PNGs, e no Codex sem imagem vai como arquivos [R8] verificar: flutter test test/features/sessions/composer_test.dart
-- [ ] Sem Chrome nem Chromium, Abrir preview usa o xdg-open e Apontar fica desligado com o motivo [R9] verificar: flutter test test/core/dev/preview_browser_test.dart
+- [x] `dev:` é lido na forma curta e na longa, e sem a chave o botão de hoje não muda [R1] verificar: flutter test test/features/project/project_config_test.dart
+- [x] O servidor passa por parado, iniciando, no ar e falhou, com a condição `pronto` de porta e de texto no log [R2] verificar: flutter test test/core/dev/dev_server_test.dart
+- [x] Porta ocupada por outro processo não sobe nada, mostra PID e comando e nunca mata o processo [R3] verificar: flutter test test/core/dev/dev_server_test.dart
+- [x] A aba Preview mostra estado, logs com limite de 2.000 linhas e manda o erro para a sessão [R4] verificar: flutter test test/features/sessions/preview_tab_test.dart
+- [x] Parar mata o grupo inteiro, inclusive os filhos do comando [R5] verificar: flutter test test/core/dev/dev_server_test.dart
+- [x] Os registros de uma execução que caiu são encontrados ao abrir e podem ser encerrados [R5] verificar: flutter test test/core/dev/dev_server_test.dart
+- [x] O Chromium do preview abre com perfil próprio e CDP só em 127.0.0.1, e um segundo clique reaproveita a janela [R6, R10] verificar: flutter test test/core/dev/preview_browser_test.dart
+- [x] O seletor gerado é único na página e o clique é capturado sem chegar à página [R7] verificar: flutter test test/core/dev/picker_script_test.dart
+- [x] O pedido sai com o texto do elemento e os PNGs, e no Codex sem imagem vai como arquivos [R8] verificar: flutter test test/features/sessions/composer_test.dart
+- [x] Sem Chrome nem Chromium, Abrir preview usa o xdg-open e Apontar fica desligado com o motivo [R9] verificar: flutter test test/core/dev/preview_browser_test.dart
 - [ ] Um app Vite de exemplo sobe, um botão é apontado, o agente o muda e o preview mostra a mudança [R1–R8, R11] verificar: manual (projeto de teste com `dev: npm run dev -- --port $PROMPTORIUM_PORT`)
-- [ ] Fechar o app com dois servidores no ar não deixa processo na porta [R5] verificar: manual (`ss -ltnp` depois de fechar)
-- [ ] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
+- [x] Fechar o app com dois servidores no ar não deixa processo na porta [R5] verificar: manual (`ss -ltnp` depois de fechar)
+- [x] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
 
 ## Decisões
 
