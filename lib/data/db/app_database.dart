@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 24;
+const appSchemaVersion = 25;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -210,6 +210,11 @@ class Specs extends Table {
   /// and only "Levar para o Backlog" puts it on the Quadro. False for every
   /// spec that already existed (they stay where they were).
   BoolColumn get inTray => boolean().withDefault(const Constant(false))();
+
+  // --- created by the agent (SPEC-052 R6, schema v25) ------------------------
+  /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
+  /// created through the Promptorium MCP); null for the others.
+  TextColumn get agentSession => text().nullable()();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -726,6 +731,24 @@ class SpecDrafts extends Table {
   Set<Column> get primaryKey => {workspaceId};
 }
 
+/// Progress notes the agent wrote through the Promptorium MCP
+/// (`anotar_andamento`, SPEC-052 R7, schema v25): the newest shows on the
+/// card of the Quadro, all of them in the history of the spec. They never
+/// conclude a step.
+class SpecNotes extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get specId =>
+      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// Session (or Claude session of a conversation) that wrote it.
+  TextColumn get sessionId => text().nullable()();
+
+  /// Steps of the session when it wrote (`R3`, `R2,R3`).
+  TextColumn get steps => text().nullable()();
+  TextColumn get note => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -761,6 +784,7 @@ class AppSettings extends Table {
     Notifications,
     SpecDuels,
     StepRuns,
+    SpecNotes,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1087,6 +1111,19 @@ class AppDatabase extends _$AppDatabase {
               if (!await _hasColumn('specs', c.name)) {
                 await m.addColumn(v.specs, c);
               }
+            }
+          },
+          // v25: progress notes of the agent (SPEC-052 R7) and the origin of the
+          // specs it creates (R6).
+          from24To25: (m, v) async {
+            if (!await _hasTable('spec_notes')) {
+              await m.createTable(v.specNotes);
+            }
+            // And the session of a spec created by the agent (R6), filled by
+            // the next reading of the files.
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'agent_session')) {
+              await m.addColumn(v.specs, v.specs.agentSession);
             }
           },
         ),

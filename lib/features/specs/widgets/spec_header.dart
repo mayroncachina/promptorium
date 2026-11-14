@@ -8,6 +8,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart' show plannedLabel, specStatusLabel;
+import 'agent_origin.dart' show AgentCreatedChip;
 import 'spec_action_banner.dart' show ActionSpinner;
 
 /// Editor modes of the spec (SPEC-024 R2) and the prototype of the screens
@@ -454,6 +455,7 @@ class SpecHeader extends StatelessWidget {
     this.statusLabel,
     this.lockAlert = false,
     this.planned = false,
+    this.agentCreated = false,
   });
 
   final String title;
@@ -486,6 +488,9 @@ class SpecHeader extends StatelessWidget {
   /// "Planejada" (SPEC-062 R3).
   final bool planned;
 
+  /// "Criada pelo agente" next to the status (SPEC-052 R6).
+  final bool agentCreated;
+
   @override
   Widget build(BuildContext context) {
     final identity = Column(
@@ -493,16 +498,27 @@ class SpecHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (path != null)
-          Text(
-            path!,
-            key: const ValueKey('spec-path'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: AppFonts.mono,
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  path!,
+                  key: const ValueKey('spec-path'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              // SPEC-052 R6: on the path line, so the title keeps its width.
+              if (agentCreated) ...[
+                const SizedBox(width: 8),
+                const AgentCreatedChip(key: ValueKey('spec-agent-chip')),
+              ],
+            ],
           ),
         const SizedBox(height: 3),
         Row(

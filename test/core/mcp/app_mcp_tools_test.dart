@@ -211,6 +211,7 @@ void main() {
           .getByCode(ws.id, 'SPEC-004'))!;
       expect(spec.status, SpecStatus.draft);
       expect(spec.dependsOn, ['SPEC-002']);
+      expect(spec.agentSession, 'sessao-1');
       final text = File('${root.path}/${spec.path}').readAsStringSync();
       final doc = SpecDocument.parse(text);
       expect(doc.id, 'SPEC-004');

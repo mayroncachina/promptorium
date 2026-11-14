@@ -6,6 +6,7 @@ import '../../../ui/widgets/app_pressable.dart';
 import '../../board/board_rules.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
+import 'agent_origin.dart' show AgentCreatedChip;
 
 /// Status colors of the mockup (Aprovada teal, Em revisão amber, …).
 Color specStatusColor(SpecStatus s) => switch (s) {
@@ -181,12 +182,32 @@ class SpecList extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    specStepsMeta(s, stepRows),
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          specStepsMeta(s, stepRows),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                      // SPEC-052 R6.
+                                      if (s.agentSession != null) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: AgentCreatedChip(
+                                            key: ValueKey(
+                                              'spec-item-agent-${s.code}',
+                                            ),
+                                            small: true,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),

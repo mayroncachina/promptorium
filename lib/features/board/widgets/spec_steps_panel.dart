@@ -18,6 +18,7 @@ import '../board_screen.dart';
 import 'run_spec_dialog.dart';
 import 'step_decision_dialog.dart';
 import 'step_status_motion.dart';
+import 'spec_notes.dart';
 
 final _specProvider = StreamProvider.family<Spec?, int>(
   (ref, id) => ref.watch(specsRepoProvider).watchById(id),
@@ -347,6 +348,8 @@ class SpecStepsPanel extends ConsumerWidget {
             );
           },
         ),
+        // SPEC-052 R7: the history of the agent's progress notes.
+        SpecNotesHistory(spec: spec),
         const SizedBox(height: 12),
         Material(
           color: Colors.transparent,

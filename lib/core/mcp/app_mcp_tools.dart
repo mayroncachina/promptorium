@@ -285,6 +285,7 @@ class AppMcpTools implements McpToolbox {
       AppMcpToolNames.currentSpec => _currentSpec(ws, grant),
       AppMcpToolNames.createSpec => _createSpec(ws, grant, args),
       AppMcpToolNames.createChildren => _createChildren(ws, grant, args),
+      AppMcpToolNames.note => _note(ws, grant, args),
       _ => Future.value(
         McpToolOutcome.error('A ferramenta $tool ainda não responde.'),
       ),
@@ -641,6 +642,52 @@ class AppMcpTools implements McpToolbox {
         'filhas': [for (final m in made) _createdJson(m.spec, m.text, known)],
       },
       created: made.length,
+    );
+  }
+
+  // --- progress note (R7) ----------------------------------------------------
+
+  /// `anotar_andamento`: a short note on the spec of the run. It goes to
+  /// `spec_notes` only: no step, status or file changes.
+  Future<McpToolOutcome> _note(
+    Workspace ws,
+    McpGrant grant,
+    Map<String, Object?> args,
+  ) async {
+    final text = '${args['nota'] ?? ''}'.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (text.isEmpty) return const McpToolOutcome.error('A nota está vazia.');
+    if (text.length > maxNoteLength) {
+      return McpToolOutcome.error(
+        'A nota tem ${text.length} caracteres; o limite é $maxNoteLength. '
+        'Nada foi gravado.',
+      );
+    }
+    final session = grant.conversationId != null
+        ? null
+        : await _ref.read(sessionsRepoProvider).getById(grant.sessionId);
+    final spec = session?.specId == null
+        ? null
+        : await _ref.read(specsRepoProvider).getById(session!.specId!);
+    if (spec == null || spec.workspaceId != ws.id) {
+      return const McpToolOutcome.error(
+        'Esta execução não trabalha numa spec: anotar_andamento só vale numa '
+        'sessão de etapa do Quadro.',
+      );
+    }
+    final note = await _ref
+        .read(specNotesRepoProvider)
+        .add(
+          specId: spec.id,
+          note: text,
+          sessionId: grant.sessionId,
+          steps: session!.steps,
+        );
+    return McpToolOutcome(
+      'Nota gravada em ${spec.code}'
+      '${session.steps == null ? '' : ' (${session.steps})'}. Ela aparece no '
+      'card do Quadro e não conclui a etapa: isso continua com o marcador '
+      'ETAPA CONCLUÍDA e o gate.',
+      data: {'spec': spec.code, 'nota': note.id},
     );
   }
 }
