@@ -289,6 +289,11 @@ class ImportedPr {
   }
 }
 
+/// The reply left in a PR conversation the agent fixed (SPEC-050 R8).
+String prReplyBody(String sha) =>
+    'Corrigido em ${sha.length > 7 ? sha.substring(0, 7) : sha} '
+    '(Promptorium).';
+
 /// `refs/promptorium/pr/<n>`: where the head of a PR is fetched to.
 String prLocalRef(int number) => 'refs/promptorium/pr/$number';
 
