@@ -982,6 +982,12 @@ class SpecSubagent {
   };
 }
 
+/// Frontmatter keys of a spec the agent created through the Promptorium
+/// MCP (SPEC-052 R6): `origem: agente` and the session id.
+const specOriginKey = 'origem';
+const specSessionKey = 'sessao';
+const specOriginAgent = 'agente';
+
 /// Frontmatter key of the spec dependencies.
 const dependsOnKey = 'depende-de';
 

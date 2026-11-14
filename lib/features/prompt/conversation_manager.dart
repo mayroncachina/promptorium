@@ -286,6 +286,11 @@ class ConversationManager extends Notifier<ConversationManagerState> {
 
   bool isAlive(int id) => _runs.containsKey(id);
 
+  /// Line of the app in the conversation (what the agent created through
+  /// the Promptorium MCP, SPEC-052 R8).
+  Future<void> note(int id, String text, {bool error = false}) =>
+      _note(id, text, error: error);
+
   // --- lifecycle -------------------------------------------------------------
 
   Future<_Run> _ensureStarted(Conversation conv) {

@@ -120,9 +120,20 @@ class McpToolDef {
 /// What a tool call returns to the agent.
 @immutable
 class McpToolOutcome {
-  const McpToolOutcome(this.text, {this.error = false, this.data});
+  const McpToolOutcome(
+    this.text, {
+    this.error = false,
+    this.data,
+    this.created = 0,
+  });
 
-  const McpToolOutcome.error(this.text) : error = true, data = null;
+  const McpToolOutcome.error(this.text)
+    : error = true,
+      data = null,
+      created = 0;
+
+  /// Specs written by the call (R9: the server counts them in the grant).
+  final int created;
 
   final String text;
 
@@ -398,7 +409,9 @@ class AppMcpServer extends ChangeNotifier {
       return await serialWrite(() async {
         final g = _grants[grant.token];
         if (g == null) return const McpToolOutcome.error('Token revogado.');
-        return toolbox.call(g, tool.name, args);
+        final out = await toolbox.call(g, tool.name, args);
+        if (out.created > 0) addCreated(g.token, out.created);
+        return out;
       });
     } catch (e) {
       return McpToolOutcome.error('Falha em ${tool.name}: $e');

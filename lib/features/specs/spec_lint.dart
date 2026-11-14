@@ -102,6 +102,8 @@ const knownFrontmatterKeys = {
   SpecDocument.previousStatusKey,
   subagentsKey,
   'issue',
+  specOriginKey,
+  specSessionKey,
 };
 
 /// Structure warnings of a spec, in line order (SPEC-023 R8). They only

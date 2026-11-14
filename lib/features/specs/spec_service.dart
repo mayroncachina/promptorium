@@ -346,11 +346,37 @@ class SpecService {
 
   /// "Nova spec": `specs/SPEC-NNN-<slug>.md` with [body], or the text
   /// [render] builds for the new code (default template).
+  ///
+  /// [agentSession]: a spec the agent created through the Promptorium MCP
+  /// (SPEC-052 R6): `origem: agente` and `sessao: <id>` in the frontmatter,
+  /// written after the queued syncs (two calls never race on a number).
   Future<Spec> create(
     Workspace ws, {
     required String title,
     String? body,
     String Function(String code)? render,
+    String? agentSession,
+  }) {
+    if (agentSession == null) {
+      return _create(ws, title: title, body: body, render: render);
+    }
+    return _serial(
+      () => _create(
+        ws,
+        title: title,
+        body: body,
+        render: render,
+        agentSession: agentSession,
+      ),
+    );
+  }
+
+  Future<Spec> _create(
+    Workspace ws, {
+    required String title,
+    String? body,
+    String Function(String code)? render,
+    String? agentSession,
   }) async {
     final t = title.trim();
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
@@ -367,8 +393,13 @@ class SpecService {
     } on FileSystemException {
       throw SpecException('O arquivo $rel já existe.');
     }
-    final text =
+    var text =
         body ?? render?.call(code) ?? newSpecMarkdown(code: code, title: t);
+    if (agentSession != null) {
+      text = SpecDocument.parse(text).withMeta(
+        fields: {specOriginKey: specOriginAgent, specSessionKey: agentSession},
+      );
+    }
     try {
       await file.writeAsString(text);
     } on FileSystemException {
