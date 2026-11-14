@@ -13,6 +13,10 @@ abstract final class AppSettingKeys {
   /// SPEC-056 R8).
   static const promptPanelCollapsed = 'prompt.painelRecolhido';
 
+  /// Version an update installed before closing the app: the next start
+  /// shows "Atualizado para a `<versão>`" once and removes it (SPEC-070 R6).
+  static const justInstalled = 'update.justInstalled';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 

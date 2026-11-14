@@ -10,6 +10,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/app_shutdown.dart';
 import 'package:promptorium/core/update/installer.dart';
 import 'package:promptorium/core/update/update_check.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -822,6 +823,16 @@ void main() {
         ['Instalando e reiniciando…', 'O sistema pode pedir sua senha.'],
         [],
       ),
+      'Reiniciando (SPEC-070)': (
+        UpdateRestarting(_update),
+        ['Reiniciando na 9.0.0…', 'O app fecha e abre sozinho na versão nova.'],
+        [],
+      ),
+      'Instalada sem reiniciar (SPEC-070 R4)': (
+        UpdateInstalledNotRestarted(_update),
+        ['A 9.0.0 foi instalada', 'Feche e abra o app para usar'],
+        [const ValueKey<String>('about-restart-now')],
+      ),
       'Falhou': (
         UpdateFailed(_update, 'O download parou no meio.'),
         ['Não foi possível atualizar', 'O download parou no meio.'],
@@ -1059,8 +1070,9 @@ void main() {
       expect(find.textContaining('50%'), findsOneWidget);
       gate.complete();
       await tester.pumpAndSettle();
-      expect(find.text('Instalando e reiniciando…'), findsOneWidget);
-      expect(fake.calls, ['install', 'closeDatabase', 'restart']);
+      expect(find.text('Reiniciando na 9.0.0…'), findsOneWidget);
+      expect(fake.calls, ['install', 'restart']);
+      expect(fake.restartedOn, ['/opt/promptorium/promptorium 9.0.0']);
     });
 
     testWidgets('with sessions running, the card asks before downloading', (
@@ -1217,6 +1229,47 @@ void main() {
     });
   });
 
+  group('SPEC-070 R4 · without the launcher', () {
+    testWidgets('the app stays open, the card offers "Reiniciar agora", and '
+        'it tries again', (tester) async {
+      final fake = _FakeInstaller(Future.value())..relaunchFailures = 2;
+      await _open(
+        tester,
+        overrides: [
+          _withUpdate(),
+          updateInstallerProvider.overrideWithValue(fake),
+        ],
+      );
+      await tester.tap(find.byKey(_updateNow));
+      await tester.pumpAndSettle();
+      expect(find.text('A 9.0.0 foi instalada'), findsOneWidget);
+      expect(find.text('Feche e abra o app para usar'), findsOneWidget);
+      expect(fake.calls, ['install', 'restart']);
+      expect(fake.restartedOn, isEmpty);
+      // Installed is installed: the screen closes like any other state.
+      expect(find.byKey(_about), findsOneWidget);
+
+      const again = ValueKey('about-restart-now');
+      await tester.tap(find.byKey(again));
+      await tester.pumpAndSettle();
+      expect(find.text('A 9.0.0 foi instalada'), findsOneWidget);
+      expect(fake.calls, ['install', 'restart', 'restart']);
+
+      await tester.tap(find.byKey(again));
+      await tester.pumpAndSettle();
+      expect(find.text('Reiniciando na 9.0.0…'), findsOneWidget);
+      // The package is not installed again.
+      expect(fake.calls, ['install', 'restart', 'restart', 'restart']);
+      expect(fake.restartedOn, ['/opt/promptorium/promptorium 9.0.0']);
+    });
+
+    testWidgets('while restarting, the screen does not close', (tester) async {
+      await _open(tester, overrides: [_withState(UpdateRestarting(_update))]);
+      await _esc(tester);
+      expect(find.byKey(_about), findsOneWidget);
+    });
+  });
+
   group('R9 · closing', () {
     Future<_FakeInstaller> downloading(WidgetTester tester) async {
       final fake = _FakeInstaller(Completer<void>().future);
@@ -1310,7 +1363,7 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(find.byKey(_closeConfirm), findsNothing);
-      expect(find.text('Instalando e reiniciando…'), findsOneWidget);
+      expect(find.text('Reiniciando na 9.0.0…'), findsOneWidget);
     });
 
     testWidgets('while installing the screen does not close', (tester) async {
@@ -1579,6 +1632,8 @@ void main() {
         const DownloadProgress(received: 24000000, total: 38000000),
       ),
       UpdateInstalling(_update),
+      UpdateRestarting(_update),
+      UpdateInstalledNotRestarted(_update),
       UpdateFailed(
         _update,
         'O download parou no meio. Sua versão continua a mesma.',
@@ -1649,19 +1704,24 @@ class _FakeInstaller extends UpdateInstaller {
     calls.add('install');
   }
 
-  @override
-  Future<void> restart() async => calls.add('restart');
+  /// Launchers that fail before one starts (SPEC-070 R4).
+  int relaunchFailures = 0;
+  final restartedOn = <String>[];
 
   @override
-  Future<void> installAndRestart(
-    File file, {
-    required Future<void> Function() closeDatabase,
-  }) => super.installAndRestart(
-    file,
-    closeDatabase: () async {
-      calls.add('closeDatabase');
-    },
-  );
+  Future<void> restart({
+    required String executable,
+    required String version,
+    required AppShutdown shutdown,
+    Future<void> Function()? markInstalled,
+  }) async {
+    calls.add('restart');
+    if (relaunchFailures > 0) {
+      relaunchFailures--;
+      throw const RelaunchFailed('setsid: não encontrado');
+    }
+    restartedOn.add('$executable $version');
+  }
 
   @override
   Future<bool> hasPkexec() async => true;

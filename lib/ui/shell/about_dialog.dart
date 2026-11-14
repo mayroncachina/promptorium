@@ -108,7 +108,7 @@ class _AboutPromptoriumDialogState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(updateFlowProvider);
-    final installing = state is UpdateInstalling;
+    final installing = state is UpdateInstalling || state is UpdateRestarting;
     final holds = installing || state is UpdateDownloading;
     final asking = _askingClose && state is UpdateDownloading;
     // The dialog route is outside AppShell's shortcuts: F1 closes here.
