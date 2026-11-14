@@ -2,7 +2,8 @@ import 'package:drift/drift.dart';
 
 import '../db/app_database.dart';
 
-/// Comments of the review rounds of a spec (schema v10).
+/// Comments of the review rounds of a spec (schema v10), or of a PR brought
+/// into the app without a spec, by session (schema v25, SPEC-050 P1).
 class ReviewCommentsRepo {
   ReviewCommentsRepo(this._db);
 
@@ -19,6 +20,18 @@ class ReviewCommentsRepo {
   Future<List<ReviewCommentRow>> bySpec(int specId) =>
       (_db.select(_t)
             ..where((c) => c.specId.equals(specId))
+            ..orderBy([(c) => OrderingTerm.asc(c.id)]))
+          .get();
+
+  Stream<List<ReviewCommentRow>> watchBySession(String sessionId) =>
+      (_db.select(_t)
+            ..where((c) => c.sessionId.equals(sessionId) & c.specId.isNull())
+            ..orderBy([(c) => OrderingTerm.asc(c.id)]))
+          .watch();
+
+  Future<List<ReviewCommentRow>> bySession(String sessionId) =>
+      (_db.select(_t)
+            ..where((c) => c.sessionId.equals(sessionId) & c.specId.isNull())
             ..orderBy([(c) => OrderingTerm.asc(c.id)]))
           .get();
 
@@ -41,12 +54,18 @@ class ReviewCommentsRepo {
         await _db.into(_t).insert(row);
         return;
       }
+      final spec = row.specId.present ? row.specId.value : null;
+      final session = row.sessionId.present ? row.sessionId.value : null;
+      // The owner of the row: its spec, or its session when there is none.
+      Expression<bool> owner($ReviewCommentsTable c) => spec != null
+          ? c.specId.equals(spec)
+          : c.specId.isNull() &
+                (session == null
+                    ? c.sessionId.isNull()
+                    : c.sessionId.equals(session));
       final existing =
-          await (_db.select(_t)..where(
-                (c) =>
-                    c.specId.equals(row.specId.value) &
-                    c.externalId.equals(external),
-              ))
+          await (_db.select(_t)
+                ..where((c) => owner(c) & c.externalId.equals(external)))
               .getSingleOrNull();
       if (existing != null) {
         if (existing.body != row.body.value ||
@@ -68,7 +87,7 @@ class ReviewCommentsRepo {
           await (_db.select(_t)
                 ..where(
                   (c) =>
-                      c.specId.equals(row.specId.value) &
+                      owner(c) &
                       c.author.equals('pr') &
                       c.externalId.isNull() &
                       c.body.equals(row.body.value),

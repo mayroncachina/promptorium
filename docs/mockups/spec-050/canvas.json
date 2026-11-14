@@ -1,0 +1,50 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-09T19:10:00Z"
+ },
+ "title": "Promptorium · Trazer PR",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Trazer PR: escolher o PR"
+  },
+  "Comecar.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · PR de fork sem permissão: como começar"
+  },
+  "Review.dc.html": {
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · O PR trazido no Review"
+  },
+  "Pronto.dc.html": {
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Pronto para merge? sem spec, com commits novos do autor"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Comecar.dc.html",
+  "Review.dc.html",
+  "Pronto.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

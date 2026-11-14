@@ -10626,11 +10626,25 @@ class $ReviewCommentsTable extends ReviewComments
   late final GeneratedColumn<int> specId = GeneratedColumn<int>(
     'spec_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _roundMeta = const VerificationMeta('round');
@@ -10775,6 +10789,7 @@ class $ReviewCommentsTable extends ReviewComments
   List<GeneratedColumn> get $columns => [
     id,
     specId,
+    sessionId,
     round,
     author,
     path,
@@ -10809,8 +10824,12 @@ class $ReviewCommentsTable extends ReviewComments
         _specIdMeta,
         specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
       );
-    } else if (isInserting) {
-      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
     }
     if (data.containsKey('round')) {
       context.handle(
@@ -10915,7 +10934,11 @@ class $ReviewCommentsTable extends ReviewComments
       specId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}spec_id'],
-      )!,
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
       round: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}round'],
@@ -10980,7 +11003,13 @@ class $ReviewCommentsTable extends ReviewComments
 class ReviewCommentRow extends DataClass
     implements Insertable<ReviewCommentRow> {
   final int id;
-  final int specId;
+
+  /// The spec reviewed; null for a PR brought into the app without one
+  /// (SPEC-050, schema v26), whose comments go by [sessionId].
+  final int? specId;
+
+  /// The session of a PR without spec (SPEC-050 P1).
+  final String? sessionId;
 
   /// 1, 2… (the round that asked for it).
   final int round;
@@ -11009,7 +11038,8 @@ class ReviewCommentRow extends DataClass
   final DateTime createdAt;
   const ReviewCommentRow({
     required this.id,
-    required this.specId,
+    this.specId,
+    this.sessionId,
     required this.round,
     required this.author,
     this.path,
@@ -11028,7 +11058,12 @@ class ReviewCommentRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['spec_id'] = Variable<int>(specId);
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
     map['round'] = Variable<int>(round);
     map['author'] = Variable<String>(author);
     if (!nullToAbsent || path != null) {
@@ -11064,7 +11099,12 @@ class ReviewCommentRow extends DataClass
   ReviewCommentsCompanion toCompanion(bool nullToAbsent) {
     return ReviewCommentsCompanion(
       id: Value(id),
-      specId: Value(specId),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
       round: Value(round),
       author: Value(author),
       path: path == null && nullToAbsent ? const Value.absent() : Value(path),
@@ -11100,7 +11140,8 @@ class ReviewCommentRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ReviewCommentRow(
       id: serializer.fromJson<int>(json['id']),
-      specId: serializer.fromJson<int>(json['specId']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
       round: serializer.fromJson<int>(json['round']),
       author: serializer.fromJson<String>(json['author']),
       path: serializer.fromJson<String?>(json['path']),
@@ -11121,7 +11162,8 @@ class ReviewCommentRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'specId': serializer.toJson<int>(specId),
+      'specId': serializer.toJson<int?>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
       'round': serializer.toJson<int>(round),
       'author': serializer.toJson<String>(author),
       'path': serializer.toJson<String?>(path),
@@ -11140,7 +11182,8 @@ class ReviewCommentRow extends DataClass
 
   ReviewCommentRow copyWith({
     int? id,
-    int? specId,
+    Value<int?> specId = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
     int? round,
     String? author,
     Value<String?> path = const Value.absent(),
@@ -11156,7 +11199,8 @@ class ReviewCommentRow extends DataClass
     DateTime? createdAt,
   }) => ReviewCommentRow(
     id: id ?? this.id,
-    specId: specId ?? this.specId,
+    specId: specId.present ? specId.value : this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
     round: round ?? this.round,
     author: author ?? this.author,
     path: path.present ? path.value : this.path,
@@ -11175,6 +11219,7 @@ class ReviewCommentRow extends DataClass
     return ReviewCommentRow(
       id: data.id.present ? data.id.value : this.id,
       specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       round: data.round.present ? data.round.value : this.round,
       author: data.author.present ? data.author.value : this.author,
       path: data.path.present ? data.path.value : this.path,
@@ -11202,6 +11247,7 @@ class ReviewCommentRow extends DataClass
     return (StringBuffer('ReviewCommentRow(')
           ..write('id: $id, ')
           ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
           ..write('round: $round, ')
           ..write('author: $author, ')
           ..write('path: $path, ')
@@ -11223,6 +11269,7 @@ class ReviewCommentRow extends DataClass
   int get hashCode => Object.hash(
     id,
     specId,
+    sessionId,
     round,
     author,
     path,
@@ -11243,6 +11290,7 @@ class ReviewCommentRow extends DataClass
       (other is ReviewCommentRow &&
           other.id == this.id &&
           other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
           other.round == this.round &&
           other.author == this.author &&
           other.path == this.path &&
@@ -11260,7 +11308,8 @@ class ReviewCommentRow extends DataClass
 
 class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<int> id;
-  final Value<int> specId;
+  final Value<int?> specId;
+  final Value<String?> sessionId;
   final Value<int> round;
   final Value<String> author;
   final Value<String?> path;
@@ -11277,6 +11326,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
     this.round = const Value.absent(),
     this.author = const Value.absent(),
     this.path = const Value.absent(),
@@ -11293,7 +11343,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   });
   ReviewCommentsCompanion.insert({
     this.id = const Value.absent(),
-    required int specId,
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
     required int round,
     required String author,
     this.path = const Value.absent(),
@@ -11307,13 +11358,13 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
-  }) : specId = Value(specId),
-       round = Value(round),
+  }) : round = Value(round),
        author = Value(author),
        body = Value(body);
   static Insertable<ReviewCommentRow> custom({
     Expression<int>? id,
     Expression<int>? specId,
+    Expression<String>? sessionId,
     Expression<int>? round,
     Expression<String>? author,
     Expression<String>? path,
@@ -11331,6 +11382,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
       if (round != null) 'round': round,
       if (author != null) 'author': author,
       if (path != null) 'path': path,
@@ -11349,7 +11401,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
 
   ReviewCommentsCompanion copyWith({
     Value<int>? id,
-    Value<int>? specId,
+    Value<int?>? specId,
+    Value<String?>? sessionId,
     Value<int>? round,
     Value<String>? author,
     Value<String?>? path,
@@ -11367,6 +11420,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return ReviewCommentsCompanion(
       id: id ?? this.id,
       specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
       round: round ?? this.round,
       author: author ?? this.author,
       path: path ?? this.path,
@@ -11391,6 +11445,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     }
     if (specId.present) {
       map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
     }
     if (round.present) {
       map['round'] = Variable<int>(round.value);
@@ -11439,6 +11496,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return (StringBuffer('ReviewCommentsCompanion(')
           ..write('id: $id, ')
           ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
           ..write('round: $round, ')
           ..write('author: $author, ')
           ..write('path: $path, ')
@@ -14354,6 +14412,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     WritePropagation(
       on: TableUpdateQuery.onTableName(
         'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
@@ -18768,6 +18833,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ReviewCommentsTable, List<ReviewCommentRow>>
+  _reviewCommentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.reviewComments,
+    aliasName: 'sessions__id__review_comments__session_id',
+  );
+
+  $$ReviewCommentsTableProcessedTableManager get reviewCommentsRefs {
+    final manager = $$ReviewCommentsTableTableManager(
+      $_db,
+      $_db.reviewComments,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_reviewCommentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -19030,6 +19113,31 @@ class $$SessionsTableFilterComposer
           }) => $$PendingNoticesTableFilterComposer(
             $db: $db,
             $table: $db.pendingNotices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> reviewCommentsRefs(
+    Expression<bool> Function($$ReviewCommentsTableFilterComposer f) f,
+  ) {
+    final $$ReviewCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.reviewComments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -19465,6 +19573,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> reviewCommentsRefs<T extends Object>(
+    Expression<T> Function($$ReviewCommentsTableAnnotationComposer a) f,
+  ) {
+    final $$ReviewCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -19487,6 +19620,7 @@ class $$SessionsTableTableManager
             bool sessionEventsRefs,
             bool conversationsRefs,
             bool pendingNoticesRefs,
+            bool reviewCommentsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -19632,6 +19766,7 @@ class $$SessionsTableTableManager
                 sessionEventsRefs = false,
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
+                reviewCommentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -19639,6 +19774,7 @@ class $$SessionsTableTableManager
                     if (sessionEventsRefs) db.sessionEvents,
                     if (conversationsRefs) db.conversations,
                     if (pendingNoticesRefs) db.pendingNotices,
+                    if (reviewCommentsRefs) db.reviewComments,
                   ],
                   addJoins:
                       <
@@ -19757,6 +19893,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (reviewCommentsRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          ReviewCommentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._reviewCommentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).reviewCommentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -19784,6 +19941,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool sessionEventsRefs,
         bool conversationsRefs,
         bool pendingNoticesRefs,
+        bool reviewCommentsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -23452,7 +23610,8 @@ typedef $$PendingNoticesTableProcessedTableManager =
 typedef $$ReviewCommentsTableCreateCompanionBuilder =
     ReviewCommentsCompanion Function({
       Value<int> id,
-      required int specId,
+      Value<int?> specId,
+      Value<String?> sessionId,
       required int round,
       required String author,
       Value<String?> path,
@@ -23470,7 +23629,8 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
     ReviewCommentsCompanion Function({
       Value<int> id,
-      Value<int> specId,
+      Value<int?> specId,
+      Value<String?> sessionId,
       Value<int> round,
       Value<String> author,
       Value<String?> path,
@@ -23498,14 +23658,31 @@ final class $$ReviewCommentsTableReferences
   static $SpecsTable _specIdTable(_$AppDatabase db) =>
       db.specs.createAlias('review_comments__spec_id__specs__id');
 
-  $$SpecsTableProcessedTableManager get specId {
-    final $_column = $_itemColumn<int>('spec_id')!;
-
+  $$SpecsTableProcessedTableManager? get specId {
+    final $_column = $_itemColumn<int>('spec_id');
+    if ($_column == null) return null;
     final manager = $$SpecsTableTableManager(
       $_db,
       $_db.specs,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('review_comments__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -23606,6 +23783,29 @@ class $$ReviewCommentsTableFilterComposer
           }) => $$SpecsTableFilterComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23717,6 +23917,29 @@ class $$ReviewCommentsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ReviewCommentsTableAnnotationComposer
@@ -23798,6 +24021,29 @@ class $$ReviewCommentsTableAnnotationComposer
     );
     return composer;
   }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ReviewCommentsTableTableManager
@@ -23813,7 +24059,7 @@ class $$ReviewCommentsTableTableManager
           $$ReviewCommentsTableUpdateCompanionBuilder,
           (ReviewCommentRow, $$ReviewCommentsTableReferences),
           ReviewCommentRow,
-          PrefetchHooks Function({bool specId})
+          PrefetchHooks Function({bool specId, bool sessionId})
         > {
   $$ReviewCommentsTableTableManager(
     _$AppDatabase db,
@@ -23831,7 +24077,8 @@ class $$ReviewCommentsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> specId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
                 Value<int> round = const Value.absent(),
                 Value<String> author = const Value.absent(),
                 Value<String?> path = const Value.absent(),
@@ -23848,6 +24095,7 @@ class $$ReviewCommentsTableTableManager
               }) => ReviewCommentsCompanion(
                 id: id,
                 specId: specId,
+                sessionId: sessionId,
                 round: round,
                 author: author,
                 path: path,
@@ -23865,7 +24113,8 @@ class $$ReviewCommentsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int specId,
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
                 required int round,
                 required String author,
                 Value<String?> path = const Value.absent(),
@@ -23882,6 +24131,7 @@ class $$ReviewCommentsTableTableManager
               }) => ReviewCommentsCompanion.insert(
                 id: id,
                 specId: specId,
+                sessionId: sessionId,
                 round: round,
                 author: author,
                 path: path,
@@ -23904,7 +24154,7 @@ class $$ReviewCommentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({specId = false}) {
+          prefetchHooksCallback: ({specId = false, sessionId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -23935,6 +24185,17 @@ class $$ReviewCommentsTableTableManager
                             .id,
                       ) as T;
                     }
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$ReviewCommentsTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$ReviewCommentsTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
 
                     return state;
                   },
@@ -23959,7 +24220,7 @@ typedef $$ReviewCommentsTableProcessedTableManager =
       $$ReviewCommentsTableUpdateCompanionBuilder,
       (ReviewCommentRow, $$ReviewCommentsTableReferences),
       ReviewCommentRow,
-      PrefetchHooks Function({bool specId})
+      PrefetchHooks Function({bool specId, bool sessionId})
     >;
 typedef $$SpecCriteriaTableCreateCompanionBuilder =
     SpecCriteriaCompanion Function({

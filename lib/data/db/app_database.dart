@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 25;
+const appSchemaVersion = 26;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -341,8 +341,21 @@ class ReviewDrafts extends Table {
 @DataClassName('ReviewCommentRow')
 class ReviewComments extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get specId =>
-      integer().references(Specs, #id, onDelete: KeyAction.cascade)();
+
+  /// The spec reviewed; null for a PR brought into the app without one
+  /// (SPEC-050, schema v26), whose comments go by [sessionId].
+  IntColumn get specId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+
+  /// The session of a PR without spec (SPEC-050 P1).
+  TextColumn get sessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
 
   /// 1, 2… (the round that asked for it).
   IntColumn get round => integer()();
@@ -887,10 +900,19 @@ class AppDatabase extends _$AppDatabase {
     }
   }
 
-  Future<void> _reviewExternalIndex() => customStatement(
-    'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external '
-    'ON review_comments(spec_id, external_id) WHERE external_id IS NOT NULL',
-  );
+  Future<void> _reviewExternalIndex() async {
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external '
+      'ON review_comments(spec_id, external_id) WHERE external_id IS NOT NULL',
+    );
+    if (await _hasColumn('review_comments', 'session_id')) {
+      await customStatement(
+        'CREATE UNIQUE INDEX IF NOT EXISTS review_comments_external_session '
+        'ON review_comments(session_id, external_id) '
+        'WHERE spec_id IS NULL AND external_id IS NOT NULL',
+      );
+    }
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1112,6 +1134,20 @@ class AppDatabase extends _$AppDatabase {
                 !await _hasColumn('conversations', 'spec_id')) {
               await m.addColumn(v.conversations, v.conversations.specId);
             }
+          },
+          // v26 (SPEC-050 P1): comments of a PR brought into the
+          // app without a spec go by session; `spec_id` becomes optional.
+          // The table is rebuilt (SQLite cannot drop a NOT NULL), every
+          // comment of a spec is kept, and the indexes are made again.
+          from25To26: (m, v) async {
+            if (!await _hasTable('review_comments')) return;
+            await m.alterTable(
+              TableMigration(
+                v.reviewComments,
+                newColumns: [v.reviewComments.sessionId],
+              ),
+            );
+            await _reviewExternalIndex();
           },
         ),
       );

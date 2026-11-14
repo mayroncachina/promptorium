@@ -346,6 +346,42 @@ class GitService {
     return CreatedWorktree(path: path, branch: branch);
   }
 
+  /// Creates the worktree `<worktreesBase>/<repoName>-<slug>` from [ref] (a
+  /// ref already fetched, like the head of a PR) on a new branch named
+  /// [branch], tracking [upstream] (`origin/feat/x`) when given (SPEC-050
+  /// R3).
+  Future<CreatedWorktree> addWorktreeAt(
+    String slug,
+    String ref, {
+    required String branch,
+    String? upstream,
+  }) async {
+    if (!slugPattern.hasMatch(slug)) {
+      throw GitException('slug inválido: "$slug"');
+    }
+    _arg(branch, 'branch');
+    await git(['check-ref-format', '--branch', branch]);
+    final path = '$worktreesBase/$repoName-$slug';
+    if (await Directory(path).exists()) {
+      throw GitException('o diretório do worktree já existe: $path');
+    }
+    if (await resolveRef('refs/heads/$branch') != null) {
+      throw GitException('a branch $branch já existe no repositório local');
+    }
+    await Directory(worktreesBase).create(recursive: true);
+    await git(['worktree', 'add', '-b', branch, path, _arg(ref, 'ref')]);
+    if (upstream != null) {
+      await git([
+        '-C',
+        path,
+        'branch',
+        '--set-upstream-to=${_arg(upstream, 'upstream')}',
+        branch,
+      ]);
+    }
+    return CreatedWorktree(path: path, branch: branch);
+  }
+
   /// `git worktree remove [--force] <path>` (the branch is kept; see
   /// [deleteBranch]).
   Future<void> removeWorktree(String path, {bool force = false}) =>

@@ -291,6 +291,58 @@ void main() {
     expect(container.read(navigationProvider), AppSection.review);
   });
 
+  testWidgets('SPEC-050 R2 · the panel of a PR with no session offers '
+      '"Trazer para o app", which opens the dialog on that PR', (tester) async {
+    gh.prs = [
+      {
+        'number': 101,
+        'url': 'https://github.com/o/r/pull/101',
+        'headRefName': 'spec/043-conflito',
+        'statusCheckRollup': [
+          {'state': 'SUCCESS'},
+        ],
+      },
+    ];
+    final c = await loaded(tester);
+    final row = c.rows.firstWhere(
+      (r) => c.commit(r.sha)!.subject == 'docs: SPEC-043, conflito',
+    );
+    await tester.runAsync(() => c.loadDetails(row.sha));
+    await pumpTab(tester, c);
+    c.select(row.sha);
+    await tester.pump();
+    expect(find.text('#101 · aberto · CI passou'), findsOneWidget);
+    expect(find.byKey(const ValueKey('graph-open-review')), findsNothing);
+    expect(find.byKey(const ValueKey('graph-bring-pr')), findsOneWidget);
+    expect(find.text('Trazer para o app'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('graph-bring-pr')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('pr-import-dialog')), findsOneWidget);
+  });
+
+  testWidgets('SPEC-050 R2 · with a session, the panel keeps "Abrir no '
+      'Review" and no "Trazer para o app"', (tester) async {
+    gh.prs = [
+      {
+        'number': 101,
+        'url': 'https://github.com/o/r/pull/101',
+        'headRefName': 'spec/043-conflito',
+        'statusCheckRollup': [],
+      },
+    ];
+    final c = await loaded(tester);
+    final row = c.rows.firstWhere(
+      (r) => c.commit(r.sha)!.subject == 'docs: SPEC-043, conflito',
+    );
+    await tester.runAsync(() => c.loadDetails(row.sha));
+    await pumpTab(tester, c, sessions: [sessionOn('s1', 'spec/043-conflito')]);
+    c.select(row.sha);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('graph-open-review')), findsOneWidget);
+    expect(find.byKey(const ValueKey('graph-bring-pr')), findsNothing);
+  });
+
   testWidgets('R4 · a branch with an agent running shows "agente '
       'trabalhando" on its tip', (tester) async {
     final c = await loaded(tester);

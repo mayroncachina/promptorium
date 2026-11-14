@@ -26,7 +26,7 @@ void main() {
     await repo.insertAll([
       for (var i = 0; i < 2; i++)
         ReviewCommentsCompanion.insert(
-          specId: 1,
+          specId: Value(1),
           round: 1,
           author: 'pr',
           body: '@ana: ajuste',
@@ -34,7 +34,7 @@ void main() {
     ]);
     ReviewCommentsCompanion external(String id) =>
         ReviewCommentsCompanion.insert(
-          specId: 1,
+          specId: Value(1),
           round: 2,
           author: 'pr',
           body: '@ana: ajuste',
@@ -81,7 +81,7 @@ void main() {
       final repo = ReviewCommentsRepo(db);
       await repo.insertAll([
         ReviewCommentsCompanion.insert(
-          specId: 1,
+          specId: Value(1),
           round: 1,
           author: 'pr',
           body: '@ana: ajuste',
