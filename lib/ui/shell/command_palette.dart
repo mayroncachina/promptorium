@@ -278,6 +278,7 @@ List<PaletteCommand> paletteCommands(
     ),
     for (final s in specs)
       if (s.status != SpecStatus.archived &&
+          s.kind != SpecKind.vibe &&
           isOnBoard(s) &&
           s.stage != SpecStage.done &&
           s.stage != SpecStage.review &&

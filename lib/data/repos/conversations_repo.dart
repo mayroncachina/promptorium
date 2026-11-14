@@ -38,6 +38,7 @@ class ConversationsRepo {
     String? refineSpecCode,
     String? refineOrigin,
     String? refineBaseText,
+    int? specId,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -53,6 +54,7 @@ class ConversationsRepo {
           refineSpecCode: Value(refineSpecCode),
           refineOrigin: Value(refineOrigin),
           refineBaseText: Value(refineBaseText),
+          specId: Value(specId),
         ),
       );
 

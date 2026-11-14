@@ -135,4 +135,27 @@ void main() {
       await db.close();
     },
   );
+
+  test('v24 → v25 keeps every spec as a spec and no conversation on a '
+      'VIBE', () async {
+    final schema = await verifier.schemaAt(24);
+    schema.rawDatabase
+      ..execute("INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')")
+      ..execute(
+        "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+        "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md', "
+        "'approved')",
+      )
+      ..execute(
+        "INSERT INTO conversations (id, workspace_id, title, model) "
+        "VALUES (1, 1, 'Oi', 'inherit')",
+      );
+    final db = AppDatabase(schema.newConnection());
+    final row = await db.select(db.specs).getSingle();
+    expect(row.code, 'SPEC-001');
+    expect(row.kind, SpecKind.spec);
+    final conv = await db.select(db.conversations).getSingle();
+    expect(conv.specId, equals(null));
+    await db.close();
+  });
 }

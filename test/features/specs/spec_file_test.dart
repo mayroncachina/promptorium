@@ -430,6 +430,7 @@ id: SPEC-009
       const Spec(
         hasPlan: false,
         inTray: false,
+        kind: SpecKind.spec,
         id: 1,
         workspaceId: 1,
         code: 'SPEC-002',
@@ -602,6 +603,7 @@ depende-de: [SPEC-001]
         const Spec(
           hasPlan: false,
           inTray: false,
+          kind: SpecKind.spec,
           id: 1,
           workspaceId: 1,
           code: 'SPEC-002',

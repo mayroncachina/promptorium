@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 24;
+const appSchemaVersion = 25;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -210,6 +210,13 @@ class Specs extends Table {
   /// and only "Levar para o Backlog" puts it on the Quadro. False for every
   /// spec that already existed (they stay where they were).
   BoolColumn get inTray => boolean().withDefault(const Constant(false))();
+
+  // --- the VIBE (SPEC-069 R3, schema v25) ------------------------------------
+
+  /// A spec written by the person or a VIBE ("Fazer como tarefa"). Every
+  /// spec that already existed is a spec.
+  TextColumn get kind =>
+      textEnum<SpecKind>().withDefault(Constant(SpecKind.spec.name))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -627,6 +634,11 @@ class Conversations extends Table {
 
   /// When it was archived (SPEC-056 R4, schema v22). Null = active.
   DateTimeColumn get archivedAt => dateTime().nullable()();
+
+  /// The VIBE of the conversation (SPEC-069 R4, schema v25), or the spec it
+  /// became ("Virar spec"): the agent runs in that spec's worktree, never in
+  /// the workspace root. Null = a free conversation.
+  IntColumn get specId => integer().nullable()();
 }
 
 /// Raw stream-json lines of a conversation (same format as [SessionEvents]).
@@ -1087,6 +1099,18 @@ class AppDatabase extends _$AppDatabase {
               if (!await _hasColumn('specs', c.name)) {
                 await m.addColumn(v.specs, c);
               }
+            }
+          },
+          // v25: the VIBE (SPEC-069 R3, R4): every spec that exists is a
+          // spec, and no conversation works on one yet.
+          from24To25: (m, v) async {
+            if (await _hasTable('specs') &&
+                !await _hasColumn('specs', 'kind')) {
+              await m.addColumn(v.specs, v.specs.kind);
+            }
+            if (await _hasTable('conversations') &&
+                !await _hasColumn('conversations', 'spec_id')) {
+              await m.addColumn(v.conversations, v.conversations.specId);
             }
           },
         ),
