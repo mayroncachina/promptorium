@@ -107,12 +107,16 @@ class ClaudeCodeProvider implements AgentProvider {
           },
       // MCP rules (Fase 11): "Perguntar" / "Refinar" ignore "Permitido" (an
       // MCP tool may write; it keeps asking) and respect "Bloqueado".
-      allowedTools: ignoresMcpAllow(o.mode) ? const [] : o.mcpAllowedTools,
+      allowedTools: [
+        if (!ignoresMcpAllow(o.mode)) ...o.mcpAllowedTools,
+        ...o.appAllowedTools,
+      ],
       disallowedTools: [
         if (o.mode == PromptMode.ask) ...readOnlyDisallowedTools,
         ...o.mcpDisallowedTools,
       ],
-      // "Perguntar": an allow list and no MCP server (F12).
+      // "Perguntar": an allow list and no MCP server of the user (F12); the
+      // app's own server (SPEC-052) comes in `mcpConfigs` and stays.
       tools: o.mode == PromptMode.ask ? readOnlyTools : o.tools,
       strictMcpConfig: o.mode == PromptMode.ask || o.strictMcpConfig,
     );

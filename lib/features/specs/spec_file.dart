@@ -112,6 +112,16 @@ class SpecDocument {
 
   bool get hasFrontmatter => bodyStart > 0;
 
+  /// Session of a spec the agent created through the Promptorium MCP
+  /// (`origem: agente` + `sessao:`, SPEC-052 R6); null for the others.
+  String? get agentSession {
+    if ('${frontmatter[specOriginKey] ?? ''}'.trim() != specOriginAgent) {
+      return null;
+    }
+    final s = '${frontmatter[specSessionKey] ?? ''}'.trim();
+    return s.isEmpty ? null : s;
+  }
+
   String get body => text.substring(bodyStart);
 
   /// `id` of the frontmatter (`SPEC-001`).
@@ -997,6 +1007,12 @@ class SpecSubagent {
     _ => '$agent · ${when.label.toLowerCase()}',
   };
 }
+
+/// Frontmatter keys of a spec the agent created through the Promptorium
+/// MCP (SPEC-052 R6): `origem: agente` and the session id.
+const specOriginKey = 'origem';
+const specSessionKey = 'sessao';
+const specOriginAgent = 'agente';
 
 /// Frontmatter key of the spec dependencies.
 const dependsOnKey = 'depende-de';

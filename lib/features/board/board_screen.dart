@@ -32,6 +32,7 @@ import 'step_gate.dart' show tailLines;
 import '../../ui/widgets/app_pressable.dart';
 import 'sprint_rules.dart';
 import 'sprint_state.dart';
+import 'widgets/spec_notes.dart';
 import 'widgets/board_card_flight.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
@@ -1937,6 +1938,8 @@ class SpecCard extends ConsumerWidget {
                 const SizedBox(height: 4),
                 LiveToolLine(session: last, specCode: spec.code),
               ],
+              // SPEC-052 R7: the agent's newest progress note.
+              if (spec.stage != SpecStage.done) SpecNoteLine(spec: spec),
               SuggestionBanner(spec: spec),
               const SizedBox(height: 6),
               Row(

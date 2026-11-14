@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_event.dart';
+import 'package:promptorium/core/mcp/app_mcp_tools.dart';
 import 'package:promptorium/features/sessions/edit_diff.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/features/sessions/widgets/agent_spec_approval.dart';
 import 'package:promptorium/features/sessions/widgets/side_panel.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
@@ -151,5 +153,171 @@ void main() {
     await _pump(tester, _approval('Bash', {'command': 'ls'}));
     expect(find.text('Aprovar'), findsOneWidget);
     expect(find.text('Aprovar edição'), findsNothing);
+  });
+
+  group('SPEC-052 R4 · criar_spec / criar_filhas', () {
+    const suggestion = {
+      'type': 'addRules',
+      'rules': [
+        {'toolName': 'mcp__promptorium__criar_spec'},
+      ],
+      'behavior': 'allow',
+      'destination': 'localSettings',
+    };
+    const text =
+        '# Exportar o relatório do Review em PDF\n\n'
+        '## Requisitos\n\n'
+        '- R1 · O Review deve oferecer "Exportar PDF".\n'
+        '- R2 · O PDF deve trazer os critérios.\n'
+        '- R3 · Capa com o logo do projeto.\n\n'
+        '## Critérios de aceite\n\n'
+        '- [ ] Exporta [R1]\n- [ ] Critérios [R2]\n';
+
+    PendingApproval mcpApproval(String tool, Map<String, dynamic> input) {
+      final line = jsonEncode({
+        'type': 'control_request',
+        'request_id': 'req-1',
+        'request': {
+          'subtype': 'can_use_tool',
+          'tool_name': tool,
+          'input': input,
+          'tool_use_id': 'toolu_1',
+          'permission_suggestions': [suggestion],
+        },
+      });
+      return PendingApproval(
+        sessionId: 's1',
+        sessionTitle: 'Planejar o export do Review',
+        request: ClaudeEvent.parseLine(line).single as PermissionRequest,
+        receivedAt: DateTime(2026, 11, 13),
+      );
+    }
+
+    Future<List<String>> pump(WidgetTester tester, PendingApproval a) async {
+      tester.view.physicalSize = const Size(1100, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final calls = <String>[];
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(
+                  width: 720,
+                  child: ApprovalCard(
+                    approval: a,
+                    onOpen: () {},
+                    onApprove: ({required bool always, input}) async =>
+                        calls.add(always ? 'always' : 'approve'),
+                    onDeny: () async => calls.add('deny'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return calls;
+    }
+
+    testWidgets('the card shows the preview: title, requirements, criteria, '
+        'lint warnings and the file', (tester) async {
+      final calls = await pump(
+        tester,
+        mcpApproval('mcp__promptorium__criar_spec', {
+          'texto': text,
+          'depende_de': ['SPEC-043'],
+        }),
+      );
+      expect(find.text('O agente quer criar uma spec'), findsOneWidget);
+      expect(find.text('mcp__promptorium__criar_spec'), findsOneWidget);
+      expect(
+        find.text('Exportar o relatório do Review em PDF'),
+        findsOneWidget,
+      );
+      expect(find.text('3 requisitos'), findsOneWidget);
+      expect(find.text('2 critérios'), findsOneWidget);
+      expect(find.text('depende de SPEC-043'), findsOneWidget);
+      expect(find.text('status: rascunho'), findsOneWidget);
+      expect(find.text('origem: agente'), findsOneWidget);
+      final path = tester.widget<Text>(
+        find.byKey(const ValueKey('agent-spec-path-0')),
+      );
+      expect(path.data, endsWith('-exportar-o-relatorio-do-review-em-pdf.md'));
+      expect(find.byKey(const ValueKey('agent-spec-lint-0')), findsOneWidget);
+      expect(find.textContaining('do lint: '), findsOneWidget);
+      // The same warning on two criteria shows once, counted.
+      expect(find.textContaining('Critério sem verificar: (2×)'), findsOne);
+      expect(find.textContaining('R3'), findsWidgets);
+
+      await tester.tap(find.text('Aprovar'));
+      await tester.pump();
+      expect(calls, ['approve']);
+    });
+
+    test('groupedWarnings', () {
+      expect(groupedWarnings(['a', 'b', 'a', 'a']), ['a (3×)', 'b']);
+    });
+
+    testWidgets('it does not offer "Sempre permitir" in the project, only in '
+        'this session', (tester) async {
+      final calls = await pump(
+        tester,
+        mcpApproval('mcp__promptorium__criar_spec', {'texto': text}),
+      );
+      expect(find.textContaining('neste projeto'), findsNothing);
+      expect(find.textContaining('no projeto (local)'), findsNothing);
+      expect(find.textContaining('em todos os projetos'), findsNothing);
+      expect(find.text('Sempre permitir nesta sessão'), findsOneWidget);
+      await tester.tap(find.text('Sempre permitir nesta sessão'));
+      await tester.pump();
+      expect(calls, ['always']);
+      // What goes back to the CLI: the rule only for the session.
+      expect(
+        alwaysAllowSuggestions('mcp__promptorium__criar_spec', [
+          suggestion,
+        ]).single['destination'],
+        'session',
+      );
+      expect(
+        alwaysAllowSuggestions('mcp__promptorium__criar_filhas', [
+          suggestion,
+        ]).single['destination'],
+        'session',
+      );
+      // Other tools keep what the CLI suggested.
+      expect(
+        alwaysAllowSuggestions('Bash', [suggestion]).single['destination'],
+        'localSettings',
+      );
+    });
+
+    testWidgets('criar_filhas: one approval for every child, each with '
+        'depende-de of the parent', (tester) async {
+      await pump(
+        tester,
+        mcpApproval('mcp__promptorium__criar_filhas', {
+          'pai': 'SPEC-053',
+          'filhas': [
+            {'texto': '# Gerar o PDF\n\n## Requisitos\n\n- R1 · Deve gerar.\n'},
+            {
+              'texto':
+                  '# Botão Exportar\n\n## Requisitos\n\n- R1 · Deve ter.\n',
+            },
+          ],
+        }),
+      );
+      expect(
+        find.text('O agente quer criar 2 filhas da SPEC-053'),
+        findsOneWidget,
+      );
+      expect(find.text('Gerar o PDF'), findsOneWidget);
+      expect(find.text('Botão Exportar'), findsOneWidget);
+      expect(find.text('depende de SPEC-053'), findsNWidgets(2));
+      expect(find.text('Aprovar'), findsOneWidget);
+    });
   });
 }

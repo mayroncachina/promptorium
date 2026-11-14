@@ -113,6 +113,7 @@ class SpecsRepo {
     bool inTray = false,
     SpecKind kind = SpecKind.spec,
     SpecStage? stage,
+    String? agentSession,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -135,6 +136,7 @@ class SpecsRepo {
           hasPlan: Value(hasPlan),
           // A VIBE never waits in the Bandeja (SPEC-069 R9).
           inTray: Value(inTray && kind == SpecKind.spec),
+          agentSession: Value(agentSession),
         ),
       );
 

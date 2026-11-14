@@ -11,6 +11,9 @@ import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../core/claude/usage_tracker.dart';
 import '../../core/git/agent_trailer.dart';
+import '../../core/mcp/app_mcp_config.dart';
+import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
@@ -98,6 +101,10 @@ class _Run {
   final List<PermissionRequest> pending = [];
   final Map<String, DateTime> pendingAt = {};
   final DateTime started = DateTime.now();
+
+  /// Link to the Promptorium MCP (SPEC-052), closed when the process ends.
+  McpRunLink? mcp;
+  AppMcpServer? mcpServer;
   Future<void> queue = Future.value();
   Map<String, dynamic>? lastJson;
   int? lastSeq;
@@ -265,7 +272,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     return wt;
   }
 
-  /// A line of the app in the conversation (gate results of a VIBE…).
+  /// A line of the app in the conversation (gate results of a VIBE…, what
+  /// the agent created through the Promptorium MCP, SPEC-052 R8).
   Future<void> note(int id, String text, {bool error = false}) =>
       _note(id, text, error: error);
 
@@ -282,7 +290,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final r = _runs[id];
     final req = _take(id, requestId);
     if (r == null || req == null) return;
-    final s = req.permissionSuggestions;
+    // SPEC-052 R4: criar_* only ever "nesta sessão".
+    final s = alwaysAllowSuggestions(req.toolName, req.permissionSuggestions);
     await r.run.approve(
       requestId,
       updatedPermissions: always && s.isNotEmpty ? [s.first] : null,
@@ -376,6 +385,18 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final mode = PromptMode.fromName(conv.mode);
     final mcp = await readMcpRuleArgs(ref.read(mcpToolRulesRepoProvider));
     final prefs = ref.read(runPrefsProvider);
+    // SPEC-052 R1, R8: the app's MCP server for Claude conversations;
+    // "Perguntar" only reads. "Refinar" is an internal run (out of scope).
+    final mcpLink = conv.provider == 'claude' && mode != PromptMode.refine
+        ? await openMcpRun(
+            ref,
+            workspaceId: ws.id,
+            sessionId: sid,
+            conversationId: conv.id,
+            title: conv.title,
+            access: mode == PromptMode.ask ? McpAccess.read : McpAccess.write,
+          )
+        : null;
     final AgentRun run;
     try {
       run = await provider.start(
@@ -390,7 +411,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           ),
           autocompact: conv.provider == 'claude' ? prefs.autocompact : null,
           mcpAllowedTools: mcp.allowed,
-          mcpDisallowedTools: mcp.disallowed,
+          mcpDisallowedTools: [...mcp.disallowed, ...?mcpLink?.disallowedTools],
+          mcpConfigs: [?mcpLink?.configPath],
+          appAllowedTools: mcpLink?.allowedTools ?? const [],
           // Other providers refuse Claude's --settings.
           settingsFile: conv.provider == 'claude'
               ? await runSettingsFile(ref)
@@ -400,6 +423,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         ),
       );
     } catch (e) {
+      await closeMcpRun(ref.read(appMcpServerProvider), mcpLink);
       await _note(
         conv.id,
         'Falha ao iniciar ${provider.displayName}: $e',
@@ -409,7 +433,9 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         'Falha ao iniciar ${provider.displayName}: $e',
       );
     }
-    final r = _Run(run, mode, conv.model, conv.title, conv.costUsd, sid);
+    final r = _Run(run, mode, conv.model, conv.title, conv.costUsd, sid)
+      ..mcp = mcpLink
+      ..mcpServer = mcpLink == null ? null : ref.read(appMcpServerProvider);
     _runs[conv.id] = r;
     r.logSub = run.logs.listen(
       (l) => debugPrint('conversa[${conv.id}] $l'),
@@ -505,6 +531,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     await r.logSub?.cancel();
     final code = await r.run.exitCode;
     if (identical(_runs[id], r)) _runs.remove(id);
+    // SPEC-052 R2: the token dies with the process.
+    await closeMcpRun(r.mcpServer, r.mcp);
     if (!ref.mounted || _shuttingDown) return;
     _publish();
     if (!r.stopping && r.busy) {
