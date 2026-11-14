@@ -1,6 +1,6 @@
 ---
 id: SPEC-070
-status: proposta
+status: aprovada
 tipo: bug
 depende-de: SPEC-066
 issue: 221
@@ -94,14 +94,16 @@ Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221) · PR: [#
 - P1 · Lançador em `sh` em vez de reabrir direto: a cópia nova nunca disputa o banco nem a bandeja com a antiga, e funciona igual para `.deb` e `.tar.gz`. A alternativa é um argumento `--wait-pid` no próprio app, que exigiria mexer no `main` e no runner em C++.
 - P2 · O aviso "Atualizado para a <versão>" (R6) entra nesta spec, porque é o que confirma para a pessoa que a atualização deu certo. Se o app reabrir sem ele, fica a mesma dúvida de hoje.
 - P3 · O mouse continua agitando a logo (R7). O pedido foi tirar o "tocar de novo", e a agitação não toca a abertura: só acelera as bolhas.
+- P4 · Causa achada (t1, #223): era a primeira suspeita, por um motivo próprio. O `AppDatabase.close()` do drift espera cada stream de consulta entregar o "done", e o Riverpod 3 pausa o stream de um `StreamProvider` sem ouvintes, como o de uma tela que a pessoa deixou. O stream pausado nunca entrega o "done", e o `close()` nunca volta. O `AppShutdown` fecha só a conexão (`closeDatabaseForExit`), e o limite de 3 s fica como rede de segurança.
 
 ## Critérios de aceite
 
-- [ ] Instalar fecha o app pelo mesmo encerramento da janela e sai, mesmo com o banco demorando a fechar [R1, R2] verificar: flutter test test/core/installer_test.dart
-- [ ] O lançador espera o PID antigo sumir e abre o executável certo para `.tar.gz` e `.deb` [R3] verificar: flutter test test/core/installer_test.dart
-- [ ] Sem lançador, o app não fecha e o cartão oferece "Reiniciar agora" [R4] verificar: flutter test test/ui/about_dialog_test.dart
-- [ ] Cada passo da atualização aparece no log [R5] verificar: flutter test test/core/installer_test.dart
-- [ ] A cópia nova mostra "Atualizado para a <versão>" uma vez [R6] verificar: flutter test test/ui/shell
-- [ ] Clicar, Enter ou Espaço na logo não toca a abertura; ela não tem dica, não entra no Tab e o leitor de tela ouve "Ícone do Promptorium" [R7] verificar: flutter test test/ui/about_dialog_test.dart
+- [x] Instalar fecha o app pelo mesmo encerramento da janela e sai, mesmo com o banco demorando a fechar [R1, R2] verificar: flutter test test/core/installer_test.dart
+- [x] O lançador espera o PID antigo sumir e abre o executável certo para `.tar.gz` e `.deb` [R3] verificar: flutter test test/core/installer_test.dart
+- [x] Sem lançador, o app não fecha e o cartão oferece "Reiniciar agora" [R4] verificar: flutter test test/ui/about_dialog_test.dart
+- [x] Cada passo da atualização aparece no log [R5] verificar: flutter test test/core/installer_test.dart
+- [x] A cópia nova mostra "Atualizado para a <versão>" uma vez [R6] verificar: flutter test test/ui/shell
+- [x] Clicar, Enter ou Espaço na logo não toca a abertura; ela não tem dica, não entra no Tab e o leitor de tela ouve "Ícone do Promptorium" [R7] verificar: flutter test test/ui/about_dialog_test.dart
 - [ ] Atualizar de verdade, de um `.tar.gz` antigo para a release atual, fecha e reabre o app na versão nova [R1, R3, R6] verificar: manual (cópia isolada com `XDG_DATA_HOME` e uma release local)
-- [ ] O projeto compila e a análise estática passa [R1–R7] verificar: flutter analyze
+  - Pendente: a atualização sai do código da versão instalada, então partir de um `.tar.gz` antigo (sem esta correção) ainda trava. O fluxo foi conferido no app real com duas compilações com a correção (cópia isolada, `XDG_DATA_HOME` próprio, `.tar.gz` local e um provider de tela deixado): fechou, reabriu e mostrou "Atualizado para a 0.17.0". Falta atualizar de uma release publicada com a correção para a seguinte.
+- [x] O projeto compila e a análise estática passa [R1–R7] verificar: flutter analyze
