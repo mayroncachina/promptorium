@@ -365,10 +365,12 @@ class DevServer {
     _notify();
   }
 
+  /// A line of the app (`promptorium: …`); [DevLogKind.out] goes as is
+  /// (the details under a line).
   void log(String text, [DevLogKind kind = DevLogKind.app]) {
     for (final l in const LineSplitter().convert(text)) {
       logs.add(
-        DevLogLine(kind == DevLogKind.app ? 'promptorium: $l' : l, kind),
+        DevLogLine(kind == DevLogKind.out ? l : 'promptorium: $l', kind),
       );
     }
     _notify();

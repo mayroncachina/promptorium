@@ -424,27 +424,12 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
             ],
             if (_fromDraft) ...[const _DraftNote(), const SizedBox(height: 8)],
             if (picked.isNotEmpty) ...[
-              SingleChildScrollView(
+              _PickedCards(
                 key: const ValueKey('composer-picked'),
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final (i, e) in picked.indexed) ...[
-                      if (i > 0) const SizedBox(width: 10),
-                      PickedElementCard(
-                        key: ValueKey('composer-picked-$i'),
-                        element: e,
-                        initiallyOpen: i == 0,
-                        onRemove: () => ref
-                            .read(
-                              pickedElementsProvider(widget.sessionId).notifier,
-                            )
-                            .removeAt(i),
-                      ),
-                    ],
-                  ],
-                ),
+                picked: picked,
+                onRemove: (i) => ref
+                    .read(pickedElementsProvider(widget.sessionId).notifier)
+                    .removeAt(i),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -646,6 +631,49 @@ bool sendsImages(
   required bool accepts,
 }) => provider != 'codex' || (alive && accepts);
 
+/// The pointed elements above the request (R8): the first open, the others
+/// beside it (side by side up to three; more scroll sideways).
+class _PickedCards extends StatelessWidget {
+  const _PickedCards({super.key, required this.picked, required this.onRemove});
+
+  final List<PickedElement> picked;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card(int i) => PickedElementCard(
+      key: ValueKey('composer-picked-$i'),
+      element: picked[i],
+      initiallyOpen: i == 0,
+      onRemove: () => onRemove(i),
+    );
+    if (picked.length > 3) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < picked.length; i++) ...[
+              if (i > 0) const SizedBox(width: 10),
+              card(i),
+            ],
+          ],
+        ),
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: card(0)),
+        for (var i = 1; i < picked.length; i++) ...[
+          const SizedBox(width: 10),
+          SizedBox(width: 240, child: card(i)),
+        ],
+      ],
+    );
+  }
+}
+
 /// An element pointed in the preview, in the composer (R8): thumbnail,
 /// selector, URL and size; it opens to show the HTML and the styles.
 class PickedElementCard extends StatefulWidget {
@@ -702,7 +730,10 @@ class _PickedElementCardState extends State<PickedElementCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
+              // Page colour behind the print (letterbox).
+              color: Colors.white,
               border: Border.all(
                 color: _open ? AppColors.amber : AppColors.border,
                 width: _open ? 2 : 1,

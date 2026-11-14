@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -77,6 +78,7 @@ class _PreviewTabState extends ConsumerState<PreviewTab> {
   final _scroll = ScrollController();
   Timer? _clock;
   bool _sending = false;
+  DevServerStatus? _lastStatus;
 
   @override
   void initState() {
@@ -116,7 +118,19 @@ class _PreviewTabState extends ConsumerState<PreviewTab> {
     final dev = widget.dev;
     ref.watch(devServerTickProvider(dev.worktree));
     final s = ref.watch(devServerProvider(dev.worktree));
-    final leftovers = ref.watch(devLeftoversProvider).value ?? const [];
+    final registry = ref.watch(devServerRegistryProvider);
+    // A leftover taken over ("reaproveitado") or stopped is not offered.
+    final leftovers = <DevServerRecord>[
+      for (final r in ref.watch(devLeftoversProvider).value ?? const [])
+        if (!registry.servers.any((x) => x.pgid == r.pgid)) r,
+    ];
+    // A server that started or stopped may change the leftovers.
+    if (_lastStatus != s.status) {
+      _lastStatus = s.status;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.invalidate(devLeftoversProvider);
+      });
+    }
     final failure = s.status == DevServerStatus.failed ? s.failure : null;
     final lines = s.logs.search(_search.text);
     final hasError =
@@ -125,176 +139,188 @@ class _PreviewTabState extends ConsumerState<PreviewTab> {
 
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (failure?.portTaken ?? false)
-            _PortTakenCard(
-              failure: failure!,
-              onUse: () => s.useRunning(failure.port!),
-              onRetry: () => s.start(
-                config: dev.config,
-                port: dev.port ?? failure.port,
-                environment: dev.environment,
+      child: LayoutBuilder(
+        builder: (context, c) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // The cards take what they need, leaving the log at least
+            // 150 px (or half the tab, when it is short).
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: math.max(c.maxHeight / 2, c.maxHeight - 150),
               ),
-            )
-          else
-            _StateCard(server: s, dev: dev),
-          if (failure != null && !failure.portTaken) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: SmallButton(
-                key: const ValueKey('preview-retry'),
-                label: 'Tentar de novo',
-                onTap: () => s.start(
-                  config: dev.config,
-                  port: dev.port,
-                  environment: dev.environment,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _cards(s, dev, failure, leftovers),
                 ),
               ),
             ),
-          ],
-          for (final r in leftovers) ...[
             const SizedBox(height: 14),
-            _LeftoverBanner(
-              record: r,
-              onEnd: () async {
-                await ref.read(devServerRegistryProvider).endLeftover(r);
-                ref.invalidate(devLeftoversProvider);
-              },
-              onKeep: () {
-                ref.read(devServerRegistryProvider).dismissLeftover(r);
-                ref.invalidate(devLeftoversProvider);
-              },
-            ),
+            Expanded(child: _logs(s, lines, hasError)),
           ],
-          const SizedBox(height: 14),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.panel,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: AppColors.border),
-                      ),
-                    ),
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      alignment: WrapAlignment.spaceBetween,
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        Text(
-                          'Logs · ${_count(s.logs.length)}',
-                          key: const ValueKey('preview-log-count'),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Buscar',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 180,
-                              child: TextField(
-                                key: const ValueKey('preview-log-search'),
-                                controller: _search,
-                                style: const TextStyle(fontSize: 12),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  hintText: 'texto no log',
-                                ),
-                                onChanged: (_) => setState(() {}),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SmallButton(
-                              key: const ValueKey('preview-log-copy'),
-                              label: 'Copiar',
-                              onTap: s.logs.length == 0
-                                  ? null
-                                  : () async {
-                                      await Clipboard.setData(
-                                        ClipboardData(
-                                          text: lines
-                                              .map((l) => l.text)
-                                              .join('\n'),
-                                        ),
-                                      );
-                                      _toast('Log copiado');
-                                    },
-                            ),
-                            const SizedBox(width: 8),
-                            SmallButton(
-                              key: const ValueKey('preview-send-error'),
-                              label: _sending
-                                  ? 'Mandando…'
-                                  : 'Mandar erro para a sessão',
-                              onTap: hasError && !_sending
-                                  ? () => _sendError(s)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: lines.isEmpty
-                        ? Center(
-                            child: Text(
-                              s.logs.length == 0
-                                  ? 'Sem logs ainda. Inicie o servidor no '
-                                        'cabeçalho da sessão.'
-                                  : 'Nada no log com "${_search.text}".',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          )
-                        : SelectionArea(
-                            child: ListView.builder(
-                              key: const ValueKey('preview-log-list'),
-                              controller: _scroll,
-                              reverse: true,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: lines.length,
-                              itemBuilder: (_, i) =>
-                                  _LogLine(lines[lines.length - 1 - i]),
-                            ),
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
+
+  List<Widget> _cards(
+    DevServer s,
+    SessionDev dev,
+    DevServerFailure? failure,
+    List<DevServerRecord> leftovers,
+  ) => [
+    if (failure?.portTaken ?? false)
+      _PortTakenCard(
+        failure: failure!,
+        onUse: () => s.useRunning(failure.port!),
+        onRetry: () => s.start(
+          config: dev.config,
+          port: dev.port ?? failure.port,
+          environment: dev.environment,
+        ),
+      )
+    else
+      _StateCard(server: s, dev: dev),
+    if (failure != null && !failure.portTaken) ...[
+      const SizedBox(height: 10),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: SmallButton(
+          key: const ValueKey('preview-retry'),
+          label: 'Tentar de novo',
+          onTap: () => s.start(
+            config: dev.config,
+            port: dev.port,
+            environment: dev.environment,
+          ),
+        ),
+      ),
+    ],
+    for (final r in leftovers) ...[
+      const SizedBox(height: 14),
+      _LeftoverBanner(
+        record: r,
+        onEnd: () async {
+          await ref.read(devServerRegistryProvider).endLeftover(r);
+          ref.invalidate(devLeftoversProvider);
+        },
+        onKeep: () {
+          ref.read(devServerRegistryProvider).dismissLeftover(r);
+          ref.invalidate(devLeftoversProvider);
+        },
+      ),
+    ],
+  ];
+
+  Widget _logs(DevServer s, List<DevLogLine> lines, bool hasError) => Container(
+    decoration: BoxDecoration(
+      color: AppColors.panel,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: AppColors.border)),
+          ),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Text(
+                'Logs · ${_count(s.logs.length)}',
+                key: const ValueKey('preview-log-count'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Buscar',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 180,
+                    child: TextField(
+                      key: const ValueKey('preview-log-search'),
+                      controller: _search,
+                      style: const TextStyle(fontSize: 12),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'texto no log',
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SmallButton(
+                    key: const ValueKey('preview-log-copy'),
+                    label: 'Copiar',
+                    onTap: s.logs.length == 0
+                        ? null
+                        : () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: lines.map((l) => l.text).join('\n'),
+                              ),
+                            );
+                            _toast('Log copiado');
+                          },
+                  ),
+                  const SizedBox(width: 8),
+                  SmallButton(
+                    key: const ValueKey('preview-send-error'),
+                    label: _sending ? 'Mandando…' : 'Mandar erro para a sessão',
+                    onTap: hasError && !_sending ? () => _sendError(s) : null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: lines.isEmpty
+              ? Center(
+                  child: Text(
+                    s.logs.length == 0
+                        ? 'Sem logs ainda. Inicie o servidor no '
+                              'cabeçalho da sessão.'
+                        : 'Nada no log com "${_search.text}".',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                )
+              : SelectionArea(
+                  child: ListView.builder(
+                    key: const ValueKey('preview-log-list'),
+                    controller: _scroll,
+                    reverse: true,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: lines.length,
+                    itemBuilder: (_, i) =>
+                        _LogLine(lines[lines.length - 1 - i]),
+                  ),
+                ),
+        ),
+      ],
+    ),
+  );
 
   static String _count(int n) {
     final shown = n >= 1000
@@ -312,9 +338,12 @@ class _LogLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = line.text;
+    // Many servers log ordinary lines to stderr: red only for errors (and
+    // the app's own failure lines).
     final color = line.text.contains('✓')
         ? AppColors.teal
-        : line.kind == DevLogKind.err || looksLikeError(t)
+        : looksLikeError(t) ||
+              (line.kind == DevLogKind.err && t.startsWith('promptorium:'))
         ? AppColors.red
         : t.toLowerCase().contains('warn')
         ? AppColors.amber
@@ -333,7 +362,13 @@ class _LogLine extends StatelessWidget {
   }
 }
 
-Widget _field(String label, String value, {Color? color, Key? key}) => Column(
+Widget _field(
+  String label,
+  String value, {
+  Color? color,
+  Key? key,
+  int maxLines = 3,
+}) => Column(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     Text(
@@ -344,6 +379,8 @@ Widget _field(String label, String value, {Color? color, Key? key}) => Column(
     Text(
       value,
       key: key,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
       style: TextStyle(
         fontSize: color == null ? 12 : 13,
         fontWeight: color == null ? FontWeight.w400 : FontWeight.w600,
@@ -492,9 +529,13 @@ class _PortTakenCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: _field('Comando', o.command ?? '—')),
+                Expanded(
+                  child: _field('Comando', o.command ?? '—', maxLines: 2),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _field('Pasta', _home(o.cwd) ?? '—')),
+                Expanded(
+                  child: _field('Pasta', _home(o.cwd) ?? '—', maxLines: 2),
+                ),
               ],
             ),
           ),
@@ -503,15 +544,19 @@ class _PortTakenCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 8,
             children: [
-              AmberButton(
-                key: const ValueKey('preview-use-running'),
-                label: 'Usar o que está no ar',
-                onTap: onUse,
+              IntrinsicWidth(
+                child: AmberButton(
+                  key: const ValueKey('preview-use-running'),
+                  label: 'Usar o que está no ar',
+                  onTap: onUse,
+                ),
               ),
-              SmallButton(
-                key: const ValueKey('preview-retry'),
-                label: 'Tentar de novo',
-                onTap: onRetry,
+              IntrinsicWidth(
+                child: SmallButton(
+                  key: const ValueKey('preview-retry'),
+                  label: 'Tentar de novo',
+                  onTap: onRetry,
+                ),
               ),
             ],
           ),
