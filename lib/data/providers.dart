@@ -18,6 +18,7 @@ import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
 import 'repos/spec_duels_repo.dart';
+import 'repos/spec_notes_repo.dart';
 import 'repos/spec_steps_repo.dart';
 import 'repos/spec_suggestions_repo.dart';
 import 'repos/specs_repo.dart';
@@ -93,6 +94,9 @@ final specDuelsRepoProvider = Provider(
 final stepRunsRepoProvider = Provider(
   (ref) => StepRunsRepo(ref.watch(appDatabaseProvider)),
 );
+final specNotesRepoProvider = Provider(
+  (ref) => SpecNotesRepo(ref.watch(appDatabaseProvider)),
+);
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),
 );
@@ -106,6 +110,17 @@ final workspacesProvider = StreamProvider<List<Workspace>>(
 final specsProvider = StreamProvider.family<List<Spec>, int>(
   (ref, workspaceId) =>
       ref.watch(specsRepoProvider).watchByWorkspace(workspaceId),
+);
+
+/// Newest progress note of each spec of a workspace (SPEC-052 R7).
+final latestSpecNotesProvider = StreamProvider.family<Map<int, SpecNote>, int>(
+  (ref, workspaceId) =>
+      ref.watch(specNotesRepoProvider).watchLatestByWorkspace(workspaceId),
+);
+
+/// Every progress note of a spec, newest first (SPEC-052 R7).
+final specNotesProvider = StreamProvider.family<List<SpecNote>, int>(
+  (ref, specId) => ref.watch(specNotesRepoProvider).watchBySpec(specId),
 );
 
 final sprintsProvider = StreamProvider.family<List<Sprint>, int>(

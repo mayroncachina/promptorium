@@ -47,6 +47,7 @@ export 'widgets/spec_header.dart' show SpecViewMode;
 import 'widgets/spec_list.dart';
 import 'widgets/step_trace_panel.dart';
 import 'widgets/subagents_editor.dart';
+import 'widgets/agent_origin.dart';
 import '../board/widgets/subagent_status.dart' show specSubagentsProvider;
 import '../board/board_rules.dart'
     show canArchiveSpec, canDeleteSpec, isInTray, specStageLabel, stepsOf;
@@ -1534,6 +1535,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                     onRetry: () => _retry(ws, spec, failure.kind),
                     onClose: () => setState(() => _failure = null),
                   )
+                : spec?.agentSession != null
+                // SPEC-052 R6: where a spec of the agent came from.
+                ? AgentOriginBanner(spec: spec!)
                 : const SizedBox.shrink(),
           ),
           Expanded(
@@ -1837,6 +1841,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   onSave: ready && !readOnly ? () => _save(ws, spec) : null,
                   lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
                   statusLabel: planLock?.chip,
+                  agentCreated: spec?.agentSession != null,
                   planned:
                       spec != null &&
                       specIsPlanned(

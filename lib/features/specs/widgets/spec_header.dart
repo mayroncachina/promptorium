@@ -8,6 +8,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart' show plannedLabel, specStatusLabel;
+import 'agent_origin.dart' show AgentCreatedChip;
 import 'spec_action_banner.dart' show ActionSpinner;
 
 /// Editor modes of the spec (SPEC-024 R2) and the prototype of the screens
@@ -454,6 +455,7 @@ class SpecHeader extends StatelessWidget {
     this.statusLabel,
     this.lockAlert = false,
     this.planned = false,
+    this.agentCreated = false,
   });
 
   final String title;
@@ -485,6 +487,9 @@ class SpecHeader extends StatelessWidget {
   /// The editor's text has a `## Plano` and the spec is not approved:
   /// "Planejada" (SPEC-062 R3).
   final bool planned;
+
+  /// "Criada pelo agente" next to the status (SPEC-052 R6).
+  final bool agentCreated;
 
   @override
   Widget build(BuildContext context) {
@@ -527,6 +532,10 @@ class SpecHeader extends StatelessWidget {
                 label: statusLabel,
                 planned: planned,
               ),
+            ],
+            if (agentCreated) ...[
+              const SizedBox(width: 8),
+              const AgentCreatedChip(key: ValueKey('spec-agent-chip')),
             ],
           ],
         ),

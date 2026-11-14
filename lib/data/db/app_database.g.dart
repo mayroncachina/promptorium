@@ -1115,6 +1115,17 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _agentSessionMeta = const VerificationMeta(
+    'agentSession',
+  );
+  @override
+  late final GeneratedColumn<String> agentSession = GeneratedColumn<String>(
+    'agent_session',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1148,6 +1159,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     originAlias,
     originTitle,
     inTray,
+    agentSession,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1367,6 +1379,15 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         inTray.isAcceptableOrUnknown(data['in_tray']!, _inTrayMeta),
       );
     }
+    if (data.containsKey('agent_session')) {
+      context.handle(
+        _agentSessionMeta,
+        agentSession.isAcceptableOrUnknown(
+          data['agent_session']!,
+          _agentSessionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1512,6 +1533,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.bool,
         data['${effectivePrefix}in_tray'],
       )!,
+      agentSession: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}agent_session'],
+      ),
     );
   }
 
@@ -1620,6 +1645,10 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// and only "Levar para o Backlog" puts it on the Quadro. False for every
   /// spec that already existed (they stay where they were).
   final bool inTray;
+
+  /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
+  /// created through the Promptorium MCP); null for the others.
+  final String? agentSession;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1652,6 +1681,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.originAlias,
     this.originTitle,
     required this.inTray,
+    this.agentSession,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1733,6 +1763,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       map['origin_title'] = Variable<String>(originTitle);
     }
     map['in_tray'] = Variable<bool>(inTray);
+    if (!nullToAbsent || agentSession != null) {
+      map['agent_session'] = Variable<String>(agentSession);
+    }
     return map;
   }
 
@@ -1801,6 +1834,9 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? const Value.absent()
           : Value(originTitle),
       inTray: Value(inTray),
+      agentSession: agentSession == null && nullToAbsent
+          ? const Value.absent()
+          : Value(agentSession),
     );
   }
 
@@ -1849,6 +1885,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       originAlias: serializer.fromJson<String?>(json['originAlias']),
       originTitle: serializer.fromJson<String?>(json['originTitle']),
       inTray: serializer.fromJson<bool>(json['inTray']),
+      agentSession: serializer.fromJson<String?>(json['agentSession']),
     );
   }
   @override
@@ -1892,6 +1929,7 @@ class Spec extends DataClass implements Insertable<Spec> {
       'originAlias': serializer.toJson<String?>(originAlias),
       'originTitle': serializer.toJson<String?>(originTitle),
       'inTray': serializer.toJson<bool>(inTray),
+      'agentSession': serializer.toJson<String?>(agentSession),
     };
   }
 
@@ -1927,6 +1965,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> originAlias = const Value.absent(),
     Value<String?> originTitle = const Value.absent(),
     bool? inTray,
+    Value<String?> agentSession = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -1965,6 +2004,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias: originAlias.present ? originAlias.value : this.originAlias,
     originTitle: originTitle.present ? originTitle.value : this.originTitle,
     inTray: inTray ?? this.inTray,
+    agentSession: agentSession.present ? agentSession.value : this.agentSession,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -2035,6 +2075,9 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.originTitle.value
           : this.originTitle,
       inTray: data.inTray.present ? data.inTray.value : this.inTray,
+      agentSession: data.agentSession.present
+          ? data.agentSession.value
+          : this.agentSession,
     );
   }
 
@@ -2071,7 +2114,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
-          ..write('inTray: $inTray')
+          ..write('inTray: $inTray, ')
+          ..write('agentSession: $agentSession')
           ..write(')'))
         .toString();
   }
@@ -2109,6 +2153,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias,
     originTitle,
     inTray,
+    agentSession,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2144,7 +2189,8 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.originItem == this.originItem &&
           other.originAlias == this.originAlias &&
           other.originTitle == this.originTitle &&
-          other.inTray == this.inTray);
+          other.inTray == this.inTray &&
+          other.agentSession == this.agentSession);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -2179,6 +2225,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> originAlias;
   final Value<String?> originTitle;
   final Value<bool> inTray;
+  final Value<String?> agentSession;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -2211,6 +2258,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.agentSession = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -2244,6 +2292,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.agentSession = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -2280,6 +2329,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? originAlias,
     Expression<String>? originTitle,
     Expression<bool>? inTray,
+    Expression<String>? agentSession,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2314,6 +2364,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (originAlias != null) 'origin_alias': originAlias,
       if (originTitle != null) 'origin_title': originTitle,
       if (inTray != null) 'in_tray': inTray,
+      if (agentSession != null) 'agent_session': agentSession,
     });
   }
 
@@ -2349,6 +2400,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? originAlias,
     Value<String?>? originTitle,
     Value<bool>? inTray,
+    Value<String?>? agentSession,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2382,6 +2434,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       originAlias: originAlias ?? this.originAlias,
       originTitle: originTitle ?? this.originTitle,
       inTray: inTray ?? this.inTray,
+      agentSession: agentSession ?? this.agentSession,
     );
   }
 
@@ -2489,6 +2542,9 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (inTray.present) {
       map['in_tray'] = Variable<bool>(inTray.value);
     }
+    if (agentSession.present) {
+      map['agent_session'] = Variable<String>(agentSession.value);
+    }
     return map;
   }
 
@@ -2525,7 +2581,8 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('originItem: $originItem, ')
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
-          ..write('inTray: $inTray')
+          ..write('inTray: $inTray, ')
+          ..write('agentSession: $agentSession')
           ..write(')'))
         .toString();
   }
@@ -14064,6 +14121,407 @@ class StepRunsCompanion extends UpdateCompanion<StepRun> {
   }
 }
 
+class $SpecNotesTable extends SpecNotes
+    with TableInfo<$SpecNotesTable, SpecNote> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SpecNotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stepsMeta = const VerificationMeta('steps');
+  @override
+  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
+    'steps',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    specId,
+    sessionId,
+    steps,
+    note,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'spec_notes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SpecNote> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('steps')) {
+      context.handle(
+        _stepsMeta,
+        steps.isAcceptableOrUnknown(data['steps']!, _stepsMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SpecNote map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SpecNote(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      steps: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}steps'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SpecNotesTable createAlias(String alias) {
+    return $SpecNotesTable(attachedDatabase, alias);
+  }
+}
+
+class SpecNote extends DataClass implements Insertable<SpecNote> {
+  final int id;
+  final int specId;
+
+  /// Session (or Claude session of a conversation) that wrote it.
+  final String? sessionId;
+
+  /// Steps of the session when it wrote (`R3`, `R2,R3`).
+  final String? steps;
+  final String note;
+  final DateTime createdAt;
+  const SpecNote({
+    required this.id,
+    required this.specId,
+    this.sessionId,
+    this.steps,
+    required this.note,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['spec_id'] = Variable<int>(specId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || steps != null) {
+      map['steps'] = Variable<String>(steps);
+    }
+    map['note'] = Variable<String>(note);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  SpecNotesCompanion toCompanion(bool nullToAbsent) {
+    return SpecNotesCompanion(
+      id: Value(id),
+      specId: Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      steps: steps == null && nullToAbsent
+          ? const Value.absent()
+          : Value(steps),
+      note: Value(note),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory SpecNote.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SpecNote(
+      id: serializer.fromJson<int>(json['id']),
+      specId: serializer.fromJson<int>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      steps: serializer.fromJson<String?>(json['steps']),
+      note: serializer.fromJson<String>(json['note']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'specId': serializer.toJson<int>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'steps': serializer.toJson<String?>(steps),
+      'note': serializer.toJson<String>(note),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  SpecNote copyWith({
+    int? id,
+    int? specId,
+    Value<String?> sessionId = const Value.absent(),
+    Value<String?> steps = const Value.absent(),
+    String? note,
+    DateTime? createdAt,
+  }) => SpecNote(
+    id: id ?? this.id,
+    specId: specId ?? this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    steps: steps.present ? steps.value : this.steps,
+    note: note ?? this.note,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  SpecNote copyWithCompanion(SpecNotesCompanion data) {
+    return SpecNote(
+      id: data.id.present ? data.id.value : this.id,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      steps: data.steps.present ? data.steps.value : this.steps,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecNote(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, specId, sessionId, steps, note, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SpecNote &&
+          other.id == this.id &&
+          other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
+          other.steps == this.steps &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt);
+}
+
+class SpecNotesCompanion extends UpdateCompanion<SpecNote> {
+  final Value<int> id;
+  final Value<int> specId;
+  final Value<String?> sessionId;
+  final Value<String?> steps;
+  final Value<String> note;
+  final Value<DateTime> createdAt;
+  const SpecNotesCompanion({
+    this.id = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  SpecNotesCompanion.insert({
+    this.id = const Value.absent(),
+    required int specId,
+    this.sessionId = const Value.absent(),
+    this.steps = const Value.absent(),
+    required String note,
+    this.createdAt = const Value.absent(),
+  }) : specId = Value(specId),
+       note = Value(note);
+  static Insertable<SpecNote> custom({
+    Expression<int>? id,
+    Expression<int>? specId,
+    Expression<String>? sessionId,
+    Expression<String>? steps,
+    Expression<String>? note,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (steps != null) 'steps': steps,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  SpecNotesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? specId,
+    Value<String?>? sessionId,
+    Value<String?>? steps,
+    Value<String>? note,
+    Value<DateTime>? createdAt,
+  }) {
+    return SpecNotesCompanion(
+      id: id ?? this.id,
+      specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
+      steps: steps ?? this.steps,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (steps.present) {
+      map['steps'] = Variable<String>(steps.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SpecNotesCompanion(')
+          ..write('id: $id, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('steps: $steps, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -14096,6 +14554,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $NotificationsTable notifications = $NotificationsTable(this);
   late final $SpecDuelsTable specDuels = $SpecDuelsTable(this);
   late final $StepRunsTable stepRuns = $StepRunsTable(this);
+  late final $SpecNotesTable specNotes = $SpecNotesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14125,6 +14584,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     notifications,
     specDuels,
     stepRuns,
+    specNotes,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -14281,6 +14741,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('step_runs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('spec_notes', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -15687,6 +16154,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<String?> agentSession,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -15720,6 +16188,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<String?> agentSession,
 });
 
 final class $$SpecsTableReferences
@@ -15908,6 +16377,24 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SpecNotesTable, List<SpecNote>>
+  _specNotesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.specNotes,
+    aliasName: 'specs__id__spec_notes__spec_id',
+  );
+
+  $$SpecNotesTableProcessedTableManager get specNotesRefs {
+    final manager = $$SpecNotesTableTableManager(
+      $_db,
+      $_db.specNotes,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_specNotesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -16068,6 +16555,11 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<bool> get inTray => $composableBuilder(
     column: $table.inTray,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get agentSession => $composableBuilder(
+    column: $table.agentSession,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16316,6 +16808,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     );
     return f(composer);
   }
+
+  Expression<bool> specNotesRefs(
+    Expression<bool> Function($$SpecNotesTableFilterComposer f) f,
+  ) {
+    final $$SpecNotesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specNotes,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecNotesTableFilterComposer(
+            $db: $db,
+            $table: $db.specNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableOrderingComposer
@@ -16469,6 +16986,11 @@ class $$SpecsTableOrderingComposer
 
   ColumnOrderings<bool> get inTray => $composableBuilder(
     column: $table.inTray,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get agentSession => $composableBuilder(
+    column: $table.agentSession,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16649,6 +17171,11 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<bool> get inTray =>
       $composableBuilder(column: $table.inTray, builder: (column) => column);
+
+  GeneratedColumn<String> get agentSession => $composableBuilder(
+    column: $table.agentSession,
+    builder: (column) => column,
+  );
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -16895,6 +17422,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> specNotesRefs<T extends Object>(
+    Expression<T> Function($$SpecNotesTableAnnotationComposer a) f,
+  ) {
+    final $$SpecNotesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.specNotes,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecNotesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -16921,6 +17473,7 @@ class $$SpecsTableTableManager
             bool specSuggestionsRefs,
             bool specDuelsRefs,
             bool stepRunsRefs,
+            bool specNotesRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -16968,6 +17521,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<String?> agentSession = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -17000,6 +17554,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                agentSession: agentSession,
               ),
           createCompanionCallback:
               ({
@@ -17035,6 +17590,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<String?> agentSession = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -17067,6 +17623,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                agentSession: agentSession,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -17088,6 +17645,7 @@ class $$SpecsTableTableManager
                 specSuggestionsRefs = false,
                 specDuelsRefs = false,
                 stepRunsRefs = false,
+                specNotesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -17100,6 +17658,7 @@ class $$SpecsTableTableManager
                     if (specSuggestionsRefs) db.specSuggestions,
                     if (specDuelsRefs) db.specDuels,
                     if (stepRunsRefs) db.stepRuns,
+                    if (specNotesRefs) db.specNotes,
                   ],
                   addJoins:
                       <
@@ -17288,6 +17847,23 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (specNotesRefs)
+                        await $_getPrefetchedData<Spec, $SpecsTable, SpecNote>(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._specNotesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).specNotesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17319,6 +17895,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool specSuggestionsRefs,
         bool specDuelsRefs,
         bool stepRunsRefs,
+        bool specNotesRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -25630,6 +26207,332 @@ typedef $$StepRunsTableProcessedTableManager =
       StepRun,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$SpecNotesTableCreateCompanionBuilder = SpecNotesCompanion Function({
+  Value<int> id,
+  required int specId,
+  Value<String?> sessionId,
+  Value<String?> steps,
+  required String note,
+  Value<DateTime> createdAt,
+});
+typedef $$SpecNotesTableUpdateCompanionBuilder = SpecNotesCompanion Function({
+  Value<int> id,
+  Value<int> specId,
+  Value<String?> sessionId,
+  Value<String?> steps,
+  Value<String> note,
+  Value<DateTime> createdAt,
+});
+
+final class $$SpecNotesTableReferences
+    extends BaseReferences<_$AppDatabase, $SpecNotesTable, SpecNote> {
+  $$SpecNotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('spec_notes__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager get specId {
+    final $_column = $_itemColumn<int>('spec_id')!;
+
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SpecNotesTableFilterComposer
+    extends Composer<_$AppDatabase, $SpecNotesTable> {
+  $$SpecNotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecNotesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SpecNotesTable> {
+  $$SpecNotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get steps => $composableBuilder(
+    column: $table.steps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecNotesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SpecNotesTable> {
+  $$SpecNotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get steps =>
+      $composableBuilder(column: $table.steps, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SpecNotesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SpecNotesTable,
+          SpecNote,
+          $$SpecNotesTableFilterComposer,
+          $$SpecNotesTableOrderingComposer,
+          $$SpecNotesTableAnnotationComposer,
+          $$SpecNotesTableCreateCompanionBuilder,
+          $$SpecNotesTableUpdateCompanionBuilder,
+          (SpecNote, $$SpecNotesTableReferences),
+          SpecNote,
+          PrefetchHooks Function({bool specId})
+        > {
+  $$SpecNotesTableTableManager(_$AppDatabase db, $SpecNotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SpecNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SpecNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SpecNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                Value<String> note = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecNotesCompanion(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                note: note,
+                createdAt: createdAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int specId,
+                Value<String?> sessionId = const Value.absent(),
+                Value<String?> steps = const Value.absent(),
+                required String note,
+                Value<DateTime> createdAt = const Value.absent(),
+              }) => SpecNotesCompanion.insert(
+                id: id,
+                specId: specId,
+                sessionId: sessionId,
+                steps: steps,
+                note: note,
+                createdAt: createdAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SpecNotesTable, SpecNote>(table),
+                  $$SpecNotesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({specId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (specId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.specId,
+                        referencedTable: $$SpecNotesTableReferences
+                            ._specIdTable(db),
+                        referencedColumn: $$SpecNotesTableReferences
+                            ._specIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SpecNotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SpecNotesTable,
+      SpecNote,
+      $$SpecNotesTableFilterComposer,
+      $$SpecNotesTableOrderingComposer,
+      $$SpecNotesTableAnnotationComposer,
+      $$SpecNotesTableCreateCompanionBuilder,
+      $$SpecNotesTableUpdateCompanionBuilder,
+      (SpecNote, $$SpecNotesTableReferences),
+      SpecNote,
+      PrefetchHooks Function({bool specId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -25682,4 +26585,6 @@ class $AppDatabaseManager {
       $$SpecDuelsTableTableManager(_db, _db.specDuels);
   $$StepRunsTableTableManager get stepRuns =>
       $$StepRunsTableTableManager(_db, _db.stepRuns);
+  $$SpecNotesTableTableManager get specNotes =>
+      $$SpecNotesTableTableManager(_db, _db.specNotes);
 }

@@ -6,6 +6,7 @@ import '../../../ui/widgets/app_pressable.dart';
 import '../../board/board_rules.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
+import 'agent_origin.dart' show AgentCreatedChip;
 
 /// Status colors of the mockup (Aprovada teal, Em revisão amber, …).
 Color specStatusColor(SpecStatus s) => switch (s) {
@@ -158,6 +159,18 @@ class SpecList extends StatelessWidget {
                                           ),
                                         ),
                                       ),
+                                      if (s.agentSession != null) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          flex: 2,
+                                          child: AgentCreatedChip(
+                                            key: ValueKey(
+                                              'spec-item-agent-${s.code}',
+                                            ),
+                                            small: true,
+                                          ),
+                                        ),
+                                      ],
                                       const SizedBox(width: 8),
                                       const Spacer(),
                                       // The status is short: it keeps its

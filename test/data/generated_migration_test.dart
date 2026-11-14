@@ -135,4 +135,36 @@ void main() {
       await db.close();
     },
   );
+
+  test(
+    'v24 → v25 keeps the specs, none created by the agent, and no notes',
+    () async {
+      final schema = await verifier.schemaAt(24);
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+        )
+        ..execute(
+          "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+          "VALUES (1, 1, 'SPEC-001', 'Grupos', 'specs/SPEC-001-grupos.md', "
+          "'approved')",
+        );
+      final db = AppDatabase(schema.newConnection());
+      final row = await db.select(db.specs).getSingle();
+      expect(row.code, 'SPEC-001');
+      expect(row.status, SpecStatus.approved);
+      expect(row.agentSession, equals(null));
+      expect(await db.select(db.specNotes).get(), isEmpty);
+      await db
+          .into(db.specNotes)
+          .insert(
+            SpecNotesCompanion.insert(specId: 1, note: 'Comecei pela tabela.'),
+          );
+      expect(
+        (await db.select(db.specNotes).getSingle()).note,
+        'Comecei pela tabela.',
+      );
+      await db.close();
+    },
+  );
 }

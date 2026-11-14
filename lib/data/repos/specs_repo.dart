@@ -60,6 +60,7 @@ class SpecsRepo {
     String? phase,
     bool hasPlan = false,
     bool inTray = false,
+    String? agentSession,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -79,6 +80,7 @@ class SpecsRepo {
           phase: Value(phase),
           hasPlan: Value(hasPlan),
           inTray: Value(inTray),
+          agentSession: Value(agentSession),
         ),
       );
 

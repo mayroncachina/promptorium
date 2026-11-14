@@ -199,6 +199,7 @@ class SpecService {
         phase: doc.phase,
         hasPlan: doc.design != null,
         inTray: !_firstReading,
+        agentSession: doc.agentSession,
       );
     }
     var status = doc.status ?? existing.status;
@@ -243,6 +244,7 @@ class SpecService {
         existing.hasPlan != (doc.design != null) ||
         !_sameReqs(existing.requirements, reqs) ||
         existing.dependsOn.join(',') != deps.join(',') ||
+        existing.agentSession != doc.agentSession ||
         toTray) {
       await _repo.update(
         existing.id,
@@ -256,6 +258,7 @@ class SpecService {
           requirements: Value(reqs),
           dependsOn: Value(deps),
           hasPlan: Value(doc.design != null),
+          agentSession: Value(doc.agentSession),
         ),
       );
     }
@@ -421,6 +424,7 @@ class SpecService {
       phase: doc.phase,
       hasPlan: doc.design != null,
       inTray: true,
+      agentSession: doc.agentSession,
     );
   }
 
