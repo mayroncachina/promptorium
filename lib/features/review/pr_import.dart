@@ -289,6 +289,11 @@ class ImportedPr {
   }
 }
 
+/// The reply left in a PR conversation the agent fixed (SPEC-050 R8).
+String prReplyBody(String sha) =>
+    'Corrigido em ${sha.length > 7 ? sha.substring(0, 7) : sha} '
+    '(Promptorium).';
+
 /// `refs/promptorium/pr/<n>`: where the head of a PR is fetched to.
 String prLocalRef(int number) => 'refs/promptorium/pr/$number';
 
@@ -533,11 +538,9 @@ class PrImportService {
       final out = await _gh(ws.path).gh([
         'api',
         'repos/${a.repository}/pulls/$number/comments',
-        '--paginate',
-        '--slurp',
+        ...ghRowPerLine,
       ]);
-      final decoded = jsonDecode(out);
-      return decoded is List ? parsePrInlineComments(decoded) : const [];
+      return parsePrInlineComments(decodeGhRows(out));
     } catch (e) {
       debugPrint('comentários do PR #$number não lidos — $e');
       return const [];

@@ -38,8 +38,28 @@ class PrComment {
   final String kind;
 }
 
-/// The review threads of `gh api …/pulls/<n>/comments --paginate --slurp`
-/// (pages of rows): one comment per thread, with its replies appended.
+/// Arguments that make `gh api --paginate` print one row per line
+/// (`--slurp` only exists from gh 2.48 on; Ubuntu ships 2.45).
+const ghRowPerLine = ['--paginate', '--jq', '.[]'];
+
+/// The rows of a `gh api` answer: a JSON list (or list of pages), or one
+/// JSON value per line ([ghRowPerLine]). Throws [FormatException].
+List<Object?> decodeGhRows(String out) {
+  final text = out.trim();
+  if (text.isEmpty) return const [];
+  try {
+    final whole = jsonDecode(text);
+    return whole is List ? whole : [whole];
+  } on FormatException {
+    return [
+      for (final line in const LineSplitter().convert(text))
+        if (line.trim().isNotEmpty) jsonDecode(line),
+    ];
+  }
+}
+
+/// The review threads of `gh api …/pulls/<n>/comments` (rows, or pages of
+/// rows): one comment per thread, with its replies appended.
 List<PrComment> parsePrInlineComments(List<Object?> decoded) {
   final rows = <Map>[
     for (final page in decoded)

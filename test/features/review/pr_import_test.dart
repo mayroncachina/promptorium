@@ -11,6 +11,7 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/pr_import.dart';
 import 'package:promptorium/features/review/review_service.dart';
+import 'package:promptorium/features/review/widgets/imported_pr_panel.dart';
 import 'package:promptorium/features/review/widgets/pr_import_dialog.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -167,8 +168,10 @@ class FakeImportService extends PrImportService {
 }
 
 class _Settings extends AppSettingsController {
+  Map<String, String> seed = const {};
+
   @override
-  Map<String, String> build() => {};
+  Map<String, String> build() => {...seed};
 
   @override
   Future<void> set(String key, String value) async =>
@@ -678,6 +681,198 @@ void main() {
     });
   });
 
+  group('R7 · R8 · R9 · push, patch, atualizar, responder e soltar', () {
+    /// Brings PR 214 (or 212 from a fork) and makes the agent commit.
+    Future<(PrEnv, String, String)> brought({bool fork = false}) async {
+      final e = await setUpEnv();
+      await publishPr(fork ? 212 : 214, 'feat/duplicar-card', fork: fork);
+      final pr = parseGhOpenPr(
+        fork ? prJson(number: 212, fork: true, owner: 'bea-lima') : prJson(),
+      )!;
+      final id = await e.service.bring(
+        e.ws,
+        PrImportCandidate(pr: pr, canWrite: true),
+      );
+      final wt = (await e.c.read(sessionsRepoProvider).getById(id))!
+          .worktreePath;
+      return (e, id, wt);
+    }
+
+    Future<void> agentCommit(String wt, String file, String text) async {
+      File('$wt/$file').writeAsStringSync(text);
+      await gitIn(wt, ['add', file]);
+      await gitIn(wt, ['commit', '-q', '-m', 'agente: $file']);
+    }
+
+    test('com permissão, o push vai para a branch do PR, sem forçar', () async {
+      final (e, id, wt) = await brought();
+      expect(await e.review.pushIfAhead(id), isFalse);
+      await agentCommit(wt, 'agente.txt', 'ok\n');
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 1,
+      ));
+      expect(await e.review.pushIfAhead(id), isTrue);
+      final head = (await gitIn(wt, ['rev-parse', 'HEAD'])).trim();
+      expect(
+        (await gitIn(origin, [
+          'rev-parse',
+          'refs/heads/feat/duplicar-card',
+        ])).trim(),
+        head,
+      );
+      final push = e.gits.expand((g) => g.pushes).single;
+      expect(push, ['push', 'origin', 'HEAD:refs/heads/feat/duplicar-card']);
+      expect(push.any((a) => a.contains('force') || a == '-f'), isFalse);
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 0,
+      ));
+    });
+
+    test('sem permissão, os commits ficam locais e "Copiar patch" traz o '
+        'format-patch', () async {
+      final (e, id, wt) = await brought(fork: true);
+      await agentCommit(wt, 'agente.txt', 'ok\n');
+      expect(await e.review.pushIfAhead(id), isFalse);
+      expect(e.gits.expand((g) => g.pushes), isEmpty);
+      final patch = await e.review.copyPatch(id);
+      expect(patch, contains('Subject: [PATCH] agente: agente.txt'));
+      expect(patch, isNot(contains('PR 212')));
+    });
+
+    test('"Atualizar" traz os commits do autor e refaz os locais por cima; '
+        'o conflito para no rebase do fluxo existente', () async {
+      final (e, id, wt) = await brought();
+      await agentCommit(wt, 'agente.txt', 'ok\n');
+      // The author publishes one more commit on the PR.
+      await gitIn(repo, ['fetch', '-q', 'origin', 'refs/pull/214/head']);
+      await gitIn(repo, ['checkout', '-q', '--detach', 'FETCH_HEAD']);
+      await agentCommit(repo, 'autor.txt', 'do autor\n');
+      await gitIn(repo, ['push', '-q', 'origin', 'HEAD:refs/pull/214/head']);
+      await gitIn(repo, ['push', '-q', 'origin', 'HEAD:feat/duplicar-card']);
+      await gitIn(repo, ['checkout', '-q', 'main']);
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 1,
+        local: 1,
+      ));
+      // Pushing now would need a forced push: refused.
+      await expectLater(
+        e.review.pushIfAhead(id),
+        throwsA(isA<ReviewException>()),
+      );
+      final r = await e.review.updateFromRemote(id);
+      expect(r.inProgress, isFalse);
+      expect(File('$wt/autor.txt').existsSync(), isTrue);
+      expect(
+        (await gitIn(wt, ['log', '--format=%s', '-3'])).trim().split('\n'),
+        ['agente: agente.txt', 'agente: autor.txt', 'PR 214'],
+      );
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 1,
+      ));
+
+      // Same file on both sides: the rebase stops on the conflict.
+      await agentCommit(wt, 'pr214.txt', 'do agente\n');
+      await gitIn(repo, ['fetch', '-q', 'origin', 'refs/pull/214/head']);
+      await gitIn(repo, ['checkout', '-q', '--detach', 'FETCH_HEAD']);
+      await agentCommit(repo, 'pr214.txt', 'do autor de novo\n');
+      await gitIn(repo, ['push', '-q', 'origin', 'HEAD:refs/pull/214/head']);
+      await gitIn(repo, ['push', '-q', 'origin', 'HEAD:feat/duplicar-card']);
+      await gitIn(repo, ['checkout', '-q', 'main']);
+      final stopped = await e.review.updateFromRemote(id);
+      expect(stopped.inProgress, isTrue);
+      expect(stopped.files.keys, contains('pr214.txt'));
+      expect((await e.review.rebaseStatus(id)).inProgress, isTrue);
+      await e.review.abortRebase(id);
+    });
+
+    test('só com "Responder no PR depois do push" o app comenta nas '
+        'conversas tratadas, com o SHA', () async {
+      final (e, id, wt) = await brought();
+      e.gh.comments = [
+        {
+          'id': 9,
+          'path': 'pr214.txt',
+          'line': 1,
+          'body': 'Renomeie',
+          'user': {'login': 'mayroncachina'},
+          'created_at': '2026-11-12T10:00:00Z',
+        },
+      ];
+      e.gh.viewed = {
+        'state': 'OPEN',
+        'comments': [],
+        'reviews': [],
+        'statusCheckRollup': [],
+      };
+      await e.review.prView(id);
+      final rows = await e.c.read(reviewCommentsRepoProvider).bySession(id);
+      Iterable<List<String>> replies() => [
+        for (final c in e.gh.calls)
+          if (c.contains('POST')) c,
+      ];
+
+      await e.review.requestChanges(id, const [], selected: rows);
+      await agentCommit(wt, 'agente.txt', 'ok\n');
+      expect(await e.review.pushIfAhead(id), isTrue);
+      expect(replies(), isEmpty);
+
+      await e.review.requestChanges(
+        id,
+        const [],
+        note: 'de novo',
+        selected: rows,
+        replyInPr: true,
+      );
+      expect(e.c.read(appSettingsProvider)[replyInPrKey(e.ws.id)], '1');
+      await agentCommit(wt, 'agente2.txt', 'ok\n');
+      expect(await e.review.pushIfAhead(id), isTrue);
+      final head = (await gitIn(wt, ['rev-parse', 'HEAD'])).trim();
+      final call = replies().single;
+      expect(call, contains('repos/o/r/pulls/214/comments/9/replies'));
+      expect(call.last, 'body=${prReplyBody(head)}');
+      expect(call.last, contains(head.substring(0, 7)));
+      expect(call.any((a) => a.contains('resolve')), isFalse);
+      // Answered once: the next push does not answer again.
+      await agentCommit(wt, 'agente3.txt', 'ok\n');
+      await e.review.pushIfAhead(id);
+      expect(replies(), hasLength(1));
+    });
+
+    test('"Soltar o PR" confirma com commits não publicados e remove o '
+        'worktree e a branch local, nunca a remota', () async {
+      final (e, id, wt) = await brought();
+      await agentCommit(wt, 'agente.txt', 'ok\n');
+      await expectLater(
+        e.review.releaseImported(id),
+        throwsA(
+          isA<UnpublishedCommitsException>().having((x) => x.count, 'count', 1),
+        ),
+      );
+      expect(Directory(wt).existsSync(), isTrue);
+      await e.review.releaseImported(id, force: true);
+      expect(Directory(wt).existsSync(), isFalse);
+      expect(
+        await gitIn(repo, ['branch', '--list', 'feat/duplicar-card']),
+        isEmpty,
+      );
+      expect(
+        await gitIn(origin, ['branch', '--list', 'feat/duplicar-card']),
+        contains('feat/duplicar-card'),
+      );
+      expect(e.gits.expand((g) => g.pushes), isEmpty);
+      expect(
+        e.gh.calls.where((c) => c.take(2).join(' ') == 'pr close'),
+        isEmpty,
+      );
+      final s = (await e.c.read(sessionsRepoProvider).getById(id))!;
+      expect(s.id, id); // the session stays in the history
+      expect(importedPrOf(e.c.read(appSettingsProvider), id)!.open, isFalse);
+    });
+  });
+
   group('R10 · GitLab', () {
     test('Trazer PR fica desabilitado com o motivo', () async {
       expect(importUnavailableReason('github'), isNull);
@@ -696,6 +891,32 @@ void main() {
       expect(ok.available, isTrue);
       expect(ok.repository, 'o/r');
     });
+  });
+
+  test('decodeGhRows lê uma linha por comentário (gh 2.45, sem --slurp), '
+      'uma lista ou páginas', () {
+    final row = {
+      'id': 1,
+      'body': 'a',
+      'user': {'login': 'x'},
+    };
+    final lines = '${jsonEncode(row)}\n${jsonEncode({...row, 'id': 2})}\n';
+    expect(decodeGhRows(lines), hasLength(2));
+    expect(parsePrInlineComments(decodeGhRows(lines)), hasLength(2));
+    expect(decodeGhRows(jsonEncode([row])), hasLength(1));
+    expect(
+      parsePrInlineComments(
+        decodeGhRows(
+          jsonEncode([
+            [row],
+            [row],
+          ]),
+        ),
+      ),
+      hasLength(2),
+    );
+    expect(decodeGhRows(''), isEmpty);
+    expect(ghRowPerLine, isNot(contains('--slurp')));
   });
 
   test('forkRemoteUrl troca o dono na URL ssh e https', () {
@@ -963,6 +1184,120 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('review-bring-pr')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('pr-import-dialog')), findsNothing);
+    });
+  });
+
+  group('R7 · P4 · R9 · painel do PR trazido', () {
+    const meta = ImportedPr(
+      number: 212,
+      url: 'https://github.com/o/r/pull/212',
+      title: 'Corrige o scroll',
+      author: 'bea-lima',
+      headRef: 'fix/scroll-diff',
+      baseRef: 'main',
+      cross: true,
+    );
+
+    Future<void> pump(WidgetTester tester, ImportedPr pr) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appSettingsProvider.overrideWith(
+              () => _Settings()..seed = {ImportedPr.key('s1'): pr.encode()},
+            ),
+            importedAheadProvider.overrideWith(
+              (ref, id) async => (author: 2, local: 1),
+            ),
+            sessionReviewCommentsProvider.overrideWith(
+              (ref, id) => Stream.value(const <ReviewCommentRow>[]),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: const Scaffold(body: ImportedPrPanel(sessionId: 's1')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('sem permissão: aviso e "Copiar patch"; commits do autor com '
+        '"Atualizar…", que pergunta quantos locais serão refeitos', (
+      tester,
+    ) async {
+      await pump(tester, meta);
+      expect(find.byKey(const ValueKey('imported-pr-no-push')), findsOneWidget);
+      expect(find.byKey(const ValueKey('imported-pr-push')), findsNothing);
+      expect(find.byKey(const ValueKey('imported-pr-patch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('imported-pr-reply')), findsNothing);
+      expect(find.text('Revisor automático desligado'), findsOneWidget);
+      expect(
+        find.text('O autor publicou 2 commits na branch do PR'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('1 commit do agente ainda não publicado'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('imported-update')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('imported-update-dialog')),
+        findsOneWidget,
+      );
+      expect(find.text('Refazer 1 por cima'), findsOneWidget);
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('imported-pr-release')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('imported-release-dialog')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('imported-release-patch')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('A branch remota e o PR continuam'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('1 commit não publicado'), findsOneWidget);
+    });
+
+    testWidgets('com permissão: "Push para a branch do PR" e "Responder no '
+        'PR" desmarcado, que lembra a escolha', (tester) async {
+      await pump(
+        tester,
+        const ImportedPr(
+          number: 214,
+          url: 'https://github.com/o/r/pull/214',
+          author: 'lucas-andrade',
+          headRef: 'feat/x',
+          baseRef: 'main',
+          canPush: true,
+        ),
+      );
+      expect(find.byKey(const ValueKey('imported-pr-push')), findsOneWidget);
+      expect(find.text('Push para a branch do PR'), findsOneWidget);
+      final reply = find.byKey(const ValueKey('imported-pr-reply'));
+      expect(
+        find.descendant(
+          of: reply,
+          matching: find.byIcon(Icons.check_box_outline_blank),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(reply);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: reply, matching: find.byIcon(Icons.check_box)),
+        findsOneWidget,
+      );
     });
   });
 }

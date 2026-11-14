@@ -64,6 +64,15 @@ class ReviewException implements Exception {
   String toString() => message;
 }
 
+/// "Soltar o PR" with local commits the PR does not have (SPEC-050 R9).
+class UnpublishedCommitsException extends ReviewException {
+  UnpublishedCommitsException(this.count)
+    : super(
+        '$count ${count == 1 ? 'commit não publicado' : 'commits não publicados'}',
+      );
+  final int count;
+}
+
 class MergeConflictException extends ReviewException {
   const MergeConflictException(super.message, this.files);
   final List<String> files;
@@ -558,6 +567,7 @@ class ReviewService {
     List<ReviewComment> comments, {
     String note = '',
     List<ReviewCommentRow> selected = const [],
+    bool replyInPr = false,
   }) async {
     if (comments.isEmpty && selected.isEmpty && note.trim().isEmpty) {
       throw const ReviewException('Escreva um comentário antes de enviar.');
@@ -601,6 +611,30 @@ class ReviewService {
     final task = c.task;
     if (task != null && task.status != TaskStatus.running) {
       await _ref.read(taskActionsProvider).move(task.id, TaskStatus.running);
+    }
+    // SPEC-050 R8: the PR's conversations sent now get a reply after the
+    // next push, only when the user ticked it.
+    if (c.spec == null) {
+      final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
+      if (meta != null) {
+        final ids = {
+          if (replyInPr) ...meta.pendingReplies,
+          if (replyInPr)
+            for (final row in selected)
+              if (row.author == 'pr' && row.externalId != null) row.externalId!,
+        };
+        await _ref
+            .read(appSettingsProvider.notifier)
+            .set(
+              ImportedPr.key(sessionId),
+              meta
+                  .copyWith(replyInPr: replyInPr, pendingReplies: ids.toList())
+                  .encode(),
+            );
+        await _ref
+            .read(appSettingsProvider.notifier)
+            .set(replyInPrKey(c.workspace.id), replyInPr ? '1' : '0');
+      }
     }
     final spec = c.spec;
     // Without a spec, a PR's session keeps its own history (SPEC-050 P1).
@@ -1036,14 +1070,15 @@ class ReviewService {
       '--hostname',
       uri.host,
       'repos/${parts[0]}/${parts[1]}/pulls/${parts[3]}/comments',
-      '--paginate',
-      '--slurp',
+      ...ghRowPerLine,
     ], workingDirectory: c.workspace.path);
     if (r.exitCode != 0) {
       throw ReviewException('Comentários do PR: ${r.stderr}');
     }
-    final decoded = jsonDecode('${r.stdout}');
-    if (decoded is! List) {
+    final List<Object?> decoded;
+    try {
+      decoded = decodeGhRows('${r.stdout}');
+    } on FormatException {
       throw const ReviewException('Comentários do PR inválidos');
     }
     return parsePrInlineComments(decoded);
@@ -1054,6 +1089,10 @@ class ReviewService {
     final c = await _context(sessionId);
     if (c.session.prUrl == null || !hasWorktree(c.session, c.workspace)) {
       return false;
+    }
+    if (c.spec == null) {
+      final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
+      if (meta != null) return _pushImported(c.session, c.workspace, meta);
     }
     final git = _git(c.session.worktreePath);
     if (!await aheadOfUpstream(git)) return false;
@@ -1077,6 +1116,164 @@ class ReviewService {
     }
     await git.git(['push']);
     return true;
+  }
+
+  /// The agent's commits of a PR brought into the app go to the PR's branch
+  /// only with write permission (SPEC-050 R7), with a plain push of `HEAD`
+  /// to `refs/heads/<branch do PR>` (never forced). Then, when the user
+  /// asked for it, each conversation treated gets a short reply with the
+  /// SHA (R8). Without permission nothing is pushed: false.
+  Future<bool> _pushImported(Session s, Workspace ws, ImportedPr meta) async {
+    if (!meta.canPush || meta.headRef.isEmpty) return false;
+    final ahead = await remoteAhead(s.id, fetch: true);
+    if (ahead.local == 0) return false;
+    if (ahead.author > 0) {
+      throw ReviewException(
+        'O autor publicou ${ahead.author} '
+        '${ahead.author == 1 ? 'commit' : 'commits'} na branch do PR: use '
+        '"Atualizar" antes de enviar.',
+      );
+    }
+    final wt = _git(s.worktreePath);
+    await wt.git([
+      'push',
+      meta.pushTo ?? meta.remote,
+      'HEAD:refs/heads/${meta.headRef}',
+    ]);
+    final head = await wt.headSha();
+    if (head != null) await _git(ws.path).updateRef(meta.localRef, head);
+    if (meta.replyInPr && meta.pendingReplies.isNotEmpty && head != null) {
+      await _replyInPr(s, ws, meta, head);
+    }
+    return true;
+  }
+
+  /// "Responder no PR depois do push" (SPEC-050 R8): one reply per
+  /// conversation treated, with the SHA that fixed it. Never resolves them.
+  Future<void> _replyInPr(
+    Session s,
+    Workspace ws,
+    ImportedPr meta,
+    String sha,
+  ) async {
+    final uri = Uri.tryParse(meta.url);
+    final parts = uri?.pathSegments ?? const [];
+    if (uri == null || parts.length < 4) return;
+    final left = <String>[];
+    for (final id in meta.pendingReplies) {
+      final n = id.startsWith('github:') ? id.substring(7) : id;
+      if (int.tryParse(n) == null) continue;
+      try {
+        final r = await _run('gh', [
+          'api',
+          '--hostname',
+          uri.host,
+          '--method',
+          'POST',
+          'repos/${parts[0]}/${parts[1]}/pulls/${parts[3]}/comments/$n/replies',
+          '-f',
+          'body=${prReplyBody(sha)}',
+        ], workingDirectory: ws.path);
+        if (r.exitCode != 0) left.add(id);
+      } on ProcessException {
+        left.add(id);
+      }
+    }
+    final now = importedPrOf(_ref.read(appSettingsProvider), s.id) ?? meta;
+    await _ref
+        .read(appSettingsProvider.notifier)
+        .set(ImportedPr.key(s.id), now.copyWith(pendingReplies: left).encode());
+  }
+
+  /// "Copiar patch" (SPEC-050 R7): `git format-patch` of the local commits
+  /// the PR does not have (from its head as last fetched to `HEAD`).
+  Future<String> copyPatch(String sessionId) async {
+    final c = await _context(sessionId);
+    final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
+    if (meta == null || !hasWorktree(c.session, c.workspace)) {
+      throw const ReviewException('A sessão não tem um PR trazido.');
+    }
+    final patch = await _git(c.session.worktreePath)
+        .git(['format-patch', '--stdout', '${meta.localRef}..HEAD']);
+    if (patch.trim().isEmpty) {
+      throw const ReviewException('Não há commits locais para o patch.');
+    }
+    return patch;
+  }
+
+  /// "Atualizar" (SPEC-050 R7): brings the commits the author published.
+  /// With no local commit, a fast-forward; with local commits not
+  /// published, they are replayed on top with a rebase (P4: the screen asks
+  /// first). A conflict leaves the rebase stopped, for the conflict flow of
+  /// SPEC-032 and SPEC-043 ([rebaseStatus]). Nothing published is rewritten.
+  Future<RebaseStatus> updateFromRemote(String sessionId) async {
+    final c = await _context(sessionId);
+    final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
+    if (meta == null || !hasWorktree(c.session, c.workspace)) {
+      throw const ReviewException('A sessão não tem um PR trazido.');
+    }
+    final wt = _git(c.session.worktreePath);
+    final dirty = (await wt.status()).where((e) => !e.isUntracked).toList();
+    if (dirty.isNotEmpty) {
+      throw ReviewException(
+        'O worktree tem ${dirty.length} alteração(ões) não commitada(s): '
+        'faça commit antes de atualizar.',
+      );
+    }
+    final ahead = await remoteAhead(sessionId, fetch: true);
+    if (ahead.author == 0) return const RebaseStatus();
+    if (ahead.local == 0) {
+      await wt.git(['merge', '--ff-only', '-q', meta.localRef]);
+      return const RebaseStatus();
+    }
+    try {
+      await wt.git(['rebase', meta.localRef]);
+    } on GitException catch (e) {
+      final status = await rebaseStatus(sessionId);
+      if (!status.inProgress) throw ReviewException('O rebase não começou: $e');
+      return status;
+    }
+    return const RebaseStatus();
+  }
+
+  /// "Soltar o PR" (SPEC-050 R9): removes the worktree, the local branch and
+  /// the local copy of the PR's head; the session stays in the history.
+  /// Never deletes the remote branch nor closes the PR. With commits not
+  /// published, only with [force] (the screen confirms and offers "Copiar
+  /// patch" first): else [UnpublishedCommitsException].
+  Future<void> releaseImported(String sessionId, {bool force = false}) async {
+    final c = await _context(sessionId);
+    final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
+    if (meta == null) {
+      throw const ReviewException('A sessão não tem um PR trazido.');
+    }
+    final s = c.session, ws = c.workspace;
+    if (hasWorktree(s, ws) && !force) {
+      final local = (await remoteAhead(sessionId, fetch: true)).local;
+      if (local > 0) throw UnpublishedCommitsException(local);
+    }
+    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+    final root = _git(ws.path);
+    if (hasWorktree(s, ws)) {
+      try {
+        await root.removeWorktree(s.worktreePath, force: true);
+      } on GitException catch (e) {
+        debugPrint('worktree ${s.worktreePath} não removido — $e');
+      }
+    }
+    try {
+      await root.deleteBranch(s.branch, force: true);
+    } on GitException catch (e) {
+      debugPrint('branch ${s.branch} não removida — $e');
+    }
+    try {
+      await root.git(['update-ref', '-d', meta.localRef]);
+    } on GitException catch (e) {
+      debugPrint('${meta.localRef} não removida — $e');
+    }
+    await _ref
+        .read(appSettingsProvider.notifier)
+        .set(ImportedPr.key(s.id), meta.copyWith(state: 'SOLTO').encode());
   }
 
   /// "Mergear PR": `gh pr merge --squash|--rebase|--merge --delete-branch`;
@@ -1994,22 +2191,40 @@ class ReviewService {
   /// The commits of the PR brought into the app that the author published
   /// and the local ones not published yet (SPEC-050 R7): fetches
   /// `pull/<n>/head` and compares it with the worktree's HEAD.
-  Future<({int author, int local})> remoteAhead(String sessionId) async {
+  ///
+  /// The fetch runs at most once a minute per session unless [fetch] is
+  /// true (push, "Atualizar", "Soltar"): the Review watches `.git`, and a
+  /// fetch on every refresh would refresh it again.
+  Future<({int author, int local})> remoteAhead(
+    String sessionId, {
+    bool fetch = false,
+  }) async {
     final c = await _context(sessionId);
     final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
     if (meta == null || !hasWorktree(c.session, c.workspace)) {
       return (author: 0, local: 0);
     }
-    final root = _git(c.workspace.path);
-    try {
-      await root.git([
-        'fetch',
-        '-q',
-        meta.remote,
-        '+pull/${meta.number}/head:${meta.localRef}',
-      ]);
-    } on GitException catch (e) {
-      debugPrint('PR #${meta.number} não buscado — $e');
+    final last = _fetchedPr[sessionId];
+    if (fetch ||
+        last == null ||
+        DateTime.now().difference(last) >= const Duration(minutes: 1)) {
+      _fetchedPr[sessionId] = DateTime.now();
+      try {
+        // The PR's own branch when it lives in this repository (it changes
+        // as soon as someone pushes); `pull/<n>/head` for a fork.
+        final source = !meta.cross && meta.headRef.isNotEmpty
+            ? 'refs/heads/${meta.headRef}'
+            : 'pull/${meta.number}/head';
+        await _git(c.workspace.path).git([
+          'fetch',
+          '-q',
+          '--no-write-fetch-head',
+          meta.remote,
+          '+$source:${meta.localRef}',
+        ]);
+      } on GitException catch (e) {
+        debugPrint('PR #${meta.number} não buscado — $e');
+      }
     }
     final wt = _git(c.session.worktreePath);
     Future<int> count(String range) async =>
@@ -2020,6 +2235,9 @@ class ReviewService {
       local: await count('${meta.localRef}..HEAD'),
     );
   }
+
+  /// When [remoteAhead] last fetched each PR brought into the app.
+  final _fetchedPr = <String, DateTime>{};
 
   /// `app_settings` key of the last project gate run on a PR brought into
   /// the app ("Verificar", SPEC-050 R6).

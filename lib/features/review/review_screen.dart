@@ -25,6 +25,7 @@ import 'auto_reviewer.dart';
 import 'pr_babysitter.dart';
 import '../specs/spec_service.dart';
 import 'review_service.dart';
+import 'pr_import.dart' show importedPrOf;
 import '../../core/system/worktree_launcher.dart';
 import '../project/widgets/project_config_view.dart' show configFocusProvider;
 import '../settings/settings_sections.dart';
@@ -920,6 +921,10 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         comments,
         note: note,
         selected: selectedRows,
+        // SPEC-050 R8: what the PR's panel has ticked.
+        replyInPr:
+            importedPrOf(ref.read(appSettingsProvider), _id)?.replyInPr ??
+            false,
       );
       _selectedComments.clear();
       ref.read(reviewDraftProvider(_id).notifier).clearComments();
@@ -1030,6 +1035,23 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       widget.item.session.prUrl == null
           ? null
           : () => unawaited(_service.openUrl(widget.item.session.prUrl!)),
+    'base' => () async {
+      final ahead = await _service.remoteAhead(_id, fetch: true);
+      if (!mounted || !await confirmImportedUpdate(context, ahead.local)) {
+        return;
+      }
+      await _run('Atualizar', () async {
+        final r = await _service.updateFromRemote(_id);
+        ref.invalidate(rebaseStatusProvider(_id));
+        ref.invalidate(importedAheadProvider(_id));
+        ref.invalidate(mergeReadinessProvider(_id));
+        _toast(
+          r.inProgress
+              ? 'Conflito ao refazer os commits locais · resolva abaixo'
+              : 'Branch do PR atualizada',
+        );
+      });
+    },
     'gate' => () => _run('Verificar', () async {
       final r = await _service.runProjectGate(_id);
       ref.invalidate(mergeReadinessProvider(_id));
