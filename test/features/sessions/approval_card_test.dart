@@ -7,6 +7,7 @@ import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/mcp/app_mcp_tools.dart';
 import 'package:promptorium/features/sessions/edit_diff.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/features/sessions/widgets/agent_spec_approval.dart';
 import 'package:promptorium/features/sessions/widgets/side_panel.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
@@ -248,11 +249,17 @@ void main() {
       expect(path.data, endsWith('-exportar-o-relatorio-do-review-em-pdf.md'));
       expect(find.byKey(const ValueKey('agent-spec-lint-0')), findsOneWidget);
       expect(find.textContaining('do lint: '), findsOneWidget);
+      // The same warning on two criteria shows once, counted.
+      expect(find.textContaining('Critério sem verificar: (2×)'), findsOne);
       expect(find.textContaining('R3'), findsWidgets);
 
       await tester.tap(find.text('Aprovar'));
       await tester.pump();
       expect(calls, ['approve']);
+    });
+
+    test('groupedWarnings', () {
+      expect(groupedWarnings(['a', 'b', 'a', 'a']), ['a (3×)', 'b']);
     });
 
     testWidgets('it does not offer "Sempre permitir" in the project, only in '
