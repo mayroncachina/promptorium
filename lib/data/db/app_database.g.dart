@@ -1115,6 +1115,16 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     ),
     defaultValue: const Constant(false),
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<SpecKind, String> kind =
+      GeneratedColumn<String>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: Constant(SpecKind.spec.name),
+      ).withConverter<SpecKind>($SpecsTable.$converterkind);
   static const VerificationMeta _agentSessionMeta = const VerificationMeta(
     'agentSession',
   );
@@ -1159,6 +1169,7 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     originAlias,
     originTitle,
     inTray,
+    kind,
     agentSession,
   ];
   @override
@@ -1533,6 +1544,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.bool,
         data['${effectivePrefix}in_tray'],
       )!,
+      kind: $SpecsTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
       agentSession: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}agent_session'],
@@ -1553,6 +1570,8 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
   $converterrequirements = const RequirementListConverter();
   static TypeConverter<List<String>, String> $converterdependsOn =
       const StringListConverter();
+  static JsonTypeConverter2<SpecKind, String, String> $converterkind =
+      const EnumNameConverter<SpecKind>(SpecKind.values);
 }
 
 class Spec extends DataClass implements Insertable<Spec> {
@@ -1646,6 +1665,10 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// spec that already existed (they stay where they were).
   final bool inTray;
 
+  /// A spec written by the person or a VIBE ("Fazer como tarefa"). Every
+  /// spec that already existed is a spec.
+  final SpecKind kind;
+
   /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
   /// created through the Promptorium MCP); null for the others.
   final String? agentSession;
@@ -1681,6 +1704,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     this.originAlias,
     this.originTitle,
     required this.inTray,
+    required this.kind,
     this.agentSession,
   });
   @override
@@ -1763,6 +1787,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       map['origin_title'] = Variable<String>(originTitle);
     }
     map['in_tray'] = Variable<bool>(inTray);
+    {
+      map['kind'] = Variable<String>($SpecsTable.$converterkind.toSql(kind));
+    }
     if (!nullToAbsent || agentSession != null) {
       map['agent_session'] = Variable<String>(agentSession);
     }
@@ -1834,6 +1861,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? const Value.absent()
           : Value(originTitle),
       inTray: Value(inTray),
+      kind: Value(kind),
       agentSession: agentSession == null && nullToAbsent
           ? const Value.absent()
           : Value(agentSession),
@@ -1885,6 +1913,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       originAlias: serializer.fromJson<String?>(json['originAlias']),
       originTitle: serializer.fromJson<String?>(json['originTitle']),
       inTray: serializer.fromJson<bool>(json['inTray']),
+      kind: $SpecsTable.$converterkind.fromJson(
+        serializer.fromJson<String>(json['kind']),
+      ),
       agentSession: serializer.fromJson<String?>(json['agentSession']),
     );
   }
@@ -1929,6 +1960,9 @@ class Spec extends DataClass implements Insertable<Spec> {
       'originAlias': serializer.toJson<String?>(originAlias),
       'originTitle': serializer.toJson<String?>(originTitle),
       'inTray': serializer.toJson<bool>(inTray),
+      'kind': serializer.toJson<String>(
+        $SpecsTable.$converterkind.toJson(kind),
+      ),
       'agentSession': serializer.toJson<String?>(agentSession),
     };
   }
@@ -1965,6 +1999,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     Value<String?> originAlias = const Value.absent(),
     Value<String?> originTitle = const Value.absent(),
     bool? inTray,
+    SpecKind? kind,
     Value<String?> agentSession = const Value.absent(),
   }) => Spec(
     id: id ?? this.id,
@@ -2004,6 +2039,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias: originAlias.present ? originAlias.value : this.originAlias,
     originTitle: originTitle.present ? originTitle.value : this.originTitle,
     inTray: inTray ?? this.inTray,
+    kind: kind ?? this.kind,
     agentSession: agentSession.present ? agentSession.value : this.agentSession,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
@@ -2075,6 +2111,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ? data.originTitle.value
           : this.originTitle,
       inTray: data.inTray.present ? data.inTray.value : this.inTray,
+      kind: data.kind.present ? data.kind.value : this.kind,
       agentSession: data.agentSession.present
           ? data.agentSession.value
           : this.agentSession,
@@ -2115,6 +2152,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
           ..write('inTray: $inTray, ')
+          ..write('kind: $kind, ')
           ..write('agentSession: $agentSession')
           ..write(')'))
         .toString();
@@ -2153,6 +2191,7 @@ class Spec extends DataClass implements Insertable<Spec> {
     originAlias,
     originTitle,
     inTray,
+    kind,
     agentSession,
   ]);
   @override
@@ -2190,6 +2229,7 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.originAlias == this.originAlias &&
           other.originTitle == this.originTitle &&
           other.inTray == this.inTray &&
+          other.kind == this.kind &&
           other.agentSession == this.agentSession);
 }
 
@@ -2225,6 +2265,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<String?> originAlias;
   final Value<String?> originTitle;
   final Value<bool> inTray;
+  final Value<SpecKind> kind;
   final Value<String?> agentSession;
   const SpecsCompanion({
     this.id = const Value.absent(),
@@ -2258,6 +2299,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.kind = const Value.absent(),
     this.agentSession = const Value.absent(),
   });
   SpecsCompanion.insert({
@@ -2292,6 +2334,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.originAlias = const Value.absent(),
     this.originTitle = const Value.absent(),
     this.inTray = const Value.absent(),
+    this.kind = const Value.absent(),
     this.agentSession = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
@@ -2329,6 +2372,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<String>? originAlias,
     Expression<String>? originTitle,
     Expression<bool>? inTray,
+    Expression<String>? kind,
     Expression<String>? agentSession,
   }) {
     return RawValuesInsertable({
@@ -2364,6 +2408,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (originAlias != null) 'origin_alias': originAlias,
       if (originTitle != null) 'origin_title': originTitle,
       if (inTray != null) 'in_tray': inTray,
+      if (kind != null) 'kind': kind,
       if (agentSession != null) 'agent_session': agentSession,
     });
   }
@@ -2400,6 +2445,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<String?>? originAlias,
     Value<String?>? originTitle,
     Value<bool>? inTray,
+    Value<SpecKind>? kind,
     Value<String?>? agentSession,
   }) {
     return SpecsCompanion(
@@ -2434,6 +2480,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       originAlias: originAlias ?? this.originAlias,
       originTitle: originTitle ?? this.originTitle,
       inTray: inTray ?? this.inTray,
+      kind: kind ?? this.kind,
       agentSession: agentSession ?? this.agentSession,
     );
   }
@@ -2542,6 +2589,11 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (inTray.present) {
       map['in_tray'] = Variable<bool>(inTray.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(
+        $SpecsTable.$converterkind.toSql(kind.value),
+      );
+    }
     if (agentSession.present) {
       map['agent_session'] = Variable<String>(agentSession.value);
     }
@@ -2582,6 +2634,7 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('originAlias: $originAlias, ')
           ..write('originTitle: $originTitle, ')
           ..write('inTray: $inTray, ')
+          ..write('kind: $kind, ')
           ..write('agentSession: $agentSession')
           ..write(')'))
         .toString();
@@ -6313,6 +6366,15 @@ class $ConversationsTable extends Conversations
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -6334,6 +6396,7 @@ class $ConversationsTable extends Conversations
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6482,6 +6545,12 @@ class $ConversationsTable extends Conversations
         archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
     return context;
   }
 
@@ -6567,6 +6636,10 @@ class $ConversationsTable extends Conversations
         DriftSqlType.dateTime,
         data['${effectivePrefix}archived_at'],
       ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
     );
   }
 
@@ -6618,6 +6691,11 @@ class Conversation extends DataClass implements Insertable<Conversation> {
 
   /// When it was archived (SPEC-056 R4, schema v22). Null = active.
   final DateTime? archivedAt;
+
+  /// The VIBE of the conversation (SPEC-069 R4, schema v25), or the spec it
+  /// became ("Virar spec"): the agent runs in that spec's worktree, never in
+  /// the workspace root. Null = a free conversation.
+  final int? specId;
   const Conversation({
     this.runConfig,
     required this.id,
@@ -6638,6 +6716,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     this.refineOrigin,
     this.refineBaseText,
     this.archivedAt,
+    this.specId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6676,6 +6755,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     }
     if (!nullToAbsent || archivedAt != null) {
       map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
     }
     return map;
   }
@@ -6717,6 +6799,9 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       archivedAt: archivedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(archivedAt),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
     );
   }
 
@@ -6745,6 +6830,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       refineOrigin: serializer.fromJson<String?>(json['refineOrigin']),
       refineBaseText: serializer.fromJson<String?>(json['refineBaseText']),
       archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
+      specId: serializer.fromJson<int?>(json['specId']),
     );
   }
   @override
@@ -6770,6 +6856,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       'refineOrigin': serializer.toJson<String?>(refineOrigin),
       'refineBaseText': serializer.toJson<String?>(refineBaseText),
       'archivedAt': serializer.toJson<DateTime?>(archivedAt),
+      'specId': serializer.toJson<int?>(specId),
     };
   }
 
@@ -6793,6 +6880,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     Value<String?> refineOrigin = const Value.absent(),
     Value<String?> refineBaseText = const Value.absent(),
     Value<DateTime?> archivedAt = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
   }) => Conversation(
     runConfig: runConfig.present ? runConfig.value : this.runConfig,
     id: id ?? this.id,
@@ -6819,6 +6907,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
         ? refineBaseText.value
         : this.refineBaseText,
     archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
+    specId: specId.present ? specId.value : this.specId,
   );
   Conversation copyWithCompanion(ConversationsCompanion data) {
     return Conversation(
@@ -6855,6 +6944,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
       archivedAt: data.archivedAt.present
           ? data.archivedAt.value
           : this.archivedAt,
+      specId: data.specId.present ? data.specId.value : this.specId,
     );
   }
 
@@ -6879,7 +6969,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
           ..write('refineBaseText: $refineBaseText, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('specId: $specId')
           ..write(')'))
         .toString();
   }
@@ -6905,6 +6996,7 @@ class Conversation extends DataClass implements Insertable<Conversation> {
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   );
   @override
   bool operator ==(Object other) =>
@@ -6928,7 +7020,8 @@ class Conversation extends DataClass implements Insertable<Conversation> {
           other.refineSpecCode == this.refineSpecCode &&
           other.refineOrigin == this.refineOrigin &&
           other.refineBaseText == this.refineBaseText &&
-          other.archivedAt == this.archivedAt);
+          other.archivedAt == this.archivedAt &&
+          other.specId == this.specId);
 }
 
 class ConversationsCompanion extends UpdateCompanion<Conversation> {
@@ -6951,6 +7044,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
   final Value<String?> refineOrigin;
   final Value<String?> refineBaseText;
   final Value<DateTime?> archivedAt;
+  final Value<int?> specId;
   const ConversationsCompanion({
     this.runConfig = const Value.absent(),
     this.id = const Value.absent(),
@@ -6971,6 +7065,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.specId = const Value.absent(),
   });
   ConversationsCompanion.insert({
     this.runConfig = const Value.absent(),
@@ -6992,6 +7087,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     this.refineOrigin = const Value.absent(),
     this.refineBaseText = const Value.absent(),
     this.archivedAt = const Value.absent(),
+    this.specId = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        title = Value(title),
        model = Value(model);
@@ -7015,6 +7111,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Expression<String>? refineOrigin,
     Expression<String>? refineBaseText,
     Expression<DateTime>? archivedAt,
+    Expression<int>? specId,
   }) {
     return RawValuesInsertable({
       if (runConfig != null) 'run_config': runConfig,
@@ -7036,6 +7133,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       if (refineOrigin != null) 'refine_origin': refineOrigin,
       if (refineBaseText != null) 'refine_base_text': refineBaseText,
       if (archivedAt != null) 'archived_at': archivedAt,
+      if (specId != null) 'spec_id': specId,
     });
   }
 
@@ -7059,6 +7157,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     Value<String?>? refineOrigin,
     Value<String?>? refineBaseText,
     Value<DateTime?>? archivedAt,
+    Value<int?>? specId,
   }) {
     return ConversationsCompanion(
       runConfig: runConfig ?? this.runConfig,
@@ -7080,6 +7179,7 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
       refineOrigin: refineOrigin ?? this.refineOrigin,
       refineBaseText: refineBaseText ?? this.refineBaseText,
       archivedAt: archivedAt ?? this.archivedAt,
+      specId: specId ?? this.specId,
     );
   }
 
@@ -7143,6 +7243,9 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
     if (archivedAt.present) {
       map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
     return map;
   }
 
@@ -7167,7 +7270,8 @@ class ConversationsCompanion extends UpdateCompanion<Conversation> {
           ..write('refineSpecCode: $refineSpecCode, ')
           ..write('refineOrigin: $refineOrigin, ')
           ..write('refineBaseText: $refineBaseText, ')
-          ..write('archivedAt: $archivedAt')
+          ..write('archivedAt: $archivedAt, ')
+          ..write('specId: $specId')
           ..write(')'))
         .toString();
   }
@@ -10579,11 +10683,25 @@ class $ReviewCommentsTable extends ReviewComments
   late final GeneratedColumn<int> specId = GeneratedColumn<int>(
     'spec_id',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _roundMeta = const VerificationMeta('round');
@@ -10728,6 +10846,7 @@ class $ReviewCommentsTable extends ReviewComments
   List<GeneratedColumn> get $columns => [
     id,
     specId,
+    sessionId,
     round,
     author,
     path,
@@ -10762,8 +10881,12 @@ class $ReviewCommentsTable extends ReviewComments
         _specIdMeta,
         specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
       );
-    } else if (isInserting) {
-      context.missing(_specIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
     }
     if (data.containsKey('round')) {
       context.handle(
@@ -10868,7 +10991,11 @@ class $ReviewCommentsTable extends ReviewComments
       specId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}spec_id'],
-      )!,
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
       round: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}round'],
@@ -10933,7 +11060,13 @@ class $ReviewCommentsTable extends ReviewComments
 class ReviewCommentRow extends DataClass
     implements Insertable<ReviewCommentRow> {
   final int id;
-  final int specId;
+
+  /// The spec reviewed; null for a PR brought into the app without one
+  /// (SPEC-050, schema v26), whose comments go by [sessionId].
+  final int? specId;
+
+  /// The session of a PR without spec (SPEC-050 P1).
+  final String? sessionId;
 
   /// 1, 2… (the round that asked for it).
   final int round;
@@ -10962,7 +11095,8 @@ class ReviewCommentRow extends DataClass
   final DateTime createdAt;
   const ReviewCommentRow({
     required this.id,
-    required this.specId,
+    this.specId,
+    this.sessionId,
     required this.round,
     required this.author,
     this.path,
@@ -10981,7 +11115,12 @@ class ReviewCommentRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['spec_id'] = Variable<int>(specId);
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
     map['round'] = Variable<int>(round);
     map['author'] = Variable<String>(author);
     if (!nullToAbsent || path != null) {
@@ -11017,7 +11156,12 @@ class ReviewCommentRow extends DataClass
   ReviewCommentsCompanion toCompanion(bool nullToAbsent) {
     return ReviewCommentsCompanion(
       id: Value(id),
-      specId: Value(specId),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
       round: Value(round),
       author: Value(author),
       path: path == null && nullToAbsent ? const Value.absent() : Value(path),
@@ -11053,7 +11197,8 @@ class ReviewCommentRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ReviewCommentRow(
       id: serializer.fromJson<int>(json['id']),
-      specId: serializer.fromJson<int>(json['specId']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
       round: serializer.fromJson<int>(json['round']),
       author: serializer.fromJson<String>(json['author']),
       path: serializer.fromJson<String?>(json['path']),
@@ -11074,7 +11219,8 @@ class ReviewCommentRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'specId': serializer.toJson<int>(specId),
+      'specId': serializer.toJson<int?>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
       'round': serializer.toJson<int>(round),
       'author': serializer.toJson<String>(author),
       'path': serializer.toJson<String?>(path),
@@ -11093,7 +11239,8 @@ class ReviewCommentRow extends DataClass
 
   ReviewCommentRow copyWith({
     int? id,
-    int? specId,
+    Value<int?> specId = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
     int? round,
     String? author,
     Value<String?> path = const Value.absent(),
@@ -11109,7 +11256,8 @@ class ReviewCommentRow extends DataClass
     DateTime? createdAt,
   }) => ReviewCommentRow(
     id: id ?? this.id,
-    specId: specId ?? this.specId,
+    specId: specId.present ? specId.value : this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
     round: round ?? this.round,
     author: author ?? this.author,
     path: path.present ? path.value : this.path,
@@ -11128,6 +11276,7 @@ class ReviewCommentRow extends DataClass
     return ReviewCommentRow(
       id: data.id.present ? data.id.value : this.id,
       specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
       round: data.round.present ? data.round.value : this.round,
       author: data.author.present ? data.author.value : this.author,
       path: data.path.present ? data.path.value : this.path,
@@ -11155,6 +11304,7 @@ class ReviewCommentRow extends DataClass
     return (StringBuffer('ReviewCommentRow(')
           ..write('id: $id, ')
           ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
           ..write('round: $round, ')
           ..write('author: $author, ')
           ..write('path: $path, ')
@@ -11176,6 +11326,7 @@ class ReviewCommentRow extends DataClass
   int get hashCode => Object.hash(
     id,
     specId,
+    sessionId,
     round,
     author,
     path,
@@ -11196,6 +11347,7 @@ class ReviewCommentRow extends DataClass
       (other is ReviewCommentRow &&
           other.id == this.id &&
           other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
           other.round == this.round &&
           other.author == this.author &&
           other.path == this.path &&
@@ -11213,7 +11365,8 @@ class ReviewCommentRow extends DataClass
 
 class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   final Value<int> id;
-  final Value<int> specId;
+  final Value<int?> specId;
+  final Value<String?> sessionId;
   final Value<int> round;
   final Value<String> author;
   final Value<String?> path;
@@ -11230,6 +11383,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   const ReviewCommentsCompanion({
     this.id = const Value.absent(),
     this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
     this.round = const Value.absent(),
     this.author = const Value.absent(),
     this.path = const Value.absent(),
@@ -11246,7 +11400,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
   });
   ReviewCommentsCompanion.insert({
     this.id = const Value.absent(),
-    required int specId,
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
     required int round,
     required String author,
     this.path = const Value.absent(),
@@ -11260,13 +11415,13 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     this.resolvedAt = const Value.absent(),
     this.externalId = const Value.absent(),
     this.createdAt = const Value.absent(),
-  }) : specId = Value(specId),
-       round = Value(round),
+  }) : round = Value(round),
        author = Value(author),
        body = Value(body);
   static Insertable<ReviewCommentRow> custom({
     Expression<int>? id,
     Expression<int>? specId,
+    Expression<String>? sessionId,
     Expression<int>? round,
     Expression<String>? author,
     Expression<String>? path,
@@ -11284,6 +11439,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
       if (round != null) 'round': round,
       if (author != null) 'author': author,
       if (path != null) 'path': path,
@@ -11302,7 +11458,8 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
 
   ReviewCommentsCompanion copyWith({
     Value<int>? id,
-    Value<int>? specId,
+    Value<int?>? specId,
+    Value<String?>? sessionId,
     Value<int>? round,
     Value<String>? author,
     Value<String?>? path,
@@ -11320,6 +11477,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return ReviewCommentsCompanion(
       id: id ?? this.id,
       specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
       round: round ?? this.round,
       author: author ?? this.author,
       path: path ?? this.path,
@@ -11344,6 +11502,9 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     }
     if (specId.present) {
       map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
     }
     if (round.present) {
       map['round'] = Variable<int>(round.value);
@@ -11392,6 +11553,7 @@ class ReviewCommentsCompanion extends UpdateCompanion<ReviewCommentRow> {
     return (StringBuffer('ReviewCommentsCompanion(')
           ..write('id: $id, ')
           ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
           ..write('round: $round, ')
           ..write('author: $author, ')
           ..write('path: $path, ')
@@ -14716,6 +14878,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ),
     WritePropagation(
       on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('review_comments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
         'specs',
         limitUpdateKind: UpdateKind.delete,
       ),
@@ -16154,6 +16323,7 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<SpecKind> kind,
   Value<String?> agentSession,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
@@ -16188,6 +16358,7 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<String?> originAlias,
   Value<String?> originTitle,
   Value<bool> inTray,
+  Value<SpecKind> kind,
   Value<String?> agentSession,
 });
 
@@ -16557,6 +16728,12 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
     column: $table.inTray,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<SpecKind, SpecKind, String> get kind =>
+      $composableBuilder(
+        column: $table.kind,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<String> get agentSession => $composableBuilder(
     column: $table.agentSession,
@@ -16989,6 +17166,11 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get agentSession => $composableBuilder(
     column: $table.agentSession,
     builder: (column) => ColumnOrderings(column),
@@ -17171,6 +17353,9 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<bool> get inTray =>
       $composableBuilder(column: $table.inTray, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SpecKind, String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
 
   GeneratedColumn<String> get agentSession => $composableBuilder(
     column: $table.agentSession,
@@ -17521,6 +17706,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<SpecKind> kind = const Value.absent(),
                 Value<String?> agentSession = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
@@ -17554,6 +17740,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                kind: kind,
                 agentSession: agentSession,
               ),
           createCompanionCallback:
@@ -17590,6 +17777,7 @@ class $$SpecsTableTableManager
                 Value<String?> originAlias = const Value.absent(),
                 Value<String?> originTitle = const Value.absent(),
                 Value<bool> inTray = const Value.absent(),
+                Value<SpecKind> kind = const Value.absent(),
                 Value<String?> agentSession = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
@@ -17623,6 +17811,7 @@ class $$SpecsTableTableManager
                 originAlias: originAlias,
                 originTitle: originTitle,
                 inTray: inTray,
+                kind: kind,
                 agentSession: agentSession,
               ),
           withReferenceMapper: (p0) => p0
@@ -19221,6 +19410,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$ReviewCommentsTable, List<ReviewCommentRow>>
+  _reviewCommentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.reviewComments,
+    aliasName: 'sessions__id__review_comments__session_id',
+  );
+
+  $$ReviewCommentsTableProcessedTableManager get reviewCommentsRefs {
+    final manager = $$ReviewCommentsTableTableManager(
+      $_db,
+      $_db.reviewComments,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_reviewCommentsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -19483,6 +19690,31 @@ class $$SessionsTableFilterComposer
           }) => $$PendingNoticesTableFilterComposer(
             $db: $db,
             $table: $db.pendingNotices,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> reviewCommentsRefs(
+    Expression<bool> Function($$ReviewCommentsTableFilterComposer f) f,
+  ) {
+    final $$ReviewCommentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableFilterComposer(
+            $db: $db,
+            $table: $db.reviewComments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -19918,6 +20150,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> reviewCommentsRefs<T extends Object>(
+    Expression<T> Function($$ReviewCommentsTableAnnotationComposer a) f,
+  ) {
+    final $$ReviewCommentsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.reviewComments,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ReviewCommentsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -19940,6 +20197,7 @@ class $$SessionsTableTableManager
             bool sessionEventsRefs,
             bool conversationsRefs,
             bool pendingNoticesRefs,
+            bool reviewCommentsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -20085,6 +20343,7 @@ class $$SessionsTableTableManager
                 sessionEventsRefs = false,
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
+                reviewCommentsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -20092,6 +20351,7 @@ class $$SessionsTableTableManager
                     if (sessionEventsRefs) db.sessionEvents,
                     if (conversationsRefs) db.conversations,
                     if (pendingNoticesRefs) db.pendingNotices,
+                    if (reviewCommentsRefs) db.reviewComments,
                   ],
                   addJoins:
                       <
@@ -20210,6 +20470,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (reviewCommentsRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          ReviewCommentRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._reviewCommentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).reviewCommentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -20237,6 +20518,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool sessionEventsRefs,
         bool conversationsRefs,
         bool pendingNoticesRefs,
+        bool reviewCommentsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -20592,6 +20874,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
       Value<DateTime?> archivedAt,
+      Value<int?> specId,
     });
 typedef $$ConversationsTableUpdateCompanionBuilder =
     ConversationsCompanion Function({
@@ -20614,6 +20897,7 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<String?> refineOrigin,
       Value<String?> refineBaseText,
       Value<DateTime?> archivedAt,
+      Value<int?> specId,
     });
 
 final class $$ConversationsTableReferences
@@ -20771,6 +21055,11 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<DateTime> get archivedAt => $composableBuilder(
     column: $table.archivedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get specId => $composableBuilder(
+    column: $table.specId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20940,6 +21229,11 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -21058,6 +21352,9 @@ class $$ConversationsTableAnnotationComposer
     column: $table.archivedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get specId =>
+      $composableBuilder(column: $table.specId, builder: (column) => column);
 
   $$WorkspacesTableAnnotationComposer get workspaceId {
     final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
@@ -21183,6 +21480,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
               }) => ConversationsCompanion(
                 runConfig: runConfig,
                 id: id,
@@ -21203,6 +21501,7 @@ class $$ConversationsTableTableManager
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
                 archivedAt: archivedAt,
+                specId: specId,
               ),
           createCompanionCallback:
               ({
@@ -21225,6 +21524,7 @@ class $$ConversationsTableTableManager
                 Value<String?> refineOrigin = const Value.absent(),
                 Value<String?> refineBaseText = const Value.absent(),
                 Value<DateTime?> archivedAt = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
               }) => ConversationsCompanion.insert(
                 runConfig: runConfig,
                 id: id,
@@ -21245,6 +21545,7 @@ class $$ConversationsTableTableManager
                 refineOrigin: refineOrigin,
                 refineBaseText: refineBaseText,
                 archivedAt: archivedAt,
+                specId: specId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -23886,7 +24187,8 @@ typedef $$PendingNoticesTableProcessedTableManager =
 typedef $$ReviewCommentsTableCreateCompanionBuilder =
     ReviewCommentsCompanion Function({
       Value<int> id,
-      required int specId,
+      Value<int?> specId,
+      Value<String?> sessionId,
       required int round,
       required String author,
       Value<String?> path,
@@ -23904,7 +24206,8 @@ typedef $$ReviewCommentsTableCreateCompanionBuilder =
 typedef $$ReviewCommentsTableUpdateCompanionBuilder =
     ReviewCommentsCompanion Function({
       Value<int> id,
-      Value<int> specId,
+      Value<int?> specId,
+      Value<String?> sessionId,
       Value<int> round,
       Value<String> author,
       Value<String?> path,
@@ -23932,14 +24235,31 @@ final class $$ReviewCommentsTableReferences
   static $SpecsTable _specIdTable(_$AppDatabase db) =>
       db.specs.createAlias('review_comments__spec_id__specs__id');
 
-  $$SpecsTableProcessedTableManager get specId {
-    final $_column = $_itemColumn<int>('spec_id')!;
-
+  $$SpecsTableProcessedTableManager? get specId {
+    final $_column = $_itemColumn<int>('spec_id');
+    if ($_column == null) return null;
     final manager = $$SpecsTableTableManager(
       $_db,
       $_db.specs,
     ).filter((f) => f.id.sqlEquals($_column));
     final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('review_comments__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
@@ -24040,6 +24360,29 @@ class $$ReviewCommentsTableFilterComposer
           }) => $$SpecsTableFilterComposer(
             $db: $db,
             $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -24151,6 +24494,29 @@ class $$ReviewCommentsTableOrderingComposer
     );
     return composer;
   }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ReviewCommentsTableAnnotationComposer
@@ -24232,6 +24598,29 @@ class $$ReviewCommentsTableAnnotationComposer
     );
     return composer;
   }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$ReviewCommentsTableTableManager
@@ -24247,7 +24636,7 @@ class $$ReviewCommentsTableTableManager
           $$ReviewCommentsTableUpdateCompanionBuilder,
           (ReviewCommentRow, $$ReviewCommentsTableReferences),
           ReviewCommentRow,
-          PrefetchHooks Function({bool specId})
+          PrefetchHooks Function({bool specId, bool sessionId})
         > {
   $$ReviewCommentsTableTableManager(
     _$AppDatabase db,
@@ -24265,7 +24654,8 @@ class $$ReviewCommentsTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<int> specId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
                 Value<int> round = const Value.absent(),
                 Value<String> author = const Value.absent(),
                 Value<String?> path = const Value.absent(),
@@ -24282,6 +24672,7 @@ class $$ReviewCommentsTableTableManager
               }) => ReviewCommentsCompanion(
                 id: id,
                 specId: specId,
+                sessionId: sessionId,
                 round: round,
                 author: author,
                 path: path,
@@ -24299,7 +24690,8 @@ class $$ReviewCommentsTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required int specId,
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
                 required int round,
                 required String author,
                 Value<String?> path = const Value.absent(),
@@ -24316,6 +24708,7 @@ class $$ReviewCommentsTableTableManager
               }) => ReviewCommentsCompanion.insert(
                 id: id,
                 specId: specId,
+                sessionId: sessionId,
                 round: round,
                 author: author,
                 path: path,
@@ -24338,7 +24731,7 @@ class $$ReviewCommentsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({specId = false}) {
+          prefetchHooksCallback: ({specId = false, sessionId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -24369,6 +24762,17 @@ class $$ReviewCommentsTableTableManager
                             .id,
                       ) as T;
                     }
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$ReviewCommentsTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$ReviewCommentsTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
 
                     return state;
                   },
@@ -24393,7 +24797,7 @@ typedef $$ReviewCommentsTableProcessedTableManager =
       $$ReviewCommentsTableUpdateCompanionBuilder,
       (ReviewCommentRow, $$ReviewCommentsTableReferences),
       ReviewCommentRow,
-      PrefetchHooks Function({bool specId})
+      PrefetchHooks Function({bool specId, bool sessionId})
     >;
 typedef $$SpecCriteriaTableCreateCompanionBuilder =
     SpecCriteriaCompanion Function({

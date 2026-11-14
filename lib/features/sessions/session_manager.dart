@@ -31,6 +31,7 @@ import '../../ui/shell/navigation.dart';
 import '../agents/agent_repository.dart';
 import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
+import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
@@ -42,6 +43,11 @@ import 'timeline_provider.dart';
 export '../../core/claude/claude_cli.dart' show claudeProcessStarterProvider;
 
 /// Generates session ids (`--session-id`, UUID v4).
+/// Prefix of the session row that carries a VIBE through the Review
+/// (SPEC-069 R7): the VIBE talks in a conversation of the Prompt, so what
+/// the Review sends to that session goes to the conversation.
+const vibeSessionPrefix = 'vibe-';
+
 final sessionIdGeneratorProvider = Provider<String Function()>(
   (ref) => const Uuid().v4,
 );
@@ -74,6 +80,7 @@ class NewSessionRequest {
     this.baseBranch,
     this.environment,
     this.duelId,
+    this.prUrl,
   });
 
   final Workspace workspace;
@@ -121,6 +128,11 @@ class NewSessionRequest {
 
   /// Best-of-N attempt (`spec_duels.id`) the session runs.
   final int? duelId;
+
+  /// PR the session works on from the start ("Trazer PR", SPEC-050 R3);
+  /// stored before the process starts, so its hooks already refuse the
+  /// forced pushes (R7).
+  final String? prUrl;
 }
 
 /// A `can_use_tool` request waiting for the user (approvals queue).
@@ -329,7 +341,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         final wt = await git.addWorktree(sessionSlug(title, id));
         path = wt.path;
         branch = wt.branch;
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } else {
         branch = await git.currentBranch() ?? 'HEAD';
       }
@@ -366,6 +378,7 @@ class SessionManager extends Notifier<SessionManagerState> {
       baseBranch: base,
       duelId: r.duelId,
     );
+    if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
     if (r.origin != null) await _note(id, r.origin!);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
@@ -400,6 +413,18 @@ class SessionManager extends Notifier<SessionManagerState> {
   Future<void> send(String id, String text) async {
     var msg = text.trim();
     if (msg.isEmpty) return;
+    // SPEC-069 R7: the Review talks to a VIBE in its conversation.
+    if (id.startsWith(vibeSessionPrefix)) {
+      final s = await _repo.getById(id);
+      final conv = s?.specId == null
+          ? null
+          : await ref.read(specsRepoProvider).conversationOf(s!.specId!);
+      if (conv == null) {
+        throw const SessionException('A conversa desta VIBE não existe mais.');
+      }
+      await ref.read(conversationManagerProvider.notifier).send(conv.id, msg);
+      return;
+    }
     final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
@@ -533,6 +558,9 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   Future<void> _resume(String id) async {
+    if (id.startsWith(vibeSessionPrefix)) {
+      throw const SessionException('Esta VIBE continua na conversa do Prompt.');
+    }
     final s = await _repo.getById(id);
     if (s == null) throw SessionException('Sessão $id não encontrada.');
     if (s.status == SessionStatus.merged) {
@@ -625,7 +653,7 @@ class SessionManager extends Notifier<SessionManagerState> {
             rethrow;
           }
         }
-        await _setupWorktree(ws.path, wt);
+        await setupWorktree(ws.path, wt);
       } on GitException catch (e) {
         throw SessionException('Falha ao criar o worktree do fork: $e');
       }
@@ -1140,10 +1168,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     _publish();
   }
 
-  /// A new session / fork worktree: `copiar:` and `preparar:` of the
+  /// A new session / fork / PR worktree: `copiar:` and `preparar:` of the
   /// project's config. Failure removes the worktree (nothing was done in
   /// it yet) and is reported to the caller.
-  Future<void> _setupWorktree(String root, CreatedWorktree wt) async {
+  Future<void> setupWorktree(String root, CreatedWorktree wt) async {
     final config = ProjectConfig.loadSync(root);
     final wc = config.worktree;
     if (wc.copy.isEmpty && wc.prepare == null) return;
@@ -1214,11 +1242,16 @@ class SessionManager extends Notifier<SessionManagerState> {
           if (settings.get(h.settingKey) != '0') h,
       };
       final config = root == null ? null : ProjectConfig.loadSync(root);
+      // A PR brought into the app (SPEC-050 R7): its published history is
+      // someone else's, so no forced push of any kind.
+      final row = await _repo.getById(id);
+      final foreignPr = row?.prUrl != null && row?.specId == null;
       return await hooks.prepare(
         id,
         enabled: enabled,
         rules: blockRules(
           projectGlobs: config?.blockedCommands ?? const [],
+          extra: foreignPr ? prForcePushRules : const [],
           root: root,
           cwd: cwd,
         ),

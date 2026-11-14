@@ -137,6 +137,22 @@ class SpecDocument {
 
   SpecStatus? get status => specStatusFromValue(rawStatus);
 
+  /// Frontmatter `kind` (SPEC-069 R3): `vibe` for a VIBE, else a spec.
+  SpecKind get kind =>
+      '${frontmatter[kindKey] ?? ''}'.trim().toLowerCase() == SpecKind.vibe.name
+      ? SpecKind.vibe
+      : SpecKind.spec;
+
+  /// Frontmatter `origem` (SPEC-069 R8): the VIBE a spec came from.
+  String? get origin {
+    final v = frontmatter[originKey];
+    final s = v == null ? '' : '$v'.trim();
+    return s.isEmpty ? null : s;
+  }
+
+  static const kindKey = 'kind';
+  static const originKey = 'origem';
+
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   String? get phase {
     final v = frontmatter['fase'];
@@ -1328,7 +1344,36 @@ List<SpecCriterion> parseCriteria(String text) {
 }
 
 /// `SPEC-007` from `specs/SPEC-007-algo.md` (null when the name differs).
-String? specCodeFromFileName(String fileName) {
-  final m = RegExp(r'^(SPEC-\d+)').firstMatch(fileName);
+/// [kind] vibe reads `VIBE-007` from `docs/vibe/VIBE-007-algo.md`.
+String? specCodeFromFileName(String fileName, {SpecKind kind = SpecKind.spec}) {
+  final m = RegExp('^(${kind.prefix}-\\d+)').firstMatch(fileName);
   return m?.group(1);
+}
+
+/// Markdown of a VIBE (SPEC-069 R3): the request as R1 and one criterion.
+String newVibeMarkdown({
+  required String code,
+  required String title,
+  required String request,
+}) {
+  final req = request.trim().replaceAll(RegExp(r'\s*\n\s*'), ' ');
+  return '''
+---
+id: $code
+status: ${specStatusValue(SpecStatus.approved)}
+${SpecDocument.kindKey}: ${SpecKind.vibe.name}
+---
+
+# $title
+
+> Tarefa feita no modo vibe code ("Fazer como tarefa"), sem spec escrita.
+
+## Requisitos
+
+- R1 · $req
+
+## Critérios de aceite
+
+- [ ] O pedido foi feito e conferido no Review.
+''';
 }

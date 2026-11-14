@@ -26,6 +26,7 @@ void motionOn() {
 Spec spec(int id, List<String> deps) => Spec(
   hasPlan: false,
   inTray: false,
+  kind: SpecKind.spec,
   id: id,
   workspaceId: 1,
   code: 'SPEC-${id.toString().padLeft(3, '0')}',

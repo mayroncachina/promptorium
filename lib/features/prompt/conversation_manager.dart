@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Directory;
 import 'dart:convert' show jsonEncode;
 import 'dart:math' as math;
 
@@ -149,6 +150,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     String? providerId,
     List<ImagePart> images = const [],
     RefineOrigin? origin,
+    int? specId,
+    String? title,
   }) async {
     final msg = text.trim();
     if (msg.isEmpty) throw const ConversationException('Escreva uma mensagem.');
@@ -162,13 +165,14 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         : null;
     final c = await _repo.insert(
       workspaceId: workspace.id,
-      title: conversationTitle(msg),
+      title: title ?? conversationTitle(msg),
       model: model ?? providerModel(ref, selected, RunKind.conversation),
       provider: selected,
       mode: mode.name,
       refineSpecCode: refine ? origin?.specCode : null,
       refineOrigin: refine ? origin?.source.name : null,
       refineBaseText: base,
+      specId: specId,
     );
     await send(c.id, msg, images: images);
     return c.id;
@@ -197,6 +201,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     if (conv == null) throw ConversationException('Conversa $id não existe.');
     // SPEC-056 R7: a message brings an archived conversation back.
     if (conv.archivedAt != null) await _repo.unarchive(id);
+    if (conv.specId != null) await _vibeMessage(conv);
     var r = _runs[id];
     final mode = PromptMode.fromName(conv.mode);
     if (r != null && (r.mode != mode || r.model != conv.model)) {
@@ -224,6 +229,53 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     _publish();
     await run.run.send(msg, images: images);
   }
+
+  /// A message to the conversation of a VIBE (SPEC-069 R7): the VIBE is
+  /// still open, and one in Review comes back to Em execução, since the
+  /// Review starts over.
+  Future<void> _vibeMessage(Conversation conv) async {
+    final specs = ref.read(specsRepoProvider);
+    final spec = await specs.getById(conv.specId!);
+    if (spec == null) {
+      throw const ConversationException('A VIBE desta conversa não existe.');
+    }
+    if (spec.stage == SpecStage.done) {
+      throw ConversationException(
+        '${spec.code} já foi mergeada: comece uma VIBE nova com "Fazer como '
+        'tarefa".',
+      );
+    }
+    if (spec.stage == SpecStage.review) {
+      await specs.setStage(spec.id, SpecStage.running);
+      await note(
+        conv.id,
+        'Pedido novo: ${spec.code} voltou para Em execução e o Review '
+        'recomeça.',
+      );
+    }
+  }
+
+  /// The worktree a VIBE conversation runs in (SPEC-069 R4). Never the
+  /// workspace root: without its worktree the agent does not start.
+  Future<String> _vibeWorktree(Conversation conv, Workspace ws) async {
+    final spec = await ref.read(specsRepoProvider).getById(conv.specId!);
+    final wt = spec?.worktreePath;
+    String norm(String p) => Directory(p).absolute.uri.normalizePath().path;
+    if (wt == null ||
+        !Directory(wt).existsSync() ||
+        norm(wt) == norm(ws.path)) {
+      throw ConversationException(
+        '${spec?.code ?? 'A VIBE'} não tem worktree próprio: o agente não '
+        'roda no checkout principal.',
+      );
+    }
+    return wt;
+  }
+
+  /// A line of the app in the conversation (gate results of a VIBE…, what
+  /// the agent created through the Promptorium MCP, SPEC-052 R8).
+  Future<void> note(int id, String text, {bool error = false}) =>
+      _note(id, text, error: error);
 
   Future<void> setMode(int id, PromptMode mode) => _repo.setMode(id, mode.name);
 
@@ -288,11 +340,6 @@ class ConversationManager extends Notifier<ConversationManagerState> {
 
   bool isAlive(int id) => _runs.containsKey(id);
 
-  /// Line of the app in the conversation (what the agent created through
-  /// the Promptorium MCP, SPEC-052 R8).
-  Future<void> note(int id, String text, {bool error = false}) =>
-      _note(id, text, error: error);
-
   // --- lifecycle -------------------------------------------------------------
 
   Future<_Run> _ensureStarted(Conversation conv) {
@@ -331,6 +378,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         '${provider.displayName} ainda não está disponível.',
       );
     }
+    // SPEC-069 R4: the conversation of a VIBE edits its worktree only.
+    final cwd = conv.specId == null ? ws.path : await _vibeWorktree(conv, ws);
     final resume = conv.claudeSessionId;
     final sid = resume ?? ref.read(sessionIdGeneratorProvider)();
     final mode = PromptMode.fromName(conv.mode);
@@ -352,7 +401,7 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     try {
       run = await provider.start(
         AgentStartOptions(
-          workingDirectory: ws.path,
+          workingDirectory: cwd,
           mode: mode,
           sessionId: resume == null ? sid : null,
           resumeId: resume,

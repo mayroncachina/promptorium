@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>O PR trazido no Review</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <nav aria-label="Seções" style="width: 56px; height: 900px; box-sizing: border-box; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; background: #0B0D11; border-right: 1px solid #252B35">
+    <button aria-label="Início" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 L10 3 L17 9 V17 H3 Z"></path></svg></button>
+    <button aria-label="Quadro" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3 H8 V17 H3 Z M12 3 H17 V11 H12 Z"></path></svg></button>
+    <button aria-label="Sessões" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5 H17 M3 10 H17 M3 15 H12"></path></svg></button>
+    <button aria-label="Review" aria-current="true" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: #1F2430"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3 V17 M6 7 A4 4 0 0 0 14 7 V3 M14 17 V11"></path></svg></button>
+  </nav>
+  <aside aria-label="Aguardando review" style="width: 340px; height: 900px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; background: #11141A; border-right: 1px solid #252B35">
+    <button style="height: 40px; border: 1px solid #3A4250; border-radius: 8px; background: #1A1E26; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#E7E9EE" stroke-width="1.8" stroke-linecap="round"><path d="M7 2 V12 M2 7 H12"></path></svg>Trazer PR…</button>
+    <div style="padding: 10px 6px 2px; font-size: 14px; font-weight: 600; color: #A0A8B6">Aguardando review · 3</div>
+    <button aria-current="true" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; text-align: left; background: #1F2430; border: 1px solid #3A4250; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+      <span style="display: flex; align-items: center; gap: 8px"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">PR #214 · @lucas-andrade</span><span style="padding: 0 7px; border: 1px solid #3A4250; border-radius: 9px; font-size: 11px; color: #A0A8B6">Sem spec</span></span>
+      <span style="font-size: 15px; font-weight: 600">Atalho para duplicar card no Quadro</span>
+      <span style="font-size: 13px; color: #E07AB0">Resumo pronto · aguardando você</span>
+    </button>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-049</span><span style="font-size: 15px; font-weight: 600">Tema Vidro</span><span style="font-size: 13px; color: #5BC88A">Pronto para merge</span></button>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-048</span><span style="font-size: 15px; font-weight: 600">Marcar commits de agente</span><span style="font-size: 13px; color: #E07AB0">Em review · rodada 2</span></button>
+  </aside>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 96px; box-sizing: border-box; padding: 16px 24px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #252B35">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+        <span style="font: 13px 'JetBrains Mono', monospace; color: #A0A8B6">PR #214 · @lucas-andrade · feat/duplicar-card → main</span>
+        <div style="display: flex; align-items: center; gap: 10px">
+          <h1 style="margin: 0; font-size: 22px; font-weight: 600">Atalho para duplicar card no Quadro</h1>
+          <span style="height: 26px; padding: 0 10px; display: flex; align-items: center; border: 1px solid #3A4250; border-radius: 13px; font-size: 12px; color: #A0A8B6">Sem spec</span>
+          <span style="height: 26px; padding: 0 10px; display: flex; align-items: center; gap: 6px; border: 1px solid #2F6B5E; border-radius: 13px; background: #11201D; font-size: 12px; color: #4FD1B5">Push para a branch do PR</span>
+        </div>
+      </div>
+      <button style="height: 40px; padding: 0 18px; border: 0; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Pedir ajustes ao agente</button>
+      <button aria-label="Mais ações: Soltar o PR, Copiar patch" style="width: 40px; height: 40px; border: 1px solid #252B35; border-radius: 8px; background: #14171D; color: #A0A8B6; font-size: 18px">⋯</button>
+    </header>
+    <div style="flex: 1; min-height: 0; display: flex">
+      <section aria-label="Diff" style="flex: 1; min-width: 0; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; border-right: 1px solid #252B35">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #A0A8B6"><span style="font: 13px 'JetBrains Mono', monospace; color: #E7E9EE">lib/features/board/board_card.dart</span><span style="color: #5BC88A">+38</span><span style="color: #F27A6E">−4</span><span style="flex: 1"></span><span>arquivo 2 de 4</span></div>
+        <div style="border: 1px solid #252B35; border-radius: 10px; overflow: hidden; font: 13px/22px 'JetBrains Mono', monospace">
+          <div style="padding: 0 12px; background: #14171D; color: #7C8595">@@ -142,6 +142,22 @@ class BoardCard extends ConsumerWidget</div>
+          <div style="display: flex"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">142</span><span style="padding-left: 8px; white-space: pre">      onTap: () =&gt; ref.read(selectedSpecProvider.notifier).set(spec.id),</span></div>
+          <div style="display: flex; background: #12241F"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">143</span><span style="padding-left: 8px; white-space: pre; color: #C9F0DD">+     onDuplicate: () =&gt; _duplicate(context, ref, spec),</span></div>
+          <div style="display: flex; background: #12241F"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">144</span><span style="padding-left: 8px; white-space: pre; color: #C9F0DD">+     shortcuts: {</span></div>
+          <div style="display: flex; background: #12241F"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">145</span><span style="padding-left: 8px; white-space: pre; color: #C9F0DD">+       SingleActivator(LogicalKeyboardKey.keyD, control: true):</span></div>
+          <div style="display: flex; background: #12241F"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">146</span><span style="padding-left: 8px; white-space: pre; color: #C9F0DD">+           () =&gt; _duplicate(context, ref, spec),</span></div>
+          <div style="margin: 6px 12px 8px 52px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: #1A1E26; border: 1px solid #3A4250; border-radius: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; line-height: 19px">
+            <span style="display: flex; gap: 8px; color: #A0A8B6"><span style="color: #8EA4C8; font-weight: 600">Comentário do PR</span>@mayroncachina · há 1 h</span>
+            <span>Ctrl+D já é "Duplicar sessão" na aba Sessões. Dá para usar Ctrl+Shift+D aqui?</span>
+          </div>
+          <div style="display: flex; background: #12241F"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">147</span><span style="padding-left: 8px; white-space: pre; color: #C9F0DD">+     },</span></div>
+          <div style="display: flex"><span style="width: 44px; padding-right: 8px; text-align: right; color: #4A5260">148</span><span style="padding-left: 8px; white-space: pre">      child: _CardBody(spec: spec),</span></div>
+        </div>
+      </section>
+      <aside aria-label="Painel do PR" style="width: 380px; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px">
+        <section aria-label="Resumo do agente" style="display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Resumo do agente</h2>
+          <p style="margin: 0; font-size: 13px; line-height: 20px; color: #C9CED8">O PR adiciona "Duplicar" ao menu do card e o atalho Ctrl+D. A cópia leva requisitos e critérios, mas não o worktree nem as sessões.</p>
+          <p style="margin: 0; font-size: 13px; line-height: 20px; color: #C9CED8"><strong style="color: #F2A541; font-weight: 600">Risco:</strong> Ctrl+D já está em uso na aba Sessões.</p>
+          <p style="margin: 0; font-size: 13px; line-height: 20px; color: #C9CED8"><strong style="font-weight: 600">Em aberto:</strong> o código da cópia segue a numeração (SPEC-061) ou ganha sufixo?</p>
+        </section>
+        <section aria-label="Acompanhar PR" style="padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #14171D; border: 1px solid #252B35; border-radius: 10px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600">Acompanhar PR</h2>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#5BC88A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 L5.5 10.5 L11.5 3.5"></path></svg>3 de 3 checks passaram</span>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="5"></circle></svg>1 comentário aberto · review pendente</span>
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #A0A8B6"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#A0A8B6" stroke-width="1.8" stroke-linecap="round"><path d="M2 7 H12"></path></svg>Revisor automático desligado</span>
+          <button style="align-self: flex-start; height: 36px; padding: 0 14px; border: 1px solid #3A4250; border-radius: 8px; background: transparent; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Rodar revisor</button>
+        </section>
+        <label style="display: flex; gap: 10px; font-size: 13px; line-height: 19px; color: #C9CED8"><input type="checkbox" style="margin: 2px 0 0; accent-color: #F2A541">Responder no PR depois do push, com o SHA que corrigiu</label>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

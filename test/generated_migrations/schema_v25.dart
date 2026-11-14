@@ -427,13 +427,14 @@ class Specs extends Table with TableInfo {
     $customConstraints: 'NOT NULL DEFAULT 0 CHECK (in_tray IN (0, 1))',
     defaultValue: const CustomExpression('0'),
   );
-  late final GeneratedColumn<String> agentSession = GeneratedColumn<String>(
-    'agent_session',
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    $customConstraints: 'NULL',
+    $customConstraints: 'NOT NULL DEFAULT \'spec\'',
+    defaultValue: const CustomExpression('\'spec\''),
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -468,7 +469,7 @@ class Specs extends Table with TableInfo {
     originAlias,
     originTitle,
     inTray,
-    agentSession,
+    kind,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1358,6 +1359,14 @@ class Conversations extends Table with TableInfo {
     requiredDuringInsert: false,
     $customConstraints: 'NULL',
   );
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'NULL',
+  );
   @override
   List<GeneratedColumn> get $columns => [
     runConfig,
@@ -1379,6 +1388,7 @@ class Conversations extends Table with TableInfo {
     refineOrigin,
     refineBaseText,
     archivedAt,
+    specId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2863,93 +2873,6 @@ class StepRuns extends Table with TableInfo {
   bool get dontWriteConstraints => true;
 }
 
-class SpecNotes extends Table with TableInfo {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  SpecNotes(this.attachedDatabase, [this._alias]);
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL PRIMARY KEY AUTOINCREMENT',
-  );
-  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
-    'spec_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL REFERENCES specs(id)ON DELETE CASCADE',
-  );
-  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
-    'session_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NULL',
-  );
-  late final GeneratedColumn<String> steps = GeneratedColumn<String>(
-    'steps',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    $customConstraints: 'NULL',
-  );
-  late final GeneratedColumn<String> note = GeneratedColumn<String>(
-    'note',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    $customConstraints: 'NOT NULL',
-  );
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT (CAST(strftime(\'%s\', CURRENT_TIMESTAMP) AS INTEGER))',
-    defaultValue: const CustomExpression(
-      'CAST(strftime(\'%s\', CURRENT_TIMESTAMP) AS INTEGER)',
-    ),
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    specId,
-    sessionId,
-    steps,
-    note,
-    createdAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'spec_notes';
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  Never map(Map<String, dynamic> data, {String? tablePrefix}) {
-    throw UnsupportedError('TableInfo.map in schema verification code');
-  }
-
-  @override
-  SpecNotes createAlias(String alias) {
-    return SpecNotes(attachedDatabase, alias);
-  }
-
-  @override
-  bool get dontWriteConstraints => true;
-}
-
 class DatabaseAtV25 extends GeneratedDatabase {
   DatabaseAtV25(QueryExecutor e) : super(e);
   late final Workspaces workspaces = Workspaces(this);
@@ -2976,7 +2899,6 @@ class DatabaseAtV25 extends GeneratedDatabase {
   late final Notifications notifications = Notifications(this);
   late final SpecDuels specDuels = SpecDuels(this);
   late final StepRuns stepRuns = StepRuns(this);
-  late final SpecNotes specNotes = SpecNotes(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3006,7 +2928,6 @@ class DatabaseAtV25 extends GeneratedDatabase {
     notifications,
     specDuels,
     stepRuns,
-    specNotes,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3163,13 +3084,6 @@ class DatabaseAtV25 extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('step_runs', kind: UpdateKind.delete)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'specs',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('spec_notes', kind: UpdateKind.delete)],
     ),
   ]);
   @override
