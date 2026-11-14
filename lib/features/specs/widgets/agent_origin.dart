@@ -60,15 +60,19 @@ class AgentOriginBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final id = spec.agentSession;
     if (id == null) return const SizedBox.shrink();
-    final session = ref.watch(_agentSessionProvider(id)).value;
+    final found = ref.watch(_agentSessionProvider(id));
+    final session = found.value;
     final all = ref.watch(specsProvider(spec.workspaceId)).value ?? const [];
     final children = [
       for (final s in all)
         if (s.dependsOn.contains(spec.code)) s,
     ];
-    final where = session == null
-        ? 'numa conversa do Prompt'
-        : 'na sessão “${sessionTitle(session)}”, ${_when(session.startedAt)}';
+    // Nothing about where until the lookup ends (no "conversa" flash).
+    final where = found.isLoading
+        ? ''
+        : session == null
+        ? ' numa conversa do Prompt'
+        : ' na sessão “${sessionTitle(session)}”, ${_when(session.startedAt)}';
     final draft = spec.status == SpecStatus.draft;
     return Container(
       key: const ValueKey('spec-agent-origin'),
@@ -88,7 +92,7 @@ class AgentOriginBanner extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Criada pelo agente $where.'
+                  'Criada pelo agente$where.'
                   '${draft ? ' É um rascunho: nada roda até você aprovar.' : ''}',
                   style: const TextStyle(fontSize: 12),
                 ),
