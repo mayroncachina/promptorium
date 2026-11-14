@@ -6,9 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/dev/dev_server.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/project/project_config.dart'
+    show DevServerConfig;
 import 'package:promptorium/data/repos/saved_prompts_repo.dart';
 import 'package:promptorium/features/sessions/session_changes.dart';
+import 'package:promptorium/features/sessions/session_dev.dart';
 import 'package:promptorium/features/sessions/sessions_screen.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
@@ -419,6 +423,48 @@ void main() {
     );
     expect(find.byKey(const ValueKey('prompt-suggestions')), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SPEC-051 R1: without dev: the header keeps "Abrir preview '
+      ':porta" and there is no Preview tab', (tester) async {
+    await pumpScreen(
+      tester,
+      overrides: [
+        previewPortProvider.overrideWith((ref, id) => 4003),
+        sessionDevProvider.overrideWith((ref, id) => null),
+      ],
+    );
+    expect(find.text('Abrir preview :4003'), findsOneWidget);
+    expect(find.byKey(const ValueKey('dev-status')), findsNothing);
+    expect(find.byKey(const ValueKey('session-tab-preview')), findsNothing);
+  });
+
+  testWidgets('SPEC-051 R2, R4: with dev: the header has the server control '
+      'and the session gains the Preview tab', (tester) async {
+    await pumpScreen(
+      tester,
+      overrides: [
+        previewPortProvider.overrideWith((ref, id) => 4003),
+        sessionDevProvider.overrideWith(
+          (ref, id) => const SessionDev(
+            config: DevServerConfig(command: 'npm run dev'),
+            worktree: root,
+            root: '/work/repo',
+            port: 4003,
+          ),
+        ),
+        devServerRegistryProvider.overrideWithValue(
+          DevServerRegistry(runDir: '/nonexistent/promptorium-test-run'),
+        ),
+      ],
+    );
+    expect(find.text('Abrir preview :4003'), findsNothing);
+    expect(find.text('Servidor parado'), findsOneWidget);
+    expect(find.byKey(const ValueKey('dev-start')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('session-tab-preview')));
+    await pumpFor(tester);
+    expect(find.byKey(const ValueKey('preview-state')), findsOneWidget);
+    expect(find.text('npm run dev'), findsOneWidget);
   });
 
   testWidgets('populated screen fits the minimum window (1100×700)', (

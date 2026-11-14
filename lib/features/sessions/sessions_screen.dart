@@ -9,11 +9,14 @@ import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
+import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
 import 'tool_expanded.dart';
 import 'widgets/composer.dart';
+import 'widgets/dev_server_control.dart';
 import 'widgets/diff_raw_views.dart';
+import 'widgets/preview_tab.dart';
 import 'widgets/session_list_panel.dart';
 import 'widgets/session_style.dart';
 import 'widgets/session_terminal.dart';
@@ -21,7 +24,7 @@ import 'widgets/side_panel.dart';
 import 'widgets/timeline_view.dart';
 import 'widgets/tool_expanded_view.dart';
 
-enum SessionTab { timeline, terminal, diff, raw }
+enum SessionTab { timeline, terminal, diff, preview, raw }
 
 /// Tab of one session's pane (kept per session: two panes side by side can
 /// show different tabs; UX v2, U3).
@@ -336,7 +339,9 @@ class _SessionMain extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tab = ref.watch(sessionTabProvider(session.id));
+    final dev = ref.watch(sessionDevProvider(session.id));
+    var tab = ref.watch(sessionTabProvider(session.id));
+    if (tab == SessionTab.preview && dev == null) tab = SessionTab.timeline;
     final changes = ref.watch(sessionChangesProvider(session.id)).value;
     final s = session;
 
@@ -390,6 +395,13 @@ class _SessionMain extends ConsumerWidget {
       ),
       SessionTab.terminal => SessionTerminalView(session: s),
       SessionTab.diff => SessionDiffView(sessionId: s.id),
+      SessionTab.preview => PreviewTab(
+        dev: dev!,
+        sendToSession: (text) async {
+          await ref.read(sessionManagerProvider.notifier).send(s.id, text);
+          ref.read(sessionTabProvider(s.id).notifier).set(SessionTab.timeline);
+        },
+      ),
       SessionTab.raw => RawLogView(sessionId: s.id),
     };
 
@@ -414,6 +426,10 @@ class _SessionMain extends ConsumerWidget {
                   SessionTab.diff,
                   changes == null ? 'Diff' : 'Diff · ${changes.count}',
                 ),
+                if (dev != null) ...[
+                  const SizedBox(width: 2),
+                  tabButton(SessionTab.preview, 'Preview'),
+                ],
                 const SizedBox(width: 2),
                 tabButton(SessionTab.raw, 'Log bruto'),
               ],
@@ -488,7 +504,10 @@ class _Header extends ConsumerWidget {
       s.agentName ?? 'sem agente',
       model ?? (s.model == 'inherit' ? 'modelo padrão' : s.model),
     ].join(' · ');
-    final previewPort = ref.watch(previewPortProvider(s.id));
+    final dev = ref.watch(sessionDevProvider(s.id));
+    final previewPort = dev == null
+        ? ref.watch(previewPortProvider(s.id))
+        : null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -556,6 +575,14 @@ class _Header extends ConsumerWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
+                if (dev != null)
+                  DevServerControl(
+                    key: ValueKey('session-dev-${s.id}'),
+                    dev: dev,
+                    onShowLogs: () => ref
+                        .read(sessionTabProvider(s.id).notifier)
+                        .set(SessionTab.preview),
+                  ),
                 SmallButton(
                   key: const ValueKey('session-open-terminal'),
                   label: 'Abrir terminal',
