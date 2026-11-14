@@ -72,20 +72,26 @@ List<PrComment> parsePrInlineComments(List<Object?> decoded) {
   ];
 }
 
-/// Row of a PR comment in the spec's review history: keyed by its id on the
-/// host, so reading the PR again never duplicates it.
-ReviewCommentsCompanion prCommentRow(int specId, int round, PrComment c) =>
-    ReviewCommentsCompanion.insert(
-      specId: specId,
-      round: round,
-      author: 'pr',
-      body: '@${c.author}: ${c.body}',
-      externalId: Value(c.externalId),
-      path: Value(c.path),
-      line: Value(c.line),
-      commitSha: Value(c.commitSha),
-      verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
-    );
+/// Row of a PR comment in the spec's review history (or, with no spec, the
+/// session's: SPEC-050 P1): keyed by its id on the host, so reading the PR
+/// again never duplicates it.
+ReviewCommentsCompanion prCommentRow(
+  int? specId,
+  int round,
+  PrComment c, {
+  String? sessionId,
+}) => ReviewCommentsCompanion.insert(
+  specId: Value(specId),
+  sessionId: Value(specId == null ? sessionId : null),
+  round: round,
+  author: 'pr',
+  body: '@${c.author}: ${c.body}',
+  externalId: Value(c.externalId),
+  path: Value(c.path),
+  line: Value(c.line),
+  commitSha: Value(c.commitSha),
+  verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
+);
 
 /// What `gh pr view --json …` says about a PR.
 @immutable
@@ -341,14 +347,19 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
 
   Future<void> _recordRound(Session s, List<PrComment> news) async {
     final specId = s.specId;
-    if (specId == null) return;
     final repo = ref.read(reviewCommentsRepoProvider);
-    final rounds = (await repo.bySpec(specId)).map((c) => c.round);
+    final rounds =
+        (specId != null
+                ? await repo.bySpec(specId)
+                : await repo.bySession(s.id))
+            .map((c) => c.round);
     final round = rounds.isEmpty
         ? 1
         : rounds.reduce((a, b) => a > b ? a : b) + 1;
     for (final c in news) {
-      await repo.insertExternal(prCommentRow(specId, round, c));
+      await repo.insertExternal(
+        prCommentRow(specId, round, c, sessionId: s.id),
+      );
     }
   }
 

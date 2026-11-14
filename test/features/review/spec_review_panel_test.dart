@@ -55,7 +55,7 @@ void main() {
       );
       await c.read(reviewCommentsRepoProvider).insertAll([
         ReviewCommentsCompanion.insert(
-          specId: s.id,
+          specId: Value(s.id),
           round: 1,
           author: 'revisor',
           body: 'Falta teste.',
@@ -63,7 +63,7 @@ void main() {
           commitSha: const Value('abcdef123456'),
         ),
         ReviewCommentsCompanion.insert(
-          specId: s.id,
+          specId: Value(s.id),
           round: 1,
           author: 'revisor',
           path: const Value('lib/a.dart'),

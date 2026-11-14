@@ -109,6 +109,8 @@ void main() {
       "INSERT INTO review_comments(spec_id,round,author,body) VALUES(1,1,'revisor','preservar')",
     );
     await db.customStatement('DROP INDEX review_comments_external');
+    // v25 (SPEC-050): the index of the comments by session.
+    await db.customStatement('DROP INDEX review_comments_external_session');
     for (final column in ['resolved', 'resolved_at', 'external_id']) {
       await db.customStatement(
         'ALTER TABLE review_comments DROP COLUMN $column',
@@ -562,7 +564,7 @@ void main() {
         .into(db.reviewComments)
         .insert(
           ReviewCommentsCompanion.insert(
-            specId: spec.id,
+            specId: Value(spec.id),
             round: 1,
             author: 'revisor',
             body: 'faltou teste',

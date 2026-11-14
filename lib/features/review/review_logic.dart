@@ -3,13 +3,19 @@ import 'package:flutter/foundation.dart';
 import '../../core/git/diff_parser.dart';
 import '../../core/git/git_service.dart' show GitLogEntry;
 import '../../data/db/app_database.dart';
+import 'pr_import.dart' show ImportedPr;
 
 /// Pure rules of the Review screen (plano, Fase 9).
 
 /// One entry of "Aguardando review".
 @immutable
 class ReviewItem {
-  const ReviewItem({required this.session, this.task, this.spec});
+  const ReviewItem({
+    required this.session,
+    this.task,
+    this.spec,
+    this.imported,
+  });
 
   /// Session shown (of a spec: its latest one — every step session shares
   /// the spec's worktree and branch).
@@ -18,6 +24,10 @@ class ReviewItem {
 
   /// Spec (card of the Quadro) the session works on.
   final Spec? spec;
+
+  /// The PR brought into the app ("Trazer PR", SPEC-050 R5): a session with
+  /// a PR and no spec.
+  final ImportedPr? imported;
 }
 
 /// Whether [session] goes to "Aguardando review":

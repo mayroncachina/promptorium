@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'conflict_resolution.dart' show ResolutionState;
+import 'pr_import.dart' show ImportedPr;
 import 'review_logic.dart';
 
 /// Pure rules of the queue as stacks (SPEC-032 R1–R3, R5, R8).
@@ -291,3 +292,25 @@ String queueSemanticLabel({
   ];
   return parts.join(', ');
 }
+
+/// Second line of a queue card: the spec or task code and the agent, or,
+/// for a PR brought into the app, `PR #214 · @lucas-andrade` (SPEC-050 R5).
+String queueCardMeta(ReviewItem item) {
+  final pr = item.imported;
+  if (pr != null) {
+    return 'PR #${pr.number} · @${pr.author.isEmpty ? '?' : pr.author}';
+  }
+  final s = item.session;
+  final code = item.spec?.code ?? item.task?.code;
+  return [
+    ?code,
+    s.agentName?.isNotEmpty ?? false ? s.agentName! : 'sem agente',
+  ].join(' · ');
+}
+
+/// A PR brought into the app leaves the queue once merged or closed on the
+/// host (SPEC-050 R5); "Soltar o PR" removes its worktree.
+bool importedLeavesQueue(ImportedPr pr) => !pr.open;
+
+/// The card shows "Sem spec" (SPEC-050 R5).
+bool showsNoSpec(ReviewItem item) => item.imported != null;
