@@ -22,6 +22,7 @@ import '../../core/git/git_service.dart';
 import '../../core/git/worktree_setup.dart';
 import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../../data/repos/durable_state_repo.dart';
@@ -694,9 +695,12 @@ class SessionManager extends Notifier<SessionManagerState> {
     final p = _procs[id];
     final req = _take(id, requestId);
     if (p == null || req == null) return;
-    final suggestion = req.permissionSuggestions.isEmpty
-        ? null
-        : req.permissionSuggestions.first;
+    // SPEC-052 R4: criar_* only ever "nesta sessão".
+    final suggestions = alwaysAllowSuggestions(
+      req.toolName,
+      req.permissionSuggestions,
+    );
+    final suggestion = suggestions.isEmpty ? null : suggestions.first;
     await p.process.approve(
       requestId,
       updatedPermissions: always && suggestion != null ? [suggestion] : null,

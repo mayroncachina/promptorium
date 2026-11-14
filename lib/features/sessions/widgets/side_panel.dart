@@ -16,6 +16,7 @@ import '../session_manager.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../edit_diff.dart';
 import '../timeline.dart';
+import 'agent_spec_approval.dart';
 import 'question_card.dart';
 import 'session_style.dart';
 
@@ -441,6 +442,21 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
       );
     }
     if (isEditTool(r.toolName)) return _editCard(a, r, always);
+    // SPEC-052 R4: a spec the agent wants to create, with its preview.
+    if (agentSpecRequest(r) case final spec?) {
+      return AgentSpecApprovalCard(
+        approval: a,
+        request: spec,
+        busy: _busy,
+        canAlways: r.permissionSuggestions.isNotEmpty,
+        onApprove: ({required bool always}) => _approve(always: always),
+        onDeny: _deny,
+        onOpen:
+            widget.onOpen ??
+            () =>
+                ref.read(selectedSessionProvider.notifier).select(a.sessionId),
+      );
+    }
     return Container(
       key: ValueKey('approval-${a.requestId}'),
       padding: const EdgeInsets.all(10),

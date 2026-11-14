@@ -190,6 +190,25 @@ List<String> get appMcpWriteToolIds => [
     if (t.write) appMcpToolId(t.name),
 ];
 
+/// `criar_spec` / `criar_filhas`: "Sempre permitir" only for the session
+/// (R4), never in the project nor in every project.
+bool isAppMcpCreateTool(String toolName) =>
+    toolName == appMcpToolId(AppMcpToolNames.createSpec) ||
+    toolName == appMcpToolId(AppMcpToolNames.createChildren);
+
+/// The `permission_suggestions` of a request as the app sends them back
+/// for "Sempre permitir": the CLI suggests `localSettings` (verified on
+/// 2.1.325), which [isAppMcpCreateTool] turns into `session`.
+List<Map<String, dynamic>> alwaysAllowSuggestions(
+  String toolName,
+  List<Map<String, dynamic>> suggestions,
+) {
+  if (!isAppMcpCreateTool(toolName)) return suggestions;
+  return [
+    for (final s in suggestions) {...s, 'destination': 'session'},
+  ];
+}
+
 /// Whether [toolName] (`mcp__promptorium__…`) is a write tool of the app.
 bool isAppMcpWriteTool(String toolName) =>
     appMcpWriteToolIds.contains(toolName);

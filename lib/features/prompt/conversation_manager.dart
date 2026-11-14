@@ -12,6 +12,7 @@ import '../../core/claude/usage_tracker.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
+import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
@@ -237,7 +238,8 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     final r = _runs[id];
     final req = _take(id, requestId);
     if (r == null || req == null) return;
-    final s = req.permissionSuggestions;
+    // SPEC-052 R4: criar_* only ever "nesta sessão".
+    final s = alwaysAllowSuggestions(req.toolName, req.permissionSuggestions);
     await r.run.approve(
       requestId,
       updatedPermissions: always && s.isNotEmpty ? [s.first] : null,
