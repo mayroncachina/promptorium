@@ -1,6 +1,6 @@
 ---
 id: SPEC-050
-status: proposta
+status: aprovada
 depende-de: SPEC-032, SPEC-045
 issue: 125
 ---
@@ -102,22 +102,24 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/NVC9Pyp1mQBbmMDp7Kh
 
 ## Critérios de aceite
 
-- [ ] O diálogo lista os PRs abertos com autor, branch e checks, aceita número ou URL e marca "Já no app" [R1] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] O painel do Grafo oferece "Trazer para o app" num PR sem sessão [R2] verificar: flutter test test/features/repository/graph_tab_test.dart
-- [ ] Um PR do mesmo repositório vira worktree na branch do PR, e um de fork vira `pr/<n>-<slug>`, com `copiar` e `preparar` rodados [R3] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] A primeira mensagem leva o contexto do PR e as regras, nas três formas de começar [R4] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] O card entra na fila com "PR #n · @autor" e "Sem spec" e sai quando o PR é mergeado ou fechado [R5] verificar: flutter test test/features/review/review_stack_test.dart
-- [ ] Os comentários do PR e da pessoa são guardados por sessão, sem spec, e a migração preserva os comentários de spec [R6] verificar: flutter test test/data/migrations_test.dart
-- [ ] "Pronto para merge?" de um PR sem spec mostra só checks, conflitos, decisão do PR, base e gate do projeto [R6] verificar: flutter test test/features/review/merge_readiness_test.dart
-- [ ] Push forçado é bloqueado, e sem permissão de escrita os commits ficam locais com "Copiar patch" [R7] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] "Atualizar" traz os commits novos do autor e refaz os locais por cima, e o conflito cai no fluxo existente [R7] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] Só com "Responder no PR depois do push" marcado o app comenta nas conversas tratadas [R8] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] "Soltar o PR" remove worktree e branch local, nunca a remota, e confirma com commits não publicados [R9] verificar: flutter test test/features/review/pr_import_test.dart
-- [ ] Em GitLab, "Trazer PR…" aparece desabilitado com o motivo [R10] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] O diálogo lista os PRs abertos com autor, branch e checks, aceita número ou URL e marca "Já no app" [R1] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] O painel do Grafo oferece "Trazer para o app" num PR sem sessão [R2] verificar: flutter test test/features/repository/graph_tab_test.dart
+- [x] Um PR do mesmo repositório vira worktree na branch do PR, e um de fork vira `pr/<n>-<slug>`, com `copiar` e `preparar` rodados [R3] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] A primeira mensagem leva o contexto do PR e as regras, nas três formas de começar [R4] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] O card entra na fila com "PR #n · @autor" e "Sem spec" e sai quando o PR é mergeado ou fechado [R5] verificar: flutter test test/features/review/review_stack_test.dart
+- [x] Os comentários do PR e da pessoa são guardados por sessão, sem spec, e a migração preserva os comentários de spec [R6] verificar: flutter test test/data/generated_migration_test.dart
+- [x] "Pronto para merge?" de um PR sem spec mostra só checks, conflitos, decisão do PR, base e gate do projeto [R6] verificar: flutter test test/features/review/merge_readiness_test.dart
+- [x] Push forçado é bloqueado, e sem permissão de escrita os commits ficam locais com "Copiar patch" [R7] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] "Atualizar" traz os commits novos do autor e refaz os locais por cima, e o conflito cai no fluxo existente [R7] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] Só com "Responder no PR depois do push" marcado o app comenta nas conversas tratadas [R8] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] "Soltar o PR" remove worktree e branch local, nunca a remota, e confirma com commits não publicados [R9] verificar: flutter test test/features/review/pr_import_test.dart
+- [x] Em GitLab, "Trazer PR…" aparece desabilitado com o motivo [R10] verificar: flutter test test/features/review/pr_import_test.dart
 - [ ] Um PR real de outra pessoa é trazido, ajustado pelo agente, publicado e mergeado no app [R1–R7] verificar: manual (repositório de teste com um PR aberto por outra conta)
-- [ ] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
 
 ## Decisões
+
+Na implementação, P1 a P5 seguiram a recomendação. A migração de P1 é a v25 provisória: a numeração final fica para a integração com a SPEC-069 e a SPEC-052.
 
 Perguntas em aberto, com a recomendação de cada uma:
 
