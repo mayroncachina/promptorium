@@ -14,6 +14,7 @@ import 'package:promptorium/features/review/review_service.dart';
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
+import '../tasks/task_rules_test.dart' show resultLine;
 
 /// `gh` simulated for "Trazer PR"; git runs for real.
 class FakePrGh {
@@ -506,6 +507,76 @@ void main() {
       final args = e.cli.args.single;
       expect(args[args.indexOf('--permission-mode') + 1], isNot('plan'));
       expect(e.c.read(appSettingsProvider)[replyInPrKey(e.ws.id)], '1');
+    });
+  });
+
+  group('R5 · R6 · fila e comentários por sessão', () {
+    test('o PR trazido entra na fila ao fim do turno, guarda os comentários '
+        'do PR e os da pessoa por sessão, e sai quando é mergeado', () async {
+      final e = await setUpEnv();
+      await publishPr(214, 'feat/duplicar-card');
+      final id = await e.service.bring(
+        e.ws,
+        PrImportCandidate(pr: parseGhOpenPr(prJson())!, canWrite: true),
+      );
+      e.cli.last.emit(resultLine());
+      await settle();
+      final repo = e.c.read(sessionsRepoProvider);
+      Future<List<ReviewItem>> queue() async => e.review.queue(
+        e.ws,
+        await repo.watchByWorkspace(e.ws.id).first,
+        const [],
+      );
+      final items = await queue();
+      expect(items.single.session.id, id);
+      expect(items.single.imported?.author, 'lucas-andrade');
+      expect(items.single.spec, isNull);
+
+      e.gh.comments = [
+        {
+          'id': 9,
+          'path': 'pr214.txt',
+          'line': 1,
+          'body': 'Renomeie',
+          'user': {'login': 'mayroncachina'},
+          'created_at': '2026-11-12T10:00:00Z',
+        },
+      ];
+      e.gh.viewed = {
+        'state': 'OPEN',
+        'mergeable': 'MERGEABLE',
+        'reviewDecision': 'REVIEW_REQUIRED',
+        'comments': [],
+        'reviews': [],
+        'statusCheckRollup': [],
+      };
+      await e.review.prView(id);
+      await e.review.prView(id);
+      final comments = e.c.read(reviewCommentsRepoProvider);
+      var rows = await comments.bySession(id);
+      expect(rows.single.body, '@mayroncachina: Renomeie');
+      expect(rows.single.specId, isNull);
+      expect(rows.single.path, 'pr214.txt');
+
+      // "Pedir ajustes" leaves plan mode and records the round by session.
+      expect((await repo.getById(id))!.permissionMode, 'plan');
+      await e.review.requestChanges(
+        id,
+        const [],
+        note: 'Renomeie o arquivo',
+        selected: rows,
+      );
+      expect((await repo.getById(id))!.permissionMode, 'default');
+      rows = await comments.bySession(id);
+      expect(rows.map((r) => (r.author, r.round)), [('pr', 1), ('humano', 2)]);
+      expect(rows.first.resolved, isTrue);
+
+      e.gh.viewed = {...e.gh.viewed!, 'state': 'MERGED'};
+      await e.review.prView(id);
+      expect(importedPrOf(e.c.read(appSettingsProvider), id)!.state, 'MERGED');
+      e.cli.last.emit(resultLine());
+      await settle();
+      expect(await queue(), isEmpty);
     });
   });
 

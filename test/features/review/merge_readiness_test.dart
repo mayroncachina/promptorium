@@ -247,4 +247,63 @@ void main() {
       );
     });
   });
+
+  group('SPEC-050 R6 · PR sem spec', () {
+    test('só checks, conflitos, decisão do PR, base e gate do projeto', () {
+      final r = evaluateReadiness(
+        const ReadinessInputs(
+          imported: true,
+          baseProblem:
+              'Desatualizada · 2 commits do autor e 1 local não publicado',
+          prReview: 'Aguardando aprovação',
+          gateCommands: 'flutter test e flutter analyze',
+          unknown: {'gate': 'Não verificado neste commit'},
+        ),
+      );
+      expect(r.items.map((i) => i.id), [
+        'base',
+        'decisao',
+        'gate',
+        'checks',
+        'conflitos',
+        'worktree',
+      ]);
+      for (final id in [
+        'revisor',
+        'criterios',
+        'verificacoes',
+        'comentarios',
+        'empilhada',
+        'raiz',
+        'pr',
+      ]) {
+        expect(r.items.where((i) => i.id == id), isEmpty, reason: id);
+      }
+      expect(r.blockers.map((i) => i.id), ['base']);
+      expect(r.warnings.map((i) => i.id), ['decisao', 'gate']);
+      final gate = r.items.firstWhere((i) => i.id == 'gate');
+      expect(gate.level, ReadinessLevel.naoVerificado);
+      expect(gate.label, 'Gate do projeto · flutter test e flutter analyze');
+      expect(gate.action, 'Verificar');
+      expect(r.items.firstWhere((i) => i.id == 'base').action, 'Atualizar…');
+      // A branch behind the author's commits can still be merged, with a
+      // reason (the mockup's "Mergear mesmo assim…").
+      expect(r.canOverride, isTrue);
+    });
+
+    test('conflito do PR bloqueia; tudo certo fica pronto', () {
+      expect(
+        evaluateReadiness(
+          const ReadinessInputs(
+            imported: true,
+            prConflict: 'O PR tem conflito',
+          ),
+        ).blockers.map((i) => i.id),
+        ['conflitos'],
+      );
+      final ok = evaluateReadiness(const ReadinessInputs(imported: true));
+      expect(ok.level, ReadinessLevel.ok);
+      expect(ok.summary, 'Pronto para merge');
+    });
+  });
 }

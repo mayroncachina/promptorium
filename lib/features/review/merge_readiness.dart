@@ -41,7 +41,7 @@ class MergeReadiness {
       blockers.isNotEmpty &&
       blockers.every(
         (i) =>
-            const {'criterios', 'resolucao'}.contains(i.id) &&
+            const {'criterios', 'resolucao', 'base'}.contains(i.id) &&
             i.level != ReadinessLevel.naoVerificado,
       );
   ReadinessLevel get level => blockers.isNotEmpty
@@ -72,7 +72,25 @@ class ReadinessInputs {
     this.hasResolution = false,
     this.resolutionProblem,
     this.unknown = const {},
+    this.imported = false,
+    this.prChecks,
+    this.prConflict,
+    this.prReview,
+    this.baseProblem,
+    this.gateProblem,
+    this.gateCommands = '',
   });
+
+  /// A PR brought into the app without a spec (SPEC-050 R6): only checks,
+  /// conflicts and the review decision of the PR, the base and the
+  /// project's gate. [prChecks], [prConflict], [prReview], [baseProblem]
+  /// and [gateProblem] are the problems of each (null = OK); the gate not
+  /// run yet on the current commit goes in [unknown] (`gate`).
+  final bool imported;
+  final String? prChecks, prConflict, prReview, baseProblem, gateProblem;
+
+  /// `flutter test e flutter analyze` (the gate's commands, for the label).
+  final String gateCommands;
 
   /// The agent resolved (or is resolving) a conflict of this item
   /// (SPEC-043 R5); [resolutionProblem] null = approved on the current tip,
@@ -122,6 +140,45 @@ MergeReadiness evaluateReadiness(ReadinessInputs f) {
     origin: ReadinessOrigin.tela,
     action: 'Pular revisor',
   );
+  if (f.imported) {
+    return MergeReadiness([
+      item(
+        'base',
+        'Branch do PR',
+        f.baseProblem,
+        blocking: true,
+        action: 'Atualizar…',
+      ),
+      item('decisao', 'Review do PR', f.prReview, action: 'Abrir no GitHub'),
+      item(
+        'gate',
+        f.gateCommands.isEmpty
+            ? 'Gate do projeto'
+            : 'Gate do projeto · ${f.gateCommands}',
+        f.gateProblem,
+        action: 'Verificar',
+      ),
+      item('checks', 'Checks do PR', f.prChecks, action: 'Verificar PR'),
+      item('conflitos', 'Conflitos', f.prConflict, blocking: true),
+      if (f.hasResolution)
+        item(
+          'resolucao',
+          'Resolução do conflito',
+          f.resolutionProblem,
+          blocking: true,
+        ),
+      item(
+        'worktree',
+        'Worktree',
+        f.worktreeProblem ??
+            (f.uncommitted > 0
+                ? '${f.uncommitted} alterações serão commitadas'
+                : null),
+        blocking:
+            f.worktreeProblem != null || f.unknown.containsKey('worktree'),
+      ),
+    ]);
+  }
   return MergeReadiness([
     if (f.hasSpec) ...[
       if (reviewer.level == ReadinessLevel.ok && f.reviewerFailed)
