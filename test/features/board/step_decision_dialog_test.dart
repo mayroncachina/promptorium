@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/claude_args.dart';
+import 'package:promptorium/core/claude/claude_process.dart' show ImagePart;
 import 'package:promptorium/core/claude/claude_event.dart';
 import 'package:promptorium/core/claude/readonly_run.dart';
 import 'package:promptorium/core/process/process_runner.dart';
@@ -150,7 +151,11 @@ class FakeManager extends SessionManager {
   Future<void> resume(String id) async => resumed.add(id);
 
   @override
-  Future<void> send(String id, String text) async => sent.add(text);
+  Future<void> send(
+    String id,
+    String text, {
+    List<ImagePart> images = const [],
+  }) async => sent.add(text);
 
   @override
   Future<void> release(String id) async {

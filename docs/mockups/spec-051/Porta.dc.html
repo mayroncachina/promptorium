@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Porta ocupada por outro processo</title><script src="./support.js"></script></head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>body{margin:0;background:#0E1014}</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; overflow: hidden; background: #0E1014; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif">
+  <nav aria-label="Seções" style="width: 56px; box-sizing: border-box; padding: 14px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; background: #0B0D11; border-right: 1px solid #252B35">
+    <button aria-label="Início" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M3 9 L10 3 L17 9 V17 H3 Z"></path></svg></button>
+    <button aria-label="Specs" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M5 2.5 H12 L15 5.5 V17.5 H5 Z"></path></svg></button>
+    <button aria-label="Quadro" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linejoin="round"><path d="M3 3 H8 V17 H3 Z M11 3 H17 V11 H11 Z"></path></svg></button>
+    <button aria-label="Sessões" aria-current="true" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: #2A2418; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6 L7 10 L3 14 M9 15 H17"></path></svg></button>
+    <button aria-label="Review" style="width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.6" stroke-linecap="round"><path d="M9 3 A6 6 0 1 1 8.99 3 M13.5 13.5 L17.5 17.5"></path></svg></button>
+  </nav>
+  <aside aria-label="Sessões" style="width: 280px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; background: #11141A; border-right: 1px solid #252B35">
+    <div style="padding: 4px 6px 6px; font-size: 14px; font-weight: 600; color: #A0A8B6">Sessões · 3</div>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-012 · etapa 2</span><span style="font-size: 15px; font-weight: 600">Página de login</span><span style="font-size: 13px; color: #4FD1B5">Rodando · servidor no ar :4003</span></button>
+    <button aria-current="true" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #1F2430; border: 1px solid #3A4250; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">SPEC-014 · etapa 1</span><span style="font-size: 15px; font-weight: 600">Carrinho lateral</span><span style="font-size: 13px; color: #F27A6E">Servidor falhou · porta ocupada</span></button>
+    <button style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; text-align: left; background: #14171D; border: 1px solid #252B35; border-radius: 10px; color: #E7E9EE; font-family: 'IBM Plex Sans', sans-serif"><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">Prompt</span><span style="font-size: 15px; font-weight: 600">Dúvida sobre o checkout</span><span style="font-size: 13px; color: #A0A8B6">Concluída</span></button>
+  </aside>
+  <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="box-sizing: border-box; height: 64px; padding: 0 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #252B35">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 17px; font-weight: 600">SPEC-014 · Carrinho lateral</span><span style="font: 12px 'JetBrains Mono', monospace; color: #A0A8B6">worktree spec/014-carrinho · etapa 1 de 3</span></div>
+      <span style="height: 32px; padding: 0 12px; display: flex; align-items: center; gap: 8px; border-radius: 16px; background: rgba(242,122,110,.12); color: #F27A6E; font-size: 13px; font-weight: 500"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#F27A6E" stroke-width="1.8" stroke-linecap="round"><path d="M2 2 L10 10 M10 2 L2 10"></path></svg>Falhou · porta 4004 ocupada</span>
+      <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Ver logs</button>
+      <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Fork</button>
+    </header>
+    <div role="tablist" aria-label="Abas da sessão" style="height: 44px; padding: 0 20px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #252B35">
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Timeline</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Terminal</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Diff</button>
+      <button role="tab" aria-selected="true" style="height: 40px; padding: 0 14px; border: 0; border-bottom: 2px solid #F2A541; background: transparent; color: #E7E9EE; font: 600 14px 'IBM Plex Sans', sans-serif">Preview</button>
+      <button role="tab" aria-selected="false" style="height: 40px; padding: 0 14px; border: 0; background: transparent; color: #A0A8B6; font: 500 14px 'IBM Plex Sans', sans-serif">Log bruto</button>
+    </div>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+      <section aria-label="Porta ocupada" style="border: 1px solid rgba(242,122,110,.45); border-radius: 10px; background: #14171D; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#F27A6E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2 L16.5 15.5 H1.5 Z M9 7 V10.5 M9 13 V13.1"></path></svg><span style="font-size: 17px; font-weight: 600">O servidor não subiu: a porta 4004 já está em uso</span></div>
+        <p style="margin: 0; font-size: 15px; line-height: 24px; color: #C9CED8; max-width: 860px">Outro processo, que o Promptorium não subiu, está escutando nessa porta. O app não mexe nele. Se ele já for o servidor desta spec, aberto num terminal por exemplo, dá para usar o que está no ar.</p>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 14px 16px; border-radius: 8px; background: #0B0D11">
+          <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Processo na porta</span><span style="font: 13px 'JetBrains Mono', monospace">PID 39120 · node</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Comando</span><span style="font: 13px 'JetBrains Mono', monospace">vite --port 4004</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: #A0A8B6">Pasta</span><span style="font: 13px 'JetBrains Mono', monospace">~/workspace/loja-web</span></div>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <button style="height: 36px; padding: 0 14px; border-radius: 6px; border: 0; background: #F2A541; color: #1A1206; font: 600 14px 'IBM Plex Sans', sans-serif">Usar o que está no ar</button>
+          <button style="height: 36px; padding: 0 14px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 14px 'IBM Plex Sans', sans-serif">Tentar de novo</button>
+        </div>
+      </section>
+      <section aria-label="Sobras de uma execução anterior" style="border: 1px solid #252B35; border-radius: 10px; background: #14171D; padding: 16px 20px; display: flex; align-items: center; gap: 14px">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><path d="M9 2 A7 7 0 1 1 8.99 2 M9 5.5 V9.5 L11.5 11"></path></svg>
+        <span style="flex: 1; font-size: 14px; line-height: 22px; color: #C9CED8">Da última vez o app fechou sem parar 1 servidor que ele tinha subido: <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px">spec/009-busca · :4001 · PID 31877</span>.</span>
+        <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Encerrar</button>
+        <button style="height: 32px; padding: 0 12px; border-radius: 6px; border: 0; background: transparent; color: #A0A8B6; font: 500 13px 'IBM Plex Sans', sans-serif">Deixar rodando</button>
+      </section>
+      <section aria-label="Logs do servidor" style="flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid #252B35; border-radius: 10px; background: #0B0D11">
+        <div style="height: 48px; padding: 0 12px 0 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #252B35">
+          <span style="flex: 1; font-size: 14px; font-weight: 600">Logs · 6 linhas</span>
+          <button style="height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid #252B35; background: #1A1E26; color: #E7E9EE; font: 500 13px 'IBM Plex Sans', sans-serif">Copiar</button>
+        </div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; overflow: hidden; font: 13px/22px 'JetBrains Mono', monospace; color: #C9CED8; white-space: pre-wrap">promptorium: conferindo a porta 4004 antes de subir
+promptorium: 127.0.0.1:4004 em uso
+  users:(("node",pid=39120,fd=23))
+  cmd: vite --port 4004 (cwd ~/workspace/loja-web)
+<span style="color: #F27A6E">promptorium: o processo não foi subido pelo app · nada foi iniciado nem encerrado</span></pre>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

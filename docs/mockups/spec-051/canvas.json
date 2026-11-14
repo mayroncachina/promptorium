@@ -1,0 +1,50 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-09T19:10:00Z"
+ },
+ "title": "Promptorium · Preview com apontar e pedir",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "1 · Servidor no ar e aba Preview"
+  },
+  "Porta.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "2 · Porta ocupada por outro processo"
+  },
+  "Apontar.dc.html": {
+   "x": 0,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "3 · Apontar no Chromium do preview"
+  },
+  "Pedido.dc.html": {
+   "x": 1520,
+   "y": 1020,
+   "w": 1440,
+   "h": 900,
+   "title": "4 · Pedido com o elemento anexado"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Porta.dc.html",
+  "Apontar.dc.html",
+  "Pedido.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

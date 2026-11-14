@@ -382,10 +382,25 @@ class GitService {
     return CreatedWorktree(path: path, branch: branch);
   }
 
+  /// Runs before any worktree is removed: the app stops what runs there,
+  /// like the development server (SPEC-051 R5). Set once in `main`.
+  static Future<void> Function(String path)? beforeRemoveWorktree;
+
   /// `git worktree remove [--force] <path>` (the branch is kept; see
   /// [deleteBranch]).
-  Future<void> removeWorktree(String path, {bool force = false}) =>
-      git(['worktree', 'remove', if (force) '--force', _arg(path, 'caminho')]);
+  Future<void> removeWorktree(String path, {bool force = false}) async {
+    try {
+      await beforeRemoveWorktree?.call(path);
+    } catch (e) {
+      debugPrint('antes de remover o worktree $path — $e');
+    }
+    await git([
+      'worktree',
+      'remove',
+      if (force) '--force',
+      _arg(path, 'caminho'),
+    ]);
+  }
 
   /// `git branch -d|-D <branch>`.
   Future<void> deleteBranch(String branch, {bool force = false}) =>

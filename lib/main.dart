@@ -8,6 +8,9 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'core/claude/usage_poller.dart';
+import 'core/dev/dev_server.dart';
+import 'core/dev/preview_browser.dart';
+import 'core/git/git_service.dart';
 import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
@@ -60,6 +63,12 @@ Future<void> main() async {
       graphAuthorBadgeProvider.overrideWithValue(commitModelBadge),
     ],
   );
+  // A worktree that goes away (merge, discard) stops its development server
+  // first (SPEC-051 R5).
+  GitService.beforeRemoveWorktree = (path) => Future.wait([
+    container.read(devServerRegistryProvider).stopWorktree(path),
+    container.read(previewBrowserProvider).close(path),
+  ]);
   await windowManager.setPreventClose(true);
   final closeHandler = _CloseHandler(container);
   windowManager.addListener(closeHandler);
@@ -116,7 +125,8 @@ class _CloseHandler with WindowListener {
   @override
   void onWindowClose() => close();
 
-  /// Stops sessions, PTYs and conversations, then destroys the window. Used
+  /// Stops sessions, PTYs, conversations and development servers, then
+  /// destroys the window. Used
   /// by the window's close button and by the tray's "Sair" (SPEC-020 R6).
   Future<void> close() async {
     if (_closing) return;
@@ -125,9 +135,21 @@ class _CloseHandler with WindowListener {
       container.read(sessionTerminalsProvider.notifier).killAll();
       container.read(worktreeTerminalsProvider.notifier).killAll();
       await Future.wait([
-        container.read(sessionManagerProvider.notifier).shutdown(),
-        container.read(conversationManagerProvider.notifier).shutdown(),
-      ]).timeout(const Duration(seconds: 4));
+        Future.wait([
+          container.read(sessionManagerProvider.notifier).shutdown(),
+          container.read(conversationManagerProvider.notifier).shutdown(),
+        ]).timeout(const Duration(seconds: 4)),
+        // Development servers: SIGTERM, SIGKILL after 5 s (SPEC-051 R5).
+        container
+            .read(devServerRegistryProvider)
+            .stopAll()
+            .timeout(const Duration(seconds: 8)),
+        // The preview's Chromium windows (SPEC-051 R10).
+        container
+            .read(previewBrowserProvider)
+            .closeAll()
+            .timeout(const Duration(seconds: 4)),
+      ]);
     } catch (e) {
       debugPrint('encerramento: $e');
     }
