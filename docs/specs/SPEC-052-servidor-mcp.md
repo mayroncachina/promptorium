@@ -1,6 +1,6 @@
 ---
 id: SPEC-052
-status: proposta
+status: aprovada
 depende-de: SPEC-016, SPEC-017, SPEC-023
 issue: 127
 ---
@@ -101,7 +101,7 @@ Opções avaliadas:
 - **stdio, com uma ponte em Python**, como os hooks. Tem o mesmo problema do socket e passaria a depender do `python3` para uma função que não é opcional.
 - **HTTP em `127.0.0.1`, dentro do app** (escolhido). O servidor roda no processo que já tem o estado, com `HttpServer` do Dart e o transporte "Streamable HTTP" do MCP (JSON-RPC por POST). O CLI conecta pelo `--mcp-config` com `{"type": "http", "url": …, "headers": {"Authorization": "Bearer <token>"}}`. Não há processo extra nem dependência nova. O token por execução (R2) identifica quem chama, limita o servidor ao workspace dela e impede que outro processo da máquina use a porta sem o token. O token fica num arquivo 0600, não na linha de comando.
 
-O que ainda não foi conferido no CLI está na sonda prevista em [`docs/pesquisa/mcp-do-app.md`](../pesquisa/mcp-do-app.md). Ela roda antes da implementação.
+A sonda em [`docs/pesquisa/mcp-do-app.md`](../pesquisa/mcp-do-app.md) rodou no CLI 2.1.325 e confirmou o transporte, o cabeçalho, a leitura liberada e a escrita pela aprovação.
 
 ### Componentes
 
@@ -119,26 +119,26 @@ O que ainda não foi conferido no CLI está na sonda prevista em [`docs/pesquisa
 
 ## Critérios de aceite
 
-- [ ] Uma sessão do app recebe `--mcp-config` com o servidor `promptorium`, e nenhum arquivo do usuário muda [R1] verificar: flutter test test/core/mcp/app_mcp_config_test.dart
-- [ ] Chamada sem token, com token desconhecido ou com token revogado é recusada [R2] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
-- [ ] O token só enxerga o workspace da execução e é revogado no fim do processo [R2] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
-- [ ] As quatro ferramentas de leitura devolvem specs, Quadro e etapa reais e não pedem aprovação [R3] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
-- [ ] `criar_spec` e `criar_filhas` gravam rascunhos no próximo código, com `depende-de` e a origem, e devolvem os avisos do lint [R4, R6] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
-- [ ] O cartão de aprovação mostra a prévia e não oferece "Sempre permitir" no projeto para `criar_*` [R4] verificar: flutter test test/features/sessions/approval_card_test.dart
-- [ ] Nenhuma ferramenta muda status, coluna ou etapas, sobrescreve arquivo ou aceita caminho [R5] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
-- [ ] A nota de andamento aparece no card e no histórico e não conclui a etapa [R7] verificar: flutter test test/features/board/spec_notes_test.dart
-- [ ] Em Perguntar, `tools/list` só tem leitura; em Planejar e Editar, tem leitura e escrita [R8] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
-- [ ] Acima do limite, a criação é recusada com a explicação e nada é gravado [R9] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
-- [ ] Desligar o servidor em Configurações tira o `--mcp-config` das execuções novas [R10] verificar: flutter test test/features/settings/settings_screen_test.dart
-- [ ] Num projeto real, o agente lê o Quadro, cria uma spec com filhas aprovada pela pessoa e anota o andamento [R1–R7] verificar: manual (sessão do app num projeto de teste)
-- [ ] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
+- [x] Uma sessão do app recebe `--mcp-config` com o servidor `promptorium`, e nenhum arquivo do usuário muda [R1] verificar: flutter test test/core/mcp/app_mcp_config_test.dart
+- [x] Chamada sem token, com token desconhecido ou com token revogado é recusada [R2] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
+- [x] O token só enxerga o workspace da execução e é revogado no fim do processo [R2] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
+- [x] As quatro ferramentas de leitura devolvem specs, Quadro e etapa reais e não pedem aprovação [R3] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
+- [x] `criar_spec` e `criar_filhas` gravam rascunhos no próximo código, com `depende-de` e a origem, e devolvem os avisos do lint [R4, R6] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
+- [x] O cartão de aprovação mostra a prévia e não oferece "Sempre permitir" no projeto para `criar_*` [R4] verificar: flutter test test/features/sessions/approval_card_test.dart
+- [x] Nenhuma ferramenta muda status, coluna ou etapas, sobrescreve arquivo ou aceita caminho [R5] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
+- [x] A nota de andamento aparece no card e no histórico e não conclui a etapa [R7] verificar: flutter test test/features/board/spec_notes_test.dart
+- [x] Em Perguntar, `tools/list` só tem leitura; em Planejar e Editar, tem leitura e escrita [R8] verificar: flutter test test/core/mcp/app_mcp_server_test.dart
+- [x] Acima do limite, a criação é recusada com a explicação e nada é gravado [R9] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
+- [x] Desligar o servidor em Configurações tira o `--mcp-config` das execuções novas [R10] verificar: flutter test test/features/settings/settings_screen_test.dart
+- [x] Num projeto real, o agente lê o Quadro, cria uma spec com filhas aprovada pela pessoa e anota o andamento [R1–R7] verificar: manual (sessão do app num projeto de teste)
+- [x] O projeto compila e a análise estática passa [R1–R10] verificar: flutter analyze
 
 ## Decisões
 
 - P1 · Transporte: HTTP em `127.0.0.1`, dentro do app, com token por execução. stdio por subcomando ou por ponte em Python ficou de fora (ver Design).
-- P2 · **Em aberto.** O servidor vem ligado por padrão (R10)? A proposta é ligado, porque as ferramentas de leitura economizam turnos de `Read`/`Glob` nos arquivos de spec. Desligado seria mais conservador, como o revisor automático no início.
-- P3 · **Em aberto.** Em Perguntar, só leitura (R8). A SPEC-016 deixou de fora "dar ferramenta de escrita ao agente nos modos Perguntar/Planejar". Esta spec libera a escrita em Planejar, sempre com aprovação, porque criar o rascunho é o fim natural de um planejamento. Confirmar.
-- P4 · **Em aberto.** Na sessão "sem perguntar", a escrita grava sem aprovação (R8). A outra opção é o servidor pedir confirmação por conta própria, numa notificação do app, mesmo com o bypass. Isso seria mais seguro, mas mudaria o que "sem perguntar" promete.
-- P5 · **Em aberto.** Limite de 10 specs por execução (R9) e de 6 filhas por chamada (R4, o mesmo teto de requisitos da SPEC-039). Ajustar se for pouco.
+- P2 · **Decidido: ligado por padrão** (R10), porque as ferramentas de leitura economizam turnos de `Read`/`Glob` nos arquivos de spec. Desligado seria mais conservador, como o revisor automático no início.
+- P3 · **Decidido.** Em Perguntar, só leitura (R8). A SPEC-016 deixou de fora "dar ferramenta de escrita ao agente nos modos Perguntar/Planejar". Esta spec libera a escrita em Planejar, sempre com aprovação, porque criar o rascunho é o fim natural de um planejamento. A sonda mostrou que, no modo plan, a escrita só chega depois que a pessoa aprova o plano (`ExitPlanMode`).
+- P4 · **Decidido.** Na sessão "sem perguntar", a escrita grava sem aprovação (R8), e a timeline marca o que foi criado. A outra opção é o servidor pedir confirmação por conta própria, numa notificação do app, mesmo com o bypass. Isso seria mais seguro, mas mudaria o que "sem perguntar" promete.
+- P5 · **Decidido.** Limite de 10 specs por execução (R9), que muda em Configurações, e de 6 filhas por chamada (R4, o mesmo teto de requisitos da SPEC-039).
 - P6 · As notas de andamento (R7) ficam no banco, não no arquivo da spec, para não sujar o diff da branch a cada nota.
 - P7 · Os nomes das ferramentas ficam em português, como as chaves do `config.yml`. O CLI os mostra como `mcp__promptorium__criar_spec`.
