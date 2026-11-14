@@ -7,6 +7,7 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
+import 'core/app_shutdown.dart';
 import 'core/claude/usage_poller.dart';
 import 'core/dev/dev_server.dart';
 import 'core/dev/preview_browser.dart';
@@ -15,14 +16,11 @@ import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
 import 'features/board/autopilot.dart';
-import 'features/code/worktree_terminal.dart';
 import 'features/home/tray_radar.dart';
-import 'features/prompt/conversation_manager.dart';
 import 'features/repository/graph/commit_model_badge.dart';
 import 'features/repository/graph/graph_tab.dart' show graphAuthorBadgeProvider;
 import 'features/review/pr_babysitter.dart';
 import 'features/sessions/session_manager.dart';
-import 'features/sessions/widgets/session_terminal.dart';
 import 'ui/theme/tokens.dart';
 
 /// Kept for the app's lifetime: the native icon goes away with its wrapper.
@@ -116,43 +114,15 @@ Future<void> main() async {
   );
 }
 
+/// The window's close button goes through [AppShutdown], like the tray's
+/// "Sair" and the update (SPEC-070 R2).
 class _CloseHandler with WindowListener {
   _CloseHandler(this.container);
 
   final ProviderContainer container;
-  bool _closing = false;
 
   @override
   void onWindowClose() => close();
 
-  /// Stops sessions, PTYs, conversations and development servers, then
-  /// destroys the window. Used
-  /// by the window's close button and by the tray's "Sair" (SPEC-020 R6).
-  Future<void> close() async {
-    if (_closing) return;
-    _closing = true;
-    try {
-      container.read(sessionTerminalsProvider.notifier).killAll();
-      container.read(worktreeTerminalsProvider.notifier).killAll();
-      await Future.wait([
-        Future.wait([
-          container.read(sessionManagerProvider.notifier).shutdown(),
-          container.read(conversationManagerProvider.notifier).shutdown(),
-        ]).timeout(const Duration(seconds: 4)),
-        // Development servers: SIGTERM, SIGKILL after 5 s (SPEC-051 R5).
-        container
-            .read(devServerRegistryProvider)
-            .stopAll()
-            .timeout(const Duration(seconds: 8)),
-        // The preview's Chromium windows (SPEC-051 R10).
-        container
-            .read(previewBrowserProvider)
-            .closeAll()
-            .timeout(const Duration(seconds: 4)),
-      ]);
-    } catch (e) {
-      debugPrint('encerramento: $e');
-    }
-    await windowManager.destroy();
-  }
+  Future<void> close() => container.read(appShutdownProvider).closeWindow();
 }

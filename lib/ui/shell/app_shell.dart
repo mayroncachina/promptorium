@@ -87,6 +87,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _shortcutsNotice();
+      _updatedNotice();
       _warmMcpList();
       _checkUpdate();
       // A release followed when the app closed comes back (SPEC-044 R7).
@@ -130,6 +131,24 @@ class _AppShellState extends ConsumerState<AppShell> {
       }).catchError((Object e) {
         debugPrint('mcp list em segundo plano: $e');
       }),
+    );
+  }
+
+  /// Once, on the first start after an update (SPEC-070 R6): the version the
+  /// update recorded before closing, with "Ver novidades" opening Sobre.
+  void _updatedNotice() {
+    if (!mounted) return;
+    final settings = ref.read(appSettingsProvider.notifier);
+    final version = settings.get(AppSettingKeys.justInstalled);
+    if (version == null) return;
+    unawaited(settings.remove(AppSettingKeys.justInstalled));
+    ScaffoldMessenger.maybeOf(context)?.showAppToast(
+      SnackBar(
+        key: const ValueKey('update-installed'),
+        duration: const Duration(seconds: 10),
+        content: Text('Atualizado para a $version'),
+        action: SnackBarAction(label: 'Ver novidades', onPressed: _openAbout),
+      ),
     );
   }
 
