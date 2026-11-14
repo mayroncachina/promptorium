@@ -47,6 +47,9 @@ enum SettingsSection {
     'mcp',
     'claude-mem',
     'consumo',
+    'servidor',
+    'promptorium',
+    'limite',
   ]),
   sessions('Sessões', SettingsGroup.app, [
     'suspender',
@@ -157,7 +160,9 @@ bool sectionChanged(
       now.singleSessionMaxSteps != defaults.singleSessionMaxSteps ||
           now.continueContextTokens != defaults.continueContextTokens ||
           (settings[AppSettingKeys.disabledPlugins] ?? '[]') != '[]' ||
-          (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]',
+          (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]' ||
+          settings[AppSettingKeys.mcpServer] == '0' ||
+          settings.containsKey(AppSettingKeys.mcpCreationLimit),
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
     SettingsSection.appearance =>
       settings[AppSettingKeys.glassEffects] == 'false' ||

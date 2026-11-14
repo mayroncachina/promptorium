@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/mcp/app_mcp_config.dart' show appMcpEnabled;
+import '../../core/mcp/app_mcp_tools.dart' show appMcpCatalog, appMcpServerName;
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
@@ -47,6 +49,7 @@ List<McpServerRow> buildMcpRows({
   required McpStatusBoardState board,
   McpInventory? inventory,
   List<String> sessionTools = const [],
+  bool appServer = false,
 }) {
   final tools = <String, Set<String>>{};
   inventory?.toolsByServer.forEach(
@@ -94,8 +97,21 @@ List<McpServerRow> buildMcpRows({
       ),
     for (final n in others)
       McpServerRow(name: n, status: statusOf(n), tools: toolsOf(n)),
+    // SPEC-052 R10: the app's own server, given to each run by
+    // --mcp-config, before any run lists it.
+    if (appServer &&
+        !names.contains(appMcpServerName) &&
+        !others.contains(appMcpServerName))
+      McpServerRow(
+        name: appMcpServerName,
+        tools: [for (final t in appMcpCatalog) t.name]..sort(),
+      ),
   ];
 }
+
+/// The app's MCP server (SPEC-052): no entry in any config file.
+bool isAppServerRow(McpServerRow r) =>
+    r.config == null && r.name == appMcpServerName;
 
 Color mcpStateColor(McpConnState? s) => switch (s) {
   McpConnState.connected => AppColors.teal,
@@ -135,6 +151,7 @@ class McpScreen extends ConsumerWidget {
       board: board,
       inventory: invAsync.value,
       sessionTools: lastInit?.tools ?? const [],
+      appServer: appMcpEnabled(ref.watch(appSettingsProvider)),
     );
     final checking = listAsync.isLoading || invAsync.isLoading;
     final selectedKey = ref.watch(selectedMcpServerProvider);
@@ -142,7 +159,8 @@ class McpScreen extends ConsumerWidget {
     for (final r in rows) {
       if (r.key == selectedKey) selected = r;
     }
-    selected ??= rows.isEmpty ? null : rows.first;
+    // The app's own server is never the default selection (SPEC-052).
+    selected ??= rows.where((r) => !isAppServerRow(r)).firstOrNull;
 
     return LayoutBuilder(
       builder: (context, c) {
@@ -171,6 +189,8 @@ class McpScreen extends ConsumerWidget {
               Expanded(
                 child: selected == null
                     ? _Empty(loading: registryAsync.isLoading)
+                    : isAppServerRow(selected)
+                    ? const _AppServerDetail()
                     : _ServerDetail(
                         key: ValueKey('mcp-detail-${selected.key}'),
                         row: selected,
@@ -188,6 +208,65 @@ class McpScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// The Promptorium MCP (SPEC-052 R10): read only here; on / off, the
+/// limit and the state live in Configurações › Execução de specs.
+class _AppServerDetail extends StatelessWidget {
+  const _AppServerDetail();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    key: const ValueKey('mcp-detail-app'),
+    padding: const EdgeInsets.all(24),
+    children: [
+      const Text(
+        appMcpServerName,
+        style: TextStyle(
+          fontFamily: AppFonts.mono,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'Servidor do próprio Promptorium, dado a cada sessão e conversa do '
+        'app por --mcp-config, com um token que some quando ela termina. Não '
+        'está em nenhum arquivo de configuração. Ligue, desligue e mude o '
+        'limite em Configurações › Execução de specs.',
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+      const SizedBox(height: 16),
+      for (final t in appMcpCatalog)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 170,
+                child: Text(
+                  t.name,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(t.summary, style: const TextStyle(fontSize: 12)),
+              ),
+              Text(
+                t.write ? 'Sempre pede' : 'Liberada',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: t.write ? AppColors.amber : AppColors.teal,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
 }
 
 class _Empty extends StatelessWidget {
@@ -227,7 +306,7 @@ class _ServerList extends StatelessWidget {
   Widget build(BuildContext context) {
     List<McpServerRow> of(McpScope? s) => [
       for (final r in rows)
-        if (r.scope == s) r,
+        if (r.scope == s && !isAppServerRow(r)) r,
     ];
     final ws = workspaceName == null ? '' : ' · $workspaceName';
     final groups = [
@@ -235,6 +314,15 @@ class _ServerList extends StatelessWidget {
       ('Projeto$ws', '.mcp.json', of(McpScope.project)),
       ('Local$ws', '~/.claude.json', of(McpScope.local)),
       ('Outros', 'sessão / claude.ai', of(null)),
+      // SPEC-052 R10: read only; Configurações › Execução de specs.
+      (
+        'Da sessão',
+        'Promptorium · só leitura',
+        [
+          for (final r in rows)
+            if (isAppServerRow(r)) r,
+        ],
+      ),
     ];
     return ColoredBox(
       color: AppColors.panel,
@@ -268,7 +356,8 @@ class _ServerList extends StatelessWidget {
               ),
             ),
           for (final (title, path, items) in groups)
-            if (items.isNotEmpty || title != 'Outros') ...[
+            if (items.isNotEmpty ||
+                (title != 'Outros' && title != 'Da sessão')) ...[
               _GroupHeader(title: title, path: path),
               if (items.isEmpty)
                 const Padding(
