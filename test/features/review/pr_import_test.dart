@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/claude/managed_hooks.dart';
@@ -10,6 +11,9 @@ import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/pr_import.dart';
 import 'package:promptorium/features/review/review_service.dart';
+import 'package:promptorium/features/review/widgets/pr_import_dialog.dart';
+import 'package:promptorium/ui/shell/navigation.dart';
+import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
@@ -117,6 +121,57 @@ class PrEnv {
   final List<PrGit> gits;
   PrImportService get service => c.read(prImportServiceProvider);
   ReviewService get review => c.read(reviewServiceProvider);
+}
+
+/// [PrImportService] with canned answers (the dialog's tests).
+class FakeImportService extends PrImportService {
+  FakeImportService(super.ref, this.list, {this.unavailable});
+
+  final List<PrImportCandidate> list;
+  final String? unavailable;
+  PrImportCandidate? resolved;
+  final brought = <(int, PrStart, String, bool)>[];
+
+  @override
+  Future<PrImportAvailability> availability(Workspace ws) async =>
+      PrImportAvailability(reason: unavailable, repository: 'o/r');
+
+  @override
+  Future<List<PrImportCandidate>> candidates(Workspace ws) async {
+    if (unavailable != null) throw PrImportException(unavailable!);
+    return list;
+  }
+
+  @override
+  Future<PrImportCandidate?> resolve(Workspace ws, String text) async =>
+      parsePrReference(text) == null ? null : resolved;
+
+  @override
+  Future<List<PrComment>> openComments(Workspace ws, int number) async => [
+    for (var i = 0; i < 3; i++)
+      PrComment(author: 'a', body: 'c$i', at: DateTime(2026)),
+  ];
+
+  @override
+  Future<String> bring(
+    Workspace ws,
+    PrImportCandidate candidate, {
+    PrStart start = PrStart.resumir,
+    String request = '',
+    bool replyInPr = false,
+  }) async {
+    brought.add((candidate.number, start, request, replyInPr));
+    return 'nova';
+  }
+}
+
+class _Settings extends AppSettingsController {
+  @override
+  Map<String, String> build() => {};
+
+  @override
+  Future<void> set(String key, String value) async =>
+      state = {...state, key: value};
 }
 
 void main() {
@@ -600,5 +655,243 @@ void main() {
     expect(back.pendingReplies, ['github:1']);
     expect(back.localRef, 'refs/promptorium/pr/7');
     expect(ImportedPr.decode('x'), isNull);
+  });
+
+  group('R1 · R4 · diálogo', () {
+    final ws = Workspace(
+      id: 1,
+      path: '/tmp/promptorium-nao-existe',
+      name: 'r',
+      createdAt: DateTime(2026),
+    );
+    List<PrImportCandidate> list() => [
+      PrImportCandidate(pr: parseGhOpenPr(prJson())!, canWrite: true),
+      PrImportCandidate(
+        pr: parseGhOpenPr(
+          prJson(
+            number: 212,
+            title: 'Corrige o scroll do diff lado a lado',
+            author: 'bea-lima',
+            head: 'fix/scroll-diff',
+            fork: true,
+            owner: 'bea-lima',
+            checks: [
+              {'name': 'ci', 'status': 'COMPLETED', 'conclusion': 'FAILURE'},
+            ],
+          ),
+        )!,
+        canWrite: true,
+      ),
+      PrImportCandidate(
+        pr: parseGhOpenPr(
+          prJson(number: 209, title: 'Guia em inglês', draft: true, checks: []),
+        )!,
+        canWrite: true,
+      ),
+      PrImportCandidate(
+        pr: parseGhOpenPr(
+          prJson(number: 123, title: 'SPEC-049 · Tema Vidro', head: 'spec/049'),
+        )!,
+        sessionId: 's49',
+        canWrite: true,
+      ),
+    ];
+    late FakeImportService fake;
+
+    Future<ProviderContainer> open(
+      WidgetTester tester, {
+      int? number,
+      String? unavailable,
+    }) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appSettingsProvider.overrideWith(_Settings.new),
+            prImportServiceProvider.overrideWith(
+              (ref) => fake = FakeImportService(
+                ref,
+                list(),
+                unavailable: unavailable,
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => Column(
+                  children: [
+                    TextButton(
+                      onPressed: () => showPrImportDialog(
+                        context,
+                        workspace: ws,
+                        number: number,
+                      ),
+                      child: const Text('abrir'),
+                    ),
+                    SizedBox(width: 280, child: PrImportButton(workspace: ws)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final c = ProviderScope.containerOf(tester.element(find.text('abrir')));
+      await tester.pump();
+      if (unavailable == null) {
+        await tester.tap(find.text('abrir'));
+        await tester.pumpAndSettle();
+      }
+      return c;
+    }
+
+    testWidgets('lista com autor, branch e checks, rascunho e "Já no app" '
+        'com "Abrir no Review"', (tester) async {
+      final c = await open(tester);
+      expect(find.text('Trazer PR'), findsOneWidget);
+      expect(find.text('Atalho para duplicar card no Quadro'), findsOneWidget);
+      expect(
+        find.textContaining('@bea-lima · fork · fix/scroll-diff → main'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('pr-import-checks-212')))
+            .data,
+        '1 check falhou',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('pr-import-checks-214')))
+            .data,
+        'checks ok',
+      );
+      expect(find.text('Rascunho'), findsOneWidget);
+      expect(find.byKey(const ValueKey('pr-import-already')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pr-import-open-123')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pr-import-pick-123')), findsNothing);
+      expect(find.textContaining('4 abertos'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('pr-import-open-123')));
+      await tester.pumpAndSettle();
+      expect(c.read(selectedReviewProvider), 's49');
+      expect(c.read(navigationProvider), AppSection.review);
+      expect(find.byKey(const ValueKey('pr-import-dialog')), findsNothing);
+    });
+
+    testWidgets('a busca filtra por título, autor e número, e um #n fora da '
+        'lista é buscado', (tester) async {
+      await open(tester);
+      await tester.enterText(
+        find.byKey(const ValueKey('pr-import-search')),
+        '@bea',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-row-212')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pr-import-row-214')), findsNothing);
+      fake.resolved = PrImportCandidate(
+        pr: parseGhOpenPr(prJson(number: 300, title: 'Fora da lista'))!,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('pr-import-search')),
+        '#300',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Fora da lista'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('pr-import-search')),
+        'https://github.com/x/y/pull/1',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-error')), findsOneWidget);
+    });
+
+    testWidgets('PR de fork sem permissão: aviso, Resumir por padrão e '
+        '"Responder aos comentários · 3 abertos"', (tester) async {
+      await open(tester);
+      await tester.tap(find.byKey(const ValueKey('pr-import-pick-212')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-start')), findsOneWidget);
+      expect(find.text('pr/212-corrige-o-scroll'), findsOneWidget);
+      expect(find.byKey(const ValueKey('pr-import-no-push')), findsOneWidget);
+      expect(
+        find.textContaining('não permite edições de mantenedores'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Responder aos comentários · 3 abertos'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('pr-import-bring')));
+      await tester.pumpAndSettle();
+      expect(fake.brought.single, (212, PrStart.resumir, '', false));
+    });
+
+    testWidgets('Meu pedido exige o texto; Responder no PR vem desmarcado e '
+        'segue a escolha', (tester) async {
+      final c = await open(tester);
+      await tester.tap(find.byKey(const ValueKey('pr-import-pick-214')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-no-push')), findsNothing);
+      await tester.tap(
+        find.byKey(const ValueKey('pr-import-start-comentarios')),
+      );
+      await tester.pumpAndSettle();
+      final box = find.descendant(
+        of: find.byKey(const ValueKey('pr-import-reply')),
+        matching: find.byIcon(Icons.check_box_outline_blank),
+      );
+      expect(box, findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pr-import-reply')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('pr-import-start-pedido')));
+      await tester.pumpAndSettle();
+      final bring = find.byKey(const ValueKey('pr-import-bring'));
+      await tester.tap(bring);
+      await tester.pump();
+      expect(fake.brought, isEmpty);
+      await tester.enterText(
+        find.byKey(const ValueKey('pr-import-request')),
+        'Troque o atalho',
+      );
+      await tester.pump();
+      await tester.tap(bring);
+      await tester.pumpAndSettle();
+      expect(fake.brought.single, (
+        214,
+        PrStart.pedido,
+        'Troque o atalho',
+        true,
+      ));
+      expect(c.read(selectedReviewProvider), 'nova');
+    });
+
+    testWidgets('aberto com um número, vai direto para "Como começar"', (
+      tester,
+    ) async {
+      await open(tester, number: 214);
+      expect(find.byKey(const ValueKey('pr-import-start')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pr-import-back')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-row-214')), findsOneWidget);
+    });
+
+    testWidgets('R10 · em GitLab, "Trazer PR…" aparece desabilitado com o '
+        'motivo', (tester) async {
+      await open(tester, unavailable: importUnavailableReason('gitlab'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('review-bring-pr-reason')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('GitLab'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('review-bring-pr')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('pr-import-dialog')), findsNothing);
+    });
   });
 }
