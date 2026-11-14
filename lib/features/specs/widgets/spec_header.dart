@@ -498,16 +498,27 @@ class SpecHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (path != null)
-          Text(
-            path!,
-            key: const ValueKey('spec-path'),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: AppFonts.mono,
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  path!,
+                  key: const ValueKey('spec-path'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              // SPEC-052 R6: on the path line, so the title keeps its width.
+              if (agentCreated) ...[
+                const SizedBox(width: 8),
+                const AgentCreatedChip(key: ValueKey('spec-agent-chip')),
+              ],
+            ],
           ),
         const SizedBox(height: 3),
         Row(
@@ -532,10 +543,6 @@ class SpecHeader extends StatelessWidget {
                 label: statusLabel,
                 planned: planned,
               ),
-            ],
-            if (agentCreated) ...[
-              const SizedBox(width: 8),
-              const AgentCreatedChip(key: ValueKey('spec-agent-chip')),
             ],
           ],
         ),

@@ -163,13 +163,20 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('board-note-SPEC-047')),
-        matching: find.text('Migração da tabela pronta. · há 2 min'),
+        matching: find.text('Migração da tabela pronta.'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('board-note-SPEC-047')),
+        matching: find.text('há 2 min'),
       ),
       findsOneWidget,
     );
     expect(find.text('Andamento'), findsOneWidget);
     expect(find.text('Comecei pela tabela.'), findsOneWidget);
-    expect(find.text('Migração da tabela pronta.'), findsOneWidget);
+    expect(find.text('Migração da tabela pronta.'), findsNWidgets(2));
     expect(find.text('SPEC-047 · R3'), findsNWidgets(2));
     expect(find.textContaining('não concluem a etapa'), findsOneWidget);
   });

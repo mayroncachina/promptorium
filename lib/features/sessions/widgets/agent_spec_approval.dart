@@ -22,13 +22,19 @@ class AgentSpecPreview {
     required this.criteria,
     required this.dependsOn,
     required this.warnings,
-  });
+    int? warningCount,
+  }) : warningCount = warningCount ?? warnings.length;
 
   final String title;
   final int requirements;
   final int criteria;
   final List<String> dependsOn;
+
+  /// Distinct warnings ([groupedWarnings]).
   final List<String> warnings;
+
+  /// Every warning, repeated ones included.
+  final int warningCount;
 
   /// `<pasta>/SPEC-NNN-<slug>.md`.
   String path(String dir, String code) {
@@ -37,11 +43,29 @@ class AgentSpecPreview {
   }
 }
 
+/// The same warning once, with how many times it came (`Critério sem
+/// verificar: (5×)`), in the order of the first one.
+List<String> groupedWarnings(List<String> messages) {
+  final counts = <String, int>{};
+  for (final m in messages) {
+    counts[m] = (counts[m] ?? 0) + 1;
+  }
+  return [
+    for (final MapEntry(:key, :value) in counts.entries)
+      value == 1 ? key : '$key ($value×)',
+  ];
+}
+
 /// What a write request of the app's MCP creates.
 typedef AgentSpecRequest = ({String? parent, List<AgentSpecPreview> specs});
 
 AgentSpecPreview _preview(Object? raw, List<String> extraDeps) {
   final text = '${raw ?? ''}';
+  final all = [
+    for (final w in lintSpec(text))
+      // The app writes id, status and the origin itself.
+      if (w.key == null) w.message,
+  ];
   final spec = AnswerSpec(text, leftover: false);
   final deps = <String>{
     for (final d in [...extraDeps, ...spec.doc.dependsOn]) d.toUpperCase(),
@@ -51,11 +75,8 @@ AgentSpecPreview _preview(Object? raw, List<String> extraDeps) {
     requirements: spec.requirements,
     criteria: spec.criteria.length,
     dependsOn: deps,
-    warnings: [
-      for (final w in lintSpec(text))
-        // The app writes id, status and the origin itself.
-        if (w.key == null) w.message,
-    ],
+    warnings: groupedWarnings(all),
+    warningCount: all.length,
   );
 }
 
@@ -211,7 +232,7 @@ class AgentSpecApprovalCard extends ConsumerWidget {
                   border: Border.all(color: SessionColors.approvalBorder),
                 ),
                 child: Text(
-                  '${s.warnings.length == 1 ? '1 aviso do lint' : '${s.warnings.length} avisos do lint'}: '
+                  '${s.warningCount == 1 ? '1 aviso do lint' : '${s.warningCount} avisos do lint'}: '
                   '${s.warnings.join('; ')}',
                   style: const TextStyle(fontSize: 12, color: AppColors.amber),
                 ),

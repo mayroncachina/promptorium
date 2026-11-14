@@ -48,11 +48,23 @@ class SpecNoteLine extends ConsumerWidget {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(
-              '${note.note} · ${noteAge(note.createdAt)}',
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, color: AppColors.text),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note.note,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, color: AppColors.text),
+                ),
+                Text(
+                  noteAge(note.createdAt),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

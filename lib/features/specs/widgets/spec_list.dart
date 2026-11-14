@@ -159,18 +159,6 @@ class SpecList extends StatelessWidget {
                                           ),
                                         ),
                                       ),
-                                      if (s.agentSession != null) ...[
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                          flex: 2,
-                                          child: AgentCreatedChip(
-                                            key: ValueKey(
-                                              'spec-item-agent-${s.code}',
-                                            ),
-                                            small: true,
-                                          ),
-                                        ),
-                                      ],
                                       const SizedBox(width: 8),
                                       const Spacer(),
                                       // The status is short: it keeps its
@@ -194,12 +182,32 @@ class SpecList extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    specStepsMeta(s, stepRows),
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          specStepsMeta(s, stepRows),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                      // SPEC-052 R6.
+                                      if (s.agentSession != null) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: AgentCreatedChip(
+                                            key: ValueKey(
+                                              'spec-item-agent-${s.code}',
+                                            ),
+                                            small: true,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),
