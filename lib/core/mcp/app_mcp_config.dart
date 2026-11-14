@@ -172,6 +172,6 @@ Future<McpRunLink?> openMcpRun(
 /// (R2).
 Future<void> closeMcpRun(AppMcpServer? server, McpRunLink? link) async {
   if (link == null) return;
-  server?.revoke(link.token);
   await deleteMcpConfig(link.configPath);
+  server?.revoke(link.token);
 }
