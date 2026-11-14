@@ -493,52 +493,62 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('R5 · a click plays the intro again', (tester) async {
+    testWidgets('SPEC-070 R7 · a click does not play the intro again', (
+      tester,
+    ) async {
       await pumpAbout(tester);
       expect(timeline(tester).outline, 1);
       await tester.tap(find.byKey(logo));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(timeline(tester).outline, lessThan(1));
-      expect(timeline(tester).stageOpacity, 1);
+      expect(timeline(tester).outline, 1);
       await tester.pumpWidget(const SizedBox());
     });
 
-    for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
-      testWidgets('R5, R6 · ${key.keyLabel} with the focus on the logo plays '
-          'the intro', (tester) async {
-        await pumpAbout(tester);
-        Focus.of(tester.element(find.byKey(const ValueKey('about-logo-ring'))))
-            .requestFocus();
-        await tester.pump();
+    testWidgets('SPEC-070 R7 · no focus, no ring, no hint and no hand: Enter '
+        'and Space have nothing to play', (tester) async {
+      await pumpAbout(tester);
+      final inLogo = find.byKey(logo);
+      expect(
+        find.descendant(of: inLogo, matching: find.byType(Focus)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: inLogo, matching: find.byType(Tooltip)),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('about-logo-ring')), findsNothing);
+      expect(find.byTooltip('Tocar a abertura de novo'), findsNothing);
+      expect(tester.widget<MouseRegion>(inLogo).cursor, MouseCursor.defer);
+      for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
         await tester.sendKeyEvent(key);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
-        expect(timeline(tester).outline, lessThan(1));
-        await tester.pumpWidget(const SizedBox());
-      });
-    }
+        expect(timeline(tester).outline, 1, reason: key.keyLabel);
+      }
+      await tester.pumpWidget(const SizedBox());
+    });
 
-    testWidgets('R6 · the reader hears a button that plays the intro', (
-      tester,
-    ) async {
+    testWidgets('SPEC-070 R7 · the reader hears only "Ícone do Promptorium", '
+        'as an image', (tester) async {
       final semantics = tester.ensureSemantics();
       await pumpAbout(tester);
       expect(
-        tester.getSemantics(find.byKey(const ValueKey('about-logo-ring'))),
-        matchesSemantics(
-          label: 'Ícone do Promptorium',
-          hint: 'Tocar a abertura de novo',
-          isButton: true,
-          hasTapAction: true,
+        tester.getSemantics(
+          find.descendant(
+            of: find.byKey(logo),
+            matching: find.byType(CustomPaint),
+          ),
         ),
+        matchesSemantics(label: 'Ícone do Promptorium', isImage: true),
       );
       await tester.pumpWidget(const SizedBox());
       semantics.dispose();
     });
 
-    testWidgets('R6 · Tab reaches the logo after the card and before the '
-        'links', (tester) async {
+    testWidgets('SPEC-070 R7 · Tab goes from the card straight to the links', (
+      tester,
+    ) async {
       await pumpAbout(tester);
       String? focused() {
         final focus = FocusManager.instance.primaryFocus?.context;
@@ -556,9 +566,6 @@ void main() {
 
       // The focus starts on the action of the card (SPEC-038 R11).
       expect(focused(), 'about-check-now');
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-      expect(focused(), 'about-logo');
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(focused(), 'about-repo');
