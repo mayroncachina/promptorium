@@ -3,6 +3,7 @@ id: SPEC-070
 status: proposta
 tipo: bug
 depende-de: SPEC-066
+issue: 221
 ---
 
 # Atualizar fecha e reabre o app, e a logo do Sobre só borbulha
@@ -40,6 +41,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/EJJySojbvLABbm9JbKR
 | `3-nao-reabriu.png` | O lançador não iniciou: "A 0.17.0 foi instalada · Feche e abra o app para usar" e **Reiniciar agora** | R4, R5 |
 | `4-atualizado.png` | A cópia nova aberta, com o aviso "Atualizado para a 0.17.0" e "Ver novidades" | R6 |
 | `5-logo.png` | A logo do Sobre depois da abertura: só bolhas, sem dica nem anel de foco, e o que muda em relação à SPEC-066 | R7 |
+
+Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221)
 
 ## Requisitos
 
