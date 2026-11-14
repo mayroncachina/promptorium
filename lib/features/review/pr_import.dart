@@ -703,3 +703,9 @@ String? forkRemoteUrl(String baseUrl, String owner) {
 }
 
 final prImportServiceProvider = Provider(PrImportService.new);
+
+/// "Trazer PR" of a workspace (the button of the Review, R1, R10).
+final prImportAvailabilityProvider =
+    FutureProvider.family<PrImportAvailability, Workspace>(
+      (ref, ws) => ref.read(prImportServiceProvider).availability(ws),
+    );
