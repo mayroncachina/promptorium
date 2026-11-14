@@ -1070,14 +1070,15 @@ class ReviewService {
       '--hostname',
       uri.host,
       'repos/${parts[0]}/${parts[1]}/pulls/${parts[3]}/comments',
-      '--paginate',
-      '--slurp',
+      ...ghRowPerLine,
     ], workingDirectory: c.workspace.path);
     if (r.exitCode != 0) {
       throw ReviewException('Comentários do PR: ${r.stderr}');
     }
-    final decoded = jsonDecode('${r.stdout}');
-    if (decoded is! List) {
+    final List<Object?> decoded;
+    try {
+      decoded = decodeGhRows('${r.stdout}');
+    } on FormatException {
       throw const ReviewException('Comentários do PR inválidos');
     }
     return parsePrInlineComments(decoded);

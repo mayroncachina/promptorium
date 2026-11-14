@@ -538,11 +538,9 @@ class PrImportService {
       final out = await _gh(ws.path).gh([
         'api',
         'repos/${a.repository}/pulls/$number/comments',
-        '--paginate',
-        '--slurp',
+        ...ghRowPerLine,
       ]);
-      final decoded = jsonDecode(out);
-      return decoded is List ? parsePrInlineComments(decoded) : const [];
+      return parsePrInlineComments(decodeGhRows(out));
     } catch (e) {
       debugPrint('comentários do PR #$number não lidos — $e');
       return const [];

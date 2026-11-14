@@ -881,6 +881,32 @@ void main() {
     });
   });
 
+  test('decodeGhRows lê uma linha por comentário (gh 2.45, sem --slurp), '
+      'uma lista ou páginas', () {
+    final row = {
+      'id': 1,
+      'body': 'a',
+      'user': {'login': 'x'},
+    };
+    final lines = '${jsonEncode(row)}\n${jsonEncode({...row, 'id': 2})}\n';
+    expect(decodeGhRows(lines), hasLength(2));
+    expect(parsePrInlineComments(decodeGhRows(lines)), hasLength(2));
+    expect(decodeGhRows(jsonEncode([row])), hasLength(1));
+    expect(
+      parsePrInlineComments(
+        decodeGhRows(
+          jsonEncode([
+            [row],
+            [row],
+          ]),
+        ),
+      ),
+      hasLength(2),
+    );
+    expect(decodeGhRows(''), isEmpty);
+    expect(ghRowPerLine, isNot(contains('--slurp')));
+  });
+
   test('forkRemoteUrl troca o dono na URL ssh e https', () {
     expect(
       forkRemoteUrl('git@github.com:o/r.git', 'bea'),
