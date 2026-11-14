@@ -1036,7 +1036,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
           ? null
           : () => unawaited(_service.openUrl(widget.item.session.prUrl!)),
     'base' => () async {
-      final ahead = await _service.remoteAhead(_id);
+      final ahead = await _service.remoteAhead(_id, fetch: true);
       if (!mounted || !await confirmImportedUpdate(context, ahead.local)) {
         return;
       }

@@ -1125,7 +1125,7 @@ class ReviewService {
   /// SHA (R8). Without permission nothing is pushed: false.
   Future<bool> _pushImported(Session s, Workspace ws, ImportedPr meta) async {
     if (!meta.canPush || meta.headRef.isEmpty) return false;
-    final ahead = await remoteAhead(s.id);
+    final ahead = await remoteAhead(s.id, fetch: true);
     if (ahead.local == 0) return false;
     if (ahead.author > 0) {
       throw ReviewException(
@@ -1220,7 +1220,7 @@ class ReviewService {
         'faça commit antes de atualizar.',
       );
     }
-    final ahead = await remoteAhead(sessionId);
+    final ahead = await remoteAhead(sessionId, fetch: true);
     if (ahead.author == 0) return const RebaseStatus();
     if (ahead.local == 0) {
       await wt.git(['merge', '--ff-only', '-q', meta.localRef]);
@@ -1249,7 +1249,7 @@ class ReviewService {
     }
     final s = c.session, ws = c.workspace;
     if (hasWorktree(s, ws) && !force) {
-      final local = (await remoteAhead(sessionId)).local;
+      final local = (await remoteAhead(sessionId, fetch: true)).local;
       if (local > 0) throw UnpublishedCommitsException(local);
     }
     await _ref.read(sessionManagerProvider.notifier).release(s.id);
@@ -2191,22 +2191,40 @@ class ReviewService {
   /// The commits of the PR brought into the app that the author published
   /// and the local ones not published yet (SPEC-050 R7): fetches
   /// `pull/<n>/head` and compares it with the worktree's HEAD.
-  Future<({int author, int local})> remoteAhead(String sessionId) async {
+  ///
+  /// The fetch runs at most once a minute per session unless [fetch] is
+  /// true (push, "Atualizar", "Soltar"): the Review watches `.git`, and a
+  /// fetch on every refresh would refresh it again.
+  Future<({int author, int local})> remoteAhead(
+    String sessionId, {
+    bool fetch = false,
+  }) async {
     final c = await _context(sessionId);
     final meta = importedPrOf(_ref.read(appSettingsProvider), sessionId);
     if (meta == null || !hasWorktree(c.session, c.workspace)) {
       return (author: 0, local: 0);
     }
-    final root = _git(c.workspace.path);
-    try {
-      // The PR's own branch when it lives in this repository (it changes
-      // as soon as someone pushes); `pull/<n>/head` for a fork.
-      final source = !meta.cross && meta.headRef.isNotEmpty
-          ? 'refs/heads/${meta.headRef}'
-          : 'pull/${meta.number}/head';
-      await root.git(['fetch', '-q', meta.remote, '+$source:${meta.localRef}']);
-    } on GitException catch (e) {
-      debugPrint('PR #${meta.number} não buscado — $e');
+    final last = _fetchedPr[sessionId];
+    if (fetch ||
+        last == null ||
+        DateTime.now().difference(last) >= const Duration(minutes: 1)) {
+      _fetchedPr[sessionId] = DateTime.now();
+      try {
+        // The PR's own branch when it lives in this repository (it changes
+        // as soon as someone pushes); `pull/<n>/head` for a fork.
+        final source = !meta.cross && meta.headRef.isNotEmpty
+            ? 'refs/heads/${meta.headRef}'
+            : 'pull/${meta.number}/head';
+        await _git(c.workspace.path).git([
+          'fetch',
+          '-q',
+          '--no-write-fetch-head',
+          meta.remote,
+          '+$source:${meta.localRef}',
+        ]);
+      } on GitException catch (e) {
+        debugPrint('PR #${meta.number} não buscado — $e');
+      }
     }
     final wt = _git(c.session.worktreePath);
     Future<int> count(String range) async =>
@@ -2217,6 +2235,9 @@ class ReviewService {
       local: await count('${meta.localRef}..HEAD'),
     );
   }
+
+  /// When [remoteAhead] last fetched each PR brought into the app.
+  final _fetchedPr = <String, DateTime>{};
 
   /// `app_settings` key of the last project gate run on a PR brought into
   /// the app ("Verificar", SPEC-050 R6).

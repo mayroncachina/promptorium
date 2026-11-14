@@ -708,7 +708,10 @@ void main() {
       final (e, id, wt) = await brought();
       expect(await e.review.pushIfAhead(id), isFalse);
       await agentCommit(wt, 'agente.txt', 'ok\n');
-      expect(await e.review.remoteAhead(id), (author: 0, local: 1));
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 1,
+      ));
       expect(await e.review.pushIfAhead(id), isTrue);
       final head = (await gitIn(wt, ['rev-parse', 'HEAD'])).trim();
       expect(
@@ -721,7 +724,10 @@ void main() {
       final push = e.gits.expand((g) => g.pushes).single;
       expect(push, ['push', 'origin', 'HEAD:refs/heads/feat/duplicar-card']);
       expect(push.any((a) => a.contains('force') || a == '-f'), isFalse);
-      expect(await e.review.remoteAhead(id), (author: 0, local: 0));
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 0,
+      ));
     });
 
     test('sem permissão, os commits ficam locais e "Copiar patch" traz o '
@@ -746,7 +752,10 @@ void main() {
       await gitIn(repo, ['push', '-q', 'origin', 'HEAD:refs/pull/214/head']);
       await gitIn(repo, ['push', '-q', 'origin', 'HEAD:feat/duplicar-card']);
       await gitIn(repo, ['checkout', '-q', 'main']);
-      expect(await e.review.remoteAhead(id), (author: 1, local: 1));
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 1,
+        local: 1,
+      ));
       // Pushing now would need a forced push: refused.
       await expectLater(
         e.review.pushIfAhead(id),
@@ -759,7 +768,10 @@ void main() {
         (await gitIn(wt, ['log', '--format=%s', '-3'])).trim().split('\n'),
         ['agente: agente.txt', 'agente: autor.txt', 'PR 214'],
       );
-      expect(await e.review.remoteAhead(id), (author: 0, local: 1));
+      expect(await e.review.remoteAhead(id, fetch: true), (
+        author: 0,
+        local: 1,
+      ));
 
       // Same file on both sides: the rebase stops on the conflict.
       await agentCommit(wt, 'pr214.txt', 'do agente\n');
