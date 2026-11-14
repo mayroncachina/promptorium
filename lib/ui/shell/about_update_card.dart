@@ -122,6 +122,16 @@ class UpdateCard extends ConsumerWidget {
         'Instalando e reiniciando…',
         'O sistema pode pedir sua senha.',
       ),
+      UpdateRestarting(:final update) => highlighted(
+        spinner,
+        'Reiniciando na ${update.version}…',
+        'O app fecha e abre sozinho na versão nova.',
+      ),
+      UpdateInstalledNotRestarted(:final update) => highlighted(
+        icon(Icons.check, CanvasColors.done),
+        'A ${update.version} foi instalada',
+        'Feche e abra o app para usar',
+      ),
       UpdateFailed(:final reason) => (
         icon: icon(Icons.close, AppColors.red),
         title: 'Não foi possível atualizar',
@@ -207,7 +217,15 @@ class UpdateCard extends ConsumerWidget {
         flow.cancelDownload,
         focus: actionFocus,
       ),
-      UpdateConfirmSessions() || UpdateInstalling() || UpdateFailed() => null,
+      UpdateInstalledNotRestarted() => primary(
+        'about-restart-now',
+        'Reiniciar agora',
+        flow.restartNow,
+      ),
+      UpdateConfirmSessions() ||
+      UpdateInstalling() ||
+      UpdateRestarting() ||
+      UpdateFailed() => null,
     };
     final below = switch (state) {
       UpdateConfirmSessions() => UpdateActionRow([

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_shutdown.dart';
 import '../../core/update/installer.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
@@ -58,6 +59,22 @@ final class UpdateDownloading extends UpdateFlowState {
 
 final class UpdateInstalling extends UpdateFlowState {
   const UpdateInstalling(this.update);
+
+  final AvailableUpdate update;
+}
+
+/// Installed: the launcher of the new copy started and the app is closing
+/// (SPEC-070 R1–R3).
+final class UpdateRestarting extends UpdateFlowState {
+  const UpdateRestarting(this.update);
+
+  final AvailableUpdate update;
+}
+
+/// Installed, but the launcher didn't start: the app stays open, with
+/// "Reiniciar agora" (SPEC-070 R4).
+final class UpdateInstalledNotRestarted extends UpdateFlowState {
+  const UpdateInstalledNotRestarted(this.update);
 
   final AvailableUpdate update;
 }
@@ -206,17 +223,55 @@ class UpdateFlow extends Notifier<UpdateFlowState> {
     }
   }
 
+  /// The package installed by this flow, for "Reiniciar agora".
+  File? _installed;
+
   Future<void> _install(AvailableUpdate update, File file) async {
     state = UpdateInstalling(update);
     try {
-      final db = ref.read(appDatabaseProvider);
       await ref
           .read(updateInstallerProvider)
-          .installAndRestart(file, closeDatabase: db.close);
+          .installAndRestart(
+            file,
+            version: update.version,
+            shutdown: ref.read(appShutdownProvider),
+            markInstalled: () => _markInstalled(update),
+            onInstalled: () {
+              _installed = file;
+              if (ref.mounted) state = UpdateRestarting(update);
+            },
+          );
+    } on RelaunchFailed {
+      if (ref.mounted) state = UpdateInstalledNotRestarted(update);
     } catch (e) {
       if (ref.mounted) _fail(update, e);
     }
   }
+
+  /// "Reiniciar agora": tries the launcher again (SPEC-070 R4).
+  Future<void> restartNow() async {
+    final current = state;
+    final file = _installed;
+    if (current is! UpdateInstalledNotRestarted || file == null) return;
+    final update = current.update;
+    state = UpdateRestarting(update);
+    final installer = ref.read(updateInstallerProvider);
+    try {
+      await installer.restart(
+        executable: installer.relaunchExecutable(file),
+        version: update.version,
+        shutdown: ref.read(appShutdownProvider),
+        markInstalled: () => _markInstalled(update),
+      );
+    } on RelaunchFailed {
+      if (ref.mounted) state = UpdateInstalledNotRestarted(update);
+    }
+  }
+
+  /// The next start says "Atualizado para a `<versão>`" (SPEC-070 R6).
+  Future<void> _markInstalled(AvailableUpdate update) => ref
+      .read(appSettingsProvider.notifier)
+      .set(AppSettingKeys.justInstalled, update.version);
 
   void _fail(AvailableUpdate update, Object error) {
     debugPrint('atualização: $error');

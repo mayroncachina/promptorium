@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app_shutdown.dart';
 import 'update_check.dart';
 
 /// Picks the Linux package of a release: `.deb` when [preferDeb] (pkexec is
@@ -75,15 +76,39 @@ class DownloadProgress {
       total == null || total! <= 0 ? null : (received / total!).clamp(0.0, 1.0);
 }
 
+/// The launcher of the new copy didn't start (SPEC-070 R4): nothing was
+/// closed, and the installed version opens on the next start.
+class RelaunchFailed implements Exception {
+  const RelaunchFailed(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'o lançador não iniciou: $cause';
+}
+
 class UpdateInstaller {
   /// A download silent for this long has failed.
   static const stallTimeout = Duration(seconds: 30);
+
+  /// Where the `.deb` installs the app.
+  static const debExecutable = '/opt/promptorium/promptorium';
+
+  /// How long the launcher waits for this process to end (R3).
+  static const relaunchWait = Duration(seconds: 30);
 
   const UpdateInstaller({
     this.tempRoot,
     this.skipUrlCheck = false,
     this.executable,
+    this.logger,
   });
+
+  /// Where each step of the update is written (R5). Default: stdout, which
+  /// the desktop session sends to the `journalctl`.
+  final void Function(String message)? logger;
+
+  void log(String message) => (logger ?? debugPrint)(message);
 
   /// Tests only: lets the download talk to a local http server.
   @visibleForTesting
@@ -114,16 +139,116 @@ class UpdateInstaller {
     }
   }
 
-  /// Installs the downloaded [file], closes the database through
-  /// [closeDatabase] and restarts the app, in that order. Throws (before
-  /// closing anything) when the installation fails.
+  /// Installs the downloaded [file], then restarts on the installed copy
+  /// ([restart]). Throws (before closing anything) when the installation
+  /// fails, and [RelaunchFailed] when the launcher doesn't start: the version
+  /// is installed, but the app stays open. [onInstalled] runs between both.
   Future<void> installAndRestart(
     File file, {
-    required Future<void> Function() closeDatabase,
+    required String version,
+    required AppShutdown shutdown,
+    Future<void> Function()? markInstalled,
+    void Function()? onInstalled,
   }) async {
     await install(file);
-    await closeDatabase();
-    await restart();
+    log('atualização: instalado');
+    onInstalled?.call();
+    await restart(
+      executable: relaunchExecutable(file),
+      version: version,
+      shutdown: shutdown,
+      markInstalled: markInstalled,
+    );
+  }
+
+  /// The executable the installation of [package] updated: the `.deb` puts
+  /// it in /opt/promptorium, the `.tar.gz` over this copy (R3).
+  String relaunchExecutable(File package) =>
+      package.path.toLowerCase().endsWith('.deb') ? debExecutable : _executable;
+
+  /// The launcher of the new copy (R3): a shell of its own session waits up
+  /// to [relaunchWait] for [pid] to end, then opens [executable]. Its lines
+  /// go to the journal as `promptorium-update`.
+  List<String> relaunchCommand(
+    int pid,
+    String executable, {
+    String version = '',
+  }) {
+    final tenths = relaunchWait.inMilliseconds ~/ 100;
+    const script = r'''
+say() {
+  if command -v logger >/dev/null 2>&1; then
+    logger -t promptorium-update -- "$1"
+  else
+    echo "promptorium-update: $1" >&2
+  fi
+}
+pid=$1 exe=$2 version=$3 tenths=$4 i=0
+while kill -0 "$pid" 2>/dev/null; do
+  if [ "$i" -ge "$tenths" ]; then
+    say "o app antigo ($pid) ainda está aberto; abrindo assim mesmo"
+    break
+  fi
+  sleep 0.1
+  i=$((i + 1))
+done
+say "abrindo a ${version:-versão nova} ($exe)"
+exec "$exe"
+''';
+    return [
+      'setsid',
+      'sh',
+      '-c',
+      script,
+      'promptorium-update',
+      '$pid',
+      executable,
+      version,
+      '$tenths',
+    ];
+  }
+
+  /// The environment of the launcher: this one, without the `PROMPTORIUM_*`
+  /// variables of this run (R3).
+  static Map<String, String> relaunchEnvironment(Map<String, String> env) => {
+    for (final e in env.entries)
+      if (!e.key.startsWith('PROMPTORIUM_')) e.key: e.value,
+  };
+
+  /// Starts [command] detached from this process.
+  @protected
+  Future<void> startLauncher(List<String> command) async {
+    await Process.start(
+      command.first,
+      command.sublist(1),
+      mode: ProcessStartMode.detached,
+      environment: relaunchEnvironment(Platform.environment),
+      includeParentEnvironment: false,
+    );
+  }
+
+  /// Starts the launcher of [executable], records the version for the next
+  /// start ([markInstalled], R6), then stops the app through [shutdown] and
+  /// exits (R2). Without the launcher nothing is closed: [RelaunchFailed].
+  Future<void> restart({
+    required String executable,
+    required String version,
+    required AppShutdown shutdown,
+    Future<void> Function()? markInstalled,
+  }) async {
+    try {
+      await startLauncher(relaunchCommand(pid, executable, version: version));
+    } catch (e) {
+      log('atualização: o lançador não iniciou: $e');
+      throw RelaunchFailed(e);
+    }
+    log('atualização: lançador iniciado');
+    try {
+      await markInstalled?.call();
+    } catch (e) {
+      log('atualização: marca da versão: $e');
+    }
+    await shutdown.exitProcess(log: (m) => log('atualização: $m'));
   }
 
   /// `.deb`: `pkexec apt install`; `.tar.gz`: extracted over the executable's
@@ -188,12 +313,6 @@ class UpdateInstaller {
     } catch (e) {
       debugPrint('abrir $url: $e');
     }
-  }
-
-  /// Starts a detached copy of the app and exits this one.
-  Future<void> restart() async {
-    await Process.start(_executable, const [], mode: ProcessStartMode.detached);
-    exit(0);
   }
 
   static Future<bool> _writable(Directory dir) async {
