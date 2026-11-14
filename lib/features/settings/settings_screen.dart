@@ -14,6 +14,7 @@ import '../board/orchestrator/orchestrator_rules.dart';
 import '../project/project_config.dart';
 import '../project/widgets/project_config_view.dart';
 import '../sessions/widgets/session_style.dart';
+import 'app_mcp_card.dart';
 import 'automations_view.dart';
 import 'backups_view.dart';
 import 'orchestrator_view.dart';
@@ -669,6 +670,8 @@ class _SpecRunsSection extends ConsumerWidget {
             AppSettingKeys.continueContextTokens,
             AppSettingKeys.disabledPlugins,
             AppSettingKeys.disabledMcpServers,
+            AppSettingKeys.mcpServer,
+            AppSettingKeys.mcpCreationLimit,
           ]) {
             await settings.remove(k);
           }
@@ -683,6 +686,8 @@ class _SpecRunsSection extends ConsumerWidget {
                   'o contexto dela estiver abaixo de $limitK mil tokens.'}',
       ),
       children: [
+        // SPEC-052 R10.
+        const AppMcpServerCard(),
         AgentCard(
           title: 'Etapas numa sessão só',
           children: [

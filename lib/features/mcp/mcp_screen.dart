@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/mcp/app_mcp_config.dart' show appMcpEnabled;
+import '../../core/mcp/app_mcp_tools.dart' show appMcpCatalog, appMcpServerName;
 import '../../data/providers.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
@@ -47,6 +49,7 @@ List<McpServerRow> buildMcpRows({
   required McpStatusBoardState board,
   McpInventory? inventory,
   List<String> sessionTools = const [],
+  bool appServer = false,
 }) {
   final tools = <String, Set<String>>{};
   inventory?.toolsByServer.forEach(
@@ -94,8 +97,21 @@ List<McpServerRow> buildMcpRows({
       ),
     for (final n in others)
       McpServerRow(name: n, status: statusOf(n), tools: toolsOf(n)),
+    // SPEC-052 R10: the app's own server, given to each run by
+    // --mcp-config, before any run lists it.
+    if (appServer &&
+        !names.contains(appMcpServerName) &&
+        !others.contains(appMcpServerName))
+      McpServerRow(
+        name: appMcpServerName,
+        tools: [for (final t in appMcpCatalog) t.name]..sort(),
+      ),
   ];
 }
+
+/// The app's MCP server (SPEC-052): no entry in any config file.
+bool isAppServerRow(McpServerRow r) =>
+    r.config == null && r.name == appMcpServerName;
 
 Color mcpStateColor(McpConnState? s) => switch (s) {
   McpConnState.connected => AppColors.teal,
@@ -135,6 +151,7 @@ class McpScreen extends ConsumerWidget {
       board: board,
       inventory: invAsync.value,
       sessionTools: lastInit?.tools ?? const [],
+      appServer: appMcpEnabled(ref.watch(appSettingsProvider)),
     );
     final checking = listAsync.isLoading || invAsync.isLoading;
     final selectedKey = ref.watch(selectedMcpServerProvider);
@@ -227,7 +244,7 @@ class _ServerList extends StatelessWidget {
   Widget build(BuildContext context) {
     List<McpServerRow> of(McpScope? s) => [
       for (final r in rows)
-        if (r.scope == s) r,
+        if (r.scope == s && !isAppServerRow(r)) r,
     ];
     final ws = workspaceName == null ? '' : ' · $workspaceName';
     final groups = [
@@ -235,6 +252,15 @@ class _ServerList extends StatelessWidget {
       ('Projeto$ws', '.mcp.json', of(McpScope.project)),
       ('Local$ws', '~/.claude.json', of(McpScope.local)),
       ('Outros', 'sessão / claude.ai', of(null)),
+      // SPEC-052 R10: read only; Configurações › Execução de specs.
+      (
+        'Da sessão',
+        'Promptorium · só leitura',
+        [
+          for (final r in rows)
+            if (isAppServerRow(r)) r,
+        ],
+      ),
     ];
     return ColoredBox(
       color: AppColors.panel,
@@ -268,7 +294,8 @@ class _ServerList extends StatelessWidget {
               ),
             ),
           for (final (title, path, items) in groups)
-            if (items.isNotEmpty || title != 'Outros') ...[
+            if (items.isNotEmpty ||
+                (title != 'Outros' && title != 'Da sessão')) ...[
               _GroupHeader(title: title, path: path),
               if (items.isEmpty)
                 const Padding(
