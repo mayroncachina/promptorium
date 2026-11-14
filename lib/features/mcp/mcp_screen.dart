@@ -159,7 +159,8 @@ class McpScreen extends ConsumerWidget {
     for (final r in rows) {
       if (r.key == selectedKey) selected = r;
     }
-    selected ??= rows.isEmpty ? null : rows.first;
+    // The app's own server is never the default selection (SPEC-052).
+    selected ??= rows.where((r) => !isAppServerRow(r)).firstOrNull;
 
     return LayoutBuilder(
       builder: (context, c) {
@@ -188,6 +189,8 @@ class McpScreen extends ConsumerWidget {
               Expanded(
                 child: selected == null
                     ? _Empty(loading: registryAsync.isLoading)
+                    : isAppServerRow(selected)
+                    ? const _AppServerDetail()
                     : _ServerDetail(
                         key: ValueKey('mcp-detail-${selected.key}'),
                         row: selected,
@@ -205,6 +208,65 @@ class McpScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// The Promptorium MCP (SPEC-052 R10): read only here; on / off, the
+/// limit and the state live in Configurações › Execução de specs.
+class _AppServerDetail extends StatelessWidget {
+  const _AppServerDetail();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+    key: const ValueKey('mcp-detail-app'),
+    padding: const EdgeInsets.all(24),
+    children: [
+      const Text(
+        appMcpServerName,
+        style: TextStyle(
+          fontFamily: AppFonts.mono,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 6),
+      const Text(
+        'Servidor do próprio Promptorium, dado a cada sessão e conversa do '
+        'app por --mcp-config, com um token que some quando ela termina. Não '
+        'está em nenhum arquivo de configuração. Ligue, desligue e mude o '
+        'limite em Configurações › Execução de specs.',
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+      const SizedBox(height: 16),
+      for (final t in appMcpCatalog)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 170,
+                child: Text(
+                  t.name,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(t.summary, style: const TextStyle(fontSize: 12)),
+              ),
+              Text(
+                t.write ? 'Sempre pede' : 'Liberada',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: t.write ? AppColors.amber : AppColors.teal,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
 }
 
 class _Empty extends StatelessWidget {
