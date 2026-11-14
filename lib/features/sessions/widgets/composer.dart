@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,8 @@ import '../../prompt/prompt_actions.dart'
         workspaceFilesProvider;
 import '../../prompt/widgets/prompt_composer.dart'
     show ComposerSuggestions, insertSavedPrompt, replaceComposerRange;
+import '../../../core/dev/picked_element.dart';
+import '../picked_elements.dart';
 import '../session_composer_draft.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
@@ -45,6 +49,8 @@ class SessionComposer extends ConsumerStatefulWidget {
     this.canSend,
     this.provider = 'claude',
     this.root,
+    this.onPointAnother,
+    this.onSentWithElements,
   });
 
   final String sessionId;
@@ -56,6 +62,13 @@ class SessionComposer extends ConsumerStatefulWidget {
 
   /// Worktree of the session: the `@` picker lists its files (UX v2, U4).
   final String? root;
+
+  /// "Apontar outro" beside the pointed elements (SPEC-051 R8; null =
+  /// hidden).
+  final VoidCallback? onPointAnother;
+
+  /// After a request with pointed elements was sent (R11).
+  final VoidCallback? onSentWithElements;
 
   @override
   ConsumerState<SessionComposer> createState() => _SessionComposerState();
@@ -269,20 +282,45 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
 
   Future<void> _send() async {
     final msg = _text.text.trim();
-    if (msg.isEmpty || _busy) return;
+    final pickedNotifier = ref.read(
+      pickedElementsProvider(widget.sessionId).notifier,
+    );
+    final picked = ref.read(pickedElementsProvider(widget.sessionId));
+    if ((msg.isEmpty && picked.isEmpty) || _busy) return;
     final blocked = widget.canSend?.call();
     if (blocked != null) {
       _snack(blocked);
       return;
     }
     setState(() => _busy = true);
+    final manager = ref.read(sessionManagerProvider.notifier);
     try {
       _text.clear();
-      await ref
-          .read(sessionManagerProvider.notifier)
-          .send(widget.sessionId, msg);
+      if (picked.isEmpty) {
+        await manager.send(widget.sessionId, msg);
+      } else {
+        pickedNotifier.clear();
+        // Codex without the `image` modality: the PNGs go as files (R8).
+        final images = sendsImages(
+          widget.provider,
+          alive: ref.read(sessionManagerProvider).isAlive(widget.sessionId),
+          accepts: manager.acceptsImages(widget.sessionId),
+        );
+        final m = await buildPickedMessage(
+          msg,
+          picked,
+          images: images,
+          root: widget.root ?? Directory.systemTemp.path,
+        );
+        await manager.send(widget.sessionId, m.text, images: m.images);
+        widget.onSentWithElements?.call();
+      }
     } catch (e) {
       if (_text.text.isEmpty) _text.text = msg;
+      if (picked.isNotEmpty &&
+          ref.read(pickedElementsProvider(widget.sessionId)).isEmpty) {
+        picked.forEach(pickedNotifier.add);
+      }
       _snack('$e');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -301,6 +339,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
     final alive = ref.watch(
       sessionManagerProvider.select((s) => s.isAlive(widget.sessionId)),
     );
+    final picked = ref.watch(pickedElementsProvider(widget.sessionId));
     final files = _files();
     final prompts = _prompts();
     final trigger = _trigger;
@@ -384,6 +423,36 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
               const SizedBox(height: 8),
             ],
             if (_fromDraft) ...[const _DraftNote(), const SizedBox(height: 8)],
+            if (picked.isNotEmpty) ...[
+              SingleChildScrollView(
+                key: const ValueKey('composer-picked'),
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final (i, e) in picked.indexed) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      PickedElementCard(
+                        key: ValueKey('composer-picked-$i'),
+                        element: e,
+                        initiallyOpen: i == 0,
+                        onRemove: () => ref
+                            .read(
+                              pickedElementsProvider(widget.sessionId).notifier,
+                            )
+                            .removeAt(i),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Pedido',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 6),
+            ],
             CallbackShortcuts(
               bindings: bindings,
               child: TextField(
@@ -462,7 +531,21 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                 Flexible(child: _AttachSpecButton(onPick: _attach)),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: alive
+                  child: picked.isNotEmpty
+                      ? Text(
+                          '${picked.length == 1 ? '1 elemento anexado' : '${picked.length} elementos anexados'}'
+                          ' · o seletor, o HTML, os estilos e os prints vão '
+                          'junto com o pedido',
+                          key: const ValueKey('composer-picked-note'),
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        )
+                      : alive
                       ? const SizedBox()
                       : const Text(
                           'retoma a sessão ao enviar',
@@ -475,6 +558,14 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
                           ),
                         ),
                 ),
+                if (picked.isNotEmpty && widget.onPointAnother != null) ...[
+                  const SizedBox(width: 10),
+                  SmallButton(
+                    key: const ValueKey('composer-point-another'),
+                    label: 'Apontar outro',
+                    onTap: widget.onPointAnother,
+                  ),
+                ],
                 const SizedBox(width: 10),
                 AmberButton(
                   key: const ValueKey('composer-send'),
@@ -541,6 +632,158 @@ class _AttachSpecButton extends ConsumerWidget {
                 : AppColors.textSecondary,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Whether the PNGs of pointed elements go as images (R8): not to a Codex
+/// session whose model lacks the `image` modality (or that is not running,
+/// so the model is unknown).
+bool sendsImages(
+  String provider, {
+  required bool alive,
+  required bool accepts,
+}) => provider != 'codex' || (alive && accepts);
+
+/// An element pointed in the preview, in the composer (R8): thumbnail,
+/// selector, URL and size; it opens to show the HTML and the styles.
+class PickedElementCard extends StatefulWidget {
+  const PickedElementCard({
+    super.key,
+    required this.element,
+    required this.onRemove,
+    this.initiallyOpen = false,
+  });
+
+  final PickedElement element;
+  final VoidCallback onRemove;
+  final bool initiallyOpen;
+
+  @override
+  State<PickedElementCard> createState() => _PickedElementCardState();
+}
+
+class _PickedElementCardState extends State<PickedElementCard> {
+  late bool _open = widget.initiallyOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.element;
+    const mono = TextStyle(
+      fontFamily: AppFonts.mono,
+      fontSize: 11,
+      color: AppColors.textSecondary,
+    );
+    final thumb = e.elementPng == null
+        ? const SizedBox(width: 72, height: 48)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.memory(
+              e.elementPng!,
+              width: _open ? 160 : 72,
+              height: _open ? 90 : 48,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) =>
+                  SizedBox(width: _open ? 160 : 72, height: _open ? 90 : 48),
+            ),
+          );
+    return Container(
+      constraints: BoxConstraints(maxWidth: _open ? 760 : 300),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: _open ? AppColors.amber : AppColors.border,
+                width: _open ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: thumb,
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  e.selector,
+                  maxLines: _open ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (_open) ...[
+                  Text(
+                    '${e.shortUrl} · ${e.width.round()} × ${e.height.round()} · '
+                    '${e.imageCount == 1 ? '1 imagem' : '${e.imageCount} imagens'}',
+                    style: mono,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    key: const ValueKey('picked-details'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: SessionColors.terminalPanel,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      [
+                        e.html,
+                        if (e.styleLine.isNotEmpty) e.styleLine,
+                      ].join('\n'),
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: mono.copyWith(color: AppColors.text),
+                    ),
+                  ),
+                ] else
+                  InkWell(
+                    key: const ValueKey('picked-open'),
+                    onTap: () => setState(() => _open = true),
+                    child: const Text(
+                      'Mostrar detalhes',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            key: const ValueKey('picked-remove'),
+            onTap: widget.onRemove,
+            borderRadius: BorderRadius.circular(12),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(
+                Icons.close,
+                size: 16,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

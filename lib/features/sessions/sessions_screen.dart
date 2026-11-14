@@ -9,6 +9,7 @@ import '../../ui/widgets/app_toast.dart';
 import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
+import 'preview_reload.dart';
 import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
@@ -387,6 +388,16 @@ class _SessionMain extends ConsumerWidget {
             provider: s.provider,
             permissionMode: s.permissionMode,
             root: s.worktreePath,
+            onPointAnother: dev == null
+                ? null
+                : () => pointElement(ref, context, sessionId: s.id, dev: dev),
+            onSentWithElements: dev == null
+                ? null
+                : () => watchPreviewReload(
+                    ProviderScope.containerOf(context, listen: false),
+                    s.id,
+                    dev.worktree,
+                  ),
             canSend: () =>
                 ref.read(sessionTerminalsProvider.notifier).isRunning(s.id)
                 ? 'Feche o terminal interativo desta sessão antes de enviar.'

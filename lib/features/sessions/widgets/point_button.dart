@@ -84,22 +84,39 @@ class PointButton extends ConsumerWidget {
     );
   }
 
-  Future<void> _point(BuildContext context, WidgetRef ref) async {
-    final server = ref.read(devServerProvider(dev.worktree));
-    final url = server.url;
-    if (url == null) return;
-    try {
-      final el = await ref
-          .read(previewBrowserProvider)
-          .pick(worktree: dev.worktree, url: url, server: server);
-      if (el == null) return;
-      ref.read(pickedElementsProvider(sessionId).notifier).add(el);
-      onPicked?.call();
-      if (context.mounted) {
-        _toast(context, '${el.selector} anexado ao pedido');
-      }
-    } catch (e) {
-      if (context.mounted) _toast(context, '$e');
-    }
+  Future<void> _point(BuildContext context, WidgetRef ref) => pointElement(
+    ref,
+    context,
+    sessionId: sessionId,
+    dev: dev,
+    then: onPicked,
+  );
+}
+
+/// "Apontar" / "Apontar outro": the element clicked in the preview goes to
+/// the composer of [sessionId] (R7, R8).
+Future<void> pointElement(
+  WidgetRef ref,
+  BuildContext context, {
+  required String sessionId,
+  required SessionDev dev,
+  VoidCallback? then,
+}) async {
+  final server = ref.read(devServerProvider(dev.worktree));
+  final url = server.url;
+  if (url == null || !server.isUp) {
+    _toast(context, 'Inicie o servidor antes de apontar.');
+    return;
+  }
+  try {
+    final el = await ref
+        .read(previewBrowserProvider)
+        .pick(worktree: dev.worktree, url: url, server: server);
+    if (el == null) return;
+    ref.read(pickedElementsProvider(sessionId).notifier).add(el);
+    then?.call();
+    if (context.mounted) _toast(context, '${el.selector} anexado ao pedido');
+  } catch (e) {
+    if (context.mounted) _toast(context, '$e');
   }
 }
