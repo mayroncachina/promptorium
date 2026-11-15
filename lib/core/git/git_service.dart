@@ -225,7 +225,12 @@ class GitService {
   final ProcessRunner _run;
 
   static Future<ProcessResult> _defaultRun(String exe, List<String> args) =>
-      Process.run(exe, args);
+      Process.run(
+        exe,
+        args,
+        stdoutEncoding: lenientUtf8,
+        stderrEncoding: lenientUtf8,
+      );
 
   static String defaultWorktreesBase({String? home}) =>
       '${home ?? Platform.environment['HOME'] ?? ''}/.promptorium/worktrees';
