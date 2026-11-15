@@ -367,6 +367,49 @@ void main() {
     );
   });
 
+  test('materialize merges the stack commands into the config.yml, only the '
+      'empty keys, and commits it (SPEC-072 R13)', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'loja',
+      template: templateById('flutter'),
+    );
+    // The template's commands came pinned into the plan (R11).
+    final row = await c.read(projectPlansRepoProvider).get(ws.id);
+    final pinned = ProjectPlanData.decode(row!.data).stack.commands;
+    expect(pinned.test, 'flutter test');
+    expect(pinned.pinned, contains('test'));
+
+    final withCommands = plan.copyWith(
+      stack: plan.stack.copyWith(
+        commands: const StackCommands(
+          run: 'flutter run -d linux',
+          test: 'outro teste',
+          format: 'dart format',
+        ),
+      ),
+    );
+    await c
+        .read(projectPlansRepoProvider)
+        .update(
+          ws.id,
+          ProjectPlansCompanion(data: Value(withCommands.encode())),
+        );
+    final out = await service().materialize(ws);
+    expect(out.commitError, isNull);
+    expect(out.files, contains('.promptorium/config.yml'));
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.runCommand, 'flutter run -d linux');
+    expect(config.testCommand, 'flutter test'); // kept
+    expect(config.formatCommand, 'dart format {arquivo}'); // the template's
+    expect(config.baseBranch, 'main');
+    expect(
+      await gitIn(ws.path, ['show', 'HEAD:.promptorium/config.yml']),
+      contains('executar: flutter run -d linux'),
+    );
+    expect(await gitIn(ws.path, ['status', '--porcelain']), '');
+  });
+
   test('materialize: CLAUDE.md, approved specs with translated '
       'dependencies and one commit with exactly those files', () async {
     final ws = await service().createProject(

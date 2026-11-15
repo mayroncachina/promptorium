@@ -36,11 +36,32 @@ No plano por assinatura (Pro, Max), o bloco **Uso** mostra a quota da janela de 
 O planejamento tem quatro etapas:
 
 1. **Visão**: uma conversa com o planner. O plano (resumo, público, MVP, fora do escopo, dúvidas) é atualizado a cada resposta.
-2. **Stack e convenções**: uma escolha por área, com alternativas clicáveis, e o `CLAUDE.md` editável.
+2. **Stack e convenções**: uma escolha por área, com alternativas clicáveis, o bloco **Comandos** e o `CLAUDE.md` editável.
 3. **Roadmap**: specs da Fundação e do MVP com código, requisitos (as etapas, no máximo 6 por spec) e dependências, numa ordem de execução em ondas. Tudo é editável à mão; ideias para depois podem virar specs.
 4. **Revisar e criar**: grava o `CLAUDE.md` e as specs na pasta configurada, coloca as specs no Quadro, commita e, se você quiser, abre a sessão da primeira etapa.
 
 O planner roda somente leitura. O rascunho do plano fica salvo no app até você criar ou descartar.
+
+### Comandos
+
+O bloco **Comandos** da etapa Stack traz os comandos que o CLAUDE.md lista, cada um com a chave do `.promptorium/config.yml` ao lado:
+
+| Comando | Chave |
+|---|---|
+| instalar | `worktree.preparar` |
+| rodar | `executar` |
+| dev | `dev` |
+| testes | `testes` |
+| lint | `lint` |
+| formatar | `formatar` |
+
+- Um comando que o config.yml já tem aparece com o valor de lá, travado, e a marca "já existe". Os outros são editáveis: "novo" quando vão entrar, "não se aplica" quando estão vazios.
+- Os comandos de um modelo de partida entram fixados, e o planner não os troca.
+- Editar um comando marca o CLAUDE.md como desatualizado; **Atualizar** reescreve o CLAUDE.md mantendo as escolhas e os comandos.
+- **Detectar do repositório** aparece quando a pasta tem um manifesto (`pubspec.yaml`, `package.json`…) e preenche só as linhas vazias.
+- Em "Criar projeto", os comandos preenchem só as chaves vazias do config.yml (nunca sobrescrevem), `formatar` ganha ` {arquivo}` quando falta, e o config.yml entra no commit "Plano inicial do projeto". Em Revisar e criar, a linha do config.yml abre e mostra o que entra (`+`) e o que fica como estava (`=`).
+
+O link **Saúde do projeto** do stepper abre a Saúde, com "Analisar repositório", também num projeto criado pelo planner.
 
 ## Refino e plano automáticos
 

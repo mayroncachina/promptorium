@@ -54,6 +54,8 @@ final stackSchema = _object({
     }),
   },
   'claudeMd': _str,
+  // The commands of the CLAUDE.md, for the config.yml (SPEC-072 R11).
+  'commands': _object({for (final k in StackCommands.keys) k: _str}),
 });
 
 final _specSchema = _object({
@@ -108,7 +110,14 @@ const stackSystemPrompt =
     'CLAUDE.md do projeto em Markdown: título e resumo, stack, comandos '
     '(instalar, rodar, testar, lint — os que a stack terá) e convenções de '
     'código e de commits. Seja conciso: ele é lido no início de toda sessão '
-    'de agente.';
+    'de agente. Em commands, os mesmos comandos que o CLAUDE.md lista, para '
+    'o .promptorium/config.yml: install (dependências; protegido pela '
+    'existência do manifesto, porque o projeto começa vazio, ex.: '
+    '"test ! -f pubspec.yaml || flutter pub get"), run (roda o app), dev '
+    '(servidor de desenvolvimento), test, lint e format (formata um arquivo; '
+    'use {arquivo} no lugar do caminho). Texto vazio quando o comando não se '
+    'aplica (ex.: dev num app de desktop). Mantenha exatamente os comandos '
+    'indicados como fixados.';
 
 const roadmapSystemPrompt =
     '$_base Etapa Roadmap: transforme a visão e a stack em specs. Cada spec '
@@ -149,6 +158,7 @@ String stackPrompt(
   List<StackDecision> fixed = const [],
   String? request,
   String? baseClaudeMd,
+  StackCommands commands = const StackCommands(),
 }) {
   final b = StringBuffer()
     ..writeln('Visão do projeto (JSON):')
@@ -170,6 +180,18 @@ String stackPrompt(
       ..writeln('Escolhas fixadas (mantenha exatamente):');
     for (final d in fixed) {
       b.writeln('- ${d.area}: ${d.choice}');
+    }
+  }
+  final pinned = [
+    for (final k in StackCommands.keys)
+      if (commands.pinned.contains(k)) k,
+  ];
+  if (pinned.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Comandos fixados (mantenha exatamente em commands):');
+    for (final k in pinned) {
+      b.writeln('- $k: ${commands[k].isEmpty ? '(vazio)' : commands[k]}');
     }
   }
   if (request != null && request.trim().isNotEmpty) {
@@ -282,8 +304,13 @@ Map _map(Result r) {
   );
 }
 
-/// Stack proposal; decisions in [fixed] keep the user's choice.
-StackPlan parseStackResult(Result r, {List<StackDecision> fixed = const []}) {
+/// Stack proposal; decisions in [fixed] keep the user's choice, and the
+/// pinned commands of [commands] stay as they are (SPEC-072 R11).
+StackPlan parseStackResult(
+  Result r, {
+  List<StackDecision> fixed = const [],
+  StackCommands commands = const StackCommands(),
+}) {
   final proposed = StackPlan.fromJson(_map(r));
   if (proposed.decisions.isEmpty) {
     throw const PlannerException('O planner não propôs nenhuma tecnologia.');
@@ -307,7 +334,15 @@ StackPlan parseStackResult(Result r, {List<StackDecision> fixed = const []}) {
   for (final d in fixed) {
     if (seen.add(stackAreaKey(d.area))) decisions.add(d);
   }
-  return proposed.copyWith(decisions: decisions, claudeMdStale: false);
+  var cmds = proposed.commands;
+  for (final k in commands.pinned) {
+    cmds = cmds.withValue(k, commands[k], pin: true);
+  }
+  return proposed.copyWith(
+    decisions: decisions,
+    claudeMdStale: false,
+    commands: cmds,
+  );
 }
 
 /// Area of a stack decision, compared without case, accents and synonyms
@@ -522,6 +557,11 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         for (final d in data.stack.decisions)
           if (keepChoices || d.pinned) d,
       ];
+      // keepChoices (refresh the CLAUDE.md): the commands edited by hand
+      // stay too.
+      final cmds = keepChoices
+          ? data.stack.commands.copyWithAllPinned()
+          : data.stack.commands;
       final r = await _run(
         ws,
         _options(stackSystemPrompt, stackSchema),
@@ -530,10 +570,17 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           fixed: fixed,
           request: request,
           baseClaudeMd: templateClaudeMd(ws.path),
+          commands: cmds,
         ),
         kind: 'stack',
       );
-      final stack = parseStackResult(r, fixed: fixed);
+      var stack = parseStackResult(r, fixed: fixed, commands: cmds);
+      // Edited by hand: not pinned for the next proposal.
+      if (keepChoices) {
+        stack = stack.copyWith(
+          commands: stack.commands.withPinned(data.stack.commands.pinned),
+        );
+      }
       final (_, latest) = await _load(ws);
       await _save(ws, latest.copyWith(stack: stack));
     },
@@ -656,6 +703,32 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         return d.copyWith(
           stack: d.stack.copyWith(
             decisions: decisions,
+            claudeMdStale: d.stack.claudeMd.isNotEmpty,
+          ),
+        );
+      });
+
+  /// Edits one command of the "Comandos" block; the CLAUDE.md goes stale
+  /// (SPEC-072 R12).
+  Future<void> editCommand(Workspace ws, String key, String value) =>
+      _edit(ws, (d) {
+        if (d.stack.commands[key] == value.trim()) return d;
+        return d.copyWith(
+          stack: d.stack.copyWith(
+            commands: d.stack.commands.withValue(key, value),
+            claudeMdStale: d.stack.claudeMd.isNotEmpty,
+          ),
+        );
+      });
+
+  /// "Detectar do repositório": fills the empty commands (R14).
+  Future<void> fillCommands(Workspace ws, StackCommands detected) =>
+      _edit(ws, (d) {
+        final next = d.stack.commands.fillEmpty(detected);
+        if (next == d.stack.commands) return d;
+        return d.copyWith(
+          stack: d.stack.copyWith(
+            commands: next,
             claudeMdStale: d.stack.claudeMd.isNotEmpty,
           ),
         );

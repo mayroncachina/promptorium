@@ -384,6 +384,27 @@ class _Stepper extends ConsumerWidget {
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
+                  // The Saúde inside the flow (SPEC-072 R14, P8).
+                  TextButton.icon(
+                    key: const ValueKey('project-health-open'),
+                    onPressed: () => showAppDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 900,
+                          height: 620,
+                          child: ProjectHealthView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.monitor_heart_outlined, size: 16),
+                    label: const Text(
+                      'Saúde do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                   const Spacer(),
                   if (_plannerLine(ref) case final line?)
                     Padding(
