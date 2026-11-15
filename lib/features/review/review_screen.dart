@@ -284,10 +284,16 @@ class _ReviewSidebar extends ConsumerWidget {
   /// Stacks first, each with its rail (R2), then "Avulsas · n" — the group
   /// title only when there is a stack to separate them from.
   List<Widget> _queueGroups(WidgetRef ref) {
-    void select(ReviewItem i) {
-      ref.read(selectedReviewProvider.notifier).select(i.session.id);
-      ref.read(_selectedFileProvider.notifier).select(null);
-    }
+    // SPEC-071 R4: a merge in progress locks the list.
+    final ws = ref.watch(activeWorkspaceProvider);
+    final locked =
+        ws != null && ref.watch(mergeInProgressProvider(ws.id)) != null;
+    VoidCallback? select(ReviewItem i) => locked
+        ? null
+        : () {
+            ref.read(selectedReviewProvider.notifier).select(i.session.id);
+            ref.read(_selectedFileProvider.notifier).select(null);
+          };
 
     final piles = stacks.where((s) => s.isStack).toList();
     final loose = stacks.where((s) => !s.isStack).expand((s) => s.items);
@@ -307,7 +313,7 @@ class _ReviewSidebar extends ConsumerWidget {
               stackSize: pile.items.length,
               mother: motherOf(i, pile.items),
               selected: i.session.id == selectedId,
-              onTap: () => select(i),
+              onTap: select(i),
             ),
           ),
       ],
@@ -319,7 +325,7 @@ class _ReviewSidebar extends ConsumerWidget {
           child: _QueueTile(
             item: i,
             selected: i.session.id == selectedId,
-            onTap: () => select(i),
+            onTap: select(i),
           ),
         ),
     ];
@@ -438,7 +444,9 @@ class _QueueTile extends ConsumerWidget {
 
   final ReviewItem item;
   final bool selected;
-  final VoidCallback onTap;
+
+  /// Null while a merge of the workspace runs (SPEC-071 R4).
+  final VoidCallback? onTap;
 
   /// Place in its stack (1 = base) and the stack size; null when loose.
   final int? position, stackSize;
@@ -810,18 +818,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     super.dispose();
   }
 
-  void _toast(String msg, {SnackBarAction? action}) {
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showAppToast(
-        SnackBar(
-          content: Text(msg),
-          persist: false,
-          duration: const Duration(seconds: 8),
-          action: action,
-        ),
-      );
-  }
+  void _toast(String msg, {SnackBarAction? action}) =>
+      _toastWith(ScaffoldMessenger.maybeOf(context), msg, action: action);
 
   Future<void> _run(String label, Future<void> Function() job) async {
     if (_busy != null) return;
@@ -829,7 +827,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     try {
       await job();
     } on ReviewException catch (e) {
-      if (e.message.startsWith('Conflito ao fazer merge')) {
+      if (e.message.startsWith('Conflito ao fazer merge') && mounted) {
         setState(() => _conflict = true);
       }
       if (mounted) {
@@ -849,6 +847,69 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     }
   }
 
+  /// A merge (SPEC-071 R4): holds the workspace's merge lock (the list and
+  /// every merge button wait) and gets the container and the messenger
+  /// before the first await — the merged item leaves the queue, and this
+  /// widget, before the merge returns. [job] finishes through them.
+  Future<void> _runMerge(
+    String label,
+    Future<void> Function(ProviderContainer c, ScaffoldMessengerState? m) job,
+  ) async {
+    if (_busy != null) return;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final lock = container.read(
+      mergeInProgressProvider(widget.workspaceId).notifier,
+    );
+    if (!lock.tryStart(label)) {
+      _toast('Já há um merge em andamento neste workspace.');
+      return;
+    }
+    setState(() => _busy = label);
+    Object? error;
+    try {
+      await job(container, messenger);
+    } catch (e) {
+      error = e;
+    } finally {
+      lock.finish();
+      if (mounted) setState(() => _busy = null);
+    }
+    if (error == null) return;
+    final message = error is ReviewException ? error.message : '$error';
+    if (!mounted) {
+      _toastWith(messenger, '$label: $message');
+      return;
+    }
+    if (error is MergeConflictException ||
+        message.startsWith('Conflito ao fazer merge')) {
+      setState(() => _conflict = true);
+    }
+    await showReviewError(
+      context,
+      label,
+      message,
+      onResolve: error is MergeConflictException
+          ? () => _service.resolveConflict(_id)
+          : null,
+    );
+  }
+
+  static void _toastWith(
+    ScaffoldMessengerState? messenger,
+    String msg, {
+    SnackBarAction? action,
+  }) => messenger
+    ?..hideCurrentSnackBar()
+    ..showAppToast(
+      SnackBar(
+        content: Text(msg),
+        persist: false,
+        duration: const Duration(seconds: 8),
+        action: action,
+      ),
+    );
+
   void _selectStep(String? step) => setState(() {
     _step = step;
     _since = null;
@@ -864,18 +925,23 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     _targetPath = path;
   });
 
-  void _refresh() {
-    ref.invalidate(conflictForecastProvider);
-    ref.invalidate(rebaseStatusProvider(_id));
-    ref.invalidate(conflictHunksProvider(_id));
-    ref.invalidate(orphanRestackProvider(widget.workspaceId));
-    ref.invalidate(rootStatusProvider(widget.workspaceId));
-    ref.invalidate(mergeReadinessProvider(_id));
-    ref.invalidate(reviewSinceProvider);
-    ref.invalidate(reviewRoundAvailabilityProvider);
-    ref.invalidate(reviewDetailProvider(_id));
-    ref.invalidate(reviewQueueProvider(widget.workspaceId));
-    ref.invalidate(prAvailabilityProvider(_id));
+  void _refresh() =>
+      _refreshIn(ProviderScope.containerOf(context, listen: false));
+
+  /// [_refresh] through a container got before an await (the widget may be
+  /// gone by then: SPEC-071 R4).
+  void _refreshIn(ProviderContainer c) {
+    c.invalidate(conflictForecastProvider);
+    c.invalidate(rebaseStatusProvider(_id));
+    c.invalidate(conflictHunksProvider(_id));
+    c.invalidate(orphanRestackProvider(widget.workspaceId));
+    c.invalidate(rootStatusProvider(widget.workspaceId));
+    c.invalidate(mergeReadinessProvider(_id));
+    c.invalidate(reviewSinceProvider);
+    c.invalidate(reviewRoundAvailabilityProvider);
+    c.invalidate(reviewDetailProvider(_id));
+    c.invalidate(reviewQueueProvider(widget.workspaceId));
+    c.invalidate(prAvailabilityProvider(_id));
   }
 
   Future<void> _reject(DiffFile f, DiffHunk h) =>
@@ -1000,8 +1066,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     );
     if (deleteBranch == null || !mounted) return;
     final queue = _queueNow;
-    await _run('Fazer merge', () async {
-      final r = await _service.merge(
+    final service = _service;
+    await _runMerge('Fazer merge', (c, m) async {
+      final r = await service.merge(
         _id,
         deleteBranch: deleteBranch,
         options: options,
@@ -1009,6 +1076,8 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
       );
       final short = r.commit.length > 7 ? r.commit.substring(0, 7) : r.commit;
       _advanceAfterMerge(
+        c,
+        m,
         queue,
         d.baseBranch,
         detail: [
@@ -1017,7 +1086,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
           if (r.warnings.isNotEmpty) '(${r.warnings.join('; ')})',
         ].join(' · '),
       );
-      _refresh();
+      _refreshIn(c);
     });
   }
 
@@ -1126,17 +1195,22 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   /// After a merge (R5): selects the child of the merged spec (or the next
   /// item of the order) and says where the screen went.
+  ///
+  /// Runs through [c] and [messenger], got before the merge (SPEC-071 R4).
   void _advanceAfterMerge(
+    ProviderContainer c,
+    ScaffoldMessengerState? messenger,
     List<ReviewItem> queue,
     String base, {
     String detail = '',
     String how = '',
   }) {
     final next = nextAfterMerge(queue, _id);
-    ref.read(selectedReviewProvider.notifier).select(next?.session.id);
+    c.read(selectedReviewProvider.notifier).select(next?.session.id);
     String name(ReviewItem i) =>
         i.spec?.code ?? i.task?.code ?? sessionTitle(i.session);
-    _toast(
+    _toastWith(
+      messenger,
       '${name(widget.item)} entrou na $base$how'
       '${next == null ? '' : ' · seguindo para ${name(next)}'}'
       '${detail.isEmpty ? '' : ' · $detail'}',
@@ -1177,15 +1251,27 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     );
     if (method == null || !mounted) return;
     final queue = _queueNow;
-    await _run('Mergear PR', () async {
-      final restacked = await _service.mergePr(_id, method);
+    final service = _service;
+    await _runMerge('Mergear PR', (c, m) async {
+      List<RestackResult> restacked;
+      try {
+        restacked = await service.mergePr(_id, method);
+      } on UnsentWorkException catch (e) {
+        // SPEC-071 R1: nothing was merged; the work goes first, if asked.
+        if (!mounted || !await showSendAndMergeDialog(context, e.message)) {
+          return;
+        }
+        restacked = await service.mergePr(_id, method, sendFirst: true);
+      }
       _advanceAfterMerge(
+        c,
+        m,
         queue,
         d.baseBranch,
         how: ' pelo PR',
         detail: restacked.isEmpty ? '' : restackNotice(restacked),
       );
-      _refresh();
+      _refreshIn(c);
     });
   }
 
@@ -1246,8 +1332,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     );
     if (ok != true || !mounted) return;
     final queue = _queueNow;
-    await _run('Mergear a pilha', () async {
-      final r = await _service.mergeStack(
+    final service = _service;
+    await _runMerge('Mergear a pilha', (c, m) async {
+      final r = await service.mergeStack(
         [for (final i in stack.items) i.session.id],
         options: MergeOptions(method: method),
         prMethod: PrMergeMethod.values.firstWhere(
@@ -1260,7 +1347,7 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         for (final id in r.merged)
           if (byId[id] != null) name(byId[id]!),
       ];
-      ref
+      c
           .read(selectedReviewProvider.notifier)
           .select(
             r.stoppedAt ??
@@ -1268,8 +1355,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     ? null
                     : nextAfterMerge(queue, r.merged.last)?.session.id),
           );
-      _refresh();
-      _toast(
+      _refreshIn(c);
+      _toastWith(
+        m,
         r.stoppedAt == null
             ? 'Pilha mergeada: ${merged.join(', ')}'
             : '${merged.isEmpty ? 'Nada entrou' : 'Entraram ${merged.join(', ')}'}'
@@ -1414,8 +1502,11 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
         widget.item.spec?.stage == SpecStage.review;
     final readiness = ref.watch(mergeReadinessProvider(_id));
     final ready = readiness.value;
+    // SPEC-071 R4: one merge at a time in the workspace.
+    final merging = ref.watch(mergeInProgressProvider(widget.workspaceId));
     final canMerge =
         !busy &&
+        merging == null &&
         d != null &&
         d.error == null &&
         !reviewing &&
@@ -1436,7 +1527,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
     ).where((g) => g.isStack && g.items.first.session.id == _id).firstOrNull;
     final primary = primaryActionOf(status, hasPr: s.prUrl != null);
     final canRequest = !busy && s.status != SessionStatus.merged;
-    final mergeReason = ready?.blockers.isNotEmpty == true
+    final mergeReason = merging != null
+        ? 'Merge em andamento neste workspace ($merging)'
+        : ready?.blockers.isNotEmpty == true
         ? ready!.blockers.map((i) => i.detail).join('\n')
         : reviewing
         ? 'O revisor automático ainda está revisando'
@@ -1573,7 +1666,9 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                     _MoreEntry(
                       'review-merge-stack',
                       'Mergear a pilha (${stack.items.length})',
-                      !busy && status.state == MergeState.pronto
+                      !busy &&
+                              merging == null &&
+                              status.state == MergeState.pronto
                           ? () => _mergeStack(stack)
                           : null,
                       tooltip:
@@ -1819,7 +1914,12 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
             ],
           ),
         ),
-        PrPanel(session: s, localConflict: _conflict),
+        PrPanel(
+          session: s,
+          localConflict: _conflict,
+          // SPEC-071 R1, R4: same dialog and lock as the header's button.
+          onMergePr: canMerge ? () => _mergePr(d) : null,
+        ),
         if (widget.item.imported != null)
           ImportedPrPanel(
             sessionId: _id,

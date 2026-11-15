@@ -16,6 +16,7 @@ import '../sessions/widgets/timeline_view.dart';
 import 'attachments.dart';
 import 'conversation_actions.dart';
 import 'conversation_manager.dart';
+import '../board/spec_runner.dart' show gateRunningProvider;
 import 'plan_ready.dart';
 import 'prompt_actions.dart';
 import 'refine_changes.dart';
@@ -206,6 +207,15 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     final model = conv?.model ?? draft.model;
     final live = ref.watch(conversationManagerProvider);
     final busy = _sending || (conv != null && live.isBusy(conv.id));
+    final gates = ref.watch(gateRunningProvider);
+    String? gateOf(Conversation? c) {
+      final id = c?.specId;
+      if (id == null || !gates.contains(id)) return null;
+      return vibeGateBusyMessage(
+        ref.watch(vibeSpecProvider(id)).value?.code ?? 'a VIBE',
+      );
+    }
+
     final items = conv == null
         ? const <TimelineItem>[]
         : ref.watch(conversationTimelineProvider(conv.id)).items;
@@ -362,6 +372,9 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                 ? draftCtl.set(draft.copyWith(mode: m))
                                 : manager.setMode(conv.id, m),
                             busy: busy,
+                            // SPEC-071 R5: no request while the VIBE's gate
+                            // runs.
+                            blockedReason: gateOf(conv),
                             // SPEC-069 R1: "Fazer como tarefa".
                             onVibe: ws == null || conv?.specId != null
                                 ? null

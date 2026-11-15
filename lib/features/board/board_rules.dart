@@ -321,6 +321,25 @@ StageLayout stageLayout(Spec root, Iterable<Spec> specs) {
 Duration stageCardDelay(int level, int index) =>
     Duration(milliseconds: 90 * level + 45 * index);
 
+/// Why [spec] cannot be moved by hand (drag or "Mover para…") to [target];
+/// null = it can (SPEC-071 R9). Feito comes only with the merge, Em
+/// execução and Review only from the runner; a VIBE also reaches Feito
+/// only by the merge (or leaves the board discarded). Back to Backlog is
+/// always allowed.
+String? manualMoveBlock(Spec spec, SpecStage target) {
+  if (spec.stage == target) return null;
+  return switch (target) {
+    SpecStage.backlog => null,
+    SpecStage.done when spec.kind == SpecKind.vibe =>
+      'Uma VIBE não vai para Feito: faça o merge ou descarte no Review.',
+    SpecStage.done => 'Feito só pelo merge, no Review.',
+    SpecStage.running =>
+      'Em execução só pelo Executar: o cartão vem quando a sessão começa.',
+    SpecStage.review =>
+      'Review só quando as etapas terminam: o cartão vem sozinho.',
+  };
+}
+
 /// Labels of the columns.
 String specStageLabel(SpecStage s) => switch (s) {
   SpecStage.backlog => 'Backlog',

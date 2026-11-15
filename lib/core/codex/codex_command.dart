@@ -47,10 +47,13 @@ Future<void> validateCodexCommand(
   List<String> args,
   ProcessRunner run,
 ) async {
-  final result = await run(executable, [
-    ...args,
-    '--help',
-  ]).timeout(const Duration(seconds: 10));
+  const limit = Duration(seconds: 10);
+  final probe = [...args, '--help'];
+  // The real runner gets a limit that also ends the process (SPEC-071 R16);
+  // an injected one (tests) is only timed.
+  final result = identical(run, defaultProcessRunner)
+      ? await runKillingOnTimeout(executable, probe, timeout: limit)
+      : await run(executable, probe).timeout(limit);
   if (result.exitCode != 0) {
     throw const AgentUnavailable(
       'O Codex instalado não suporta o comando ou modo selecionado. Atualize o CLI antes de executar.',

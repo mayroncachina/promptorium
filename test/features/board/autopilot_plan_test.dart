@@ -129,4 +129,11 @@ void main() {
     expect(p.nothingToDo, isTrue);
     expect(p.skip, hasLength(1));
   });
+
+  test('SPEC-071 R6: a spec being started counts in the limit and is not '
+      'planned again', () {
+    final p = autopilotPlan([s(1), s(2)], null, parallel: 1, starting: {1});
+    expect(p.start, isEmpty);
+    expect(codes(p.wait.map((w) => w.spec)), ['SPEC-002']);
+  });
 }

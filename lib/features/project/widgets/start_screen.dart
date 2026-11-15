@@ -10,7 +10,7 @@ import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
-import '../new_project_dialog.dart' show defaultProjectParent, tildePath;
+import '../../../core/fs/project_paths.dart';
 import '../project_service.dart';
 import '../project_templates.dart';
 
@@ -389,6 +389,12 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                     style: _mono,
                     decoration: _field(hint: 'meu-projeto'),
                     onChanged: (_) => setState(() {}),
+                    // Enter creates, like the main button (R26).
+                    onSubmitted: (_) {
+                      if (!_busy && _name.text.trim().isNotEmpty) {
+                        _create(plan: true);
+                      }
+                    },
                   ),
                 ],
               ),

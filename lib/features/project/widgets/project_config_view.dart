@@ -16,18 +16,36 @@ import '../../sessions/session_manager.dart' show markedSessionsProvider;
 import '../project_config.dart';
 import 'agent_trailer_dialog.dart';
 
-/// Whether the workspace already has code: any entry besides git / app /
-/// editor folders and the specs folder.
+/// Entries of a fresh repository that are not code (SPEC-071 R24): git /
+/// app / editor folders, `CLAUDE.md`, `README*`, `LICENSE*`, `.gitignore`.
+bool isNotCodeEntry(String name) {
+  const ignored = {
+    '.git',
+    '.promptorium',
+    '.claude',
+    '.idea',
+    '.vscode',
+    '.gitignore',
+    'CLAUDE.md',
+  };
+  final lower = name.toLowerCase();
+  return ignored.contains(name) ||
+      lower.startsWith('readme') ||
+      lower.startsWith('license') ||
+      lower.startsWith('licence');
+}
+
+/// Whether the workspace already has code: any entry besides
+/// [isNotCodeEntry] and the specs folder.
 final hasExistingCodeProvider = FutureProvider.family<bool, String>((
   ref,
   path,
 ) async {
-  const ignored = {'.git', '.promptorium', '.claude', '.idea', '.vscode'};
   try {
     final specs = ProjectConfig.loadSync(path).specsDir.split('/').first;
     await for (final e in Directory(path).list()) {
       final name = e.uri.pathSegments.where((s) => s.isNotEmpty).last;
-      if (!ignored.contains(name) && name != specs) return true;
+      if (!isNotCodeEntry(name) && name != specs) return true;
     }
   } catch (_) {
     // unreadable folder: treated as new

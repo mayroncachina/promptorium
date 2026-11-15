@@ -463,6 +463,12 @@ class DevServer {
       );
       return;
     }
+    if (run != _run) {
+      // "Parar" came while the command was starting (R17): the run is over,
+      // so the group that just came up goes too.
+      await _registry.signal(proc.pid, ProcessSignal.sigterm);
+      return;
+    }
     _process = proc;
     // Dart's children are not group leaders, so `setsid` does not fork:
     // the shell is the leader of the new group (pgid = pid).
@@ -479,6 +485,12 @@ class DevServer {
       appPid: _registry.appPid,
     );
     await _registry.writeRecord(record);
+    if (run != _run) {
+      // "Parar" while the record was being written: stop() saw no group yet.
+      await _registry.signal(proc.pid, ProcessSignal.sigterm);
+      await _registry.deleteRecord(proc.pid);
+      return;
+    }
     void onLine(String line, DevLogKind kind) {
       if (run != _run) return;
       logs.add(DevLogLine(line, kind));

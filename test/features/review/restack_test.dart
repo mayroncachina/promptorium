@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/merge_options.dart';
+import 'package:promptorium/features/review/pr_babysitter.dart'
+    show PrMergeMethod;
 import 'package:promptorium/features/review/restack.dart';
 import 'package:promptorium/features/review/review_service.dart';
 
@@ -40,7 +42,7 @@ void main() {
 
   /// main ← pr/mae (SPEC-029, `m.txt`) ← pr/filha (SPEC-031, `c.txt`), each
   /// in its own worktree; the child's session is in Review.
-  Future<Stack> setUpStack() async {
+  Future<Stack> setUpStack({CommandRunner? runner}) async {
     final repo = await createRepo(tmp);
     Directory('$repo/docs/specs').createSync(recursive: true);
     for (final (code, title) in [('SPEC-029', 'Mãe'), ('SPEC-031', 'Filha')]) {
@@ -79,7 +81,9 @@ void main() {
         (root) => GitService(root, worktreesBase: '${tmp.path}/wt'),
       ),
       commandRunnerProvider.overrideWithValue(
-        (exe, args, {workingDirectory}) async => ProcessResult(1, 1, '', ''),
+        runner ??
+            (exe, args, {workingDirectory}) async =>
+                ProcessResult(1, 1, '', ''),
       ),
     ]);
     addTearDown(c.dispose);
@@ -411,6 +415,99 @@ void main() {
       await s.review.abortRebase('filha');
       expect((await gitIn(s.child, ['rev-parse', 'HEAD'])).trim(), before);
       expect((await s.review.rebaseStatus('filha')).inProgress, isFalse);
+    });
+  });
+
+  group('SPEC-071 R3 · a base das filhas só muda depois do merge da mãe', () {
+    /// `gh` simulated: `pr merge` exits [mergeExit]; `pr view` says OPEN.
+    Future<(Stack, List<List<String>>)> stackWithPrs({
+      required int mergeExit,
+    }) async {
+      final calls = <List<String>>[];
+      final s = await setUpStack(
+        runner: (exe, args, {workingDirectory}) async {
+          if (exe != 'gh') return ProcessResult(1, 0, '', '');
+          calls.add(args);
+          if (args.take(2).join(' ') == 'pr merge') {
+            return ProcessResult(1, mergeExit, '', mergeExit == 0 ? '' : 'x');
+          }
+          if (args.take(2).join(' ') == 'pr view') {
+            return ProcessResult(1, 0, '{"state":"OPEN"}', '');
+          }
+          return ProcessResult(1, 0, '', '');
+        },
+      );
+      // Both branches published (nothing unsent: SPEC-071 R1).
+      final remote = '${tmp.path}/remote.git';
+      await Process.run('git', ['init', '-q', '--bare', remote]);
+      await gitIn(s.repo, ['remote', 'add', 'origin', remote]);
+      await gitIn(s.repo, ['push', '-q', 'origin', 'main']);
+      await gitIn(s.mother, ['push', '-q', '-u', 'origin', 'pr/mae']);
+      await gitIn(s.child, ['push', '-q', '-u', 'origin', 'pr/filha']);
+      final sessions = s.c.read(sessionsRepoProvider);
+      await sessions.setPrUrl('mae', 'https://github.com/o/r/pull/1');
+      await sessions.setPrUrl('filha', 'https://github.com/o/r/pull/2');
+      return (s, calls);
+    }
+
+    String verb(List<String> a) => a.take(2).join(' ');
+
+    test('a failed "Mergear PR" changes no base', () async {
+      final (s, calls) = await stackWithPrs(mergeExit: 1);
+      await expectLater(
+        s.review.mergePr('mae', PrMergeMethod.squash),
+        throwsA(isA<ReviewException>()),
+      );
+      expect(calls.where((a) => verb(a) == 'pr edit'), isEmpty);
+      expect(calls.where((a) => a.contains('DELETE')), isEmpty);
+    });
+
+    test('"Mergear PR": merge without deleting the branch, then the child '
+        'moves to main, then the branch goes', () async {
+      final (s, calls) = await stackWithPrs(mergeExit: 0);
+      await s.review.mergePr('mae', PrMergeMethod.squash);
+      final merge = calls.indexWhere((a) => verb(a) == 'pr merge');
+      final edit = calls.indexWhere(
+        (a) =>
+            verb(a) == 'pr edit' &&
+            a.contains('https://github.com/o/r/pull/2') &&
+            a.contains('main'),
+      );
+      final delete = calls.indexWhere(
+        (a) =>
+            a.first == 'api' &&
+            a.contains('DELETE') &&
+            a.last == 'repos/o/r/git/refs/heads/pr/mae',
+      );
+      expect(calls[merge], isNot(contains('--delete-branch')));
+      expect(merge, lessThan(edit));
+      expect(edit, lessThan(delete));
+      expect(
+        (await gitIn(s.repo, ['branch', '--list', 'pr/mae'])).trim(),
+        isEmpty,
+      );
+    });
+
+    test('a local merge that conflicts changes no base', () async {
+      final (s, calls) = await stackWithPrs(mergeExit: 0);
+      final m = File('${s.mother}/a.txt');
+      m.writeAsStringSync(
+        m.readAsStringSync().replaceFirst('linha 5\n', 'X\n'),
+      );
+      await gitIn(s.mother, ['commit', '-q', '-am', 'SPEC-029 R2: a.txt']);
+      final r = File('${s.repo}/a.txt');
+      r.writeAsStringSync(
+        r.readAsStringSync().replaceFirst('linha 5\n', 'Y\n'),
+      );
+      await gitIn(s.repo, ['commit', '-q', '-am', 'outra spec: a.txt']);
+      await expectLater(
+        s.review.merge(
+          'mae',
+          options: const MergeOptions(method: MergeMethod.squash),
+        ),
+        throwsA(isA<ReviewException>()),
+      );
+      expect(calls.where((a) => verb(a) == 'pr edit'), isEmpty);
     });
   });
 }

@@ -493,12 +493,6 @@ class _Header extends ConsumerWidget {
   final Session session;
   final String? pane;
 
-  void _snack(BuildContext context, Object e) {
-    ScaffoldMessenger.maybeOf(context)
-      ?..hideCurrentSnackBar()
-      ..showAppToast(SnackBar(content: Text('$e')));
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = session;
@@ -639,22 +633,9 @@ class _Header extends ConsumerWidget {
                           ref.read(splitSessionProvider.notifier).set(null),
                     ),
                   if (canResume)
-                    SmallButton(
-                      key: const ValueKey('session-resume'),
-                      label: 'Retomar',
-                      color: AppColors.teal,
-                      onTap: () async {
-                        try {
-                          if (s.status == SessionStatus.interrupted ||
-                              s.status == SessionStatus.failed) {
-                            await manager.send(s.id, 'Continue de onde parou.');
-                          } else {
-                            await manager.resume(s.id);
-                          }
-                        } catch (e) {
-                          if (context.mounted) _snack(context, e);
-                        }
-                      },
+                    _ResumeButton(
+                      key: ValueKey('session-resume-${s.id}'),
+                      session: s,
                     )
                   else
                     SmallButton(
@@ -671,6 +652,59 @@ class _Header extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+void _snack(BuildContext context, Object e) {
+  ScaffoldMessenger.maybeOf(context)
+    ?..hideCurrentSnackBar()
+    ..showAppToast(SnackBar(content: Text('$e')));
+}
+
+/// "Retomar" of the header: busy ("Retomando…", no tap) while it resumes,
+/// so a double click does not send the message twice (SPEC-071 R10).
+class _ResumeButton extends ConsumerStatefulWidget {
+  const _ResumeButton({super.key, required this.session});
+
+  final Session session;
+
+  @override
+  ConsumerState<_ResumeButton> createState() => _ResumeButtonState();
+}
+
+class _ResumeButtonState extends ConsumerState<_ResumeButton> {
+  bool _busy = false;
+
+  Future<void> _resume() async {
+    if (_busy) return;
+    final s = widget.session;
+    final manager = ref.read(sessionManagerProvider.notifier);
+    setState(() => _busy = true);
+    try {
+      if (s.status == SessionStatus.interrupted ||
+          s.status == SessionStatus.failed) {
+        await manager.continueSession(s.id);
+      } else {
+        await manager.resume(s.id);
+      }
+    } catch (e) {
+      if (mounted) _snack(context, e);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final busy =
+        _busy ||
+        ref.read(sessionManagerProvider.notifier).isResuming(widget.session.id);
+    return SmallButton(
+      key: const ValueKey('session-resume'),
+      label: busy ? 'Retomando…' : 'Retomar',
+      color: AppColors.teal,
+      onTap: busy ? null : _resume,
     );
   }
 }

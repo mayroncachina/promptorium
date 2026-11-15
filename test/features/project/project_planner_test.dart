@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/core/providers/claude_code_provider.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_planner.dart';
+import 'package:promptorium/features/project/project_templates.dart';
 
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
@@ -229,9 +232,72 @@ void main() {
     expect(data.stack.claudeMdStale, isFalse);
   });
 
+  test('the template\'s minimal CLAUDE.md goes to the Stack prompt as the '
+      'base; an edited one is not the template\'s (SPEC-071 R23)', () {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-claudemd-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    expect(templateClaudeMd(tmp.path), isNull);
+    final md = templateById('flutter').claudeMd!;
+    File('${tmp.path}/CLAUDE.md').writeAsStringSync(md);
+    expect(templateClaudeMd(tmp.path), md);
+    final prompt = stackPrompt(
+      const VisionPlan(summary: 'Receitas'),
+      baseClaudeMd: templateClaudeMd(tmp.path),
+    );
+    expect(prompt, contains('CLAUDE.md mínimo do modelo de partida'));
+    expect(prompt, contains(md.trim()));
+    expect(
+      stackPrompt(const VisionPlan(summary: 'Receitas')),
+      isNot(contains('CLAUDE.md mínimo')),
+    );
+    File('${tmp.path}/CLAUDE.md').writeAsStringSync('$md\n- Minha regra\n');
+    expect(templateClaudeMd(tmp.path), isNull);
+  });
+
+  test('a pinned area is not duplicated when the planner uses a synonym or '
+      'renames it (SPEC-071 R26)', () {
+    final r = AgentEvent.fromJson(
+      jsonDecode(
+        resultLine({
+          'decisions': [
+            {
+              'area': 'Aplicação',
+              'choice': 'Flutter',
+              'why': '',
+              'alternatives': [],
+            },
+            {
+              'area': 'Gerência',
+              'choice': 'riverpod',
+              'why': '',
+              'alternatives': [],
+            },
+            {
+              'area': 'Banco',
+              'choice': 'SQLite',
+              'why': '',
+              'alternatives': [],
+            },
+          ],
+          'claudeMd': '# App',
+        }),
+      ) as Map<String, dynamic>,
+    ) as Result;
+    final stack = parseStackResult(r, fixed: templateById('flutter').decisions);
+    expect(stack.decisions.map((d) => '${d.area}: ${d.choice}'), [
+      'App: Flutter',
+      'Estado: Riverpod',
+      'Banco: SQLite',
+    ]);
+    expect(stackAreaKey(' Aplicação '), 'app');
+  });
+
   test('proposeAll: vision, stack and roadmap in sequence, landing on '
       'Revisar e criar (UX v2, U7)', () async {
     await planner().start(ws);
+    // SPEC-071 R26: busy from the first step to the last, never idle between.
+    final busy = <String?>[];
+    c.listen(projectPlannerProvider, (_, next) => busy.add(next[ws.id]?.busy));
     final f = planner().proposeAll(ws, 'App de receitas da família');
     await settle();
     expect(cli.processes, hasLength(1));
@@ -274,6 +340,12 @@ void main() {
       }),
     );
     await f;
+    expect(busy.last, isNull);
+    expect(busy.sublist(0, busy.length - 1), everyElement(isNotNull));
+    expect(
+      busy,
+      containsAllInOrder(['Propondo a stack…', 'Montando o roadmap…']),
+    );
     final (row, data) = await load();
     expect(data.vision.name, 'Receitas');
     expect(data.stack.decisions.single.choice, 'Flutter');

@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/providers/agent_provider.dart' show PromptMode;
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/spec_runner.dart'
+    show gateRunningProvider;
 import 'package:promptorium/features/prompt/conversation_manager.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
@@ -206,5 +208,99 @@ void main() {
     expect(report.ok, isFalse);
     final now = (await c.read(specsRepoProvider).getById(r.spec.id))!;
     expect(now.stage, SpecStage.running);
+  });
+
+  group('SPEC-071 R5', () {
+    test('while the gate runs the conversation takes no request', () async {
+      final r = await service().start(ws, 'Botão verde');
+      final run = provider.last;
+      run.emit(initLine(run.options.sessionId!));
+      run.emit(resultLine());
+      await settle();
+      final sent = run.sent.length;
+      c.read(gateRunningProvider.notifier).add(r.spec.id);
+      await expectLater(
+        c
+            .read(conversationManagerProvider.notifier)
+            .send(r.conversationId, 'mais verde'),
+        throwsA(
+          isA<ConversationException>().having(
+            (e) => e.message,
+            'message',
+            contains('Verificando VIBE-001'),
+          ),
+        ),
+      );
+      expect(run.sent.length, sent);
+      c.read(gateRunningProvider.notifier).remove(r.spec.id);
+      await c
+          .read(conversationManagerProvider.notifier)
+          .send(r.conversationId, 'mais verde');
+      expect(run.sent.last, 'mais verde');
+    });
+
+    test('the merge of a VIBE whose agent is working is refused with the '
+        'reason; idle, the merge stops the conversation\'s process', () async {
+      final r = await service().start(ws, 'Botão verde');
+      final run = provider.last;
+      run.emit(initLine(run.options.sessionId!));
+      run.emit(resultLine());
+      await settle();
+      final spec = (await c.read(specsRepoProvider).getById(r.spec.id))!;
+      File('${spec.worktreePath}/a.txt').writeAsStringSync('verde\n');
+      final report = await service().sendToReview(spec.id);
+      expect(report.ok, isTrue, reason: report.encode());
+      final session = (await c.read(sessionsRepoProvider).bySpec(spec.id))
+          .single;
+      final review = c.read(reviewServiceProvider);
+
+      // The gate again ("Verificando…"): refused.
+      c.read(gateRunningProvider.notifier).add(spec.id);
+      await expectLater(
+        review.merge(session.id, override: 'teste'),
+        throwsA(
+          isA<ReviewException>().having(
+            (e) => e.message,
+            'message',
+            contains('em verificação'),
+          ),
+        ),
+      );
+      c.read(gateRunningProvider.notifier).remove(spec.id);
+
+      // The agent answering: refused, nothing touched.
+      await c
+          .read(conversationManagerProvider.notifier)
+          .send(r.conversationId, 'mais verde');
+      expect(
+        c.read(conversationManagerProvider).isBusy(r.conversationId),
+        isTrue,
+      );
+      await expectLater(
+        review.merge(session.id, override: 'teste'),
+        throwsA(
+          isA<ReviewException>().having(
+            (e) => e.message,
+            'message',
+            contains('ainda está trabalhando'),
+          ),
+        ),
+      );
+      expect(Directory(spec.worktreePath!).existsSync(), isTrue);
+      expect(
+        c.read(conversationManagerProvider).isBusy(r.conversationId),
+        isTrue,
+      );
+
+      // Idle: the merge goes and the process of the conversation stops.
+      run.emit(resultLine());
+      await settle();
+      await review.merge(session.id, override: 'teste');
+      expect(
+        c.read(conversationManagerProvider.notifier).isAlive(r.conversationId),
+        isFalse,
+      );
+      expect(Directory(spec.worktreePath!).existsSync(), isFalse);
+    });
   });
 }

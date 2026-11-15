@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,8 @@ import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/review/widgets/spec_review_panel.dart'
     show pendingCriteriaProvider;
+import 'package:promptorium/features/sessions/widgets/session_style.dart'
+    show AmberButton;
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
@@ -100,9 +104,13 @@ class _FakeReview extends ReviewService {
     String? override,
     MergeOptions options = const MergeOptions(),
   }) async {
+    await mergeGate?.future;
     merged.add(sessionId);
     return const MergeResult(commit: 'abcdef1234');
   }
+
+  /// While set, [merge] waits for it (a slow merge).
+  Completer<void>? mergeGate;
 }
 
 final launched = <(String, List<String>, String)>[];
@@ -438,5 +446,58 @@ void main() {
     expect(f.calls, ['abort x']);
     // The notices leave after their 8 s.
     await tester.pump(const Duration(seconds: 10));
+  });
+
+  testWidgets('SPEC-071 R4 · a merge locks the list and every merge button '
+      'of the workspace; its end (selection, notice) happens even after the '
+      'item on screen changed', (tester) async {
+    final c = await pumpStack(tester);
+    final review = c.read(reviewServiceProvider) as _FakeReview;
+    review.mergeGate = Completer<void>();
+    await tester.tap(find.byKey(const ValueKey('review-merge')));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    await tester.tap(find.byKey(const ValueKey('review-merge-confirm')));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    final ws = c.read(activeWorkspaceProvider)!;
+    expect(c.read(mergeInProgressProvider(ws.id)), 'Fazer merge');
+    // The list does not change the item while the merge runs.
+    await tester.tap(card('x'));
+    await tester.pump();
+    expect(c.read(selectedReviewProvider), isNull);
+    // Something else moves the screen (the merged item leaves the queue):
+    // the merging widget goes away, and no merge starts on the new item.
+    c.read(selectedReviewProvider.notifier).select('x');
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('review-title'))).data,
+      'SPEC-030',
+    );
+    expect(
+      tester
+          .widget<AmberButton>(find.byKey(const ValueKey('review-merge')))
+          .onTap,
+      isNull,
+    );
+    review.mergeGate!.complete();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(tester.takeException(), isNull);
+    expect(review.merged, ['a']);
+    expect(c.read(mergeInProgressProvider(ws.id)), isNull);
+    expect(c.read(selectedReviewProvider), 'b');
+    expect(
+      find.textContaining('SPEC-029 entrou na main · seguindo para SPEC-031'),
+      findsOneWidget,
+    );
   });
 }

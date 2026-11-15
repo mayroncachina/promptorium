@@ -1349,6 +1349,7 @@ class _Board extends StatelessWidget {
                     ),
                     waves: s == SpecStage.backlog ? dependencyWaves(all) : null,
                     limit: s == SpecStage.running ? parallel : null,
+                    byId: {for (final x in all) x.id: x},
                     order: [
                       for (final spec
                           in all.where((x) => x.stage == s).toList()
@@ -1434,11 +1435,21 @@ class _Column extends ConsumerWidget {
     required this.order,
     this.waves,
     this.limit,
+    this.byId = const {},
   });
 
   final SpecStage stage;
   final double width;
   final List<SpecCardData> cards;
+
+  /// Every spec of the board, to tell a valid drop (SPEC-071 R9).
+  final Map<int, Spec> byId;
+
+  /// Why the spec [id] cannot be dropped here (null = it can).
+  String? _whyNot(int? id) {
+    final spec = id == null ? null : byId[id];
+    return spec == null ? null : manualMoveBlock(spec, stage);
+  }
 
   /// Ids of every spec of the column in board order (hidden by the filters
   /// too): what "↑ / ↓" saves.
@@ -1456,12 +1467,16 @@ class _Column extends ConsumerWidget {
     final focusHere = focus != null && cards.any((c) => c.spec.id == focus);
     return DragTarget<int>(
       key: ValueKey('board-column-${stage.name}'),
-      onWillAcceptWithDetails: (d) => !cards.any((c) => c.spec.id == d.data),
+      onWillAcceptWithDetails: (d) =>
+          !cards.any((c) => c.spec.id == d.data) &&
+          byId.containsKey(d.data) &&
+          _whyNot(d.data) == null,
       onAcceptWithDetails: (d) {
+        if (_whyNot(d.data) != null) return;
         BoardFlights.of(context).drop(d.data, d.offset, width - 20);
         ref.read(specsRepoProvider).setStage(d.data, stage);
       },
-      builder: (context, candidate, _) => Container(
+      builder: (context, candidate, rejected) => Container(
         // A glass column (SPEC-049 R3).
         decoration: BoxDecoration(
           color: AppColors.panel,
@@ -1505,6 +1520,42 @@ class _Column extends ConsumerWidget {
                 ],
               ),
             ),
+            // SPEC-071 R9: an invalid column does not light up and says why.
+            if (rejected.whereType<int>().map(_whyNot).nonNulls.firstOrNull
+                case final why?)
+              Container(
+                key: ValueKey('board-column-why-${stage.name}'),
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceRaised,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: GlassColors.hairline),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.block,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        why,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: cards.isEmpty
                   ? const Center(
@@ -2402,7 +2453,9 @@ class _CardMenu extends ConsumerWidget {
               if (context.mounted) await _moveToSprint(context, ref, spec);
             default:
               final s = SpecStage.values.asNameMap()[v];
-              if (s != null) await repo.setStage(spec.id, s);
+              if (s != null && manualMoveBlock(spec, s) == null) {
+                await repo.setStage(spec.id, s);
+              }
           }
         },
         itemBuilder: (_) => [
@@ -2445,8 +2498,9 @@ class _CardMenu extends ConsumerWidget {
               value: 'down',
               child: Text('Descer na coluna', style: TextStyle(fontSize: 12)),
             ),
+          // SPEC-071 R9: only the columns a person may move it to.
           for (final s in SpecStage.values)
-            if (s != spec.stage)
+            if (s != spec.stage && manualMoveBlock(spec, s) == null)
               PopupMenuItem(
                 value: s.name,
                 child: Text(

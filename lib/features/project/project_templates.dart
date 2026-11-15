@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 import 'project_config.dart';
@@ -138,3 +140,22 @@ const projectTemplates = [
 ProjectTemplate templateById(String? id) =>
     projectTemplates.where((t) => t.id == id).firstOrNull ??
     projectTemplates.first;
+
+/// The `CLAUDE.md` of [workspacePath] when it is still the minimal one a
+/// template wrote at creation (SPEC-071 R23): the plan's CLAUDE.md replaces
+/// it, and the planner starts from it. Null when absent or edited.
+String? templateClaudeMd(String workspacePath) {
+  final f = File('$workspacePath/CLAUDE.md');
+  if (!f.existsSync()) return null;
+  final String text;
+  try {
+    text = f.readAsStringSync();
+  } on FileSystemException {
+    return null;
+  }
+  final mine = text.trim();
+  for (final t in projectTemplates) {
+    if (t.claudeMd?.trim() == mine && mine.isNotEmpty) return text;
+  }
+  return null;
+}

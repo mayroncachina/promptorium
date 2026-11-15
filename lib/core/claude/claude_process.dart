@@ -60,13 +60,19 @@ class ClaudeProcess {
     _events = StreamController<ClaudeEvent>.broadcast(onListen: _flush);
     _logs = StreamController<String>.broadcast();
     _stdoutSub = _process.stdout
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen(_onLine, onDone: _onStdoutDone, onError: _onStreamError);
     _stderrSub = _process.stderr
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
-        .listen(_log, onError: _onStreamError);
+        .listen(
+          _log,
+          onError: _onStreamError,
+          onDone: () {
+            if (!_stderrDone.isCompleted) _stderrDone.complete();
+          },
+        );
     // Broken pipe after exit must not crash the app.
     _process.stdin.done.catchError((Object e) {
       _log('stdin: $e');
@@ -118,6 +124,9 @@ class ClaudeProcess {
   late final StreamController<ClaudeEvent> _events;
   late final StreamController<String> _logs;
   late final StreamSubscription<String> _stdoutSub;
+
+  /// Completed when stderr ends (it usually closes before stdout).
+  final _stderrDone = Completer<void>();
   late final StreamSubscription<String> _stderrSub;
   late final Future<int> _exitCode;
   bool _exited = false;
@@ -306,7 +315,9 @@ class ClaudeProcess {
   }
 
   Future<void> _onStdoutDone() async {
-    await _stderrSub.asFuture<void>().catchError((_) {});
+    // `asFuture` on a subscription that already finished never completes
+    // (SPEC-071 R13): wait on a flag set by stderr's own onDone instead.
+    await _stderrDone.future;
     await _stdoutSub.cancel();
     await _finish();
   }

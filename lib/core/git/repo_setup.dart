@@ -18,7 +18,13 @@ class RepoSetup {
   /// Never waits on a username/password prompt (`git clone` over https from
   /// a terminal-launched app would hang otherwise); the failure is reported.
   static Future<ProcessResult> _defaultRun(String exe, List<String> args) =>
-      Process.run(exe, args, environment: const {'GIT_TERMINAL_PROMPT': '0'});
+      Process.run(
+        exe,
+        args,
+        environment: const {'GIT_TERMINAL_PROMPT': '0'},
+        stdoutEncoding: lenientUtf8,
+        stderrEncoding: lenientUtf8,
+      );
 
   /// Whether [folder] has no entries (a clone can go straight into it).
   bool isEmptyFolder(String folder) => Directory(folder).listSync().isEmpty;
@@ -34,7 +40,7 @@ class RepoSetup {
     final url = remoteUrl?.trim();
     if (url != null && url.isNotEmpty) _checkUrl(url);
     final git = GitService(folder, run: _run);
-    await git.git(['init', '-q']);
+    await _initMain(git);
     if (url != null && url.isNotEmpty) {
       final remotes = (await git.git(['remote'])).split('\n');
       await git.git([
@@ -46,6 +52,81 @@ class RepoSetup {
     }
     if (commitFiles) await git.git(['add', '-A']);
     await git.git(['commit', '-q', '--allow-empty', '-m', 'Commit inicial']);
+  }
+
+  /// `git init -b main` (R25). A git older than 2.28 has no `-b`, and a
+  /// re-init of a folder left by an older failure ignores it, so an unborn
+  /// HEAD (no commits yet) is always pointed at `main` by hand.
+  Future<void> _initMain(GitService git) async {
+    try {
+      await git.git(['init', '-q', '-b', 'main']);
+    } on GitException catch (e) {
+      final err = '${e.stderr}${e.stdout}';
+      if (!err.contains('unknown switch') && !err.contains('initial-branch')) {
+        rethrow;
+      }
+      await git.git(['init', '-q']);
+    }
+    try {
+      await git.git(['rev-parse', '--verify', '-q', 'HEAD']);
+    } on GitException {
+      await git.git(['symbolic-ref', 'HEAD', 'refs/heads/main']);
+    }
+  }
+
+  /// Fails (with [missingGitIdentity]) when git has no name / e-mail to
+  /// commit with, as effective in [folder] (env, global and system config).
+  /// `git var` applies the same rule as `git commit`, so this is checked
+  /// before anything is created (R21).
+  Future<void> checkIdentity(String folder) async {
+    final git = GitService(folder, run: _run);
+    try {
+      await git.git(['var', 'GIT_AUTHOR_IDENT']);
+      await git.git(['var', 'GIT_COMMITTER_IDENT']);
+    } on GitException catch (e) {
+      if (e.message == 'git não encontrado') {
+        throw const InvalidWorkspaceFolder(
+          'O git não foi encontrado. Instale o git e tente de novo.',
+        );
+      }
+      throw const InvalidWorkspaceFolder(missingGitIdentity);
+    }
+  }
+
+  /// Whether [folder] holds only what a failed "Novo projeto" left behind: a
+  /// `.git` without commits, plus the template files (`CLAUDE.md`,
+  /// `.promptorium/config.yml`). Creating again there is safe (R21).
+  Future<bool> isCreationLeftover(String folder) async {
+    final entries = Directory(folder).listSync();
+    var hasGit = false;
+    for (final e in entries) {
+      final name = e.uri.pathSegments.where((p) => p.isNotEmpty).last;
+      switch (name) {
+        case '.git' when e is Directory:
+          hasGit = true;
+        case 'CLAUDE.md' when e is File:
+          break;
+        case '.promptorium' when e is Directory:
+          final inside = e.listSync();
+          if (inside.any(
+            (f) => f is! File || !f.path.endsWith('/config.yml'),
+          )) {
+            return false;
+          }
+        default:
+          return false;
+      }
+    }
+    if (!hasGit) return entries.isEmpty;
+    try {
+      await GitService(
+        folder,
+        run: _run,
+      ).git(['rev-parse', '--verify', '-q', 'HEAD']);
+      return false; // it has commits: someone's repository
+    } on GitException {
+      return true;
+    }
   }
 
   /// `git clone <url>` into [cloneDestination]; returns that folder.
@@ -99,6 +180,13 @@ class RepoSetup {
   }
 }
 
+/// How to fix a missing git identity (pt-BR, shown in "Novo projeto").
+const missingGitIdentity =
+    'O git ainda não sabe quem você é, e o primeiro commit precisa disso. '
+    'Configure seu nome e e-mail no terminal e tente de novo:\n'
+    '  git config --global user.name "Seu Nome"\n'
+    '  git config --global user.email "voce@exemplo.com"';
+
 /// User-facing text for a failed init / clone.
 String repoSetupError(Object e) {
   if (e is InvalidWorkspaceFolder) return e.message;
@@ -106,8 +194,7 @@ String repoSetupError(Object e) {
   final err = e.stderr.trim();
   if (err.contains('Please tell me who you are') ||
       err.contains('user.email')) {
-    return 'Configure seu nome e e-mail no git (git config --global '
-        'user.name / user.email) e tente de novo.';
+    return missingGitIdentity;
   }
   if (err.contains('terminal prompts disabled') ||
       err.contains('could not read Username')) {

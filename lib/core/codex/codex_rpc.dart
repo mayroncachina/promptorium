@@ -10,11 +10,11 @@ class CodexRpc {
   CodexRpc(this.process, {this.timeout = const Duration(seconds: 30)}) {
     process.stdin.done.catchError((Object _) {});
     process.stdout
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen(_line, onDone: _done, onError: (Object e) => _done());
     process.stderr
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
         .listen((s) => _log(s), onError: (Object _) {});
     exitCode = process.exitCode.then((code) {
@@ -34,8 +34,9 @@ class CodexRpc {
   final logs = StreamController<String>.broadcast();
   Future<void> _writes = Future.value();
 
+  /// Scrubs credentials from free text (logs, error messages).
   static String redact(String s) => s
-      .replaceAll(RegExp(r'sk-[A-Za-z0-9_-]+'), '[redigido]')
+      .replaceAll(RegExp(r'\bsk-[A-Za-z0-9_-]+'), '[redigido]')
       .replaceAll(
         RegExp(r'Bearer\s+\S+', caseSensitive: false),
         'Bearer [redigido]',
@@ -47,6 +48,26 @@ class CodexRpc {
         ),
         (m) => '${m[1]}[redigido]',
       );
+
+  static final _secretKey = RegExp(
+    r'^(?:access_token|refresh_token|api_key|authorization)$',
+    caseSensitive: false,
+  );
+
+  /// [redact] applied to every string value of a decoded JSON structure, so
+  /// the result stays valid JSON (SPEC-071 R14). The value of a credential
+  /// key (`access_token`, `api_key`, …) is replaced whole.
+  static Object? redactJson(Object? value) => switch (value) {
+    String s => redact(s),
+    Map<dynamic, dynamic> m => <String, dynamic>{
+      for (final e in m.entries)
+        '${e.key}': e.value is String && _secretKey.hasMatch('${e.key}')
+            ? '[redigido]'
+            : redactJson(e.value),
+    },
+    List<dynamic> l => [for (final v in l) redactJson(v)],
+    _ => value,
+  };
 
   void _log(String line) {
     if (!logs.isClosed) logs.add(redact(line));

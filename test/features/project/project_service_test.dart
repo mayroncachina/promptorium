@@ -11,7 +11,8 @@ import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_service.dart';
 import 'package:promptorium/features/project/project_templates.dart';
-import 'package:promptorium/features/specs/spec_file.dart';
+import 'package:promptorium/features/board/board_rules.dart';
+import 'package:promptorium/features/specs/spec_service.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../core/git/repo_setup_test.dart' show gitRun;
@@ -48,6 +49,34 @@ const plan = ProjectPlanData(
     ],
   ),
 );
+
+/// Fails the [failAt]-th creation (1-based) while [failAt] is set.
+class _FlakySpecService extends SpecService {
+  _FlakySpecService(super.repo);
+
+  int? failAt;
+  var calls = 0;
+
+  @override
+  Future<Spec> create(
+    Workspace ws, {
+    required String title,
+    String? body,
+    String Function(String code)? render,
+    String? agentSession,
+    bool inTray = true,
+  }) {
+    if (++calls == failAt) throw const SpecException('disco cheio');
+    return super.create(
+      ws,
+      title: title,
+      body: body,
+      render: render,
+      agentSession: agentSession,
+      inTray: inTray,
+    );
+  }
+}
 
 void main() {
   late Directory tmp;
@@ -181,6 +210,69 @@ void main() {
     await bad(tmp.path, 'arquivo', 'Já existe um arquivo');
   });
 
+  test('createProject without a git identity creates nothing and says how '
+      'to configure it; a folder left by a failed creation is accepted on '
+      'retry, on branch main (SPEC-071 R21, R25)', () async {
+    final home = Directory('${tmp.path}/home')..createSync();
+    Future<ProcessResult> noIdentity(String exe, List<String> args) =>
+        Process.run(
+          exe,
+          args,
+          includeParentEnvironment: false,
+          environment: {
+            'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
+            'HOME': home.path,
+            'XDG_CONFIG_HOME': home.path,
+            'GIT_CONFIG_NOSYSTEM': '1',
+            'GIT_TERMINAL_PROMPT': '0',
+            'GIT_CONFIG_COUNT': '1',
+            'GIT_CONFIG_KEY_0': 'user.useConfigOnly',
+            'GIT_CONFIG_VALUE_0': 'true',
+          },
+        );
+    final local = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        processRunnerProvider.overrideWithValue(noIdentity),
+        repoSetupProvider.overrideWithValue(RepoSetup(run: noIdentity)),
+      ],
+    );
+    addTearDown(local.dispose);
+    await local.read(appSettingsProvider.notifier).load();
+    await expectLater(
+      local
+          .read(projectServiceProvider)
+          .createProject(parent: tmp.path, name: 'sem-git'),
+      throwsA(
+        isA<ProjectException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('git config --global user.email'), contains('nome')),
+        ),
+      ),
+    );
+    expect(Directory('${tmp.path}/sem-git').existsSync(), isFalse);
+
+    // What an older failure left: .git without commits and template files.
+    final left = '${tmp.path}/sobra';
+    await gitIn(tmp.path, ['init', '-q', left]);
+    File('$left/CLAUDE.md').writeAsStringSync('# modelo\n');
+    await ProjectConfig.save(left, templateById('flutter').config);
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'sobra',
+      template: templateById('flutter'),
+    );
+    expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
+    expect(await gitIn(ws.path, ['branch', '--show-current']), 'main\n');
+
+    // A folder with a real repository (commits) is still refused.
+    await expectLater(
+      service().createProject(parent: tmp.path, name: 'sobra'),
+      throwsA(isA<ProjectException>()),
+    );
+  });
+
   test('materialize: CLAUDE.md, approved specs with translated '
       'dependencies and one commit with exactly those files', () async {
     final ws = await service().createProject(
@@ -254,6 +346,59 @@ void main() {
     await expectLater(
       service().materialize(ws),
       throwsA(isA<ProjectException>()),
+    );
+  });
+
+  test('materialize puts every spec on the Quadro (not in the Bandeja), and '
+      'a retry after a failure halfway does not duplicate them (SPEC-071 '
+      'R22)', () async {
+    late _FlakySpecService flaky;
+    final local = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        processRunnerProvider.overrideWithValue(gitRun),
+        repoSetupProvider.overrideWithValue(RepoSetup(run: gitRun)),
+        gitServiceFactoryProvider.overrideWithValue(
+          (root) => GitService(root, run: gitRun),
+        ),
+        specServiceProvider.overrideWith(
+          (ref) => flaky = _FlakySpecService(ref.watch(specsRepoProvider)),
+        ),
+      ],
+    );
+    addTearDown(local.dispose);
+    await local.read(appSettingsProvider.notifier).load();
+    final svc = local.read(projectServiceProvider);
+    final ws = await svc.createProject(parent: tmp.path, name: 'quadro');
+    await local
+        .read(projectPlansRepoProvider)
+        .update(ws.id, ProjectPlansCompanion(data: Value(plan.encode())));
+
+    local.read(specServiceProvider);
+    flaky.failAt = 3;
+    await expectLater(svc.materialize(ws), throwsA(isA<SpecException>()));
+    final half = await local
+        .read(specsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    expect(half, hasLength(2));
+
+    flaky.failAt = null;
+    final out = await svc.materialize(ws);
+    final rows = await local
+        .read(specsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    expect(rows.map((r) => r.code), ['SPEC-001', 'SPEC-002', 'SPEC-003']);
+    expect(out.specs.map((s) => s.code), ['SPEC-001', 'SPEC-002', 'SPEC-003']);
+    expect(rows.every(isOnBoard), isTrue);
+    expect(rows.any((r) => r.inTray), isFalse);
+    expect(rows.singleWhere((r) => r.code == 'SPEC-003').dependsOn, [
+      'SPEC-002',
+    ]);
+    expect(
+      Directory('${ws.path}/specs').listSync().map((f) => f.path).length,
+      3,
     );
   });
 

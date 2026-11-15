@@ -435,6 +435,11 @@ void main() {
       final meta = importedPrOf(e.c.read(appSettingsProvider), id)!;
       expect(meta.canPush, isFalse);
       expect(meta.pushTo, 'git@github.com:bea-lima/r.git');
+      // SPEC-071 R2: "Acompanhar PR" later only sends what comes after.
+      expect(
+        e.c.read(appSettingsProvider)[PrBabysitter.seenKey(id)],
+        isNotNull,
+      );
 
       final editable = PrImportCandidate(
         pr: parseGhOpenPr(prJson(fork: true, canModify: true))!,

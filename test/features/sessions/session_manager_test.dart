@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -386,6 +387,80 @@ void main() {
     await m.send(id, 'Continue');
     expect(cli.processes, hasLength(3));
     expect(cli.last.writtenJson.last['message'], isNotNull);
+  });
+
+  test('SPEC-071 R7: a message at the idle tick keeps the session alive and '
+      'reaches the agent', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Ociosa', prompt: 'Oi'),
+    );
+    for (final l in fixtureLines()) {
+      cli.last.emit(l);
+    }
+    await settle();
+    final later = DateTime.now().add(const Duration(minutes: 16));
+    // The tick and the message at the same instant.
+    await Future.wait([m.closeIdle(now: later), m.send(id, 'Ainda aqui')]);
+    await settle();
+    expect(m.isAlive(id), isTrue);
+    final got = [
+      for (final j in cli.last.writtenJson) jsonEncode(j['message']),
+    ];
+    expect(got.where((t) => t.contains('Ainda aqui')), hasLength(1));
+    expect(
+      (await c.read(sessionsRepoProvider).getById(id))!.status,
+      SessionStatus.running,
+    );
+  });
+
+  test('SPEC-071 R10: "Retomar" twice sends "Continue" once', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Caiu', prompt: 'Oi'),
+    );
+    await m.release(id);
+    await c.read(sessionsRepoProvider).setStatus(id, SessionStatus.interrupted);
+    final gate = cli.gate = Completer<void>();
+    final both = Future.wait([m.continueSession(id), m.continueSession(id)]);
+    expect(m.isResuming(id), isTrue);
+    gate.complete();
+    await both;
+    expect(m.isResuming(id), isFalse);
+    expect(cli.processes, hasLength(2));
+    final sent = [
+      for (final j in cli.last.writtenJson)
+        if (jsonEncode(j).contains(SessionManager.continueMessage)) j,
+    ];
+    expect(sent, hasLength(1));
   });
 
   test('create → events persisted → approval → result: done/idle', () async {
