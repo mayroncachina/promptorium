@@ -403,6 +403,11 @@ void main() {
     // Remote without URL is refused before touching the disk.
     await tester.tap(find.byType(Radio<bool>).last);
     await tester.pump();
+    // SPEC-071 R26: Enter in the name creates, like the main button.
+    await tester.showKeyboard(find.byKey(const ValueKey('start-name')));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(find.text('Informe a URL do repositório remoto.'), findsOneWidget);
     await tester.tap(create);
     await tester.pump();
     expect(find.text('Informe a URL do repositório remoto.'), findsOneWidget);

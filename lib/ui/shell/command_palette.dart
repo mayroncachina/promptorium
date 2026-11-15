@@ -212,7 +212,7 @@ List<PaletteCommand> paletteCommands(
               group: 'Pendentes',
               run: () async {
                 try {
-                  await manager.send(id, 'Continue de onde parou.');
+                  await manager.continueSession(id);
                   openSession(id);
                 } catch (e) {
                   toast('$e');
@@ -283,6 +283,7 @@ List<PaletteCommand> paletteCommands(
           s.stage != SpecStage.done &&
           s.stage != SpecStage.review &&
           !ref.read(gateRunningProvider).contains(s.id) &&
+          !ref.read(specRunnerProvider).isStarting(s.id) &&
           specBlockers(s, byCode, reviewUnblocks: true).isEmpty)
         PaletteCommand(
           label: 'Executar ${s.code}',

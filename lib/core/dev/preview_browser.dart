@@ -247,6 +247,7 @@ class PreviewBrowser {
   final Future<void> Function(Uri url) _fallback;
 
   final _windows = <String, _Window>{};
+  final _opening = <String, Future<PreviewOpen>>{};
   final _changes = StreamController<void>.broadcast();
 
   static Future<Process> _start(
@@ -284,7 +285,26 @@ class PreviewBrowser {
   /// "Abrir preview" (R6): a second call brings the same window forward.
   /// Without a browser, `xdg-open` (R9). The window closes when [server]
   /// is no longer up (R10).
+  ///
+  /// Calls for the same worktree are serialized (R18): a double click while
+  /// the browser is starting waits for that opening instead of starting a
+  /// second Chromium on the same profile (which would hand off and exit,
+  /// leaving the visible window untracked).
   Future<PreviewOpen> open({
+    required String worktree,
+    required Uri url,
+    DevServer? server,
+  }) {
+    final pending = _opening[worktree];
+    if (pending != null) return pending;
+    final f = _open(worktree: worktree, url: url, server: server);
+    _opening[worktree] = f;
+    return f.whenComplete(() {
+      if (identical(_opening[worktree], f)) _opening.remove(worktree);
+    });
+  }
+
+  Future<PreviewOpen> _open({
     required String worktree,
     required Uri url,
     DevServer? server,

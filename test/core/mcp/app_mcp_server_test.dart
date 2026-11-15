@@ -52,6 +52,20 @@ void main() {
     'params': ?params,
   };
 
+  test('stop during start leaves no socket listening (SPEC-071 R19)', () async {
+    final other = AppMcpServer(RecordingToolbox());
+    final starting = other.start();
+    final stopping = other.stop();
+    final bound = await starting;
+    await stopping;
+    expect(other.running, isFalse);
+    expect(other.port, isNull);
+    await expectLater(
+      Socket.connect(InternetAddress.loopbackIPv4, bound),
+      throwsA(isA<SocketException>()),
+    );
+  });
+
   group('R2 · token', () {
     test('a call without a token is refused (401)', () async {
       final r = await mcpPost(port, rpc('tools/list'));

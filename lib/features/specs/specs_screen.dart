@@ -35,6 +35,7 @@ import 'spec_lint.dart';
 import 'spec_planner.dart';
 import 'spec_editor_handle.dart';
 import 'spec_service.dart';
+import 'workspace_watcher.dart';
 import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
@@ -473,7 +474,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   int? _syncedWorkspace;
   int? _loadedSpecId;
   CodeLineEditingController? _controller;
-  String _saved = '';
+  String _savedText = '';
+
+  /// The text of the editor as last loaded or saved.
+  String get _saved => _savedText;
+  set _saved(String text) {
+    _savedText = text;
+    _disk = null;
+  }
+
+  /// The file as the last save left it, when the service wrote something
+  /// other than [_saved] (a dependency written back to the frontmatter).
+  String? _disk;
+
+  /// What the file should still have (SPEC-071 R8): a save over anything
+  /// else is a conflict.
+  String get _expectedOnDisk => _disk ?? _saved;
   bool _loading = false;
 
   /// The spec whose text is in [_controller]. It differs from [_loadedSpecId]
@@ -733,16 +749,66 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         c.text = SpecDocument.parse(c.text).withCanonicalDependsOn();
       }
       final text = c.text;
-      final saved = await ref.read(specServiceProvider).save(ws, spec, text);
+      final service = ref.read(specServiceProvider);
+      Spec saved;
+      try {
+        // SPEC-071 R8: never over a change made outside the app.
+        saved = await service.save(
+          ws,
+          spec,
+          text,
+          expectedText: _expectedOnDisk,
+        );
+      } on SpecException {
+        final disk = await service.read(ws, spec);
+        if (disk == null || disk == _expectedOnDisk) rethrow;
+        if (!mounted || _docSpecId != spec.id) return null;
+        final keep = await showSpecConflictDialog(
+          context,
+          code: spec.code,
+          disk: disk,
+          draft: text,
+        );
+        if (!mounted || _docSpecId != spec.id || _loadedSpecId != spec.id) {
+          return null;
+        }
+        if (!keep) {
+          await _load(ws, spec);
+          return null;
+        }
+        saved = await service.save(ws, spec, text, expectedText: disk);
+      }
       if (!mounted || _docSpecId != spec.id) return saved;
       setState(() => _saved = text);
       ref.read(specDirtyProvider.notifier).set(_dirty);
       ref.invalidate(specSubagentsProvider);
+      // The service may have written a little more (a dependency back in
+      // the frontmatter): the next save compares with the file itself.
+      final written = await service.read(ws, spec);
+      if (mounted && _saved == text && written != null && written != text) {
+        _disk = written;
+      }
       return saved;
     } catch (e) {
       _snack('Falha ao salvar: $e');
       return null;
     }
+  }
+
+  /// SPEC-071 R8: the open spec changed on disk. Without unsaved changes
+  /// the editor shows the new text; with them, the next save asks.
+  Future<void> _reloadExternal(Workspace ws, Spec spec) async {
+    if (_loading || _dirty || _held(spec.id)) return;
+    if (_docSpecId != spec.id || _loadedSpecId != spec.id) return;
+    final String? disk;
+    try {
+      disk = await ref.read(specServiceProvider).read(ws, spec);
+    } catch (_) {
+      return;
+    }
+    if (!mounted || disk == null || disk == _expectedOnDisk) return;
+    if (_loading || _dirty || _loadedSpecId != spec.id) return;
+    await _load(ws, spec);
   }
 
   /// The agent wrote the open spec (SPEC-037 R10): the editor shows the new
@@ -1638,6 +1704,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
         ? null
         : ref.watch(specAutoPlannerProvider.select((s) => s.lockOf(spec.id)));
     if (spec != null) {
+      ref.listen(specFilesChangedProvider, (_, paths) {
+        if (spec.id != _loadedSpecId) return;
+        if (!paths.contains('${ws.path}/${spec.path}')) return;
+        unawaited(_reloadExternal(ws, spec));
+      });
       ref.listen(specAutoPlannerProvider, (previous, next) {
         if (spec.id != _loadedSpecId) return;
         final was = previous?.lockOf(spec.id), now = next.lockOf(spec.id);

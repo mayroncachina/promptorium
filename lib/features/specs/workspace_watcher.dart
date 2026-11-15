@@ -111,7 +111,11 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
     if (!configChanged && !specsChanged) return;
     try {
       await ref.read(specServiceProvider).sync(ws);
-      if (ref.mounted && _ws?.id == ws.id) await _checkRunning(ws, paths);
+      if (ref.mounted && _ws?.id == ws.id) {
+        // SPEC-071 R8: the open editor reloads a file changed outside.
+        ref.read(specFilesChangedProvider.notifier).changed(paths);
+        await _checkRunning(ws, paths);
+      }
     } catch (e) {
       debugPrint('watch de specs: $e');
     }
@@ -149,3 +153,16 @@ class WorkspaceWatcher extends Notifier<Set<int>> {
 final workspaceWatcherProvider = NotifierProvider<WorkspaceWatcher, Set<int>>(
   WorkspaceWatcher.new,
 );
+
+/// Files of the specs folder changed on disk (SPEC-071 R8): the last
+/// batch of absolute paths, after the sync. The spec editor reloads the
+/// open spec from it when it has no unsaved changes.
+class SpecFilesChanged extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void changed(Set<String> paths) => state = {...paths};
+}
+
+final specFilesChangedProvider =
+    NotifierProvider<SpecFilesChanged, Set<String>>(SpecFilesChanged.new);

@@ -12,6 +12,7 @@ import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import 'project_plan.dart';
+import 'project_templates.dart' show templateClaudeMd;
 
 /// The planner of the Projeto screen: short, read-only `claude -p` runs with
 /// `--json-schema` (like "Gerar tarefas"). The Visão conversation keeps one
@@ -146,10 +147,22 @@ String stackPrompt(
   VisionPlan vision, {
   List<StackDecision> fixed = const [],
   String? request,
+  String? baseClaudeMd,
 }) {
   final b = StringBuffer()
     ..writeln('Visão do projeto (JSON):')
     ..writeln(_json(vision.toJson()));
+  final base = baseClaudeMd?.trim();
+  if (base != null && base.isNotEmpty) {
+    // The template's minimal CLAUDE.md (R23): the plan's one replaces it.
+    b
+      ..writeln()
+      ..writeln(
+        'CLAUDE.md mínimo do modelo de partida (use como base e amplie; o '
+        'seu claudeMd vai substituí-lo):',
+      )
+      ..writeln(base);
+  }
   if (fixed.isNotEmpty) {
     b
       ..writeln()
@@ -274,18 +287,55 @@ StackPlan parseStackResult(Result r, {List<StackDecision> fixed = const []}) {
   if (proposed.decisions.isEmpty) {
     throw const PlannerException('O planner não propôs nenhuma tecnologia.');
   }
-  final byArea = {for (final d in fixed) d.area.toLowerCase(): d};
+  // A fixed choice matches the planner's by area, synonyms included
+  // ("App" / "Aplicação"), or by the same technology under another area
+  // name: either way it is one decision, not two (SPEC-071 R26).
+  final byArea = {for (final d in fixed) stackAreaKey(d.area): d};
+  final byChoice = {
+    for (final d in fixed)
+      if (d.choice.trim().isNotEmpty) d.choice.trim().toLowerCase(): d,
+  };
   final seen = <String>{};
-  return proposed.copyWith(
-    decisions: [
-      for (final d in proposed.decisions)
-        if (seen.add(d.area.toLowerCase())) byArea[d.area.toLowerCase()] ?? d,
-      // Fixed choices the planner left out (e.g. renamed area) are kept.
-      for (final d in fixed)
-        if (!seen.contains(d.area.toLowerCase())) d,
-    ],
-    claudeMdStale: false,
-  );
+  final decisions = <StackDecision>[];
+  for (final d in proposed.decisions) {
+    final f =
+        byArea[stackAreaKey(d.area)] ?? byChoice[d.choice.trim().toLowerCase()];
+    if (seen.add(stackAreaKey((f ?? d).area))) decisions.add(f ?? d);
+  }
+  // Fixed choices the planner left out are kept.
+  for (final d in fixed) {
+    if (seen.add(stackAreaKey(d.area))) decisions.add(d);
+  }
+  return proposed.copyWith(decisions: decisions, claudeMdStale: false);
+}
+
+/// Area of a stack decision, compared without case, accents and synonyms
+/// ("Aplicação", "aplicativo" → "app").
+String stackAreaKey(String area) {
+  const plain = {
+    'á': 'a', 'à': 'a', 'â': 'a', 'ã': 'a', 'é': 'e', 'ê': 'e', //
+    'í': 'i', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ú': 'u', 'ç': 'c',
+  };
+  final k = area
+      .trim()
+      .toLowerCase()
+      .split('')
+      .map((ch) => plain[ch] ?? ch)
+      .join();
+  const synonyms = {
+    'aplicacao': 'app',
+    'aplicativo': 'app',
+    'app mobile': 'app',
+    'aplicativo mobile': 'app',
+    'mobile': 'app',
+    'gerenciamento de estado': 'estado',
+    'gerencia de estado': 'estado',
+    'state management': 'estado',
+    'linguagem de programacao': 'linguagem',
+    'framework web': 'web',
+    'backend': 'api',
+  };
+  return synonyms[k] ?? k;
 }
 
 /// Roadmap ([Roadmap.normalized]).
@@ -336,7 +386,20 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
     includePartialMessages: false,
   );
 
+  /// Workspaces running "Gerar proposta completa" ([proposeAll]).
+  final _chains = <int>{};
+
+  /// The next step of a chain may start while the chain keeps "busy".
+  final _handoff = <int>{};
+
+  /// Whether a new run must wait (consumes the chain's handoff).
+  bool _busyFor(int ws) => !_handoff.remove(ws) && (state[ws]?.isBusy ?? false);
+
   void _set(int ws, PlannerActivity? a) {
+    // Between the steps of a chain the buttons stay busy (R26).
+    if (a == null && _chains.contains(ws)) {
+      a = PlannerActivity(busy: state[ws]?.busy ?? 'Pensando…');
+    }
     final next = Map.of(state);
     if (a == null) {
       next.remove(ws);
@@ -381,7 +444,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   /// and the updated vision. Failures become a red message in the chat.
   Future<void> sendVision(Workspace ws, String text) async {
     final msg = text.trim();
-    if (msg.isEmpty || (state[ws.id]?.isBusy ?? false)) return;
+    if (msg.isEmpty || _busyFor(ws.id)) return;
     _set(ws.id, const PlannerActivity(busy: 'Pensando…'));
     try {
       var (row, data) = await _load(ws);
@@ -453,7 +516,12 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       final r = await _run(
         ws,
         _options(stackSystemPrompt, stackSchema),
-        stackPrompt(data.vision, fixed: fixed, request: request),
+        stackPrompt(
+          data.vision,
+          fixed: fixed,
+          request: request,
+          baseClaudeMd: templateClaudeMd(ws.path),
+        ),
       );
       final stack = parseStackResult(r, fixed: fixed);
       final (_, latest) = await _load(ws);
@@ -540,7 +608,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
     String label,
     Future<void> Function() job,
   ) async {
-    if (state[ws.id]?.isBusy ?? false) return;
+    if (_busyFor(ws.id)) return;
     _set(ws.id, PlannerActivity(busy: label));
     try {
       await job();
@@ -599,16 +667,26 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
   /// roadmap in sequence, landing on "Revisar e criar". Stops at the first
   /// failure (the error is in the chat / activity as usual).
   Future<void> proposeAll(Workspace ws, String idea) async {
-    await sendVision(ws, idea);
-    final (_, afterVision) = await _load(ws);
-    if (!afterVision.vision.isReady) return;
-    await proposeStack(ws);
-    if (state[ws.id]?.error != null) return;
-    final (_, afterStack) = await _load(ws);
-    if (afterStack.stack.decisions.isEmpty) return;
-    await planRoadmap(ws);
-    if (state[ws.id]?.error != null) return;
-    await goTo(ws, ProjectStep.create);
+    if (idea.trim().isEmpty || (state[ws.id]?.isBusy ?? false)) return;
+    _chains.add(ws.id);
+    try {
+      await sendVision(ws, idea);
+      final (_, afterVision) = await _load(ws);
+      if (state[ws.id]?.error != null || !afterVision.vision.isReady) return;
+      _handoff.add(ws.id);
+      await proposeStack(ws);
+      if (state[ws.id]?.error != null) return;
+      final (_, afterStack) = await _load(ws);
+      if (afterStack.stack.decisions.isEmpty) return;
+      _handoff.add(ws.id);
+      await planRoadmap(ws);
+      if (state[ws.id]?.error != null) return;
+      await goTo(ws, ProjectStep.create);
+    } finally {
+      _chains.remove(ws.id);
+      _handoff.remove(ws.id);
+      if (state[ws.id]?.error == null) _set(ws.id, null);
+    }
   }
 
   Future<void> goTo(Workspace ws, ProjectStep step) => ref

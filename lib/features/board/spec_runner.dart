@@ -726,6 +726,62 @@ class SpecRunner {
     String? context,
     bool duel = false,
     bool keepModel = false,
+  }) => _startOnce(
+    specId,
+    () => _runNext(
+      specId,
+      mode: mode,
+      provider: provider,
+      model: model,
+      effort: effort,
+      agent: agent,
+      ignoreBlockers: ignoreBlockers,
+      reviewUnblocks: reviewUnblocks,
+      previousAttempt: previousAttempt,
+      previousAttemptHeading: previousAttemptHeading,
+      context: context,
+      duel: duel,
+      keepModel: keepModel,
+    ),
+  );
+
+  /// Specs whose session is being opened now (SPEC-071 R6): between the
+  /// request and the live session there are the classifier, the worktree
+  /// and `preparar:`, and the card is only "Em execução" after that. They
+  /// count in the parallel limit of the autopilot and a second request for
+  /// one of them is refused.
+  final Set<int> _starting = {};
+
+  /// See [_starting].
+  Set<int> get starting => Set.unmodifiable(_starting);
+
+  bool isStarting(int specId) => _starting.contains(specId);
+
+  Future<String> _startOnce(int specId, Future<String> Function() job) async {
+    if (!_starting.add(specId)) {
+      throw const SpecRunException('Esta spec já está iniciando.');
+    }
+    try {
+      return await job();
+    } finally {
+      _starting.remove(specId);
+    }
+  }
+
+  Future<String> _runNext(
+    int specId, {
+    ClaudePermissionMode? mode,
+    String? provider,
+    String? model,
+    String? effort,
+    String? agent,
+    bool ignoreBlockers = false,
+    bool reviewUnblocks = false,
+    String? previousAttempt,
+    String? previousAttemptHeading,
+    String? context,
+    bool duel = false,
+    bool keepModel = false,
   }) async {
     final specs = _ref.read(specsRepoProvider);
     var spec = await specs.getById(specId);
@@ -987,13 +1043,19 @@ class SpecRunner {
   /// em Automático" on, the steps are classified and the plan is stored
   /// before the run; when the classification fails the spec runs with the
   /// model of Sessões and its timeline says why. Off = [runNext], as before.
-  Future<String> runAuto(int specId, {bool reviewUnblocks = false}) async {
+  Future<String> runAuto(int specId, {bool reviewUnblocks = false}) =>
+      _startOnce(
+        specId,
+        () => _runAuto(specId, reviewUnblocks: reviewUnblocks),
+      );
+
+  Future<String> _runAuto(int specId, {bool reviewUnblocks = false}) async {
     final orchestrator = _ref.read(orchestratorPrefsProvider);
     final spec = orchestrator.autoByDefault
         ? await _ref.read(specsRepoProvider).getById(specId)
         : null;
     if (spec == null) {
-      return runNext(specId, reviewUnblocks: reviewUnblocks);
+      return _runNext(specId, reviewUnblocks: reviewUnblocks);
     }
     _checkPlanLock(spec);
     final repo = _ref.read(specStepsRepoProvider);
@@ -1022,7 +1084,7 @@ class SpecRunner {
         specId,
         null,
       );
-      return runNext(
+      return _runNext(
         specId,
         reviewUnblocks: reviewUnblocks,
         provider: 'claude',
@@ -1032,7 +1094,7 @@ class SpecRunner {
     final prefs = _ref.read(runPrefsProvider);
     final model = prefs.model(RunKind.session);
     final effort = prefs.effort(RunKind.session);
-    final id = await runNext(
+    final id = await _runNext(
       specId,
       reviewUnblocks: reviewUnblocks,
       provider: 'claude',

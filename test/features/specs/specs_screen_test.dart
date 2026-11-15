@@ -354,6 +354,85 @@ void main() {
     expect(find.byKey(const ValueKey('spec-save')), findsNothing);
   });
 
+  group('SPEC-071 R8: a change made outside the app', () {
+    File file() => File('${tmp.path}/specs/SPEC-002-sessoes.md');
+    String editorText(WidgetTester tester) =>
+        tester.widget<CodeEditor>(find.byType(CodeEditor)).controller!.text;
+
+    Future<void> editAndSave(WidgetTester tester) async {
+      final editor = tester.widget<CodeEditor>(find.byType(CodeEditor));
+      editor.controller!.text = sample.replaceFirst(
+        '# Sessões com stream-json',
+        '# Sessões do editor',
+      );
+      await tester.pump();
+      await tester.pump();
+      // Someone else writes the file meanwhile.
+      await tester.runAsync(
+        () => file().writeAsString(
+          sample.replaceFirst('# Sessões com stream-json', '# Sessões de fora'),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('spec-save')));
+      await settleIo(
+        tester,
+        until: () => find
+            .byKey(const ValueKey('specs-unsaved-dialog'))
+            .evaluate()
+            .isNotEmpty,
+      );
+    }
+
+    testWidgets('saving asks with the conflict dialog; "Carregar do disco" '
+        'keeps the file', (tester) async {
+      await pump(tester, const Size(1440, 900));
+      await editAndSave(tester);
+      expect(find.byKey(const ValueKey('specs-unsaved-dialog')), findsOne);
+      expect(readSpec(tmp), contains('# Sessões de fora'));
+      await tester.tap(find.byKey(const ValueKey('specs-unsaved-disk')));
+      await settleIo(
+        tester,
+        until: () => editorText(tester).contains('# Sessões de fora'),
+      );
+      expect(readSpec(tmp), contains('# Sessões de fora'));
+      expect(readSpec(tmp), isNot(contains('# Sessões do editor')));
+      expect(editorText(tester), contains('# Sessões de fora'));
+      expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+    });
+
+    testWidgets('"Manter minhas alterações" writes the editor', (tester) async {
+      await pump(tester, const Size(1440, 900));
+      await editAndSave(tester);
+      await tester.tap(find.byKey(const ValueKey('specs-unsaved-keep')));
+      await settleIo(
+        tester,
+        until: () =>
+            readSpec(tmp).contains('# Sessões do editor') &&
+            find.byKey(const ValueKey('spec-unsaved')).evaluate().isEmpty,
+      );
+      expect(readSpec(tmp), contains('# Sessões do editor'));
+      expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+    });
+
+    testWidgets('without unsaved changes the editor reloads the file', (
+      tester,
+    ) async {
+      final c = await pump(tester, const Size(1440, 900));
+      await tester.runAsync(
+        () => file().writeAsString(
+          sample.replaceFirst('# Sessões com stream-json', '# Sessões de fora'),
+        ),
+      );
+      c.read(specFilesChangedProvider.notifier).changed({file().path});
+      await settleIo(
+        tester,
+        until: () => editorText(tester).contains('# Sessões de fora'),
+      );
+      expect(editorText(tester), contains('# Sessões de fora'));
+      expect(find.byKey(const ValueKey('spec-unsaved')), findsNothing);
+    });
+  });
+
   group('SPEC-024', () {
     Finder key(String k) => find.byKey(ValueKey(k));
 

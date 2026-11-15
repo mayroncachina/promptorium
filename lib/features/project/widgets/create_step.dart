@@ -42,7 +42,12 @@ class _CreateStepState extends ConsumerState<CreateStep> {
   late final bool _claudeMdExists = ref
       .read(projectServiceProvider)
       .hasClaudeMd(widget.workspace);
-  late bool _writeClaudeMd = !_claudeMdExists;
+  // The template's minimal CLAUDE.md is replaced by default (R23); only a
+  // CLAUDE.md of the user's starts off.
+  late final bool _templateClaudeMd = ref
+      .read(projectServiceProvider)
+      .hasTemplateClaudeMd(widget.workspace);
+  late bool _writeClaudeMd = !_claudeMdExists || _templateClaudeMd;
   bool _commit = true;
   bool _runFirst = true;
   bool _autoPlan = true;
@@ -199,7 +204,9 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                             _Check(
                               key: const ValueKey('project-write-claudemd'),
                               value: _writeClaudeMd,
-                              label: _claudeMdExists
+                              label: _templateClaudeMd
+                                  ? 'Substituir o CLAUDE.md mínimo do modelo'
+                                  : _claudeMdExists
                                   ? 'Substituir o CLAUDE.md que já existe'
                                   : 'Gravar o CLAUDE.md',
                               onChanged: (v) =>
