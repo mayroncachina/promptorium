@@ -334,26 +334,32 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                s.code,
-                                style: const TextStyle(
-                                  fontFamily: AppFonts.mono,
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
+                              // The code and the badge take the free space:
+                              // the badge does not share it with a Spacer.
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      s.code,
+                                      style: const TextStyle(
+                                        fontFamily: AppFonts.mono,
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    // SPEC-074 R1.
+                                    if (s.issueNumber != null) ...[
+                                      const SizedBox(width: 6),
+                                      Flexible(child: IssueBadge(spec: s)),
+                                    ],
+                                  ],
                                 ),
                               ),
-                              // SPEC-074 R1.
-                              if (s.issueNumber != null) ...[
-                                const SizedBox(width: 6),
-                                Flexible(child: IssueBadge(spec: s)),
-                              ],
                               // R6, R7: refine, update and unlink; R11:
                               // "Criar issue" for a spec without one.
                               if (s.issueNumber != null) ...[
-                                const Spacer(),
                                 IssueMenuButton(spec: s),
                               ] else if (github) ...[
-                                const Spacer(),
                                 IssueMenuButton(
                                   spec: s,
                                   extra: [

@@ -1892,34 +1892,41 @@ class SpecCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    spec.code,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                  // The left group takes the free space: the issue badge
+                  // ("#188 fechada") does not share it with a Spacer.
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          spec.code,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        // SPEC-074 R1.
+                        if (spec.issueNumber != null) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Listener(
+                              onPointerDown: AppPressable.claim,
+                              child: IssueBadge(spec: spec),
+                            ),
+                          ),
+                        ],
+                        if (spec.phase != null) ...[
+                          const SizedBox(width: 6),
+                          _Chip(spec.phase!),
+                        ],
+                        const SizedBox(width: 6),
+                        Listener(
+                          onPointerDown: AppPressable.claim,
+                          child: GateFixBadge(data: data, compact: true),
+                        ),
+                      ],
                     ),
                   ),
-                  // SPEC-074 R1.
-                  if (spec.issueNumber != null) ...[
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Listener(
-                        onPointerDown: AppPressable.claim,
-                        child: IssueBadge(spec: spec),
-                      ),
-                    ),
-                  ],
-                  if (spec.phase != null) ...[
-                    const SizedBox(width: 6),
-                    _Chip(spec.phase!),
-                  ],
-                  const SizedBox(width: 6),
-                  Listener(
-                    onPointerDown: AppPressable.claim,
-                    child: GateFixBadge(data: data, compact: true),
-                  ),
-                  const Spacer(),
                   if (data.cost > 0)
                     Text(
                       formatCost(data.cost),

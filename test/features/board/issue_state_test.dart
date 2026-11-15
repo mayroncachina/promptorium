@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/gh_cli.dart' show cliRunnerProvider;
@@ -176,6 +177,12 @@ void main() {
     );
     await pumpFor(tester, 20);
     expect(find.text('#188 fechada'), findsOneWidget);
+    // The whole text, not "#18…": the badge is not squeezed by the space
+    // before the cost and the menu.
+    final badge = tester.renderObject<RenderParagraph>(
+      find.text('#188 fechada'),
+    );
+    expect(badge.didExceedMaxLines, isFalse);
     expect(byKey('board-card-SPEC-015'), findsOneWidget);
     final tip = tester.widget<Tooltip>(
       find

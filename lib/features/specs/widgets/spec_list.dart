@@ -148,25 +148,36 @@ class SpecList extends StatelessWidget {
                                 children: [
                                   Row(
                                     children: [
-                                      Flexible(
-                                        child: Text(
-                                          s.code,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontFamily: AppFonts.mono,
-                                            fontSize: 11,
-                                            color: AppColors.textSecondary,
-                                          ),
+                                      // The code and the badge take the
+                                      // free space (no Spacer splitting it
+                                      // with them: "SPEC-0…", "#2…").
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                s.code,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontFamily: AppFonts.mono,
+                                                  fontSize: 11,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                            // SPEC-074 R1.
+                                            if (s.issueNumber != null) ...[
+                                              const SizedBox(width: 6),
+                                              Flexible(
+                                                child: IssueBadge(spec: s),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ),
-                                      // SPEC-074 R1.
-                                      if (s.issueNumber != null) ...[
-                                        const SizedBox(width: 6),
-                                        Flexible(child: IssueBadge(spec: s)),
-                                      ],
                                       const SizedBox(width: 8),
-                                      const Spacer(),
                                       // The status is short: it keeps its
                                       // width, the code gives way.
                                       _StatusText(
