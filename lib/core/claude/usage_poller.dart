@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../process/process_runner.dart';
 import 'claude_cli.dart' show claudeExecutableProvider;
 import 'claude_event.dart';
 import 'usage_tracker.dart';
@@ -103,15 +103,28 @@ RateLimit? parseUsageText(String text, DateTime now) {
 /// Runs `claude -p "/usage"` and returns its text (null on any failure).
 typedef UsageRunner = Future<String?> Function();
 
-Future<String?> _runUsage(String executable) async {
+/// `claude -p /usage` → its text (null on any failure). Past [timeout] the
+/// process (and what it started) is ended before this returns, so a poll
+/// never leaves a `claude` behind (SPEC-071 R16).
+@visibleForTesting
+Future<String?> runUsage(
+  String executable, {
+  Duration timeout = const Duration(seconds: 40),
+  Duration killGrace = const Duration(seconds: 2),
+}) async {
   try {
-    final r = await Process.run(executable, [
-      '-p',
-      '/usage',
-      '--output-format',
-      'json',
-      '--no-session-persistence',
-    ]).timeout(const Duration(seconds: 40));
+    final r = await runKillingOnTimeout(
+      executable,
+      const [
+        '-p',
+        '/usage',
+        '--output-format',
+        'json',
+        '--no-session-persistence',
+      ],
+      timeout: timeout,
+      killGrace: killGrace,
+    );
     if (r.exitCode != 0) return null;
     final j = jsonDecode('${r.stdout}');
     return j is Map && j['result'] is String ? j['result'] as String : null;
@@ -123,13 +136,16 @@ Future<String?> _runUsage(String executable) async {
 
 final usageRunnerProvider = Provider<UsageRunner>((ref) {
   final exe = ref.watch(claudeExecutableProvider);
-  return () => _runUsage(exe);
+  return () => runUsage(exe);
 });
 
 class UsagePoller {
   UsagePoller(this._ref);
 
   final Ref _ref;
+
+  /// Only one `/usage` in flight: the runner returns only after its process
+  /// is gone, so a new tick never stacks a second one.
   bool _running = false;
 
   /// Reads `/usage` and updates the footer. Safe to call often.
