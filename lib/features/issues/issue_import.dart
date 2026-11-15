@@ -142,14 +142,14 @@ class IssueImportResult {
   }
 }
 
-/// Imports of a workspace run one after the other: two imports at the same
-/// time never create two specs for one issue (R4).
-final _locks = <int, Future<void>>{};
+/// Imports of a workspace (by its folder) run one after the other: two
+/// imports at the same time never create two specs for one issue (R4).
+final _locks = <String, Future<void>>{};
 
-Future<T> _serial<T>(int workspaceId, Future<T> Function() action) {
-  final previous = _locks[workspaceId] ?? Future<void>.value();
+Future<T> _serial<T>(String root, Future<T> Function() action) {
+  final previous = _locks[root] ?? Future<void>.value();
   final next = previous.catchError((Object _) {}).then((_) => action());
-  _locks[workspaceId] = next.then((_) {}, onError: (Object _) {});
+  _locks[root] = next.then((_) {}, onError: (Object _) {});
   return next;
 }
 
@@ -163,7 +163,7 @@ Future<IssueImportResult> importIssues(
   Workspace ws,
   List<GhIssue> issues, {
   DateTime Function() now = DateTime.now,
-}) => _serial(ws.id, () async {
+}) => _serial(ws.path, () async {
   await service.sync(ws);
   final known = specsByIssue(await repo.watchByWorkspace(ws.id).first);
   final created = <Spec>[];
