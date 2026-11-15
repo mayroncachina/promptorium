@@ -155,7 +155,7 @@ Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issu
 - [x] PR trazido sem permissão avisa que o commit fica local e não tem automático [R10] verificar: flutter test test/features/review/ci_fixer_test.dart
 - [x] Com `corrigir-ci: automatico`, a correção começa sozinha uma vez por commit e para se o commit dela ficar vermelho [R11, R12] verificar: flutter test test/features/review/pr_babysitter_test.dart
 - [x] A Configuração liga e desliga `review: corrigir-ci: automatico` [R13] verificar: flutter test test/features/project
-- [ ] Num PR real com um teste quebrado, "Corrigir CI" leva o log ao agente, o commit sobe e o CI fica verde [R2, R4, R6, R7] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
+- [x] Num PR real com um teste quebrado, "Corrigir CI" leva o log ao agente, o commit sobe e o CI fica verde [R2, R4, R6, R7] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
 - [x] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
 
 ## Decisões
