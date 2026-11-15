@@ -283,6 +283,7 @@ List<PaletteCommand> paletteCommands(
           s.stage != SpecStage.done &&
           s.stage != SpecStage.review &&
           !ref.read(gateRunningProvider).contains(s.id) &&
+          !ref.read(specRunnerProvider).isStarting(s.id) &&
           specBlockers(s, byCode, reviewUnblocks: true).isEmpty)
         PaletteCommand(
           label: 'Executar ${s.code}',

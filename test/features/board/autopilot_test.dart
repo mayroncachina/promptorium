@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/board/autopilot.dart';
+import 'package:promptorium/features/board/spec_runner.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
 import '../../helpers/test_db.dart';
@@ -159,5 +161,53 @@ void main() {
     final after = await specs();
     expect(after['SPEC-001']!.stage, SpecStage.running);
     expect(after['SPEC-003']!.stage, SpecStage.running);
+  });
+
+  group('SPEC-071 R6: a spec never starts twice', () {
+    test('two requests for the same spec open one session only', () async {
+      final id = (await specs())['SPEC-001']!.id;
+      final runner = c.read(specRunnerProvider);
+      final results = await Future.wait([
+        runner.runAuto(id).then<Object>((v) => v, onError: (Object e) => e),
+        runner.runAuto(id).then<Object>((v) => v, onError: (Object e) => e),
+        runner.runNext(id).then<Object>((v) => v, onError: (Object e) => e),
+      ]);
+      await settle();
+      expect(results.whereType<String>(), hasLength(1));
+      expect(
+        results.whereType<SpecRunException>().map((e) => e.message),
+        everyElement(contains('já está iniciando')),
+      );
+      expect(cli.processes, hasLength(1));
+      expect(await c.read(sessionsRepoProvider).bySpec(id), hasLength(1));
+      expect(runner.starting, isEmpty);
+    });
+
+    test('ticks that overlap respect the parallel limit', () async {
+      File('$repo/.promptorium/config.yml')
+          .writeAsStringSync('autopilot:\n  paralelo: 1\n');
+      final pilot = c.read(autopilotProvider.notifier);
+      // A second start of the same spec fails late (the worktree already
+      // exists, or one more orphan worktree): no tick may even try it.
+      final failed = <String>[];
+      final print = debugPrint;
+      debugPrint = (m, {wrapWidth}) {
+        if (m != null && m.contains('não iniciada')) failed.add(m);
+      };
+      addTearDown(() => debugPrint = print);
+      await Future.wait([
+        pilot.start(ws.id),
+        pilot.tick(ws.id),
+        pilot.tick(ws.id),
+      ]);
+      await settle();
+      expect(failed, isEmpty);
+      expect(cli.processes, hasLength(1));
+      final now = await specs();
+      expect(
+        now.values.where((s) => s.stage == SpecStage.running),
+        hasLength(1),
+      );
+    });
   });
 }
