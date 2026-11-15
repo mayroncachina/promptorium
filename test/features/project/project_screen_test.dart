@@ -881,9 +881,8 @@ void main() {
           )
           .value!;
 
-      File(
-        '${tmp.path}/CLAUDE.md',
-      ).writeAsStringSync(templateById('flutter').claudeMd!);
+      File('${tmp.path}/CLAUDE.md')
+          .writeAsStringSync(templateById('flutter').claudeMd!);
       var q = QueueScreen(tester, tmp);
       await q.pump();
       expect(writeClaudeMd(q), isTrue);
@@ -898,10 +897,7 @@ void main() {
       q = QueueScreen(tester, tmp);
       await q.pump();
       expect(writeClaudeMd(q), isFalse);
-      expect(
-        find.text('Substituir o CLAUDE.md que já existe'),
-        findsOneWidget,
-      );
+      expect(find.text('Substituir o CLAUDE.md que já existe'), findsOneWidget);
     });
 
     testWidgets('R8: the progress stays right after leaving the screen and '

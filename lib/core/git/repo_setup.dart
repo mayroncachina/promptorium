@@ -101,7 +101,9 @@ class RepoSetup {
           break;
         case '.promptorium' when e is Directory:
           final inside = e.listSync();
-          if (inside.any((f) => f is! File || !f.path.endsWith('/config.yml'))) {
+          if (inside.any(
+            (f) => f is! File || !f.path.endsWith('/config.yml'),
+          )) {
             return false;
           }
         default:

@@ -12,7 +12,6 @@ import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_service.dart';
 import 'package:promptorium/features/project/project_templates.dart';
 import 'package:promptorium/features/board/board_rules.dart';
-import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
 
 import '../../core/git/git_test_utils.dart';
