@@ -181,6 +181,69 @@ void main() {
     await bad(tmp.path, 'arquivo', 'Já existe um arquivo');
   });
 
+  test('createProject without a git identity creates nothing and says how '
+      'to configure it; a folder left by a failed creation is accepted on '
+      'retry, on branch main (SPEC-071 R21, R25)', () async {
+    final home = Directory('${tmp.path}/home')..createSync();
+    Future<ProcessResult> noIdentity(String exe, List<String> args) =>
+        Process.run(
+          exe,
+          args,
+          includeParentEnvironment: false,
+          environment: {
+            'PATH': Platform.environment['PATH'] ?? '/usr/bin:/bin',
+            'HOME': home.path,
+            'XDG_CONFIG_HOME': home.path,
+            'GIT_CONFIG_NOSYSTEM': '1',
+            'GIT_TERMINAL_PROMPT': '0',
+            'GIT_CONFIG_COUNT': '1',
+            'GIT_CONFIG_KEY_0': 'user.useConfigOnly',
+            'GIT_CONFIG_VALUE_0': 'true',
+          },
+        );
+    final local = ProviderContainer(
+      overrides: [
+        databaseOverride(memoryDatabase()),
+        processRunnerProvider.overrideWithValue(noIdentity),
+        repoSetupProvider.overrideWithValue(RepoSetup(run: noIdentity)),
+      ],
+    );
+    addTearDown(local.dispose);
+    await local.read(appSettingsProvider.notifier).load();
+    await expectLater(
+      local
+          .read(projectServiceProvider)
+          .createProject(parent: tmp.path, name: 'sem-git'),
+      throwsA(
+        isA<ProjectException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('git config --global user.email'), contains('nome')),
+        ),
+      ),
+    );
+    expect(Directory('${tmp.path}/sem-git').existsSync(), isFalse);
+
+    // What an older failure left: .git without commits and template files.
+    final left = '${tmp.path}/sobra';
+    await gitIn(tmp.path, ['init', '-q', left]);
+    File('$left/CLAUDE.md').writeAsStringSync('# modelo\n');
+    await ProjectConfig.save(left, templateById('flutter').config);
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'sobra',
+      template: templateById('flutter'),
+    );
+    expect(await gitIn(ws.path, ['rev-list', '--count', 'HEAD']), '1\n');
+    expect(await gitIn(ws.path, ['branch', '--show-current']), 'main\n');
+
+    // A folder with a real repository (commits) is still refused.
+    await expectLater(
+      service().createProject(parent: tmp.path, name: 'sobra'),
+      throwsA(isA<ProjectException>()),
+    );
+  });
+
   test('materialize: CLAUDE.md, approved specs with translated '
       'dependencies and one commit with exactly those files', () async {
     final ws = await service().createProject(

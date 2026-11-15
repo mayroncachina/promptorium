@@ -86,16 +86,26 @@ class ProjectService {
     }
     final path = base.endsWith('/') ? '$base$n' : '$base/$n';
     final dir = Directory(path);
-    switch (await FileSystemEntity.type(path)) {
-      case FileSystemEntityType.notFound:
-        await dir.create();
-      case FileSystemEntityType.directory:
-        if (!await dir.list().isEmpty) {
-          throw ProjectException('$path já existe e não está vazia.');
-        }
-      default:
-        throw ProjectException('Já existe um arquivo em $path.');
+    final setup = _ref.read(repoSetupProvider);
+    final kind = await FileSystemEntity.type(path);
+    if (kind != FileSystemEntityType.notFound &&
+        kind != FileSystemEntityType.directory) {
+      throw ProjectException('Já existe um arquivo em $path.');
     }
+    // A folder left by a failed creation (.git without commits, template
+    // files) is accepted, so "Criar" can be retried (R21).
+    if (kind == FileSystemEntityType.directory &&
+        !await setup.isCreationLeftover(path)) {
+      throw ProjectException('$path já existe e não está vazia.');
+    }
+    // The first commit needs a git identity: checked before anything is
+    // created (R21).
+    try {
+      await setup.checkIdentity(base);
+    } catch (e) {
+      throw ProjectException(repoSetupError(e));
+    }
+    if (kind == FileSystemEntityType.notFound) await dir.create();
     // Template files first: the initial commit carries them (UX v2, U7).
     final t = template;
     if (t != null && !t.isEmpty) {
@@ -105,7 +115,7 @@ class ProjectService {
       }
     }
     try {
-      await _ref.read(repoSetupProvider).init(path, remoteUrl: remoteUrl);
+      await setup.init(path, remoteUrl: remoteUrl);
     } catch (e) {
       throw ProjectException(repoSetupError(e));
     }
