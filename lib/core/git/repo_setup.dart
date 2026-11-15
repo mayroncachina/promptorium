@@ -54,8 +54,9 @@ class RepoSetup {
     await git.git(['commit', '-q', '--allow-empty', '-m', 'Commit inicial']);
   }
 
-  /// `git init -b main` (R25); a git older than 2.28 has no `-b`, so the
-  /// unborn HEAD is pointed at `main` by hand.
+  /// `git init -b main` (R25). A git older than 2.28 has no `-b`, and a
+  /// re-init of a folder left by an older failure ignores it, so an unborn
+  /// HEAD (no commits yet) is always pointed at `main` by hand.
   Future<void> _initMain(GitService git) async {
     try {
       await git.git(['init', '-q', '-b', 'main']);
@@ -65,11 +66,11 @@ class RepoSetup {
         rethrow;
       }
       await git.git(['init', '-q']);
-      try {
-        await git.git(['rev-parse', '--verify', '-q', 'HEAD']);
-      } on GitException {
-        await git.git(['symbolic-ref', 'HEAD', 'refs/heads/main']);
-      }
+    }
+    try {
+      await git.git(['rev-parse', '--verify', '-q', 'HEAD']);
+    } on GitException {
+      await git.git(['symbolic-ref', 'HEAD', 'refs/heads/main']);
     }
   }
 
