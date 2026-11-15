@@ -1,6 +1,6 @@
 ---
 id: SPEC-072
-status: em-revisao
+status: aprovada
 depende-de: SPEC-071
 issue: 241
 ---
