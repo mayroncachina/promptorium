@@ -14,7 +14,7 @@ Esta spec leva o log ao agente:
 - num check que falhou, o botão **"Corrigir CI"**, no card do Quadro e no Review, busca o log do GitHub Actions e o manda para a sessão da spec, com as instruções de corrigir, rodar os testes afetados e commitar;
 - o app envia o commit para o PR e acompanha o CI de novo, como já faz com os comentários do PR;
 - **"Rodar de novo"** roda outra vez só os jobs que falharam, para uma falha que parece intermitente;
-- com `revisor.ci-automatico: true` no `.promptorium/config.yml`, a correção começa sozinha, **uma vez por commit vermelho**. Se o commit da correção também ficar vermelho, o app para e avisa. Não há laço.
+- com `review: corrigir-ci: automatico` no `.promptorium/config.yml` (P1), a correção começa sozinha, **uma vez por commit vermelho**. Se o commit da correção também ficar vermelho, o app para e avisa. Não há laço.
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/MhRbtsweiDN9qoUZBSCJd9). Capturas em `docs/mockups/spec-073/`:
 
@@ -70,7 +70,7 @@ Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issu
 - R9 · **Check sem log.** Um check que não é do Actions aparece com "sem log disponível" e "Abrir check". Ele não entra na mensagem.
   - Se só checks sem log falharam, "Corrigir CI" fica desligado, com o motivo: "Nenhum check com log do GitHub Actions".
 - R10 · **PR trazido sem permissão de escrita** (SPEC-050). "Corrigir CI" avisa antes: "O commit fica local; use Copiar patch para mandar ao autor". O automático não roda nesse PR.
-- R11 · **Corrigir sozinho.** Com `revisor.ci-automatico: true`, o babysitter começa a correção sem a pessoa:
+- R11 · **Corrigir sozinho.** Com `review: corrigir-ci: automatico` (P1), o babysitter começa a correção sem a pessoa:
   - só em PR com "Acompanhar PR" ligado, e só quando nenhum check do commit está rodando (uma mensagem cobre todas as falhas);
   - uma vez por commit vermelho, guardada em `pr.ci.<sessão>` (o SHA e a origem: você ou automático);
   - se o log tem cara de falha intermitente (R8), ele roda de novo uma vez antes de corrigir;
@@ -80,7 +80,7 @@ Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issu
   - o card diz "CI falhou de novo · automático parado", e o Review mostra o aviso com o trecho novo e "Corrigir CI" à mão;
   - o automático também para quando o agente termina sem commit ou o push é recusado (R6);
   - ele volta a valer quando o CI fica verde, ou quando você usa "Corrigir CI" ou "Rodar de novo" à mão.
-- R13 · **Na Configuração.** A Configuração do projeto ganha a seção "CI do PR", com "Corrigir CI sozinho, uma vez por commit vermelho". Ela grava `revisor.ci-automatico` no `.promptorium/config.yml`.
+- R13 · **Na Configuração.** A Configuração do projeto ganha a seção "CI do PR", com "Corrigir CI sozinho, uma vez por commit vermelho". Ela grava `review: corrigir-ci: automatico` no `.promptorium/config.yml` (P1).
   - O guia `docs/guia/review.md` ganha a seção "CI vermelho".
 
 ## Fora do escopo
@@ -121,10 +121,10 @@ Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issu
   - `fix(sessionId, {auto})`: lê os runs, monta a mensagem (`ciFixMessage`), grava `pr.ci.<sessão>` e manda à sessão (R4), ou põe na fila se a sessão está ocupada (R5);
   - `rerun(sessionId)` (R8);
   - o estado por sessão (`fila`, `corrigindo`, `rodando`, `corrigido`, `parado`, `semCommit`, `falhaExterna`, `pushRecusado`) que o selo e o Review mostram.
-- **`PrBabysitter`**: no `check`, com `ci-automatico`, chama `CiFixer.fix(auto: true)` quando acha um commit novo vermelho e aplica a regra da R12.
+- **`PrBabysitter`**: no `check`, com `review: corrigir-ci: automatico`, chama `CiFixer.fix(auto: true)` quando acha um commit novo vermelho e aplica a regra da R12.
 - **`CiBadge`** (novo, `lib/features/board/widgets/ci_badge.dart`): o selo da R7 no `SpecCard`.
 - **`PrPanel`**: a lista de checks com o trecho (R2), "Corrigir CI" e "Rodar de novo".
-- **`ReviewerConfig.ciAuto`** (`ci-automatico`) e a seção "CI do PR" na Configuração.
+- **`ProjectConfig.autoFixCi`** (`review: corrigir-ci: automatico`, P1) e a seção "CI do PR" na Configuração.
 
 ### Testes
 
@@ -145,24 +145,28 @@ Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issu
 
 ## Critérios de aceite
 
-- [ ] Os checks trazem run, job e workflow, e um check fora do Actions fica "sem log" [R1, R9] verificar: flutter test test/features/review/pr_babysitter_test.dart
-- [ ] Um log enorme vira um trecho dentro do teto, com cada corte dito, e jobs de matriz iguais aparecem uma vez [R3] verificar: flutter test test/features/review/ci_log_test.dart
-- [ ] "Corrigir CI" manda o log à sessão certa (spec, VIBE ou PR trazido) e retoma a sessão parada [R4] verificar: flutter test test/features/review/ci_fixer_test.dart
-- [ ] Com a sessão ocupada, a mensagem espera o turno acabar, e dois cliques enviam uma vez só [R4, R5] verificar: flutter test test/features/review/ci_fixer_test.dart
-- [ ] O commit do agente vai para o PR pelo app; sem commit ou com push recusado, o card diz o motivo [R6] verificar: flutter test test/features/review/ci_fixer_test.dart
-- [ ] O selo do card mostra falhou, corrigindo, rodando e corrigido, e o card fica em Review [R7] verificar: flutter test test/features/board/ci_badge_test.dart
-- [ ] "Rodar de novo" roda só os jobs que falharam e sugere isso numa falha intermitente [R8] verificar: flutter test test/features/review/ci_fixer_test.dart
-- [ ] PR trazido sem permissão avisa que o commit fica local e não tem automático [R10] verificar: flutter test test/features/review/ci_fixer_test.dart
-- [ ] Com `ci-automatico`, a correção começa sozinha uma vez por commit e para se o commit dela ficar vermelho [R11, R12] verificar: flutter test test/features/review/pr_babysitter_test.dart
-- [ ] A Configuração liga e desliga `revisor.ci-automatico` [R13] verificar: flutter test test/features/project
+- [x] Os checks trazem run, job e workflow, e um check fora do Actions fica "sem log" [R1, R9] verificar: flutter test test/features/review/pr_babysitter_test.dart
+- [x] Um log enorme vira um trecho dentro do teto, com cada corte dito, e jobs de matriz iguais aparecem uma vez [R3] verificar: flutter test test/features/review/ci_log_test.dart
+- [x] "Corrigir CI" manda o log à sessão certa (spec, VIBE ou PR trazido) e retoma a sessão parada [R4] verificar: flutter test test/features/review/ci_fixer_test.dart
+- [x] Com a sessão ocupada, a mensagem espera o turno acabar, e dois cliques enviam uma vez só [R4, R5] verificar: flutter test test/features/review/ci_fixer_test.dart
+- [x] O commit do agente vai para o PR pelo app; sem commit ou com push recusado, o card diz o motivo [R6] verificar: flutter test test/features/review/ci_fixer_test.dart
+- [x] O selo do card mostra falhou, corrigindo, rodando e corrigido, e o card fica em Review [R7] verificar: flutter test test/features/board/ci_badge_test.dart
+- [x] "Rodar de novo" roda só os jobs que falharam e sugere isso numa falha intermitente [R8] verificar: flutter test test/features/review/ci_fixer_test.dart
+- [x] PR trazido sem permissão avisa que o commit fica local e não tem automático [R10] verificar: flutter test test/features/review/ci_fixer_test.dart
+- [x] Com `corrigir-ci: automatico`, a correção começa sozinha uma vez por commit e para se o commit dela ficar vermelho [R11, R12] verificar: flutter test test/features/review/pr_babysitter_test.dart
+- [x] A Configuração liga e desliga `review: corrigir-ci: automatico` [R13] verificar: flutter test test/features/project
 - [ ] Num PR real com um teste quebrado, "Corrigir CI" leva o log ao agente, o commit sobe e o CI fica verde [R2, R4, R6, R7] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
-- [ ] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde mora a chave.** O pedido diz `revisor.ci-automatico`, mas `revisor:` é o revisor automático da spec (outro agente, com modelo e orçamento). O automático parecido que já existe mora em `review:` (`resolver-conflitos: automatico`). Recomendação: `review: corrigir-ci: automatico`, ao lado do conflito, e a seção "CI do PR" perto de "Revisor automático" na Configuração.
-- P2 · **Quem dá o push.** O pedido diz que o agente commita e dá push. Hoje o agente só commita e o app envia (comentários do PR, conflito), e `bloquear-comandos` costuma barrar `git push` no agente. Recomendação: o app dá o push (R6). Assim o PR trazido sem permissão, o remote errado e a proteção da branch continuam tratados num lugar só.
-- P3 · **O card volta para Em execução?** "Pedir ajustes" devolve a spec para Em execução. Recomendação: não. O código da spec já foi revisado, e o CI é manutenção do PR. O card fica em Review com o selo (R7).
-- P4 · **Gate antes do push.** O app pode rodar o gate do projeto (`testes:`, `lint:`) depois da correção e antes do push. Recomendação: não rodar. O agente já roda os testes afetados e o próprio CI é a verificação. Rodar a suíte inteira atrasaria cada rodada.
-- P5 · **Intermitente no automático.** Recomendação: rodar de novo uma vez antes de corrigir, só quando o log tem cara de intermitente (R11). Rodar de novo sempre gastaria minutos de CI em falhas reais.
-- P6 · **Check sem log.** Recomendação: não mandar ao agente (R9). Só o nome e o link não bastam para corrigir, e o agente tenderia a adivinhar. A pessoa abre o check e, se quiser, cola o log na sessão.
+Aprovadas com a spec, todas pela recomendação:
+
+- P1 · **Onde mora a chave.** Decidido: `review: corrigir-ci: automatico`, ao lado de `resolver-conflitos`, e não `revisor.ci-automatico` (`revisor:` é o revisor automático da spec, outro agente). A seção "CI do PR" fica perto de "Revisor automático" na Configuração.
+- P2 · **Quem dá o push.** Decidido: o app (R6). O agente só commita. O PR trazido sem permissão, o remote errado e a proteção da branch continuam tratados num lugar só.
+- P3 · **O card volta para Em execução?** Decidido: não. O card fica em Review com o selo (R7); o turno de correção de CI não mexe nas etapas nem no estágio da spec.
+- P4 · **Gate antes do push.** Decidido: não roda. O agente roda os testes afetados e o próprio CI é a verificação.
+- P5 · **Intermitente no automático.** Decidido: roda de novo uma vez antes de corrigir, só quando o log tem cara de intermitente (R11).
+- P6 · **Check sem log.** Decidido: não vai ao agente (R9). A pessoa abre o check e, se quiser, cola o log na sessão.
+
+Na implementação: o estado durável da R11 (`pr.ci.<sessão>`) fica em `app_settings`, como `pr.seen.<sessão>`, sem migração do banco.
