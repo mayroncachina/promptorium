@@ -299,16 +299,17 @@ class _EnvironmentPanelState extends ConsumerState<EnvironmentPanel> {
           ],
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        // A Row, not a Wrap: in a Wrap the SmallButton stretches to the
+        // whole width and pushes the text to the next line.
+        Row(
           children: [
             SmallButton(
               key: const ValueKey('env-git-save'),
               label: _saving ? 'Gravando…' : 'Gravar no git',
               onTap: ready ? _saveIdentity : null,
             ),
-            const Text('ou, no terminal:', style: label),
+            const SizedBox(width: 8),
+            const Flexible(child: Text('ou, no terminal:', style: label)),
           ],
         ),
         const SizedBox(height: 6),

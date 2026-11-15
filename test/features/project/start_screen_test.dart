@@ -193,6 +193,35 @@ void main() {
     await unmountStart(tester);
   });
 
+  testWidgets('the starting-point chips and "Gravar no git" keep their '
+      'own width, side by side (R1, R16)', (tester) async {
+    final probe = FakeProbe()
+      ..gitItem = const EnvItem(
+        EnvKind.git,
+        EnvState.blocked,
+        title: 'Git: nome e e-mail',
+        line: 'O primeiro commit precisa de nome e e-mail.',
+        problem: EnvProblem.gitIdentity,
+      );
+    await pumpStart(tester, probe);
+    final empty = tester.getRect(
+      key('start-template-${projectTemplates.first.id}'),
+    );
+    final flutter = tester.getRect(
+      key('start-template-${projectTemplates[1].id}'),
+    );
+    final other = tester.getRect(key('start-template-custom'));
+    expect(empty.width, lessThan(200));
+    expect(other.width, lessThan(200));
+    // The chips sit next to each other, not one under the other.
+    expect(flutter.top, empty.top);
+    final save = tester.getRect(key('env-git-save'));
+    final terminal = tester.getRect(find.text('ou, no terminal:'));
+    expect(save.width, lessThan(200));
+    expect(terminal.left, greaterThan(save.right));
+    await unmountStart(tester);
+  });
+
   testWidgets('Claude logged out blocks only "Criar e planejar"; the '
       'terminal button runs claude auth login and the item is checked again '
       'when the window comes back (R3, R4)', (tester) async {

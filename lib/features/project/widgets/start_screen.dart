@@ -223,7 +223,8 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         child: Container(
           height: 30,
           padding: EdgeInsets.only(left: 12, right: custom == null ? 12 : 4),
-          alignment: Alignment.center,
+          // No alignment: in the Wrap it would stretch the chip to the
+          // whole row.
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -693,14 +694,18 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   child: Container(
                     height: 30,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.center,
-                    child: Text(
-                      tp.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: tp.id == _template
-                            ? AppColors.amber
-                            : AppColors.textSecondary,
+                    // widthFactor 1: the chip keeps the label's width in the
+                    // Wrap (an alignment would stretch it to the whole row).
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        tp.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: tp.id == _template
+                              ? AppColors.amber
+                              : AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
