@@ -134,7 +134,12 @@ class SpecHeaderState {
     this.generateReason,
     this.runningId,
     this.runningLabel,
+    this.issueMenu = const [],
   });
+
+  /// Items of "Mais ações" for the linked GitHub issue (SPEC-074 R6, R7,
+  /// R11), before archive / delete.
+  final List<SpecAction> issueMenu;
 
   /// The execution started (`stage != backlog`): only "Clonar para alterar".
   final bool locked;
@@ -213,6 +218,7 @@ List<SpecAction> specHeaderActions(SpecHeaderState s) {
 List<SpecAction> _specHeaderActions(SpecHeaderState s) {
   final why = s.unavailableReason ?? 'Aguarde a spec carregar.';
   final menu = <SpecAction>[
+    ...s.issueMenu,
     if (s.onArchive != null)
       SpecAction(
         id: 'archive',

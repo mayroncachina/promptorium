@@ -11,6 +11,7 @@ import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import '../../core/providers/claude_code_provider.dart';
 import '../../data/providers.dart';
+import '../issues/issue_refine.dart';
 import '../project/project_planner.dart' show ProjectPlanner;
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import 'spec_draft.dart';
@@ -263,6 +264,21 @@ class SpecPlanner extends Notifier<Set<int>> {
     final repo = ref.read(specDraftsRepoProvider);
     final row = await repo.get(ws.id);
     final data = SpecDraftData.decode(row?.data ?? '{}');
+    // SPEC-074 R6: refining a spec linked to an issue rewrites the same
+    // spec (same code, same `issue:`), never a new one.
+    final target = ref.read(issueRefineProvider)[ws.id];
+    final linked = target == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(target.specId);
+    if (target != null && linked != null) {
+      final text = SpecDocument.parse(
+        specTextFromDraft(data, code: linked.code, title: title.trim()),
+      ).withIssue(target.issue);
+      final spec = await ref.read(specServiceProvider).save(ws, linked, text);
+      await repo.delete(ws.id);
+      ref.read(issueRefineProvider.notifier).clear(ws.id);
+      return spec;
+    }
     final spec = await ref
         .read(specServiceProvider)
         .create(
@@ -275,8 +291,10 @@ class SpecPlanner extends Notifier<Set<int>> {
     return spec;
   }
 
-  Future<void> discard(Workspace ws) =>
-      ref.read(specDraftsRepoProvider).delete(ws.id);
+  Future<void> discard(Workspace ws) {
+    ref.read(issueRefineProvider.notifier).clear(ws.id);
+    return ref.read(specDraftsRepoProvider).delete(ws.id);
+  }
 }
 
 final specPlannerProvider = NotifierProvider<SpecPlanner, Set<int>>(

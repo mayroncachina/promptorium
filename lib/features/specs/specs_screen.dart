@@ -40,6 +40,7 @@ import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
+import '../issues/issue_actions.dart' show specIssueActions;
 import '../issues/widgets/issue_badge.dart';
 import 'widgets/spec_header.dart';
 import 'widgets/spec_questions_panel.dart';
@@ -1947,6 +1948,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           generateReason: protoBusy
                               ? 'As telas desta spec já estão sendo geradas.'
                               : null,
+                          issueMenu: specIssueActions(context, ref, spec),
                           onArchive:
                               (canArchiveSpec(spec) ||
                                   spec.status == SpecStatus.archived)
