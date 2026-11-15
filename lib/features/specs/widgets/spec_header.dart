@@ -134,7 +134,18 @@ class SpecHeaderState {
     this.generateReason,
     this.runningId,
     this.runningLabel,
+    this.onCreateIssue,
+    this.createIssueReason,
   });
+
+  /// "Criar issue" (SPEC-074 R11): shown when the spec has no `issue:`
+  /// ([onCreateIssue] or [createIssueReason] set); off with the reason
+  /// without GitHub (R2).
+  final VoidCallback? onCreateIssue;
+  final String? createIssueReason;
+
+  bool get offersCreateIssue =>
+      onCreateIssue != null || createIssueReason != null;
 
   /// The execution started (`stage != backlog`): only "Clonar para alterar".
   final bool locked;
@@ -212,6 +223,20 @@ List<SpecAction> specHeaderActions(SpecHeaderState s) {
 
 List<SpecAction> _specHeaderActions(SpecHeaderState s) {
   final why = s.unavailableReason ?? 'Aguarde a spec carregar.';
+  final createIssue = SpecAction(
+    id: 'create-issue',
+    keyName: 'spec-create-issue',
+    label: 'Criar issue',
+    icon: Icons.add_task,
+    emphasis: SpecActionEmphasis.secondary,
+    tooltip:
+        'Cria uma issue no GitHub com o Objetivo e os requisitos, e liga a '
+        'spec a ela.',
+    onTap: s.onCreateIssue,
+    unavailableReason: s.createIssueReason,
+    // The first to go to "Mais ações" without room.
+    priority: -2,
+  );
   final menu = <SpecAction>[
     if (s.onArchive != null)
       SpecAction(
@@ -277,10 +302,12 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
         onTap: s.onClone,
         unavailableReason: why,
       ),
+      if (s.offersCreateIssue) createIssue.toMenu(),
       ...menu,
     ];
   }
   return [
+    if (s.offersCreateIssue) createIssue,
     SpecAction(
       id: 'refine',
       keyName: 'spec-refine',

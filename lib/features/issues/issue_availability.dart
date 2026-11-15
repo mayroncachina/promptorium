@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/gh_cli.dart';
 import '../../core/git/gh_issues.dart';
 import '../../core/git/git_service.dart';
+import '../../data/db/app_database.dart' show Workspace;
 import '../project/project_config.dart';
 import '../review/review_host.dart';
 
@@ -249,3 +250,14 @@ final issueAvailabilityProvider =
         config: config,
       );
     });
+
+/// The issues client of [ws] with its diagnosis; the client is null without
+/// GitHub (R2).
+Future<(GhIssues?, IssueAvailability)> githubIssuesOf(
+  Ref ref,
+  Workspace ws,
+) async {
+  final a = await ref.read(issueAvailabilityProvider(ws.path).future);
+  if (!a.available || a.repo == null) return (null, a);
+  return (GhIssues(ref.read(ghCliFactoryProvider)(ws.path), repo: a.repo!), a);
+}

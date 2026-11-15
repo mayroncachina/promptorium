@@ -34,6 +34,7 @@ import 'sprint_rules.dart';
 import 'sprint_state.dart';
 import 'widgets/spec_notes.dart';
 import 'widgets/board_card_flight.dart';
+import '../issues/issue_state_watcher.dart';
 import '../issues/widgets/issue_badge.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
@@ -362,6 +363,8 @@ class BoardScreen extends ConsumerWidget {
     if (ws == null) {
       return const _Empty('Selecione um workspace na barra de título.');
     }
+    // SPEC-074 R9: opening the Quadro checks the linked issues.
+    ref.watch(boardIssueCheckProvider(ws.id));
     final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
     final rows = ref.watch(specStepsProvider(ws.id)).value ?? const [];
     final sessions =

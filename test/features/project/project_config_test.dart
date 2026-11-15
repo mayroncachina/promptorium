@@ -40,6 +40,30 @@ void main() {
     );
   });
 
+  test('issues (SPEC-074): Closes on, the comment off, closed issues '
+      'checked by default; the file keeps what differs', () {
+    const d = ProjectConfig();
+    expect(d.issues.closesInPr, isTrue);
+    expect(d.issues.commentProgress, isFalse);
+    expect(d.issues.checkClosed, isTrue);
+    expect(d.toYaml(), isNot(contains('issues:')));
+    final c = ProjectConfig.parse(
+      'issues:\n  closes-no-pr: false\n  comentar-andamento: sim\n'
+      '  conferir-fechadas: nao\n',
+    );
+    expect(c.issues.closesInPr, isFalse);
+    expect(c.issues.commentProgress, isTrue);
+    expect(c.issues.checkClosed, isFalse);
+    expect(
+      c.toYaml(),
+      contains(
+        'issues:\n  closes-no-pr: false\n  comentar-andamento: true\n'
+        '  conferir-fechadas: false\n',
+      ),
+    );
+    expect(ProjectConfig.parse(c.toYaml()), c);
+  });
+
   test('git: marcar-commits-de-agente (SPEC-048 R1): off by default, '
       'round trip, other keys kept', () {
     expect(const ProjectConfig().git.markAgentCommits, isFalse);

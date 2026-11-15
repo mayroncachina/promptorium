@@ -1880,12 +1880,12 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
                   dense: true,
                   title: Text(i.label),
                   subtitle: Text(
-                    '${switch (i.level) {
-                      ReadinessLevel.ok => 'OK',
-                      ReadinessLevel.aviso => 'Aviso',
-                      ReadinessLevel.bloqueio => 'Bloqueio',
-                      ReadinessLevel.naoVerificado => 'Não verificado',
-                    }} · ${i.detail}',
+                    '${i.id == 'issue' ? 'Issue' : switch (i.level) {
+                            ReadinessLevel.ok => 'OK',
+                            ReadinessLevel.aviso => 'Aviso',
+                            ReadinessLevel.bloqueio => 'Bloqueio',
+                            ReadinessLevel.naoVerificado => 'Não verificado',
+                          }} · ${i.detail}',
                   ),
                   trailing: i.action == null
                       ? null
