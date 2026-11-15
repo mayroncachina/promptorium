@@ -188,11 +188,11 @@ class _CommandsCardState extends State<CommandsCard> {
           // Compact (the modal's preview, half of the card): narrower
           // columns, so the command field keeps room for the command.
           SizedBox(
-            width: widget.compact ? 60 : 72,
+            width: widget.compact ? 58 : 72,
             child: Text(label, style: const TextStyle(fontSize: 12)),
           ),
           SizedBox(
-            width: widget.compact ? 126 : 130,
+            width: widget.compact ? 138 : 130,
             child: Text(key, style: mono),
           ),
           Expanded(
