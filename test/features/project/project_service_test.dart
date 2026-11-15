@@ -188,6 +188,100 @@ void main() {
     expect(File('${tmp.path}/vazio2/CLAUDE.md').existsSync(), isFalse);
   });
 
+  test('createProject starts on the chosen branch and writes branch-base: '
+      'and, for GitHub / GitLab, hospedagem: before the first commit '
+      '(SPEC-072 R5, R6, R22, P5)', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'tronco',
+      branch: 'trunk',
+      remoteUrl: 'git@github.com:ana/tronco.git',
+    );
+    expect(await gitIn(ws.path, ['branch', '--show-current']), 'trunk\n');
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.baseBranch, 'trunk');
+    expect(config.host, 'github.com');
+    expect(config.hostType, 'github');
+    // In the initial commit.
+    expect(
+      await gitIn(ws.path, ['show', 'HEAD:.promptorium/config.yml']),
+      allOf(contains('branch-base: trunk'), contains('hospedagem:')),
+    );
+
+    // GitLab, with a template: its commands stay.
+    final gl = await service().createProject(
+      parent: tmp.path,
+      name: 'lab',
+      template: templateById('flutter'),
+      remoteUrl: 'https://gitlab.com/ana/lab.git',
+      plan: false,
+    );
+    final glc = ProjectConfig.loadSync(gl.path);
+    expect((glc.host, glc.hostType), ('gitlab.com', 'gitlab'));
+    expect(glc.testCommand, 'flutter test');
+    expect(glc.baseBranch, 'main');
+
+    // "Vazio" and only local: branch-base: main, no hospedagem:.
+    final local = await service().createProject(
+      parent: tmp.path,
+      name: 'local',
+      template: templateById('empty'),
+      plan: false,
+    );
+    final lc = ProjectConfig.loadSync(local.path);
+    expect(lc.baseBranch, 'main');
+    expect(lc.host, isNull);
+    expect(
+      await gitIn(local.path, ['ls-tree', '--name-only', '-r', 'HEAD']),
+      contains('.promptorium/config.yml'),
+    );
+
+    // A host that is neither: no hospedagem:.
+    final other = await service().createProject(
+      parent: tmp.path,
+      name: 'outro',
+      remoteUrl: 'git@example.com:ana/outro.git',
+      plan: false,
+    );
+    expect(ProjectConfig.loadSync(other.path).hostType, isNull);
+
+    // An invalid branch is refused before anything is created.
+    await expectLater(
+      service().createProject(
+        parent: tmp.path,
+        name: 'ruim',
+        branch: 'com espaço',
+      ),
+      throwsA(
+        isA<ProjectException>().having(
+          (e) => e.message,
+          'message',
+          contains('não é um nome de branch'),
+        ),
+      ),
+    );
+    expect(Directory('${tmp.path}/ruim').existsSync(), isFalse);
+  });
+
+  test('initialConfig: hospedagem only for GitHub / GitLab (SPEC-072 R22)', () {
+    const base = ProjectConfig(testCommand: 'go test ./...');
+    expect(initialConfig(base, 'main', null).host, isNull);
+    expect(initialConfig(base, 'main', '').host, isNull);
+    expect(initialConfig(base, 'dev', null).baseBranch, 'dev');
+    expect(initialConfig(base, 'main', '/srv/repo.git').host, isNull);
+    final gh = initialConfig(base, 'main', 'https://github.com/a/b');
+    expect(
+      (gh.host, gh.hostType, gh.testCommand),
+      ('github.com', 'github', 'go test ./...'),
+    );
+    // A self-hosted GitLab known by the template's hospedagem:.
+    const own = ProjectConfig(host: 'git.empresa.com', hostType: 'gitlab');
+    expect(
+      initialConfig(own, 'main', 'git@git.empresa.com:a/b.git').hostType,
+      'gitlab',
+    );
+  });
+
   test('createProject rejects bad names and non-empty folders', () async {
     Future<void> bad(String parent, String name, String message) => expectLater(
       service().createProject(parent: parent, name: name),

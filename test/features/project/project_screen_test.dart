@@ -14,6 +14,8 @@ import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
+import 'package:promptorium/features/project/environment_check.dart'
+    show environmentProbeProvider;
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_templates.dart';
@@ -27,6 +29,7 @@ import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
+import 'environment_check_test.dart' show FakeProbe;
 import '../../ui/preferences_test.dart' show unmount;
 import '../sessions/session_test_utils.dart' show FakeCli;
 import 'spec_auto_planner_test.dart' show answerFor;
@@ -105,6 +108,8 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
       appDatabaseProvider.overrideWithValue(db),
       currentBranchProvider.overrideWith((ref, root) async => 'main'),
       claudeProcessStarterProvider.overrideWithValue(cli.start),
+      // The Começar "Ambiente" (SPEC-072): no real git or claude.
+      environmentProbeProvider.overrideWithValue(FakeProbe()),
     ],
   );
   if (withWorkspace) {
@@ -211,6 +216,7 @@ class QueueScreen {
         appDatabaseProvider.overrideWithValue(db),
         currentBranchProvider.overrideWith((ref, root) async => 'main'),
         claudeProcessStarterProvider.overrideWithValue(FakeCli().start),
+        environmentProbeProvider.overrideWithValue(FakeProbe()),
         specDesignerProvider.overrideWith(
           (ref) => designer = QueueDesigner(ref),
         ),
@@ -374,6 +380,22 @@ void main() {
     expect(find.byKey(const ValueKey('project-step-stack')), findsOneWidget);
     final row = await db.select(db.projectPlans).getSingle();
     expect(row.step, 'stack');
+    await unmount(tester, c);
+  });
+
+  testWidgets('the stepper shows the branch of the Começar screen '
+      '(SPEC-072 R6)', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-stepper-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    File('${tmp.path}/.promptorium/config.yml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('branch-base: trunk\n');
+    final (c, _) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(vision: vision),
+      path: tmp.path,
+    );
+    expect(find.text('git init · trunk · commit inicial'), findsOneWidget);
     await unmount(tester, c);
   });
 

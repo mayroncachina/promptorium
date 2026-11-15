@@ -6,6 +6,7 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../sessions/widgets/session_style.dart';
+import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_planner.dart';
 import 'project_service.dart';
@@ -282,10 +283,13 @@ class _Stepper extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const _StepItem(
+                  _StepItem(
+                    key: const ValueKey('project-stepper-repo'),
                     number: 1,
                     title: 'Pasta e repositório',
-                    subtitle: 'git init · commit inicial',
+                    // The branch of the Começar screen (SPEC-072 R6).
+                    subtitle:
+                        'git init · ${ProjectConfig.loadSync(workspace.path).baseBranch ?? 'main'} · commit inicial',
                     state: _StepState.done,
                   ),
                   for (final s in ProjectStep.values)

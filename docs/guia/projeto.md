@@ -5,10 +5,23 @@
 Sem workspace aberto, ou em **Novo projeto…**, a tela Começar oferece três caminhos:
 
 - **Abrir pasta existente**.
-- **Criar projeto novo**: nome da pasta, onde criar, modelo de partida e remoto ("Só local por enquanto" ou "Conectar a" uma URL). Termina em "Criar e planejar com o planner" ou "Criar sem planejar".
+- **Criar projeto novo**: nome da pasta, onde criar, branch inicial (`main` por padrão), modelo de partida e remoto ("Só local por enquanto" ou "Conectar a" uma URL). Termina em "Criar e planejar com o planner" ou "Criar sem planejar".
 - **Clonar de uma URL**.
 
-Abaixo ficam os projetos recentes.
+Em "Abrir pasta existente" e "Clonar de uma URL", a coluna da direita mostra os projetos recentes.
+
+### Ambiente
+
+Em "Criar projeto novo", o bloco **Ambiente** confere, antes de criar:
+
+- **Git**: instalado e com nome e e-mail. Sem identidade, os campos Nome e E-mail e **Gravar no git** gravam no `git config --global` (os comandos aparecem escritos embaixo, para quem prefere o terminal).
+- **Claude Code**: instalado, compatível e logado, com a versão e o plano. Deslogado, **Abrir terminal com claude auth login**; o item confere de novo quando a janela do app volta ao foco.
+- **Hospedagem**: sai do "Repositório remoto". "Só local" é **Local**, sem checagem. Uma URL do `github.com` é **GitHub** e confere o `gh`; uma do `gitlab.com` é **GitLab** e confere o `glab` no host da URL. Outro host fica como "não reconhecido": PR e MR pelo app indisponíveis. A CLI da hospedagem é só aviso, nunca bloqueia.
+- **Pasta**: "Criar dentro de" existe e é gravável, e o destino não existe (ou é sobra de uma criação que falhou).
+
+Cada item mostra **ok**, **bloqueia** ou **aviso**. Git ou Pasta vermelhos, ou uma branch inválida, desabilitam os dois botões; Claude vermelho desabilita só "Criar e planejar". A checagem roda ao abrir, 300 ms depois de mudar o nome, a pasta ou o remoto, e em **Verificar de novo**. Um item que passa de 5 s fica como aviso e não bloqueia.
+
+A branch inicial vira a branch do repositório e o `branch-base:` do `.promptorium/config.yml`, que nasce no commit inicial (também no modelo Vazio). Com GitHub ou GitLab, o config.yml também ganha `hospedagem:`.
 
 Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
 
