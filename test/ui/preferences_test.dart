@@ -406,6 +406,8 @@ void main() {
     await tester.pump();
     expect(find.textContaining('O modelo preenche Flutter'), findsOneWidget);
     // Remote without URL is refused before touching the disk.
+    await tester.ensureVisible(find.byType(Radio<bool>).last);
+    await tester.pump();
     await tester.tap(find.byType(Radio<bool>).last);
     await tester.pump();
     // SPEC-071 R26: Enter in the name creates, like the main button.

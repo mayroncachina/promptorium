@@ -13,7 +13,7 @@ import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import 'cost_estimate.dart';
 import 'project_plan.dart';
-import 'project_templates.dart' show templateClaudeMd;
+import 'project_templates.dart' show CustomStack, templateClaudeMd;
 
 /// The planner of the Projeto screen: short, read-only `claude -p` runs with
 /// `--json-schema` (like "Gerar tarefas"). The Visão conversation keeps one
@@ -56,6 +56,14 @@ final stackSchema = _object({
   'claudeMd': _str,
   // The commands of the CLAUDE.md, for the config.yml (SPEC-072 R11).
   'commands': _object({for (final k in StackCommands.keys) k: _str}),
+});
+
+/// The "Outro…" modal (SPEC-072 R17): the stack schema plus a short name
+/// and the skeleton command.
+final customStackSchema = _object({
+  'name': _str,
+  ...(stackSchema['properties'] as Map<String, Object?>),
+  'scaffold': _str,
 });
 
 final _specSchema = _object({
@@ -118,6 +126,29 @@ const stackSystemPrompt =
     'use {arquivo} no lugar do caminho). Texto vazio quando o comando não se '
     'aplica (ex.: dev num app de desktop). Mantenha exatamente os comandos '
     'indicados como fixados.';
+
+/// The "Outro…" modal: a stack from a free description (SPEC-072 R17).
+const customStackSystemPrompt =
+    '$_base Defina a stack de um projeto novo a partir da descrição do '
+    'usuário, que é a fonte da verdade: não troque o que ele pediu. Em name, '
+    'um nome curto da stack para um botão (ex.: "Go · Fiber"). Em decisions, '
+    'uma entrada por área relevante (Linguagem, Framework, Banco, '
+    'Migrations, Testes…) com choice, why (uma frase) e até 2 alternatives. '
+    'Em commands: install (dependências, protegido pela existência do '
+    'manifesto, porque o projeto começa vazio, ex.: "test ! -f go.mod || go '
+    'mod download"), run, dev, test, lint e format (formata um arquivo, com '
+    '{arquivo} no lugar do caminho); texto vazio quando não se aplica. Em '
+    'scaffold, o comando que cria o esqueleto do projeto (vazio se não '
+    'houver). Em claudeMd, um CLAUDE.md base conciso em Markdown: título, '
+    'stack, uma seção "## Comandos" com os comandos e o scaffold, e '
+    'convenções de código e de commits. Num pedido de ajuste, devolva a '
+    'proposta COMPLETA atualizada.';
+
+/// User message of the "Outro…" modal: the description, or an adjustment
+/// of the same conversation.
+String customStackPrompt(String text, {bool adjust = false}) => adjust
+    ? 'Ajuste pedido: ${text.trim()}'
+    : 'Descrição da stack: ${text.trim()}';
 
 const roadmapSystemPrompt =
     '$_base Etapa Roadmap: transforme a visão e a stack em specs. Cada spec '
@@ -211,6 +242,15 @@ String roadmapPrompt(VisionPlan vision, StackPlan stack, {String? request}) {
     ..writeln('Stack:');
   for (final d in stack.decisions) {
     b.writeln('- ${d.area}: ${d.choice}');
+  }
+  if (stack.scaffold.trim().isNotEmpty) {
+    // The "Outro…" stack (SPEC-072 R18): the base of the first Fundação spec.
+    b
+      ..writeln()
+      ..writeln(
+        'Comando que cria o esqueleto (scaffold): ${stack.scaffold.trim()} '
+        '— use-o como base da primeira spec da Fundação.',
+      );
   }
   if (request != null && request.trim().isNotEmpty) {
     b
@@ -342,6 +382,23 @@ StackPlan parseStackResult(
     decisions: decisions,
     claudeMdStale: false,
     commands: cmds,
+  );
+}
+
+/// The answer of the "Outro…" modal (SPEC-072 R17).
+CustomStack parseCustomStackResult(Result r) {
+  final m = _map(r);
+  final stack = StackPlan.fromJson(m);
+  final name = m['name'] is String ? (m['name'] as String).trim() : '';
+  if (stack.decisions.isEmpty || name.isEmpty) {
+    throw const PlannerException('O Claude não propôs uma stack.');
+  }
+  return CustomStack(
+    name: name,
+    decisions: stack.decisions,
+    commands: stack.commands,
+    scaffold: m['scaffold'] is String ? (m['scaffold'] as String).trim() : '',
+    claudeMd: stack.claudeMd,
   );
 }
 

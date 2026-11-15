@@ -176,6 +176,14 @@ class StackDecision {
 
   bool get isUndecided => choice.isEmpty || choice == undecided;
 
+  StackDecision copyWith({bool? pinned}) => StackDecision(
+    area: area,
+    choice: choice,
+    why: why,
+    alternatives: alternatives,
+    pinned: pinned ?? this.pinned,
+  );
+
   /// Picks [option] (an alternative); the previous choice becomes one.
   StackDecision choose(String option) => StackDecision(
     area: area,
@@ -344,9 +352,15 @@ class StackPlan {
     this.claudeMd = '',
     this.claudeMdStale = false,
     this.commands = const StackCommands(),
+    this.scaffold = '',
   });
 
   final List<StackDecision> decisions;
+
+  /// The command that creates the skeleton, from a stack defined with
+  /// "Outro…" (SPEC-072 R18); the roadmap's first Fundação spec starts
+  /// from it. The app never runs it (P10).
+  final String scaffold;
 
   /// The commands of the stack, merged into the config.yml at creation
   /// (SPEC-072 R11, R13).
@@ -365,11 +379,13 @@ class StackPlan {
     String? claudeMd,
     bool? claudeMdStale,
     StackCommands? commands,
+    String? scaffold,
   }) => StackPlan(
     decisions: decisions ?? this.decisions,
     claudeMd: claudeMd ?? this.claudeMd,
     claudeMdStale: claudeMdStale ?? this.claudeMdStale,
     commands: commands ?? this.commands,
+    scaffold: scaffold ?? this.scaffold,
   );
 
   factory StackPlan.fromJson(Object? j) {
@@ -385,6 +401,7 @@ class StackPlan {
       claudeMd: j['claudeMd'] is String ? j['claudeMd'] as String : '',
       claudeMdStale: j['claudeMdStale'] == true,
       commands: StackCommands.fromJson(j['commands']),
+      scaffold: j['scaffold'] is String ? (j['scaffold'] as String).trim() : '',
     );
   }
 
@@ -394,6 +411,7 @@ class StackPlan {
     if (claudeMdStale) 'claudeMdStale': true,
     if (!commands.isEmpty || commands.pinned.isNotEmpty)
       'commands': commands.toJson(),
+    if (scaffold.isNotEmpty) 'scaffold': scaffold,
   };
 }
 

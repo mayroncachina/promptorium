@@ -12,6 +12,7 @@ import '../prompt/conversation_manager.dart';
 import '../review/review_host.dart' show detectReviewHost, remoteHost;
 import '../sessions/session_manager.dart';
 import '../specs/spec_service.dart';
+import 'cost_estimate.dart';
 import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_templates.dart';
@@ -75,6 +76,7 @@ class ProjectService {
     ProjectTemplate? template,
     bool plan = true,
     String branch = 'main',
+    int customStackCalls = 0,
   }) async {
     final n = name.trim();
     if (n.isEmpty) throw const ProjectException('Informe o nome da pasta.');
@@ -133,6 +135,8 @@ class ProjectService {
       throw ProjectException(repoSetupError(e));
     }
     final ws = await _ref.read(workspaceActionsProvider).addFolder(path);
+    // The proposals of the "Outro…" modal count in the cost (SPEC-072 R19).
+    await recordPlannerCalls(_ref, ws.id, 'outro', customStackCalls);
     if (plan) {
       await _ref.read(projectPlansRepoProvider).start(ws.id);
       final commands = t == null
@@ -150,6 +154,7 @@ class ProjectService {
                     stack: StackPlan(
                       decisions: t.decisions,
                       commands: commands,
+                      scaffold: t.scaffold,
                     ),
                   ).encode(),
                 ),

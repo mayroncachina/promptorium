@@ -12,6 +12,16 @@ Em "Abrir pasta existente" e "Clonar de uma URL", a coluna da direita mostra os 
 
 Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
 
+### Outra stack
+
+Quando nenhum modelo serve, o último chip, **Outro…**, abre **Definir a stack com o Claude**. Descreva a stack em texto livre ("API em Go com Fiber e Postgres, testes com go test") e clique em **Propor stack**. O Claude, somente leitura, devolve uma prévia: nome curto, decisões com o porquê, os seis comandos (editáveis), o comando de scaffold e um CLAUDE.md base, que abre para ler.
+
+- **Pedir ajuste** continua a mesma conversa e troca a prévia. **Cancelar**, enquanto ele pensa, encerra a chamada; um erro aparece no próprio modal, com "Tentar de novo".
+- **Usar esta stack** fecha o modal e a stack vira o ponto de partida: o chip mostra o nome ("Go · Fiber") e um lápis que reabre a conversa. Fechar sem usar não muda nada.
+- Ao criar, os comandos vão para o config.yml, o CLAUDE.md base é gravado como o de um modelo (o do plano o substitui), as decisões e os comandos entram fixados na etapa Stack, e o scaffold vai ao planner do roadmap como base da primeira spec da Fundação. O app não roda o scaffold.
+- Cada proposta ou ajuste é uma chamada e soma no custo ("+1 chamada" em "O que acontece" e em Revisar e criar).
+- A stack vale enquanto a tela Começar está aberta. Com o Claude Code vermelho no Ambiente, o chip fica desabilitado.
+
 ### Ambiente
 
 Em "Criar projeto novo", o bloco **Ambiente** confere, antes de criar:

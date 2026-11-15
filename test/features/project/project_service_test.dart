@@ -8,7 +8,10 @@ import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_config.dart';
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_plan.dart';
+import 'package:promptorium/features/project/project_planner.dart'
+    show parseCustomStackResult;
 import 'package:promptorium/features/project/project_service.dart';
 import 'package:promptorium/features/project/project_templates.dart';
 import 'package:promptorium/features/board/board_rules.dart';
@@ -17,6 +20,7 @@ import 'package:promptorium/features/specs/spec_service.dart';
 import '../../core/git/git_test_utils.dart';
 import '../../core/git/repo_setup_test.dart' show gitRun;
 import '../../helpers/test_db.dart';
+import 'custom_stack_test.dart' show customResult, goFiber;
 
 const plan = ProjectPlanData(
   vision: VisionPlan(summary: 'Receitas', mvp: ['Cadastro']),
@@ -408,6 +412,40 @@ void main() {
       contains('executar: flutter run -d linux'),
     );
     expect(await gitIn(ws.path, ['status', '--porcelain']), '');
+  });
+
+  test('createProject with an "Outro…" stack: commands in the config.yml, '
+      'the CLAUDE.md base, pinned decisions and the modal calls counted '
+      '(SPEC-072 R18, R19)', () async {
+    final stack = parseCustomStackResult(customResult(goFiber()));
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'loja-go',
+      template: ProjectTemplate.fromStack(stack),
+      customStackCalls: 2,
+    );
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.testCommand, 'go test ./...');
+    expect(config.runCommand, 'go run ./cmd/api');
+    expect(config.formatCommand, 'gofmt -w {arquivo}');
+    expect(config.baseBranch, 'main');
+    expect(
+      File('${ws.path}/CLAUDE.md').readAsStringSync(),
+      contains('Esqueleto (scaffold)'),
+    );
+    expect(service().hasTemplateClaudeMd(ws), isTrue);
+    final data = ProjectPlanData.decode(
+      (await c.read(projectPlansRepoProvider).get(ws.id))!.data,
+    );
+    expect(data.stack.decisions.map((d) => d.choice), [
+      'Go 1.23',
+      'Fiber v2',
+      'GORM',
+    ]);
+    expect(data.stack.decisions.every((d) => d.pinned), isTrue);
+    expect(data.stack.commands.pinned, contains('test'));
+    expect(data.stack.scaffold, startsWith('go mod init'));
+    expect(c.read(plannerCallsProvider(ws.id)).detail, 'stack do Outro… 2');
   });
 
   test('materialize: CLAUDE.md, approved specs with translated '
