@@ -12,6 +12,7 @@ import '../../core/git/diff_parser.dart';
 import '../../core/fs/dir_watcher.dart';
 import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/worktree_setup.dart' show worktreeEnvironment;
+import '../../core/process/process_runner.dart' show lenientUtf8;
 import '../../core/process/shell_runner.dart' show shellRunnerProvider;
 import '../board/step_gate.dart' show GateCheck, GateReport, tailLines;
 import '../../core/git/git_service.dart';
@@ -53,7 +54,14 @@ Future<ProcessResult> _defaultCommand(
   String exe,
   List<String> args, {
   String? workingDirectory,
-}) => Process.run(exe, args, workingDirectory: workingDirectory);
+}) => Process.run(
+  exe,
+  args,
+  workingDirectory: workingDirectory,
+  // SPEC-071 R12: output outside UTF-8 never breaks the Review.
+  stdoutEncoding: lenientUtf8,
+  stderrEncoding: lenientUtf8,
+);
 
 final commandRunnerProvider = Provider<CommandRunner>((ref) => _defaultCommand);
 

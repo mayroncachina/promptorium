@@ -127,6 +127,18 @@ class Env {
 void main() {
   group('spec', specReviewTests);
 
+  test('SPEC-071 R12: the default command runner decodes output outside '
+      'UTF-8 with replacement', () async {
+    final c = ProviderContainer();
+    addTearDown(c.dispose);
+    final r = await c.read(commandRunnerProvider)('sh', [
+      '-c',
+      r"printf 'a\377b'; printf 'c\376d' >&2",
+    ]);
+    expect(r.stdout, 'a\uFFFDb');
+    expect(r.stderr, 'c\uFFFDd');
+  });
+
   late Directory tmp;
   late String repo;
 
