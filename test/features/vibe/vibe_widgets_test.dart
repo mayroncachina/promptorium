@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/board/spec_runner.dart'
+    show gateRunningProvider;
 import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/features/vibe/vibe_flow.dart';
 import 'package:promptorium/features/vibe/vibe_guard.dart';
@@ -84,6 +86,52 @@ void main() {
     expect(find.text('vibe/007-botao-comprar-verde'), findsOneWidget);
     expect(find.text('Enviar para Review'), findsOneWidget);
     expect(find.byKey(const ValueKey('prompt-vibe')), findsNothing);
+  });
+
+  testWidgets('SPEC-071 R5: while the gate of the VIBE runs the composer '
+      'says why and takes no request', (tester) async {
+    final (db, _, c) = await pumpPrompt(
+      tester,
+      overrides: const <Override>[],
+      withConversation: true,
+    );
+    final spec = await db
+        .into(db.specs)
+        .insertReturning(
+          SpecsCompanion.insert(
+            workspaceId: 1,
+            code: 'VIBE-007',
+            title: 'Botão Comprar verde',
+            path: 'docs/vibe/VIBE-007-botao.md',
+            kind: const Value(SpecKind.vibe),
+            stage: const Value(SpecStage.running),
+            branch: const Value('vibe/007-botao-comprar-verde'),
+          ),
+        );
+    await (db.update(db.conversations)..where((x) => x.id.equals(1))).write(
+      ConversationsCompanion(specId: Value(spec.id)),
+    );
+    await pumpFor(tester, 20);
+    AmberButton send() =>
+        tester.widget<AmberButton>(find.byKey(const ValueKey('prompt-send')));
+    expect(send().onTap, isNotNull);
+    expect(find.byKey(const ValueKey('prompt-blocked-reason')), findsNothing);
+
+    c.read(gateRunningProvider.notifier).add(spec.id);
+    await pumpFor(tester);
+    expect(send().onTap, isNull);
+    expect(send().label, 'Verificando…');
+    expect(
+      find.text(
+        'Verificando VIBE-007: espere o gate terminar para mandar um pedido '
+        'novo.',
+      ),
+      findsOneWidget,
+    );
+
+    c.read(gateRunningProvider.notifier).remove(spec.id);
+    await pumpFor(tester);
+    expect(send().onTap, isNotNull);
   });
 
   testWidgets('R5, R8, R13: the questions are alerts in the conversation, '

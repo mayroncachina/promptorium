@@ -669,6 +669,12 @@ class PrImportService {
     }
     final settings = _ref.read(appSettingsProvider.notifier);
     await settings.set(ImportedPr.key(id), meta.encode());
+    // SPEC-071 R2: the comments up to now went (or not) in the first
+    // message; "Acompanhar PR" later only sends what comes after.
+    await settings.set(
+      PrBabysitter.seenKey(id),
+      DateTime.now().toIso8601String(),
+    );
     await settings.set(replyInPrKey(ws.id), replyInPr ? '1' : '0');
     return id;
   }

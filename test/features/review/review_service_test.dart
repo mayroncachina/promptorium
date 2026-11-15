@@ -206,6 +206,20 @@ void main() {
     return Env(c, cli, ws, t, id, wt);
   }
 
+  /// Commits everything in the worktree and pushes the branch (with
+  /// upstream) to a bare `origin`; returns the remote's path.
+  Future<String> publish(Env e, String branch) async {
+    final remote = '${tmp.path}/remote.git';
+    if (!Directory(remote).existsSync()) {
+      await Process.run('git', ['init', '-q', '--bare', remote]);
+      await gitIn(repo, ['remote', 'add', 'origin', remote]);
+    }
+    await gitIn(e.worktree, ['add', '-A']);
+    await gitIn(e.worktree, ['commit', '-q', '-m', 'agente: resto']);
+    await gitIn(e.worktree, ['push', '-q', '-u', 'origin', branch]);
+    return remote;
+  }
+
   test('since round includes new commits and working tree but excludes earlier work', () async {
     final e = await setUpSession();
     final sha = (await gitIn(e.worktree, ['rev-parse', 'HEAD'])).trim();
@@ -1521,6 +1535,8 @@ void main() {
     cmds.prView = jsonEncode({'state': 'MERGED'});
     final branch = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!
         .branch;
+    // Everything in the worktree is in the PR (SPEC-071 R1).
+    await publish(e, branch);
     await e.review.mergePr(e.sessionId, PrMergeMethod.squash);
     expect(
       (await gitIn(e.ws.path, ['branch', '--list', branch])).trim(),
@@ -1533,6 +1549,159 @@ void main() {
     final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
     expect(s.status, SessionStatus.merged);
     expect(Directory(e.worktree).existsSync(), isFalse);
+  });
+
+  group('SPEC-071 R1 · Mergear PR não descarta trabalho', () {
+    Future<(Env, FakeCommands, String, String)> withPr() async {
+      final cmds = FakeCommands();
+      final e = await setUpSession(commands: cmds);
+      final branch =
+          (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!.branch;
+      final remote = await publish(e, branch);
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
+      cmds.calls.clear();
+      return (e, cmds, branch, remote);
+    }
+
+    bool merged(FakeCommands cmds) =>
+        cmds.calls.any((c) => c.$2.take(2).join(' ') == 'pr merge');
+
+    test(
+      'changes not committed: refused, nothing merged, worktree kept',
+      () async {
+        final (e, cmds, _, _) = await withPr();
+        File('${e.worktree}/novo2.txt').writeAsStringSync('pendente\n');
+        await expectLater(
+          e.review.mergePr(e.sessionId, PrMergeMethod.squash),
+          throwsA(
+            isA<UnsentWorkException>()
+                .having((x) => x.pending, 'pending', 1)
+                .having((x) => x.unpushed, 'unpushed', 0)
+                .having(
+                  (x) => x.message,
+                  'message',
+                  contains('Enviar e mergear'),
+                ),
+          ),
+        );
+        expect(merged(cmds), isFalse);
+        expect(File('${e.worktree}/novo2.txt').existsSync(), isTrue);
+        final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
+        expect(s.status, isNot(SessionStatus.merged));
+      },
+    );
+
+    test('commits not pushed: refused', () async {
+      final (e, cmds, _, _) = await withPr();
+      File('${e.worktree}/novo2.txt').writeAsStringSync('commit local\n');
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-q', '-m', 'local']);
+      await expectLater(
+        e.review.mergePr(e.sessionId, PrMergeMethod.squash),
+        throwsA(
+          isA<UnsentWorkException>().having((x) => x.unpushed, 'unpushed', 1),
+        ),
+      );
+      expect(merged(cmds), isFalse);
+      expect(Directory(e.worktree).existsSync(), isTrue);
+    });
+
+    test('"Enviar e mergear" commits, pushes and merges exactly what was '
+        'pushed', () async {
+      final (e, cmds, branch, remote) = await withPr();
+      File('${e.worktree}/novo2.txt').writeAsStringSync('commit local\n');
+      await gitIn(e.worktree, ['add', '-A']);
+      await gitIn(e.worktree, ['commit', '-q', '-m', 'local']);
+      File('${e.worktree}/novo3.txt').writeAsStringSync('pendente\n');
+      await e.review.mergePr(
+        e.sessionId,
+        PrMergeMethod.squash,
+        sendFirst: true,
+      );
+      final call = cmds.calls.singleWhere(
+        (c) => c.$2.take(2).join(' ') == 'pr merge',
+      );
+      final head = call.$2[call.$2.indexOf('--match-head-commit') + 1];
+      expect((await gitIn(remote, ['rev-parse', branch])).trim(), head);
+      expect(await gitIn(remote, ['show', '$branch:novo3.txt']), 'pendente\n');
+      expect(await gitIn(remote, ['show', '$branch:novo2.txt']), isNotEmpty);
+      final s = (await e.c.read(sessionsRepoProvider).getById(e.sessionId))!;
+      expect(s.status, SessionStatus.merged);
+    });
+  });
+
+  group('SPEC-071 R2 · Verificar um PR não acompanhado', () {
+    String comment() => jsonEncode({
+      'state': 'OPEN',
+      'mergeable': 'MERGEABLE',
+      'comments': [
+        {
+          'author': {'login': 'ana'},
+          'body': 'Comentário antigo.',
+          'createdAt': DateTime.now().toIso8601String(),
+        },
+      ],
+      'reviews': [],
+      'statusCheckRollup': [],
+    });
+
+    test('only refreshes the status: nothing to the agent, no round', () async {
+      final cmds = FakeCommands()..prView = comment();
+      final e = await setUpSession(commands: cmds);
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
+      final sitter = e.c.read(prBabysitterProvider.notifier);
+      expect(sitter.isWatching(e.sessionId), isFalse);
+      final written = e.cli.last.writtenJson.length;
+      await sitter.check(e.sessionId);
+      await settle();
+      expect(e.c.read(prBabysitterProvider)[e.sessionId]!.status, isNotNull);
+      expect(e.cli.last.writtenJson.length, written);
+      expect(
+        await e.c.read(reviewCommentsRepoProvider).bySession(e.sessionId),
+        isEmpty,
+      );
+      expect(
+        e.c.read(appSettingsProvider)[PrBabysitter.seenKey(e.sessionId)],
+        isNull,
+      );
+    });
+
+    test('two checks at the same time are one', () async {
+      final cmds = FakeCommands()..prView = comment();
+      final e = await setUpSession(commands: cmds);
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPrUrl(e.sessionId, 'https://github.com/o/r/pull/7');
+      final sitter = e.c.read(prBabysitterProvider.notifier);
+      int views() =>
+          cmds.calls.where((c) => c.$2.take(2).join(' ') == 'pr view').length;
+      await sitter.check(e.sessionId);
+      final one = views();
+      final a = sitter.check(e.sessionId);
+      final b = sitter.check(e.sessionId);
+      expect(identical(a, b), isTrue);
+      await Future.wait([a, b]);
+      expect(views(), 2 * one);
+    });
+
+    test('"Criar PR" records pr.seen: watching later only sends what comes '
+        'after', () async {
+      final cmds = FakeCommands();
+      final e = await setUpSession(commands: cmds);
+      final remote = '${tmp.path}/remote.git';
+      await Process.run('git', ['init', '-q', '--bare', remote]);
+      await gitIn(repo, ['remote', 'add', 'origin', remote]);
+      final before = DateTime.now();
+      await e.review.createPr(e.sessionId);
+      final seen = DateTime.parse(
+        e.c.read(appSettingsProvider)[PrBabysitter.seenKey(e.sessionId)]!,
+      );
+      expect(seen.isBefore(before), isFalse);
+    });
   });
 
   test('rejecting a content hunk of a renamed file keeps the rename', () async {

@@ -6,17 +6,26 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../pr_babysitter.dart';
 import '../review_service.dart';
-import '../review_stack.dart' show nextAfterMerge;
 
 /// PR of the reviewed session (F16): its state, "Acompanhar PR", "Mergear
-/// PR" (squash / rebase / merge) and "Resolver conflito".
+/// PR" and "Resolver conflito".
 class PrPanel extends ConsumerStatefulWidget {
-  const PrPanel({super.key, required this.session, this.localConflict = false});
+  const PrPanel({
+    super.key,
+    required this.session,
+    this.localConflict = false,
+    this.onMergePr,
+  });
 
   final Session session;
 
   /// The last local merge stopped on a conflict.
   final bool localConflict;
+
+  /// "Mergear PR": the Review's own flow (method dialog, "Enviar e
+  /// mergear", the workspace's merge lock — SPEC-071 R1, R4); null while
+  /// the merge is not available.
+  final VoidCallback? onMergePr;
 
   @override
   ConsumerState<PrPanel> createState() => _PrPanelState();
@@ -115,43 +124,11 @@ class _PrPanelState extends ConsumerState<PrPanel> {
               onTap: _busy ? null : () => _do('', () => sitter.check(_id)),
             ),
           if (hasPr && (status?.open ?? true))
-            PopupMenuButton<PrMergeMethod>(
+            SmallButton(
               key: const ValueKey('review-pr-merge'),
-              tooltip: 'gh pr merge',
-              color: AppColors.panelSolid,
-              enabled: !_busy,
-              onSelected: (m) => _do(
-                'PR mergeado (${m.label}). Atualize a branch base com git pull.',
-                () async {
-                  // SPEC-032 R5: on to the child (or the next item).
-                  final queue =
-                      ref
-                          .read(reviewQueueProvider(widget.session.workspaceId))
-                          .value ??
-                      const <ReviewItem>[];
-                  await ref.read(reviewServiceProvider).mergePr(_id, m);
-                  ref
-                      .read(selectedReviewProvider.notifier)
-                      .select(nextAfterMerge(queue, _id)?.session.id);
-                },
-              ),
-              itemBuilder: (_) => [
-                for (final m in PrMergeMethod.values)
-                  PopupMenuItem(
-                    value: m,
-                    child: Text(
-                      'Mergear PR · ${m.label}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text(
-                  'Mergear PR ▾',
-                  style: TextStyle(fontSize: 12, color: AppColors.amber),
-                ),
-              ),
+              label: 'Mergear PR…',
+              color: AppColors.amber,
+              onTap: _busy ? null : widget.onMergePr,
             ),
           if (conflict)
             SmallButton(

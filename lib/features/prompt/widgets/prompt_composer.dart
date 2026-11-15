@@ -69,6 +69,7 @@ class PromptComposer extends ConsumerStatefulWidget {
     required this.onModel,
     required this.onMode,
     required this.busy,
+    this.blockedReason,
     required this.onSend,
     required this.onStop,
     this.onVibe,
@@ -101,6 +102,10 @@ class PromptComposer extends ConsumerStatefulWidget {
   final ValueChanged<String> onModel;
   final ValueChanged<PromptMode> onMode;
   final bool busy;
+
+  /// Why Enviar is off for now (SPEC-071 R5: a VIBE's gate is running);
+  /// shown above the buttons. Null = free.
+  final String? blockedReason;
   final VoidCallback onSend;
   final VoidCallback onStop;
 
@@ -217,7 +222,7 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
 
     final bindings = <ShortcutActivator, VoidCallback>{
       const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
-        if (!widget.busy) widget.onSend();
+        if (!widget.busy && widget.blockedReason == null) widget.onSend();
       },
       if (showing) ...{
         const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
@@ -332,6 +337,17 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    if (widget.blockedReason case final reason?) ...[
+                      Text(
+                        reason,
+                        key: const ValueKey('prompt-blocked-reason'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.amber,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -401,11 +417,20 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                           ),
                           const SizedBox(width: 6),
                         ],
-                        AmberButton(
-                          key: const ValueKey('prompt-send'),
-                          label: widget.busy ? 'Respondendo…' : 'Enviar',
-                          height: 32,
-                          onTap: widget.busy ? null : widget.onSend,
+                        Tooltip(
+                          message: widget.blockedReason ?? '',
+                          child: AmberButton(
+                            key: const ValueKey('prompt-send'),
+                            label: widget.busy
+                                ? 'Respondendo…'
+                                : widget.blockedReason != null
+                                ? 'Verificando…'
+                                : 'Enviar',
+                            height: 32,
+                            onTap: widget.busy || widget.blockedReason != null
+                                ? null
+                                : widget.onSend,
+                          ),
                         ),
                       ],
                     ),

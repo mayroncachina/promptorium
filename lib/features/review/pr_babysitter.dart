@@ -295,8 +295,23 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     }
   }
 
-  /// Reads the PR of [sessionId] and acts on what changed.
-  Future<void> check(String sessionId) async {
+  /// Checks running, one per session (SPEC-071 R2).
+  final _checking = <String, Future<void>>{};
+
+  /// Reads the PR of [sessionId] and acts on what changed. A PR not in
+  /// "Acompanhar PR" only gets its status refreshed (SPEC-071 R2); a check
+  /// already running for the session is joined, not repeated.
+  Future<void> check(String sessionId) {
+    final running = _checking[sessionId];
+    if (running != null) return running;
+    final job = _check(sessionId).whenComplete(() {
+      // Block body: returning the removed Future would await itself.
+      _checking.remove(sessionId);
+    });
+    return _checking[sessionId] = job;
+  }
+
+  Future<void> _check(String sessionId) async {
     final review = ref.read(reviewServiceProvider);
     final PrStatus? status;
     try {
@@ -318,6 +333,9 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       ...state,
       sessionId: PrWatch(status: status, checkedAt: DateTime.now()),
     };
+    // Not watched: "Verificar PR" only refreshes the status — no comments
+    // to the agent, no round, no push.
+    if (!isWatching(sessionId)) return;
     final s = await ref.read(sessionsRepoProvider).getById(sessionId);
     if (s == null) return;
     final title = s.title ?? sessionId;
