@@ -49,6 +49,26 @@ review:
   resolver-conflitos: automatico
 ```
 
+## CI vermelho
+
+Quando um check do PR falha, o painel do PR lista cada check que falhou: o nome, o workflow, o passo que falhou e o trecho do log, que abre na linha. Um check fora do GitHub Actions (um status de outro app, como o preview da Vercel) aparece com "sem log disponível" e "Abrir check", e não vai para o agente.
+
+- **Corrigir CI** busca `gh run view <run> --log-failed` de cada run que falhou e manda à sessão do PR um trecho cortado: por job e por passo, as linhas com cara de erro e o contexto, as últimas linhas de cada passo, até 200 linhas e 16 mil caracteres. Todo corte é dito numa linha, e jobs de matriz com o mesmo erro aparecem uma vez. A mensagem leva o comando do log completo e pede ao agente que ache a causa, corrija sem mudar o teste para esconder a falha, rode os testes afetados e o lint e commite. Se a falha não for do código, ele responde com `CI: falha externa: <motivo>` e não muda nada.
+- A sessão parada é retomada no mesmo worktree. Com a sessão ocupada, a correção fica **na fila** e sai quando o turno acaba; dá para cancelar.
+- **O push é do app**: quando o agente termina com um commit, o app envia a branch ao PR e acompanha o CI de novo. Sem commit, com falha externa ou com o push recusado, o card e o Review mostram o motivo.
+- **Rodar de novo** roda só os jobs que falharam (`gh run rerun <run> --failed`). Quando o log tem cara de falha intermitente (tempo esgotado, `ECONNRESET`, host não resolvido, HTTP 5xx, limite de requisições, runner desligado), o Review diz "Parece intermitente" e destaca esse botão.
+- No Quadro, o card da spec ganha o selo de CI: "CI falhou · 2" com "Corrigir CI", "Na fila", "Corrigindo CI", "CI rodando" e "CI corrigido". O card continua em Review: corrigir o CI não devolve a spec para Em execução. Cada correção fica em "Correções de CI" no histórico da spec (CI1, CI2…).
+- Num PR trazido sem permissão de escrita, "Corrigir CI" avisa que o commit fica local; use "Copiar patch".
+
+### Correção automática
+
+Com `review: corrigir-ci: automatico` no `.promptorium/config.yml` (ou "Corrigir CI sozinho" na Configuração do projeto), o app começa a correção sozinho num PR com "Acompanhar PR" ligado, depois que todos os checks do commit terminam, **uma vez por commit vermelho**. Se o log parece intermitente, ele roda de novo uma vez antes de corrigir. Se o commit da correção também ficar vermelho, ou se o agente terminar sem commit ou o push for recusado, o automático para e avisa; ele volta a valer quando o CI fica verde ou quando você usa "Corrigir CI" ou "Rodar de novo". Não roda em PR trazido sem permissão de escrita.
+
+```yaml
+review:
+  corrigir-ci: automatico
+```
+
 ## Merge local guiado
 
 "Preparar merge local…" escolhe o método (Merge commit, Squash ou Rebase; rebase não é oferecido se a branch já foi publicada) e as opções: trocar para a base, guardar alterações em stash, pular hooks e apagar a branch. Em conflito, o merge é abortado e nada fica pela metade.
