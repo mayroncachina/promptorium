@@ -108,15 +108,23 @@ Future<void> pointElement(
     _toast(context, 'Inicie o servidor antes de apontar.');
     return;
   }
+  // SPEC-071 R11: the click in Chromium can take minutes; by then the
+  // person may be in another session or section and [ref] / [context]
+  // gone. The container and the messenger outlive them.
+  final container = ProviderScope.containerOf(context, listen: false);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  void toast(String msg) => messenger
+    ?..hideCurrentSnackBar()
+    ..showAppToast(SnackBar(content: Text(msg)));
   try {
-    final el = await ref
+    final el = await container
         .read(previewBrowserProvider)
         .pick(worktree: dev.worktree, url: url, server: server);
     if (el == null) return;
-    ref.read(pickedElementsProvider(sessionId).notifier).add(el);
-    then?.call();
-    if (context.mounted) _toast(context, '${el.selector} anexado ao pedido');
+    container.read(pickedElementsProvider(sessionId).notifier).add(el);
+    if (context.mounted) then?.call();
+    toast('${el.selector} anexado ao pedido');
   } catch (e) {
-    if (context.mounted) _toast(context, '$e');
+    toast('$e');
   }
 }
