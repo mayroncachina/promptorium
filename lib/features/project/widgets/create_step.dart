@@ -247,7 +247,6 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                         ),
                       ),
                     ),
-                    if (!done) _costSection(roadmap.specs.length),
                     if (!done)
                       _Section(
                         icon: AppIcons.tasks,
@@ -283,6 +282,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                           onChanged: (v) => setState(() => _runFirst = v),
                         ),
                       ),
+                    if (!done) _costSection(roadmap.specs.length),
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
