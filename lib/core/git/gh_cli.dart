@@ -523,6 +523,16 @@ class GhCli {
   Future<List<String>> runFailedLog(int id, {int lines = 40}) async =>
       tailFailedLog(await gh(['run', 'view', '$id', '--log-failed']), lines);
 
+  /// The whole `gh run view <id> --log-failed`, with the `job<TAB>step<TAB>`
+  /// columns (SPEC-073 R3: `ciLogExcerpt` cuts it).
+  Future<String> runFailedLogRaw(int id) =>
+      gh(['run', 'view', '$id', '--log-failed']);
+
+  /// `gh run rerun <id> --failed`: runs again only the jobs that failed
+  /// (SPEC-073 R8).
+  Future<void> runRerunFailed(int id) =>
+      gh(['run', 'rerun', '$id', '--failed']);
+
   static List<String> tailFailedLog(String out, int lines) {
     final all = [
       for (final l in const LineSplitter().convert(out))

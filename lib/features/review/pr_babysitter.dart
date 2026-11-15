@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
@@ -113,6 +114,93 @@ ReviewCommentsCompanion prCommentRow(
   verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
 );
 
+/// The run and the job of a GitHub Actions check, from its `detailsUrl`
+/// (`…/actions/runs/<run>/job/<job>`); null when it is not one.
+({int run, int? job})? actionsRunOf(String? url) {
+  final m = RegExp(r'/actions/runs/(\d+)(?:/jobs?/(\d+))?')
+      .firstMatch(url ?? '');
+  if (m == null) return null;
+  return (run: int.parse(m[1]!), job: m[2] == null ? null : int.parse(m[2]!));
+}
+
+/// One check of a PR (SPEC-073 R1): a GitHub Actions job (with the run and
+/// the job of its log) or anything else (a `StatusContext`, another app),
+/// which has no log the app can read (R9).
+@immutable
+class PrCheck {
+  const PrCheck({
+    required this.name,
+    required this.state,
+    this.workflow = '',
+    this.url,
+    this.runId,
+    this.jobId,
+  });
+
+  final String name;
+
+  /// `SUCCESS` / `FAILURE` / `PENDING` / `IN_PROGRESS`…
+  final String state;
+
+  /// Workflow of an Actions check ('' = unknown or not Actions).
+  final String workflow;
+
+  /// Page of the check on the host.
+  final String? url;
+  final int? runId, jobId;
+
+  /// `gh run view <run> --log-failed` serves its log.
+  bool get hasLog => runId != null;
+
+  CiState get ci => ciStateOf([state]);
+  bool get failed => ci == CiState.failed;
+  bool get running => ci == CiState.running;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PrCheck &&
+      other.name == name &&
+      other.state == state &&
+      other.workflow == workflow &&
+      other.url == url &&
+      other.runId == runId &&
+      other.jobId == jobId;
+
+  @override
+  int get hashCode => Object.hash(name, state, workflow, url, runId, jobId);
+
+  @override
+  String toString() => 'PrCheck($name, $state)';
+}
+
+/// The check of a `statusCheckRollup` entry (null = not a map).
+PrCheck? parsePrCheck(Object? c) {
+  if (c is! Map) return null;
+  String text(Object? v) => v == null ? '' : '$v'.trim();
+  final status = text(c['conclusion']).isNotEmpty
+      ? text(c['conclusion'])
+      : text(c['state']).isNotEmpty
+      ? text(c['state'])
+      : text(c['status']);
+  final context = c['__typename'] == 'StatusContext' || c['context'] != null;
+  final url = text(c['detailsUrl']).isNotEmpty
+      ? text(c['detailsUrl'])
+      : text(c['targetUrl']);
+  final run = context ? null : actionsRunOf(url);
+  return PrCheck(
+    name: text(c['name']).isNotEmpty
+        ? text(c['name'])
+        : text(c['context']).isNotEmpty
+        ? text(c['context'])
+        : '?',
+    state: status.toUpperCase(),
+    workflow: text(c['workflowName']),
+    url: url.isEmpty ? null : url,
+    runId: run?.run,
+    jobId: run?.job,
+  );
+}
+
 /// What `gh pr view --json …` says about a PR.
 @immutable
 class PrStatus {
@@ -122,6 +210,7 @@ class PrStatus {
     this.reviewDecision = '',
     this.comments = const [],
     this.checks = const [],
+    this.headSha = '',
   });
 
   /// `OPEN` / `MERGED` / `CLOSED`.
@@ -133,17 +222,26 @@ class PrStatus {
   /// `APPROVED` / `CHANGES_REQUESTED` / `REVIEW_REQUIRED` / ''.
   final String reviewDecision;
   final List<PrComment> comments;
+  final List<PrCheck> checks;
 
-  /// (name, `SUCCESS` / `FAILURE` / `PENDING`…).
-  final List<(String, String)> checks;
+  /// The PR's commit (`headRefOid`; '' = unknown).
+  final String headSha;
 
   bool get open => state == 'OPEN';
   bool get conflicting => mergeable == 'CONFLICTING';
 
+  List<PrCheck> get failedChecks => [
+    for (final c in checks)
+      if (c.failed) c,
+  ];
+
+  /// The CI of the PR's commit.
+  CiState get ci => ciStateOf(checks.map((c) => c.state));
+
   String get summary {
-    final failed = checks.where((c) => c.$2 == 'FAILURE').length;
+    final failed = checks.where((c) => c.state == 'FAILURE').length;
     final pending = checks
-        .where((c) => c.$2 != 'SUCCESS' && c.$2 != 'FAILURE')
+        .where((c) => c.state != 'SUCCESS' && c.state != 'FAILURE')
         .length;
     return [
       switch (state) {
@@ -171,7 +269,8 @@ class PrStatus {
 
 /// Fields asked to `gh pr view --json`.
 const prViewFields =
-    'state,mergeable,reviewDecision,comments,reviews,statusCheckRollup';
+    'state,mergeable,reviewDecision,comments,reviews,statusCheckRollup,'
+    'headRefOid';
 
 /// Parses the JSON of `gh pr view --json [prViewFields]` (null = invalid).
 PrStatus? parsePrView(String text) {
@@ -208,14 +307,10 @@ PrStatus? parsePrView(String text) {
     mergeable: '${j['mergeable'] ?? 'UNKNOWN'}',
     reviewDecision: '${j['reviewDecision'] ?? ''}',
     comments: comments,
+    headSha: '${j['headRefOid'] ?? ''}',
     checks: [
       for (final c in (j['statusCheckRollup'] as List? ?? const []))
-        if (c is Map)
-          (
-            '${c['name'] ?? c['context'] ?? '?'}',
-            '${c['conclusion'] ?? c['state'] ?? c['status'] ?? ''}'
-                .toUpperCase(),
-          ),
+        ?parsePrCheck(c),
     ],
   );
 }

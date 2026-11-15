@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/claude_args.dart' show ClaudePermissionMode;
 import '../../core/git/diff_parser.dart';
 import '../../core/fs/dir_watcher.dart';
-import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/worktree_setup.dart' show worktreeEnvironment;
 import '../../core/process/process_runner.dart' show lenientUtf8;
 import '../../core/process/shell_runner.dart' show shellRunnerProvider;
@@ -1074,6 +1073,7 @@ class ReviewService {
       mergeable: status.mergeable,
       reviewDecision: status.reviewDecision,
       checks: status.checks,
+      headSha: status.headSha,
       comments: all,
     );
   }
@@ -2498,10 +2498,10 @@ class ReviewService {
       if (status == null) throw const ReviewException('PR não lido');
       final total = status.checks.length;
       final passed = status.checks
-          .where((x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.$2))
+          .where((x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.state))
           .length;
       final failed = status.checks
-          .where((x) => ciStateOf([x.$2]) == CiState.failed)
+          .where((x) => x.failed)
           .length;
       checks = total == passed
           ? null
@@ -2652,7 +2652,7 @@ class ReviewService {
         } else if (status.conflicting ||
             status.reviewDecision == 'CHANGES_REQUESTED' ||
             status.checks.any(
-              (c) => !['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(c.$2),
+              (c) => !['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(c.state),
             )) {
           pr = status.summary;
         }

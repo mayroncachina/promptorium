@@ -96,10 +96,10 @@ void main() {
       reviewQueue: const [],
       prWatches: {
         'c': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [('analyze', 'FAILURE')]),
+          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'analyze', state: 'FAILURE')]),
         ),
         'a': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [('test', 'SUCCESS')]),
+          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'test', state: 'SUCCESS')]),
         ),
       },
       isAlive: (id) => id == 'd', // resumed meanwhile: not interrupted
