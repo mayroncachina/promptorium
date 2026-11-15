@@ -177,7 +177,7 @@ t2, t3 e t4 dependem de t1 e não dependem entre si.
 - [x] Com o opt-in, notas seguidas editam um comentário só na issue; desligado, nada vai para o GitHub [R10] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
 - [x] "Criar issue" grava `issue: N` só depois de a issue existir [R11] verificar: flutter test test/features/specs
 - [x] A lista do diálogo funciona só com o teclado e os estados aparecem em texto [R12] verificar: flutter test test/features/board/board_tray_test.dart
-- [ ] Importar, criar o PR e mergear num repositório de teste fecha a issue e muda o selo [R3, R8, R9] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
+- [x] Importar, criar o PR e mergear num repositório de teste fecha a issue e muda o selo [R3, R8, R9] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
 - [x] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
 
 ## Decisões
