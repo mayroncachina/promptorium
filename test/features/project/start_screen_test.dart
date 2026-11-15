@@ -486,6 +486,8 @@ void main() {
     expect(find.text('Fiber v2'), findsOneWidget);
     expect(find.textContaining('go mod init loja'), findsOneWidget);
     expect(find.text('1 chamada · plano Max'), findsOneWidget);
+    // The command fields keep room for a whole command (not ~110 px).
+    expect(tester.getSize(key('commands-install')).width, greaterThan(220));
 
     // An adjustment in the same conversation.
     await tester.enterText(key('custom-stack-text'), 'migrations com goose');

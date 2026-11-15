@@ -185,11 +185,16 @@ class _CommandsCardState extends State<CommandsCard> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: [
+          // Compact (the modal's preview, half of the card): narrower
+          // columns, so the command field keeps room for the command.
           SizedBox(
-            width: 72,
+            width: widget.compact ? 60 : 72,
             child: Text(label, style: const TextStyle(fontSize: 12)),
           ),
-          SizedBox(width: 130, child: Text(key, style: mono)),
+          SizedBox(
+            width: widget.compact ? 126 : 130,
+            child: Text(key, style: mono),
+          ),
           Expanded(
             child: Semantics(
               label: '$label ($key)',
@@ -229,7 +234,7 @@ class _CommandsCardState extends State<CommandsCard> {
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 96,
+            width: widget.compact ? 64 : 96,
             child: Align(
               alignment: Alignment.centerRight,
               child: FittedBox(

@@ -308,9 +308,12 @@ class _CustomStackDialogState extends State<CustomStackDialog> {
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: decisions),
+                        // The commands get the larger share: a command
+                        // like `test ! -f go.mod || go mod download` has to
+                        // fit in its field.
+                        Expanded(flex: 5, child: decisions),
                         const SizedBox(width: 16),
-                        Expanded(child: commands),
+                        Expanded(flex: 7, child: commands),
                       ],
                     )
                   : Column(

@@ -589,6 +589,13 @@ void main() {
     );
     expect(find.text('decidir'), findsOneWidget);
     expect(find.text('# Receitas'), findsOneWidget);
+    // An alternative is a chip with its label's width, not a whole row.
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('project-stack-alt-Banco-SQLite')))
+          .width,
+      lessThan(160),
+    );
     await tester.tap(
       find.byKey(const ValueKey('project-stack-alt-Banco-SQLite')),
     );
