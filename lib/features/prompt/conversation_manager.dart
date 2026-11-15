@@ -18,6 +18,7 @@ import '../../core/providers/agent_registry.dart';
 import '../../core/providers/provider_preferences.dart';
 import '../../data/providers.dart';
 import '../../data/repos/conversations_repo.dart';
+import '../board/spec_runner.dart' show gateRunningProvider;
 import '../project/project_config.dart';
 import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
@@ -42,6 +43,11 @@ class LiveConversation {
   final bool busy;
   final List<PendingApproval> approvals;
 }
+
+/// Why the conversation of a VIBE takes no request while its gate runs
+/// (SPEC-071 R5).
+String vibeGateBusyMessage(String code) =>
+    'Verificando $code: espere o gate terminar para mandar um pedido novo.';
 
 @immutable
 class ConversationManagerState {
@@ -244,6 +250,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         '${spec.code} já foi mergeada: comece uma VIBE nova com "Fazer como '
         'tarefa".',
       );
+    }
+    // SPEC-071 R5: the gate checks a fixed state of the worktree.
+    if (ref.read(gateRunningProvider).contains(spec.id)) {
+      throw ConversationException(vibeGateBusyMessage(spec.code));
     }
     if (spec.stage == SpecStage.review) {
       await specs.setStage(spec.id, SpecStage.running);

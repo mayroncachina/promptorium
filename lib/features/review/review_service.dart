@@ -12,12 +12,15 @@ import '../../core/git/diff_parser.dart';
 import '../../core/fs/dir_watcher.dart';
 import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/worktree_setup.dart' show worktreeEnvironment;
+import '../../core/process/process_runner.dart' show lenientUtf8;
 import '../../core/process/shell_runner.dart' show shellRunnerProvider;
 import '../board/step_gate.dart' show GateCheck, GateReport, tailLines;
 import '../../core/git/git_service.dart';
 import '../../core/git/agent_trailer.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
+import '../prompt/conversation_manager.dart' show conversationManagerProvider;
+import '../board/spec_runner.dart' show gateRunningProvider;
 import '../project/project_memory.dart';
 import '../vibe/vibe_numbers.dart';
 import '../specs/spec_service.dart';
@@ -51,7 +54,14 @@ Future<ProcessResult> _defaultCommand(
   String exe,
   List<String> args, {
   String? workingDirectory,
-}) => Process.run(exe, args, workingDirectory: workingDirectory);
+}) => Process.run(
+  exe,
+  args,
+  workingDirectory: workingDirectory,
+  // SPEC-071 R12: output outside UTF-8 never breaks the Review.
+  stdoutEncoding: lenientUtf8,
+  stderrEncoding: lenientUtf8,
+);
 
 final commandRunnerProvider = Provider<CommandRunner>((ref) => _defaultCommand);
 
@@ -72,6 +82,26 @@ class UnpublishedCommitsException extends ReviewException {
         '$count ${count == 1 ? 'commit não publicado' : 'commits não publicados'}',
       );
   final int count;
+}
+
+/// "Mergear PR" with work the PR does not have (SPEC-071 R1): the merge
+/// would drop it with the worktree. The screen offers "Enviar e mergear".
+class UnsentWorkException extends ReviewException {
+  UnsentWorkException(this.pending, this.unpushed)
+    : super(_unsentMessage(pending, unpushed));
+  final int pending;
+  final int unpushed;
+
+  static String _unsentMessage(int pending, int unpushed) {
+    final parts = [
+      if (pending > 0)
+        '$pending ${pending == 1 ? 'alteração não commitada' : 'alterações não commitadas'}',
+      if (unpushed > 0)
+        '$unpushed ${unpushed == 1 ? 'commit não enviado' : 'commits não enviados'}',
+    ];
+    return 'O worktree tem ${parts.join(' e ')} que o PR não tem: o merge '
+        'as perderia. Use "Enviar e mergear".';
+  }
 }
 
 class MergeConflictException extends ReviewException {
@@ -965,6 +995,10 @@ class ReviewService {
         .lastWhere((l) => l.startsWith('http'), orElse: () => '');
     if (url.isNotEmpty) {
       await _ref.read(sessionsRepoProvider).setPrUrl(s.id, url);
+      // SPEC-071 R2: "Acompanhar PR" later only sends what comes after.
+      await _ref
+          .read(appSettingsProvider.notifier)
+          .set(PrBabysitter.seenKey(s.id), DateTime.now().toIso8601String());
     }
     return url;
   }
@@ -1277,34 +1311,98 @@ class ReviewService {
         .set(ImportedPr.key(s.id), meta.copyWith(state: 'SOLTO').encode());
   }
 
-  /// "Mergear PR": `gh pr merge --squash|--rebase|--merge --delete-branch`;
-  /// then the session / spec close like a local merge (the worktree goes
-  /// away; the base branch gets the work with the next `git pull`).
+  /// What the worktree of [sessionId] has that the PR does not (SPEC-071
+  /// R1): entries of `git status` and commits not pushed. A PR brought into
+  /// the app compares with the PR's head ([remoteAhead]); otherwise with
+  /// the upstream or, without one, with every remote.
+  Future<({int pending, int unpushed})> unsentWork(String sessionId) async {
+    final c = await _context(sessionId);
+    if (!hasWorktree(c.session, c.workspace)) {
+      return (pending: 0, unpushed: 0);
+    }
+    final wt = _git(c.session.worktreePath);
+    final pending = (await wt.status()).length;
+    if (importedPrOf(_ref.read(appSettingsProvider), sessionId) != null) {
+      return (
+        pending: pending,
+        unpushed: (await remoteAhead(sessionId, fetch: true)).local,
+      );
+    }
+    Future<int> count(List<String> args) async =>
+        int.tryParse((await wt.git(['rev-list', '--count', ...args])).trim()) ??
+        0;
+    int unpushed;
+    try {
+      unpushed = await count(['@{u}..HEAD']);
+    } on GitException {
+      try {
+        unpushed = await count(['HEAD', '--not', '--remotes']);
+      } on GitException {
+        unpushed = 0;
+      }
+    }
+    return (pending: pending, unpushed: unpushed);
+  }
+
+  /// "Mergear PR": `gh pr merge --squash|--rebase|--merge`; then the
+  /// session / spec close like a local merge (the worktree goes away; the
+  /// base branch gets the work with the next `git pull`).
+  ///
+  /// SPEC-071 R1: with changes not committed or commits not pushed in the
+  /// worktree, refuses with [UnsentWorkException] (the merge would drop
+  /// them with the worktree); [sendFirst] ("Enviar e mergear") commits the
+  /// pending changes, pushes and only then merges — `--match-head-commit`
+  /// makes GitHub merge exactly what was pushed.
+  ///
+  /// SPEC-071 R3: the PRs of stacked children change base only after the
+  /// merge went in. Then the mother's branch cannot go with
+  /// `--delete-branch` (a PR whose base is deleted is closed): it is
+  /// deleted on the host after the children moved.
   Future<List<RestackResult>> mergePr(
     String sessionId,
-    PrMergeMethod method,
-  ) async {
+    PrMergeMethod method, {
+    bool sendFirst = false,
+  }) async {
     final c = await _context(sessionId);
     final url = c.session.prUrl;
     if (url == null) throw const ReviewException('A sessão não tem PR.');
     await _requireGithubRequest(url, c.workspace);
-    final children = await _prepareChildren(c.workspace, c.session.branch);
-    // The PRs of the children move to the mother's base before the merge
-    // deletes the mother's branch (a PR whose base is deleted is closed).
-    final target = await baseBranchOf(c.session, c.workspace);
-    for (final child in children.where((x) => x.prUrl != null)) {
-      try {
-        await _run('gh', [
-          'pr',
-          'edit',
-          child.prUrl!,
-          '--base',
-          target,
-        ], workingDirectory: c.workspace.path);
-      } on ProcessException catch (e) {
-        debugPrint('gh pr edit ${child.prUrl} falhou — $e');
-      }
+    if (c.session.status == SessionStatus.merged) {
+      throw const ReviewException('O merge desta sessão já foi feito.');
     }
+    await _vibeAgentIdle(c.session, c.spec);
+    String? headSha;
+    var unsent = await unsentWork(sessionId);
+    if (unsent.pending > 0 || unsent.unpushed > 0) {
+      if (!sendFirst) {
+        throw UnsentWorkException(unsent.pending, unsent.unpushed);
+      }
+      await _releaseAgent(c.session, c.spec);
+      final wt = _git(c.session.worktreePath);
+      try {
+        await _commitPending(
+          wt,
+          pendingCommitMessage(c.session, c.task, c.spec),
+          trailer: await _appTrailer(c.workspace, c.session, c.spec),
+        );
+        await pushIfAhead(sessionId);
+      } on GitException catch (e) {
+        throw ReviewException('Falha ao enviar antes do merge: $e');
+      }
+      unsent = await unsentWork(sessionId);
+      if (unsent.pending > 0 || unsent.unpushed > 0) {
+        throw const ReviewException(
+          'Os commits do worktree não chegaram ao PR (sem permissão de push '
+          'ou sem upstream): o merge foi cancelado e nada foi perdido.',
+        );
+      }
+      headSha = (await wt.git(['rev-parse', 'HEAD'])).trim();
+    }
+    final children = await _prepareChildren(c.workspace, c.session.branch);
+    final prChildren = [
+      for (final child in children)
+        if (child.prUrl != null) child,
+    ];
     final ProcessResult r;
     try {
       r = await _run('gh', [
@@ -1312,7 +1410,8 @@ class ReviewService {
         'merge',
         url,
         method.flag,
-        '--delete-branch',
+        if (prChildren.isEmpty) '--delete-branch',
+        if (headSha != null) ...['--match-head-commit', headSha],
       ], workingDirectory: c.workspace.path);
     } on ProcessException catch (e) {
       throw ReviewException('Falha ao executar gh: ${e.message}');
@@ -1325,13 +1424,18 @@ class ReviewService {
       );
     }
     final ws = c.workspace, s = c.session;
-    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+    final target = await baseBranchOf(s, ws);
+    if (prChildren.isNotEmpty) {
+      await _retargetChildren(ws, prChildren, target);
+      await _deleteRemoteBranch(url, s.branch, ws.path);
+    }
+    await _releaseAgent(s, c.spec, check: false);
     try {
       await _git(ws.path).removeWorktree(s.worktreePath, force: true);
     } on GitException catch (e) {
       debugPrint('worktree ${s.worktreePath} não removido — $e');
     }
-    if (r.exitCode != 0) {
+    if (r.exitCode != 0 || prChildren.isNotEmpty) {
       try {
         await _git(ws.path).deleteBranch(s.branch, force: true);
       } on GitException catch (e) {
@@ -1341,7 +1445,7 @@ class ReviewService {
     final sessions = _ref.read(sessionsRepoProvider);
     await sessions.setMerged(s.id, url);
     final spec = c.spec;
-    final base = await baseBranchOf(s, ws);
+    final base = target;
     if (spec != null) {
       await _closeSpec(ws, spec, url, base);
     } else if (c.task != null) {
@@ -1355,6 +1459,95 @@ class ReviewService {
       newBase: await _fetchedBase(ws, base),
       target: base,
     );
+  }
+
+  /// A VIBE's agent lives in its Prompt conversation, not in the
+  /// [SessionManager] (SPEC-071 R5): its merge waits for the agent's answer
+  /// and for the gate ("Verificando…").
+  Future<void> _vibeAgentIdle(Session s, Spec? spec) async {
+    if (!s.id.startsWith(vibeSessionPrefix) || spec == null) return;
+    if (_ref.read(gateRunningProvider).contains(spec.id)) {
+      throw ReviewException(
+        '${spec.code} está em verificação: espere o gate terminar para '
+        'fazer o merge.',
+      );
+    }
+    final conv = await _ref.read(specsRepoProvider).conversationOf(spec.id);
+    if (conv != null &&
+        _ref.read(conversationManagerProvider).isBusy(conv.id)) {
+      throw ReviewException(
+        'O agente de ${spec.code} ainda está trabalhando na conversa: espere '
+        'a resposta terminar (ou pare-a no Prompt) para fazer o merge.',
+      );
+    }
+  }
+
+  /// Stops the agent of [s] before its worktree goes away: the session's
+  /// process or, for a VIBE, the process of its conversation (checked
+  /// again with [_vibeAgentIdle] unless [check] is false: the merge is
+  /// already done).
+  Future<void> _releaseAgent(Session s, Spec? spec, {bool check = true}) async {
+    if (s.id.startsWith(vibeSessionPrefix) && spec != null) {
+      if (check) await _vibeAgentIdle(s, spec);
+      final conv = await _ref.read(specsRepoProvider).conversationOf(spec.id);
+      if (conv != null) {
+        await _ref.read(conversationManagerProvider.notifier).stop(conv.id);
+      }
+      return;
+    }
+    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+  }
+
+  /// The PRs of [children] move to [target] (SPEC-071 R3: only after the
+  /// mother's merge went in).
+  Future<void> _retargetChildren(
+    Workspace ws,
+    List<Session> children,
+    String target,
+  ) async {
+    for (final child in children.where((x) => x.prUrl != null)) {
+      try {
+        final r = await _run('gh', [
+          'pr',
+          'edit',
+          child.prUrl!,
+          '--base',
+          target,
+        ], workingDirectory: ws.path);
+        if (r.exitCode != 0) {
+          debugPrint('gh pr edit ${child.prUrl} falhou — ${r.stderr}');
+        }
+      } on ProcessException catch (e) {
+        debugPrint('gh pr edit ${child.prUrl} falhou — $e');
+      }
+    }
+  }
+
+  /// Deletes [branch] in the PR's repository on the host (what
+  /// `--delete-branch` does), once the children no longer point at it.
+  Future<void> _deleteRemoteBranch(
+    String url,
+    String branch,
+    String cwd,
+  ) async {
+    final uri = Uri.tryParse(url);
+    final parts = uri?.pathSegments ?? const <String>[];
+    if (uri == null || parts.length < 2) return;
+    try {
+      final r = await _run('gh', [
+        'api',
+        '--hostname',
+        uri.host,
+        '-X',
+        'DELETE',
+        'repos/${parts[0]}/${parts[1]}/git/refs/heads/$branch',
+      ], workingDirectory: cwd);
+      if (r.exitCode != 0) {
+        debugPrint('branch remota $branch não removida — ${r.stderr}');
+      }
+    } on ProcessException catch (e) {
+      debugPrint('branch remota $branch não removida — $e');
+    }
   }
 
   /// `origin/<base>` after `git fetch origin <base>`, or [base] when there
@@ -2661,28 +2854,15 @@ class ReviewService {
         switched = true;
       }
       final children = await _prepareChildren(c.workspace, c.session.branch);
-      // The PRs of the children move to the mother's base before the merge
-      // deletes the mother's branch (a PR whose base is deleted is closed).
-      final target = await baseBranchOf(c.session, c.workspace);
-      for (final child in children.where((x) => x.prUrl != null)) {
-        try {
-          await _run('gh', [
-            'pr',
-            'edit',
-            child.prUrl!,
-            '--base',
-            target,
-          ], workingDirectory: c.workspace.path);
-        } on ProcessException catch (e) {
-          debugPrint('gh pr edit ${child.prUrl} falhou — $e');
-        }
-      }
       final result = await _mergeLocal(
         sessionId,
         deleteBranch: deleteBranch,
         override: override,
         options: options,
       );
+      // SPEC-071 R3: the PRs of the children move to the mother's base only
+      // once her merge went in (a failed merge changes no base).
+      await _retargetChildren(c.workspace, children, base);
       await restore();
       final restacked = children.isEmpty
           ? const <RestackResult>[]
@@ -2752,6 +2932,7 @@ class ReviewService {
     if (s.status == SessionStatus.merged) {
       throw const ReviewException('O merge desta sessão já foi feito.');
     }
+    await _vibeAgentIdle(s, spec);
     if (spec != null) {
       final open = await pendingCriteria(spec, ws);
       if (open.isNotEmpty) {
@@ -2848,7 +3029,7 @@ class ReviewService {
       }
     }
 
-    await _ref.read(sessionManagerProvider.notifier).release(s.id);
+    await _releaseAgent(s, spec);
     // The process was released without recording an exit: if the merge
     // fails, a session that was still live must not stay "running".
     Future<void> markStoppedIfLive() async {
@@ -3225,6 +3406,31 @@ class SelectedReview extends Notifier<String?> {
 final selectedReviewProvider = NotifierProvider<SelectedReview, String?>(
   SelectedReview.new,
 );
+
+/// The merge running in a workspace (SPEC-071 R4): its label ("Fazer
+/// merge", "Mergear PR", "Mergear a pilha"), null when none. While set,
+/// the Review list and every merge button of the workspace are locked;
+/// the merge ends (toast, queue) even if the item on screen changed.
+class MergeInProgress extends Notifier<String?> {
+  MergeInProgress(this.workspaceId);
+
+  final int workspaceId;
+
+  @override
+  String? build() => null;
+
+  /// Takes the lock; false when another merge already holds it.
+  bool tryStart(String label) {
+    if (state != null) return false;
+    state = label;
+    return true;
+  }
+
+  void finish() => state = null;
+}
+
+final mergeInProgressProvider =
+    NotifierProvider.family<MergeInProgress, String?, int>(MergeInProgress.new);
 
 /// Pending comments and accepted hunks of one session, kept in
 /// `review_drafts` (schema v9) so closing the app does not lose them.

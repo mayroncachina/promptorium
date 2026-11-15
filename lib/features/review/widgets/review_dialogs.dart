@@ -448,6 +448,42 @@ Future<void> showPrCreatedDialog(
   ),
 );
 
+/// "Mergear PR" with work the PR does not have (SPEC-071 R1): [message]
+/// says what; true = "Enviar e mergear" (commit + push, then merge).
+Future<bool> showSendAndMergeDialog(
+  BuildContext context,
+  String message,
+) async =>
+    await showAppDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      builder: (ctx) => ReviewDialogFrame(
+        key: const ValueKey('review-send-merge-dialog'),
+        title: 'O PR não tem tudo o que está no worktree',
+        content: [
+          Text(message, style: _body),
+          const SizedBox(height: 10),
+          const Text(
+            'Enviar e mergear commita as pendências, faz push da branch e só '
+            'então mergeia o PR.',
+            style: _body,
+          ),
+        ],
+        actions: [
+          SmallButton(
+            label: 'Cancelar',
+            onTap: () => Navigator.of(ctx).pop(false),
+          ),
+          AmberButton(
+            key: const ValueKey('review-send-merge-confirm'),
+            label: 'Enviar e mergear',
+            onTap: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+      ),
+    ) ??
+    false;
+
 /// Error with a long, explanatory message (merge / PR failures).
 Future<void> showReviewError(
   BuildContext context,

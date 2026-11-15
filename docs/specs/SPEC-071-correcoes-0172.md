@@ -79,11 +79,11 @@ Por isso a spec não tem mockup novo. A única ação nova na tela é **Enviar e
 
 ## Critérios de aceite
 
-- [ ] Mergear PR com commits não enviados ou pendências não perde nada [R1] verificar: flutter test test/features/review
-- [ ] Verificar um PR não acompanhado não envia nada ao agente [R2] verificar: flutter test test/features/review
-- [ ] Merge da mãe que falha não muda a base das filhas [R3] verificar: flutter test test/features/review
-- [ ] Trocar de item durante o merge não perde o fim do merge nem permite outro merge [R4] verificar: flutter test test/features/review
-- [ ] VIBE em gate não aceita pedidos e não é mergeada com o agente ocupado [R5] verificar: flutter test test/features/vibe
+- [x] Mergear PR com commits não enviados ou pendências não perde nada [R1] verificar: flutter test test/features/review
+- [x] Verificar um PR não acompanhado não envia nada ao agente [R2] verificar: flutter test test/features/review
+- [x] Merge da mãe que falha não muda a base das filhas [R3] verificar: flutter test test/features/review
+- [x] Trocar de item durante o merge não perde o fim do merge nem permite outro merge [R4] verificar: flutter test test/features/review
+- [x] VIBE em gate não aceita pedidos e não é mergeada com o agente ocupado [R5] verificar: flutter test test/features/vibe
 - [x] Dois pedidos para a mesma spec abrem uma sessão só [R6] verificar: flutter test test/features/board
 - [x] Mensagem no instante da liberação por ociosidade chega ao agente [R7] verificar: flutter test test/features/sessions
 - [x] Alteração externa não é sobrescrita pelo editor [R8] verificar: flutter test test/features/specs
@@ -99,4 +99,4 @@ Por isso a spec não tem mockup novo. A única ação nova na tela é **Enviar e
 - [x] Criar projeto depois de uma falha de git funciona, na branch main, com as specs no Quadro [R21, R22, R25] verificar: flutter test test/features/project
 - [x] CLAUDE.md do modelo e pasta "sem código" corretos [R23, R24] verificar: flutter test test/features/project
 - [x] Limpeza do fluxo de criação [R26] verificar: flutter test test/features/project
-- [ ] O projeto compila e a análise estática passa [R1–R26] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R26] verificar: flutter analyze
