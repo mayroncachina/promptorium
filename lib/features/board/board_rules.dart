@@ -323,8 +323,9 @@ Duration stageCardDelay(int level, int index) =>
 
 /// Why [spec] cannot be moved by hand (drag or "Mover para…") to [target];
 /// null = it can (SPEC-071 R9). Feito comes only with the merge, Em
-/// execução and Review only from the runner, and a VIBE never goes to
-/// Feito by itself. Back to Backlog is always allowed.
+/// execução and Review only from the runner; a VIBE also reaches Feito
+/// only by the merge (or leaves the board discarded). Back to Backlog is
+/// always allowed.
 String? manualMoveBlock(Spec spec, SpecStage target) {
   if (spec.stage == target) return null;
   return switch (target) {

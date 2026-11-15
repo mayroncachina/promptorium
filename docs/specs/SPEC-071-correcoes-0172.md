@@ -29,7 +29,7 @@ Ficam para a spec da reforma da criação de projeto: P4, P8 a P15 e P17.
 - R6 · O Autopilot e "Executar SPEC-X" nunca arrancam a mesma spec duas vezes: uma spec que está arrancando conta no limite de paralelo e é ignorada por um segundo pedido, e os ticks do Autopilot de um workspace não se sobrepõem. [T3]
 - R7 · Uma mensagem enviada no instante em que a sessão seria liberada por ociosidade mantém a sessão viva e chega ao agente. [T6]
 - R8 · O editor de spec não sobrescreve uma alteração feita fora do app: salvar confere o texto que estava no disco e, se mudou, abre o diálogo de conflito que já existe. Com o editor sem alterações, a spec recarrega quando o arquivo muda. [T8]
-- R9 · O Quadro só aceita transições válidas ao arrastar ou em "Mover para…": Feito só via merge, Em execução e Review só pelo runner, e VIBE nunca vai para Feito. Uma coluna inválida não destaca e diz o motivo. [T9]
+- R9 · O Quadro só aceita transições válidas ao arrastar ou em "Mover para…": Feito só via merge (spec ou VIBE), Em execução e Review só pelo runner; uma VIBE sem merge sai do Quadro descartada. Uma coluna inválida não destaca e diz o motivo. [T9]
 - R10 · "Retomar" fica ocupado enquanto retoma e não manda a mensagem de continuar duas vezes. [T10]
 - R11 · O elemento apontado no preview chega ao composer mesmo se a pessoa trocou de tela enquanto apontava. [T11]
 
