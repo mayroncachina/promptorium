@@ -47,4 +47,38 @@ void main() {
     await db.ensureOpen(); // migrates the restored v11 again
     expect((await db.select(db.workspaces).getSingle()).name, 'antes');
   });
+
+  test('the copy kept before restoring includes the -wal and -shm, so the '
+      'transactions not yet checkpointed survive (SPEC-071 R20)', () async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-wal-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final live = Directory('${tmp.path}/live')..createSync();
+    final dir = Directory('${tmp.path}/data')..createSync();
+    final name = '${AppDatabase.fileName}.sqlite';
+    final raw = sqlite3.open('${live.path}/$name');
+    raw.execute('PRAGMA journal_mode=WAL');
+    raw.execute('PRAGMA wal_autocheckpoint=0');
+    raw.execute('CREATE TABLE t (v TEXT)');
+    raw.execute("INSERT INTO t VALUES ('recente')");
+    // A crash: the files as they are while the connection is open.
+    for (final side in ['', '-wal', '-shm']) {
+      File('${live.path}/$name$side').copySync('${dir.path}/$name$side');
+    }
+    raw.close();
+    expect(File('${dir.path}/$name-wal').lengthSync(), greaterThan(0));
+
+    final backup = File('${tmp.path}/backup.sqlite');
+    sqlite3.open(backup.path)
+      ..execute('CREATE TABLE t (v TEXT)')
+      ..close();
+    await requestRestore(dir, backup);
+    applyPendingRestore(dir);
+
+    expect(File('${dir.path}/$name-wal').existsSync(), isFalse);
+    final before = '${dir.path}/$name.antes-da-restauracao';
+    expect(File('$before-wal').existsSync(), isTrue);
+    final kept = sqlite3.open(before);
+    addTearDown(kept.close);
+    expect(kept.select('SELECT v FROM t').single['v'], 'recente');
+  });
 }
