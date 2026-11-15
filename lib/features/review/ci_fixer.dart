@@ -700,6 +700,24 @@ class CiFixer extends Notifier<Map<String, CiFixState>> {
     await _push(sessionId, st, head);
   }
 
+  /// The automatic fix's commit [sha] is red (R12): no more automatic
+  /// fixes until the CI is green or the user acts.
+  Future<void> markStopped(String sessionId, String sha) async {
+    final r = record(sessionId);
+    await _save(sessionId, r.copyWith(stopped: true));
+    _set(
+      sessionId,
+      CiFixState(
+        phase: CiFixPhase.stopped,
+        since: DateTime.now(),
+        sha: r.sha,
+        pushedSha: sha,
+        auto: true,
+        round: r.rounds,
+      ),
+    );
+  }
+
   /// Hides the result of a fix (no commit, external, local).
   void dismiss(String sessionId) => _set(sessionId, null);
 

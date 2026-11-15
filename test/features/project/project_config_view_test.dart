@@ -199,6 +199,55 @@ void main() {
     expect(ProjectConfig.loadSync(tmp.path).specsDir, 'docs/specs');
   });
 
+  testWidgets('CI do PR: "Corrigir CI sozinho" writes and clears '
+      'review: corrigir-ci (SPEC-073 R13)', (tester) async {
+    File('${tmp.path}/${ProjectConfig.filePath}')
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync('review:\n  resolver-conflitos: automatico\n');
+    await pumpView(tester);
+    final box = find.byKey(const ValueKey('config-ci-auto'));
+    await tester.scrollUntilVisible(
+      box,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.text('Corrigir CI sozinho, uma vez por commit vermelho'),
+      findsOneWidget,
+    );
+    await tester.tap(box);
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const ValueKey('config-save')));
+    await tester.tap(find.byKey(const ValueKey('config-save')));
+    await pumpUntil(tester, () => ProjectConfig.loadSync(tmp.path).autoFixCi);
+    final on = ProjectConfig.loadSync(tmp.path);
+    // The conflict key next to it is kept.
+    expect(on.autoResolveConflicts, isTrue);
+    expect(
+      File('${tmp.path}/${ProjectConfig.filePath}').readAsStringSync(),
+      contains(
+        'review:\n  resolver-conflitos: automatico\n'
+        '  corrigir-ci: automatico\n',
+      ),
+    );
+    // The toast of the first save may cover the box: toggle it directly.
+    tester.widget<CheckboxListTile>(box).onChanged!(false);
+    await tester.pump();
+    await pumpUntil(
+      tester,
+      () =>
+          tester
+              .widget<AmberButton>(find.byKey(const ValueKey('config-save')))
+              .onTap !=
+          null,
+    );
+    tester
+        .widget<AmberButton>(find.byKey(const ValueKey('config-save')))
+        .onTap!();
+    await pumpUntil(tester, () => !ProjectConfig.loadSync(tmp.path).autoFixCi);
+    expect(ProjectConfig.loadSync(tmp.path).autoResolveConflicts, isTrue);
+  });
+
   testWidgets('status: since and count of marked commits (R1, R5)', (
     tester,
   ) async {

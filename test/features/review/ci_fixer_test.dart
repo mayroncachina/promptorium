@@ -134,7 +134,17 @@ final ciLog = [
 ].join('\n');
 
 class Env {
-  Env(this.c, this.cli, this.cmds, this.id, this.worktree, this.remote);
+  Env(
+    this.c,
+    this.cli,
+    this.cmds,
+    this.id,
+    this.worktree,
+    this.remote,
+    this.notifier,
+  );
+
+  final FakeNotifier notifier;
 
   final ProviderContainer c;
   final FakeCli cli;
@@ -167,6 +177,64 @@ class Env {
   }
 }
 
+/// A session that finished (idle, process alive), its branch published
+/// to a bare `origin` and a PR whose CI failed.
+Future<Env> setUpCiPr(Directory tmp, String repo) async {
+  final db = memoryDatabase();
+  final cli = FakeCli();
+  final notifier = FakeNotifier();
+  final cmds = CiCommands()
+    ..prView = prJson()
+    ..logs[11] = ciLog;
+  final c = sessionContainer([
+    ...sessionOverrides(
+      db: db,
+      cli: cli,
+      notifier: notifier,
+      worktreesBase: '${tmp.path}/wt',
+    ).where((o) => o.origin != gitServiceFactoryProvider),
+    commandRunnerProvider.overrideWithValue(cmds.call),
+    gitServiceFactoryProvider.overrideWithValue(
+      (root) => HostedTestGit(root, worktreesBase: '${tmp.path}/wt'),
+    ),
+  ]);
+  addTearDown(c.dispose);
+  await c.read(appSettingsProvider.notifier).load();
+  final ws = await c.read(workspacesRepoProvider).add(path: repo, name: 'repo');
+  final task = await TasksRepo(db).insert(
+    workspaceId: ws.id,
+    code: 'TASK-001',
+    title: 'Cupom',
+    status: TaskStatus.running,
+  );
+  final id = await c
+      .read(sessionManagerProvider.notifier)
+      .create(
+        NewSessionRequest(
+          workspace: ws,
+          title: 'Cupom',
+          prompt: 'Implemente',
+          taskId: task.id,
+        ),
+      );
+  final row = (await c.read(sessionsRepoProvider).getById(id))!;
+  final wt = row.worktreePath;
+  File('$wt/cupom.txt').writeAsStringSync('10%\n');
+  await gitIn(wt, ['add', '.']);
+  await gitIn(wt, ['commit', '-q', '-m', 'cupom']);
+  cli.last.emit(resultLine());
+  await settle();
+  final remote = '${tmp.path}/remote.git';
+  await Process.run('git', ['init', '-q', '--bare', remote]);
+  await gitIn(repo, ['remote', 'add', 'origin', remote]);
+  await gitIn(wt, ['push', '-q', '-u', 'origin', row.branch]);
+  await c
+      .read(sessionsRepoProvider)
+      .setPrUrl(id, 'https://github.com/o/r/pull/7');
+  await c.read(prBabysitterProvider.notifier).check(id);
+  return Env(c, cli, cmds, id, wt, remote, notifier);
+}
+
 void main() {
   late Directory tmp;
   late String repo;
@@ -178,64 +246,7 @@ void main() {
 
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  /// A session that finished (idle, process alive), its branch published
-  /// to a bare `origin` and a PR whose CI failed.
-  Future<Env> setUpPr() async {
-    final db = memoryDatabase();
-    final cli = FakeCli();
-    final cmds = CiCommands()
-      ..prView = prJson()
-      ..logs[11] = ciLog;
-    final c = sessionContainer([
-      ...sessionOverrides(
-        db: db,
-        cli: cli,
-        notifier: FakeNotifier(),
-        worktreesBase: '${tmp.path}/wt',
-      ).where((o) => o.origin != gitServiceFactoryProvider),
-      commandRunnerProvider.overrideWithValue(cmds.call),
-      gitServiceFactoryProvider.overrideWithValue(
-        (root) => HostedTestGit(root, worktreesBase: '${tmp.path}/wt'),
-      ),
-    ]);
-    addTearDown(c.dispose);
-    await c.read(appSettingsProvider.notifier).load();
-    final ws = await c
-        .read(workspacesRepoProvider)
-        .add(path: repo, name: 'repo');
-    final task = await TasksRepo(db).insert(
-      workspaceId: ws.id,
-      code: 'TASK-001',
-      title: 'Cupom',
-      status: TaskStatus.running,
-    );
-    final id = await c
-        .read(sessionManagerProvider.notifier)
-        .create(
-          NewSessionRequest(
-            workspace: ws,
-            title: 'Cupom',
-            prompt: 'Implemente',
-            taskId: task.id,
-          ),
-        );
-    final row = (await c.read(sessionsRepoProvider).getById(id))!;
-    final wt = row.worktreePath;
-    File('$wt/cupom.txt').writeAsStringSync('10%\n');
-    await gitIn(wt, ['add', '.']);
-    await gitIn(wt, ['commit', '-q', '-m', 'cupom']);
-    cli.last.emit(resultLine());
-    await settle();
-    final remote = '${tmp.path}/remote.git';
-    await Process.run('git', ['init', '-q', '--bare', remote]);
-    await gitIn(repo, ['remote', 'add', 'origin', remote]);
-    await gitIn(wt, ['push', '-q', '-u', 'origin', row.branch]);
-    await c
-        .read(sessionsRepoProvider)
-        .setPrUrl(id, 'https://github.com/o/r/pull/7');
-    await c.read(prBabysitterProvider.notifier).check(id);
-    return Env(c, cli, cmds, id, wt, remote);
-  }
+  Future<Env> setUpPr() => setUpCiPr(tmp, repo);
 
   group('SPEC-073 R4 · Corrigir CI', () {
     test(

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
+import '../project/project_config.dart' show ProjectConfig;
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
 import 'ci_fixer.dart';
@@ -433,7 +434,9 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       sessionId: PrWatch(status: status, checkedAt: DateTime.now()),
     };
     // SPEC-073 R7: the CI of a fix's commit.
-    ref.read(ciFixerProvider.notifier).onStatus(sessionId, status);
+    final ciPhase = ref
+        .read(ciFixerProvider.notifier)
+        .onStatus(sessionId, status);
     // Not watched: "Verificar PR" only refreshes the status — no comments
     // to the agent, no round, no push.
     if (!isWatching(sessionId)) return;
@@ -455,6 +458,13 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     if (status.conflicting && !(previous?.conflicting ?? false)) {
       _notify('PR com conflito', title, sessionId);
     }
+    if (ciPhase == CiFixPhase.stopped) {
+      _notify(
+        'O CI continua vermelho depois da correção automática',
+        title,
+        sessionId,
+      );
+    }
     // New comments → a correction round in the same session.
     final seen =
         DateTime.tryParse(_settings.get(seenKey(sessionId)) ?? '') ??
@@ -475,6 +485,12 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       }
       return;
     }
+    // SPEC-073 R11, R12: the CI fixed without the user, once per commit.
+    try {
+      if (await _autoFixCi(s, status, title)) return;
+    } catch (e) {
+      debugPrint('PR $sessionId: correção automática do CI — $e');
+    }
     // The agent's commits go to the PR when the session is idle.
     if (ref.read(sessionManagerProvider).live[sessionId]?.busy ?? false) return;
     try {
@@ -482,6 +498,72 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     } catch (e) {
       debugPrint('PR $sessionId: push não feito — $e');
     }
+  }
+
+  /// `review: corrigir-ci: automatico` (SPEC-073 R11, R12): with every
+  /// check of a red commit finished, one fix per commit (an intermittent
+  /// log runs again once first). The fix's own commit red stops it, until
+  /// the CI is green or the user fixes or reruns by hand. Returns true when
+  /// it acted.
+  Future<bool> _autoFixCi(Session s, PrStatus status, String title) async {
+    final fixer = ref.read(ciFixerProvider.notifier);
+    final id = s.id;
+    final head = status.headSha;
+    if (head.isEmpty) return false;
+    final rec = fixer.record(id);
+    final ci = status.ci;
+    if (ci == CiState.passed && rec.stopped) {
+      await _settings.set(
+        CiRecord.key(id),
+        rec.copyWith(stopped: false).encode(),
+      );
+      return false;
+    }
+    // One message covers every failure: wait for the checks to finish.
+    if (ci != CiState.failed || status.checks.any((c) => c.running)) {
+      return false;
+    }
+    final current = fixer.state[id]?.phase;
+    if (current == CiFixPhase.queued ||
+        current == CiFixPhase.fixing ||
+        current == CiFixPhase.running ||
+        current == CiFixPhase.rerunning ||
+        current == CiFixPhase.stopped) {
+      return false;
+    }
+    // The automatic fix's commit is red too (the app may have restarted
+    // in between): stop and say so (R12).
+    if (rec.auto && rec.fixSha == head && !rec.stopped) {
+      await fixer.markStopped(id, head);
+      _notify(
+        'O CI continua vermelho depois da correção automática',
+        title,
+        id,
+      );
+      return true;
+    }
+    final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    final config = ws == null ? null : ProjectConfig.loadSync(ws.path);
+    if (config == null || !config.autoFixCi) return false;
+    // R10: never on a PR brought without write permission.
+    if (rec.stopped || fixer.pushBlocked(id) || rec.sha == head) return false;
+    final failure = await fixer.failure(id, status);
+    // P6: a check without log never goes to the agent.
+    if (failure.blockReason != null) return false;
+    final spec = s.specId == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(s.specId!);
+    final label = spec?.code ?? title;
+    // P5: an intermittent failure runs again once before the fix.
+    if (failure.excerpt.flaky != null && rec.rerunSha != head) {
+      await fixer.rerun(id, auto: true);
+      _notify('Rodando de novo o CI de $label sozinho', title, id);
+      return true;
+    }
+    if (await fixer.fix(id, auto: true)) {
+      _notify('Corrigindo o CI de $label sozinho', title, id);
+    }
+    return true;
   }
 
   Future<void> _recordRound(Session s, List<PrComment> news) async {
