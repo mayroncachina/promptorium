@@ -79,7 +79,7 @@ Map<String, GraphPr> mergePrSources(
     out[s.branch] = GraphPr(
       number: int.parse(n.group(1)!),
       url: url,
-      ci: ciStateOf(status.checks.map((c) => c.$2)),
+      ci: status.ci,
       sessionId: s.id,
     );
   }
