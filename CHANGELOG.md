@@ -2,6 +2,25 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.17.1] - 2026-11-15
+
+### Correções
+
+- **atualização:** Fecha pelo encerramento da janela e reabre pelo lançador (SPEC-070 R1–R6) (faca741)
+- **sobre:** A logo toca a abertura uma vez e depois só borbulha (SPEC-070 R7) (32715fc)
+- **update:** Saída da cópia nova, troca atômica e fechamento durante a instalação (SPEC-070 t3) (22f739e)
+
+### Documentação
+
+- **SPEC-070:** Spec e mockups de atualizar e reabrir e da logo do Sobre (b4b2e89)
+- **SPEC-070:** Issue #221 (d472f22)
+- **SPEC-070:** Link do PR #222 (f7de6c7)
+- **SPEC-070:** Critérios cumpridos, causa do bug 1 e telas do app real (40e4dc6)
+
+### Build e CI
+
+- **release:** Número de build a partir da última tag quando a main está atrás (#225) (d56b09d)
+
 ## [0.17.0] - 2026-11-14
 
 ### Funcionalidades
