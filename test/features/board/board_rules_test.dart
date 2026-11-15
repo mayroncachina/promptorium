@@ -147,4 +147,36 @@ void main() {
       SubagentState.pending,
     ]);
   });
+
+  group('SPEC-071 R9: moves by hand', () {
+    test('only back to the Backlog; Feito, Em execução and Review say why', () {
+      final running = spec(1, 'SPEC-001', stage: SpecStage.running);
+      final review = spec(2, 'SPEC-002', stage: SpecStage.review);
+      final backlog = spec(3, 'SPEC-003');
+      final done = spec(4, 'SPEC-004', stage: SpecStage.done);
+      for (final s in [running, review, done]) {
+        expect(manualMoveBlock(s, SpecStage.backlog), isNull);
+      }
+      expect(manualMoveBlock(backlog, SpecStage.backlog), isNull);
+      expect(
+        manualMoveBlock(running, SpecStage.done),
+        'Feito só pelo merge, no Review.',
+      );
+      expect(manualMoveBlock(review, SpecStage.done), isNotNull);
+      expect(manualMoveBlock(backlog, SpecStage.running), contains('Executar'));
+      expect(manualMoveBlock(backlog, SpecStage.review), isNotNull);
+      expect(manualMoveBlock(running, SpecStage.review), isNotNull);
+      expect(manualMoveBlock(review, SpecStage.running), isNotNull);
+    });
+
+    test('a VIBE never goes to Feito', () {
+      final vibe = spec(
+        5,
+        'VIBE-001',
+        stage: SpecStage.review,
+      ).copyWith(kind: SpecKind.vibe);
+      expect(manualMoveBlock(vibe, SpecStage.done), contains('VIBE'));
+      expect(manualMoveBlock(vibe, SpecStage.backlog), isNull);
+    });
+  });
 }

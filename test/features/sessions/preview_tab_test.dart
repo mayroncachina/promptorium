@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/dev/dev_server.dart';
+import 'package:promptorium/core/dev/picked_element.dart';
 import 'package:promptorium/core/dev/preview_browser.dart';
 import 'package:promptorium/features/project/project_config.dart';
+import 'package:promptorium/features/sessions/picked_elements.dart';
 import 'package:promptorium/features/sessions/session_dev.dart';
 import 'package:promptorium/features/sessions/widgets/dev_server_control.dart';
 import 'package:promptorium/features/sessions/widgets/point_button.dart';
@@ -340,6 +343,71 @@ void main() {
     expect(opened, [Uri.parse('http://localhost:4003/')]);
   });
 
+  testWidgets('SPEC-071 R11: the element pointed reaches the composer even '
+      'after the person left the session', (tester) async {
+    final r = registry();
+    final browser = _SlowBrowser(tmp.path);
+    final container = ProviderContainer(
+      overrides: [
+        devServerRegistryProvider.overrideWithValue(r),
+        previewBrowserProvider.overrideWithValue(browser),
+      ],
+    );
+    addTearDown(container.dispose);
+    final shown = ValueNotifier(true);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: ValueListenableBuilder<bool>(
+              valueListenable: shown,
+              builder: (_, on, _) => on
+                  ? Consumer(
+                      builder: (context, ref, _) => TextButton(
+                        key: const ValueKey('point'),
+                        onPressed: () => pointElement(
+                          ref,
+                          context,
+                          sessionId: 's1',
+                          dev: dev,
+                        ),
+                        child: const Text('Apontar'),
+                      ),
+                    )
+                  : const Text('outra tela'),
+            ),
+          ),
+        ),
+      ),
+    );
+    r.of(dev.worktree).useRunning(4003);
+    await settleUntil(
+      tester,
+      () => container.read(devServerProvider(dev.worktree)).isUp,
+    );
+    await tester.tap(find.byKey(const ValueKey('point')));
+    await tester.pump();
+    expect(browser.asked, isTrue);
+    // The person goes to another session while Chromium waits the click.
+    shown.value = false;
+    await tester.pump();
+    browser.click.complete(
+      const PickedElement(
+        selector: 'button.entrar',
+        html: '<button class="entrar">Entrar</button>',
+        url: 'http://localhost:4003/login',
+      ),
+    );
+    await settle(tester);
+    expect(
+      container.read(pickedElementsProvider('s1')).map((e) => e.selector),
+      ['button.entrar'],
+    );
+    expect(find.text('button.entrar anexado ao pedido'), findsOneWidget);
+  });
+
   test('uptime and the error message', () {
     expect(uptimeLabel(const Duration(seconds: 20)), 'há menos de 1 min');
     expect(uptimeLabel(const Duration(minutes: 4)), 'há 4 min');
@@ -360,5 +428,24 @@ Future<void> settle(WidgetTester tester) async {
 Future<void> settleUntil(WidgetTester tester, bool Function() done) async {
   for (var i = 0; i < 50 && !done(); i++) {
     await settle(tester);
+  }
+}
+
+/// Chromium waiting for the click (minutes, in the app).
+class _SlowBrowser extends PreviewBrowser {
+  _SlowBrowser(String base)
+    : super(findBrowser: () async => null, profileBase: base);
+
+  final click = Completer<PickedElement?>();
+  var asked = false;
+
+  @override
+  Future<PickedElement?> pick({
+    required String worktree,
+    required Uri url,
+    DevServer? server,
+  }) {
+    asked = true;
+    return click.future;
   }
 }

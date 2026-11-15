@@ -137,13 +137,16 @@ String _joinCodes(List<String> c) =>
 
 /// The plan of the autopilot for [all] (SPEC-064 R1): with an [active]
 /// sprint only its specs; [parallel] specs running at most; dependencies
-/// released at [unblockAt]; [locked] = specs held by the automatic plan.
+/// released at [unblockAt]; [locked] = specs held by the automatic plan;
+/// [starting] = specs whose session is being opened (SPEC-071 R6): they
+/// count as running and are not started again.
 AutopilotPlan autopilotPlan(
   List<Spec> all,
   Sprint? active, {
   int? parallel,
   UnblockAt unblockAt = UnblockAt.review,
   bool Function(Spec)? locked,
+  Set<int> starting = const {},
 }) {
   // SPEC-069 R9: "Executar tudo" and the Autopilot ignore the VIBEs: the
   // person runs them in their conversation.
@@ -153,7 +156,9 @@ AutopilotPlan autopilotPlan(
   ];
   final byCode = specsByCode(all);
   final inScope = {for (final s in autopilotScope(all, active)) s.id};
-  var running = all.where((s) => s.stage == SpecStage.running).length;
+  var running = all
+      .where((s) => s.stage == SpecStage.running || starting.contains(s.id))
+      .length;
   final review = unblockAt == UnblockAt.review;
   final start = <Spec>[];
   final wait = <AutopilotWait>[];
@@ -161,7 +166,8 @@ AutopilotPlan autopilotPlan(
   for (final s in all) {
     if (s.stage != SpecStage.backlog ||
         s.status == SpecStatus.done ||
-        s.status == SpecStatus.archived) {
+        s.status == SpecStatus.archived ||
+        starting.contains(s.id)) {
       continue;
     }
     if (!inScope.contains(s.id)) {
@@ -281,6 +287,7 @@ class Autopilot extends Notifier<Set<int>> {
       parallel: parallel,
       unblockAt: unblockAt ?? unblockAtOf(workspaceId),
       locked: (s) => planner.lockOf(s.id) != null,
+      starting: ref.read(specRunnerProvider).starting,
     );
   }
 
@@ -420,7 +427,30 @@ class Autopilot extends Notifier<Set<int>> {
   /// Starts what can start now, up to `autopilot.paralelo` specs running at
   /// once. Called on play and when a spec reaches Review. Uses the same
   /// [autopilotPlan] as the preview (SPEC-064).
+  ///
+  /// SPEC-071 R6: the ticks of a workspace do not overlap (the end of a
+  /// round and the automatic plan call it without waiting); one asked
+  /// while another runs happens right after it.
   Future<void> tick(int workspaceId) async {
+    if (!_ticking.add(workspaceId)) {
+      _tickAgain.add(workspaceId);
+      return;
+    }
+    try {
+      do {
+        _tickAgain.remove(workspaceId);
+        await _tick(workspaceId);
+      } while (_tickAgain.contains(workspaceId));
+    } finally {
+      _ticking.remove(workspaceId);
+      _tickAgain.remove(workspaceId);
+    }
+  }
+
+  final Set<int> _ticking = {};
+  final Set<int> _tickAgain = {};
+
+  Future<void> _tick(int workspaceId) async {
     if (!isOn(workspaceId)) return;
     if (await checkBudget(workspaceId)) return;
     final plan = await planFor(workspaceId);
@@ -451,10 +481,13 @@ class Autopilot extends Notifier<Set<int>> {
         .read(specsRepoProvider)
         .watchByWorkspace(workspaceId)
         .first;
+    final starting = ref.read(specRunnerProvider).starting;
     if (started == 0 &&
         !waiting &&
         !now.any(
-          (s) => s.stage == SpecStage.running && s.kind != SpecKind.vibe,
+          (s) =>
+              (s.stage == SpecStage.running || starting.contains(s.id)) &&
+              s.kind != SpecKind.vibe,
         )) {
       _off(workspaceId);
       _waitingIds.remove(workspaceId);

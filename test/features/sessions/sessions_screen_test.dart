@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
@@ -478,5 +479,31 @@ void main() {
       await pumpFor(tester, 3);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('SPEC-071 R10: Retomar is busy while it resumes and a double '
+      'click sends "Continue" once', (tester) async {
+    final (_, cli) = await pumpScreen(tester);
+    final gate = cli.gate = Completer<void>();
+    final resume = find.byKey(const ValueKey('session-resume'));
+    // Two clicks before the first one is done.
+    await tester.tap(resume);
+    await tester.tap(resume);
+    await tester.pump();
+    expect(
+      find.descendant(of: resume, matching: find.text('Retomando…')),
+      findsOneWidget,
+    );
+    await tester.tap(resume, warnIfMissed: false);
+    await tester.pump();
+    gate.complete();
+    await pumpFor(tester, 30);
+    final sent = [
+      for (final p in cli.processes)
+        for (final j in p.writtenJson)
+          if (jsonEncode(j).contains('Continue de onde parou.')) j,
+    ];
+    expect(cli.processes, hasLength(1));
+    expect(sent, hasLength(1));
   });
 }

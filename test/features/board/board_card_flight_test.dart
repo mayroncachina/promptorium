@@ -7,6 +7,7 @@ import 'package:promptorium/features/board/board_screen.dart';
 import 'package:promptorium/features/board/widgets/board_card_flight.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 import 'package:promptorium/ui/theme/motion.dart';
+import 'package:promptorium/ui/theme/tokens.dart';
 
 import '../../helpers/test_db.dart';
 
@@ -167,12 +168,13 @@ void main() {
       'and does not go back to the old column', (tester) async {
     motionOn();
     final b = await pumpBoard(tester);
-    final id = b.ids[0];
-    final start = tester.getTopLeft(card(0));
-    final grab = tester.getCenter(card(0));
+    // SPEC-071 R9: by hand, a card only goes back to the Backlog.
+    final id = b.ids[3];
+    final start = tester.getTopLeft(card(3));
+    final grab = tester.getCenter(card(3));
     final gesture = await tester.startGesture(grab);
     await tester.pump(_frame);
-    const way = Offset(380, 200);
+    const way = Offset(-380, 200);
     await gesture.moveBy(way);
     await tester.pump(_frame);
     await gesture.up();
@@ -181,17 +183,48 @@ void main() {
     expect(tester.getTopLeft(flight(id)), start + way);
     await pumpChange(
       tester,
-      () => inColumn('running', card(0)).evaluate().isNotEmpty,
+      () => inColumn('backlog', card(3)).evaluate().isNotEmpty,
     );
     await tester.pump(_frame);
-    final goal = tester.getTopLeft(card(0));
+    final goal = tester.getTopLeft(card(3));
     expect(tester.getTopLeft(flight(id)).dy, closeTo(start.dy + way.dy, 40));
 
     await land(tester);
     expect(flight(id), findsNothing);
-    expect(tester.getTopLeft(card(0)), goal);
+    expect(tester.getTopLeft(card(3)), goal);
     expect(tester.hasRunningAnimations, isFalse);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SPEC-071 R9 · an invalid column does not light up, says why '
+      'and does not take the card', (tester) async {
+    final b = await pumpBoard(tester);
+    final done = find.byKey(const ValueKey('board-column-done'));
+    final gesture = await tester.startGesture(tester.getCenter(card(3)));
+    await tester.pump(_frame);
+    await gesture.moveTo(tester.getCenter(done));
+    await tester.pump(_frame);
+    final why = find.byKey(const ValueKey('board-column-why-done'));
+    expect(
+      find.descendant(
+        of: why,
+        matching: find.text('Feito só pelo merge, no Review.'),
+      ),
+      findsOneWidget,
+    );
+    final box = tester.widget<Container>(
+      find.descendant(of: done, matching: find.byType(Container)).first,
+    );
+    final border = (box.decoration! as BoxDecoration).border! as Border;
+    expect(border.top.color, isNot(AppColors.amber));
+    await gesture.up();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(why, findsNothing);
+    expect(inColumn('running', card(3)), findsOneWidget);
+    final row = await b.container.read(specsRepoProvider).getById(b.ids[3]);
+    expect(row!.stage, SpecStage.running);
   });
 
   testWidgets('R12 · a drop the database does not confirm ends by itself', (

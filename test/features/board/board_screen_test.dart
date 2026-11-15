@@ -184,14 +184,22 @@ void main() {
   testWidgets('the card menu moves the card; details list the steps and '
       'let the user mark one', (tester) async {
     final (c, _) = await pumpBoard(tester);
+    // SPEC-071 R9: by hand only back to the Backlog; Em execução, Review
+    // and Feito are the runner's and the merge's.
     await tester.tap(find.byKey(const ValueKey('board-menu-SPEC-003')));
     await pumpFor(tester, 20);
-    await tester.tap(find.text('Mover para Review'));
+    // In the Backlog already: no column to move it to.
+    expect(find.textContaining('Mover para '), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await pumpFor(tester, 20);
+    await tester.tap(find.byKey(const ValueKey('board-menu-SPEC-002')));
+    await pumpFor(tester, 20);
+    expect(find.text('Mover para Review'), findsNothing);
+    expect(find.text('Mover para Feito'), findsNothing);
+    await tester.tap(find.text('Mover para Backlog'));
     await pumpFor(tester);
-    expect(text(tester, 'board-column-count-review'), '1');
-    expect(text(tester, 'board-meta-SPEC-003'), 'pronta para review');
-    // Moved by hand with steps left: it can still run.
-    expect(find.byKey(const ValueKey('board-run-SPEC-003')), findsOneWidget);
+    expect(text(tester, 'board-column-count-backlog'), '3');
+    expect(text(tester, 'board-column-count-running'), '0');
 
     // Clicking the card opens the side panel (UX v2, U8).
     await tester.tap(find.byKey(const ValueKey('board-open-SPEC-002')));
@@ -255,13 +263,14 @@ void main() {
   ) async {
     final (c, db) = await pumpBoard(tester);
     expect(find.byKey(const ValueKey('board-legacy')), findsNothing);
+    // SPEC-071 R9: by hand a card goes back to the Backlog.
     await tester.drag(
-      find.byKey(const ValueKey('board-card-SPEC-003')),
-      const Offset(700, 0),
+      find.byKey(const ValueKey('board-card-SPEC-002')),
+      const Offset(-350, 0),
     );
     await pumpFor(tester);
-    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-003');
-    expect(moved!.stage, isNot(SpecStage.backlog));
+    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-002');
+    expect(moved!.stage, SpecStage.backlog);
 
     await db
         .into(db.tasks)
@@ -652,13 +661,13 @@ void main() {
     tester.view.physicalSize = const Size(1440, 300);
     await pumpFor(tester);
     expect(find.byKey(const ValueKey('board-vertical-scroll')), findsOneWidget);
-    final card = find.byKey(const ValueKey('board-card-SPEC-003'));
+    final card = find.byKey(const ValueKey('board-card-SPEC-002'));
     await tester.ensureVisible(card);
     await pumpFor(tester);
-    await tester.drag(card, const Offset(700, 0));
+    await tester.drag(card, const Offset(-350, 0));
     await pumpFor(tester);
-    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-003');
-    expect(moved!.stage, isNot(SpecStage.backlog));
+    final moved = await c.read(specsRepoProvider).getByCode(1, 'SPEC-002');
+    expect(moved!.stage, SpecStage.backlog);
     expect(tester.takeException(), isNull);
   });
 

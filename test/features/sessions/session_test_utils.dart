@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -38,6 +39,9 @@ class FakeCli {
   /// Starting a process fails (CLI gone, spawn error).
   bool failStart = false;
 
+  /// Starting waits for this (a slow start, to see what happens meanwhile).
+  Completer<void>? gate;
+
   Future<Process> start(
     String exe,
     List<String> arguments, {
@@ -45,6 +49,7 @@ class FakeCli {
     Map<String, String>? environment,
   }) async {
     if (failStart) throw ProcessException(exe, arguments, 'falha ao iniciar');
+    if (gate case final g?) await g.future;
     final p = FakeProcess();
     processes.add(p);
     args.add(arguments);

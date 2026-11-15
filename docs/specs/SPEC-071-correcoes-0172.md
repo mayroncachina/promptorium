@@ -84,11 +84,11 @@ Por isso a spec não tem mockup novo. A única ação nova na tela é **Enviar e
 - [ ] Merge da mãe que falha não muda a base das filhas [R3] verificar: flutter test test/features/review
 - [ ] Trocar de item durante o merge não perde o fim do merge nem permite outro merge [R4] verificar: flutter test test/features/review
 - [ ] VIBE em gate não aceita pedidos e não é mergeada com o agente ocupado [R5] verificar: flutter test test/features/vibe
-- [ ] Dois pedidos para a mesma spec abrem uma sessão só [R6] verificar: flutter test test/features/board
-- [ ] Mensagem no instante da liberação por ociosidade chega ao agente [R7] verificar: flutter test test/features/sessions
-- [ ] Alteração externa não é sobrescrita pelo editor [R8] verificar: flutter test test/features/specs
-- [ ] Transições inválidas do Quadro são recusadas [R9] verificar: flutter test test/features/board
-- [ ] Retomar duas vezes manda uma mensagem só, e o apontar sobrevive à troca de tela [R10, R11] verificar: flutter test test/features/sessions
+- [x] Dois pedidos para a mesma spec abrem uma sessão só [R6] verificar: flutter test test/features/board
+- [x] Mensagem no instante da liberação por ociosidade chega ao agente [R7] verificar: flutter test test/features/sessions
+- [x] Alteração externa não é sobrescrita pelo editor [R8] verificar: flutter test test/features/specs
+- [x] Transições inválidas do Quadro são recusadas [R9] verificar: flutter test test/features/board
+- [x] Retomar duas vezes manda uma mensagem só, e o apontar sobrevive à troca de tela [R10, R11] verificar: flutter test test/features/sessions
 - [x] Git e streams com bytes fora de UTF-8 não derrubam nada [R12] verificar: flutter test test/core
 - [x] O fim do `claude` não espera 2 s [R13] verificar: flutter test test/core/claude
 - [x] A redação do Codex mantém o JSON válido [R14] verificar: flutter test test/core/codex
