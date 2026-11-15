@@ -10,7 +10,9 @@ import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/pr_import.dart';
 import 'package:promptorium/features/review/review_service.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
+import 'package:promptorium/core/claude/claude_args.dart';
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/providers/permission_policy.dart';
 
 import '../../core/git/git_test_utils.dart';
 import '../../helpers/test_db.dart';
@@ -345,6 +347,81 @@ void main() {
         failed: status.failedChecks,
       );
       expect(f.blockReason, 'Nenhum check com log do GitHub Actions');
+    });
+  });
+
+  group('SPEC-073 R4, R11 · sessão nascida em modo plano', () {
+    String? modeArg(List<String> args) {
+      final i = args.indexOf('--permission-mode');
+      return i < 0 ? null : args[i + 1];
+    }
+
+    test('a PR brought with "Resumir o PR" (plan mode) is fixed in a mode '
+        'that edits on its own, also by the automatic', () async {
+      final e = await setUpPr();
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPermissionMode(e.id, ClaudePermissionMode.plan.cliValue);
+      await e.cli.last.finish(0);
+      await settle();
+      expect(await e.fixer.fix(e.id, auto: true), isTrue);
+      await settle();
+      final args = e.cli.args.last;
+      expect(args, contains('--resume'));
+      expect(modeArg(args), 'acceptEdits');
+      expect(
+        (await e.c.read(sessionsRepoProvider).getById(e.id))!.permissionMode,
+        'acceptEdits',
+      );
+      expect(e.ciMessages, hasLength(1));
+    });
+
+    test('the mode picked for new sessions wins when it edits on its '
+        'own', () async {
+      final e = await setUpPr();
+      await e.c
+          .read(appSettingsProvider.notifier)
+          .set(
+            permissionModePreferenceKey('claude'),
+            ClaudePermissionMode.skipPermissions.cliValue,
+          );
+      await e.c
+          .read(sessionsRepoProvider)
+          .setPermissionMode(e.id, ClaudePermissionMode.plan.cliValue);
+      await e.cli.last.finish(0);
+      await settle();
+      await e.fixer.fix(e.id);
+      await settle();
+      expect(e.cli.args.last, contains('--dangerously-skip-permissions'));
+      expect(modeArg(e.cli.args.last), isNull);
+    });
+
+    test('ciFixMode never keeps plan nor "perguntar"', () {
+      expect(ciFixMode(null), ClaudePermissionMode.acceptEdits);
+      expect(
+        ciFixMode(ClaudePermissionMode.plan),
+        ClaudePermissionMode.acceptEdits,
+      );
+      expect(
+        ciFixMode(ClaudePermissionMode.defaultMode),
+        ClaudePermissionMode.acceptEdits,
+      );
+      expect(
+        ciFixMode(ClaudePermissionMode.skipPermissions),
+        ClaudePermissionMode.skipPermissions,
+      );
+    });
+
+    test('a session not in plan keeps its mode', () async {
+      final e = await setUpPr();
+      final before = (await e.c.read(sessionsRepoProvider).getById(e.id))!
+          .permissionMode;
+      await e.fixer.fix(e.id);
+      await settle();
+      expect(
+        (await e.c.read(sessionsRepoProvider).getById(e.id))!.permissionMode,
+        before,
+      );
     });
   });
 

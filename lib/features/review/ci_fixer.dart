@@ -5,7 +5,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/claude/claude_args.dart' show ClaudePermissionMode;
 import '../../core/git/gh_cli.dart';
+import '../../core/providers/permission_policy.dart'
+    show permissionModePreferenceKey;
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/session_manager.dart';
@@ -320,6 +323,19 @@ String ciFixMessage({required String pr, required CiFailure failure}) {
   return b.toString();
 }
 
+/// Mode of the CI fix of a session born in plan mode: the one the person
+/// picked for new sessions when it edits on its own ("sem perguntar"
+/// included, outside the workspace root), else "aceitar edições". Never
+/// plan nor "perguntar", which stop at every edit.
+ClaudePermissionMode ciFixMode(ClaudePermissionMode? preferred) =>
+    switch (preferred) {
+      null ||
+      ClaudePermissionMode.plan ||
+      ClaudePermissionMode.defaultMode ||
+      ClaudePermissionMode.dontAsk => ClaudePermissionMode.acceptEdits,
+      final m => m,
+    };
+
 /// "Corrigir CI" and "Rodar de novo" (SPEC-073): reads the logs of the
 /// failed checks, sends them to the PR's session, pushes the agent's commit
 /// when the turn ends and follows the CI of the new commit. One fix per red
@@ -519,10 +535,37 @@ class CiFixer extends Notifier<Map<String, CiFixState>> {
         await manager.note(sessionId, line);
       }
       await _history(sessionId, line, st.sha);
+      await _leavePlan(sessionId);
       await manager.send(sessionId, message);
     } on SessionException catch (e) {
       _set(sessionId, null);
       throw CiFixException('$e');
+    }
+  }
+
+  /// A session in plan mode (a PR brought with "Resumir o PR", SPEC-050)
+  /// would ask to leave the plan and then approve every edit: the fix
+  /// leaves plan before the message, as "Pedir ajustes" does (SPEC-050 R6),
+  /// so the automatic (R11) does not wait for anyone.
+  Future<void> _leavePlan(String sessionId) async {
+    final s = await ref.read(sessionsRepoProvider).getById(sessionId);
+    if (s == null || s.permissionMode != ClaudePermissionMode.plan.cliValue) {
+      return;
+    }
+    final preferred = ClaudePermissionMode.fromCli(
+      ref.read(appSettingsProvider)[permissionModePreferenceKey(s.provider)],
+    );
+    final manager = ref.read(sessionManagerProvider.notifier);
+    final mode = ciFixMode(preferred);
+    try {
+      await manager.setPermissionMode(sessionId, mode);
+    } on SessionException {
+      // "Sem perguntar" in the workspace root (F12).
+      if (mode == ClaudePermissionMode.acceptEdits) rethrow;
+      await manager.setPermissionMode(
+        sessionId,
+        ClaudePermissionMode.acceptEdits,
+      );
     }
   }
 
