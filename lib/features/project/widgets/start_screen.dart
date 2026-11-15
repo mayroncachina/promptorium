@@ -13,10 +13,13 @@ import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../../core/fs/project_paths.dart';
 import '../../review/review_host.dart' show remoteHost;
+import '../../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import '../cost_estimate.dart';
+import '../custom_stack.dart';
 import '../environment_check.dart';
 import '../project_service.dart';
 import '../project_templates.dart';
+import 'custom_stack_dialog.dart';
 import 'environment_panel.dart';
 import 'usage_block.dart';
 
@@ -70,6 +73,11 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   /// "Ambiente" (SPEC-072 R1–R4).
   late final EnvironmentChecker _env;
 
+  /// The "Outro…" conversation (lives while the screen is open, P9) and
+  /// the stack chosen in it (R16–R19).
+  CustomStackChat? _chat;
+  CustomStack? _custom;
+
   /// Why "Branch inicial" is invalid (R5), checked 300 ms after typing.
   String? _branchError;
   Timer? _branchTimer;
@@ -93,6 +101,9 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   @override
   void dispose() {
     _branchTimer?.cancel();
+    _chat
+      ?..removeListener(_onEnv)
+      ..dispose();
     _env
       ..removeListener(_onEnv)
       ..dispose();
@@ -118,7 +129,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   Hosting get _hosting => detectHosting(
     withRemote: _withRemote,
     url: _remote.text,
-    config: templateById(_template).config,
+    config: _selected.config,
   );
 
   EnvInput get _envInput => EnvInput(
@@ -152,6 +163,103 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   EnvItem? get _claudeOk {
     final c = _env[EnvKind.claude];
     return _origin == _Origin.create && c?.state == EnvState.ok ? c : null;
+  }
+
+  /// The starting point: a built-in template or the "Outro…" stack (R18).
+  ProjectTemplate get _selected =>
+      _template == customTemplateId && _custom != null
+      ? ProjectTemplate.fromStack(_custom!)
+      : templateById(_template);
+
+  /// Why "Outro…" is off: it calls the Claude (R16, P2).
+  String? get _customBlocked => _env[EnvKind.claude]?.state == EnvState.blocked
+      ? 'Entre no Claude Code para definir outra stack'
+      : null;
+
+  /// "Outro…" / the pencil: opens the modal with the conversation so far.
+  Future<void> _openCustom() async {
+    final chat = _chat ??= CustomStackChat(
+      run: ref.read(customStackRunProvider),
+      newSessionId: ref.read(sessionIdGeneratorProvider),
+      cwd: () => customStackCwd(_parent.text),
+    )..addListener(_onEnv);
+    final use = await showCustomStackDialog(
+      context,
+      chat,
+      subscriptionType: _env[EnvKind.claude]?.subscriptionType,
+    );
+    if (!mounted) return;
+    if (use && chat.proposal != null) {
+      setState(() {
+        _custom = chat.proposal;
+        _template = customTemplateId;
+      });
+      _envChanged();
+    }
+  }
+
+  /// The last chip: "Outro…", or the chosen stack with a pencil (R16, R18).
+  Widget _customChip() {
+    final custom = _custom;
+    final selected = _template == customTemplateId && custom != null;
+    final blocked = _customBlocked;
+    final color = selected ? AppColors.amber : AppColors.textSecondary;
+    final chip = Material(
+      key: const ValueKey('start-template-custom'),
+      color: selected ? AppColors.amberTint : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? AppColors.amber : AppColors.border),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: _busy || (blocked != null && custom == null)
+            ? null
+            : custom == null
+            ? _openCustom
+            : () {
+                setState(() => _template = customTemplateId);
+                _envChanged();
+              },
+        child: Container(
+          height: 30,
+          padding: EdgeInsets.only(left: 12, right: custom == null ? 12 : 4),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                custom?.name ?? 'Outro…',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: blocked != null && custom == null
+                      ? AppColors.textDisabled
+                      : color,
+                ),
+              ),
+              if (custom != null)
+                IconButton(
+                  key: const ValueKey('start-template-custom-edit'),
+                  tooltip: blocked ?? 'Rever a stack com o Claude',
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 13,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  onPressed: _busy || blocked != null ? null : _openCustom,
+                  icon: Icon(Icons.edit_outlined, color: color),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Semantics(
+      key: const ValueKey('start-template-custom-semantics'),
+      hint: blocked,
+      child: blocked == null ? chip : Tooltip(message: blocked, child: chip),
+    );
   }
 
   EnvGate get _gate => envGate(_env.items, branchError: _branchError);
@@ -202,9 +310,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           parent: _parent.text,
           name: _name.text,
           remoteUrl: _withRemote ? _remote.text : null,
-          template: templateById(_template),
+          template: _selected,
           plan: plan,
           branch: _branchName,
+          customStackCalls: _chat?.calls ?? 0,
         );
     ref.read(navigationProvider.notifier).go(AppSection.project);
   });
@@ -454,7 +563,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         );
 
   Widget _createForm() {
-    final t = templateById(_template);
+    final t = _selected;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -597,12 +706,15 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   ),
                 ),
               ),
+            _customChip(),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           t.isEmpty
               ? '"Vazio" deixa tudo para o planner.'
+              : t.isCustom
+              ? 'Definida com o Claude: ${t.summary}; o planner só ajusta.'
               : 'O modelo preenche ${t.summary}; o planner só ajusta.',
           key: const ValueKey('start-template-summary'),
           style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
@@ -792,6 +904,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       // Calls and the queue time, not "1 s" and dollars (SPEC-072 R7).
       for (final (i, line) in startSteps(
         QueueEstimate(ref.watch(refineRoundsProvider)),
+        customCalls: _chat?.calls ?? 0,
       ).indexed)
         Padding(
           padding: const EdgeInsets.only(bottom: 6),

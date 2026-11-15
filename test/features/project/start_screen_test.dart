@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/core/system/worktree_launcher.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/project/custom_stack.dart';
 import 'package:promptorium/features/project/environment_check.dart';
 import 'package:promptorium/features/project/project_service.dart';
 import 'package:promptorium/features/project/project_templates.dart';
@@ -14,6 +15,7 @@ import 'package:promptorium/features/sessions/widgets/session_style.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
+import 'custom_stack_test.dart' show FakeCustomRun, goFiber;
 import 'environment_check_test.dart' show FakeProbe;
 
 /// Records "Criar" instead of creating.
@@ -30,8 +32,12 @@ class _FakeService extends ProjectService {
     ProjectTemplate? template,
     bool plan = true,
     String branch = 'main',
+    int customStackCalls = 0,
   }) async {
-    created.add('$parent/$name plan=$plan branch=$branch remote=$remoteUrl');
+    created.add(
+      '$parent/$name plan=$plan branch=$branch remote=$remoteUrl'
+      '${template != null && template.isCustom ? ' stack=${template.label} calls=$customStackCalls' : ''}',
+    );
     throw const ProjectException('fake');
   }
 }
@@ -45,7 +51,11 @@ class StartHarness {
   final created = <String>[];
 }
 
-Future<StartHarness> pumpStart(WidgetTester tester, FakeProbe probe) async {
+Future<StartHarness> pumpStart(
+  WidgetTester tester,
+  FakeProbe probe, {
+  FakeCustomRun? custom,
+}) async {
   tester.view.physicalSize = const Size(1440, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -68,6 +78,9 @@ Future<StartHarness> pumpStart(WidgetTester tester, FakeProbe probe) async {
         }),
         directoryPickerProvider.overrideWithValue(
           ({String? initialDirectory}) async => '/srv/outra',
+        ),
+        customStackRunProvider.overrideWithValue(
+          (custom ?? FakeCustomRun([])).call,
         ),
         projectServiceProvider.overrideWith(
           (ref) => _FakeService(ref, h.created),
@@ -407,6 +420,112 @@ void main() {
         ),
     );
     expect(find.byKey(const ValueKey('usage-block')), findsNothing);
+    await unmountStart(tester);
+  });
+
+  testWidgets('"Outro…" opens the modal; the stack chosen there becomes the '
+      'starting point, with the pencil, and its calls count (SPEC-072 '
+      'R16–R19)', (tester) async {
+    final run = FakeCustomRun([goFiber(), goFiber(migrations: 'goose')]);
+    final h = await pumpStart(tester, FakeProbe(), custom: run);
+    await tester.enterText(key('start-parent'), '/srv');
+    await typeName(tester, 'loja');
+    expect(find.text('Outro…'), findsOneWidget);
+    await tester.tap(key('start-template-custom'));
+    await tester.pumpAndSettle();
+    expect(key('custom-stack-dialog'), findsOneWidget);
+    expect(find.text('Definir a stack com o Claude'), findsOneWidget);
+
+    // Closing without using changes nothing.
+    await tester.tap(key('custom-stack-close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Outro…'), findsOneWidget);
+    expect(run.calls, isEmpty);
+
+    await tester.tap(key('start-template-custom'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AmberButton>(key('custom-stack-use')).onTap, isNull);
+    await tester.enterText(
+      key('custom-stack-text'),
+      'API em Go com Fiber e Postgres, testes com go test',
+    );
+    await tester.pump();
+    await tester.tap(key('custom-stack-send'));
+    await tester.pumpAndSettle();
+    expect(key('custom-stack-preview'), findsOneWidget);
+    expect(find.text('Go · Fiber'), findsOneWidget);
+    expect(find.text('Fiber v2'), findsOneWidget);
+    expect(find.textContaining('go mod init loja'), findsOneWidget);
+    expect(find.text('1 chamada · plano Max'), findsOneWidget);
+
+    // An adjustment in the same conversation.
+    await tester.enterText(key('custom-stack-text'), 'migrations com goose');
+    await tester.pump();
+    await tester.tap(key('custom-stack-send'));
+    await tester.pumpAndSettle();
+    expect(run.calls.last.resumeId, run.calls.first.sessionId);
+    expect(find.text('Ajuste: migrations com goose'), findsOneWidget);
+    expect(find.text('goose'), findsOneWidget);
+    await tester.tap(key('custom-stack-use'));
+    await tester.pumpAndSettle();
+    expect(key('custom-stack-dialog'), findsNothing);
+
+    // The chip shows the stack, with the pencil; the summary line and the
+    // cost change.
+    expect(find.text('Go · Fiber'), findsOneWidget);
+    expect(key('start-template-custom-edit'), findsOneWidget);
+    expect(
+      tester.widget<Text>(key('start-template-summary')).data,
+      'Definida com o Claude: Go 1.23 · Fiber v2 · goose · testes: '
+      'go test ./... · CLAUDE.md base; o planner só ajusta.',
+    );
+    expect(
+      tester.widget<Text>(key('start-step-2')).data,
+      contains('+2 chamadas (a stack do Outro…)'),
+    );
+
+    // Another chip keeps the stack; the pencil reopens the conversation.
+    await tester.tap(key('start-template-flutter'));
+    await tester.pump();
+    expect(find.text('Go · Fiber'), findsOneWidget);
+    await tester.tap(key('start-template-custom'));
+    await tester.pump();
+    await tester.tap(key('start-template-custom-edit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ajuste: migrations com goose'), findsOneWidget);
+    await tester.tap(key('custom-stack-close'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(key('start-create-plan'));
+    await tester.pump();
+    expect(h.created.single, endsWith('stack=Go · Fiber calls=2'));
+    await unmountStart(tester);
+  });
+
+  testWidgets('with Claude red, "Outro…" is off and says why (R16)', (
+    tester,
+  ) async {
+    await pumpStart(
+      tester,
+      FakeProbe()
+        ..claudeItem = const EnvItem(
+          EnvKind.claude,
+          EnvState.blocked,
+          title: 'Claude Code',
+          problem: EnvProblem.claudeLogin,
+          command: 'claude auth login',
+        ),
+    );
+    expect(
+      tester
+          .widget<Semantics>(key('start-template-custom-semantics'))
+          .properties
+          .hint,
+      'Entre no Claude Code para definir outra stack',
+    );
+    await tester.tap(key('start-template-custom'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(key('custom-stack-dialog'), findsNothing);
     await unmountStart(tester);
   });
 }
