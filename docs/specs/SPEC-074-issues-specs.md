@@ -32,7 +32,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/WiB5xU4HnnMMXAUZA1W
 | `6-criar-issue.png` | "Criar issue" a partir de uma spec, com o texto já montado | R11 |
 | `7-sem-github.png` | Sem `gh`, sem login, repositório no GitLab e issues desligadas | R2 |
 
-Issue: [#243](https://github.com/mayroncachina/promptorium/issues/243) (sub-issue de [#240](https://github.com/mayroncachina/promptorium/issues/240)) · PR: (a preencher)
+Issue: [#243](https://github.com/mayroncachina/promptorium/issues/243) (sub-issue de [#240](https://github.com/mayroncachina/promptorium/issues/240)) · PR: [#246](https://github.com/mayroncachina/promptorium/pull/246)
 
 ## Requisitos
 
