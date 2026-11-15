@@ -89,11 +89,11 @@ Por isso a spec não tem mockup novo. A única ação nova na tela é **Enviar e
 - [ ] Alteração externa não é sobrescrita pelo editor [R8] verificar: flutter test test/features/specs
 - [ ] Transições inválidas do Quadro são recusadas [R9] verificar: flutter test test/features/board
 - [ ] Retomar duas vezes manda uma mensagem só, e o apontar sobrevive à troca de tela [R10, R11] verificar: flutter test test/features/sessions
-- [ ] Git e streams com bytes fora de UTF-8 não derrubam nada [R12] verificar: flutter test test/core
-- [ ] O fim do `claude` não espera 2 s [R13] verificar: flutter test test/core/claude
-- [ ] A redação do Codex mantém o JSON válido [R14] verificar: flutter test test/core/codex
-- [ ] ACP sem processo órfão e com limite no handshake [R15] verificar: flutter test test/core
-- [ ] Uma consulta de uso por vez, encerrada no limite [R16] verificar: flutter test test/core/claude
+- [x] Git e streams com bytes fora de UTF-8 não derrubam nada [R12] verificar: flutter test test/core
+- [x] O fim do `claude` não espera 2 s [R13] verificar: flutter test test/core/claude
+- [x] A redação do Codex mantém o JSON válido [R14] verificar: flutter test test/core/codex
+- [x] ACP sem processo órfão e com limite no handshake [R15] verificar: flutter test test/core
+- [x] Uma consulta de uso por vez, encerrada no limite [R16] verificar: flutter test test/core/claude
 - [ ] Servidor parado ao subir, preview aberto duas vezes e MCP parado na partida não deixam processo, janela nem socket [R17–R19] verificar: flutter test test/core
 - [ ] A restauração guarda o WAL [R20] verificar: flutter test test/data
 - [ ] Criar projeto depois de uma falha de git funciona, na branch main, com as specs no Quadro [R21, R22, R25] verificar: flutter test test/features/project
