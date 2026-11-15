@@ -13,10 +13,12 @@ import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../../core/fs/project_paths.dart';
 import '../../review/review_host.dart' show remoteHost;
+import '../cost_estimate.dart';
 import '../environment_check.dart';
 import '../project_service.dart';
 import '../project_templates.dart';
 import 'environment_panel.dart';
+import 'usage_block.dart';
 
 /// "Começar" (UX v2, U7; docs/mockups/v2/NovoProjeto.dc.html): the three
 /// ways a workspace comes in (an existing folder, a new project, a clone),
@@ -145,6 +147,12 @@ class _StartScreenState extends ConsumerState<StartScreen> {
 
   String get _branchName =>
       _branch.text.trim().isEmpty ? 'main' : _branch.text.trim();
+
+  /// The Claude item once it answered ok: the plan of "Uso" (R8).
+  EnvItem? get _claudeOk {
+    final c = _env[EnvKind.claude];
+    return _origin == _Origin.create && c?.state == EnvState.ok ? c : null;
+  }
 
   EnvGate get _gate => envGate(_env.items, branchError: _branchError);
 
@@ -781,22 +789,25 @@ class _StartScreenState extends ConsumerState<StartScreen> {
       ],
       const Text('O QUE ACONTECE', style: sectionTitleStyle),
       const SizedBox(height: 8),
-      for (final (i, line) in const [
-        'Pasta, git init e commit inicial · 1 s',
-        'Ideia num parágrafo → o planner propõe visão, stack e roadmap de '
-            'uma vez · ~US\$ 0,30 · opcional',
-        'Revisar e criar: CLAUDE.md, specs e Quadro',
-      ].indexed)
+      // Calls and the queue time, not "1 s" and dollars (SPEC-072 R7).
+      for (final (i, line) in startSteps(
+        QueueEstimate(ref.watch(refineRoundsProvider)),
+      ).indexed)
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
             '${i + 1}. $line',
+            key: ValueKey('start-step-${i + 1}'),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
         ),
+      if (_claudeOk case final c?) ...[
+        const SizedBox(height: 10),
+        UsageBlock(subscriptionType: c.subscriptionType),
+      ],
       if (workspaces.isNotEmpty && _origin != _Origin.create) ...[
         const SizedBox(height: 14),
         const Text('RECENTES', style: sectionTitleStyle),

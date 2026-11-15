@@ -58,17 +58,24 @@ typedef PlanStepRow = ({String title, PlanStepState state});
 String _writeTitle(bool claudeMd, int specs) =>
     claudeMd ? 'Grava o CLAUDE.md e $specs specs' : 'Grava $specs specs';
 
-/// The steps before "Criar projeto", none of them done.
+/// The steps before "Criar projeto", none of them done; [refineTime] is the
+/// estimate of the queue (SPEC-072 R10).
 List<PlanStepRow> planQueuePreview({
   required int specs,
   required bool writeClaudeMd,
   required bool commit,
   required bool firstRun,
+  String? refineTime,
 }) => [
   (title: _writeTitle(writeClaudeMd, specs), state: PlanStepState.pending),
   if (commit)
     (title: 'Commit “$planCommitMessage”', state: PlanStepState.pending),
-  (title: 'Refina e planeja as $specs specs', state: PlanStepState.pending),
+  (
+    title:
+        'Refina e planeja as $specs specs'
+        '${refineTime == null ? '' : ' · $refineTime'}',
+    state: PlanStepState.pending,
+  ),
   if (commit)
     (title: 'Commit “$specPlansCommitMessage”', state: PlanStepState.pending),
   if (firstRun) (title: 'Abre a primeira sessão', state: PlanStepState.pending),

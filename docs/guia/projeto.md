@@ -10,6 +10,8 @@ Sem workspace aberto, ou em **Novo projeto…**, a tela Começar oferece três c
 
 Em "Abrir pasta existente" e "Clonar de uma URL", a coluna da direita mostra os projetos recentes.
 
+Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
+
 ### Ambiente
 
 Em "Criar projeto novo", o bloco **Ambiente** confere, antes de criar:
@@ -23,7 +25,11 @@ Cada item mostra **ok**, **bloqueia** ou **aviso**. Git ou Pasta vermelhos, ou u
 
 A branch inicial vira a branch do repositório e o `branch-base:` do `.promptorium/config.yml`, que nasce no commit inicial (também no modelo Vazio). Com GitHub ou GitLab, o config.yml também ganha `hospedagem:`.
 
-Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
+### Custo e tempo
+
+"O que acontece" não promete segundos nem dólares: mostra as 3 chamadas do planner (visão, stack e roadmap; cada mensagem a mais na Visão é mais uma) e a fila de refino em "1 rodada por spec". O app guarda a duração das últimas 20 rodadas da fila, de qualquer projeto; com 3 ou mais, a estimativa usa a mediana ("8 specs × ~2 min ≈ 16 min"), e sem histórico fica em "1–3 min" por spec.
+
+No plano por assinatura (Pro, Max), o bloco **Uso** mostra a quota da janela de 5 h e da semana, com a hora em que renova, porque não há cobrança por chamada; o stepper mostra "Planner · N chamadas". Com chave de API, aparece o teto em dólares de cada chamada. Revisar e criar repete tudo na seção **Custo e tempo**, com as chamadas já feitas e, quando o projeto já tem specs executadas, o tempo médio de execução por spec.
 
 ## Planejar com o planner
 
