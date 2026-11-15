@@ -244,8 +244,8 @@ A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Cl
 - [x] A stack escolhida aparece no chip e, ao criar, grava os comandos no config.yml, o CLAUDE.md base e as decisões fixadas no plano [R18] verificar: flutter test test/features/project
 - [x] Cada proposta ou ajuste do modal soma "+1 chamada" no custo [R19] verificar: flutter test test/features/project
 - [x] As marcas têm texto e os botões desabilitados dizem o motivo ao leitor de tela [R15] verificar: flutter test test/features/project
-- [ ] Criar um projeto de verdade num ambiente sem nome no git: o Ambiente aponta, "Gravar no git" resolve e o projeto nasce na branch escolhida, com os comandos no config.yml [R1–R6, R13] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
-- [ ] Criar um projeto de verdade com "Outro…" ("API em Go com Fiber e Postgres"): o config.yml e o CLAUDE.md saem da stack escolhida, e a etapa Stack parte dela [R16–R18] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
+- [x] Criar um projeto de verdade num ambiente sem nome no git: o Ambiente aponta, "Gravar no git" resolve e o projeto nasce na branch escolhida, com os comandos no config.yml [R1–R6, R13] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
+- [x] Criar um projeto de verdade com "Outro…" ("API em Go com Fiber e Postgres"): o config.yml e o CLAUDE.md saem da stack escolhida, e a etapa Stack parte dela [R16–R18] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
 - [x] O projeto compila e a análise estática passa [R1–R22] verificar: flutter analyze
 
 ## Decisões
