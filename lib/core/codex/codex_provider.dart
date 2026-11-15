@@ -155,16 +155,12 @@ class CodexRun implements ManagedAgentRun {
   void _emit(Map<String, dynamic> json) {
     if (_events.isClosed) return;
     // Scrub before persistence; never store raw App Server authentication.
-    final clean = jsonDecode(
-      CodexRpc.redact(
-        jsonEncode({
-          ...json,
-          'provider': 'codex',
-          'session_id': _thread,
-          if (_turn != null) 'turn_id': _turn,
-        }),
-      ),
-    ) as Map<String, dynamic>;
+    final clean = CodexRpc.redactJson({
+      ...json,
+      'provider': 'codex',
+      'session_id': _thread,
+      if (_turn != null) 'turn_id': _turn,
+    }) as Map<String, dynamic>;
     _events.add(ClaudeEvent.fromJson(clean));
   }
 

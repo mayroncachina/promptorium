@@ -260,4 +260,48 @@ void main() {
       await done.timeout(const Duration(seconds: 2));
     },
   );
+
+  group('processo real (SPEC-071)', () {
+    /// Runs `sh -c script` in place of the CLI.
+    Future<ClaudeProcess> startSh(String script) => ClaudeProcess.start(
+      const ClaudeOptions(),
+      workingDirectory: Directory.systemTemp.path,
+      starter: (exe, args, {workingDirectory, environment}) =>
+          Process.start('sh', ['-c', script]),
+    );
+
+    test('stderr fechando antes do stdout não espera os 2 s nem loga "stdout '
+        'ainda aberto" (R13)', () async {
+      // stderr closes at once; stdout ends 300 ms later, as the CLI does.
+      final p = await startSh('exec 2>&-; sleep 0.3; echo fim');
+      final logs = <String>[];
+      p.logs.listen(logs.add);
+      final events = <AgentEvent>[];
+      final sw = Stopwatch()..start();
+      await p.events.forEach(events.add);
+      sw.stop();
+      expect(sw.elapsed, lessThan(const Duration(milliseconds: 1500)));
+      expect(events.whereType<UnknownEvent>().map((e) => e.raw), ['fim']);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(logs.where((l) => l.contains('stdout ainda aberto')), isEmpty);
+    });
+
+    test(
+      'byte inválido no stdout e no stderr não encerra os streams (R12)',
+      () async {
+        final p = await startSh(
+          r"printf 'a\351b\n'; printf 'err\377\n' >&2; echo depois",
+        );
+        final logs = <String>[];
+        p.logs.listen(logs.add);
+        final events = <AgentEvent>[];
+        await p.events.forEach(events.add);
+        expect(events.whereType<UnknownEvent>().map((e) => e.raw), [
+          'a�b',
+          'depois',
+        ]);
+        expect(logs, contains('err�'));
+      },
+    );
+  });
 }

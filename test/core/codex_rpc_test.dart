@@ -92,4 +92,63 @@ void main() {
     await pending;
     await rpc.stop();
   });
+
+  group('SPEC-071', () {
+    test('byte inválido no stdout não encerra a conexão (R12)', () async {
+      final process = FakeProcess();
+      final rpc = CodexRpc(process);
+      final messages = <Map<String, dynamic>>[];
+      rpc.messages.stream.listen(messages.add);
+      final logs = <String>[];
+      rpc.logs.stream.listen(logs.add);
+      process.stdoutCtl.add([...utf8.encode('{"method":"a","t":"'), 0xE9]);
+      process.stdoutCtl.add(utf8.encode('"}\n'));
+      process.stderrCtl.add([0xFF, 0x0A]);
+      final reply = rpc.request('depois', {});
+      await flush();
+      process.emit(
+        jsonEncode({
+          'id': 1,
+          'result': {'ok': true},
+        }),
+      );
+      expect(await reply, {'ok': true});
+      expect(messages.single['t'], '�');
+      expect(rpc.exited, isFalse);
+      expect(logs, contains('�'));
+    });
+
+    test('redactJson mantém o JSON válido e redige só os valores (R14)', () {
+      final input = {
+        'header': 'Bearer abc.def',
+        'cmd': r'echo "x" \"y\"',
+        'nested': {
+          'access_token': 'segredo',
+          'list': ['sk-AbC123 fim', 'task-runner', 'usa sk-xyz'],
+        },
+        'n': 3,
+      };
+      final out = CodexRpc.redactJson(input) as Map<String, dynamic>;
+      // Round-trips: nothing ate a quote or a backslash.
+      expect(jsonDecode(jsonEncode(out)), out);
+      expect(out['header'], 'Bearer [redigido]');
+      expect(out['cmd'], r'echo "x" \"y\"');
+      expect(out['nested']['access_token'], '[redigido]');
+      expect(out['nested']['list'], [
+        '[redigido] fim',
+        'task-runner',
+        'usa [redigido]',
+      ]);
+      expect(out['n'], 3);
+    });
+
+    test('redact: sk- só no início de palavra (R14)', () {
+      expect(CodexRpc.redact('task-runner'), 'task-runner');
+      expect(CodexRpc.redact('chave sk-abc'), 'chave [redigido]');
+      expect(
+        CodexRpc.redact('"authorization": "tok123"'),
+        '"authorization": "[redigido]"',
+      );
+    });
+  });
 }

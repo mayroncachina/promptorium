@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../process/process_runner.dart';
+
 /// Runs a short command in a folder (same shape as the Review's
 /// `CommandRunner`, so a fake of one serves the other). Injected so tests
 /// can simulate `gh`.
@@ -17,7 +19,13 @@ Future<ProcessResult> _defaultCli(
   String exe,
   List<String> args, {
   String? workingDirectory,
-}) => Process.run(exe, args, workingDirectory: workingDirectory);
+}) => Process.run(
+  exe,
+  args,
+  workingDirectory: workingDirectory,
+  stdoutEncoding: lenientUtf8,
+  stderrEncoding: lenientUtf8,
+);
 
 /// The runner of [GhCli] (overridden in tests).
 final cliRunnerProvider = Provider<CliRunner>((ref) => _defaultCli);
