@@ -27,7 +27,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MhRbtsweiDN9qoUZBSC
 | `5-parado.png` | O automático parou depois da segunda falha, com o aviso | R11, R12 |
 | `6-config.png` | A Configuração do projeto com "Corrigir CI sozinho" | R13 |
 
-Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issue de #240)
+Issue: [#242](https://github.com/mayroncachina/promptorium/issues/242) (sub-issue de #240) · PR: [#245](https://github.com/mayroncachina/promptorium/pull/245)
 
 ## Requisitos
 
