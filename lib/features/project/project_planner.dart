@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
+import 'cost_estimate.dart';
 import 'project_plan.dart';
 import 'project_templates.dart' show templateClaudeMd;
 
@@ -424,20 +425,27 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         ),
       );
 
+  /// One planner call; [kind] counts it for "Planner · N chamadas"
+  /// (SPEC-072 R8, R10), also when it fails.
   Future<Result> _run(
     Workspace ws,
     ClaudeOptions options,
-    String prompt,
-  ) async {
-    final r = await runReadOnlyClaude(
-      ref,
-      workspaceId: ws.id,
-      cwd: ws.path,
-      options: options,
-      prompt: prompt,
-    );
-    await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
-    return r;
+    String prompt, {
+    required String kind,
+  }) async {
+    try {
+      final r = await runReadOnlyClaude(
+        ref,
+        workspaceId: ws.id,
+        cwd: ws.path,
+        options: options,
+        prompt: prompt,
+      );
+      await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
+      return r;
+    } finally {
+      await recordPlannerCalls(ref, ws.id, kind);
+    }
   }
 
   /// One Visão turn: stores [text], asks the planner and stores its answer
@@ -467,6 +475,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
             resumeId: resume,
           ),
           msg,
+          kind: 'visao',
         );
         final out = parseVisionResult(r);
         data = data.copyWith(
@@ -522,6 +531,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           request: request,
           baseClaudeMd: templateClaudeMd(ws.path),
         ),
+        kind: 'stack',
       );
       final stack = parseStackResult(r, fixed: fixed);
       final (_, latest) = await _load(ws);
@@ -539,6 +549,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         ws,
         _options(roadmapSystemPrompt, roadmapSchema, budget: roadmapBudgetUsd),
         roadmapPrompt(data.vision, data.stack, request: request),
+        kind: 'roadmap',
       );
       final roadmap = parseRoadmapResult(r);
       final (_, latest) = await _load(ws);
@@ -554,6 +565,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           ws,
           _options(ideaSystemPrompt, ideaSpecSchema),
           ideaPrompt(idea, phase, data),
+          kind: 'ideia',
         );
         final m = _map(r);
         final spec = m['spec'] is Map
@@ -698,8 +710,12 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       ref.read(projectPlansRepoProvider).start(ws.id);
 
   /// Discards the plan (files, specs and tasks already created stay).
-  Future<void> discard(Workspace ws) =>
-      ref.read(projectPlansRepoProvider).delete(ws.id);
+  Future<void> discard(Workspace ws) async {
+    await ref.read(projectPlansRepoProvider).delete(ws.id);
+    await ref
+        .read(appSettingsProvider.notifier)
+        .remove(AppSettingKeys.plannerCalls(ws.id));
+  }
 }
 
 final projectPlannerProvider =

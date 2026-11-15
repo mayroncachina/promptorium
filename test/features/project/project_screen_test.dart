@@ -11,11 +11,13 @@ import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:promptorium/core/claude/readonly_run.dart'
     show PlannerException;
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
 import 'package:promptorium/features/project/environment_check.dart'
     show environmentProbeProvider;
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_templates.dart';
@@ -96,6 +98,7 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
   bool withWorkspace = true,
   Size size = const Size(1440, 900),
   String path = '/r',
+  String? subscription = 'max',
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -110,6 +113,13 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
       claudeProcessStarterProvider.overrideWithValue(cli.start),
       // The Começar "Ambiente" (SPEC-072): no real git or claude.
       environmentProbeProvider.overrideWithValue(FakeProbe()),
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async => ProviderAvailability(
+          ProviderStatus.ready,
+          '',
+          subscriptionType: subscription,
+        ),
+      ),
     ],
   );
   if (withWorkspace) {
@@ -217,6 +227,10 @@ class QueueScreen {
         currentBranchProvider.overrideWith((ref, root) async => 'main'),
         claudeProcessStarterProvider.overrideWithValue(FakeCli().start),
         environmentProbeProvider.overrideWithValue(FakeProbe()),
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, ''),
+        ),
         specDesignerProvider.overrideWith(
           (ref) => designer = QueueDesigner(ref),
         ),
@@ -396,6 +410,61 @@ void main() {
       path: tmp.path,
     );
     expect(find.text('git init · trunk · commit inicial'), findsOneWidget);
+    await unmount(tester, c);
+  });
+
+  testWidgets('Revisar e criar shows Custo e tempo and the queue time; the '
+      'stepper counts calls on a subscription plan and dollars with an API '
+      'key (SPEC-072 R8, R10)', (tester) async {
+    const data = ProjectPlanData(
+      vision: vision,
+      stack: stack,
+      roadmap: roadmap,
+    );
+    var (c, db) = await pumpProject(
+      tester,
+      data: data,
+      step: ProjectStep.create,
+    );
+    final ws = (await db.select(db.workspaces).get()).single;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(
+          AppSettingKeys.plannerCalls(ws.id),
+          const PlannerCalls({'visao': 2, 'stack': 1, 'roadmap': 1}).encode(),
+        );
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.refineRounds, '[110,120,130]');
+    await tester.pumpAndSettle();
+    expect(find.text('Planner · 4 chamadas'), findsOneWidget);
+    expect(find.byKey(const ValueKey('project-cost')), findsOneWidget);
+    expect(
+      find.text('4 chamadas feitas (visão 2, stack 1, roadmap 1)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('3 specs × ~2 min ≈ 6 min · mediana de 3 rodadas'),
+      findsOneWidget,
+    );
+    expect(find.text('Refina e planeja as 3 specs · ~6 min'), findsOneWidget);
+    expect(find.byKey(const ValueKey('usage-quota-note')), findsOneWidget);
+    await unmount(tester, c);
+
+    // API key: dollars, and the ceiling in "Uso".
+    (c, db) = await pumpProject(
+      tester,
+      data: data,
+      step: ProjectStep.create,
+      subscription: null,
+    );
+    final ws2 = (await db.select(db.workspaces).get()).single;
+    await (db.update(db.projectPlans)
+          ..where((p) => p.workspaceId.equals(ws2.id)))
+        .write(const ProjectPlansCompanion(costUsd: Value(0.42)));
+    await tester.pumpAndSettle();
+    expect(find.text('Planner · \$0.42'), findsOneWidget);
+    expect(find.byKey(const ValueKey('usage-api')), findsOneWidget);
     await unmount(tester, c);
   });
 

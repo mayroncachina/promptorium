@@ -374,4 +374,39 @@ void main() {
     expect(probe.calls, containsAll(['git', 'claude!', 'folder /srv/outra ']));
     await unmountStart(tester);
   });
+
+  testWidgets('"O que acontece" has calls and the queue; "Uso" shows the '
+      'quota of the plan once Claude answered (SPEC-072 R7, R8)', (
+    tester,
+  ) async {
+    await pumpStart(tester, FakeProbe());
+    expect(
+      tester.widget<Text>(key('start-step-1')).data,
+      '1. Pasta, git init e commit inicial · segundos',
+    );
+    expect(find.textContaining('1 s'), findsNothing);
+    expect(find.textContaining('0,30'), findsNothing);
+    expect(
+      tester.widget<Text>(key('start-step-3')).data,
+      '3. Fila de refino: 1 rodada por spec · 1–3 min cada',
+    );
+    expect(find.text('USO · PLANO MAX'), findsOneWidget);
+    expect(find.text('O uso aparece depois da primeira chamada.'), findsOne);
+    await unmountStart(tester);
+
+    // Claude logged out: no "Uso".
+    await pumpStart(
+      tester,
+      FakeProbe()
+        ..claudeItem = const EnvItem(
+          EnvKind.claude,
+          EnvState.blocked,
+          title: 'Claude Code',
+          problem: EnvProblem.claudeLogin,
+          command: 'claude auth login',
+        ),
+    );
+    expect(find.byKey(const ValueKey('usage-block')), findsNothing);
+    await unmountStart(tester);
+  });
 }

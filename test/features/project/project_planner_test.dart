@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/providers/agent_event.dart';
 import 'package:promptorium/core/providers/claude_code_provider.dart';
 import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_planner.dart';
 import 'package:promptorium/features/project/project_templates.dart';
@@ -351,6 +352,15 @@ void main() {
     expect(data.stack.decisions.single.choice, 'Flutter');
     expect(data.roadmap.specs.single.title, 'Esqueleto');
     expect(row.step, ProjectStep.create.name);
+
+    // Each call is counted, by kind (SPEC-072 R8, R10).
+    final calls = c.read(plannerCallsProvider(ws.id));
+    expect(calls.total, 3);
+    expect(calls.label, '3 chamadas');
+    expect(calls.detail, 'visão 1, stack 1, roadmap 1');
+    // Discarding the plan forgets them.
+    await planner().discard(ws);
+    expect(c.read(plannerCallsProvider(ws.id)).total, 0);
   });
 
   test('Roadmap: stored normalized; failures go to the activity', () async {
