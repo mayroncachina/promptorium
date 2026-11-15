@@ -566,6 +566,24 @@ class SessionManager extends Notifier<SessionManagerState> {
     await p.process.send(msg);
   }
 
+  /// The message of "Retomar" for an interrupted / failed session.
+  static const continueMessage = 'Continue de onde parou.';
+
+  /// "Retomar" of an interrupted / failed session: resumes it with
+  /// [continueMessage], once (SPEC-071 R10): a second click while the first
+  /// is on its way waits for it instead of sending the message again.
+  Future<void> continueSession(String id) {
+    return _continuing[id] ??= send(id, continueMessage).whenComplete(() {
+      _continuing.remove(id);
+    });
+  }
+
+  /// Whether [continueSession] or [resume] of [id] is under way.
+  bool isResuming(String id) =>
+      _continuing.containsKey(id) || _resuming.containsKey(id);
+
+  final Map<String, Future<void>> _continuing = {};
+
   /// Starts `claude --resume <id>` in the session's worktree (no message).
   Future<void> resume(String id) async {
     if (await _liveProc(id) != null) return;

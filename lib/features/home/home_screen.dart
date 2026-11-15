@@ -334,7 +334,7 @@ class _InboxRow extends ConsumerWidget {
             try {
               await container
                   .read(sessionManagerProvider.notifier)
-                  .send(id, 'Continue de onde parou.');
+                  .continueSession(id);
               openSessionIn(container, id);
             } catch (e) {
               messenger?.showAppToast(SnackBar(content: Text('$e')));

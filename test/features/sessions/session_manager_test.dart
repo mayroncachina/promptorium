@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -425,6 +426,41 @@ void main() {
       (await c.read(sessionsRepoProvider).getById(id))!.status,
       SessionStatus.running,
     );
+  });
+
+  test('SPEC-071 R10: "Retomar" twice sends "Continue" once', () async {
+    final cli = FakeCli();
+    final c = sessionContainer(
+      sessionOverrides(
+        db: memoryDatabase(),
+        cli: cli,
+        notifier: FakeNotifier(),
+        worktreesBase: '${tmp.path}/wt',
+      ),
+    );
+    addTearDown(c.dispose);
+    await c.read(appSettingsProvider.notifier).load();
+    final ws = await c
+        .read(workspacesRepoProvider)
+        .add(path: repo, name: 'repo');
+    final m = c.read(sessionManagerProvider.notifier);
+    final id = await m.create(
+      NewSessionRequest(workspace: ws, title: 'Caiu', prompt: 'Oi'),
+    );
+    await m.release(id);
+    await c.read(sessionsRepoProvider).setStatus(id, SessionStatus.interrupted);
+    final gate = cli.gate = Completer<void>();
+    final both = Future.wait([m.continueSession(id), m.continueSession(id)]);
+    expect(m.isResuming(id), isTrue);
+    gate.complete();
+    await both;
+    expect(m.isResuming(id), isFalse);
+    expect(cli.processes, hasLength(2));
+    final sent = [
+      for (final j in cli.last.writtenJson)
+        if (jsonEncode(j).contains(SessionManager.continueMessage)) j,
+    ];
+    expect(sent, hasLength(1));
   });
 
   test('create → events persisted → approval → result: done/idle', () async {

@@ -212,7 +212,7 @@ List<PaletteCommand> paletteCommands(
               group: 'Pendentes',
               run: () async {
                 try {
-                  await manager.send(id, 'Continue de onde parou.');
+                  await manager.continueSession(id);
                   openSession(id);
                 } catch (e) {
                   toast('$e');
