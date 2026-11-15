@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
+import 'package:promptorium/features/issues/issue_refine.dart';
 import 'package:promptorium/features/specs/new_spec_view.dart';
 import 'package:promptorium/features/specs/spec_design.dart';
 import 'package:promptorium/features/specs/spec_draft.dart';
@@ -436,6 +437,95 @@ void main() {
       );
       expect(await draft(tester), isNull);
       expect(newSpecFile().existsSync(), isTrue);
+    });
+  });
+
+  group('SPEC-074 R6: "Refinar requisitos com o Claude"', () {
+    testWidgets('the text of the issue is in the field, with "Da issue #215"; '
+        'saving rewrites the same spec, same code and issue:', (tester) async {
+      File('${tmp.path}/specs/SPEC-002-sessoes.md').writeAsStringSync(
+        '---\nid: SPEC-002\nstatus: rascunho\nissue: 215\n---\n'
+        '# Cupom não aplica\n\n## Objetivo\n\nO cupom some.\n\n'
+        '## Requisitos\n\n<!-- refine -->\n',
+      );
+      await pump(tester, open: false);
+      final spec = await db(
+        tester,
+        () => c.read(specsRepoProvider).getByCode(ws.id, 'SPEC-002'),
+      );
+      c
+          .read(issueRefineProvider.notifier)
+          .set(
+            ws.id,
+            IssueRefineTarget(
+              specId: spec!.id,
+              code: 'SPEC-002',
+              issue: 215,
+              text: 'Cupom não aplica\n\nO cupom some.',
+            ),
+          );
+      c.read(newSpecFlowProvider.notifier).open();
+      await settleIo(tester, until: () => key('new-spec-idea').present);
+      expect(key('new-spec-issue-card'), findsOneWidget);
+      expect(find.text('Da issue #215'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              w.controller?.text == 'Cupom não aplica\n\nO cupom some.',
+        ),
+        findsOneWidget,
+      );
+      // Nothing is sent by itself.
+      expect(cli.processes, isEmpty);
+
+      await tester.tap(key('new-spec-plan'));
+      await settleIo(tester, until: () => cli.processes.isNotEmpty);
+      cli.last.emit(resultLine(plannerOutput()));
+      await settleIo(tester, until: () => key('new-spec-create').present);
+      await settleIo(tester, until: () => c.read(specPlannerProvider).isEmpty);
+      await settleIo(tester);
+      expect(
+        tester.widget<Text>(key('new-spec-code')).data,
+        'SPEC-002',
+        reason: 'the same spec, not the next number',
+      );
+      await tap(tester, 'new-spec-plan-next'); // off: "Criar spec"
+      await tester.tap(key('new-spec-create'));
+      await settleIo(
+        tester,
+        until: () => key('new-spec-create').present == false,
+      );
+      await settleIo(tester);
+      expect(specFiles(), hasLength(1), reason: 'no new spec');
+      final text = File('${tmp.path}/specs/SPEC-002-sessoes.md')
+          .readAsStringSync();
+      expect(text, contains('id: SPEC-002'));
+      expect(text, contains('issue: 215'));
+      expect(text, contains('- R1 · Quando uma consulta for marcada'));
+      expect(c.read(issueRefineProvider), isEmpty);
+    });
+
+    testWidgets('leaving without planning: the next Nova spec is new again', (
+      tester,
+    ) async {
+      await pump(tester, open: false);
+      c
+          .read(issueRefineProvider.notifier)
+          .set(
+            ws.id,
+            const IssueRefineTarget(
+              specId: 1,
+              code: 'SPEC-002',
+              issue: 215,
+              text: 'x',
+            ),
+          );
+      c.read(newSpecFlowProvider.notifier).open();
+      await settleIo(tester, until: () => key('new-spec-idea').present);
+      c.read(newSpecFlowProvider.notifier).close();
+      await settleIo(tester);
+      expect(c.read(issueRefineProvider), isEmpty);
     });
   });
 

@@ -42,6 +42,7 @@ import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
 import '../issues/issue_availability.dart';
 import '../issues/widgets/create_issue_dialog.dart';
+import '../issues/issue_actions.dart' show specIssueActions;
 import '../issues/widgets/issue_badge.dart';
 import 'widgets/spec_header.dart';
 import 'widgets/spec_questions_panel.dart';
@@ -1966,6 +1967,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                                   _offersIssues(issues)
                               ? issues.reason
                               : null,
+                          issueMenu: specIssueActions(context, ref, spec),
                           onArchive:
                               (canArchiveSpec(spec) ||
                                   spec.status == SpecStatus.archived)
