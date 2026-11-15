@@ -17,6 +17,7 @@ A SPEC-071 (R21–R26) já fez a base: repetir a criação depois de uma falha, 
 - **Branch inicial editável**, gravada como `branch-base:` no config.yml.
 - **Custo e tempo honestos**: chamadas do planner, fila em "N specs × tempo" e, no plano Max, o uso da quota em vez de dólares.
 - **Comandos da stack no config.yml**, editáveis na etapa Stack e mesclados sem sobrescrever. A Saúde e "Analisar repositório" voltam ao stepper.
+- **Stack fora dos modelos**: o chip "Outro…" do Ponto de partida abre um modal em que o Claude define a stack a partir de uma descrição livre. A stack escolhida vale como um modelo embutido.
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/MjpXpDuiv3RU1z3CL4ZeoU). Capturas em `docs/mockups/spec-072/`:
 
@@ -28,6 +29,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MjpXpDuiv3RU1z3CL4Z
 | `4-comandos.png` | A etapa Stack com o bloco Comandos, a chave do config.yml de cada um e o que já existe | R11, R12, R14 |
 | `5-revisar.png` | Revisar e criar com o config.yml mesclado (linhas novas e mantidas) e a seção Custo e tempo | R9, R10, R13 |
 | `6-saude.png` | O stepper com "Saúde do projeto" e a Saúde aberta, com "Analisar repositório" | R14 |
+| `7-outro.png` | O chip "Outro…" abriu o modal "Definir a stack com o Claude": a descrição, a proposta com as decisões, os comandos editáveis, o scaffold e o CLAUDE.md base | R16, R17, R18 |
+| `8-stack-escolhida.png` | De volta ao Começar: o chip "Go · Fiber" selecionado, com o lápis, a linha do que será preenchido e as chamadas do modal no custo | R18, R19 |
 
 Issue: [#241](https://github.com/mayroncachina/promptorium/issues/241) (sub-issue de #240) · PR: [#244](https://github.com/mayroncachina/promptorium/pull/244)
 
@@ -116,6 +119,25 @@ Comandos da stack no config.yml (B4):
   - O stepper ganha "Saúde do projeto", junto de Configuração, Memória e Métricas. Abre a `ProjectHealthView` num diálogo, com "Analisar repositório".
   - O bloco Comandos ganha **Detectar do repositório** quando a pasta tem um manifesto (`detectStack`). A detecção preenche só as linhas vazias e diz de onde leu ("lido de pubspec.yaml").
 
+Stack fora dos modelos:
+
+- R16 · **Chip "Outro…".** A fileira do Ponto de partida (Vazio · Flutter app · Next.js · API Python · CLI Dart) ganha um último chip, **Outro…**, que abre o modal **"Definir a stack com o Claude"**.
+  - Com o Claude vermelho no Ambiente (R1), o chip fica desabilitado e diz o motivo: "Entre no Claude Code para definir outra stack". É a mesma regra do "Criar e planejar" (R4, P2).
+- R17 · **O modal.** A pessoa descreve a stack em texto livre ("API em Go com Fiber e Postgres, testes com go test") e clica em **Propor stack**.
+  - A chamada usa o `runReadOnlyClaude`, somente leitura, como o planner: o schema da etapa Stack (`stackSchema`, com os `commands` da R11) e mais `name` (nome curto, como "Go · Fiber") e `scaffold` (o comando que cria o esqueleto, vazio se não houver).
+  - Enquanto pensa, mostra "Pensando…" com **Cancelar**, que encerra a chamada (o `cancelled` do `runReadOnlyClaude`).
+  - A resposta vem num cartão de prévia: nome, linguagem e framework, as decisões com o porquê, os seis comandos editáveis (o mesmo bloco Comandos da R12), o scaffold e o CLAUDE.md base, que abre para ler.
+  - **Pedir ajuste…** abre um campo para refinar. O ajuste continua a mesma conversa (`--resume` da sessão do modal) e troca a prévia. Um erro aparece no próprio modal, com "Tentar de novo".
+  - **Usar esta stack** fecha o modal. Fechar sem usar não muda o Ponto de partida.
+- R18 · **A stack escolhida vira o ponto de partida**, igual a um modelo embutido:
+  - o chip passa a mostrar o nome curto ("Go · Fiber"), selecionado, com um lápis que reabre o modal com a conversa e a prévia;
+  - a linha de baixo diz o que será preenchido: "Go · Fiber · PostgreSQL · testes: go test ./... · CLAUDE.md base";
+  - ao criar, os comandos entram no config.yml (R13) e o CLAUDE.md base é gravado como o de um modelo (SPEC-071 R23: "Gravar CLAUDE.md" nasce ligado e substitui esse CLAUDE.md);
+  - as decisões entram fixadas na etapa Stack do planner, e os comandos entram fixados (R11);
+  - o scaffold fica no CLAUDE.md base, na seção de comandos, e vai ao planner do roadmap como base da primeira spec da Fundação. O app não roda o scaffold (isso é da B3).
+  - Trocar para outro chip guarda a stack: "Outro…" continua mostrando "Go · Fiber" até a tela Começar fechar.
+- R19 · **A chamada conta no custo** (R7, R8): o passo 2 de "O que acontece" ganha "+1 chamada (stack)" a cada proposta ou ajuste do modal, e Revisar e criar soma essas chamadas às do planner.
+
 Acessibilidade:
 
 - R15 · Cada marca do Ambiente tem texto ("ok", "bloqueia", "aviso", "verificando…"), não só cor. A mudança de um item é anunciada ao leitor de tela. Os botões desabilitados dizem o motivo na semântica, e os campos de correção têm rótulo.
@@ -157,6 +179,8 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 - `lib/features/project/spec_metrics.dart`: `specMetricsProvider`, por workspace, com o tempo das sessões de cada spec.
 - `lib/core/claude/usage_tracker.dart`: `rateLimitProvider` (janelas de 5 h e semana) e `planWindowExpired`. `lib/ui/shell/footer_stats.dart` já mostra esse uso no rodapé.
 - `docs/guia/projeto.md`: a seção "Começar" e "Planejar com o planner".
+- `lib/core/claude/readonly_run.dart`: `runReadOnlyClaude`, com `cancelled` para encerrar a chamada. É o que o modal "Outro…" usa, como o `SpecPlanner` (`lib/features/specs/spec_planner.dart`).
+- `lib/features/project/project_templates.dart`: `ProjectTemplate` (`config`, `decisions`, `claudeMd`, `summary`), `projectTemplates`, `templateById` e `templateClaudeMd`. `ProjectService.createProject` já recebe um `ProjectTemplate` e grava o config.yml e o CLAUDE.md dele.
 
 ### Componentes
 
@@ -167,6 +191,9 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 - `StackPlan.commands` (`StackCommands`: `install`, `run`, `dev`, `test`, `lint`, `format`, com os fixados) e `mergeStackCommands(ProjectConfig, StackCommands)`, que segue a regra do `applyDetection`.
 - `StackStep`: o bloco `_CommandsCard`.
 - `_Stepper`: o link "Saúde do projeto" e "Planner · N chamadas".
+- `CustomStackDialog` (novo, `widgets/custom_stack_dialog.dart`): o modal "Definir a stack com o Claude", com a descrição, o "Pensando…" com Cancelar, o cartão de prévia (reaproveita `_DecisionRow` e o `_CommandsCard`, que passam a ser públicos), "Pedir ajuste…" e "Usar esta stack".
+- `customStackSchema` e `customStackPrompt` (em `project_planner.dart`): o `stackSchema` mais `name` e `scaffold`. A resposta vira um `ProjectTemplate` com `id: 'custom'` (`ProjectTemplate.fromStack`), e o `createProject` não muda. O `templateClaudeMd` passa a reconhecer o CLAUDE.md base desse modelo.
+- `StartScreen`: o chip "Outro…", o chip da stack escolhida com o lápis, e o estado da conversa do modal enquanto a tela está aberta.
 
 ## Tarefas
 
@@ -175,8 +202,9 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 | t1 · Ambiente e branch inicial | R1–R6, R15 | `spec/072-t1-ambiente` |
 | t2 · Custo e tempo | R7–R10 | `spec/072-t2-custo` |
 | t3 · Comandos e Saúde | R11–R14 | `spec/072-t3-comandos` |
+| t4 · Stack fora dos modelos | R16–R19 | `spec/072-t4-outra-stack` |
 
-A t3 também atualiza `docs/guia/projeto.md`.
+A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Claude no Ambiente) e da t3 (os `commands` e o bloco Comandos), e acrescenta "Outro…" ao guia.
 
 ## Critérios de aceite
 
@@ -193,9 +221,14 @@ A t3 também atualiza `docs/guia/projeto.md`.
 - [ ] O bloco Comandos mostra a chave de cada linha, trava o que o config.yml já tem e editar marca o CLAUDE.md como desatualizado [R12] verificar: flutter test test/features/project
 - [ ] O materialize preenche só as chaves vazias do config.yml, acrescenta `{arquivo}` ao formatar e commita o config.yml [R13] verificar: flutter test test/features/project
 - [ ] "Saúde do projeto" abre a Saúde pelo stepper, e "Detectar do repositório" preenche só as linhas vazias [R14] verificar: flutter test test/features/project
+- [ ] "Outro…" abre o modal; com o Claude vermelho o chip fica desabilitado com o motivo [R16] verificar: flutter test test/features/project
+- [ ] O modal propõe a stack pelo schema da Stack, cancela a chamada, ajusta na mesma conversa e só muda o Ponto de partida em "Usar esta stack" [R17] verificar: flutter test test/features/project
+- [ ] A stack escolhida aparece no chip e, ao criar, grava os comandos no config.yml, o CLAUDE.md base e as decisões fixadas no plano [R18] verificar: flutter test test/features/project
+- [ ] Cada proposta ou ajuste do modal soma "+1 chamada" no custo [R19] verificar: flutter test test/features/project
 - [ ] As marcas têm texto e os botões desabilitados dizem o motivo ao leitor de tela [R15] verificar: flutter test test/features/project
 - [ ] Criar um projeto de verdade num ambiente sem nome no git: o Ambiente aponta, "Gravar no git" resolve e o projeto nasce na branch escolhida, com os comandos no config.yml [R1–R6, R13] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
-- [ ] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze
+- [ ] Criar um projeto de verdade com "Outro…" ("API em Go com Fiber e Postgres"): o config.yml e o CLAUDE.md saem da stack escolhida, e a etapa Stack parte dela [R16–R18] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
+- [ ] O projeto compila e a análise estática passa [R1–R19] verificar: flutter analyze
 
 ## Decisões em aberto
 
@@ -207,3 +240,5 @@ A t3 também atualiza `docs/guia/projeto.md`.
 - P6 · **Como saber o plano.** O `subscriptionType` do `claude auth status --json`. Um CLI antigo sem esse campo cai no texto da API (teto em dólares). Recomendação: assim, sem perguntar à pessoa.
 - P7 · **`install` sem manifesto.** Num projeto novo o manifesto ainda não existe, e `flutter pub get` falharia no preparo do worktree. A proposta pede ao planner o comando já protegido (R11), como os modelos fazem. Alternativa: o app protege sozinho pelo manifesto da stack, o que exige uma tabela de manifestos. Recomendação: pedir ao planner e mostrar o comando para a pessoa conferir.
 - P8 · **Saúde como link do stepper, não como passo.** Ela não faz parte do planejamento, e o link segue o padrão de Configuração, Memória e Métricas. Recomendação: link.
+- P9 · **A stack de "Outro…" não sobrevive a fechar a tela Começar.** Ela vive na tela até criar; ao criar, vai para o config.yml, o CLAUDE.md e o plano. Alternativa: guardar as últimas stacks em `app_settings`, como chips extras para o próximo projeto, que é o que o recurso 05 do relatório (kits de projeto) faria melhor. Recomendação: não guardar agora.
+- P10 · **O app não roda o scaffold.** O comando vai para o CLAUDE.md e para a primeira spec da Fundação, e quem roda é o agente, com gate e Review. Alternativa: rodar na criação, o que é a B3 e exige conferir cada comando. Recomendação: não rodar agora.
