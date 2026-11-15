@@ -239,13 +239,40 @@ class ProjectService {
     }
 
     final specService = _ref.read(specServiceProvider);
+    final specsRepo = _ref.read(specsRepoProvider);
     final specs = <Spec>[];
+    // Specs of an earlier try that failed halfway are reused, not
+    // duplicated (R22); new ones are recorded on the plan as they are
+    // written.
+    final created = {...data.created};
     for (final s in roadmap.specs) {
-      final spec = await specService.create(
-        ws,
-        title: s.title,
-        render: (code) => roadmapSpecMarkdown(s, code: code),
-      );
+      final previous = created[s.code];
+      var spec = previous == null
+          ? null
+          : await specsRepo.getByCode(ws.id, previous);
+      if (spec != null && !File('${ws.path}/${spec.path}').existsSync()) {
+        spec = null;
+      }
+      if (spec != null && spec.inTray) {
+        await specsRepo.setInTray([spec.id], false);
+        spec = await specsRepo.getById(spec.id) ?? spec;
+      }
+      if (spec == null) {
+        // On the Quadro's Backlog, not in the Bandeja (R22).
+        spec = await specService.create(
+          ws,
+          title: s.title,
+          render: (code) => roadmapSpecMarkdown(s, code: code),
+          inTray: false,
+        );
+        created[s.code] = spec.code;
+        await plans.update(
+          ws.id,
+          ProjectPlansCompanion(
+            data: Value(data.copyWith(created: created).encode()),
+          ),
+        );
+      }
       specs.add(spec);
       files.add(spec.path);
     }

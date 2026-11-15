@@ -412,15 +412,26 @@ class SpecService {
   /// [agentSession]: a spec the agent created through the Promptorium MCP
   /// (SPEC-052 R6): `origem: agente` and `sessao: <id>` in the frontmatter,
   /// written after the queued syncs (two calls never race on a number).
+  ///
+  /// [inTray]: a new spec waits in the Bandeja (SPEC-068); the roadmap of
+  /// "Criar projeto" passes false so its specs land on the Quadro's
+  /// Backlog (SPEC-071 R22).
   Future<Spec> create(
     Workspace ws, {
     required String title,
     String? body,
     String Function(String code)? render,
     String? agentSession,
+    bool inTray = true,
   }) {
     if (agentSession == null) {
-      return _create(ws, title: title, body: body, render: render);
+      return _create(
+        ws,
+        title: title,
+        body: body,
+        render: render,
+        inTray: inTray,
+      );
     }
     return _serial(
       () => _create(
@@ -429,6 +440,7 @@ class SpecService {
         body: body,
         render: render,
         agentSession: agentSession,
+        inTray: inTray,
       ),
     );
   }
@@ -439,6 +451,7 @@ class SpecService {
     String? body,
     String Function(String code)? render,
     String? agentSession,
+    bool inTray = true,
   }) async {
     final t = title.trim();
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
@@ -471,7 +484,12 @@ class SpecService {
     }
     final doc = SpecDocument.parse(text);
     final existing = await _repo.getByCode(ws.id, code);
-    if (existing != null) return _upsert(ws, code: code, rel: rel, doc: doc);
+    if (existing != null) {
+      final spec = await _upsert(ws, code: code, rel: rel, doc: doc);
+      if (spec.inTray == inTray) return spec;
+      await _repo.setInTray([spec.id], inTray);
+      return await _repo.getById(spec.id) ?? spec;
+    }
     return _repo.insert(
       workspaceId: ws.id,
       code: code,
@@ -482,7 +500,7 @@ class SpecService {
       dependsOn: doc.dependsOn,
       phase: doc.phase,
       hasPlan: doc.design != null,
-      inTray: true,
+      inTray: inTray,
       agentSession: doc.agentSession,
     );
   }
