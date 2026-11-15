@@ -1,6 +1,6 @@
 ---
 id: SPEC-074
-status: proposta
+status: em-revisao
 depende-de: SPEC-068
 issue: 243
 ---
