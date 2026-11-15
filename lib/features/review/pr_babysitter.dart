@@ -10,6 +10,7 @@ import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
+import 'ci_fixer.dart';
 import 'restack.dart' show howResolvedInstruction;
 import 'review_service.dart';
 
@@ -239,10 +240,8 @@ class PrStatus {
   CiState get ci => ciStateOf(checks.map((c) => c.state));
 
   String get summary {
-    final failed = checks.where((c) => c.state == 'FAILURE').length;
-    final pending = checks
-        .where((c) => c.state != 'SUCCESS' && c.state != 'FAILURE')
-        .length;
+    final failed = checks.where((c) => c.failed).length;
+    final pending = checks.where((c) => c.running).length;
     return [
       switch (state) {
         'MERGED' => 'mergeado',
@@ -252,10 +251,15 @@ class PrStatus {
       if (conflicting) 'com conflito',
       if (checks.isNotEmpty)
         failed > 0
-            ? '$failed check(s) falhando'
+            // SPEC-073 R2: "2 de 5 checks falharam".
+            ? '$failed de ${checks.length} '
+                  '${checks.length == 1 ? 'check' : 'checks'} '
+                  '${failed == 1 ? 'falhou' : 'falharam'}'
             : pending > 0
             ? '$pending check(s) rodando'
             : 'checks ✓',
+      if (headSha.isNotEmpty)
+        'commit ${headSha.substring(0, headSha.length.clamp(0, 7))}',
       switch (reviewDecision) {
         'APPROVED' => 'aprovado',
         'CHANGES_REQUESTED' => 'mudanças pedidas',
@@ -428,6 +432,8 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       ...state,
       sessionId: PrWatch(status: status, checkedAt: DateTime.now()),
     };
+    // SPEC-073 R7: the CI of a fix's commit.
+    ref.read(ciFixerProvider.notifier).onStatus(sessionId, status);
     // Not watched: "Verificar PR" only refreshes the status — no comments
     // to the agent, no round, no push.
     if (!isWatching(sessionId)) return;

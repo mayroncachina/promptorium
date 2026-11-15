@@ -22,6 +22,7 @@ import '../project/spec_auto_planner.dart';
 import '../project/project_config.dart';
 import '../project/project_memory.dart';
 import '../review/auto_reviewer.dart';
+import '../review/ci_fixer.dart' show ciFixerProvider;
 import '../specs/spec_service.dart';
 import '../specs/workspace_watcher.dart';
 import 'autopilot.dart';
@@ -1713,6 +1714,9 @@ class SpecRunner {
 
   /// Running / waiting approval: its steps run, the card is in execution.
   Future<void> onActive(String sessionId) => _guard(sessionId, () async {
+    // SPEC-073 R7 (P3): fixing the CI is upkeep of the PR; the spec stays
+    // in Review.
+    if (_ref.read(ciFixerProvider.notifier).isFixing(sessionId)) return;
     final s = await _specSession(sessionId);
     if (s == null) return;
     final steps = _ref.read(specStepsRepoProvider);
@@ -1741,6 +1745,7 @@ class SpecRunner {
     String sessionId,
     Result r,
   ) => _guard(sessionId, () async {
+    if (_ref.read(ciFixerProvider.notifier).isFixing(sessionId)) return;
     final s = await _specSession(sessionId);
     if (s == null) return;
     if (s.duelId != null) {
