@@ -2,6 +2,46 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.17.2] - 2026-11-15
+
+### Correções
+
+- **review:** Merge sem perder trabalho, verificação de PR e VIBE em gate (R1–R5) (a8f6cde)
+- **processos:** Git, gh e o runner padrão aceitam saída fora de UTF-8 (R12) (fa50fde)
+- **processos:** Consulta de uso encerrada no limite, uma por vez (R16) (cb0bc89)
+- **processos:** Fim do claude sem esperar 2 s; streams tolerantes (R12, R13) (560e828)
+- **processos:** Redação do Codex sobre os valores do JSON (R12, R14) (5deec45)
+- **processos:** ACP sem processo órfão e com limite no handshake (R12, R15) (b974883)
+- **review:** Saída do gh decodificada com substituição (R12) e critérios R1–R5 marcados (abd37e9)
+- **quadro:** Uma spec nunca arranca duas vezes (R6) (cf648d2)
+- **sessões:** Mensagem no instante da ociosidade não se perde (R7) (331ad5e)
+- **sessões:** Retomar fica ocupado e não manda Continue duas vezes (R10) (75e076c)
+- **sessões:** Elemento apontado chega ao composer depois de trocar de tela (R11) (a384eb9)
+- **specs:** Editor não sobrescreve alteração feita fora do app (R8) (d2c04f1)
+- **quadro:** Só transições válidas ao arrastar e em Mover para (R9) (7536974)
+- **dev:** Parar durante a subida encerra o servidor que estava subindo (R17) (0a1c1c6)
+- **preview:** Abrir o preview duas vezes reaproveita a mesma abertura (R18) (043d6b7)
+- **mcp:** Parar o servidor MCP durante a partida fecha o socket (R19) (10501b1)
+- **dados:** A cópia antes da restauração leva o -wal e o -shm (R20) (12bb33d)
+- **projeto:** Confere a identidade do git antes de criar, aceita repetir após falha e começa na main (R21, R25) (ec6883c)
+- **projeto:** Specs do roadmap vão para o Backlog do Quadro e repetir após falha não duplica (R22) (c84b8f5)
+- **projeto:** CLAUDE.md mínimo do modelo é substituído por padrão e vai ao planner como base (R23) (5571f1d)
+- **projeto:** CLAUDE.md, README, LICENSE e .gitignore não contam como código (R24) (1e24774)
+- **projeto:** Área fixada não duplica com sinônimo e a proposta completa fica ocupada até o fim (R26) (7600211)
+- **spec-071:** Repositório sem commits sempre aponta o HEAD para main (R25) (454dd52)
+
+### Refatoração
+
+- **projeto:** Enter no nome cria o projeto; sai o NewProjectDialog morto e tildePath/defaultProjectParent vão para core (R26) (f6f2635)
+
+### Documentação
+
+- **spec:** SPEC-071 Correções da 0.17.2 (35f2940)
+- **spec:** SPEC-071 marca os critérios de R12–R16 (214cd61)
+- **spec:** SPEC-071 marca os critérios de R6 a R11 (12c085c)
+- **spec:** SPEC-071 marca os critérios de R17–R26 (34cf493)
+- **spec-071:** R9 deixa claro que a VIBE vai para Feito pelo merge (5030341)
+
 ## [0.17.1] - 2026-11-15
 
 ### Correções
