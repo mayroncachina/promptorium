@@ -136,6 +136,7 @@ class SpecHeaderState {
     this.runningLabel,
     this.onCreateIssue,
     this.createIssueReason,
+    this.issueMenu = const [],
   });
 
   /// "Criar issue" (SPEC-074 R11): shown when the spec has no `issue:`
@@ -146,6 +147,10 @@ class SpecHeaderState {
 
   bool get offersCreateIssue =>
       onCreateIssue != null || createIssueReason != null;
+
+  /// Items of "Mais ações" for the linked GitHub issue (SPEC-074 R6, R7,
+  /// R11), before archive / delete.
+  final List<SpecAction> issueMenu;
 
   /// The execution started (`stage != backlog`): only "Clonar para alterar".
   final bool locked;
@@ -238,6 +243,7 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
     priority: -2,
   );
   final menu = <SpecAction>[
+    ...s.issueMenu,
     if (s.onArchive != null)
       SpecAction(
         id: 'archive',

@@ -121,6 +121,20 @@ Future<IssueAvailability> issueAvailability({
   required GhCli gh,
   required ProjectConfig config,
 }) async {
+  try {
+    return await _availability(root: root, git: git, gh: gh, config: config);
+  } on Exception catch (e) {
+    // A folder that is not there, `git` missing…: the reason, not a crash.
+    return IssueAvailability.unavailable(IssueProblem.error, '$e');
+  }
+}
+
+Future<IssueAvailability> _availability({
+  required String root,
+  required GitService git,
+  required GhCli gh,
+  required ProjectConfig config,
+}) async {
   final List<String> names;
   try {
     names = (await git.git(['remote']))

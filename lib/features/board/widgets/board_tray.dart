@@ -7,7 +7,11 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../issues/issue_actions.dart' show IssueMenuButton;
+import '../../issues/issue_availability.dart';
+import '../../issues/widgets/create_issue_dialog.dart';
 import '../../issues/widgets/issue_badge.dart';
+import '../../issues/widgets/issue_import_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
@@ -47,25 +51,34 @@ final boardTrayOpenProvider = NotifierProvider<BoardTrayOpen, bool>(
   BoardTrayOpen.new,
 );
 
-/// One group of the Bandeja: the conversation (null = "Outras") and its
-/// specs, in code order.
-typedef TrayGroup = ({int? conversationId, List<Spec> specs});
+/// One group of the Bandeja: the conversation (null = "Outras" or, with
+/// [fromIssues], "Das issues do GitHub") and its specs, in code order.
+typedef TrayGroup = ({int? conversationId, List<Spec> specs, bool fromIssues});
 
 /// The specs of the Bandeja grouped by the conversation of origin, the
-/// conversations in order of their newest spec, "Outras" last (R7).
+/// conversations in order of their newest spec, then the specs imported
+/// from GitHub issues (SPEC-074 R5), "Outras" last (R7).
 List<TrayGroup> trayGroups(Iterable<Spec> specs) {
   final by = <int?, List<Spec>>{};
+  final issues = <Spec>[];
   for (final s in specs.where(isInTray)) {
-    by.putIfAbsent(s.originConversationId, () => []).add(s);
+    if (s.originConversationId == null && s.issueImportedAt != null) {
+      issues.add(s);
+    } else {
+      by.putIfAbsent(s.originConversationId, () => []).add(s);
+    }
   }
-  for (final l in by.values) {
+  for (final l in [...by.values, issues]) {
     l.sort((a, b) => a.code.compareTo(b.code));
   }
   final keys = by.keys.whereType<int>().toList()
     ..sort((a, b) => b.compareTo(a));
   return [
-    for (final k in keys) (conversationId: k, specs: by[k]!),
-    if (by[null] case final other?) (conversationId: null, specs: other),
+    for (final k in keys) (conversationId: k, specs: by[k]!, fromIssues: false),
+    if (issues.isNotEmpty)
+      (conversationId: null, specs: issues, fromIssues: true),
+    if (by[null] case final other?)
+      (conversationId: null, specs: other, fromIssues: false),
   ];
 }
 
@@ -243,6 +256,14 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
     ];
     final n = chosen.length;
 
+    // SPEC-074 R11: "Criar issue" only with GitHub available (R2).
+    final ws = ref.watch(activeWorkspaceProvider);
+    final github =
+        ws != null &&
+        ws.id == widget.workspaceId &&
+        (ref.watch(issueAvailabilityProvider(ws.path)).value?.available ??
+            false);
+
     Widget card(Spec s) {
       final approved = s.status == SpecStatus.approved;
       final checked = _checked.contains(s.id);
@@ -326,6 +347,26 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                                 const SizedBox(width: 6),
                                 Flexible(child: IssueBadge(spec: s)),
                               ],
+                              // R6, R7: refine, update and unlink; R11:
+                              // "Criar issue" for a spec without one.
+                              if (s.issueNumber != null) ...[
+                                const Spacer(),
+                                IssueMenuButton(spec: s),
+                              ] else if (github) ...[
+                                const Spacer(),
+                                IssueMenuButton(
+                                  spec: s,
+                                  extra: [
+                                    (
+                                      'create',
+                                      'Criar issue',
+                                      () => unawaited(
+                                        showCreateIssueDialog(context, ref, s),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -398,14 +439,23 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
     Widget heading(TrayGroup g) {
       final id = g.conversationId;
       final title = id == null ? null : conversations[id];
-      final text = id == null
+      final text = g.fromIssues
+          ? 'Das issues do GitHub · ${g.specs.length}'
+          : id == null
           ? 'Outras · ${g.specs.length}'
           : 'Da conversa “${title ?? 'apagada'}” · ${g.specs.length}';
       return Padding(
         padding: const EdgeInsets.fromLTRB(2, 8, 2, 8),
         child: Row(
           children: [
-            if (id != null) ...[
+            if (g.fromIssues) ...[
+              const Icon(
+                Icons.adjust,
+                size: 12,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+            ] else if (id != null) ...[
               const Icon(
                 Icons.chat_bubble_outline,
                 size: 12,
@@ -418,7 +468,9 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                 header: true,
                 child: Text(
                   text.toUpperCase(),
-                  key: ValueKey('board-tray-group-${id ?? 'other'}'),
+                  key: ValueKey(
+                    'board-tray-group-${g.fromIssues ? 'issues' : id ?? 'other'}',
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -481,6 +533,13 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      // SPEC-074 R3: under the text, so the 300 px of the
+                      // panel never squeeze it.
+                      if (ref.watch(activeWorkspaceProvider) case final ws?
+                          when ws.id == widget.workspaceId) ...[
+                        const SizedBox(height: 8),
+                        IssueImportButton(workspace: ws),
+                      ],
                     ],
                   ),
                 ),
