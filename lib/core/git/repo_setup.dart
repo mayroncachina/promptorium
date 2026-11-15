@@ -18,7 +18,13 @@ class RepoSetup {
   /// Never waits on a username/password prompt (`git clone` over https from
   /// a terminal-launched app would hang otherwise); the failure is reported.
   static Future<ProcessResult> _defaultRun(String exe, List<String> args) =>
-      Process.run(exe, args, environment: const {'GIT_TERMINAL_PROMPT': '0'});
+      Process.run(
+        exe,
+        args,
+        environment: const {'GIT_TERMINAL_PROMPT': '0'},
+        stdoutEncoding: lenientUtf8,
+        stderrEncoding: lenientUtf8,
+      );
 
   /// Whether [folder] has no entries (a clone can go straight into it).
   bool isEmptyFolder(String folder) => Directory(folder).listSync().isEmpty;

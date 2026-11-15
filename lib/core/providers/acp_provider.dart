@@ -18,6 +18,7 @@ class AcpProvider implements AgentProvider {
     required this.displayName,
     required this.command,
     this.starter,
+    this.handshakeTimeout = const Duration(seconds: 30),
   });
 
   @override
@@ -29,6 +30,9 @@ class AcpProvider implements AgentProvider {
   /// Executable and arguments (`['gemini', '--experimental-acp']`).
   final List<String> command;
   final ProcessStarter? starter;
+
+  /// Limit for each handshake request (`initialize`, `session/new|load`).
+  final Duration handshakeTimeout;
 
   @override
   AppIconData get icon => AppIcons.sparkle;
@@ -72,9 +76,20 @@ class AcpProvider implements AgentProvider {
         '(${e.message}).',
       );
     }
-    final run = AcpRun(p, options, args: command);
-    await run.open();
-    return run;
+    final run = AcpRun(
+      p,
+      options,
+      args: command,
+      handshakeTimeout: handshakeTimeout,
+    );
+    try {
+      await run.open();
+      return run;
+    } catch (_) {
+      // A failed handshake must not leave the agent running (SPEC-071 R15).
+      await run.stop(timeout: const Duration(seconds: 2));
+      rethrow;
+    }
   }
 
   static Future<Process> _start(
@@ -93,15 +108,26 @@ class AcpProvider implements AgentProvider {
 /// One ACP agent process: `initialize`, `session/new` (or `session/load`
 /// to continue), then one `session/prompt` per message.
 class AcpRun implements ManagedAgentRun {
-  AcpRun(this._p, this._o, {required this.args}) {
+  AcpRun(
+    this._p,
+    this._o, {
+    required this.args,
+    this.handshakeTimeout = const Duration(seconds: 30),
+  }) {
     _p.stdout
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
-        .listen(_line, onDone: _done);
+        .listen(
+          _line,
+          onDone: _done,
+          onError: (Object e) => _log('acp stdout: $e'),
+        );
     _p.stderr
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter())
-        .listen(_logs.add);
+        .listen(_log, onError: (Object e) => _log('acp stderr: $e'));
+    // Broken pipe after the agent dies must not crash the app.
+    _p.stdin.done.catchError((Object e) => _log('acp stdin: $e'));
     _exit = _p.exitCode.then((c) {
       _exited = true;
       return c;
@@ -124,6 +150,9 @@ class AcpRun implements ManagedAgentRun {
 
   final Process _p;
   final AgentStartOptions _o;
+
+  /// Limit for each request of [open].
+  final Duration handshakeTimeout;
 
   @override
   final List<String> args;
@@ -162,17 +191,38 @@ class AcpRun implements ManagedAgentRun {
     if (!_events.isClosed) _events.add(ClaudeEvent.fromJson(json));
   }
 
-  void _write(Map<String, dynamic> m) {
-    if (_exited) return;
-    _p.stdin.writeln(jsonEncode({'jsonrpc': '2.0', ...m}));
+  void _log(String line) {
+    if (!_logs.isClosed) _logs.add(line);
   }
 
-  Future<Object?> _request(String method, Map<String, dynamic> params) {
+  void _write(Map<String, dynamic> m) {
+    if (_exited) return;
+    try {
+      _p.stdin.writeln(jsonEncode({'jsonrpc': '2.0', ...m}));
+    } catch (e) {
+      _log('acp stdin: $e');
+    }
+  }
+
+  Future<Object?> _request(
+    String method,
+    Map<String, dynamic> params, {
+    Duration? timeout,
+  }) {
     final id = ++_nextId;
     final c = Completer<Object?>();
     _calls[id] = c;
     _write({'id': id, 'method': method, 'params': params});
-    return c.future;
+    if (timeout == null) return c.future;
+    return c.future.timeout(
+      timeout,
+      onTimeout: () {
+        _calls.remove(id);
+        throw AgentUnavailable(
+          'O agente ACP não respondeu a $method em ${timeout.inSeconds} s.',
+        );
+      },
+    );
   }
 
   /// Handshake and session.
@@ -182,7 +232,7 @@ class AcpRun implements ManagedAgentRun {
       'clientCapabilities': {
         'fs': {'readTextFile': false, 'writeTextFile': false},
       },
-    });
+    }, timeout: handshakeTimeout);
     final caps = init is Map ? init['agentCapabilities'] : null;
     final canLoad = caps is Map && caps['loadSession'] == true;
     final cwd = _o.workingDirectory;
@@ -191,13 +241,13 @@ class AcpRun implements ManagedAgentRun {
         'sessionId': _o.resumeId,
         'cwd': cwd,
         'mcpServers': const [],
-      });
+      }, timeout: handshakeTimeout);
       _session = _o.resumeId;
     } else {
       final r = await _request('session/new', {
         'cwd': cwd,
         'mcpServers': const [],
-      });
+      }, timeout: handshakeTimeout);
       _session = r is Map ? '${r['sessionId'] ?? ''}' : null;
     }
     _emit({

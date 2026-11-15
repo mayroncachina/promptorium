@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/git/diff_parser.dart';
@@ -173,4 +175,31 @@ void main() {
       throwsA(isA<GitException>()),
     );
   });
+
+  test(
+    'arquivo e nome em Latin-1 não derrubam diff, status nem headSha (R12)',
+    () async {
+      // "ação" in Latin-1: invalid UTF-8.
+      const latin1Acao = [0x61, 0xE7, 0xE3, 0x6F];
+      File('$repo/latin.txt').writeAsBytesSync([...latin1Acao, 0x0A]);
+      await gitIn(repo, ['add', '.']);
+      await gitIn(repo, ['commit', '-q', '-m', 'latin1']);
+      File('$repo/latin.txt').writeAsBytesSync([...latin1Acao, 0x21, 0x0A]);
+      // Untracked file whose name is Latin-1.
+      File.fromRawPath(
+        Uint8List.fromList([...utf8.encode('$repo/'), 0x6E, 0xE3, 0x6F]),
+      ).writeAsStringSync('x\n');
+
+      final diff = await git.diff();
+      expect(diff, contains('+a��o!'));
+      final files = DiffParser.parse(diff);
+      expect(files.map((f) => f.path), ['latin.txt']);
+
+      final status = await git.status();
+      expect(status.map((e) => e.path), containsAll(['latin.txt']));
+      expect(status, hasLength(2));
+      expect(await git.headSha(), hasLength(40));
+      expect(await git.resolveRef('refs/heads/main'), hasLength(40));
+    },
+  );
 }
