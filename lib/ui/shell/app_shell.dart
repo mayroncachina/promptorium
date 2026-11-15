@@ -87,7 +87,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _shortcutsNotice();
-      _updatedNotice();
+      unawaited(_updatedNotice());
       _warmMcpList();
       _checkUpdate();
       // A release followed when the app closed comes back (SPEC-044 R7).
@@ -136,18 +136,34 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   /// Once, on the first start after an update (SPEC-070 R6): the version the
   /// update recorded before closing, with "Ver novidades" opening Sobre.
-  void _updatedNotice() {
+  /// When this copy is on another version, the update didn't reach it, and
+  /// the notice says so instead (R13).
+  Future<void> _updatedNotice() async {
     if (!mounted) return;
     final settings = ref.read(appSettingsProvider.notifier);
+    // Any start ends the wait for a restart (R4).
+    unawaited(settings.remove(AppSettingKeys.pendingRestart));
     final version = settings.get(AppSettingKeys.justInstalled);
     if (version == null) return;
     unawaited(settings.remove(AppSettingKeys.justInstalled));
+    final running = await ref.read(appVersionProvider.future);
+    if (!mounted) return;
+    // 0.0.0: the version couldn't be read, so there is nothing to compare.
+    final applied = running == version || running == '0.0.0';
     ScaffoldMessenger.maybeOf(context)?.showAppToast(
       SnackBar(
-        key: const ValueKey('update-installed'),
+        key: ValueKey(applied ? 'update-installed' : 'update-not-applied'),
         duration: const Duration(seconds: 10),
-        content: Text('Atualizado para a $version'),
-        action: SnackBarAction(label: 'Ver novidades', onPressed: _openAbout),
+        content: Text(
+          applied
+              ? 'Atualizado para a $version'
+              : 'A $version foi instalada, mas esta cópia está na $running '
+                    '(${File(Platform.resolvedExecutable).parent.path})',
+        ),
+        action: SnackBarAction(
+          label: applied ? 'Ver novidades' : 'Ver no Sobre',
+          onPressed: _openAbout,
+        ),
       ),
     );
   }

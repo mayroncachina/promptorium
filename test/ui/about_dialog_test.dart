@@ -13,6 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/app_shutdown.dart';
 import 'package:promptorium/core/update/installer.dart';
 import 'package:promptorium/core/update/update_check.dart';
+import 'package:promptorium/data/providers.dart';
+import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/splash/splash_painter.dart';
 import 'package:promptorium/features/splash/splash_stage.dart';
@@ -148,6 +150,8 @@ Future<void> _open(
         if (changelog != null)
           changelogProvider.overrideWith((ref) async => changelog),
         appVersionProvider.overrideWith((ref) async => version),
+        // The update records its marks in app_settings (SPEC-070 R4, R6).
+        appSettingsRepoProvider.overrideWithValue(_MemorySettings()),
         ...overrides,
       ],
       child: MaterialApp(
@@ -836,7 +840,7 @@ void main() {
         [],
       ),
       'Instalada sem reiniciar (SPEC-070 R4)': (
-        UpdateInstalledNotRestarted(_update),
+        const UpdateInstalledNotRestarted('9.0.0', '/opt/promptorium/promptorium'),
         ['A 9.0.0 foi instalada', 'Feche e abra o app para usar'],
         [const ValueKey<String>('about-restart-now')],
       ),
@@ -1253,8 +1257,15 @@ void main() {
       expect(find.text('Feche e abra o app para usar'), findsOneWidget);
       expect(fake.calls, ['install', 'restart']);
       expect(fake.restartedOn, isEmpty);
-      // Installed is installed: the screen closes like any other state.
+      // Installed is installed: the screen closes like any other state, and
+      // opening it again still offers the restart, not a new download.
       expect(find.byKey(_about), findsOneWidget);
+      await _esc(tester);
+      expect(find.byKey(_about), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('open')));
+      await tester.pumpAndSettle();
+      expect(find.text('A 9.0.0 foi instalada'), findsOneWidget);
+      expect(find.byKey(_updateNow), findsNothing);
 
       const again = ValueKey('about-restart-now');
       await tester.tap(find.byKey(again));
@@ -1640,7 +1651,7 @@ void main() {
       ),
       UpdateInstalling(_update),
       UpdateRestarting(_update),
-      UpdateInstalledNotRestarted(_update),
+      const UpdateInstalledNotRestarted('9.0.0', '/opt/promptorium/promptorium'),
       UpdateFailed(
         _update,
         'O download parou no meio. Sua versão continua a mesma.',
@@ -1691,6 +1702,21 @@ void main() {
   });
 }
 
+class _MemorySettings extends AppSettingsRepo {
+  _MemorySettings() : super(memoryDatabase());
+
+  final saved = <String, String>{};
+
+  @override
+  Future<Map<String, String>> getAll() async => {...saved};
+
+  @override
+  Future<void> set(String key, String value) async => saved[key] = value;
+
+  @override
+  Future<int> remove(String key) async => saved.remove(key) == null ? 0 : 1;
+}
+
 class _FakeInstaller extends UpdateInstaller {
   // The copy the .deb installs: the update downloads the .deb.
   _FakeInstaller(this.gate) : super(executable: '/opt/promptorium/promptorium');
@@ -1720,7 +1746,7 @@ class _FakeInstaller extends UpdateInstaller {
     required String executable,
     required String version,
     required AppShutdown shutdown,
-    Future<void> Function()? markInstalled,
+    String downloadDir = '',
   }) async {
     calls.add('restart');
     if (relaunchFailures > 0) {

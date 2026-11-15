@@ -17,6 +17,11 @@ abstract final class AppSettingKeys {
   /// shows "Atualizado para a `<versão>`" once and removes it (SPEC-070 R6).
   static const justInstalled = 'update.justInstalled';
 
+  /// An update installed whose launcher didn't start (JSON: `version`,
+  /// `executable`): Sobre keeps offering "Reiniciar agora" until the next
+  /// start removes it (SPEC-070 R4).
+  static const pendingRestart = 'update.pendingRestart';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 

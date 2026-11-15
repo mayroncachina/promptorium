@@ -139,10 +139,12 @@ class UpdateInstaller {
     }
   }
 
-  /// Installs the downloaded [file], then restarts on the installed copy
-  /// ([restart]). Throws (before closing anything) when the installation
-  /// fails, and [RelaunchFailed] when the launcher doesn't start: the version
-  /// is installed, but the app stays open. [onInstalled] runs between both.
+  /// Installs the downloaded [file], records the version for the next start
+  /// ([markInstalled], R6), then restarts on the installed copy ([restart]).
+  /// Throws (before closing anything) when the installation fails, and
+  /// [RelaunchFailed] when the launcher doesn't start: the version is put in
+  /// place anyway ([applyStaged]) and the app stays open. [onInstalled] runs
+  /// once the package is installed.
   Future<void> installAndRestart(
     File file, {
     required String version,
@@ -152,13 +154,69 @@ class UpdateInstaller {
   }) async {
     await install(file);
     log('atualização: instalado');
+    try {
+      await markInstalled?.call();
+    } catch (e) {
+      log('atualização: marca da versão: $e');
+    }
     onInstalled?.call();
-    await restart(
-      executable: relaunchExecutable(file),
-      version: version,
-      shutdown: shutdown,
-      markInstalled: markInstalled,
-    );
+    // Only the directory [download] created, never a package from elsewhere.
+    final dl = file.parent.path;
+    final downloadDir = dl.split('/').last.startsWith('promptorium-update-')
+        ? dl
+        : '';
+    try {
+      await restart(
+        executable: relaunchExecutable(file),
+        version: version,
+        shutdown: shutdown,
+        downloadDir: downloadDir,
+      );
+    } on RelaunchFailed {
+      // Without the launcher, the staged copy goes in place here, so closing
+      // and opening the app by hand opens the new version (R4).
+      await applyStaged();
+      if (downloadDir.isNotEmpty) await _deleteDownload(downloadDir);
+      rethrow;
+    }
+  }
+
+  /// The directory of this copy (the one the `.tar.gz` updates).
+  String get appDir => File(_executable).parent.path;
+
+  /// Where the `.tar.gz` is extracted before it replaces [appDir] (R11).
+  String get stagingDir => '$appDir.next';
+
+  /// The copy [stagingDir] replaced, kept until the next update (R11).
+  String get previousDir => '$appDir.prev';
+
+  /// Puts the extracted copy in place of this one: [appDir] becomes
+  /// [previousDir] and [stagingDir] becomes [appDir]. Nothing to do without
+  /// a staged copy. Used when the launcher, which normally does it after
+  /// this process ends, didn't start (R4, R11).
+  Future<void> applyStaged() async {
+    final next = Directory(stagingDir);
+    if (!next.existsSync()) return;
+    try {
+      final prev = Directory(previousDir);
+      if (await prev.exists()) await prev.delete(recursive: true);
+      await Directory(appDir).rename(previousDir);
+      try {
+        await next.rename(appDir);
+      } catch (_) {
+        await Directory(previousDir).rename(appDir);
+        rethrow;
+      }
+      log('atualização: versão nova no lugar ($appDir)');
+    } catch (e) {
+      log('atualização: não deu para trocar as pastas: $e');
+    }
+  }
+
+  static Future<void> _deleteDownload(String dir) async {
+    try {
+      await Directory(dir).delete(recursive: true);
+    } catch (_) {}
   }
 
   /// The executable the installation of [package] updated: the `.deb` puts
@@ -169,31 +227,64 @@ class UpdateInstaller {
   /// The launcher of the new copy (R3): a shell of its own session waits up
   /// to [relaunchWait] for [pid] to end, then opens [executable]. Its lines
   /// go to the journal as `promptorium-update`.
+  ///
+  /// - [pid] still alive after the wait gets SIGTERM, then SIGKILL: two
+  ///   copies never share the database (R3);
+  /// - a staged copy ([staging]) replaces [appDir], the old one becoming
+  ///   `<appDir>.prev` (R11);
+  /// - [downloadDir] is deleted (R12);
+  /// - the new copy's output goes to the journal (`systemd-cat`) or, without
+  ///   it, to `promptorium.log` in `$XDG_STATE_HOME/promptorium`: a detached
+  ///   process has it on /dev/null (R8).
   List<String> relaunchCommand(
     int pid,
     String executable, {
     String version = '',
+    String appDir = '',
+    String staging = '',
+    String downloadDir = '',
   }) {
     final tenths = relaunchWait.inMilliseconds ~/ 100;
     const script = r'''
 say() {
   if command -v logger >/dev/null 2>&1; then
     logger -t promptorium-update -- "$1"
-  else
-    echo "promptorium-update: $1" >&2
   fi
 }
-pid=$1 exe=$2 version=$3 tenths=$4 i=0
+pid=$1 exe=$2 version=$3 app=$4 next=$5 dl=$6 tenths=$7 i=0
 while kill -0 "$pid" 2>/dev/null; do
   if [ "$i" -ge "$tenths" ]; then
-    say "o app antigo ($pid) ainda está aberto; abrindo assim mesmo"
+    say "o app antigo ($pid) ainda está aberto; encerrando"
+    kill -TERM "$pid" 2>/dev/null
+    sleep 2
+    kill -KILL "$pid" 2>/dev/null
+    sleep 0.2
     break
   fi
   sleep 0.1
   i=$((i + 1))
 done
+if [ -n "$next" ] && [ -d "$next" ]; then
+  rm -rf "$app.prev"
+  if mv "$app" "$app.prev"; then
+    if mv "$next" "$app"; then
+      say "versão nova no lugar ($app)"
+    else
+      say "não deu para pôr a versão nova no lugar; voltando"
+      mv "$app.prev" "$app"
+    fi
+  else
+    say "não deu para trocar as pastas ($app)"
+  fi
+fi
+[ -n "$dl" ] && rm -rf "$dl"
 say "abrindo a ${version:-versão nova} ($exe)"
-exec "$exe"
+if command -v systemd-cat >/dev/null 2>&1; then
+  exec systemd-cat -t promptorium "$exe"
+fi
+log="${XDG_STATE_HOME:-$HOME/.local/state}/promptorium"
+mkdir -p "$log"
+exec "$exe" >>"$log/promptorium.log" 2>&1
 ''';
     return [
       'setsid',
@@ -204,6 +295,9 @@ exec "$exe"
       '$pid',
       executable,
       version,
+      appDir,
+      staging,
+      downloadDir,
       '$tenths',
     ];
   }
@@ -227,27 +321,34 @@ exec "$exe"
     );
   }
 
-  /// Starts the launcher of [executable], records the version for the next
-  /// start ([markInstalled], R6), then stops the app through [shutdown] and
-  /// exits (R2). Without the launcher nothing is closed: [RelaunchFailed].
+  /// Starts the launcher of [executable], then stops the app through
+  /// [shutdown] and exits (R2). Without the launcher nothing is closed:
+  /// [RelaunchFailed]. A copy staged in [stagingDir] goes in place, and
+  /// [downloadDir] is deleted, once this process ends (R11, R12).
   Future<void> restart({
     required String executable,
     required String version,
     required AppShutdown shutdown,
-    Future<void> Function()? markInstalled,
+    String downloadDir = '',
   }) async {
+    // The .tar.gz updates this copy; the .deb, /opt.
+    final staged = executable == _executable;
     try {
-      await startLauncher(relaunchCommand(pid, executable, version: version));
+      await startLauncher(
+        relaunchCommand(
+          pid,
+          executable,
+          version: version,
+          appDir: staged ? appDir : '',
+          staging: staged ? stagingDir : '',
+          downloadDir: downloadDir,
+        ),
+      );
     } catch (e) {
       log('atualização: o lançador não iniciou: $e');
       throw RelaunchFailed(e);
     }
     log('atualização: lançador iniciado');
-    try {
-      await markInstalled?.call();
-    } catch (e) {
-      log('atualização: marca da versão: $e');
-    }
     await shutdown.exitProcess(log: (m) => log('atualização: $m'));
   }
 
@@ -276,23 +377,34 @@ exec "$exe"
         );
       }
     } else if (name.endsWith('.tar.gz')) {
-      final dir = File(_executable).parent;
-      if (!await _writable(dir)) {
-        throw FileSystemException('Sem permissão de escrita em ${dir.path}.');
+      // Extracted beside this copy, not over it: the open app keeps its own
+      // files, and the old copy stays as `.prev` (R11).
+      final dir = Directory(appDir);
+      if (!await _writable(dir) || !await _writable(dir.parent)) {
+        throw FileSystemException(
+          'Sem permissão de escrita em ${dir.parent.path}.',
+        );
       }
+      final staging = Directory(stagingDir);
+      if (await staging.exists()) await staging.delete(recursive: true);
+      await staging.create();
       // The archive has a single top-level directory (see scripts/package.sh).
       final r = await Process.run('tar', [
         '-xzf',
         file.path,
         '-C',
-        dir.path,
+        staging.path,
         '--strip-components=1',
       ]);
-      if (r.exitCode != 0) {
+      final exe = File('${staging.path}/${_executable.split('/').last}');
+      if (r.exitCode != 0 || !await exe.exists()) {
+        await staging.delete(recursive: true).catchError((_) => staging);
         throw ProcessException(
           'tar',
           ['-xzf'],
-          '${r.stderr}'.trim(),
+          r.exitCode != 0
+              ? '${r.stderr}'.trim()
+              : 'o pacote não tem ${exe.path.split('/').last}',
           r.exitCode,
         );
       }

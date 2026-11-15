@@ -248,9 +248,9 @@ void main() {
       );
       expect(calls, [
         'install',
+        'mark',
         'onInstalled',
         'launcher',
-        'mark',
         'stopWork',
         'closeDatabase',
         'exit 0',
@@ -295,7 +295,8 @@ void main() {
       },
     );
 
-    test('R2 · still alive 10 s after the request, the process is killed', () {
+    test('R2, R9 · still alive 15 s after the request, the process is '
+        'killed', () {
       fakeAsync((async) {
         final calls = <String>[];
         final installer = _Recording(calls);
@@ -307,13 +308,13 @@ void main() {
             shutdown: _shutdown(calls, work: Completer<void>().future),
           ),
         );
-        async.elapse(const Duration(milliseconds: 9900));
+        async.elapse(const Duration(milliseconds: 14900));
         expect(calls, isNot(contains('kill')));
         async.elapse(const Duration(milliseconds: 200));
         expect(calls.last, 'kill');
         expect(
           installer.lines.last,
-          'atualização: ainda aberto 10 s depois; saindo à força',
+          'atualização: ainda aberto 15 s depois; saindo à força',
         );
       });
     });
@@ -331,7 +332,8 @@ void main() {
         ),
         throwsA(isA<RelaunchFailed>()),
       );
-      expect(calls, ['install']);
+      // The version is recorded: opening the app by hand says so (R6).
+      expect(calls, ['install', 'mark']);
       expect(installer.lines, [
         'atualização: instalado',
         startsWith('atualização: o lançador não iniciou: '),
@@ -387,6 +389,9 @@ void main() {
         '42',
         '/x/promptorium',
         '',
+        '',
+        '',
+        '',
         '300',
       ]);
     });
@@ -420,7 +425,7 @@ void main() {
       },
     );
 
-    test('after the limit it opens anyway', () async {
+    test('R3 · after the limit it ends the old process, then opens', () async {
       final dir = await Directory.systemTemp.createTemp('relaunch');
       addTearDown(() => dir.delete(recursive: true));
       final opened = File('${dir.path}/opened');
@@ -433,9 +438,143 @@ void main() {
       // Three tenths instead of 30 s.
       cmd[cmd.length - 1] = '3';
       final launcher = await Process.start(cmd.first, cmd.sublist(1));
-      expect(await launcher.exitCode.timeout(const Duration(seconds: 5)), 0);
+      expect(await launcher.exitCode.timeout(const Duration(seconds: 8)), 0);
+      expect(await old.exitCode.timeout(const Duration(seconds: 1)), isNot(0));
       expect(opened.existsSync(), isTrue);
     });
+
+    test('R11, R12 · puts the staged copy in place, keeps the old one as '
+        '.prev and deletes the download', () async {
+      final root = await Directory.systemTemp.createTemp('relaunch');
+      addTearDown(() => root.delete(recursive: true));
+      final app = Directory('${root.path}/app')..createSync();
+      File('${app.path}/promptorium').writeAsStringSync('#!/bin/sh\n');
+      File('${app.path}/old.txt').writeAsStringSync('old');
+      final next = Directory('${root.path}/app.next')..createSync();
+      final opened = File('${root.path}/opened');
+      File('${next.path}/promptorium').writeAsStringSync(
+        '#!/bin/sh\ncat "\$(dirname "\$0")/new.txt" > "${opened.path}"\n',
+      );
+      File('${next.path}/new.txt').writeAsStringSync('new');
+      await Process.run('chmod', ['+x', '${next.path}/promptorium']);
+      final dl = Directory('${root.path}/promptorium-update-x')..createSync();
+      File('${dl.path}/p.tar.gz').writeAsStringSync('');
+      final cmd = const UpdateInstaller().relaunchCommand(
+        999999999,
+        '${app.path}/promptorium',
+        appDir: app.path,
+        staging: next.path,
+        downloadDir: dl.path,
+      );
+      final launcher = await Process.start(cmd.first, cmd.sublist(1));
+      expect(await launcher.exitCode.timeout(const Duration(seconds: 5)), 0);
+      expect(opened.readAsStringSync(), 'new');
+      expect(File('${app.path}/old.txt').existsSync(), isFalse);
+      expect(File('${root.path}/app.prev/old.txt').readAsStringSync(), 'old');
+      expect(next.existsSync(), isFalse);
+      expect(dl.existsSync(), isFalse);
+    });
+
+    test('R8 · the new copy has an output: without systemd-cat, '
+        'promptorium.log', () async {
+      final root = await Directory.systemTemp.createTemp('relaunch');
+      addTearDown(() => root.delete(recursive: true));
+      // A PATH with the tools of the script, but no systemd-cat or logger.
+      final bin = Directory('${root.path}/bin')..createSync();
+      for (final tool in ['sh', 'sleep', 'mv', 'rm', 'mkdir', 'setsid']) {
+        final which = (await Process.run('which', [tool])).stdout as String;
+        Link('${bin.path}/$tool').createSync(which.trim());
+      }
+      final exe = File('${root.path}/promptorium')
+        ..writeAsStringSync('#!/bin/sh\necho "olá do app"\necho erro >&2\n');
+      await Process.run('chmod', ['+x', exe.path]);
+      final cmd = const UpdateInstaller().relaunchCommand(999999999, exe.path);
+      final launcher = await Process.start(
+        '${bin.path}/setsid',
+        cmd.sublist(1),
+        environment: {'PATH': bin.path, 'XDG_STATE_HOME': '${root.path}/st'},
+        includeParentEnvironment: false,
+        mode: ProcessStartMode.detached,
+      );
+      expect(launcher.pid, greaterThan(0));
+      final log = File('${root.path}/st/promptorium/promptorium.log');
+      for (var i = 0; i < 50 && !log.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(log.readAsStringSync(), 'olá do app\nerro\n');
+    });
+  });
+
+  group('SPEC-070 R11 · the .tar.gz beside this copy', () {
+    Future<(Directory, File)> fixture({bool withExe = true}) async {
+      final root = await Directory.systemTemp.createTemp('stage');
+      addTearDown(() => root.delete(recursive: true));
+      final app = Directory('${root.path}/app')..createSync();
+      File('${app.path}/promptorium').writeAsStringSync('velho');
+      final src = Directory('${root.path}/src/promptorium-1.0.0')
+        ..createSync(recursive: true);
+      if (withExe) File('${src.path}/promptorium').writeAsStringSync('novo');
+      File('${src.path}/lib.so').writeAsStringSync('so');
+      final pkg = File('${root.path}/promptorium-1.0.0-linux-x64.tar.gz');
+      await Process.run('tar', [
+        '-czf',
+        pkg.path,
+        '-C',
+        '${root.path}/src',
+        'promptorium-1.0.0',
+      ]);
+      return (app, pkg);
+    }
+
+    test('extracts into <app>.next and leaves the open copy alone', () async {
+      final (app, pkg) = await fixture();
+      final installer = UpdateInstaller(
+        executable: '${app.path}/promptorium',
+      );
+      await installer.install(pkg);
+      expect(File('${app.path}/promptorium').readAsStringSync(), 'velho');
+      expect(installer.stagingDir, '${app.path}.next');
+      expect(
+        File('${installer.stagingDir}/promptorium').readAsStringSync(),
+        'novo',
+      );
+
+      // R4: without the launcher the swap happens here.
+      await installer.applyStaged();
+      expect(File('${app.path}/promptorium').readAsStringSync(), 'novo');
+      expect(
+        File('${installer.previousDir}/promptorium').readAsStringSync(),
+        'velho',
+      );
+      expect(Directory(installer.stagingDir).existsSync(), isFalse);
+    });
+
+    test('a package without the executable fails and leaves nothing behind',
+        () async {
+      final (app, pkg) = await fixture(withExe: false);
+      final installer = UpdateInstaller(
+        executable: '${app.path}/promptorium',
+      );
+      await expectLater(
+        installer.install(pkg),
+        throwsA(isA<ProcessException>()),
+      );
+      expect(Directory(installer.stagingDir).existsSync(), isFalse);
+      expect(File('${app.path}/promptorium').readAsStringSync(), 'velho');
+    });
+  });
+
+  test('R12 · a package outside a download directory is never deleted',
+      () async {
+    final calls = <String>[];
+    final installer = _Recording(calls);
+    await installer.installAndRestart(
+      File('/tmp/p.tar.gz'),
+      version: '0.17.0',
+      shutdown: _shutdown(calls),
+    );
+    expect(installer.launched.single[10], '');
   });
 
   test('install rejects an unsupported package format', () async {

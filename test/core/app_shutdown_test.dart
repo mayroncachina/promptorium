@@ -6,6 +6,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/core/app_shutdown.dart';
+import 'package:promptorium/core/dev/dev_server.dart';
+import 'package:promptorium/core/dev/preview_browser.dart';
+import 'package:promptorium/features/sessions/widgets/session_terminal.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 
@@ -33,7 +36,97 @@ AppDatabase _isolateDatabase(File file) {
   return AppDatabase(NativeDatabase.createInBackground(file));
 }
 
+class _ThrowingTerminals extends SessionTerminals {
+  @override
+  void killAll() => throw StateError('pty');
+}
+
+class _Registry extends DevServerRegistry {
+  _Registry(this.calls) : super(runDir: Directory.systemTemp.path);
+
+  final List<String> calls;
+
+  @override
+  Future<void> stopAll() async => calls.add('servidores');
+}
+
+class _Preview extends PreviewBrowser {
+  _Preview(this.calls)
+    : super(findBrowser: () async => null, profileBase: '/nenhum');
+
+  final List<String> calls;
+
+  @override
+  Future<void> closeAll() async => calls.add('preview');
+}
+
 void main() {
+  group('SPEC-070 R9 · time limits', () {
+    test('the forced exit comes after the slowest normal shutdown', () {
+      expect(
+        AppShutdown.defaultForceAfter,
+        greaterThan(AppShutdown.workTimeout + const Duration(seconds: 3)),
+      );
+    });
+
+    test('a step that fails does not keep the others from running', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final calls = <String>[];
+      final c = ProviderContainer(
+        overrides: [
+          sessionTerminalsProvider.overrideWith(_ThrowingTerminals.new),
+          devServerRegistryProvider.overrideWithValue(_Registry(calls)),
+          previewBrowserProvider.overrideWithValue(_Preview(calls)),
+          appDatabaseProvider.overrideWithValue(
+            AppDatabase(NativeDatabase.memory()),
+          ),
+        ],
+      );
+      addTearDown(c.dispose);
+      await c.read(appShutdownProvider).stop();
+      expect(calls, containsAll(['servidores', 'preview']));
+    });
+  });
+
+  group('SPEC-070 R10 · closing during the installation', () {
+    test('waits for it: the window comes back, and the close happens when '
+        'the update ends with the app open', () async {
+      final calls = <String>[];
+      var refused = 0;
+      final shutdown = AppShutdown(
+        stopWork: () async => calls.add('stopWork'),
+        closeDatabase: () async => calls.add('closeDatabase'),
+        destroyWindow: () async => calls.add('destroyWindow'),
+        exitWith: (code) => calls.add('exit $code'),
+        onCloseRefused: () => refused++,
+        log: (_) {},
+      )..beginInstall();
+      await shutdown.closeWindow();
+      expect(calls, isEmpty);
+      expect(refused, 1);
+      await shutdown.settleClose();
+      expect(calls, ['stopWork', 'closeDatabase', 'destroyWindow']);
+    });
+
+    test('once installed, the update closes the app itself', () async {
+      final calls = <String>[];
+      final shutdown = _shutdown(calls)
+        ..beginInstall()
+        ..endInstall();
+      await shutdown.closeWindow();
+      expect(calls, ['stopWork', 'closeDatabase', 'destroyWindow']);
+    });
+
+    test('without a close asked, the end of the update closes nothing',
+        () async {
+      final calls = <String>[];
+      final shutdown = _shutdown(calls)..beginInstall();
+      await shutdown.settleClose();
+      expect(calls, isEmpty);
+      expect(shutdown.installing, isFalse);
+    });
+  });
+
   group('SPEC-070 R2 · one way out', () {
     test('the window and the tray stop everything, close the database, then '
         'destroy the window, once', () async {
