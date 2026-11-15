@@ -24,12 +24,21 @@ class AppShutdown {
     required this._destroyWindow,
     void Function(int code) exitWith = exit,
     void Function()? kill,
+    this._onCloseRefused,
     this.databaseTimeout = const Duration(seconds: 3),
-    this.forceAfter = const Duration(seconds: 10),
+    this.forceAfter = defaultForceAfter,
     void Function(String message)? log,
   }) : _exit = exitWith,
        _kill = kill ?? _killSelf,
        _log = log ?? debugPrint;
+
+  /// The longest [_stopWork] takes: its slowest step, the development
+  /// servers (SIGTERM, SIGKILL after 5 s, SPEC-051 R5).
+  static const workTimeout = Duration(seconds: 8);
+
+  /// Longer than [workTimeout] plus the database's 3 s, so the forced exit
+  /// never cuts the log of a slow but normal shutdown (SPEC-070 R9).
+  static const defaultForceAfter = Duration(seconds: 15);
 
   final Future<void> Function() _stopWork;
   final Future<void> Function() _closeDatabase;
@@ -37,6 +46,9 @@ class AppShutdown {
   final void Function(int code) _exit;
   final void Function() _kill;
   final void Function(String message) _log;
+
+  /// Shows the window when a close is refused during an installation.
+  final void Function()? _onCloseRefused;
 
   /// The database gets this long to close; then the app goes on without it:
   /// SQLite in WAL survives the process ending (R2).
@@ -48,6 +60,28 @@ class AppShutdown {
   Future<Duration?>? _stopping;
   bool _windowClosing = false;
   Timer? _forced;
+  bool _installing = false;
+  bool _closeAfterInstall = false;
+
+  /// Whether an update is being installed (SPEC-070 R10).
+  bool get installing => _installing;
+
+  /// The update started installing: the window's close button and the
+  /// tray's "Sair" wait for it (R10).
+  void beginInstall() => _installing = true;
+
+  /// The package is installed: the update now closes the app itself.
+  void endInstall() => _installing = false;
+
+  /// The update ended with the app still open (installation failed, or the
+  /// launcher didn't start): a close asked during the installation happens
+  /// now.
+  Future<void> settleClose() async {
+    _installing = false;
+    if (!_closeAfterInstall) return;
+    _closeAfterInstall = false;
+    await closeWindow();
+  }
 
   static void _killSelf() => Process.killPid(pid, ProcessSignal.sigkill);
 
@@ -76,7 +110,18 @@ class AppShutdown {
   }
 
   /// The window's close button and the tray's "Sair" (SPEC-020 R6).
+  /// During an installation it doesn't close: the window comes back and the
+  /// close happens when the installation ends (R10).
   Future<void> closeWindow() async {
+    if (_installing) {
+      _closeAfterInstall = true;
+      _log(
+        'encerramento: a atualização está instalando; '
+        'o app fecha quando ela terminar',
+      );
+      _onCloseRefused?.call();
+      return;
+    }
     if (_windowClosing) return;
     _windowClosing = true;
     final closed = await stop();
@@ -120,30 +165,55 @@ class AppShutdown {
 /// process.
 Future<void> closeDatabaseForExit(AppDatabase db) => db.executor.close();
 
-/// Everything [AppShutdown.stop] ends before the database.
+/// Everything [AppShutdown.stop] ends before the database. Each step on its
+/// own: one that fails doesn't keep the others from running (SPEC-070 R9).
 Future<void> _stopWork(Ref ref) async {
-  ref.read(sessionTerminalsProvider.notifier).killAll();
-  ref.read(worktreeTerminalsProvider.notifier).killAll();
+  Future<void> step(String name, FutureOr<void> Function() run) async {
+    try {
+      await run();
+    } catch (e) {
+      debugPrint('encerramento: $name: $e');
+    }
+  }
+
+  await step(
+    'terminais',
+    () => ref.read(sessionTerminalsProvider.notifier).killAll(),
+  );
+  await step(
+    'terminais do código',
+    () => ref.read(worktreeTerminalsProvider.notifier).killAll(),
+  );
   final mcp = ref.exists(appMcpServerProvider)
       ? ref.read(appMcpServerProvider)
       : null;
   await Future.wait([
-    Future.wait([
-      ref.read(sessionManagerProvider.notifier).shutdown(),
-      ref.read(conversationManagerProvider.notifier).shutdown(),
-    ]).timeout(const Duration(seconds: 4)),
+    step(
+      'sessões',
+      () => Future.wait([
+        ref.read(sessionManagerProvider.notifier).shutdown(),
+        ref.read(conversationManagerProvider.notifier).shutdown(),
+      ]).timeout(const Duration(seconds: 4)),
+    ),
     // Development servers: SIGTERM, SIGKILL after 5 s (SPEC-051 R5).
-    ref
-        .read(devServerRegistryProvider)
-        .stopAll()
-        .timeout(const Duration(seconds: 8)),
+    step(
+      'servidores',
+      () => ref
+          .read(devServerRegistryProvider)
+          .stopAll()
+          .timeout(AppShutdown.workTimeout),
+    ),
     // The preview's Chromium windows (SPEC-051 R10).
-    ref
-        .read(previewBrowserProvider)
-        .closeAll()
-        .timeout(const Duration(seconds: 4)),
+    step(
+      'preview',
+      () => ref
+          .read(previewBrowserProvider)
+          .closeAll()
+          .timeout(const Duration(seconds: 4)),
+    ),
     // The app's MCP server (SPEC-052).
-    if (mcp != null) mcp.stop().timeout(const Duration(seconds: 2)),
+    if (mcp != null)
+      step('mcp', () => mcp.stop().timeout(const Duration(seconds: 2))),
   ]);
 }
 
@@ -155,5 +225,9 @@ final appShutdownProvider = Provider<AppShutdown>(
       await closeDatabaseForExit(ref.read(appDatabaseProvider));
     },
     destroyWindow: windowManager.destroy,
+    onCloseRefused: () async {
+      await windowManager.show();
+      await windowManager.focus();
+    },
   ),
 );

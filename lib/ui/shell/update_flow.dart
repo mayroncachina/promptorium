@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -72,11 +73,15 @@ final class UpdateRestarting extends UpdateFlowState {
 }
 
 /// Installed, but the launcher didn't start: the app stays open, with
-/// "Reiniciar agora" (SPEC-070 R4).
+/// "Reiniciar agora" (SPEC-070 R4). Recorded in `app_settings`, so it
+/// outlives closing Sobre (R4).
 final class UpdateInstalledNotRestarted extends UpdateFlowState {
-  const UpdateInstalledNotRestarted(this.update);
+  const UpdateInstalledNotRestarted(this.version, this.executable);
 
-  final AvailableUpdate update;
+  final String version;
+
+  /// The copy to open: the one the installation updated.
+  final String executable;
 }
 
 final class UpdateFailed extends UpdateFlowState {
@@ -113,6 +118,8 @@ class UpdateFlow extends Notifier<UpdateFlowState> {
   /// The state with nothing happening. An update already found wins over a
   /// query that failed (R10).
   UpdateFlowState _resting() {
+    final pending = _pendingRestart();
+    if (pending != null) return pending;
     final update = ref.read(updateCheckerProvider);
     if (update != null) return UpdateAvailable(update);
     final last = ref.read(lastCheckProvider);
@@ -122,6 +129,24 @@ class UpdateFlow extends Notifier<UpdateFlowState> {
       // `found` with no update in memory: the app restarted since then.
       UpdateCheckOutcome.found || null => const UpdateNeverChecked(),
     };
+  }
+
+  /// The installation that is waiting for a restart (R4), cleared by the
+  /// next start.
+  UpdateInstalledNotRestarted? _pendingRestart() {
+    final raw = ref
+        .read(appSettingsProvider.notifier)
+        .get(AppSettingKeys.pendingRestart);
+    if (raw == null) return null;
+    try {
+      final m = jsonDecode(raw) as Map<String, Object?>;
+      return UpdateInstalledNotRestarted(
+        m['version']! as String,
+        m['executable']! as String,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   /// A query that finished elsewhere changes the card only when it is idle.
@@ -223,50 +248,69 @@ class UpdateFlow extends Notifier<UpdateFlowState> {
     }
   }
 
-  /// The package installed by this flow, for "Reiniciar agora".
-  File? _installed;
-
   Future<void> _install(AvailableUpdate update, File file) async {
     state = UpdateInstalling(update);
+    final shutdown = ref.read(appShutdownProvider);
+    final installer = ref.read(updateInstallerProvider);
+    // The window's close button and the tray wait for the installation
+    // (R10).
+    shutdown.beginInstall();
     try {
-      await ref
-          .read(updateInstallerProvider)
-          .installAndRestart(
-            file,
-            version: update.version,
-            shutdown: ref.read(appShutdownProvider),
-            markInstalled: () => _markInstalled(update),
-            onInstalled: () {
-              _installed = file;
-              if (ref.mounted) state = UpdateRestarting(update);
-            },
-          );
+      await installer.installAndRestart(
+        file,
+        version: update.version,
+        shutdown: shutdown,
+        markInstalled: () => _markInstalled(update),
+        onInstalled: () {
+          shutdown.endInstall();
+          if (ref.mounted) state = UpdateRestarting(update);
+        },
+      );
     } on RelaunchFailed {
-      if (ref.mounted) state = UpdateInstalledNotRestarted(update);
+      final pending = UpdateInstalledNotRestarted(
+        update.version,
+        installer.relaunchExecutable(file),
+      );
+      await _recordPending(pending);
+      if (ref.mounted) state = pending;
+      await shutdown.settleClose();
     } catch (e) {
       if (ref.mounted) _fail(update, e);
+      await shutdown.settleClose();
     }
   }
 
   /// "Reiniciar agora": tries the launcher again (SPEC-070 R4).
   Future<void> restartNow() async {
     final current = state;
-    final file = _installed;
-    if (current is! UpdateInstalledNotRestarted || file == null) return;
-    final update = current.update;
-    state = UpdateRestarting(update);
+    if (current is! UpdateInstalledNotRestarted) return;
     final installer = ref.read(updateInstallerProvider);
+    final update = ref.read(updateCheckerProvider);
+    state = UpdateRestarting(
+      update != null && update.version == current.version
+          ? update
+          : AvailableUpdate(version: current.version, url: ''),
+    );
     try {
       await installer.restart(
-        executable: installer.relaunchExecutable(file),
-        version: update.version,
+        executable: current.executable,
+        version: current.version,
         shutdown: ref.read(appShutdownProvider),
-        markInstalled: () => _markInstalled(update),
       );
     } on RelaunchFailed {
-      if (ref.mounted) state = UpdateInstalledNotRestarted(update);
+      if (ref.mounted) state = current;
     }
   }
+
+  Future<void> _recordPending(UpdateInstalledNotRestarted pending) => ref
+      .read(appSettingsProvider.notifier)
+      .set(
+        AppSettingKeys.pendingRestart,
+        jsonEncode({
+          'version': pending.version,
+          'executable': pending.executable,
+        }),
+      );
 
   /// The next start says "Atualizado para a `<versão>`" (SPEC-070 R6).
   Future<void> _markInstalled(AvailableUpdate update) => ref

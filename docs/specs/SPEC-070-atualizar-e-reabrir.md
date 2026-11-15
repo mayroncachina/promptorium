@@ -62,6 +62,16 @@ Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221) · PR: [#
   - a dica "Tocar a abertura de novo" some, e o leitor de tela ouve só "Ícone do Promptorium", como imagem;
   - o mouse sobre a logo continua agitando o frasco (SPEC-066 R4), e as bolhas do download (SPEC-066 R10) continuam.
 
+Da revisão do fluxo (t3; os códigos entre parênteses são os do relatório `revisao-atualizacao-spec-070.pdf`):
+
+- R8 · A cópia aberta pelo lançador tem saída: o lançador a abre com `systemd-cat -t promptorium` e, sem ele, manda stdout e stderr para `$XDG_STATE_HOME/promptorium/promptorium.log`. Um processo destacado nasce com a saída em `/dev/null`, e os logs da cópia nova sumiam. (A1)
+- R9 · O encerramento faz cada passo por conta própria: um que falha não impede os outros (servidores, Chromium, MCP). A saída à força vem 15 s depois do pedido, mais que o passo mais lento (8 s) somado ao banco (3 s). (B1, M3)
+- R10 · Durante a instalação, o botão Fechar da janela e o "Sair" da bandeja não fecham o app: a janela volta para a frente, com o cartão em "Instalando". Se a instalação falhar ou o lançador não iniciar, o fechamento pedido acontece nessa hora. Depois de instalado, a própria atualização fecha o app. (M1)
+- R4 (complemento) · "Instalada sem reiniciar" fica gravado em `app_settings` (`update.pendingRestart`): fechar e abrir o Sobre continua mostrando **Reiniciar agora**, nunca um download novo. O próximo início do app apaga a marca. A marca `update.justInstalled` passa a ser gravada logo depois de instalar, então abrir o app à mão também mostra o aviso da R6. (A2)
+- R11 · O `.tar.gz` é extraído ao lado da cópia em uso (`<pasta>.next`), não por cima dela. O lançador, depois que o processo antigo termina, troca as pastas: a antiga vira `<pasta>.prev` (guardada até a próxima atualização) e a nova assume o lugar. Sem o lançador, o app faz a troca antes de mostrar "Reiniciar agora". Um pacote sem o executável falha sem deixar nada para trás. (B3)
+- R12 · O lançador apaga a pasta do download (`promptorium-update-*`) depois de trocar as pastas. Só apaga pastas com esse nome. Se o processo antigo continuar aberto depois de 30 s, recebe SIGTERM e, 2 s depois, SIGKILL, antes de a cópia nova abrir. (B4, B2)
+- R13 · O aviso da R6 confere a versão em execução: se ela for outra, diz "A <versão> foi instalada, mas esta cópia está na <outra> (<pasta>)", com "Ver no Sobre". (M2)
+
 ## Fora do escopo
 
 - Atualização no Windows: o pacote `.zip` não tem atualização pelo app.
@@ -106,4 +116,10 @@ Issue: [#221](https://github.com/mayroncachina/promptorium/issues/221) · PR: [#
 - [x] Clicar, Enter ou Espaço na logo não toca a abertura; ela não tem dica, não entra no Tab e o leitor de tela ouve "Ícone do Promptorium" [R7] verificar: flutter test test/ui/about_dialog_test.dart
 - [ ] Atualizar de verdade, de um `.tar.gz` antigo para a release atual, fecha e reabre o app na versão nova [R1, R3, R6] verificar: manual (cópia isolada com `XDG_DATA_HOME` e uma release local)
   - Pendente: a atualização sai do código da versão instalada, então partir de um `.tar.gz` antigo (sem esta correção) ainda trava. O fluxo foi conferido no app real com duas compilações com a correção (cópia isolada, `XDG_DATA_HOME` próprio, `.tar.gz` local e um provider de tela deixado): fechou, reabriu e mostrou "Atualizado para a 0.17.0". Falta atualizar de uma release publicada com a correção para a seguinte.
-- [x] O projeto compila e a análise estática passa [R1–R7] verificar: flutter analyze
+- [x] A cópia nova tem saída: no journal com `systemd-cat`, em `promptorium.log` sem ele [R8] verificar: flutter test test/core/installer_test.dart
+- [x] Um passo do encerramento que falha não impede os outros, e a saída à força vem depois do encerramento mais lento [R9] verificar: flutter test test/core/app_shutdown_test.dart
+- [x] Fechar durante a instalação espera por ela [R10] verificar: flutter test test/core/app_shutdown_test.dart
+- [x] Fechar e abrir o Sobre mantém "Reiniciar agora" [R4] verificar: flutter test test/ui/about_dialog_test.dart
+- [x] O `.tar.gz` vai para `<pasta>.next`, o lançador troca as pastas, guarda `.prev` e apaga o download [R11, R12] verificar: flutter test test/core/installer_test.dart
+- [x] O aviso diz quando a cópia aberta está em outra versão [R13] verificar: flutter test test/ui/shell/updated_notice_test.dart
+- [x] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
