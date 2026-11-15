@@ -24,6 +24,29 @@ import '../../helpers/test_db.dart';
 /// SPEC-048 R1, R6, R7: the Git group of Configuração do projeto, the ⓘ
 /// tooltip and the confirmation of turning the marking on.
 void main() {
+  test('a folder with only CLAUDE.md, README, LICENSE and .gitignore has no '
+      'code yet; a source file counts (SPEC-071 R24)', () async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-code-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    for (final f in [
+      'CLAUDE.md',
+      'README.md',
+      'LICENSE',
+      '.gitignore',
+      'specs/SPEC-001-a.md',
+      '.promptorium/config.yml',
+    ]) {
+      File('${tmp.path}/$f').createSync(recursive: true);
+    }
+    var c = ProviderContainer();
+    addTearDown(c.dispose);
+    expect(await c.read(hasExistingCodeProvider(tmp.path).future), isFalse);
+    File('${tmp.path}/main.py').createSync();
+    c = ProviderContainer();
+    addTearDown(c.dispose);
+    expect(await c.read(hasExistingCodeProvider(tmp.path).future), isTrue);
+  });
+
   late Directory tmp;
   late Workspace ws;
 

@@ -86,16 +86,26 @@ class ProjectService {
     }
     final path = base.endsWith('/') ? '$base$n' : '$base/$n';
     final dir = Directory(path);
-    switch (await FileSystemEntity.type(path)) {
-      case FileSystemEntityType.notFound:
-        await dir.create();
-      case FileSystemEntityType.directory:
-        if (!await dir.list().isEmpty) {
-          throw ProjectException('$path já existe e não está vazia.');
-        }
-      default:
-        throw ProjectException('Já existe um arquivo em $path.');
+    final setup = _ref.read(repoSetupProvider);
+    final kind = await FileSystemEntity.type(path);
+    if (kind != FileSystemEntityType.notFound &&
+        kind != FileSystemEntityType.directory) {
+      throw ProjectException('Já existe um arquivo em $path.');
     }
+    // A folder left by a failed creation (.git without commits, template
+    // files) is accepted, so "Criar" can be retried (R21).
+    if (kind == FileSystemEntityType.directory &&
+        !await setup.isCreationLeftover(path)) {
+      throw ProjectException('$path já existe e não está vazia.');
+    }
+    // The first commit needs a git identity: checked before anything is
+    // created (R21).
+    try {
+      await setup.checkIdentity(base);
+    } catch (e) {
+      throw ProjectException(repoSetupError(e));
+    }
+    if (kind == FileSystemEntityType.notFound) await dir.create();
     // Template files first: the initial commit carries them (UX v2, U7).
     final t = template;
     if (t != null && !t.isEmpty) {
@@ -105,7 +115,7 @@ class ProjectService {
       }
     }
     try {
-      await _ref.read(repoSetupProvider).init(path, remoteUrl: remoteUrl);
+      await setup.init(path, remoteUrl: remoteUrl);
     } catch (e) {
       throw ProjectException(repoSetupError(e));
     }
@@ -200,6 +210,9 @@ class ProjectService {
   /// Whether the workspace already has a `CLAUDE.md`.
   bool hasClaudeMd(Workspace ws) => File('${ws.path}/CLAUDE.md').existsSync();
 
+  /// Whether that `CLAUDE.md` is still the template's minimal one (R23).
+  bool hasTemplateClaudeMd(Workspace ws) => templateClaudeMd(ws.path) != null;
+
   /// Writes the CLAUDE.md (when [writeClaudeMd]) and one approved spec file
   /// per roadmap spec (`depende-de` translated to `SPEC-NNN`) and, when
   /// [commit], commits those files on the current branch. The specs show up
@@ -229,13 +242,40 @@ class ProjectService {
     }
 
     final specService = _ref.read(specServiceProvider);
+    final specsRepo = _ref.read(specsRepoProvider);
     final specs = <Spec>[];
+    // Specs of an earlier try that failed halfway are reused, not
+    // duplicated (R22); new ones are recorded on the plan as they are
+    // written.
+    final created = {...data.created};
     for (final s in roadmap.specs) {
-      final spec = await specService.create(
-        ws,
-        title: s.title,
-        render: (code) => roadmapSpecMarkdown(s, code: code),
-      );
+      final previous = created[s.code];
+      var spec = previous == null
+          ? null
+          : await specsRepo.getByCode(ws.id, previous);
+      if (spec != null && !File('${ws.path}/${spec.path}').existsSync()) {
+        spec = null;
+      }
+      if (spec != null && spec.inTray) {
+        await specsRepo.setInTray([spec.id], false);
+        spec = await specsRepo.getById(spec.id) ?? spec;
+      }
+      if (spec == null) {
+        // On the Quadro's Backlog, not in the Bandeja (R22).
+        spec = await specService.create(
+          ws,
+          title: s.title,
+          render: (code) => roadmapSpecMarkdown(s, code: code),
+          inTray: false,
+        );
+        created[s.code] = spec.code;
+        await plans.update(
+          ws.id,
+          ProjectPlansCompanion(
+            data: Value(data.copyWith(created: created).encode()),
+          ),
+        );
+      }
       specs.add(spec);
       files.add(spec.path);
     }

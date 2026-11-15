@@ -100,6 +100,7 @@ void main() {
     late List<(int, ProcessSignal)> signals;
     var answers = false;
     var ssOut = '';
+    Completer<void>? gate;
 
     DevServerRegistry registry() => DevServerRegistry(
       runDir: '${tmp.path}/run',
@@ -111,6 +112,7 @@ void main() {
       freePort: () async => 5173,
       starter: (exe, args, {workingDirectory, environment}) async {
         started.add((exe, args, environment, workingDirectory));
+        await gate?.future;
         proc.groups[process.pid] = [process.pid];
         return process;
       },
@@ -133,6 +135,27 @@ void main() {
       process = FakeProcess(48211);
       answers = false;
       ssOut = '';
+      gate = null;
+    });
+
+    test('Parar while the command is starting ends the group that comes up '
+        'and stays parado (R17)', () async {
+      final s = registry().of('/wt/a');
+      gate = Completer<void>();
+      final starting = s.start(
+        config: const DevServerConfig(command: 'npm run dev'),
+        port: 4003,
+      );
+      await pumpUntil(() => started.isNotEmpty);
+      expect(s.status, DevServerStatus.starting);
+      await s.stop();
+      expect(s.status, DevServerStatus.stopped);
+      gate!.complete();
+      await starting;
+      expect(signals, [(48211, ProcessSignal.sigterm)]);
+      expect(s.status, DevServerStatus.stopped);
+      expect(s.pid, isNull);
+      expect(File('${tmp.path}/run/48211.json').existsSync(), isFalse);
     });
 
     test('parado → iniciando → no ar when the port answers HTTP; Parar '

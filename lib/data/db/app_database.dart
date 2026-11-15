@@ -1261,10 +1261,18 @@ void applyPendingRestore(Directory dir) {
     final backup = File(req.readAsStringSync().trim());
     final db = File('${dir.path}/${AppDatabase.fileName}.sqlite');
     if (backup.existsSync()) {
-      if (db.existsSync()) db.copySync('${db.path}.antes-da-restauracao');
+      final before = '${db.path}.antes-da-restauracao';
+      if (db.existsSync()) db.copySync(before);
+      // The WAL holds the latest transactions after a crash (R20): it goes
+      // with the copy (SQLite reads `<file>-wal` next to it) before going.
       for (final side in ['-wal', '-shm']) {
         final f = File('${db.path}$side');
-        if (f.existsSync()) f.deleteSync();
+        final kept = File('$before$side');
+        if (kept.existsSync()) kept.deleteSync();
+        if (f.existsSync()) {
+          if (db.existsSync()) f.copySync(kept.path);
+          f.deleteSync();
+        }
       }
       backup.copySync(db.path);
     }
