@@ -230,15 +230,26 @@ class _CiPanelState extends ConsumerState<CiPanel> {
             runs.map((r) => 'run $r').join(' · '),
             style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
-        if (link != null)
-          SmallButton(
-            key: const ValueKey('ci-open-github'),
-            label: 'Abrir no GitHub',
-            onTap: () => openExternal(ref, link),
-          ),
-        // R8: with an intermittent failure "Rodar de novo" is the main one.
-        rerun,
-        fix,
+        // The buttons in a Row: a SmallButton straight in the Wrap
+        // stretches to the whole width, one under the other.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (link != null) ...[
+              SmallButton(
+                key: const ValueKey('ci-open-github'),
+                label: 'Abrir no GitHub',
+                onTap: () => openExternal(ref, link),
+              ),
+              const SizedBox(width: 8),
+            ],
+            // R8: with an intermittent failure "Rodar de novo" is the main
+            // one.
+            rerun,
+            const SizedBox(width: 8),
+            fix,
+          ],
+        ),
       ],
     );
   }

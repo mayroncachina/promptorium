@@ -76,6 +76,13 @@ void main() {
       'and the check without log', (tester) async {
     await pump(tester);
     expect(find.text('CI falhou no commit a1b2c3d'), findsOneWidget);
+    // "Rodar de novo" and "Corrigir CI" side by side, each with its own
+    // width (not one under the other, the whole width).
+    final rerun = tester.getRect(find.byKey(const ValueKey('ci-rerun')));
+    final fix = tester.getRect(find.byKey(const ValueKey('ci-fix')));
+    expect(fix.width, lessThan(300));
+    expect(fix.top, rerun.top);
+    expect(fix.left, greaterThan(rerun.right));
     expect(find.textContaining('passo "Run flutter test"'), findsOneWidget);
     expect(
       find.textContaining('sem log disponível · não vai para o agente'),
