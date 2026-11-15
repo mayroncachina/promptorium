@@ -78,6 +78,7 @@ String smallContext() => jsonEncode({
 });
 
 Spec specOf({List<SpecRequirement>? requirements}) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

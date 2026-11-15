@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 27;
+const appSchemaVersion = 28;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -222,6 +222,28 @@ class Specs extends Table {
   /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
   /// created through the Promptorium MCP); null for the others.
   TextColumn get agentSession => text().nullable()();
+
+  // --- the GitHub issue (SPEC-074 R1, R9, R10, schema v28) ------------------
+
+  /// `issue: N` of the frontmatter, filled by every reading of the file.
+  IntColumn get issueNumber => integer().nullable()();
+
+  /// State of the issue on GitHub (null = not checked yet). The rest of
+  /// this block belongs to the app, like the origin of SPEC-068.
+  TextColumn get issueState => textEnum<IssueState>().nullable()();
+  DateTimeColumn get issueClosedAt => dateTime().nullable()();
+
+  /// `PR #250`, `à mão` (null = open or unknown).
+  TextColumn get issueClosedBy => text().nullable()();
+
+  /// When "Importar issues" (or "Atualizar com a issue") took the issue's
+  /// text: an issue edited after it "mudou" (R7).
+  DateTimeColumn get issueImportedAt => dateTime().nullable()();
+
+  /// The progress comment could not be published (R10): the next note
+  /// tries again.
+  BoolColumn get issueCommentPending =>
+      boolean().withDefault(const Constant(false))();
 
   @override
   List<Set<Column>> get uniqueKeys => [
@@ -1184,6 +1206,24 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('specs') &&
                 !await _hasColumn('specs', 'agent_session')) {
               await m.addColumn(v.specs, v.specs.agentSession);
+            }
+          },
+          // v28 (SPEC-074, provisional number): the GitHub issue of a spec.
+          // `issue_number` is filled by the next reading of the files; the
+          // state is checked by the app.
+          from27To28: (m, v) async {
+            if (!await _hasTable('specs')) return;
+            for (final c in [
+              v.specs.issueNumber,
+              v.specs.issueState,
+              v.specs.issueClosedAt,
+              v.specs.issueClosedBy,
+              v.specs.issueImportedAt,
+              v.specs.issueCommentPending,
+            ]) {
+              if (!await _hasColumn('specs', c.name)) {
+                await m.addColumn(v.specs, c);
+              }
             }
           },
         ),

@@ -428,6 +428,7 @@ id: SPEC-009
   test('refine prompt mentions the spec file', () {
     final p = refineSpecPrompt(
       const Spec(
+        issueCommentPending: false,
         hasPlan: false,
         inTray: false,
         kind: SpecKind.spec,
@@ -601,6 +602,7 @@ depende-de: [SPEC-001]
       expect(openQuestionsFormatHint, contains('"  - Sugestão: <texto>"'));
       final p = refineSpecPrompt(
         const Spec(
+          issueCommentPending: false,
           hasPlan: false,
           inTray: false,
           kind: SpecKind.spec,

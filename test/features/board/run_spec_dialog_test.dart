@@ -24,6 +24,7 @@ import 'package:promptorium/ui/widgets/app_dialog.dart';
 import '../../helpers/test_db.dart';
 
 const _spec = Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

@@ -153,6 +153,30 @@ class SpecDocument {
   static const kindKey = 'kind';
   static const originKey = 'origem';
 
+  /// `issue: N` of the frontmatter (SPEC-074 R1): the GitHub issue the spec
+  /// is linked to; null when absent or not a positive whole number.
+  int? get issue {
+    final v = frontmatter[specIssueKey];
+    if (v is int) return v > 0 ? v : null;
+    final s = '${v ?? ''}'.trim().replaceFirst(RegExp(r'^#'), '');
+    final n = RegExp(r'^\d+$').hasMatch(s) ? int.tryParse(s) : null;
+    return n != null && n > 0 ? n : null;
+  }
+
+  /// `issue:` is there but is not a number (`issue: abc`): a structure
+  /// warning, and no badge (R1).
+  bool get hasInvalidIssue {
+    if (!frontmatter.containsKey(specIssueKey)) return false;
+    final v = frontmatter[specIssueKey];
+    if (v == null || '$v'.trim().isEmpty) return false;
+    return issue == null;
+  }
+
+  /// Text with `issue: N` set in the frontmatter, or removed with null
+  /// ("Desligar da issue", R7). Other lines stay byte for byte.
+  String withIssue(int? number) =>
+      withMeta(fields: {specIssueKey: number == null ? null : '$number'});
+
   /// Frontmatter `fase` (`fundacao`, `mvp`…).
   String? get phase {
     final v = frontmatter['fase'];
@@ -1013,6 +1037,9 @@ class SpecSubagent {
 const specOriginKey = 'origem';
 const specSessionKey = 'sessao';
 const specOriginAgent = 'agente';
+
+/// Frontmatter key of the GitHub issue of the spec (SPEC-074 R1).
+const specIssueKey = 'issue';
 
 /// Frontmatter key of the spec dependencies.
 const dependsOnKey = 'depende-de';

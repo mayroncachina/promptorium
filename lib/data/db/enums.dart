@@ -36,6 +36,9 @@ enum SpecKind {
   }
 }
 
+/// State of the GitHub issue of a spec (SPEC-074 R9, schema v28).
+enum IssueState { open, closed, notFound }
+
 /// Column of a spec in the Quadro (schema v8).
 enum SpecStage { backlog, running, review, done }
 

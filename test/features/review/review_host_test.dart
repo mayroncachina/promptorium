@@ -1,8 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/core/git/gh_cli.dart';
+import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/features/issues/issue_availability.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/review/review_host.dart';
+
+import '../../core/git/fake_issues.dart';
 
 void main() {
   test(
@@ -148,5 +153,119 @@ void main() {
     for (final url in ['nao é url', 'https://', 'github.com', '']) {
       expect(remoteKind(url), RemoteKind.invalid, reason: url);
     }
+  });
+
+  group('issues (SPEC-074 R2): the same diagnosis, no session needed', () {
+    late Directory root;
+    setUp(() async {
+      root = Directory.systemTemp.createTempSync('issue-avail-');
+      await Process.run('git', [
+        'init',
+        '-q',
+        '-b',
+        'main',
+      ], workingDirectory: root.path);
+    });
+    tearDown(() => root.deleteSync(recursive: true));
+
+    Future<void> remote(String name, String url) => Process.run('git', [
+      'remote',
+      'add',
+      name,
+      url,
+    ], workingDirectory: root.path);
+
+    Future<IssueAvailability> check(
+      FakeIssuesGh fake, {
+      ProjectConfig config = const ProjectConfig(),
+    }) => issueAvailability(
+      root: root.path,
+      git: GitService(root.path),
+      gh: GhCli(fake.call, cwd: root.path),
+      config: config,
+    );
+
+    test(
+      'available: the repository, its default branch and the account',
+      () async {
+        await remote('origin', 'git@github.com:ana-souza/loja-da-ana.git');
+        final a = await check(FakeIssuesGh(defaultBranch: 'main'));
+        expect(a.available, isTrue);
+        expect(a.repo, 'ana-souza/loja-da-ana');
+        expect(a.defaultBranch, 'main');
+        expect(a.account, 'ana-souza');
+        expect(
+          a.issueUrl(226),
+          'https://github.com/ana-souza/loja-da-ana/issues/226',
+        );
+      },
+    );
+
+    test('each reason turns the buttons off with its own text', () async {
+      // No remote.
+      var a = await check(FakeIssuesGh());
+      expect((a.available, a.problem), (false, IssueProblem.noRemote));
+      expect(a.reason, contains('não tem remote'));
+
+      // A local remote.
+      await remote('origin', '/srv/git/loja.git');
+      a = await check(FakeIssuesGh());
+      expect(a.problem, IssueProblem.localRemote);
+      expect(a.reason, contains('caminho local'));
+
+      // GitLab.
+      await Process.run('git', [
+        'remote',
+        'set-url',
+        'origin',
+        'git@gitlab.com:ana/loja.git',
+      ], workingDirectory: root.path);
+      a = await check(FakeIssuesGh());
+      expect(a.problem, IssueProblem.gitlab);
+      expect(a.reason, contains('só para GitHub'));
+      expect(a.title, 'Issues do GitLab ainda não');
+
+      // Another host.
+      await Process.run('git', [
+        'remote',
+        'set-url',
+        'origin',
+        'git@git.exemplo.com:ana/loja.git',
+      ], workingDirectory: root.path);
+      a = await check(FakeIssuesGh());
+      expect(a.problem, IssueProblem.otherHost);
+
+      await Process.run('git', [
+        'remote',
+        'set-url',
+        'origin',
+        'https://github.com/ana-souza/loja-da-ana.git',
+      ], workingDirectory: root.path);
+      // gh missing: with the link to install it.
+      a = await check(FakeIssuesGh(hasGh: false));
+      expect(a.problem, IssueProblem.ghMissing);
+      expect(a.installUrl, contains('cli/cli'));
+      expect(a.title, 'O GitHub CLI (gh) não está instalado');
+
+      // gh without login.
+      a = await check(FakeIssuesGh(authed: false));
+      expect(a.problem, IssueProblem.ghLoggedOut);
+      expect(a.reason, contains('gh auth login'));
+
+      // The issues are off in the repository.
+      a = await check(FakeIssuesGh(issuesEnabled: false));
+      expect(a.problem, IssueProblem.issuesDisabled);
+      expect(a.reason, contains('desligadas em ana-souza/loja-da-ana'));
+      expect(a.repo, 'ana-souza/loja-da-ana');
+    });
+
+    test('several remotes: origin, unless the branch tracks another', () async {
+      await remote('origin', 'git@github.com:ana-souza/loja-da-ana.git');
+      await remote('fork', 'git@github.com:lucas/loja-da-ana.git');
+      final a = await check(FakeIssuesGh());
+      expect(a.remote, 'origin');
+      expect(githubRepoOf('https://github.com/o/r.git'), 'o/r');
+      expect(githubRepoOf('/srv/r'), isNull);
+    });
   });
 }

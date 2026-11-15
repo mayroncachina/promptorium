@@ -12,6 +12,7 @@ Spec s(
   List<String> deps = const [],
   int? sprintId,
 }) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

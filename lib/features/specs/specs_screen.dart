@@ -40,6 +40,7 @@ import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
+import '../issues/widgets/issue_badge.dart';
 import 'widgets/spec_header.dart';
 import 'widgets/spec_questions_panel.dart';
 import 'widgets/spec_skeleton.dart';
@@ -1913,6 +1914,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
                   statusLabel: planLock?.chip,
                   agentCreated: spec?.agentSession != null,
+                  issueBadge: spec?.issueNumber == null
+                      ? null
+                      : IssueBadge(spec: spec!),
                   planned:
                       spec != null &&
                       specIsPlanned(

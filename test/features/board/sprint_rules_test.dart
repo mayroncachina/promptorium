@@ -9,6 +9,7 @@ Spec spec(
   SpecStage stage = SpecStage.backlog,
   List<String> deps = const [],
 }) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

@@ -19,6 +19,7 @@ void main() {
     bool inTray = false,
     int? conversation,
   }) => Spec(
+    issueCommentPending: false,
     id: int.parse(code.substring(5)),
     workspaceId: 1,
     code: code,
