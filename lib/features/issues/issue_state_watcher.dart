@@ -29,9 +29,7 @@ SpecsCompanion? issueStateChange(Spec spec, GhIssueState s) {
   final sameAt = spec.issueClosedAt == null || closedAt == null
       ? spec.issueClosedAt == closedAt
       : spec.issueClosedAt!.isAtSameMomentAs(closedAt);
-  if (spec.issueState == state &&
-      sameAt &&
-      spec.issueClosedBy == closedBy) {
+  if (spec.issueState == state && sameAt && spec.issueClosedBy == closedBy) {
     return null;
   }
   return SpecsCompanion(
