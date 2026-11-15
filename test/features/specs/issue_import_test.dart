@@ -72,6 +72,17 @@ void main() {
       expect(doc.section('Critérios de aceite'), contains('Refinar'));
     });
 
+    test('an issue that starts at ## goes down one level, not two', () {
+      final o = issueObjective(
+        'Texto.\n\n## O que fazer\n\n- [ ] a\n\n### Detalhe\n',
+      ).text;
+      expect(o, contains('### O que fazer'));
+      expect(o, isNot(contains('#### O que fazer')));
+      expect(o, contains('#### Detalhe'));
+      // Already at ### or below: as it is.
+      expect(issueObjective('### Notas\nx').text, '### Notas\nx');
+    });
+
     test('over 40.000 characters: cut at the end of a paragraph, with a '
         'notice', () {
       final para = '${'a' * 999}\n\n';

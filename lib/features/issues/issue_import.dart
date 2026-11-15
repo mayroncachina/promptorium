@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
@@ -18,23 +20,35 @@ const issueRefineHint =
 
 /// The text of an issue cleaned for the Objetivo (R5): HTML comments out,
 /// headings moved down so the top one is `###` (inside `## Objetivo`, the
-/// hierarchy kept), checklists, links and images as they are; over
+/// hierarchy kept: `##` → `###`, `#` → `###`), checklists, links and images as they are; over
 /// [ideaMaxChars] it is cut at the end of the last paragraph that fits.
 ({String text, bool truncated, int total}) issueObjective(String body) {
   var text = body.replaceAll('\r\n', '\n');
   text = text.replaceAll(RegExp(r'<!--[\s\S]*?-->'), '');
-  final out = <String>[];
+  final lines = text.split('\n');
+  final heading = RegExp(r'^(#{1,6})(\s+.*)$');
+  final fenceLine = RegExp(r'^\s*(```|~~~)');
+  // The headings outside code blocks, with their line.
+  final found = <int, RegExpMatch>{};
   var fence = false;
-  for (final line in text.split('\n')) {
-    if (RegExp(r'^\s*(```|~~~)').hasMatch(line)) fence = !fence;
-    final m = fence ? null : RegExp(r'^(#{1,6})(\s+.*)$').firstMatch(line);
-    if (m == null) {
-      out.add(line);
-      continue;
-    }
-    final level = (m.group(1)!.length + 2).clamp(3, 6);
-    out.add('${'#' * level}${m.group(2)}');
+  for (var i = 0; i < lines.length; i++) {
+    if (fenceLine.hasMatch(lines[i])) fence = !fence;
+    final m = fence ? null : heading.firstMatch(lines[i]);
+    if (m != null) found[i] = m;
   }
+  // The top heading becomes `###`: an issue that starts at `##` (the usual
+  // in issue templates) goes down one level, not two.
+  final top = found.values.isEmpty
+      ? 3
+      : found.values.map((m) => m.group(1)!.length).reduce(math.min);
+  final shift = math.max(0, 3 - top);
+  final out = <String>[
+    for (var i = 0; i < lines.length; i++)
+      if (found[i] case final m?)
+        '${'#' * (m.group(1)!.length + shift).clamp(3, 6)}${m.group(2)}'
+      else
+        lines[i],
+  ];
   text = out.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   final total = text.length;
   if (total <= ideaMaxChars) {
