@@ -224,29 +224,29 @@ A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Cl
 
 ## Critérios de aceite
 
-- [ ] Cada item do Ambiente mostra verde, vermelho ou âmbar com o texto certo para git, Claude, GitHub e pasta [R1] verificar: flutter test test/features/project
-- [ ] A checagem roda ao abrir, ao mudar pasta ou remoto e em "Verificar de novo", e um item lento fica âmbar sem bloquear [R2] verificar: flutter test test/features/project
-- [ ] "Gravar no git" grava nome e e-mail e o item fica verde; os botões de terminal abrem o comando certo [R3] verificar: flutter test test/features/project
-- [ ] Git ou pasta vermelhos desabilitam os dois botões; Claude vermelho desabilita só "Criar e planejar"; GitHub nunca bloqueia [R4] verificar: flutter test test/features/project
-- [ ] O indicador segue o rádio e a URL: "Só local" → Local sem CLI, github.com → gh, gitlab.com → glab, outro host → só git com "Hospedagem não reconhecida"; trocar a URL atualiza na hora; a CLI deslogada é aviso [R20, R21] verificar: flutter test test/features/project
-- [ ] GitHub e GitLab gravam `hospedagem:` no config.yml; Local e host não reconhecido não gravam [R22] verificar: flutter test test/features/project
-- [ ] Uma branch inválida bloqueia; a branch escolhida vira a branch do repositório e o `branch-base:` do config.yml [R5, R6] verificar: flutter test test/core/git test/features/project
-- [ ] "O que acontece" não tem "1 s" nem "US$ 0,30" e mostra as chamadas e a fila [R7] verificar: flutter test test/features/project
-- [ ] No plano por assinatura aparecem a quota e "N chamadas"; com chave de API, o teto em dólares [R8] verificar: flutter test test/features/project
-- [ ] A estimativa da fila usa a mediana com 3 rodadas ou mais, e "1–3 min" sem histórico [R9] verificar: flutter test test/features/project
-- [ ] Revisar e criar mostra Custo e tempo e o tempo no passo da fila [R10] verificar: flutter test test/features/project
-- [ ] O plano guarda os comandos da stack; plano antigo lê vazio; comandos do modelo ficam fixados [R11] verificar: flutter test test/features/project
-- [ ] O bloco Comandos mostra a chave de cada linha, trava o que o config.yml já tem e editar marca o CLAUDE.md como desatualizado [R12] verificar: flutter test test/features/project
-- [ ] O materialize preenche só as chaves vazias do config.yml, acrescenta `{arquivo}` ao formatar e commita o config.yml [R13] verificar: flutter test test/features/project
-- [ ] "Saúde do projeto" abre a Saúde pelo stepper, e "Detectar do repositório" preenche só as linhas vazias [R14] verificar: flutter test test/features/project
-- [ ] "Outro…" abre o modal; com o Claude vermelho o chip fica desabilitado com o motivo [R16] verificar: flutter test test/features/project
-- [ ] O modal propõe a stack pelo schema da Stack, cancela a chamada, ajusta na mesma conversa e só muda o Ponto de partida em "Usar esta stack" [R17] verificar: flutter test test/features/project
-- [ ] A stack escolhida aparece no chip e, ao criar, grava os comandos no config.yml, o CLAUDE.md base e as decisões fixadas no plano [R18] verificar: flutter test test/features/project
-- [ ] Cada proposta ou ajuste do modal soma "+1 chamada" no custo [R19] verificar: flutter test test/features/project
-- [ ] As marcas têm texto e os botões desabilitados dizem o motivo ao leitor de tela [R15] verificar: flutter test test/features/project
+- [x] Cada item do Ambiente mostra verde, vermelho ou âmbar com o texto certo para git, Claude, GitHub e pasta [R1] verificar: flutter test test/features/project
+- [x] A checagem roda ao abrir, ao mudar pasta ou remoto e em "Verificar de novo", e um item lento fica âmbar sem bloquear [R2] verificar: flutter test test/features/project
+- [x] "Gravar no git" grava nome e e-mail e o item fica verde; os botões de terminal abrem o comando certo [R3] verificar: flutter test test/features/project
+- [x] Git ou pasta vermelhos desabilitam os dois botões; Claude vermelho desabilita só "Criar e planejar"; GitHub nunca bloqueia [R4] verificar: flutter test test/features/project
+- [x] O indicador segue o rádio e a URL: "Só local" → Local sem CLI, github.com → gh, gitlab.com → glab, outro host → só git com "Hospedagem não reconhecida"; trocar a URL atualiza na hora; a CLI deslogada é aviso [R20, R21] verificar: flutter test test/features/project
+- [x] GitHub e GitLab gravam `hospedagem:` no config.yml; Local e host não reconhecido não gravam [R22] verificar: flutter test test/features/project
+- [x] Uma branch inválida bloqueia; a branch escolhida vira a branch do repositório e o `branch-base:` do config.yml [R5, R6] verificar: flutter test test/core/git test/features/project
+- [x] "O que acontece" não tem "1 s" nem "US$ 0,30" e mostra as chamadas e a fila [R7] verificar: flutter test test/features/project
+- [x] No plano por assinatura aparecem a quota e "N chamadas"; com chave de API, o teto em dólares [R8] verificar: flutter test test/features/project
+- [x] A estimativa da fila usa a mediana com 3 rodadas ou mais, e "1–3 min" sem histórico [R9] verificar: flutter test test/features/project
+- [x] Revisar e criar mostra Custo e tempo e o tempo no passo da fila [R10] verificar: flutter test test/features/project
+- [x] O plano guarda os comandos da stack; plano antigo lê vazio; comandos do modelo ficam fixados [R11] verificar: flutter test test/features/project
+- [x] O bloco Comandos mostra a chave de cada linha, trava o que o config.yml já tem e editar marca o CLAUDE.md como desatualizado [R12] verificar: flutter test test/features/project
+- [x] O materialize preenche só as chaves vazias do config.yml, acrescenta `{arquivo}` ao formatar e commita o config.yml [R13] verificar: flutter test test/features/project
+- [x] "Saúde do projeto" abre a Saúde pelo stepper, e "Detectar do repositório" preenche só as linhas vazias [R14] verificar: flutter test test/features/project
+- [x] "Outro…" abre o modal; com o Claude vermelho o chip fica desabilitado com o motivo [R16] verificar: flutter test test/features/project
+- [x] O modal propõe a stack pelo schema da Stack, cancela a chamada, ajusta na mesma conversa e só muda o Ponto de partida em "Usar esta stack" [R17] verificar: flutter test test/features/project
+- [x] A stack escolhida aparece no chip e, ao criar, grava os comandos no config.yml, o CLAUDE.md base e as decisões fixadas no plano [R18] verificar: flutter test test/features/project
+- [x] Cada proposta ou ajuste do modal soma "+1 chamada" no custo [R19] verificar: flutter test test/features/project
+- [x] As marcas têm texto e os botões desabilitados dizem o motivo ao leitor de tela [R15] verificar: flutter test test/features/project
 - [ ] Criar um projeto de verdade num ambiente sem nome no git: o Ambiente aponta, "Gravar no git" resolve e o projeto nasce na branch escolhida, com os comandos no config.yml [R1–R6, R13] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
 - [ ] Criar um projeto de verdade com "Outro…" ("API em Go com Fiber e Postgres"): o config.yml e o CLAUDE.md saem da stack escolhida, e a etapa Stack parte dela [R16–R18] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
-- [ ] O projeto compila e a análise estática passa [R1–R22] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R22] verificar: flutter analyze
 
 ## Decisões
 
