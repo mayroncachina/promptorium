@@ -34,6 +34,7 @@ import '../board/spec_runner.dart';
 import '../mcp/mcp_rules.dart';
 import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
+import '../review/ci_fixer.dart' show ciFixerProvider;
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
@@ -1419,6 +1420,10 @@ class SessionManager extends Notifier<SessionManagerState> {
         // SPEC-043 R1: a conflict resolution goes to the gate.
         await ref
             .read(conflictResolverProvider)
+            .onResult(id, e.isSuccess ? e.result : null);
+        // SPEC-073 R5, R6: a queued CI fix goes; a CI fix is pushed.
+        await ref
+            .read(ciFixerProvider.notifier)
             .onResult(id, e.isSuccess ? e.result : null);
         ref.invalidate(sessionChangesProvider(id));
         _notify(
