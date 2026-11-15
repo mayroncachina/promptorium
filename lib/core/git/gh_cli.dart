@@ -269,6 +269,9 @@ class GhCli {
   final CliRunner _run;
   final String cwd;
 
+  /// The runner of every call (the Review's host check reuses it).
+  CliRunner get runner => _run;
+
   Future<ProcessResult> _raw(List<String> args) async {
     try {
       return await _run('gh', args, workingDirectory: cwd);
@@ -280,6 +283,10 @@ class GhCli {
       );
     }
   }
+
+  /// `gh <args>` with its exit code and both outputs (only a missing `gh`
+  /// throws): for answers that still carry data on a failure (GraphQL).
+  Future<ProcessResult> ghResult(List<String> args) => _raw(args);
 
   /// `gh <args>`, stdout. Throws [GhException].
   Future<String> gh(List<String> args) async {

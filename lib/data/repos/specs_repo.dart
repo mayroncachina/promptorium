@@ -114,6 +114,7 @@ class SpecsRepo {
     SpecKind kind = SpecKind.spec,
     SpecStage? stage,
     String? agentSession,
+    int? issueNumber,
   }) => _db
       .into(_t)
       .insertReturning(
@@ -137,6 +138,7 @@ class SpecsRepo {
           // A VIBE never waits in the Bandeja (SPEC-069 R9).
           inTray: Value(inTray && kind == SpecKind.spec),
           agentSession: Value(agentSession),
+          issueNumber: Value(issueNumber),
         ),
       );
 

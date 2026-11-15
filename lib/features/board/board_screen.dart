@@ -34,6 +34,7 @@ import 'sprint_rules.dart';
 import 'sprint_state.dart';
 import 'widgets/spec_notes.dart';
 import 'widgets/board_card_flight.dart';
+import '../issues/widgets/issue_badge.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
@@ -1896,6 +1897,16 @@ class SpecCard extends ConsumerWidget {
                       color: AppColors.textSecondary,
                     ),
                   ),
+                  // SPEC-074 R1.
+                  if (spec.issueNumber != null) ...[
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Listener(
+                        onPointerDown: AppPressable.claim,
+                        child: IssueBadge(spec: spec),
+                      ),
+                    ),
+                  ],
                   if (spec.phase != null) ...[
                     const SizedBox(width: 6),
                     _Chip(spec.phase!),

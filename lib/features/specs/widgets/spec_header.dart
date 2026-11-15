@@ -456,6 +456,7 @@ class SpecHeader extends StatelessWidget {
     this.lockAlert = false,
     this.planned = false,
     this.agentCreated = false,
+    this.issueBadge,
   });
 
   final String title;
@@ -491,6 +492,9 @@ class SpecHeader extends StatelessWidget {
   /// "Criada pelo agente" next to the status (SPEC-052 R6).
   final bool agentCreated;
 
+  /// The `#N` of the linked issue, on the path line (SPEC-074 R1).
+  final Widget? issueBadge;
+
   @override
   Widget build(BuildContext context) {
     final identity = Column(
@@ -514,6 +518,10 @@ class SpecHeader extends StatelessWidget {
                 ),
               ),
               // SPEC-052 R6: on the path line, so the title keeps its width.
+              if (issueBadge != null) ...[
+                const SizedBox(width: 8),
+                issueBadge!,
+              ],
               if (agentCreated) ...[
                 const SizedBox(width: 8),
                 const AgentCreatedChip(key: ValueKey('spec-agent-chip')),

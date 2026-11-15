@@ -24,6 +24,7 @@ void motionOn() {
 }
 
 Spec spec(int id, List<String> deps) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

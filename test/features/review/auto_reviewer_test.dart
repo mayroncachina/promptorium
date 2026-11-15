@@ -195,6 +195,7 @@ void main() {
       'own reviewer agent', () {
     final prompt = reviewerPrompt(
       spec: Spec(
+        issueCommentPending: false,
         hasPlan: false,
         inTray: false,
         kind: SpecKind.spec,

@@ -187,6 +187,7 @@ void main() {
         'end of the queue, pending', () {
       final doc = SpecDocument.parse(deferRequirement(compileSpec, 'R3'));
       final spec = Spec(
+        issueCommentPending: false,
         hasPlan: false,
         inTray: false,
         kind: SpecKind.spec,
@@ -330,6 +331,7 @@ void main() {
 
     test('the context of runNext goes into the prompt of the step', () {
       final spec = Spec(
+        issueCommentPending: false,
         hasPlan: false,
         inTray: false,
         kind: SpecKind.spec,

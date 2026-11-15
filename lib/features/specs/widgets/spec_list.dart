@@ -6,6 +6,7 @@ import '../../../ui/widgets/app_pressable.dart';
 import '../../board/board_rules.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
+import '../../issues/widgets/issue_badge.dart';
 import 'agent_origin.dart' show AgentCreatedChip;
 
 /// Status colors of the mockup (Aprovada teal, Em revisão amber, …).
@@ -159,6 +160,11 @@ class SpecList extends StatelessWidget {
                                           ),
                                         ),
                                       ),
+                                      // SPEC-074 R1.
+                                      if (s.issueNumber != null) ...[
+                                        const SizedBox(width: 6),
+                                        Flexible(child: IssueBadge(spec: s)),
+                                      ],
                                       const SizedBox(width: 8),
                                       const Spacer(),
                                       // The status is short: it keeps its

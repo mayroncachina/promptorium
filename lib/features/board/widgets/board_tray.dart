@@ -7,6 +7,7 @@ import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
+import '../../issues/widgets/issue_badge.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
@@ -310,13 +311,22 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            s.code,
-                            style: const TextStyle(
-                              fontFamily: AppFonts.mono,
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                s.code,
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.mono,
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              // SPEC-074 R1.
+                              if (s.issueNumber != null) ...[
+                                const SizedBox(width: 6),
+                                Flexible(child: IssueBadge(spec: s)),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 2),
                           Text(
