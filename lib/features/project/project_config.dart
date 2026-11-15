@@ -283,6 +283,51 @@ class GitConfig {
   int get hashCode => markAgentCommits.hashCode;
 }
 
+/// `issues:` of the config (SPEC-074): what the app does with the GitHub
+/// issues of the specs. Versioned with the repository: it is the project's
+/// decision, the same for everyone (P1).
+@immutable
+class IssuesConfig {
+  const IssuesConfig({
+    this.closesInPr = true,
+    this.commentProgress = false,
+    this.checkClosed = true,
+  });
+
+  /// `closes-no-pr`: the PR of a linked spec carries `Closes #N` (R8); off,
+  /// only `Issue: #N`.
+  final bool closesInPr;
+
+  /// `comentar-andamento`: one progress comment per spec on its issue
+  /// (R10). Off by default: the comment is public.
+  final bool commentProgress;
+
+  /// `conferir-fechadas`: the state of the linked issues is checked (R9).
+  final bool checkClosed;
+
+  bool get isDefault => this == const IssuesConfig();
+
+  IssuesConfig copyWith({
+    bool? closesInPr,
+    bool? commentProgress,
+    bool? checkClosed,
+  }) => IssuesConfig(
+    closesInPr: closesInPr ?? this.closesInPr,
+    commentProgress: commentProgress ?? this.commentProgress,
+    checkClosed: checkClosed ?? this.checkClosed,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is IssuesConfig &&
+      other.closesInPr == closesInPr &&
+      other.commentProgress == commentProgress &&
+      other.checkClosed == checkClosed;
+
+  @override
+  int get hashCode => Object.hash(closesInPr, commentProgress, checkClosed);
+}
+
 /// `vibe:` of the config (SPEC-069): the folder of the VIBEs and the size
 /// past which a VIBE stops and asks (`teto`, R6, R8).
 @immutable
@@ -351,6 +396,7 @@ class ProjectConfig {
     this.releases = const ReleasesConfig(),
     this.git = const GitConfig(),
     this.vibe = const VibeConfig(),
+    this.issues = const IssuesConfig(),
     this.mergeMethod = 'merge',
     this.host,
     this.hostType,
@@ -401,6 +447,9 @@ class ProjectConfig {
   /// `vibe:` (SPEC-069).
   final VibeConfig vibe;
 
+  /// `issues:` (SPEC-074).
+  final IssuesConfig issues;
+
   /// Folder of the VIBE files (SPEC-069 R3), relative to the workspace.
   String get vibeDir => vibe.dir;
   final String mergeMethod;
@@ -445,6 +494,7 @@ class ProjectConfig {
     ReleasesConfig? releases,
     GitConfig? git,
     VibeConfig? vibe,
+    IssuesConfig? issues,
     String? mergeMethod,
     String? host,
     String? hostType,
@@ -469,6 +519,7 @@ class ProjectConfig {
     releases: releases ?? this.releases,
     git: git ?? this.git,
     vibe: vibe ?? this.vibe,
+    issues: issues ?? this.issues,
     mergeMethod: mergeMethod ?? this.mergeMethod,
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
@@ -571,7 +622,15 @@ class ProjectConfig {
         ? (vb['teto'] as Map).cast<Object?, Object?>()
         : const <Object?, Object?>{};
     final vibeDir = str(vb['pasta']);
+    final iss = map('issues');
+    const di = IssuesConfig();
     return ProjectConfig(
+      issues: IssuesConfig(
+        closesInPr: boolean(iss['closes-no-pr']) ?? di.closesInPr,
+        commentProgress:
+            boolean(iss['comentar-andamento']) ?? di.commentProgress,
+        checkClosed: boolean(iss['conferir-fechadas']) ?? di.checkClosed,
+      ),
       vibe: VibeConfig(
         dir: vibeDir != null && validateSpecsDir(vibeDir) == null
             ? vibeDir
@@ -752,6 +811,13 @@ class ProjectConfig {
     }
     if (autoResolveConflicts) {
       b.writeln('review:\n  resolver-conflitos: automatico');
+    }
+    if (!issues.isDefault) {
+      b
+        ..writeln('issues:')
+        ..writeln('  closes-no-pr: ${issues.closesInPr}')
+        ..writeln('  comentar-andamento: ${issues.commentProgress}')
+        ..writeln('  conferir-fechadas: ${issues.checkClosed}');
     }
     if (!vibe.isDefault) {
       b.writeln('vibe:');

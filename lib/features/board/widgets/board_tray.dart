@@ -8,6 +8,8 @@ import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../issues/issue_actions.dart' show IssueMenuButton;
+import '../../issues/issue_availability.dart';
+import '../../issues/widgets/create_issue_dialog.dart';
 import '../../issues/widgets/issue_badge.dart';
 import '../../issues/widgets/issue_import_dialog.dart';
 import '../../sessions/widgets/session_style.dart';
@@ -254,6 +256,14 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
     ];
     final n = chosen.length;
 
+    // SPEC-074 R11: "Criar issue" only with GitHub available (R2).
+    final ws = ref.watch(activeWorkspaceProvider);
+    final github =
+        ws != null &&
+        ws.id == widget.workspaceId &&
+        (ref.watch(issueAvailabilityProvider(ws.path)).value?.available ??
+            false);
+
     Widget card(Spec s) {
       final approved = s.status == SpecStatus.approved;
       final checked = _checked.contains(s.id);
@@ -337,10 +347,25 @@ class _BoardTrayState extends ConsumerState<BoardTray> {
                                 const SizedBox(width: 6),
                                 Flexible(child: IssueBadge(spec: s)),
                               ],
-                              // R6, R7: refine, update and unlink.
+                              // R6, R7: refine, update and unlink; R11:
+                              // "Criar issue" for a spec without one.
                               if (s.issueNumber != null) ...[
                                 const Spacer(),
                                 IssueMenuButton(spec: s),
+                              ] else if (github) ...[
+                                const Spacer(),
+                                IssueMenuButton(
+                                  spec: s,
+                                  extra: [
+                                    (
+                                      'create',
+                                      'Criar issue',
+                                      () => unawaited(
+                                        showCreateIssueDialog(context, ref, s),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ],
                           ),
