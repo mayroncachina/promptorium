@@ -165,26 +165,34 @@ t2, t3 e t4 dependem de t1 e não dependem entre si.
 
 ## Critérios de aceite
 
-- [ ] Uma spec com `issue: N` mostra o selo `#N` na Bandeja, no Quadro e na tela Specs; um valor inválido vira aviso [R1] verificar: flutter test test/features/specs
-- [ ] Sem remote, com GitLab, sem `gh` ou sem login, os botões ficam desligados com o motivo, e o resto do app segue igual [R2] verificar: flutter test test/features/review/review_host_test.dart
-- [ ] Os comandos de issue do `GhCli` montam os argumentos certos, paginam e deixam os PRs de fora [R3] verificar: flutter test test/core/git/gh_cli_test.dart
-- [ ] Importar 3 issues cria 3 rascunhos com `issue: N` na Bandeja, no grupo "Das issues do GitHub", e uma issue já importada fica travada [R3, R4, R5] verificar: flutter test test/features/board/board_tray_test.dart
-- [ ] O texto da issue vira o Objetivo, sem comentários HTML, com títulos rebaixados e cortado em 40.000 caracteres [R5] verificar: flutter test test/features/specs
-- [ ] "Refinar requisitos com o Claude" reescreve a mesma spec, sem criar outra [R6] verificar: flutter test test/features/specs/new_spec_flow_test.dart
-- [ ] "Atualizar com a issue" troca o Objetivo só num rascunho e só ao confirmar; "Desligar da issue" tira o `issue:` [R7] verificar: flutter test test/features/specs
-- [ ] O PR de uma spec ligada leva `Closes #N` com base na branch padrão e `Parte de #N` com outra base [R8] verificar: flutter test test/features/review/review_service_test.dart
-- [ ] Uma issue fechada no GitHub muda o selo para "#N fechada" e não move a spec [R9] verificar: flutter test test/features/board
-- [ ] Com o opt-in, notas seguidas editam um comentário só na issue; desligado, nada vai para o GitHub [R10] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
-- [ ] "Criar issue" grava `issue: N` só depois de a issue existir [R11] verificar: flutter test test/features/specs
-- [ ] A lista do diálogo funciona só com o teclado e os estados aparecem em texto [R12] verificar: flutter test test/features/board/board_tray_test.dart
+- [x] Uma spec com `issue: N` mostra o selo `#N` na Bandeja, no Quadro e na tela Specs; um valor inválido vira aviso [R1] verificar: flutter test test/features/specs
+- [x] Sem remote, com GitLab, sem `gh` ou sem login, os botões ficam desligados com o motivo, e o resto do app segue igual [R2] verificar: flutter test test/features/review/review_host_test.dart
+- [x] Os comandos de issue do `GhCli` montam os argumentos certos, paginam e deixam os PRs de fora [R3] verificar: flutter test test/core/git/gh_cli_test.dart
+- [x] Importar 3 issues cria 3 rascunhos com `issue: N` na Bandeja, no grupo "Das issues do GitHub", e uma issue já importada fica travada [R3, R4, R5] verificar: flutter test test/features/board/board_tray_test.dart
+- [x] O texto da issue vira o Objetivo, sem comentários HTML, com títulos rebaixados e cortado em 40.000 caracteres [R5] verificar: flutter test test/features/specs
+- [x] "Refinar requisitos com o Claude" reescreve a mesma spec, sem criar outra [R6] verificar: flutter test test/features/specs/new_spec_flow_test.dart
+- [x] "Atualizar com a issue" troca o Objetivo só num rascunho e só ao confirmar; "Desligar da issue" tira o `issue:` [R7] verificar: flutter test test/features/specs
+- [x] O PR de uma spec ligada leva `Closes #N` com base na branch padrão e `Parte de #N` com outra base [R8] verificar: flutter test test/features/review/review_service_test.dart
+- [x] Uma issue fechada no GitHub muda o selo para "#N fechada" e não move a spec [R9] verificar: flutter test test/features/board
+- [x] Com o opt-in, notas seguidas editam um comentário só na issue; desligado, nada vai para o GitHub [R10] verificar: flutter test test/core/mcp/app_mcp_tools_test.dart
+- [x] "Criar issue" grava `issue: N` só depois de a issue existir [R11] verificar: flutter test test/features/specs
+- [x] A lista do diálogo funciona só com o teclado e os estados aparecem em texto [R12] verificar: flutter test test/features/board/board_tray_test.dart
 - [ ] Importar, criar o PR e mergear num repositório de teste fecha a issue e muda o selo [R3, R8, R9] verificar: manual (repositório de teste no GitHub, app isolado com `XDG_DATA_HOME`)
-- [ ] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde fica o opt-in do comentário.** No `config.yml` (`issues.comentar-andamento`, vale para todos que usam o repositório no app) ou numa preferência local do app, por workspace. **Recomendação:** `config.yml`. O comentário é público na issue; a decisão de publicar é do projeto, fica versionada e não muda de pessoa para pessoa.
-- P2 · **Um comentário por spec, editado, ou um por nota.** Um por nota avisa quem acompanha a issue a cada passo, mas enche a issue. **Recomendação:** um por spec, editado (R10). Quem quer acompanhar de perto já tem o PR.
-- P3 · **O que fazer quando a issue fecha.** Só o selo (R9) ou também oferecer "Marcar a spec como concluída" / "Descartar o rascunho". **Recomendação:** só o selo nesta spec, como pedido. Se o uso mostrar que falta, uma ação manual no menu do selo entra depois.
-- P4 · **`Parte de #N` no PR empilhado.** Escrever `Parte de #N` quando a base não é a branch padrão, ou escrever `Closes #N` sempre. **Recomendação:** `Parte de #N` (R8). O `Closes` num PR para outra branch não fecha nada no GitHub e engana quem lê.
-- P5 · **Onde fica o botão "Importar issues".** Só no cabeçalho da Bandeja ou também no menu do "Nova spec" e na paleta de comandos (Ctrl K). **Recomendação:** Bandeja e paleta. O menu do "Nova spec" já tem "Fazer como tarefa" (SPEC-069) e ficaria cheio.
-- P6 · **Texto da issue criada pelo app.** Só o Objetivo e o caminho da spec, ou também os requisitos como checklist. **Recomendação:** com a checklist (R11). Quem lê a issue vê o escopo sem abrir o repositório; os itens não são marcados pelo app (fora do escopo).
+Decididas na aprovação da spec, todas pela recomendação:
+
+- P1 · **Onde fica o opt-in do comentário.** **Decidido:** no `config.yml` (`issues.comentar-andamento`). O comentário é público na issue; a decisão de publicar é do projeto, fica versionada e não muda de pessoa para pessoa.
+- P2 · **Um comentário por spec, editado, ou um por nota.** **Decidido:** um por spec, editado a cada nota (R10). Quem quer acompanhar de perto já tem o PR.
+- P3 · **O que fazer quando a issue fecha.** **Decidido:** só o selo muda (R9). Se o uso mostrar que falta, uma ação manual no menu do selo entra depois.
+- P4 · **`Parte de #N` no PR empilhado.** **Decidido:** `Parte de #N` quando a base não é a branch padrão (R8). O `Closes` num PR para outra branch não fecha nada no GitHub e engana quem lê.
+- P5 · **Onde fica o botão "Importar issues".** **Decidido:** na Bandeja e na paleta de comandos (Ctrl K). O menu do "Nova spec" já tem "Fazer como tarefa" (SPEC-069) e ficaria cheio.
+- P6 · **Texto da issue criada pelo app.** **Decidido:** o Objetivo, os requisitos como checklist e o caminho da spec (R11). Quem lê a issue vê o escopo sem abrir o repositório; os itens não são marcados pelo app (fora do escopo).
+
+Na implementação:
+
+- Os títulos da issue descem dois níveis (`#` vira `###`, `##` vira `####`), e não um: assim ficam dentro do `## Objetivo` e mantêm a hierarquia entre eles (R5).
+- O `IssuesConfig` entrou na t3, porque o `Closes #N` e o estado das issues já usam as chaves dele; a t4 ficou com a seção na configuração e o comentário.
+- A migração das colunas novas é a v28, provisória: a SPEC-073, feita em paralelo, também pode criar a v28. Quem integrar por último renumera.
