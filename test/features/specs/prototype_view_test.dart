@@ -264,7 +264,12 @@ void main() {
       find.byKey(const ValueKey('proto-thumb-R1-lista.html')),
       findsOneWidget,
     );
-    expect(runner.calls.first, contains('--window-size=1440,900'));
+    // The first call of the browser (the screen also asks git for the
+    // remote, SPEC-074 R2).
+    expect(
+      runner.calls.firstWhere((c) => c.first != 'git'),
+      contains('--window-size=1440,900'),
+    );
     expect(
       find.byKey(const ValueKey('proto-open-R1-lista.html')),
       findsNothing,
