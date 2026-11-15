@@ -12,6 +12,7 @@ import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
 import 'project_plan.dart';
+import 'project_templates.dart' show templateClaudeMd;
 
 /// The planner of the Projeto screen: short, read-only `claude -p` runs with
 /// `--json-schema` (like "Gerar tarefas"). The Visão conversation keeps one
@@ -146,10 +147,22 @@ String stackPrompt(
   VisionPlan vision, {
   List<StackDecision> fixed = const [],
   String? request,
+  String? baseClaudeMd,
 }) {
   final b = StringBuffer()
     ..writeln('Visão do projeto (JSON):')
     ..writeln(_json(vision.toJson()));
+  final base = baseClaudeMd?.trim();
+  if (base != null && base.isNotEmpty) {
+    // The template's minimal CLAUDE.md (R23): the plan's one replaces it.
+    b
+      ..writeln()
+      ..writeln(
+        'CLAUDE.md mínimo do modelo de partida (use como base e amplie; o '
+        'seu claudeMd vai substituí-lo):',
+      )
+      ..writeln(base);
+  }
   if (fixed.isNotEmpty) {
     b
       ..writeln()
@@ -453,7 +466,12 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       final r = await _run(
         ws,
         _options(stackSystemPrompt, stackSchema),
-        stackPrompt(data.vision, fixed: fixed, request: request),
+        stackPrompt(
+          data.vision,
+          fixed: fixed,
+          request: request,
+          baseClaudeMd: templateClaudeMd(ws.path),
+        ),
       );
       final stack = parseStackResult(r, fixed: fixed);
       final (_, latest) = await _load(ws);

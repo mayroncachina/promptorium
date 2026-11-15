@@ -210,6 +210,9 @@ class ProjectService {
   /// Whether the workspace already has a `CLAUDE.md`.
   bool hasClaudeMd(Workspace ws) => File('${ws.path}/CLAUDE.md').existsSync();
 
+  /// Whether that `CLAUDE.md` is still the template's minimal one (R23).
+  bool hasTemplateClaudeMd(Workspace ws) => templateClaudeMd(ws.path) != null;
+
   /// Writes the CLAUDE.md (when [writeClaudeMd]) and one approved spec file
   /// per roadmap spec (`depende-de` translated to `SPEC-NNN`) and, when
   /// [commit], commits those files on the current branch. The specs show up

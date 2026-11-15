@@ -16,6 +16,7 @@ import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
+import 'package:promptorium/features/project/project_templates.dart';
 import 'package:promptorium/features/board/widgets/run_spec_dialog.dart';
 import 'package:promptorium/features/project/project_screen.dart';
 import 'package:promptorium/features/project/spec_auto_planner.dart';
@@ -865,6 +866,42 @@ void main() {
       await q.until(() => find.text('Ver quadro').evaluate().isNotEmpty);
       expect(q.queue, isNull);
       expect(q.designer.calls, isEmpty);
+    });
+
+    testWidgets('SPEC-071 R23: the template\'s minimal CLAUDE.md starts '
+        'with "Gravar CLAUDE.md" on; the user\'s own starts off', (
+      tester,
+    ) async {
+      bool writeClaudeMd(QueueScreen q) => tester
+          .widget<CheckboxListTile>(
+            find.descendant(
+              of: q.key('project-write-claudemd'),
+              matching: find.byType(CheckboxListTile),
+            ),
+          )
+          .value!;
+
+      File(
+        '${tmp.path}/CLAUDE.md',
+      ).writeAsStringSync(templateById('flutter').claudeMd!);
+      var q = QueueScreen(tester, tmp);
+      await q.pump();
+      expect(writeClaudeMd(q), isTrue);
+      expect(
+        find.text('Substituir o CLAUDE.md mínimo do modelo'),
+        findsOneWidget,
+      );
+      expect(find.text('M  CLAUDE.md'), findsOneWidget);
+      await unmount(tester, q.c);
+
+      File('${tmp.path}/CLAUDE.md').writeAsStringSync('# Meu projeto\n');
+      q = QueueScreen(tester, tmp);
+      await q.pump();
+      expect(writeClaudeMd(q), isFalse);
+      expect(
+        find.text('Substituir o CLAUDE.md que já existe'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('R8: the progress stays right after leaving the screen and '

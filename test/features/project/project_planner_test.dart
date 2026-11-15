@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:promptorium/core/providers/claude_code_provider.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_planner.dart';
+import 'package:promptorium/features/project/project_templates.dart';
 
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
@@ -227,6 +229,28 @@ void main() {
     ]);
     expect(data.stack.claudeMd, endsWith('- SQLite'));
     expect(data.stack.claudeMdStale, isFalse);
+  });
+
+  test('the template\'s minimal CLAUDE.md goes to the Stack prompt as the '
+      'base; an edited one is not the template\'s (SPEC-071 R23)', () {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-claudemd-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    expect(templateClaudeMd(tmp.path), isNull);
+    final md = templateById('flutter').claudeMd!;
+    File('${tmp.path}/CLAUDE.md').writeAsStringSync(md);
+    expect(templateClaudeMd(tmp.path), md);
+    final prompt = stackPrompt(
+      const VisionPlan(summary: 'Receitas'),
+      baseClaudeMd: templateClaudeMd(tmp.path),
+    );
+    expect(prompt, contains('CLAUDE.md mínimo do modelo de partida'));
+    expect(prompt, contains(md.trim()));
+    expect(
+      stackPrompt(const VisionPlan(summary: 'Receitas')),
+      isNot(contains('CLAUDE.md mínimo')),
+    );
+    File('${tmp.path}/CLAUDE.md').writeAsStringSync('$md\n- Minha regra\n');
+    expect(templateClaudeMd(tmp.path), isNull);
   });
 
   test('proposeAll: vision, stack and roadmap in sequence, landing on '
