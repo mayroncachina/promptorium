@@ -50,6 +50,29 @@ void main() {
     },
   );
 
+  test('init starts on branch main, also on a git without -b (SPEC-071 '
+      'R25)', () async {
+    final dir = folderWithFile('proj');
+    await setup.init(dir.path);
+    expect(await gitIn(dir.path, ['branch', '--show-current']), 'main\n');
+
+    // git < 2.28: `init -b` is an unknown switch.
+    final calls = <List<String>>[];
+    final old = RepoSetup(
+      run: (exe, args) async {
+        calls.add(args);
+        if (args.contains('-b')) {
+          return ProcessResult(0, 129, '', "error: unknown switch `b'\n");
+        }
+        return gitRun(exe, args);
+      },
+    );
+    final legacy = folderWithFile('antigo');
+    await old.init(legacy.path);
+    expect(calls.any((a) => a.contains('symbolic-ref')), isTrue);
+    expect(await gitIn(legacy.path, ['branch', '--show-current']), 'main\n');
+  });
+
   test('init without the files makes an empty first commit', () async {
     final dir = folderWithFile('proj');
     await setup.init(dir.path, commitFiles: false);

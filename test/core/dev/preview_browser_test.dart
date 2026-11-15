@@ -140,6 +140,23 @@ void main() {
     expect(processes.last.kills, isNotEmpty);
   });
 
+  test('a double click while the browser starts reuses the same opening: '
+      'one window, tracked and closed on exit (R18)', () async {
+    final b = make();
+    final both = await Future.wait([
+      b.open(worktree: '/wt/a', url: url),
+      b.open(worktree: '/wt/a', url: url),
+    ]);
+    expect(both, [PreviewOpen.opened, PreviewOpen.opened]);
+    expect(started, hasLength(1));
+    expect(b.isOpen('/wt/a'), isTrue);
+    // A later click still brings the tracked window forward.
+    expect(await b.open(worktree: '/wt/a', url: url), PreviewOpen.reused);
+    expect(started, hasLength(1));
+    await b.closeAll();
+    expect(processes.single.kills, isNotEmpty);
+  });
+
   test('a DevTools target off 127.0.0.1 is never used (R10)', () async {
     targetHost = '0.0.0.0';
     final b = make();

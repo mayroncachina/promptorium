@@ -94,9 +94,9 @@ Por isso a spec não tem mockup novo. A única ação nova na tela é **Enviar e
 - [x] A redação do Codex mantém o JSON válido [R14] verificar: flutter test test/core/codex
 - [x] ACP sem processo órfão e com limite no handshake [R15] verificar: flutter test test/core
 - [x] Uma consulta de uso por vez, encerrada no limite [R16] verificar: flutter test test/core/claude
-- [ ] Servidor parado ao subir, preview aberto duas vezes e MCP parado na partida não deixam processo, janela nem socket [R17–R19] verificar: flutter test test/core
-- [ ] A restauração guarda o WAL [R20] verificar: flutter test test/data
-- [ ] Criar projeto depois de uma falha de git funciona, na branch main, com as specs no Quadro [R21, R22, R25] verificar: flutter test test/features/project
-- [ ] CLAUDE.md do modelo e pasta "sem código" corretos [R23, R24] verificar: flutter test test/features/project
-- [ ] Limpeza do fluxo de criação [R26] verificar: flutter test test/features/project
+- [x] Servidor parado ao subir, preview aberto duas vezes e MCP parado na partida não deixam processo, janela nem socket [R17–R19] verificar: flutter test test/core
+- [x] A restauração guarda o WAL [R20] verificar: flutter test test/data
+- [x] Criar projeto depois de uma falha de git funciona, na branch main, com as specs no Quadro [R21, R22, R25] verificar: flutter test test/features/project
+- [x] CLAUDE.md do modelo e pasta "sem código" corretos [R23, R24] verificar: flutter test test/features/project
+- [x] Limpeza do fluxo de criação [R26] verificar: flutter test test/features/project
 - [ ] O projeto compila e a análise estática passa [R1–R26] verificar: flutter analyze

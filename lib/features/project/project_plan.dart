@@ -567,12 +567,17 @@ class ProjectPlanData {
     this.vision = const VisionPlan(),
     this.stack = const StackPlan(),
     this.roadmap = const Roadmap(),
+    this.created = const {},
   });
 
   final List<PlanMessage> messages;
   final VisionPlan vision;
   final StackPlan stack;
   final Roadmap roadmap;
+
+  /// Specs "Criar projeto" already wrote: roadmap code (`S1`) → spec code
+  /// (`SPEC-001`). A retry after a failure reuses them (SPEC-071 R22).
+  final Map<String, String> created;
 
   /// Steps that can be opened (each needs the previous one).
   bool reachable(ProjectStep s) => switch (s) {
@@ -587,11 +592,13 @@ class ProjectPlanData {
     VisionPlan? vision,
     StackPlan? stack,
     Roadmap? roadmap,
+    Map<String, String>? created,
   }) => ProjectPlanData(
     messages: messages ?? this.messages,
     vision: vision ?? this.vision,
     stack: stack ?? this.stack,
     roadmap: roadmap ?? this.roadmap,
+    created: created ?? this.created,
   );
 
   factory ProjectPlanData.decode(String text) {
@@ -603,6 +610,7 @@ class ProjectPlanData {
     }
     if (j is! Map) return const ProjectPlanData();
     final msgs = j['messages'];
+    final created = j['created'];
     return ProjectPlanData(
       messages: [
         if (msgs is List)
@@ -612,6 +620,11 @@ class ProjectPlanData {
       vision: VisionPlan.fromJson(j['vision']),
       stack: StackPlan.fromJson(j['stack']),
       roadmap: Roadmap.fromJson(j['roadmap']),
+      created: {
+        if (created is Map)
+          for (final MapEntry(:key, :value) in created.entries)
+            if (key is String && value is String) key: value,
+      },
     );
   }
 
@@ -620,6 +633,7 @@ class ProjectPlanData {
     'vision': vision.toJson(),
     'stack': stack.toJson(),
     'roadmap': roadmap.toJson(),
+    if (created.isNotEmpty) 'created': created,
   });
 }
 
