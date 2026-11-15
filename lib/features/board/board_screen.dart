@@ -1911,7 +1911,7 @@ class SpecCard extends ConsumerWidget {
                           Flexible(
                             child: Listener(
                               onPointerDown: AppPressable.claim,
-                              child: IssueBadge(spec: spec),
+                              child: IssueBadge(spec: spec, compact: true),
                             ),
                           ),
                         ],

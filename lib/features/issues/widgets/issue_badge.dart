@@ -80,11 +80,31 @@ Future<void> openIssue(
 /// The `#N` badge of a spec linked to an issue (R1): on the Bandeja, the
 /// cards of the Quadro, the list and the header of Specs. A click opens
 /// the issue; [onTap] replaces it (the menu of the Bandeja).
+///
+/// [compact] (the card of the Quadro): when the whole text does not fit,
+/// the badge shows `#N` with an icon of the state instead of cutting it
+/// ("#2 fecha…"); the whole text goes to the tooltip and to the screen
+/// reader.
 class IssueBadge extends ConsumerWidget {
-  const IssueBadge({super.key, required this.spec, this.onTap});
+  const IssueBadge({
+    super.key,
+    required this.spec,
+    this.onTap,
+    this.compact = false,
+  });
 
   final Spec spec;
   final VoidCallback? onTap;
+  final bool compact;
+
+  static const _padding = EdgeInsets.symmetric(horizontal: 5, vertical: 1);
+
+  static TextStyle _style(Color color) => TextStyle(
+    fontFamily: AppFonts.mono,
+    fontSize: 10.5,
+    fontWeight: FontWeight.w600,
+    color: color,
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,39 +116,69 @@ class IssueBadge extends ConsumerWidget {
       IssueState.notFound => AppColors.red,
       _ => CanvasColors.agent,
     };
+    final style = _style(color);
+    Widget badge(bool short) => Tooltip(
+      message: short ? '${t.text}\n${t.tooltip}' : t.tooltip,
+      child: InkWell(
+        key: ValueKey('issue-badge-${spec.code}'),
+        borderRadius: BorderRadius.circular(5),
+        onTap:
+            onTap ??
+            () => unawaited(openIssue(context, ref, spec.workspaceId, n)),
+        child: Container(
+          padding: _padding,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: color.withValues(alpha: .55)),
+          ),
+          child: short
+              ? Row(
+                  key: ValueKey('issue-badge-short-${spec.code}'),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('#$n', maxLines: 1, softWrap: false, style: style),
+                    for (final icon in [
+                      ?switch (spec.issueState) {
+                        IssueState.closed => Icons.check_circle_outline,
+                        IssueState.notFound => Icons.link_off,
+                        _ => null,
+                      },
+                      if (spec.issueCommentPending) Icons.schedule,
+                    ]) ...[
+                      const SizedBox(width: 3),
+                      Icon(icon, size: 11, color: color),
+                    ],
+                  ],
+                )
+              : Text(
+                  t.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+        ),
+      ),
+    );
     return Semantics(
       button: true,
       label: t.semantics,
       excludeSemantics: true,
-      child: Tooltip(
-        message: t.tooltip,
-        child: InkWell(
-          key: ValueKey('issue-badge-${spec.code}'),
-          borderRadius: BorderRadius.circular(5),
-          onTap:
-              onTap ??
-              () => unawaited(openIssue(context, ref, spec.workspaceId, n)),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: color.withValues(alpha: .55)),
+      child: !compact
+          ? badge(false)
+          : LayoutBuilder(
+              builder: (context, box) {
+                final painter = TextPainter(
+                  text: TextSpan(text: t.text, style: style),
+                  maxLines: 1,
+                  textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                )..layout();
+                final width = painter.width + _padding.horizontal + 2;
+                painter.dispose();
+                return badge(width > box.maxWidth);
+              },
             ),
-            child: Text(
-              t.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: AppFonts.mono,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

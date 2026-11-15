@@ -194,4 +194,83 @@ void main() {
     );
     expect(tip.message, startsWith('Fechada no GitHub em 14/11, pelo PR #205'));
   });
+
+  testWidgets('a card as narrow as in a ~1500 px window, with cost and '
+      'menu: the badge is not cut; "#2" with the state icon, the whole text '
+      'in the tooltip and for the screen reader', (tester) async {
+    await loadAppFonts();
+    final handle = tester.ensureSemantics();
+    final r = await pumpCanvas(
+      tester,
+      const [
+        CanvasSpec(
+          'SPEC-001',
+          title: 'Adicionar subtração à calculadora',
+          stage: SpecStage.done,
+          steps: [StepStatus.done],
+        ),
+      ],
+      view: BoardView.columns,
+      size: const Size(1000, 900),
+    );
+    final (_, db) = r;
+    await db
+        .update(db.sessions)
+        .write(const SessionsCompanion(costUsd: Value(0.11)));
+    await (db.update(db.specs)..where((s) => s.code.equals('SPEC-001'))).write(
+      SpecsCompanion(
+        issueNumber: const Value(2),
+        issueState: const Value(IssueState.closed),
+        issueClosedBy: const Value('PR #5'),
+        issueClosedAt: Value(DateTime(2026, 11, 14, 12)),
+      ),
+    );
+    await pumpFor(tester, 20);
+    // The width of the card in the app's print (8-quadro-issue-fechada).
+    expect(tester.getSize(byKey('board-card-SPEC-001')).width, lessThan(230));
+    expect(find.text(r'$0.11'), findsOneWidget);
+    expect(byKey('issue-badge-short-SPEC-001'), findsOneWidget);
+    expect(find.text('#2'), findsOneWidget);
+    expect(find.textContaining('fecha'), findsNothing);
+    final text = tester.renderObject<RenderParagraph>(find.text('#2'));
+    expect(text.didExceedMaxLines, isFalse);
+    final tip = tester.widget<Tooltip>(
+      find
+          .ancestor(
+            of: byKey('issue-badge-SPEC-001'),
+            matching: find.byType(Tooltip),
+          )
+          .first,
+    );
+    expect(tip.message, startsWith('#2 fechada\nFechada no GitHub em 14/11'));
+    expect(find.bySemanticsLabel(RegExp('Issue 2, fechada')), findsWidgets);
+    expect(tester.takeException(), isNull);
+    handle.dispose();
+  });
+
+  testWidgets('a wide card keeps the whole "#N fechada"', (tester) async {
+    await loadAppFonts();
+    final r = await pumpCanvas(
+      tester,
+      const [
+        CanvasSpec(
+          'SPEC-015',
+          title: 'Login com Google',
+          stage: SpecStage.done,
+        ),
+      ],
+      view: BoardView.columns,
+      size: const Size(1800, 900),
+    );
+    final (_, db) = r;
+    await (db.update(db.specs)..where((s) => s.code.equals('SPEC-015'))).write(
+      const SpecsCompanion(
+        issueNumber: Value(188),
+        issueState: Value(IssueState.closed),
+      ),
+    );
+    await pumpFor(tester, 20);
+    expect(find.text('#188 fechada'), findsOneWidget);
+    expect(byKey('issue-badge-short-SPEC-015'), findsNothing);
+  });
 }
