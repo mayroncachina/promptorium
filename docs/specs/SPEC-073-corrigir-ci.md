@@ -1,6 +1,6 @@
 ---
 id: SPEC-073
-status: em-revisao
+status: aprovada
 issue: 242
 ---
 
