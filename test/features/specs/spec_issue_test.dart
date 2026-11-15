@@ -269,10 +269,17 @@ void main() {
         findsNWidgets(3),
       );
       expect(find.text('#226'), findsNWidgets(3));
-      expect(find.bySemanticsLabel('Issue 226'), findsNWidgets(3));
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == 'Issue 226',
+        ),
+        findsNWidgets(3),
+      );
 
       await pump(tester, BoardTray(workspaceId: 1, specs: [spec(issue: null)]));
       expect(find.byKey(const ValueKey('issue-badge-SPEC-023')), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 }

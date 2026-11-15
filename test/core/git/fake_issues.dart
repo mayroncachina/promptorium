@@ -215,7 +215,8 @@ class FakeIssuesGh {
     final p = int.tryParse(page) ?? 1;
     final from = (p - 1) * 50;
     return {
-      'total_count': all.length,
+      // `is:issue` keeps the PRs out of the count.
+      'total_count': all.where((i) => !i.containsKey('pull_request')).length,
       // The search API of GitHub may still bring a PR: the client drops it.
       'items': all.skip(from).take(50).toList(),
     };
