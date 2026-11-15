@@ -430,6 +430,9 @@ class SessionManager extends Notifier<SessionManagerState> {
       await ref.read(conversationManagerProvider.notifier).send(conv.id, msg);
       return;
     }
+    // SPEC-071 R7: a message is activity from now on, so [closeIdle] does
+    // not close the process while it is on its way.
+    _procs[id]?.lastActivity = DateTime.now();
     final notices = await _takeNotices(id);
     if (notices != null && notices.isNotEmpty) {
       msg = '${notices.join('\n')}\n\n$msg';
@@ -441,6 +444,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       if (p == null) return;
     }
     final proc = p;
+    // Busy before the queue (R7): the turn is this message's.
+    proc.busy = true;
+    proc.busySince = DateTime.now();
+    proc.lastActivity = DateTime.now();
+    _publish();
     await _enqueue(id, proc, () async {
       final json = AppEventTypes.userMessage(msg, DateTime.now());
       final row = await _repo.appendEvent(
@@ -453,10 +461,6 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _syncTask(id, SessionStatus.running);
       await _specs.onActive(id);
     });
-    proc.busy = true;
-    proc.busySince = DateTime.now();
-    proc.lastActivity = DateTime.now();
-    _publish();
     await proc.process.send(msg, images: images);
   }
 
@@ -880,7 +884,9 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// write to a dead process.
   Future<_Proc?> _liveProc(String id) async {
     final p = _procs[id];
-    if (p == null || p.process.isRunning) return p;
+    // A released process is on its way out (SPEC-071 R7): wait for it and
+    // resume, so nothing is written to it.
+    if (p == null || (p.process.isRunning && !p.released)) return p;
     await p.exited.future.timeout(const Duration(seconds: 5), onTimeout: () {});
     if (identical(_procs[id], p)) {
       _procs.remove(id);
@@ -971,21 +977,26 @@ class SessionManager extends Notifier<SessionManagerState> {
     final closed = <String>[];
     for (final e in _procs.entries.toList()) {
       final p = e.value;
-      if (p.busy ||
+      if (!identical(_procs[e.key], p) ||
+          p.busy ||
           p.stopping ||
           p.pending.isNotEmpty ||
           p.subagents.isNotEmpty ||
           at.difference(p.lastActivity) < limit) {
         continue;
       }
+      // SPEC-071 R7: no await between the decision and [release] (which
+      // marks the process released at once): a message sent from here on
+      // waits for the exit and resumes the session instead of being written
+      // to a dying process.
       closed.add(e.key);
       try {
+        await release(e.key);
         await _note(
           e.key,
           'Suspensa após $minutes min sem atividade (Retomar continua de '
           'onde parou)',
         );
-        await release(e.key);
       } catch (err) {
         debugPrint('sessão ${e.key}: não suspensa — $err');
       }
