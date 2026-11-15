@@ -13,7 +13,7 @@ A tela Começar promete "1 s" e "~US$ 0,30". Na prática, criar e planejar leva 
 
 A SPEC-071 (R21–R26) já fez a base: repetir a criação depois de uma falha, conferir a identidade do git antes de criar a pasta, `git init -b main`, specs do roadmap no Backlog, o CLAUDE.md do modelo como base do planner e a limpeza do fluxo. Esta spec fecha o resto das faixas A1, A2, A4 e B4 do relatório de novidades:
 
-- **Checagem do ambiente** na tela Começar: git, Claude Code, GitHub e pasta, cada um com a marca e a correção ao lado. "Criar" fica desabilitado enquanto houver bloqueio.
+- **Checagem do ambiente** na tela Começar: git, Claude Code, a hospedagem e a pasta, cada um com a marca e a correção ao lado. A pessoa escolhe a hospedagem (GitHub, GitLab ou Local). "Criar" fica desabilitado enquanto houver bloqueio.
 - **Branch inicial editável**, gravada como `branch-base:` no config.yml.
 - **Custo e tempo honestos**: chamadas do planner, fila em "N specs × tempo" e, no plano Max, o uso da quota em vez de dólares.
 - **Comandos da stack no config.yml**, editáveis na etapa Stack e mesclados sem sobrescrever. A Saúde e "Analisar repositório" voltam ao stepper.
@@ -24,13 +24,14 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/MjpXpDuiv3RU1z3CL4Z
 | Captura | O que mostra | Requisitos |
 |---|---|---|
 | `1-antes.png` | Hoje: Começar com "1 s · ~US$ 0,30", branch fixa e nenhuma checagem | — |
-| `2-ambiente.png` | O painel Ambiente com o git vermelho, os campos que gravam nome e e-mail e os botões de criar desabilitados, com o motivo | R1, R2, R3, R4, R15 |
-| `3-tudo-verde.png` | Tudo verde, a branch inicial editada, o GitHub conferido e o custo honesto com o uso da quota do plano Max | R1, R5, R6, R7, R8 |
+| `2-ambiente.png` | O painel Ambiente com a hospedagem Local, o git vermelho, os campos que gravam nome e e-mail e os botões de criar desabilitados, com o motivo | R1, R2, R3, R4, R15, R20, R21 |
+| `3-tudo-verde.png` | Tudo verde com a hospedagem GitHub, o remoto sugerido pela conta do gh, a branch inicial editada e o custo honesto com o uso da quota do plano Max | R1, R5, R6, R7, R8, R20, R21 |
 | `4-comandos.png` | A etapa Stack com o bloco Comandos, a chave do config.yml de cada um e o que já existe | R11, R12, R14 |
 | `5-revisar.png` | Revisar e criar com o config.yml mesclado (linhas novas e mantidas) e a seção Custo e tempo | R9, R10, R13 |
 | `6-saude.png` | O stepper com "Saúde do projeto" e a Saúde aberta, com "Analisar repositório" | R14 |
 | `7-outro.png` | O chip "Outro…" abriu o modal "Definir a stack com o Claude": a descrição, a proposta com as decisões, os comandos editáveis, o scaffold e o CLAUDE.md base | R16, R17, R18 |
 | `8-stack-escolhida.png` | De volta ao Começar: o chip "Go · Fiber" selecionado, com o lápis, a linha do que será preenchido e as chamadas do modal no custo | R18, R19 |
+| `9-gitlab.png` | GitLab escolhido: o glab deslogado em âmbar com "Abrir terminal com glab auth login", o host editável e o remoto do GitLab | R20, R21, R22 |
 
 Issue: [#241](https://github.com/mayroncachina/promptorium/issues/241) (sub-issue de #240) · PR: [#244](https://github.com/mayroncachina/promptorium/pull/244)
 
@@ -41,7 +42,7 @@ Checagem do ambiente (A2):
 - R1 · **Painel Ambiente.** Em "Criar projeto novo", a coluna da direita da tela Começar ganha o bloco "Ambiente", acima de "O que acontece". São quatro itens, cada um com uma marca e uma linha do que foi achado:
   - **Git**: instalado e com nome e e-mail, pela mesma regra do `RepoSetup.checkIdentity` (`git var GIT_AUTHOR_IDENT` e `GIT_COMMITTER_IDENT`). Verde mostra "Ana Lima · ana@exemplo.com".
   - **Claude Code**: instalado, compatível e logado, pelo `providerAvailabilityProvider('claude')`. Verde mostra a versão e o plano ("2.1.300 · plano Max").
-  - **GitHub**: `gh auth status`, só quando o remoto é uma URL do `github.com`. Sem remoto, a linha diz "Não se aplica: só local".
+  - **Hospedagem**: a CLI da hospedagem escolhida (R20): `gh auth status` no GitHub, `glab auth status` no GitLab. Na hospedagem Local, o item não aparece.
   - **Pasta**: "Criar dentro de" existe e é gravável, e o destino não existe ou é sobra de uma criação anterior (`isCreationLeftover`).
   - A marca é verde (ok), vermelha (bloqueia) ou âmbar (aviso), sempre com a palavra ao lado.
 - R2 · **Quando confere.** Ao abrir "Criar projeto novo"; ao mudar o nome, a pasta ou o remoto (só os itens Pasta e GitHub, 300 ms depois da última tecla); e em "Verificar de novo".
@@ -52,14 +53,29 @@ Checagem do ambiente (A2):
   - git ausente: "Instale o git (`sudo apt install git`)";
   - Claude ausente: o link da instalação do Claude Code;
   - Claude deslogado: **Abrir terminal com claude auth login** (`WorktreeLauncher.terminal`). Quando a janela do app volta ao foco, o item confere de novo;
-  - gh ausente ou deslogado: "Instale o gh" ou **Abrir terminal com gh auth login**;
+  - CLI da hospedagem ausente ou deslogada: "Instale o gh" (ou o glab) com o link, ou **Abrir terminal com gh auth login** (ou `glab auth login --hostname <host>`);
   - Pasta: o motivo (não existe, sem permissão de escrita, o destino já tem arquivos) e **Procurar…**.
 - R4 · **O que bloqueia.**
   - Git ou Pasta vermelhos desabilitam os dois botões ("Criar e planejar com o planner" e "Criar sem planejar"). Enter no nome também não cria.
   - Claude vermelho desabilita só "Criar e planejar com o planner". "Criar sem planejar" não chama o planner e segue livre.
-  - GitHub é sempre aviso (âmbar): criar só grava o `origin`, e o `gh` só é usado depois, no PR.
+  - A CLI da hospedagem é sempre aviso (âmbar): criar só grava o `origin`, e o `gh` ou o `glab` só são usados depois, no PR ou no MR.
   - Abaixo dos botões, o motivo: "Corrija 1 item do ambiente para criar".
   - O `createProject` continua conferindo a identidade (SPEC-071 R21), como rede de segurança.
+
+Hospedagem:
+
+- R20 · **Seletor de hospedagem.** No topo do painel Ambiente, um seletor segmentado: **GitHub · GitLab · Local**.
+  - GitHub e GitLab conferem a CLI pela `CliReviewHost.availability` do Review (`GithubHost`, `GitlabHost`), que já separa CLI ausente, login, rede e versão incompatível. O item segue a R3 e a R4: é aviso, nunca bloqueio.
+  - No GitLab, o glab logado fica verde com a linha "MR pelo app ainda não disponível (DT-55)". O `unsupported` da `availability` não vira aviso aqui.
+  - Local não confere CLI de hospedagem.
+  - O padrão segue a P11.
+- R21 · **A hospedagem muda o "Repositório remoto".** Sai o par "Só local por enquanto / Conectar a".
+  - GitHub: o campo do remoto vem sugerido como `git@github.com:<conta>/<pasta>.git`, com a conta do `GhAuth.account`. A pessoa pode editar (uma organização, por exemplo).
+  - GitLab: um campo Host (`gitlab.com` por padrão, editável para um GitLab próprio) e o remoto sugerido como `git@<host>:<usuário>/<pasta>.git`, com o usuário do `glab auth status`. O glab confere esse host.
+  - Local: a seção diz "Só local. Sem remoto agora; dá para conectar um depois (git remote add)", e nenhum `origin` é gravado.
+  - Um remoto digitado cujo host não bate com a hospedagem (`remoteHost`) mostra um aviso ao lado: "O remoto é do github.com, mas a hospedagem é GitLab".
+  - A conta ou o usuário não vieram? O campo fica vazio, com o modelo como dica.
+- R22 · **A escolha vai para o config.yml.** GitHub e GitLab gravam `hospedagem: {host, tipo}` (as chaves que o `ProjectConfig` já lê e que o `detectReviewHost` usa para um host próprio), antes do commit inicial. Local não grava `hospedagem:`.
 
 Branch inicial (resto da A1):
 
@@ -166,6 +182,7 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 - `lib/core/git/repo_setup.dart`: `RepoSetup.init`, `_initMain` (`git init -q -b main` e o `symbolic-ref` de reserva), `checkIdentity`, `isCreationLeftover`, `missingGitIdentity`.
 - `lib/core/providers/provider_availability.dart`: `probeProviderAvailability` roda `claude --version`, `--help` e `auth status --json` (que traz `loggedIn` e `subscriptionType`). `providerAvailabilityProvider` guarda o resultado.
 - `lib/core/git/gh_cli.dart`: `GhCli.ghAuthStatus` e `GhAuth` (instalado, logado, conta).
+- `lib/features/review/review_host.dart`: `reviewHostTypes` (`github`, `gitlab`), `remoteHost`, `detectReviewHost` (lê `hospedagem.host` e `hospedagem.tipo` do config.yml para um host próprio) e `CliReviewHost.availability(cwd, hostname)`, que roda `gh` ou `glab auth status --hostname` e devolve `HostProblem` (ausente, login, rede, incompatível, `unsupported` no GitLab por causa do DT-55).
 - `lib/core/system/worktree_launcher.dart`: `WorktreeLauncher.terminal(path, command)` abre o terminal do sistema com um comando.
 - `lib/core/fs/project_paths.dart`: `defaultProjectParent` e `tildePath`.
 - `lib/features/project/project_config.dart`: `ProjectConfig` já lê e grava `branch-base` (`baseBranch`), `testes`, `lint`, `formatar`, `executar` (`runCommand`), `dev` (`DevServerConfig`) e `worktree.preparar`.
@@ -185,7 +202,7 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 ### Componentes
 
 - `EnvironmentCheck` (novo, `lib/features/project/environment_check.dart`): os quatro itens (`EnvItem`: estado, linha, correção), cada um com sua função de checagem e limite de 5 s. Provider por pasta e remoto. Testável com `ProcessRunner` falso.
-- `EnvironmentPanel` (novo, `widgets/environment_panel.dart`): o bloco Ambiente e as correções (campos do git, botões de terminal, "Verificar de novo").
+- `EnvironmentPanel` (novo, `widgets/environment_panel.dart`): o bloco Ambiente, o seletor de hospedagem e as correções (campos do git, botões de terminal, "Verificar de novo"). O item da hospedagem chama a `CliReviewHost.availability` do Review, sem duplicar a sondagem.
 - `RepoSetup`: `init(folder, branch:)`, `setGlobalIdentity(name, email)` e `checkBranchName(name)`.
 - `CostEstimate` (novo, `lib/features/project/cost_estimate.dart`): o texto de "O que acontece" e de "Custo e tempo" a partir do plano (assinatura ou API), do `rateLimitProvider`, das durações gravadas e do `specMetricsProvider`. O widget `UsageBlock` é usado na tela Começar e em Revisar e criar.
 - `StackPlan.commands` (`StackCommands`: `install`, `run`, `dev`, `test`, `lint`, `format`, com os fixados) e `mergeStackCommands(ProjectConfig, StackCommands)`, que segue a regra do `applyDetection`.
@@ -199,7 +216,7 @@ Também fica de fora a checagem do ambiente nos caminhos "Abrir pasta existente"
 
 | Tarefa | Requisitos | Branch |
 |---|---|---|
-| t1 · Ambiente e branch inicial | R1–R6, R15 | `spec/072-t1-ambiente` |
+| t1 · Ambiente, hospedagem e branch inicial | R1–R6, R15, R20–R22 | `spec/072-t1-ambiente` |
 | t2 · Custo e tempo | R7–R10 | `spec/072-t2-custo` |
 | t3 · Comandos e Saúde | R11–R14 | `spec/072-t3-comandos` |
 | t4 · Stack fora dos modelos | R16–R19 | `spec/072-t4-outra-stack` |
@@ -212,6 +229,8 @@ A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Cl
 - [ ] A checagem roda ao abrir, ao mudar pasta ou remoto e em "Verificar de novo", e um item lento fica âmbar sem bloquear [R2] verificar: flutter test test/features/project
 - [ ] "Gravar no git" grava nome e e-mail e o item fica verde; os botões de terminal abrem o comando certo [R3] verificar: flutter test test/features/project
 - [ ] Git ou pasta vermelhos desabilitam os dois botões; Claude vermelho desabilita só "Criar e planejar"; GitHub nunca bloqueia [R4] verificar: flutter test test/features/project
+- [ ] O seletor troca o item da hospedagem e o remoto sugerido; Local esconde o item e não grava `origin`; a CLI deslogada é aviso [R20, R21] verificar: flutter test test/features/project
+- [ ] GitLab com host próprio confere o glab nesse host e grava `hospedagem:` no config.yml; Local não grava [R21, R22] verificar: flutter test test/features/project
 - [ ] Uma branch inválida bloqueia; a branch escolhida vira a branch do repositório e o `branch-base:` do config.yml [R5, R6] verificar: flutter test test/core/git test/features/project
 - [ ] "O que acontece" não tem "1 s" nem "US$ 0,30" e mostra as chamadas e a fila [R7] verificar: flutter test test/features/project
 - [ ] No plano por assinatura aparecem a quota e "N chamadas"; com chave de API, o teto em dólares [R8] verificar: flutter test test/features/project
@@ -228,13 +247,13 @@ A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Cl
 - [ ] As marcas têm texto e os botões desabilitados dizem o motivo ao leitor de tela [R15] verificar: flutter test test/features/project
 - [ ] Criar um projeto de verdade num ambiente sem nome no git: o Ambiente aponta, "Gravar no git" resolve e o projeto nasce na branch escolhida, com os comandos no config.yml [R1–R6, R13] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
 - [ ] Criar um projeto de verdade com "Outro…" ("API em Go com Fiber e Postgres"): o config.yml e o CLAUDE.md saem da stack escolhida, e a etapa Stack parte dela [R16–R18] verificar: manual (app compilado, `XDG_DATA_HOME` e `HOME` isolados)
-- [ ] O projeto compila e a análise estática passa [R1–R19] verificar: flutter analyze
+- [ ] O projeto compila e a análise estática passa [R1–R22] verificar: flutter analyze
 
 ## Decisões em aberto
 
 - P1 · **De onde vem a estimativa da fila.** O `spec_metrics` mede a execução das specs (sessões das etapas) por workspace, e um projeto novo não tem nenhuma. A proposta (R9) grava a duração de cada rodada de refino, de qualquer projeto, e usa o `spec_metrics` só para a execução, quando o workspace tem histórico. Alternativa: usar só o `spec_metrics`, o que deixa a estimativa sempre em "1–3 min" num projeto novo. Recomendação: a proposta.
 - P2 · **Claude deslogado bloqueia só "Criar e planejar".** "Criar sem planejar" não chama o modelo. Alternativa: bloquear os dois, para ninguém sair da tela sem o Claude pronto. Recomendação: bloquear só "Criar e planejar".
-- P3 · **GitHub é aviso, não bloqueio.** Hoje criar só grava o `origin`; o `gh` serve depois, nos PRs. Recomendação: aviso agora, bloqueio quando a B6 trouxer "Criar no GitHub".
+- P3 · **A CLI da hospedagem é aviso, não bloqueio** (o `gh` no GitHub, o `glab` no GitLab). Hoje criar só grava o `origin`; a CLI serve depois, nos PRs e MRs. Recomendação: aviso agora, bloqueio quando a B6 trouxer "Criar no GitHub".
 - P4 · **"Gravar no git" grava no `--global`.** É o que o relatório pede e o que serve para todos os projetos. Alternativa: um "Só neste projeto", gravado no repositório depois do `git init`. Recomendação: só o `--global`, com os comandos escritos embaixo.
 - P5 · **`branch-base:` sempre gravado**, mesmo com `main` e no modelo Vazio, que hoje não grava config.yml. Deixa a escolha explícita para o time. Alternativa: gravar só quando for outra branch. Recomendação: sempre.
 - P6 · **Como saber o plano.** O `subscriptionType` do `claude auth status --json`. Um CLI antigo sem esse campo cai no texto da API (teto em dólares). Recomendação: assim, sem perguntar à pessoa.
@@ -242,3 +261,4 @@ A t3 também atualiza `docs/guia/projeto.md`. A t4 depende da t1 (o estado do Cl
 - P8 · **Saúde como link do stepper, não como passo.** Ela não faz parte do planejamento, e o link segue o padrão de Configuração, Memória e Métricas. Recomendação: link.
 - P9 · **A stack de "Outro…" não sobrevive a fechar a tela Começar.** Ela vive na tela até criar; ao criar, vai para o config.yml, o CLAUDE.md e o plano. Alternativa: guardar as últimas stacks em `app_settings`, como chips extras para o próximo projeto, que é o que o recurso 05 do relatório (kits de projeto) faria melhor. Recomendação: não guardar agora.
 - P10 · **O app não roda o scaffold.** O comando vai para o CLAUDE.md e para a primeira spec da Fundação, e quem roda é o agente, com gate e Review. Alternativa: rodar na criação, o que é a B3 e exige conferir cada comando. Recomendação: não rodar agora.
+- P11 · **Hospedagem padrão.** Na primeira vez: GitHub se o `gh` estiver logado, senão Local. O GitLab só quando a pessoa escolher, porque a integração de MR ainda falta (DT-55). Depois, o app lembra a última escolha (`app_settings`). Alternativa: começar sempre em Local. Recomendação: a proposta.

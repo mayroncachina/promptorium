@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>GitLab escolhido</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:34px;padding:0 14px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(34,39,50,.6);color:#E7E9EE;font:500 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.sm{height:28px;font-size:12px;padding:0 10px;border-radius:8px}
+.cta.off,.btn.off{opacity:.42}
+.link{background:none;border:0;padding:0;color:#F2A541;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:5px}
+.it{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1)}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#8B93A3;text-transform:uppercase}
+.lbl{display:block;font-size:12px;color:#A0A8B6;margin-bottom:6px}
+.in{height:34px;width:100%;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(10,12,16,.55);color:#E7E9EE;font:400 12px 'JetBrains Mono',monospace;padding:0 10px}
+.in.sm{height:30px;font-size:11.5px}
+.in.foc{border-color:#F2A541;box-shadow:0 0 0 2px rgba(242,165,65,.25)}
+.chip{height:30px;padding:0 12px;border-radius:15px;border:1px solid rgba(255,255,255,.14);color:#A0A8B6;font:400 12px 'IBM Plex Sans';display:inline-flex;align-items:center;background:transparent}
+.chip.on{border-color:#F2A541;color:#F2A541;background:rgba(242,165,65,.1)}
+.card{flex:1;min-width:0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.card.on{border-color:rgba(242,165,65,.75);background:rgba(242,165,65,.08)}
+.card b{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card span{font-size:12px;color:#A0A8B6;line-height:1.4}
+.radio{width:16px;height:16px;border-radius:8px;border:1.5px solid #7C8595;display:inline-block;flex:none}
+.radio.on{border-color:#F2A541;box-shadow:inset 0 0 0 3px #12151B;background:#F2A541}
+.chk{list-style:none;border-radius:10px;padding:9px 10px;display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(255,255,255,.07);background:rgba(10,12,16,.35)}
+.chk.bad{border-color:rgba(242,107,107,.55);background:rgba(242,107,107,.07)}
+.chk.warn{border-color:rgba(242,165,65,.45)}
+.mk{width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.mk.ok{background:rgba(79,209,181,.16);border:1px solid rgba(79,209,181,.6)}
+.mk.bad{background:rgba(242,107,107,.16);border:1px solid rgba(242,107,107,.7)}
+.mk.warn{background:rgba(242,165,65,.16);border:1px solid rgba(242,165,65,.6)}
+.mk.na{border:1px solid rgba(255,255,255,.2)}
+.chk .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chk .t b{font-size:12.5px;font-weight:600}
+.chk .t small{font-size:11.5px;color:#A0A8B6;line-height:1.35}
+.st{font:600 10.5px 'IBM Plex Sans';letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;flex:none;margin-top:1px}
+.st.ok{color:#4FD1B5;background:rgba(79,209,181,.1)}
+.st.bad{color:#FF8A8A;background:rgba(242,107,107,.12)}
+.st.warn{color:#F2A541;background:rgba(242,165,65,.12)}
+.st.na{color:#8B93A3;background:rgba(255,255,255,.05)}
+.step{font-size:12px;color:#A0A8B6;line-height:1.4;display:flex;gap:6px}
+.step i{font-style:normal;color:#7C8595;font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:1px}
+.step em{font-style:normal;color:#E7E9EE}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:5}
+.note.warn{background:#F2A541}
+a{color:#F2A541}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">promptorium</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <button class="cta" style="height:30px"><span>Novo projeto</span></button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+ <div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h5l2 2h7v8H3z"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div>
+ <div style="flex:1"></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2"/></svg></div>
+</nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#8B93A3"><span class="mono" style="color:#4FD1B5">● claude 2.1.300</span><span>5 h: 34% · semana: 12%</span><span style="flex:1"></span><span class="mono">0.18.0</span></footer>
+
+<main style="position:absolute;left:72px;right:8px;top:60px;bottom:44px;padding:16px 32px">
+<div style="width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
+ <div style="display:flex;align-items:center"><div style="flex:1"><div style="font-size:22px;font-weight:600;line-height:28px">Começar</div><div style="font-size:12.5px;color:#A0A8B6;margin-top:2px">Escolha de onde vem o código. Planejar com o planner é opcional e pode ser feito depois, na tela Projeto.</div></div><button class="btn sm">Voltar</button></div>
+ <div style="display:flex;gap:12px">
+  <div class="card g"><b><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#6EA8FE" stroke-width="1.6" stroke-linejoin="round"><path d="M3 6h5l2 2h7v8H3z"/></svg>Abrir pasta existente</b><span>Repositório que já tem código.</span></div>
+  <div class="card g on"><b><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>Criar projeto novo</b><span>Pasta nova com git init. Depois, o planner propõe visão, stack e roadmap.</span></div>
+  <div class="card g"><b><svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#B9A4F5" stroke-width="1.6" stroke-linecap="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg>Clonar de uma URL</b><span>git clone e segue como pasta existente.</span></div>
+ </div>
+ <section class="g" style="border-radius:12px;padding:18px;display:flex;gap:22px">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+   <div style="display:flex;gap:12px">
+    <div style="flex:1"><label class="lbl" for="n">Nome da pasta</label><input id="n" class="in" value="loja-da-ana"></div>
+    <div style="flex:1"><label class="lbl" for="p">Criar dentro de</label><div style="display:flex;gap:8px"><input id="p" class="in" value="~/workspace"><button class="btn">Procurar…</button></div></div>
+   </div>
+   <div class="mono" style="font-size:11px;color:#A0A8B6;margin-top:6px">Será criada: ~/workspace/loja-da-ana · branch main · commit inicial</div>
+   <div style="display:flex;gap:12px;margin-top:12px;align-items:flex-end">
+    <div style="width:220px"><label class="lbl" for="b">Branch inicial</label><input id="b" class="in" value="main"></div>
+    <div style="font-size:11.5px;color:#8B93A3;padding-bottom:9px">Gravada como <span class="mono" style="color:#C9CED8">branch-base:</span> no .promptorium/config.yml</div>
+   </div>
+   <span class="lbl" style="margin-top:12px">Ponto de partida</span>
+   <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="chip">Vazio</span><span class="chip on">Flutter app</span><span class="chip">Next.js</span><span class="chip">API Python</span><span class="chip">CLI Dart</span></div>
+   <div style="font-size:11px;color:#8B93A3;margin-top:4px">O modelo preenche Flutter · Riverpod · testes: flutter test; o planner só ajusta.</div>
+   <span class="lbl" style="margin-top:12px">Repositório remoto · GitLab</span>
+   <div style="display:flex;gap:8px"><input class="in" style="width:150px;flex:none" value="gitlab.com" aria-label="Host do GitLab"><input class="in foc" style="flex:1" value="git@gitlab.com:ana-lima/loja-da-ana.git" aria-label="URL do remoto"></div><div style="font-size:11px;color:#8B93A3;margin-top:4px">GitLab próprio: troque o host. O glab confere esse host, e ele vai para hospedagem: no config.yml.</div>
+   <div style="height:1px;background:rgba(255,255,255,.08);margin:14px 0 12px"></div>
+   <div style="display:flex;align-items:center;gap:8px">
+    <button class="cta">Criar e planejar com o planner</button>
+    <button class="btn">Criar sem planejar</button>
+    <span style="font-size:11px;color:#8B93A3">Nada é enviado ao planner até você escrever a ideia.</span>
+   </div>
+  </div>
+  <div style="width:372px;flex:none;display:flex;flex-direction:column;gap:6px">
+   <div style="display:flex;align-items:center;margin-bottom:2px"><span class="cap" style="flex:1">Ambiente</span><button class="link"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><path d="M16 10a6 6 0 1 1-2-4.5M16 3v4h-4"/></svg>Verificar de novo</button></div>
+   <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px"><span style="font-size:12px;color:#A0A8B6">Hospedagem</span><div role="radiogroup" aria-label="Hospedagem" style="flex:1;display:flex;padding:3px;gap:2px;border-radius:9px;background:rgba(10,12,16,.45);border:1px solid rgba(255,255,255,.09)"><button role="radio" aria-checked="false" style="flex:1;height:26px;border:0;border-radius:6px;font:500 12px IBM Plex Sans;background:transparent;color:#A0A8B6">GitHub</button><button role="radio" aria-checked="true" style="flex:1;height:26px;border:0;border-radius:6px;font:500 12px IBM Plex Sans;background:rgba(242,165,65,.14);box-shadow:inset 0 0 0 1px rgba(242,165,65,.5);color:#F2A541;font-weight:600">GitLab</button><button role="radio" aria-checked="false" style="flex:1;height:26px;border:0;border-radius:6px;font:500 12px IBM Plex Sans;background:transparent;color:#A0A8B6">Local</button></div></div>
+   <ul style="margin:0;padding:0;display:flex;flex-direction:column;gap:5px" aria-live="polite">
+    <li class="chk" style="padding:7px 10px;align-items:center"><span class="mk ok" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4FD1B5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2 4-4.4"/></svg></span><div class="t" style="flex-direction:row;gap:8px;align-items:baseline"><b style="flex:none">Git</b><small style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ana Lima · ana@exemplo.com</small></div><span class="st ok" style="margin-top:0">ok</span></li>
+    <li class="chk" style="padding:7px 10px;align-items:center"><span class="mk ok" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4FD1B5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2 4-4.4"/></svg></span><div class="t" style="flex-direction:row;gap:8px;align-items:baseline"><b style="flex:none">Claude Code</b><small style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">2.1.300 · logado · plano Max</small></div><span class="st ok" style="margin-top:0">ok</span></li>
+    <li class="chk warn" style="padding:8px 10px"><span class="mk warn" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round"><path d="M5 2v3.6M5 7.6v.1"/></svg></span><div class="t"><b>GitLab (glab)</b><small>O glab não está logado em gitlab.com.</small><div style="display:flex;gap:8px;margin-top:4px;align-items:center"><button class="btn sm" style="height:26px">Abrir terminal com glab auth login</button></div><small style="margin-top:3px">MR pelo app ainda não disponível (DT-55).</small></div><span class="st warn">aviso</span></li>
+    <li class="chk" style="padding:7px 10px;align-items:center"><span class="mk ok" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#4FD1B5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2 4-4.4"/></svg></span><div class="t" style="flex-direction:row;gap:8px;align-items:baseline"><b style="flex:none">Pasta</b><small style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">~/workspace é gravável</small></div><span class="st ok" style="margin-top:0">ok</span></li>
+   </ul>
+   <span class="cap" style="margin-top:8px">O que acontece</span>
+   <div class="step"><i>1</i><span>Pasta, git init e commit inicial · <em>segundos</em></span></div>
+   <div class="step"><i>2</i><span>Proposta opcional do planner: <em>3 chamadas</em> (visão, stack, roadmap)</span></div>
+   <div class="step"><i>3</i><span>Fila de refino: <em>1 rodada por spec · ~2 min</em> (mediana de 14 rodadas)</span></div>
+   <div style="display:flex;align-items:center;margin-top:8px"><span class="cap" style="flex:1">Uso · plano Max</span></div>
+   <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:82px;color:#A0A8B6">Janela de 5 h</span><span role="meter" aria-label="Janela de 5 h: 34% usada" style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden"><span style="display:block;height:6px;width:34%;background:#4FD1B5;border-radius:3px"></span></span><span class="mono" style="width:34px;text-align:right;font-size:11.5px">34%</span><span style="width:104px;font-size:11px;color:#8B93A3">renova às 18:40</span></div>
+   <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:82px;color:#A0A8B6">Semana</span><span role="meter" aria-label="Semana: 12% usada" style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden"><span style="display:block;height:6px;width:12%;background:#4FD1B5;border-radius:3px"></span></span><span class="mono" style="width:34px;text-align:right;font-size:11.5px">12%</span><span style="width:104px;font-size:11px;color:#8B93A3">renova sex. 09:00</span></div>
+  </div>
+ </section>
+</div>
+</main>
+<div class="note" style="left:257px;top:640px">R21 · GitLab: host editável (self-hosted) e remoto sugerido</div>
+<div class="note warn" style="left:257px;top:670px">R20 · glab deslogado é aviso, não bloqueia: "Criar" segue livre</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
