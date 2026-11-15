@@ -243,6 +243,13 @@ class AppMcpServer extends ChangeNotifier {
 
   /// Closes the server and drops every grant.
   Future<void> stop() async {
+    // A bind in flight finishes first, so its socket is closed too (R19).
+    final starting = _starting;
+    if (starting != null) {
+      try {
+        await starting;
+      } catch (_) {}
+    }
     final s = _server;
     _server = null;
     _grants.clear();
