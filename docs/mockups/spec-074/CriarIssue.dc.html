@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Criar issue a partir da spec</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1)}
+.sepv{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:9}
+.note.warn{background:#F2A541}
+.gh{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#E7E9EE;font:500 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.go{height:34px;padding:0 14px;border-radius:9px;border:0;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.issue{font:600 11px 'JetBrains Mono';color:#9CC3FF;border:1px solid rgba(120,170,255,.45);background:rgba(120,170,255,.08);border-radius:6px;padding:0 6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.lbl{font:500 11px 'IBM Plex Sans';border-radius:10px;padding:1px 8px;border:1px solid;white-space:nowrap;display:inline-flex;gap:5px;align-items:center}
+.lbl.enh{color:#9CC3FF;border-color:rgba(120,170,255,.5)}
+.lbl.adm{color:#C9CED8;border-color:rgba(255,255,255,.2)}
+header,nav,footer{z-index:2}
+.lst{position:absolute;left:72px;top:60px;bottom:44px;width:260px;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.srow{padding:9px 10px;border-radius:9px;font-size:13px;display:flex;flex-direction:column;gap:3px;border:1px solid transparent}
+.srow small{font:500 11px 'JetBrains Mono';color:#A0A8B6;display:flex;gap:6px;align-items:center}
+.srow.sel{background:rgba(242,165,65,.1);border-color:rgba(242,165,65,.4)}
+.ed{position:absolute;left:340px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.edh{height:56px;display:flex;align-items:center;gap:10px;padding:0 14px 0 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.edh h2{margin:0;font:600 16px 'IBM Plex Sans'}
+.code{padding:12px 0;font:400 13px/1.75 'JetBrains Mono';white-space:pre;color:#C9CED8}
+.code i{font-style:normal;display:inline-block;width:46px;text-align:right;padding-right:14px;color:#5B6372}
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.66);z-index:6}
+.dlg{position:absolute;left:50%;transform:translateX(-50%);border-radius:16px;background:#161A21;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.6);z-index:7;overflow:hidden}
+.dh{padding:16px 20px 12px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.dh h3{margin:0;font:600 16px 'IBM Plex Sans'}
+.dh .sub{margin-top:3px;font:400 12.5px 'IBM Plex Sans';color:#A0A8B6}
+.x{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;display:flex;align-items:center;justify-content:center;padding:0}
+.df{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid rgba(255,255,255,.07)}
+.df .info{font:400 12px 'IBM Plex Sans';color:#A0A8B6;flex:1}
+.fd{padding:10px 20px 0;display:flex;flex-direction:column;gap:6px}
+.fd label{font:600 12px 'IBM Plex Sans';color:#A0A8B6}
+.in{height:36px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(10,12,16,.5);display:flex;align-items:center;padding:0 12px;font:500 13.5px 'IBM Plex Sans';color:#E7E9EE}
+.ta{border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(10,12,16,.5);padding:8px 12px;font:400 12.5px/1.65 'JetBrains Mono';color:#C9CED8;white-space:pre;overflow:hidden}
+.ta .d{color:#7C8595}
+.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:12px 20px 14px}
+.dd{height:34px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#E7E9EE;font:500 12.5px 'IBM Plex Sans';display:flex;align-items:center;gap:6px;white-space:nowrap;width:100%}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"></path></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1"></div>
+ <button class="cta"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"></path></svg>Nova spec</button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h9"></path></svg></div>
+ <div class="sepv"></div>
+ <div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v14M6 7a4 4 0 0 0 8 0V3M14 17v-6"></path></svg></div>
+</nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>gh logado como ana-souza</span><span style="flex:1"></span><span class="mono">0.18.0</span></footer>
+<aside class="g lst" aria-label="Specs">
+ <div class="srow"><small>SPEC-026 <span class="issue">#218</span></small><span>Frete grátis acima de R$ 199</span></div>
+ <div class="srow sel"><small>SPEC-027</small><span>Exportar pedidos em CSV</span></div>
+ <div class="srow"><small>SPEC-025 <span class="issue">#215</span></small><span>Cupom não aplica em produto já com desconto</span></div>
+ <div class="srow"><small>SPEC-024 <span class="issue">#212</span></small><span>Carrinho some ao trocar de aba</span></div>
+</aside>
+<section class="g ed" aria-label="SPEC-027">
+ <div class="edh"><h2>SPEC-027 · Exportar pedidos em CSV</h2><span style="flex:1"></span><button class="gh">Criar issue</button><button class="go">Aprovar</button></div>
+ <div class="code"><i>1</i>---
+<i>2</i>id: SPEC-027
+<i>3</i>status: rascunho
+<i>4</i>---
+<i>5</i>
+<i>6</i># Exportar pedidos em CSV
+<i>7</i>
+<i>8</i>## Objetivo
+<i>9</i>
+<i>10</i>A loja precisa mandar os pedidos do mês para a contabilidade.</div>
+</section>
+<div class="scrim" aria-hidden="true"></div>
+<div class="dlg" role="dialog" aria-label="Criar issue no GitHub" style="top:74px;width:720px">
+ <div class="dh">
+  <div style="flex:1"><h3>Criar issue no GitHub</h3><div class="sub">ana-souza/loja-da-ana · a issue nasce ligada à SPEC-027</div></div>
+  <button class="x" aria-label="Fechar"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#C9CED8" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5 5 15"></path></svg></button>
+ </div>
+ <div class="fd"><label>Título</label><div class="in">Exportar pedidos em CSV</div></div>
+ <div class="fd"><label>Texto da issue</label><div class="ta">A loja precisa mandar os pedidos do mês para a contabilidade.
+
+- [ ] R1 · Botão “Exportar CSV” na lista de pedidos
+- [ ] R2 · Filtro por período antes de exportar
+- [ ] R3 · Colunas: data, cliente, itens, total e status
+
+<span class="d">Spec: docs/specs/SPEC-027-exportar-pedidos-csv.md (Promptorium)</span></div></div>
+ <div class="meta">
+  <div class="fd" style="padding:0"><label>Labels</label><button class="dd"><span class="lbl enh">enhancement</span><span class="lbl adm">admin</span></button></div>
+  <div class="fd" style="padding:0"><label>Milestone</label><button class="dd">v1.2</button></div>
+  <div class="fd" style="padding:0"><label>Responsável</label><button class="dd">eu (ana-souza)</button></div>
+ </div>
+ <div class="df"><span class="info">A spec ganha <span class="mono" style="color:#C9CED8">issue: N</span> no frontmatter e o selo #N.</span><button class="gh">Cancelar</button><button class="go">Criar issue</button></div>
+</div>
+<div class="note" style="left:1031px;top:240px">← o Objetivo vira o texto</div>
+<div class="note" style="left:1031px;top:300px">← os requisitos viram checklist</div>
+<div class="note warn" style="left:1031px;top:384px">← link para a spec no repositório</div>
+<div class="note" style="left:1050px;top:504px">← issue: N só entra depois de criada</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
