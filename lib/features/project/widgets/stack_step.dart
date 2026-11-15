@@ -6,8 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
+import '../project_config.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
+import '../stack_commands.dart';
+import '../stack_detect.dart';
+import 'commands_card.dart';
 import 'project_widgets.dart';
 
 /// Step 3 · Stack e convenções: the planner's choices with alternatives
@@ -26,6 +30,9 @@ class StackStep extends ConsumerWidget {
     final busy = activity?.busy;
     final planner = ref.read(projectPlannerProvider.notifier);
     final stack = data.stack;
+    // "Detectar do repositório" only when the folder has a manifest (R14).
+    final found = ref.watch(stackDetectionProvider(workspace.path)).value;
+    final detection = found == null || found.isUnknown ? null : found;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -73,7 +80,7 @@ class StackStep extends ConsumerWidget {
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
                         children: [
                           for (final d in stack.decisions)
-                            _DecisionRow(
+                            DecisionRow(
                               decision: d,
                               onChoose: busy == null
                                   ? (o) => planner.chooseStack(
@@ -83,6 +90,32 @@ class StackStep extends ConsumerWidget {
                                     )
                                   : null,
                             ),
+                          // The commands of the config.yml (SPEC-072 R12).
+                          CommandsCard(
+                            key: ValueKey('project-commands-${workspace.id}'),
+                            commands: stack.commands,
+                            existing:
+                                ref
+                                    .watch(
+                                      projectConfigProvider(workspace.path),
+                                    )
+                                    .value ??
+                                const ProjectConfig(),
+                            onChanged: busy == null
+                                ? (k, v) => planner.editCommand(workspace, k, v)
+                                : null,
+                            detectLabel: detection?.evidence.firstOrNull,
+                            onDetect: detection == null
+                                ? null
+                                : () async {
+                                    await planner.fillCommands(
+                                      workspace,
+                                      commandsOfDetection(detection),
+                                    );
+                                    return detection.evidence.firstOrNull ??
+                                        detection.name;
+                                  },
+                          ),
                         ],
                       )
                     : StepEmpty(
@@ -121,8 +154,8 @@ class StackStep extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                   child: NoticeBox.warning(
                     text:
-                        'Uma escolha mudou depois que o CLAUDE.md foi '
-                        'escrito.',
+                        'Uma escolha ou um comando mudou depois que o '
+                        'CLAUDE.md foi escrito.',
                     action: SmallButton(
                       key: const ValueKey('project-claudemd-refresh'),
                       label: 'Atualizar',
@@ -150,8 +183,13 @@ class StackStep extends ConsumerWidget {
   }
 }
 
-class _DecisionRow extends StatelessWidget {
-  const _DecisionRow({required this.decision, required this.onChoose});
+/// One stack decision with its alternatives (also the "Outro…" preview).
+class DecisionRow extends StatelessWidget {
+  const DecisionRow({
+    super.key,
+    required this.decision,
+    required this.onChoose,
+  });
 
   final StackDecision decision;
   final ValueChanged<String>? onChoose;

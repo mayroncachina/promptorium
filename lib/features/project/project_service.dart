@@ -16,6 +16,7 @@ import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_templates.dart';
 import 'spec_auto_planner.dart';
+import 'stack_commands.dart';
 
 class ProjectException implements Exception {
   const ProjectException(this.message);
@@ -134,16 +135,23 @@ class ProjectService {
     final ws = await _ref.read(workspaceActionsProvider).addFolder(path);
     if (plan) {
       await _ref.read(projectPlansRepoProvider).start(ws.id);
-      if (t != null && t.decisions.isNotEmpty) {
-        // The planner keeps pinned choices.
+      final commands = t == null
+          ? const StackCommands()
+          : commandsOfConfig(t.config);
+      if (t != null && (t.decisions.isNotEmpty || !commands.isEmpty)) {
+        // The planner keeps pinned choices and commands (SPEC-072 R11).
         await _ref
             .read(projectPlansRepoProvider)
             .update(
               ws.id,
               ProjectPlansCompanion(
                 data: Value(
-                  ProjectPlanData(stack: StackPlan(decisions: t.decisions))
-                      .encode(),
+                  ProjectPlanData(
+                    stack: StackPlan(
+                      decisions: t.decisions,
+                      commands: commands,
+                    ),
+                  ).encode(),
                 ),
               ),
             );
@@ -251,6 +259,18 @@ class ProjectService {
     if (writeClaudeMd && claudeMd.isNotEmpty) {
       await File('${ws.path}/CLAUDE.md').writeAsString('$claudeMd\n');
       files.add('CLAUDE.md');
+    }
+
+    // The stack's commands fill the empty keys of the config.yml
+    // (SPEC-072 R13).
+    final merge = mergeStackCommands(
+      ProjectConfig.loadSync(ws.path),
+      data.stack.commands,
+    );
+    if (merge.changed) {
+      await ProjectConfig.save(ws.path, merge.config);
+      _ref.invalidate(projectConfigProvider(ws.path));
+      files.add(ProjectConfig.filePath);
     }
 
     final specService = _ref.read(specServiceProvider);

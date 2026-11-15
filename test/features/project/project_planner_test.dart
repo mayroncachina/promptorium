@@ -11,6 +11,7 @@ import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_planner.dart';
 import 'package:promptorium/features/project/project_templates.dart';
+import 'package:promptorium/features/project/stack_commands.dart';
 
 import '../../helpers/test_db.dart';
 import '../sessions/session_test_utils.dart';
@@ -254,6 +255,81 @@ void main() {
     File('${tmp.path}/CLAUDE.md').writeAsStringSync('$md\n- Minha regra\n');
     expect(templateClaudeMd(tmp.path), isNull);
   });
+
+  test(
+    'the stack schema asks for the commands; pinned ones stay; '
+    'editing a command marks the CLAUDE.md stale (SPEC-072 R11, R12)',
+    () async {
+      final props =
+          (stackSchema['properties'] as Map)['commands']
+              as Map<String, Object?>;
+      expect((props['properties'] as Map).keys, StackCommands.keys);
+      expect(stackSystemPrompt, contains('test ! -f pubspec.yaml'));
+
+      final pinned = commandsOfConfig(templateById('flutter').config);
+      expect(pinned.pinned, {'install', 'test', 'lint', 'format'});
+      final r = AgentEvent.fromJson(
+        jsonDecode(
+          resultLine({
+            'decisions': [
+              {
+                'area': 'App',
+                'choice': 'Flutter',
+                'why': '',
+                'alternatives': [],
+              },
+            ],
+            'claudeMd': '# App',
+            'commands': {
+              'install': 'flutter pub get',
+              'run': 'flutter run -d linux',
+              'dev': '',
+              'test': 'flutter test --coverage',
+              'lint': 'flutter analyze',
+              'format': 'dart format {arquivo}',
+            },
+          }),
+        ) as Map<String, dynamic>,
+      ) as Result;
+      final stack = parseStackResult(r, commands: pinned);
+      // The template's commands win over the planner's.
+      expect(
+        stack.commands.install,
+        'test ! -f pubspec.yaml || flutter pub get',
+      );
+      expect(stack.commands.test, 'flutter test');
+      expect(stack.commands.run, 'flutter run -d linux');
+      expect(stack.commands.dev, '');
+      expect(
+        stackPrompt(const VisionPlan(), commands: pinned),
+        contains('- test: flutter test'),
+      );
+
+      // Editing marks the CLAUDE.md stale.
+      await planner().start(ws);
+      await c
+          .read(projectPlansRepoProvider)
+          .update(
+            ws.id,
+            ProjectPlansCompanion(
+              data: Value(ProjectPlanData(stack: stack).encode()),
+            ),
+          );
+      await planner().editCommand(ws, 'run', ' go run . ');
+      var data = (await load()).$2;
+      expect(data.stack.commands.run, 'go run .');
+      expect(data.stack.claudeMdStale, isTrue);
+      // The detection fills only the empty lines (R14).
+      await planner().fillCommands(
+        ws,
+        const StackCommands(run: 'x', dev: 'air', test: 'y'),
+      );
+      data = (await load()).$2;
+      expect(data.stack.commands.run, 'go run .');
+      expect(data.stack.commands.dev, 'air');
+      expect(data.stack.commands.test, 'flutter test');
+    },
+  );
 
   test('a pinned area is not duplicated when the planner uses a synonym or '
       'renames it (SPEC-071 R26)', () {
