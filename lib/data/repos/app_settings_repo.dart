@@ -13,6 +13,15 @@ abstract final class AppSettingKeys {
   /// SPEC-056 R8).
   static const promptPanelCollapsed = 'prompt.painelRecolhido';
 
+  /// Version an update installed before closing the app: the next start
+  /// shows "Atualizado para a `<versão>`" once and removes it (SPEC-070 R6).
+  static const justInstalled = 'update.justInstalled';
+
+  /// An update installed whose launcher didn't start (JSON: `version`,
+  /// `executable`): Sobre keeps offering "Reiniciar agora" until the next
+  /// start removes it (SPEC-070 R4).
+  static const pendingRestart = 'update.pendingRestart';
+
   /// Id of the active workspace (int).
   static const activeWorkspace = 'workspace.active';
 

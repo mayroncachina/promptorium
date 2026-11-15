@@ -1,0 +1,19 @@
+{
+ "v": 3,
+ "createdOnFiles": {"v": 1, "at": "2026-11-14T11:32:53Z"},
+ "title": "Promptorium · SPEC-070 · Atualizar e reabrir",
+ "launch": {"view": "canvas"},
+ "pages": [],
+ "boards": {
+  "Antes.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "1 · Antes: parado em Instalando e reiniciando"},
+  "Main.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "2 · Reiniciando na versão nova"},
+  "NaoReabriu.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 900, "title": "3 · O lançador não iniciou: Reiniciar agora"},
+  "Atualizado.dc.html": {"x": 0, "y": 1020, "w": 1440, "h": 900, "title": "4 · A cópia nova abre com o aviso"},
+  "Logo.dc.html": {"x": 1520, "y": 1020, "w": 1440, "h": 900, "title": "5 · A logo do Sobre só borbulha"}
+ },
+ "order": ["Antes.dc.html", "Main.dc.html", "NaoReabriu.dc.html", "Atualizado.dc.html", "Logo.dc.html"],
+ "notes": {
+  "titulo": {"x": 0, "y": -300, "text": "SPEC-070 · Atualizar fecha e reabre o app, e a logo do Sobre só borbulha", "kind": "title1", "maxW": 4480}
+ },
+ "designSystems": []
+}

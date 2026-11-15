@@ -108,7 +108,7 @@ class _AboutPromptoriumDialogState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(updateFlowProvider);
-    final installing = state is UpdateInstalling;
+    final installing = state is UpdateInstalling || state is UpdateRestarting;
     final holds = installing || state is UpdateDownloading;
     final asking = _askingClose && state is UpdateDownloading;
     // The dialog route is outside AppShell's shortcuts: F1 closes here.
@@ -306,10 +306,11 @@ class _Identity extends ConsumerWidget {
   }
 }
 
-/// The logo of Sobre (SPEC-066): the intro, then the calm rhythm while the
-/// screen is open (R2, R3). The mouse agitates it (R4), and a click, Enter or
-/// Space plays the intro again (R5, R6). With animations off it is a still
-/// icon, outside the Tab order (R8).
+/// The logo of Sobre (SPEC-066): the intro once, when Sobre opens, then the
+/// calm rhythm while the screen is open (R2, R3). The mouse agitates it (R4).
+/// It is only an image (SPEC-070 R7, replacing SPEC-066 R5 and R6): no click,
+/// no key, no hint, outside the Tab order. With animations off it is a still
+/// icon (R8).
 class AboutLogo extends ConsumerStatefulWidget {
   const AboutLogo({super.key, this.paused = false});
 
@@ -333,9 +334,6 @@ class AboutLogo extends ConsumerStatefulWidget {
 class _AboutLogoState extends ConsumerState<AboutLogo> {
   final _stage = GlobalKey<SplashStageState>();
   bool _hover = false;
-  bool _focused = false;
-
-  void _replay() => _stage.currentState?.replay();
 
   @override
   void initState() {
@@ -362,57 +360,17 @@ class _AboutLogoState extends ConsumerState<AboutLogo> {
       titleSize: 24,
       subtitleSize: 12.5,
       gap: 6,
-      iconBuilder: animate ? _button : null,
+      iconBuilder: animate ? _hoverable : null,
     );
   }
 
-  Widget _button(BuildContext context, Widget icon) => MouseRegion(
+  /// Only for the agitation: the icon keeps its own semantics, an image
+  /// called "Ícone do Promptorium", and the cursor stays the arrow.
+  Widget _hoverable(BuildContext context, Widget icon) => MouseRegion(
     key: const ValueKey('about-logo'),
-    cursor: SystemMouseCursors.click,
     onEnter: (_) => setState(() => _hover = true),
     onExit: (_) => setState(() => _hover = false),
-    child: FocusTraversalOrder(
-      order: const NumericFocusOrder(2),
-      child: _detector(icon),
-    ),
-  );
-
-  Widget _detector(Widget icon) => FocusableActionDetector(
-    onShowFocusHighlight: (v) => setState(() => _focused = v),
-    actions: {
-      ActivateIntent: CallbackAction<ActivateIntent>(
-        onInvoke: (_) {
-          _replay();
-          return null;
-        },
-      ),
-    },
-    child: Tooltip(
-      message: 'Tocar a abertura de novo',
-      waitDuration: const Duration(milliseconds: 500),
-      excludeFromSemantics: true,
-      child: GestureDetector(
-        onTap: _replay,
-        child: Semantics(
-          button: true,
-          label: 'Ícone do Promptorium',
-          hint: 'Tocar a abertura de novo',
-          onTap: _replay,
-          excludeSemantics: true,
-          child: DecoratedBox(
-            key: const ValueKey('about-logo-ring'),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: _focused ? AppColors.amber : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: icon,
-          ),
-        ),
-      ),
-    ),
+    child: icon,
   );
 }
 

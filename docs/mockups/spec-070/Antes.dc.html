@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Antes: parado em Instalando</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0B0E}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+h1,h2,h3,p,ul,ol{margin:0;padding:0}
+.mono{font-family:'JetBrains Mono',monospace}
+.lnk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#F2A541;text-decoration:none}
+.x{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:#A0A8B6}
+.card{flex:none;border:1px solid #5C4520;border-radius:8px;background:#241E12;padding:12px 14px;height:112px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.top{display:flex;align-items:center;gap:10px}
+.ttl{font-size:14px;font-weight:600;color:#E7E9EE}
+.sub{font-size:12px;color:#A0A8B6}
+.li{list-style:none;display:flex;gap:8px;font-size:13px;line-height:1.5;color:#A0A8B6;padding:3px 0}
+.dot{flex:none;width:4px;height:4px;border-radius:50%;background:#7C8595;margin-top:8px}
+.spin{animation:pm-spin .9s linear infinite;transform-origin:center}
+.tip{position:absolute;left:50%;top:-38px;transform:translateX(-50%);padding:5px 9px;border-radius:6px;background:#1F2430;border:1px solid #3A4250;color:#E7E9EE;font-size:12px;white-space:nowrap}
+.ann{position:absolute;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#A0A8B6;white-space:nowrap}
+.ann b{color:#F27A6E;font-weight:500}
+.ann i{display:block;height:1px;background:#3A4250}
+table.ev{border-collapse:collapse;width:100%;font-size:13px}
+table.ev td{padding:9px 0;border-bottom:1px solid #252B35;vertical-align:top;color:#A0A8B6;line-height:1.5}
+table.ev td.h{width:84px;font:400 12px/1.7 'JetBrains Mono',monospace;color:#7C8595}
+table.ev tr.bad td{color:#F27A6E}
+.pm-wave{animation:pm-wave 4.4s linear infinite}
+.pm-bubble{transform-box:fill-box;transform-origin:center;opacity:0;animation:pm-calm 7.2s ease-in infinite}
+.pm-b2{animation-delay:2.4s}.pm-b3{animation-delay:4.8s}
+.pm-caret{animation:pm-blink 1s steps(1) infinite}
+.pm-glow{animation:pm-breathe 2s ease-in-out infinite alternate}
+@keyframes pm-spin{to{transform:rotate(360deg)}}
+@keyframes pm-wave{from{transform:translateX(0)}to{transform:translateX(-60px)}}
+@keyframes pm-calm{0%{opacity:0;transform:translateY(0) scale(.6)}7%{opacity:1}26%{opacity:.9}33%,100%{opacity:0;transform:translateY(-46px) scale(1)}}
+@keyframes pm-blink{0%{opacity:1}50%{opacity:0}}
+@keyframes pm-breathe{from{opacity:.35}to{opacity:.55}}
+@media (prefers-reduced-motion: reduce){.spin,.pm-wave,.pm-bubble,.pm-caret,.pm-glow{animation:none!important}.pm-bubble{opacity:0!important}}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:#0A0B0E;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.45">
+<div role="dialog" aria-label="Sobre o Promptorium" style="position:absolute;left:60px;top:170px;display:flex;width:820px;height:560px;background:#14171D;border:1px solid #2E3542;border-radius:12px;overflow:visible">
+<section style="flex:none;width:300px;background:#0E1014;border-right:1px solid #252B35;border-radius:12px 0 0 12px;display:flex;flex-direction:column;align-items:center;padding:28px 20px 18px">
+<div style="flex:1;display:flex;align-items:center"><div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+<div style="position:relative;width:148px;height:148px;border-radius:18px;outline:2px solid #F2A541;outline-offset:3px;cursor:pointer">
+<span class="tip" role="tooltip">Tocar a abertura de novo</span>
+<span class="pm-glow" style="position:absolute;inset:22px;border-radius:50%;background:#4FD1B5;filter:blur(38px);opacity:.45"></span>
+<svg width="148" height="148" viewBox="0 0 200 200" role="img" aria-label="Ícone do Promptorium, botão, tocar a abertura de novo" style="position:relative;display:block"><defs><clipPath id="p1-inside"><path d="M91 78 V104 L52 162 Q47 170 57 170 H143 Q153 170 148 162 L109 104 V78 Z"></path></clipPath></defs>
+<g clip-path="url(#p1-inside)"><g class="pm-wave"><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124 V200 H0 Z" fill="#0E5E55"></path><path d="M0 124 Q15 118 30 124 T60 124 T90 124 T120 124 T150 124 T180 124 T210 124 T240 124 T270 124" fill="none" stroke="#4FD1B5" stroke-width="3"></path></g><circle class="pm-bubble" cx="100" cy="162" r="5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b2" cx="94" cy="166" r="3.5" fill="#7FE6D2"></circle><circle class="pm-bubble pm-b3" cx="104" cy="164" r="2.5" fill="#7FE6D2"></circle></g>
+<path d="M78 136 L92 145 L78 154" fill="none" stroke="#B8FFF2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"></path><rect class="pm-caret" x="98" y="151" width="22" height="5" rx="2" fill="#B8FFF2"></rect>
+<path d="M84 70 H116 M91 72 V104 L50 164 Q44 176 58 176 H142 Q156 176 150 164 L109 104 V72" fill="none" stroke="#F2A541" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"></path>
+<line x1="89" y1="47" x2="109" y2="35" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line><line x1="118" y1="42" x2="116" y2="52" stroke="#F2A541" stroke-width="4" stroke-linecap="round"></line>
+<circle cx="82" cy="51" r="9" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle cx="119" cy="30" r="12" fill="#0E5E55" stroke="#F2A541" stroke-width="4.5"></circle><circle cx="115" cy="58" r="6.5" fill="#0E5E55" stroke="#F2A541" stroke-width="4"></circle></svg>
+<svg width="22" height="26" viewBox="0 0 26 30" aria-hidden="true" style="position:absolute;left:118px;top:112px"><path d="M9 2 C9 0.6 11 0.6 11 2 V12 L13 12 V9.5 C13 8.2 15 8.2 15 9.5 V12.5 L17 12.5 V10.8 C17 9.5 19 9.5 19 10.8 V13 L20.5 13 V12 C20.5 10.8 22.5 10.8 22.5 12 V20 C22.5 25 19.5 28 15 28 H13.5 C10.5 28 8.6 26.6 7 24.2 L3 18 C2.2 16.8 3.8 15.6 4.8 16.6 L9 21 Z" fill="#FFFFFF" stroke="#0A0B0E" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+</div>
+<div style="text-align:center"><h1 style="font-size:24px;font-weight:600;letter-spacing:.3px;line-height:1.2">Promptorium</h1><p style="font-size:12.5px;color:#A0A8B6;margin-top:4px">o laboratório de onde operam seus agentes</p></div>
+</div></div>
+<p class="mono" style="font-size:12px;color:#A0A8B6">v0.16.0 · Linux</p>
+<div style="display:flex;gap:16px;margin-top:10px"><a class="lnk" href="https://github.com/mayroncachina/promptorium">Repositório</a><a class="lnk" href="https://github.com/mayroncachina/promptorium/blob/main/CHANGELOG.md">Histórico completo</a></div>
+</section>
+<section style="flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 16px 0 20px">
+<div style="flex:none;display:flex;align-items:center;justify-content:space-between;height:36px;margin-bottom:6px"><h2 style="font-size:15px;font-weight:600">Sobre</h2><button type="button" class="x" aria-label="Fechar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></button></div>
+<div class="card" role="status"><div class="top"><span style="flex:none;display:flex"><svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"></path></svg></span><div style="min-width:0"><p class="ttl">Instalando e reiniciando…</p><p class="sub">O sistema pode pedir sua senha.</p></div></div></div>
+<div style="flex:1;min-height:0;margin-top:16px;overflow:hidden">
+<div style="display:flex;align-items:baseline;gap:8px"><h3 style="font-size:14px;font-weight:600">Novidades da 0.17.0</h3><span class="sub">[DATA DA VERSÃO]</span></div>
+<ul style="margin-top:10px">
+<li class="li"><span class="dot"></span><span>[As notas da versão nova aparecem aqui]</span></li>
+</ul>
+</div>
+</section>
+</div>
+<div class="ann" style="left:440px;top:132px"><span><b>parado aqui</b> · a versão nova já foi instalada, mas o app não fecha</span></div>
+<div class="ann" style="left:60px;top:760px"><span><b>dica e anel de foco</b> · clicar, Enter ou Espaço tocam a abertura de novo (SPEC-066 R5, R6)</span></div>
+
+<div style="position:absolute;left:940px;top:170px;width:450px;display:flex;flex-direction:column;gap:14px">
+<h2 style="font-size:20px;font-weight:600;line-height:1.3">O log da atualização para a 0.16.0</h2>
+<p style="font-size:13px;color:#A0A8B6">13/11, cópia do <span class="mono">.tar.gz</span> em <span class="mono">~/.local/share/promptorium/app</span>.</p>
+<table class="ev">
+<tr><td class="h">19:30:00</td><td>As sessões em execução são encerradas.</td></tr>
+<tr><td class="h">19:30:31</td><td>O download começa.</td></tr>
+<tr><td class="h">19:30:54</td><td>O <span class="mono">tar</span> grava os arquivos novos: a instalação funcionou.</td></tr>
+<tr class="bad"><td class="h">19:31:37</td><td>O app antigo termina pelo fechamento normal da janela: foi fechado à mão, 43 s depois.</td></tr>
+<tr class="bad"><td class="h">—</td><td>Nenhuma cópia nova sobe até a pessoa abrir o app no dia seguinte.</td></tr>
+</table>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
