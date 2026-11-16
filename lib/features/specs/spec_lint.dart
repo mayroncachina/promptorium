@@ -29,6 +29,9 @@ enum SpecWarningKind {
   /// A frontmatter key the app does not know (SPEC-063 R4).
   unknownFrontmatterKey,
 
+  /// `issue:` that is not a number (SPEC-074 R1).
+  invalidIssue,
+
   /// `## Perguntas em aberto` outside the `- P<n> · …` format, with
   /// suggestions counted as questions (SPEC-028 R3). Shown as its own
   /// notice above the editor, not in the strip.
@@ -101,7 +104,7 @@ const knownFrontmatterKeys = {
   SpecDocument.previousStageKey,
   SpecDocument.previousStatusKey,
   subagentsKey,
-  'issue',
+  specIssueKey,
   specOriginKey,
   specSessionKey,
 };
@@ -260,6 +263,17 @@ List<SpecWarning> _frontmatterWarnings(
         ),
       );
     }
+  }
+  if (doc.hasInvalidIssue) {
+    out.add(
+      SpecWarning(
+        line: doc.frontmatterLineOf(specIssueKey) ?? 1,
+        message:
+            'issue: "${doc.frontmatter[specIssueKey]}" não é um número de '
+            'issue (issue: 226)',
+        kind: SpecWarningKind.invalidIssue,
+      ),
+    );
   }
   for (final k in doc.frontmatter.keys) {
     if (knownFrontmatterKeys.contains(k) || isDependsOnAlias(k)) continue;

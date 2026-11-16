@@ -167,6 +167,23 @@ void main() {
       expect(mergeStatusOf(conflictFiles: []).text, 'Pronto para merge');
     });
 
+    test('SPEC-073 · a PR with red CI is never "Pronto para merge"', () {
+      final red = mergeStatusOf(conflictFiles: [], ciFailed: 3);
+      expect(red.state, MergeState.ciFalhou);
+      expect(red.text, 'CI falhou · 3 checks');
+      expect(mergeStatusOf(ciFailed: 1).text, 'CI falhou · 1 check');
+      // A conflict still comes first; CI before the pendencies.
+      expect(
+        mergeStatusOf(conflictFiles: ['a'], ciFailed: 2).state,
+        MergeState.conflito,
+      );
+      expect(
+        mergeStatusOf(conflictFiles: [], pending: true, ciFailed: 2).state,
+        MergeState.ciFalhou,
+      );
+      expect(primaryActionOf(red, hasPr: true), PrimaryAction.mergearPr);
+    });
+
     test('one primary action per state', () {
       PrimaryAction of(MergeState s, {bool pr = false}) =>
           primaryActionOf(MergeStatus(s), hasPr: pr);

@@ -98,7 +98,7 @@ bool prHasProblem(PrStatus s) =>
     s.open &&
     (s.conflicting ||
         s.reviewDecision == 'CHANGES_REQUESTED' ||
-        s.checks.any((c) => c.$2 == 'FAILURE'));
+        s.checks.any((c) => c.state == 'FAILURE'));
 
 /// Groups of the inbox, in the order of urgency (empty groups left out).
 List<InboxGroup> buildInbox({
@@ -217,7 +217,7 @@ List<InboxGroup> buildInbox({
     if (status == null || !prHasProblem(status)) continue;
     final session = sessionById[e.key];
     final spec = byId[session?.specId];
-    final failed = status.checks.where((c) => c.$2 == 'FAILURE').toList();
+    final failed = status.checks.where((c) => c.state == 'FAILURE').toList();
     prs.add(
       InboxItem(
         kind: InboxKind.prProblem,
@@ -226,7 +226,7 @@ List<InboxGroup> buildInbox({
             ? 'PR com conflito'
             : status.reviewDecision == 'CHANGES_REQUESTED'
             ? 'PR com mudanças pedidas'
-            : 'CI falhou em ${failed.map((c) => c.$1).join(', ')}',
+            : 'CI falhou em ${failed.map((c) => c.name).join(', ')}',
         detail: session?.branch ?? '',
         at: e.value.checkedAt ?? DateTime.now(),
         sessionId: e.key,

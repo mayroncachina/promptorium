@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers.dart';
 import '../../features/board/autopilot.dart';
 import '../../features/board/board_rules.dart';
+import '../../features/board/widgets/board_tray.dart'
+    show boardTrayOpenProvider;
 import '../../features/board/spec_runner.dart';
 import '../../features/code/worktree_files.dart' show fuzzyScore;
 import '../../features/home/home_inbox.dart';
+import '../../features/issues/widgets/issue_import_dialog.dart';
 import '../../features/prompt/conversation_manager.dart';
 import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_service.dart' show selectedReviewProvider;
@@ -252,6 +255,18 @@ List<PaletteCommand> paletteCommands(
       group: 'Ações',
       run: () => openNewSpec(ref),
     ),
+    // SPEC-074 R3 (P5): the Bandeja opens and the dialog over it.
+    if (ws != null)
+      PaletteCommand(
+        label: 'Importar issues',
+        detail: 'do GitHub para a Bandeja',
+        group: 'Ações',
+        run: () {
+          onNavigate(AppSection.tasks);
+          ref.read(boardTrayOpenProvider.notifier).set(true);
+          showIssueImportDialog(context, ref, ws);
+        },
+      ),
     // SPEC-044 R10: the Releases tab, and its dialog opened on arrival.
     PaletteCommand(
       label: 'Criar release',

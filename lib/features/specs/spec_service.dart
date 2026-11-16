@@ -245,6 +245,7 @@ class SpecService {
         inTray: !_firstReading,
         kind: k,
         agentSession: doc.agentSession,
+        issueNumber: doc.issue,
       );
     }
     var status = doc.status ?? existing.status;
@@ -292,7 +293,11 @@ class SpecService {
         existing.dependsOn.join(',') != deps.join(',') ||
         existing.kind != k ||
         existing.agentSession != doc.agentSession ||
+        existing.issueNumber != doc.issue ||
         toTray) {
+      // SPEC-074 R1: another issue (or none) forgets what the app knew of
+      // the old one.
+      final otherIssue = existing.issueNumber != doc.issue;
       await _repo.update(
         existing.id,
         SpecsCompanion(
@@ -307,6 +312,13 @@ class SpecService {
           hasPlan: Value(doc.design != null),
           kind: Value(k),
           agentSession: Value(doc.agentSession),
+          issueNumber: Value(doc.issue),
+          issueState: otherIssue ? const Value(null) : const Value.absent(),
+          issueClosedAt: otherIssue ? const Value(null) : const Value.absent(),
+          issueClosedBy: otherIssue ? const Value(null) : const Value.absent(),
+          issueCommentPending: otherIssue
+              ? const Value(false)
+              : const Value.absent(),
         ),
       );
     }
@@ -502,6 +514,7 @@ class SpecService {
       hasPlan: doc.design != null,
       inTray: inTray,
       agentSession: doc.agentSession,
+      issueNumber: doc.issue,
     );
   }
 

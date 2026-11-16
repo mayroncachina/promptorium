@@ -41,6 +41,7 @@ class _Settings extends AppSettingsController {
 }
 
 Spec specRow(int id, String code, String title) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,
@@ -759,7 +760,7 @@ void main() {
       [s],
       {
         's1': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [('build', 'FAILURE')]),
+          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'build', state: 'FAILURE')]),
         ),
       },
     );

@@ -40,6 +40,10 @@ import 'widgets/spec_sync_bar.dart';
 import 'widgets/spec_warnings_bar.dart';
 import 'widgets/spec_actions.dart';
 import 'widgets/spec_action_banner.dart';
+import '../issues/issue_availability.dart';
+import '../issues/widgets/create_issue_dialog.dart';
+import '../issues/issue_actions.dart' show specIssueActions;
+import '../issues/widgets/issue_badge.dart';
 import 'widgets/spec_header.dart';
 import 'widgets/spec_questions_panel.dart';
 import 'widgets/spec_skeleton.dart';
@@ -1650,6 +1654,8 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       return NewSpecView(workspace: ws, onCreated: _onSpecCreated);
     }
     final allSpecs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
+    // SPEC-074 R2, R11: "Criar issue" follows the GitHub diagnosis.
+    final issues = ref.watch(issueAvailabilityProvider(ws.path)).value;
     _knownCodes = {for (final s in allSpecs) s.code};
     final showArchived = ref.watch(showArchivedProvider);
     final archivedCount = allSpecs
@@ -1913,6 +1919,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                   lockLabel: held ? action!.kind.lockLabel : planLock?.reason,
                   statusLabel: planLock?.chip,
                   agentCreated: spec?.agentSession != null,
+                  issueBadge: spec?.issueNumber == null
+                      ? null
+                      : IssueBadge(spec: spec!),
                   planned:
                       spec != null &&
                       specIsPlanned(
@@ -1943,6 +1952,22 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                           generateReason: protoBusy
                               ? 'As telas desta spec já estão sendo geradas.'
                               : null,
+                          // SPEC-074 R11, R2.
+                          onCreateIssue:
+                              spec.issueNumber == null &&
+                                  spec.kind == SpecKind.spec &&
+                                  issues?.available == true
+                              ? () => showCreateIssueDialog(context, ref, spec)
+                              : null,
+                          createIssueReason:
+                              spec.issueNumber == null &&
+                                  spec.kind == SpecKind.spec &&
+                                  issues != null &&
+                                  !issues.available &&
+                                  _offersIssues(issues)
+                              ? issues.reason
+                              : null,
+                          issueMenu: specIssueActions(context, ref, spec),
                           onArchive:
                               (canArchiveSpec(spec) ||
                                   spec.status == SpecStatus.archived)
@@ -2610,3 +2635,7 @@ class SpecPreview extends StatelessWidget {
     );
   }
 }
+
+/// "Criar issue" shows disabled, with the reason, for every problem of R2;
+/// a folder that is not a git repository does not offer it at all.
+bool _offersIssues(IssueAvailability a) => a.problem != IssueProblem.error;

@@ -32,8 +32,11 @@ import 'step_gate.dart' show tailLines;
 import '../../ui/widgets/app_pressable.dart';
 import 'sprint_rules.dart';
 import 'sprint_state.dart';
+import 'widgets/ci_badge.dart';
 import 'widgets/spec_notes.dart';
 import 'widgets/board_card_flight.dart';
+import '../issues/issue_state_watcher.dart';
+import '../issues/widgets/issue_badge.dart';
 import 'widgets/card_extras.dart';
 import 'widgets/duel_dialog.dart';
 import 'widgets/gate_fix_badge.dart';
@@ -361,6 +364,8 @@ class BoardScreen extends ConsumerWidget {
     if (ws == null) {
       return const _Empty('Selecione um workspace na barra de título.');
     }
+    // SPEC-074 R9: opening the Quadro checks the linked issues.
+    ref.watch(boardIssueCheckProvider(ws.id));
     final specs = ref.watch(specsProvider(ws.id)).value ?? const <Spec>[];
     final rows = ref.watch(specStepsProvider(ws.id)).value ?? const [];
     final sessions =
@@ -1888,24 +1893,41 @@ class SpecCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    spec.code,
-                    style: const TextStyle(
-                      fontFamily: AppFonts.mono,
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                  // The left group takes the free space: the issue badge
+                  // ("#188 fechada") does not share it with a Spacer.
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          spec.code,
+                          style: const TextStyle(
+                            fontFamily: AppFonts.mono,
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        // SPEC-074 R1.
+                        if (spec.issueNumber != null) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Listener(
+                              onPointerDown: AppPressable.claim,
+                              child: IssueBadge(spec: spec, compact: true),
+                            ),
+                          ),
+                        ],
+                        if (spec.phase != null) ...[
+                          const SizedBox(width: 6),
+                          _Chip(spec.phase!),
+                        ],
+                        const SizedBox(width: 6),
+                        Listener(
+                          onPointerDown: AppPressable.claim,
+                          child: GateFixBadge(data: data, compact: true),
+                        ),
+                      ],
                     ),
                   ),
-                  if (spec.phase != null) ...[
-                    const SizedBox(width: 6),
-                    _Chip(spec.phase!),
-                  ],
-                  const SizedBox(width: 6),
-                  Listener(
-                    onPointerDown: AppPressable.claim,
-                    child: GateFixBadge(data: data, compact: true),
-                  ),
-                  const Spacer(),
                   if (data.cost > 0)
                     Text(
                       formatCost(data.cost),
@@ -1992,6 +2014,11 @@ class SpecCard extends ConsumerWidget {
               // SPEC-052 R7: the agent's newest progress note.
               if (spec.stage != SpecStage.done) SpecNoteLine(spec: spec),
               SuggestionBanner(spec: spec),
+              // SPEC-073 R7: the CI of the spec's PR.
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: CiBadge(data: data),
+              ),
               const SizedBox(height: 6),
               Row(
                 children: [

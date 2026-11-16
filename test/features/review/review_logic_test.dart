@@ -167,7 +167,10 @@ void main() {
 ''')!;
     expect(st.comments.map((c) => c.author), ['a', 'b']);
     expect(st.comments.first.kind, 'review: COMMENTED');
-    expect(st.checks, [('ci', 'SUCCESS'), ('lint', 'PENDING')]);
+    expect(st.checks, const [
+      PrCheck(name: 'ci', state: 'SUCCESS'),
+      PrCheck(name: 'lint', state: 'PENDING'),
+    ]);
     expect(
       st.summary,
       'aberto · 1 check(s) rodando · aprovado · 2 comentário(s)',

@@ -31,6 +31,7 @@ class AgentCall {
 }
 
 Spec specRow(String path) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

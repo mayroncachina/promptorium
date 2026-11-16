@@ -12,6 +12,7 @@ Spec spec(
   List<String> deps = const [],
   int steps = 0,
 }) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

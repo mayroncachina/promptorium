@@ -7,6 +7,10 @@ import 'package:promptorium/core/mcp/app_mcp_server.dart';
 import 'package:promptorium/core/mcp/app_mcp_tools.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/specs/spec_service.dart';
+import 'package:promptorium/core/git/gh_cli.dart' show cliRunnerProvider;
+import 'package:promptorium/features/issues/issue_availability.dart';
+
+import '../git/fake_issues.dart';
 
 import '../../helpers/test_db.dart';
 import 'mcp_test_utils.dart';
@@ -377,6 +381,152 @@ void main() {
       expect(both.where((r) => r['isError'] == true), hasLength(1));
       expect(files().where((f) => f.startsWith('SPEC-004')), hasLength(1));
       expect(files().where((f) => f.startsWith('SPEC-005')), isEmpty);
+    });
+  });
+
+  group('SPEC-074 R10 · the progress comment on the issue', () {
+    late Directory dir;
+    late AppDatabase db2;
+    late ProviderContainer c2;
+    late Workspace ws2;
+    late Spec spec;
+    late FakeIssuesGh gh;
+
+    Future<void> setUpIssue({required bool optIn, String issue = '226'}) async {
+      dir = Directory.systemTemp.createTempSync('mcp-issue-');
+      File('${dir.path}/specs/SPEC-023-pix.md')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          '---\nid: SPEC-023\nstatus: aprovada\nissue: $issue\n---\n'
+          '# Pix\n\n## Requisitos\n\n- R1 · Deve gerar o QR.\n'
+          '- R2 · Deve copiar e colar.\n- R3 · Deve confirmar.\n'
+          '- R4 · Deve expirar.\n',
+        );
+      if (optIn) {
+        File('${dir.path}/.promptorium/config.yml')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('issues:\n  comentar-andamento: true\n');
+      }
+      gh = FakeIssuesGh()..add(226, 'Pix com QR code na confirmação');
+      db2 = memoryDatabase();
+      c2 = ProviderContainer(
+        overrides: [
+          databaseOverride(db2),
+          appMcpToolsProvider.overrideWith((ref) => AppMcpTools(ref)),
+          cliRunnerProvider.overrideWithValue(gh.call),
+          issueAvailabilityProvider.overrideWith(
+            (ref, _) async =>
+                const IssueAvailability.ok(repo: 'ana-souza/loja-da-ana'),
+          ),
+        ],
+      );
+      addTearDown(() async {
+        c2.dispose();
+        await db2.close();
+        dir.deleteSync(recursive: true);
+      });
+      ws2 = await c2
+          .read(workspacesRepoProvider)
+          .add(path: dir.path, name: 'loja');
+      await c2.read(specServiceProvider).sync(ws2);
+      spec = (await c2.read(specsRepoProvider).getByCode(ws2.id, 'SPEC-023'))!;
+      final steps = c2.read(specStepsRepoProvider);
+      await steps.set(spec.id, 'R1', StepStatus.done);
+      await steps.set(spec.id, 'R2', StepStatus.done);
+      await steps.set(spec.id, 'R3', StepStatus.running, sessionId: 's3');
+      await c2
+          .read(sessionsRepoProvider)
+          .insert(
+            id: 's3',
+            workspaceId: ws2.id,
+            worktreePath: dir.path,
+            branch: 'spec/023',
+            model: 'inherit',
+            title: 'SPEC-023 · R3',
+            specId: spec.id,
+            steps: 'R3',
+          );
+    }
+
+    Future<McpToolOutcome> note(String text) =>
+        (c2.read(appMcpToolsProvider) as AppMcpTools).call(
+          McpGrant(
+            token: 't',
+            workspaceId: ws2.id,
+            sessionId: 's3',
+            access: McpAccess.write,
+          ),
+          AppMcpToolNames.note,
+          {'nota': text},
+        );
+
+    test('off by default: nothing goes to GitHub', () async {
+      await setUpIssue(optIn: false);
+      final r = await note('Webhook do PSP chega.');
+      expect(r.error, isFalse);
+      expect(r.text, isNot(contains('issue')));
+      expect(gh.calls.where((c) => c.$1 == 'gh'), isEmpty);
+    });
+
+    test('on: one comment per spec, created once and then edited, with the '
+        'state of each requirement and the last note', () async {
+      await setUpIssue(optIn: true);
+      var r = await note('Webhook do PSP chega; falta validar a assinatura.');
+      expect(
+        r.text,
+        contains(
+          'Nota gravada em SPEC-023 (R3) e publicada na '
+          'issue #226',
+        ),
+      );
+      expect(r.data!['publicada'], isTrue);
+      expect(gh.comments[226], hasLength(1));
+      r = await note('Assinatura validada.');
+      expect(r.data!['publicada'], isTrue);
+      expect(gh.comments[226], hasLength(1), reason: 'edited, not a new one');
+      final body = gh.comments[226]!.single['body'] as String;
+      expect(body, startsWith('<!-- promptorium:SPEC-023 -->'));
+      expect(body, contains('### Andamento da SPEC-023'));
+      expect(body, contains('- **R1** · feito'));
+      expect(body, contains('- **R3** · em execução · “Assinatura validada.”'));
+      expect(body, contains('- **R4** · a fazer'));
+      expect(body, contains('Atualizado pelo Promptorium'));
+      expect(gh.writes.where((a) => a.contains('PATCH')), hasLength(1));
+    });
+
+    test('offline: the note stays, "comentário pendente", the answer says '
+        'why; the next note tries again', () async {
+      await setUpIssue(optIn: true);
+      gh.offline = true;
+      var r = await note('Sem rede.');
+      expect(r.error, isFalse);
+      expect(r.text, contains('a issue #226 não foi atualizada'));
+      expect(r.data!['publicada'], isFalse);
+      expect(
+        (await c2.read(specNotesRepoProvider).bySpec(spec.id)).single.note,
+        'Sem rede.',
+      );
+      expect(
+        (await c2.read(specsRepoProvider).getById(spec.id))!
+            .issueCommentPending,
+        isTrue,
+      );
+      gh.offline = false;
+      r = await note('Voltou.');
+      expect(r.data!['publicada'], isTrue);
+      expect(
+        (await c2.read(specsRepoProvider).getById(spec.id))!
+            .issueCommentPending,
+        isFalse,
+      );
+    });
+
+    test('a closed issue never gets the comment', () async {
+      await setUpIssue(optIn: true);
+      gh.issues[226]!['state'] = 'closed';
+      final r = await note('Depois de fechada.');
+      expect(r.text, contains('está fechada'));
+      expect(gh.writes, isEmpty);
     });
   });
 }

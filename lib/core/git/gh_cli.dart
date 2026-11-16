@@ -269,6 +269,9 @@ class GhCli {
   final CliRunner _run;
   final String cwd;
 
+  /// The runner of every call (the Review's host check reuses it).
+  CliRunner get runner => _run;
+
   Future<ProcessResult> _raw(List<String> args) async {
     try {
       return await _run('gh', args, workingDirectory: cwd);
@@ -280,6 +283,10 @@ class GhCli {
       );
     }
   }
+
+  /// `gh <args>` with its exit code and both outputs (only a missing `gh`
+  /// throws): for answers that still carry data on a failure (GraphQL).
+  Future<ProcessResult> ghResult(List<String> args) => _raw(args);
 
   /// `gh <args>`, stdout. Throws [GhException].
   Future<String> gh(List<String> args) async {
@@ -522,6 +529,16 @@ class GhCli {
   /// `job<TAB>step<TAB>` columns gh puts in front.
   Future<List<String>> runFailedLog(int id, {int lines = 40}) async =>
       tailFailedLog(await gh(['run', 'view', '$id', '--log-failed']), lines);
+
+  /// The whole `gh run view <id> --log-failed`, with the `job<TAB>step<TAB>`
+  /// columns (SPEC-073 R3: `ciLogExcerpt` cuts it).
+  Future<String> runFailedLogRaw(int id) =>
+      gh(['run', 'view', '$id', '--log-failed']);
+
+  /// `gh run rerun <id> --failed`: runs again only the jobs that failed
+  /// (SPEC-073 R8).
+  Future<void> runRerunFailed(int id) =>
+      gh(['run', 'rerun', '$id', '--failed']);
 
   static List<String> tailFailedLog(String out, int lines) {
     final all = [

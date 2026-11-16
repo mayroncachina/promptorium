@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>O PR já leva Closes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1)}
+.sepv{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:9}
+.note.warn{background:#F2A541}
+.gh{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#E7E9EE;font:500 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.go{height:34px;padding:0 14px;border-radius:9px;border:0;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.issue{font:600 11px 'JetBrains Mono';color:#9CC3FF;border:1px solid rgba(120,170,255,.45);background:rgba(120,170,255,.08);border-radius:6px;padding:0 6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+header,nav,footer{z-index:2}
+.lst{position:absolute;left:72px;top:60px;bottom:44px;width:280px;border-radius:16px;padding:12px 10px;display:flex;flex-direction:column;gap:6px}
+.lh{font:600 12px 'IBM Plex Sans';color:#A0A8B6;padding:4px 6px 2px}
+.ri{padding:11px 12px;border-radius:11px;border:1px solid rgba(255,255,255,.08);background:#161A21;display:flex;flex-direction:column;gap:4px}
+.ri.sel{border-color:rgba(242,165,65,.5);background:rgba(242,165,65,.07)}
+.ri .c{font:500 11px 'JetBrains Mono';color:#A0A8B6;display:flex;gap:6px;align-items:center}
+.ri .t{font:600 13.5px 'IBM Plex Sans'}
+.ri .s{font:500 12px 'IBM Plex Sans';color:#7BE3CC}
+.main{position:absolute;left:360px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.mh{height:84px;padding:14px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.mh h1{margin:4px 0 0;font:600 19px 'IBM Plex Sans'}
+.mh .k{font:500 12px 'JetBrains Mono';color:#A0A8B6;display:flex;gap:8px;align-items:center}
+.body{position:absolute;top:84px;left:0;right:0;bottom:0;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px}
+.card{border-radius:12px;border:1px solid rgba(255,255,255,.08);background:rgba(17,20,26,.7);overflow:hidden}
+.cardh{height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid rgba(255,255,255,.07);font:600 13.5px 'IBM Plex Sans'}
+.cardh small{font:400 12px 'IBM Plex Sans';color:#A0A8B6;margin-left:auto}
+.pre{padding:12px 0;font:400 12.5px/1.75 'JetBrains Mono';color:#C9CED8;white-space:pre}
+.pre .ln{display:block;padding:0 16px}
+.pre .hl{display:block;padding:0 16px;background:rgba(120,170,255,.1);box-shadow:inset 3px 0 0 #9CC3FF;color:#E7E9EE}
+.pre .dim{display:block;padding:0 16px;color:#7C8595}
+.ck{min-height:46px;padding:8px 14px;display:flex;align-items:center;gap:12px;border-top:1px solid rgba(255,255,255,.06);font:400 13px 'IBM Plex Sans'}
+.ck:first-of-type{border-top:0}
+.ck .lv{width:58px;font:600 11px 'IBM Plex Sans';letter-spacing:.04em}
+.ok{color:#7BE3CC}.av{color:#F2A541}.nv{color:#A0A8B6}
+.alt{margin:12px 14px 14px;padding:10px 12px;border-radius:10px;border:1px dashed rgba(255,255,255,.16);font:400 12.5px/1.5 'IBM Plex Sans';color:#C9CED8}
+.alt code{font:500 12px 'JetBrains Mono';color:#9CC3FF}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"></path></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1"></div>
+ <button class="cta"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"></path></svg>Nova spec</button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h9"></path></svg></div>
+ <div class="sepv"></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"></path></svg></div>
+ <div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v14M6 7a4 4 0 0 0 8 0V3M14 17v-6"></path></svg></div>
+</nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>gh logado como ana-souza</span><span style="flex:1"></span><span class="mono">0.18.0</span></footer>
+<aside class="g lst" aria-label="Aguardando review">
+ <div class="lh">Aguardando review · 2</div>
+ <div class="ri sel"><span class="c">SPEC-023 <span class="issue">#226</span></span><span class="t">Pix com QR code na confirmação</span><span class="s">PR #251 criado · rascunho</span></div>
+ <div class="ri"><span class="c">SPEC-016</span><span class="t">Rodapé novo</span><span class="s" style="color:#A0A8B6">pronto para criar PR</span></div>
+</aside>
+<section class="g main" aria-label="Review da SPEC-023">
+ <div class="mh">
+  <div style="flex:1;min-width:0"><div class="k">SPEC-023 · spec/023-pix-qr-code → main <span class="issue">#226</span></div><h1>Pix com QR code na confirmação</h1></div>
+  <button class="gh">Abrir PR #251</button><button class="go">Mergear PR</button>
+ </div>
+ <div class="body">
+  <div class="card">
+   <div class="cardh">Corpo do PR #251<small>montado pelo app</small></div>
+   <div class="pre"><span class="ln">Spec: SPEC-023 (`docs/specs/SPEC-023-pix-qr-code.md`)</span><span class="ln"> </span><span class="ln">Etapas:</span><span class="ln">- [x] R1 · Gerar o QR code do Pix na confirmação</span><span class="ln">- [x] R2 · Copia e cola ao lado do QR code</span><span class="ln">- [x] R3 · Confirmar o pagamento pelo webhook</span><span class="ln">- [x] R4 · Expirar o QR code em 30 minutos</span><span class="ln"> </span><span class="hl">Closes #226</span><span class="ln"> </span><span class="dim">Criado pelo Promptorium (sessão 3f9a2c1).</span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+   <div class="card">
+    <div class="cardh">Pronto para merge?</div>
+    <div class="ck"><span class="lv ok">OK</span><span style="flex:1">Checks do PR · 3 de 3 passaram</span></div>
+    <div class="ck"><span class="lv ok">OK</span><span style="flex:1">Sem conflito com a main</span></div>
+    <div class="ck"><span class="lv av">ISSUE</span><span style="flex:1"><span class="issue">#226</span> fecha quando este PR entrar na main</span></div>
+    <div class="ck"><span class="lv nv">GATE</span><span style="flex:1">Critérios de aceite · 3 de 4 marcados</span></div>
+   </div>
+   <div class="card">
+    <div class="cardh">Quando o PR não vai para a main</div>
+    <div class="alt">Num PR empilhado (base <code>spec/020-frete</code>), o GitHub não fecha a issue no merge. O corpo leva <code>Parte de #226</code>, e o <code>Closes #226</code> fica para o PR que chega à branch padrão.</div>
+   </div>
+  </div>
+ </div>
+</section>
+<div class="note" style="left:398px;top:476px">↑ Closes #N entra sozinho, a partir do issue: N da spec</div>
+<div class="note warn" style="left:916px;top:578px">a linha ISSUE, acima, avisa que o merge fecha a #226</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

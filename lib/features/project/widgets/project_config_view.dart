@@ -203,6 +203,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     text: _saved.dev == null || _saved.dev!.path == '/' ? '' : _saved.dev!.path,
   );
   late bool _reviewerOn = _saved.reviewer.enabled;
+  late bool _autoFixCi = _saved.autoFixCi;
   late final _reviewerModel = TextEditingController(
     text: _saved.reviewer.model,
   );
@@ -215,6 +216,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
   late bool _markAgents = _saved.git.markAgentCommits;
+  late IssuesConfig _issues = _saved.issues;
   late String? _agent = _saved.agent;
   late List<SpecSubagent> _subagents = _saved.subagents;
   String? _error;
@@ -306,6 +308,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           const ReviewerConfig().rounds,
     ),
     git: GitConfig(markAgentCommits: _markAgents),
+    autoFixCi: _autoFixCi,
+    issues: _issues,
   );
 
   /// `dev:` from the three fields (SPEC-051 R1); empty command = none.
@@ -492,6 +496,102 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Group "Issues do GitHub" (SPEC-074 R8–R10): in the `config.yml`, the
+  /// same for everyone who uses the repository in the app (P1).
+  Widget _issuesGroup() {
+    Widget toggle(
+      String key,
+      String title,
+      String detail,
+      bool value,
+      IssuesConfig Function(bool) set,
+    ) => MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Switch(
+              key: ValueKey('config-issues-$key'),
+              value: value,
+              activeThumbColor: AppColors.amber,
+              onChanged: (v) => setState(() => _issues = set(v)),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Container(
+      key: const ValueKey('config-issues-group'),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Issues do GitHub',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Vale para todos que usam este repositório no app.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          toggle(
+            'closes',
+            'Closes #N no PR da spec',
+            'O PR de uma spec com issue: N fecha a issue no merge.',
+            _issues.closesInPr,
+            (v) => _issues.copyWith(closesInPr: v),
+          ),
+          toggle(
+            'comment',
+            'Comentar o andamento nas issues',
+            'Um comentário por spec, atualizado a cada nota de andamento do '
+                'agente. Quem acompanha a issue vê. Desligado por padrão.',
+            _issues.commentProgress,
+            (v) => _issues.copyWith(commentProgress: v),
+          ),
+          toggle(
+            'check',
+            'Conferir issues fechadas',
+            'A cada 10 minutos com o app aberto, e ao abrir o Quadro.',
+            _issues.checkClosed,
+            (v) => _issues.copyWith(checkClosed: v),
+          ),
+        ],
       ),
     );
   }
@@ -693,6 +793,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       ),
       const SizedBox(height: 16),
       _gitGroup(path),
+      const SizedBox(height: 16),
+      _issuesGroup(),
       _label('Formatar ao editar', '{arquivo} = arquivo editado pelo agente'),
       _field(
         const ValueKey('config-format'),
@@ -821,6 +923,31 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
           ],
         ),
+      // SPEC-073 R13: `review: corrigir-ci: automatico`.
+      _label(
+        'CI do PR',
+        'o que fazer quando um check do GitHub Actions falha',
+      ),
+      CheckboxListTile(
+        key: const ValueKey('config-ci-auto'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _autoFixCi,
+        title: const Text(
+          'Corrigir CI sozinho, uma vez por commit vermelho',
+          style: TextStyle(fontSize: 12),
+        ),
+        subtitle: const Text(
+          'Só em PR com "Acompanhar PR" ligado, depois que todos os checks '
+          'terminam. O log vai para a sessão; o agente commita e o app envia '
+          'ao PR. Falha com cara de intermitente roda de novo uma vez antes. '
+          'Se o commit da correção também ficar vermelho, para e avisa. '
+          'Desligado, "Corrigir CI" continua no card e no Review.',
+          style: TextStyle(fontSize: 11),
+        ),
+        onChanged: (v) => setState(() => _autoFixCi = v ?? false),
+      ),
       _label(
         'Branch base',
         'origem dos worktrees e destino do merge (vazio = a atual)',

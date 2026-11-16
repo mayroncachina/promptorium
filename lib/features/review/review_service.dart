@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/claude/claude_args.dart' show ClaudePermissionMode;
 import '../../core/git/diff_parser.dart';
 import '../../core/fs/dir_watcher.dart';
-import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/worktree_setup.dart' show worktreeEnvironment;
 import '../../core/process/process_runner.dart' show lenientUtf8;
 import '../../core/process/shell_runner.dart' show shellRunnerProvider;
@@ -146,6 +145,47 @@ class ReviewDetail {
   int get deletions => files.fold(0, (n, f) => n + fileStats(f).$2);
 }
 
+/// The line of the PR body for the issue of a spec (SPEC-074 R8): `Closes
+/// #N` when the PR goes into the default branch (the merge closes it),
+/// `Parte de #N` when it goes into another one (a stacked PR: GitHub only
+/// closes on the default branch), `Issue: #N` with `issues.closes-no-pr:
+/// false`. Null without an issue. An unknown default branch counts as
+/// `main` / `master`.
+String? prIssueLine({
+  required int? issue,
+  required String base,
+  String? defaultBranch,
+  bool closesInPr = true,
+}) {
+  if (issue == null) return null;
+  if (!closesInPr) return 'Issue: #$issue';
+  final isDefault = defaultBranch == null
+      ? const {'main', 'master'}.contains(base)
+      : base == defaultBranch;
+  return isDefault ? 'Closes #$issue' : 'Parte de #$issue';
+}
+
+/// The "ISSUE" line of "Pronto para merge?" (SPEC-074 R8).
+String prIssueDetail({
+  required int issue,
+  required String base,
+  String? defaultBranch,
+  bool closesInPr = true,
+}) {
+  final line = prIssueLine(
+    issue: issue,
+    base: base,
+    defaultBranch: defaultBranch,
+    closesInPr: closesInPr,
+  );
+  return switch (line) {
+    final l? when l.startsWith('Closes') =>
+      '#$issue fecha quando este PR entrar na $base',
+    final l? when l.startsWith('Parte') => '#$issue não fecha: a base é $base',
+    _ => '#$issue não fecha: closes-no-pr está desligado no config.yml',
+  };
+}
+
 /// Whether "Criar PR" can run (`gh` in the PATH + a git remote).
 @immutable
 class PrAvailability {
@@ -272,6 +312,82 @@ class ReviewService {
     return _safeRef(
       await _git(ws.path).currentBranch() ?? 'main',
       'Branch base',
+    );
+  }
+
+  final _defaultBranches = <String, String?>{};
+
+  /// The default branch of the repository of [ws] (SPEC-074 R8): `gh repo
+  /// view`, else the `HEAD` of [remote]; null when neither says. Kept per
+  /// workspace.
+  Future<String?> defaultBranchOf(
+    Workspace ws, {
+    String remote = 'origin',
+  }) async {
+    if (_defaultBranches.containsKey(ws.path)) return _defaultBranches[ws.path];
+    String? found;
+    try {
+      final url = (await _git(
+        ws.path,
+      ).git(['remote', 'get-url', '--push', remote])).trim();
+      final repo = reviewRepositoryUrl(url);
+      if (repo != null) {
+        final r = await _run('gh', [
+          'repo',
+          'view',
+          repo,
+          '--json',
+          'defaultBranchRef',
+          '-q',
+          '.defaultBranchRef.name',
+        ], workingDirectory: ws.path).timeout(const Duration(seconds: 15));
+        final out = '${r.stdout}'.trim();
+        if (r.exitCode == 0 && RegExp(r'^[\w.\/-]+$').hasMatch(out)) {
+          found = out;
+        }
+      }
+    } catch (_) {
+      // falls through to the remote's HEAD
+    }
+    if (found == null) {
+      try {
+        final head = (await _git(
+          ws.path,
+        ).git(['symbolic-ref', '--short', 'refs/remotes/$remote/HEAD'])).trim();
+        if (head.startsWith('$remote/')) {
+          found = head.substring(remote.length + 1);
+        }
+      } catch (_) {
+        /* no HEAD of the remote */
+      }
+    }
+    if (found != null) _defaultBranches[ws.path] = found;
+    return found;
+  }
+
+  /// The "ISSUE" item of "Pronto para merge?" for the session's spec
+  /// (SPEC-074 R8); null when the spec has no issue.
+  Future<ReadinessItem?> issueReadiness(String sessionId) async {
+    final c = await _context(sessionId);
+    final spec = c.spec;
+    final n = spec?.issueNumber;
+    if (n == null) return null;
+    final base = await baseBranchOf(c.session, c.workspace);
+    final config = await _ref.read(
+      projectConfigProvider(c.workspace.path).future,
+    );
+    final remote =
+        _ref.read(appSettingsProvider)['review.remote.$sessionId'] ?? 'origin';
+    return ReadinessItem(
+      'issue',
+      'Issue #$n',
+      ReadinessLevel.ok,
+      prIssueDetail(
+        issue: n,
+        base: base,
+        defaultBranch: await defaultBranchOf(c.workspace, remote: remote),
+        closesInPr: config.issues.closesInPr,
+      ),
     );
   }
 
@@ -940,6 +1056,21 @@ class ReviewService {
     final steps = spec == null
         ? const <SpecStep>[]
         : await _ref.read(specStepsRepoProvider).bySpec(spec.id);
+    // SPEC-074 R8: the issue of the spec, closed by the merge or not.
+    final issueSpec = spec ?? taskSpec;
+    final issueLine = issueSpec?.issueNumber == null
+        ? null
+        : prIssueLine(
+            issue: issueSpec!.issueNumber,
+            base: base,
+            defaultBranch: await defaultBranchOf(
+              c.workspace,
+              remote: avail.remote!,
+            ),
+            closesInPr: (await _ref.read(
+              projectConfigProvider(c.workspace.path).future,
+            )).issues.closesInPr,
+          );
     final args = [
       'pr',
       'create',
@@ -973,6 +1104,7 @@ class ReviewService {
               'Spec: ${taskSpec.code} (`${taskSpec.path}`)'
                   '${task.requirement == null ? '' : ' · requisito ${task.requirement}'}',
           ],
+          ?issueLine,
           'Criado pelo Promptorium (sessão ${_short(s.id)}).',
         ].join('\n\n'),
       ],
@@ -1074,6 +1206,7 @@ class ReviewService {
       mergeable: status.mergeable,
       reviewDecision: status.reviewDecision,
       checks: status.checks,
+      headSha: status.headSha,
       comments: all,
     );
   }
@@ -2498,10 +2631,10 @@ class ReviewService {
       if (status == null) throw const ReviewException('PR não lido');
       final total = status.checks.length;
       final passed = status.checks
-          .where((x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.$2))
+          .where((x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.state))
           .length;
       final failed = status.checks
-          .where((x) => ciStateOf([x.$2]) == CiState.failed)
+          .where((x) => x.failed)
           .length;
       checks = total == passed
           ? null
@@ -2652,7 +2785,7 @@ class ReviewService {
         } else if (status.conflicting ||
             status.reviewDecision == 'CHANGES_REQUESTED' ||
             status.checks.any(
-              (c) => !['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(c.$2),
+              (c) => !['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(c.state),
             )) {
           pr = status.summary;
         }
@@ -3583,8 +3716,16 @@ final mergeReadinessProvider = FutureProvider.family<MergeReadiness, String>((
     final prediction = await ref
         .read(reviewServiceProvider)
         .predictConflict(sessionId);
+    // SPEC-074 R8: whether the merge closes the issue of the spec.
+    ReadinessItem? issue;
+    try {
+      issue = await ref.read(reviewServiceProvider).issueReadiness(sessionId);
+    } catch (_) {
+      issue = null;
+    }
     return MergeReadiness([
       ...readiness.items,
+      ?issue,
       ReadinessItem(
         'conflito',
         'Conflito previsto',

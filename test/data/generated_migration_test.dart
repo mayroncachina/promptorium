@@ -238,4 +238,40 @@ void main() {
     );
     await db.close();
   });
+
+  // SPEC-074: provisional number; whoever integrates last renumbers it.
+  test(
+    'v27 → v28 (SPEC-074) keeps the specs, none linked to an issue yet',
+    () async {
+      final schema = await verifier.schemaAt(27);
+      schema.rawDatabase
+        ..execute(
+          "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+        )
+        ..execute(
+          "INSERT INTO specs (id, workspace_id, code, title, path, status) "
+          "VALUES (1, 1, 'SPEC-023', 'Pix', 'specs/SPEC-023-pix.md', "
+          "'approved')",
+        );
+      final db = AppDatabase(schema.newConnection());
+      final row = await db.select(db.specs).getSingle();
+      expect(row.code, 'SPEC-023');
+      expect(row.status, SpecStatus.approved);
+      expect(row.issueNumber, equals(null));
+      expect(row.issueState, equals(null));
+      expect(row.issueImportedAt, equals(null));
+      expect(row.issueCommentPending, isFalse);
+      await (db.update(db.specs)..where((s) => s.id.equals(1))).write(
+        const SpecsCompanion(
+          issueNumber: Value(226),
+          issueState: Value(IssueState.closed),
+          issueClosedBy: Value('PR #250'),
+        ),
+      );
+      final linked = await db.select(db.specs).getSingle();
+      expect(linked.issueNumber, 226);
+      expect(linked.issueState, IssueState.closed);
+      await db.close();
+    },
+  );
 }

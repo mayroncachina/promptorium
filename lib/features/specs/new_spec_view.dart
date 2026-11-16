@@ -10,6 +10,7 @@ import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import '../ideas/widgets/idea_field.dart';
+import '../issues/issue_refine.dart';
 import '../project/project_config.dart';
 import '../project/project_plan.dart' show PlanMessage;
 import '../project/widgets/project_widgets.dart';
@@ -163,8 +164,29 @@ class _IdeaState extends ConsumerState<_Idea> {
   final _text = TextEditingController();
   bool _checking = false;
 
+  /// "Planejar a spec" ran: the refine target goes on with the draft.
+  bool _planning = false;
+
+  /// Read here: the widget's ref is gone in [dispose].
+  late final IssueRefine _refine;
+
+  @override
+  void initState() {
+    super.initState();
+    _refine = ref.read(issueRefineProvider.notifier);
+    // SPEC-074 R6: the text of the issue, as an imported file.
+    final target = ref.read(issueRefineProvider)[widget.workspace.id];
+    if (target != null && widget.row == null) _text.text = target.text;
+  }
+
   @override
   void dispose() {
+    // Left without planning: the next "Nova spec" is a new spec again.
+    if (!_planning && widget.row == null) {
+      final refine = _refine;
+      final id = widget.workspace.id;
+      Future.microtask(() => refine.clear(id));
+    }
     _text.dispose();
     super.dispose();
   }
@@ -174,6 +196,7 @@ class _IdeaState extends ConsumerState<_Idea> {
   Future<void> _plan() async {
     final idea = _text.text.trim();
     if (idea.isEmpty) return;
+    _planning = true;
     final planner = ref.read(specPlannerProvider.notifier);
     final started = planner.begin(_ws, idea);
     ref.read(newSpecFlowProvider.notifier).converse();
@@ -293,6 +316,10 @@ class _IdeaState extends ConsumerState<_Idea> {
                 ),
                 const SizedBox(height: 12),
               ],
+              if (ref.watch(issueRefineProvider)[_ws.id] case final t?) ...[
+                IssueRefineCard(target: t),
+                const SizedBox(height: 12),
+              ],
               const Text(
                 'Conte a ideia',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
@@ -359,6 +386,56 @@ class _IdeaState extends ConsumerState<_Idea> {
       ),
     );
   }
+}
+
+/// "Da issue #215" (SPEC-074 R6): the text came from the issue, and saving
+/// rewrites the same spec.
+class IssueRefineCard extends StatelessWidget {
+  const IssueRefineCard({super.key, required this.target});
+
+  final IssueRefineTarget target;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('new-spec-issue-card'),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceRaisedSolid,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.borderHover),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.adjust, size: 16, color: AppColors.textSecondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Da issue #${target.issue}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'O texto da issue está no campo. Criar a spec reescreve a '
+                '${target.code}, com o mesmo issue: ${target.issue}; nada é '
+                'enviado sozinho.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _DraftCard extends StatelessWidget {
@@ -882,7 +959,10 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
     final d = widget.data;
     ref.watch(appSettingsProvider);
     final planNext = _planNext;
-    final code = ref.watch(nextSpecCodeProvider(widget.workspace)).value;
+    // SPEC-074 R6: refining an issue's spec saves over it.
+    final refine = ref.watch(issueRefineProvider)[widget.workspace.id];
+    final code =
+        refine?.code ?? ref.watch(nextSpecCodeProvider(widget.workspace)).value;
     final specs =
         ref.watch(specsProvider(widget.workspace.id)).value ?? const <Spec>[];
     final canCreate =
