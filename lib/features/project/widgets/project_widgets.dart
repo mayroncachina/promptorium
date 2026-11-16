@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/button_box.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../../ui/theme/ambient.dart';
 
@@ -64,12 +65,18 @@ class StepHeader extends StatelessWidget {
           const SizedBox(width: 8),
           // Narrow windows: the actions wrap instead of squeezing the title.
           Flexible(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: actions,
+            // SPEC-075: the Wrap is as wide as the buttons; Align keeps it
+            // at the right of the share it gets.
+            child: Align(
+              alignment: Alignment.centerRight,
+              heightFactor: 1,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: actions,
+              ),
             ),
           ),
         ],
@@ -220,10 +227,9 @@ class ChipButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
-          child: Container(
+          child: ButtonBox(
             height: height,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            alignment: Alignment.center,
+            padding: 12,
             child: Text(
               label,
               style: const TextStyle(fontSize: 12, color: AppColors.text),

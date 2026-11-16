@@ -576,13 +576,16 @@ class _Header extends ConsumerWidget {
           const SizedBox(width: 10),
           Flexible(
             flex: 2,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 6,
-              runSpacing: 6,
-              // SmallButton fills the width a Wrap offers: each keeps its own.
-              children: [
-                for (final w in <Widget>[
+            // SPEC-075: the Wrap is as wide as the buttons; Align keeps it at
+            // the right of its share.
+            child: Align(
+              alignment: Alignment.topRight,
+              heightFactor: 1,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
                   if (dev != null)
                     DevServerControl(
                       key: ValueKey('session-dev-${s.id}'),
@@ -645,9 +648,8 @@ class _Header extends ConsumerWidget {
                       border: SessionColors.stopBorder,
                       onTap: () => manager.stop(s.id),
                     ),
-                ])
-                  IntrinsicWidth(child: w),
-              ],
+                ],
+              ),
             ),
           ),
         ],

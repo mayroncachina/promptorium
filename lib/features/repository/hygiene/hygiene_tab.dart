@@ -901,21 +901,19 @@ class _BehindCard extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: IntrinsicWidth(
-                      child: SmallButton(
-                        key: ValueKey('hygiene-review-${b.name}'),
-                        label: 'Abrir no Review',
-                        height: 34,
-                        fontSize: 13,
-                        onTap: () {
-                          ref
-                              .read(selectedReviewProvider.notifier)
-                              .select(b.sessionId);
-                          ref
-                              .read(navigationProvider.notifier)
-                              .go(AppSection.review);
-                        },
-                      ),
+                    child: SmallButton(
+                      key: ValueKey('hygiene-review-${b.name}'),
+                      label: 'Abrir no Review',
+                      height: 34,
+                      fontSize: 13,
+                      onTap: () {
+                        ref
+                            .read(selectedReviewProvider.notifier)
+                            .select(b.sessionId);
+                        ref
+                            .read(navigationProvider.notifier)
+                            .go(AppSection.review);
+                      },
                     ),
                   ),
                 ],

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/process/process_runner.dart';
 import '../../../data/providers.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/button_box.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../spec_action.dart';
 import '../widgets/spec_action_banner.dart';
@@ -289,10 +290,9 @@ class ProtoButton extends StatelessWidget {
               focusColor: primary
                   ? AppColors.onAmber.withValues(alpha: .25)
                   : AppColors.amber.withValues(alpha: .25),
-              child: Container(
+              child: ButtonBox(
                 height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
+                padding: 10,
                 child: ExcludeSemantics(
                   child: Text(
                     label,

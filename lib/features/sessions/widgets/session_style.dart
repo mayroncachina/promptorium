@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/db/enums.dart';
 import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
+import '../../../ui/widgets/button_box.dart';
 
 /// What the list shows for a session (DB status + whether the process lives).
 enum SessionLook {
@@ -154,11 +155,10 @@ class SmallButton extends StatelessWidget {
             borderRadius: radius,
             focusColor: focusColor,
             hoverColor: Colors.transparent,
-            child: Container(
+            child: ButtonBox(
               height: height,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              alignment: Alignment.center,
-              width: expand ? double.infinity : null,
+              padding: 10,
+              expand: expand,
               child: icon == null && trailing == null
                   ? (semanticLabel == null
                         ? text
@@ -246,11 +246,10 @@ class AmberButton extends StatelessWidget {
             focusNode: focusNode,
             borderRadius: radius,
             hoverColor: Colors.transparent,
-            child: Container(
+            child: ButtonBox(
               height: height,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              alignment: Alignment.center,
-              width: expand ? double.infinity : null,
+              padding: 14,
+              expand: expand,
               child: busy
                   ? Row(
                       mainAxisSize: MainAxisSize.min,

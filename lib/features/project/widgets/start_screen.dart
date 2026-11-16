@@ -8,6 +8,7 @@ import '../../../core/git/git_root.dart'
 import '../../../data/providers.dart';
 import '../../../ui/shell/navigation.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/button_box.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../../core/fs/project_paths.dart';
@@ -443,10 +444,9 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                 child: InkWell(
                   customBorder: const StadiumBorder(),
                   onTap: _busy ? null : () => setState(() => _template = tp.id),
-                  child: Container(
+                  child: ButtonBox(
                     height: 30,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.center,
+                    padding: 12,
                     child: Text(
                       tp.label,
                       style: TextStyle(

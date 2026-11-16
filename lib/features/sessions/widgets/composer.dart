@@ -461,59 +461,82 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
             const SizedBox(height: 8),
             Row(
               children: [
+                // SPEC-075: both keep their own width, at the left, with the
+                // share of the row they had; on a narrow pane they shrink.
                 Flexible(
-                  child: PopupMenuButton<ClaudePermissionMode>(
-                    tooltip: widget.provider == 'codex'
-                        ? 'Aplica ao retomar a sessão'
-                        : alive
-                        ? 'Muda já na sessão em andamento'
-                        : 'Modo de permissão ao retomar',
-                    color: AppColors.panelSolid,
-                    onSelected: (m) async {
-                      final messenger = ScaffoldMessenger.maybeOf(context);
-                      try {
-                        await ref
-                            .read(sessionManagerProvider.notifier)
-                            .setPermissionMode(widget.sessionId, m);
-                      } on SessionException catch (e) {
-                        messenger?.showAppToast(
-                          SnackBar(content: Text(e.message)),
-                        );
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      for (final m in uiPermissionModes)
-                        PopupMenuItem(
-                          value: m,
-                          child: Text(
-                            permissionLabel(m, provider: widget.provider),
-                            style: const TextStyle(fontSize: 12),
+                  flex: 2,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    heightFactor: 1,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: PopupMenuButton<ClaudePermissionMode>(
+                            tooltip: widget.provider == 'codex'
+                                ? 'Aplica ao retomar a sessão'
+                                : alive
+                                ? 'Muda já na sessão em andamento'
+                                : 'Modo de permissão ao retomar',
+                            color: AppColors.panelSolid,
+                            onSelected: (m) async {
+                              final messenger = ScaffoldMessenger.maybeOf(
+                                context,
+                              );
+                              try {
+                                await ref
+                                    .read(sessionManagerProvider.notifier)
+                                    .setPermissionMode(widget.sessionId, m);
+                              } on SessionException catch (e) {
+                                messenger?.showAppToast(
+                                  SnackBar(content: Text(e.message)),
+                                );
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              for (final m in uiPermissionModes)
+                                PopupMenuItem(
+                                  value: m,
+                                  child: Text(
+                                    permissionLabel(
+                                      m,
+                                      provider: widget.provider,
+                                    ),
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                            ],
+                            child: Container(
+                              height: 28,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceRaised,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Center(
+                                widthFactor: 1,
+                                child: Text(
+                                  'Permissão: ${permissionLabel(mode, provider: widget.provider)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                    ],
-                    child: Container(
-                      height: 28,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceRaised,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Text(
-                        'Permissão: ${permissionLabel(mode, provider: widget.provider)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                        const SizedBox(width: 8),
+                        Flexible(child: _AttachSpecButton(onPick: _attach)),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Flexible(child: _AttachSpecButton(onPick: _attach)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: picked.isNotEmpty
@@ -600,21 +623,23 @@ class _AttachSpecButton extends ConsumerWidget {
       child: Container(
         height: 28,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surfaceRaised,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: AppColors.border),
         ),
-        child: Text(
-          'Anexar spec',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            color: specs.isEmpty
-                ? AppColors.textMuted
-                : AppColors.textSecondary,
+        child: Center(
+          widthFactor: 1,
+          child: Text(
+            'Anexar spec',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: specs.isEmpty
+                  ? AppColors.textMuted
+                  : AppColors.textSecondary,
+            ),
           ),
         ),
       ),

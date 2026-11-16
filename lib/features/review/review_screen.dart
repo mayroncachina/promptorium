@@ -1616,10 +1616,16 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
               if (primary != PrimaryAction.pedirAjustes &&
                   draft.comments.isNotEmpty) ...[
                 Flexible(
-                  child: SmallButton(
-                    key: const ValueKey('review-request-changes'),
-                    label: 'Pedir ajustes ao agente (${draft.comments.length})',
-                    onTap: canRequest ? _requestChanges : null,
+                  // SPEC-075: its own width, next to the menu.
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    heightFactor: 1,
+                    child: SmallButton(
+                      key: const ValueKey('review-request-changes'),
+                      label:
+                          'Pedir ajustes ao agente (${draft.comments.length})',
+                      onTap: canRequest ? _requestChanges : null,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

@@ -126,6 +126,8 @@ class _DuelDialogState extends ConsumerState<_DuelDialog> {
                 key: ValueKey('duel-choose-$v'),
                 label: 'Escolher $v',
                 height: 28,
+                // SPEC-075: the full width of its side, as the card is.
+                expand: true,
                 onTap: _busy
                     ? null
                     : () => _do(

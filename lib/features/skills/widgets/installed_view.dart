@@ -246,22 +246,27 @@ class _InstalledSkillViewState extends ConsumerState<InstalledSkillView> {
                     ),
                     const SizedBox(width: 8),
                     Flexible(
-                      child: Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          SmallButton(
-                            key: const ValueKey('skill-test'),
-                            label: 'Testar em sessão',
-                            onTap: _dirty ? null : _test,
-                          ),
-                          AmberButton(
-                            key: const ValueKey('skill-save'),
-                            label: _saving ? 'Salvando…' : 'Salvar',
-                            onTap: _dirty && !_saving ? _save : null,
-                          ),
-                        ],
+                      // SPEC-075: the buttons at the right of their share.
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        heightFactor: 1,
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            SmallButton(
+                              key: const ValueKey('skill-test'),
+                              label: 'Testar em sessão',
+                              onTap: _dirty ? null : _test,
+                            ),
+                            AmberButton(
+                              key: const ValueKey('skill-save'),
+                              label: _saving ? 'Salvando…' : 'Salvar',
+                              onTap: _dirty && !_saving ? _save : null,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

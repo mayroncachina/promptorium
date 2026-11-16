@@ -539,41 +539,53 @@ class _Header extends ConsumerWidget {
               ],
             ),
           ),
-          // SPEC-021 R2 / R6 / R11: only refine conversations with a stored
-          // origin; keyboard focusable, with an accessible label.
-          if (backLabel != null) ...[
-            const SizedBox(width: 8),
-            Flexible(
-              flex: 2,
-              child: SmallButton(
-                key: const ValueKey('prompt-back-to-spec'),
-                label: backLabel,
-                semanticLabel: backLabel,
-                focusColor: AppColors.amber.withValues(alpha: 0.25),
-                onTap: () => backToSpec(context, ref, c!),
+          const SizedBox(width: 8),
+          // SPEC-075: the buttons keep their own width, at the right, with
+          // the share of the row they had; on a narrow window they shrink.
+          Flexible(
+            flex: backLabel != null ? 6 : 4,
+            child: Align(
+              alignment: Alignment.centerRight,
+              heightFactor: 1,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // SPEC-021 R2 / R6 / R11: only refine conversations with a
+                  // stored origin; keyboard focusable, with an accessible
+                  // label.
+                  if (backLabel != null) ...[
+                    Flexible(
+                      child: SmallButton(
+                        key: const ValueKey('prompt-back-to-spec'),
+                        label: backLabel,
+                        semanticLabel: backLabel,
+                        focusColor: AppColors.amber.withValues(alpha: 0.25),
+                        onTap: () => backToSpec(context, ref, c!),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: SmallButton(
+                      key: const ValueKey('prompt-to-spec'),
+                      label: 'Transformar em spec',
+                      onTap: c == null || busy || !hasAnswer
+                          ? null
+                          : () => conversationToSpec(context, ref, c, items),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: SmallButton(
+                      key: const ValueKey('prompt-continue-session'),
+                      label: 'Continuar como sessão',
+                      onTap: c == null || busy || c.claudeSessionId == null
+                          ? null
+                          : () => showContinueSessionDialog(context, c),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          Flexible(
-            flex: 2,
-            child: SmallButton(
-              key: const ValueKey('prompt-to-spec'),
-              label: 'Transformar em spec',
-              onTap: c == null || busy || !hasAnswer
-                  ? null
-                  : () => conversationToSpec(context, ref, c, items),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            flex: 2,
-            child: SmallButton(
-              key: const ValueKey('prompt-continue-session'),
-              label: 'Continuar como sessão',
-              onTap: c == null || busy || c.claudeSessionId == null
-                  ? null
-                  : () => showContinueSessionDialog(context, c),
             ),
           ),
           // SPEC-056 R1: the same menu as the right click on the row.

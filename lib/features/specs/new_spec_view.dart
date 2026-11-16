@@ -324,30 +324,25 @@ class _IdeaState extends ConsumerState<_Idea> {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  // A button takes all the width a Wrap offers.
-                  IntrinsicWidth(
-                    child: AmberButton(
-                      key: const ValueKey('new-spec-plan'),
-                      label: 'Planejar a spec',
-                      height: 36,
-                      fontSize: 13,
-                      onTap:
-                          _text.text.trim().isEmpty ||
-                              data != null ||
-                              noCli ||
-                              busy
-                          ? null
-                          : _plan,
-                    ),
+                  AmberButton(
+                    key: const ValueKey('new-spec-plan'),
+                    label: 'Planejar a spec',
+                    height: 36,
+                    fontSize: 13,
+                    onTap:
+                        _text.text.trim().isEmpty ||
+                            data != null ||
+                            noCli ||
+                            busy
+                        ? null
+                        : _plan,
                   ),
-                  IntrinsicWidth(
-                    child: SmallButton(
-                      key: const ValueKey('new-spec-blank'),
-                      label: 'Criar em branco',
-                      height: 36,
-                      fontSize: 13,
-                      onTap: _blank,
-                    ),
+                  SmallButton(
+                    key: const ValueKey('new-spec-blank'),
+                    label: 'Criar em branco',
+                    height: 36,
+                    fontSize: 13,
+                    onTap: _blank,
                   ),
                   Text(
                     hint,
@@ -736,12 +731,10 @@ class _Message extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   for (final s in suggestions)
-                    IntrinsicWidth(
-                      child: ChipButton(
-                        key: ValueKey('new-spec-suggestion-$s'),
-                        label: s,
-                        onTap: () => onSuggestion(s),
-                      ),
+                    ChipButton(
+                      key: ValueKey('new-spec-suggestion-$s'),
+                      label: s,
+                      onTap: () => onSuggestion(s),
                     ),
                 ],
               ),
@@ -1031,24 +1024,20 @@ class _DraftPanelState extends ConsumerState<_DraftPanel> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    IntrinsicWidth(
-                      child: SmallButton(
-                        key: const ValueKey('new-spec-leave'),
-                        label: 'Sair e guardar',
-                        height: 36,
-                        fontSize: 13,
-                        onTap: ref.read(newSpecFlowProvider.notifier).close,
-                      ),
+                    SmallButton(
+                      key: const ValueKey('new-spec-leave'),
+                      label: 'Sair e guardar',
+                      height: 36,
+                      fontSize: 13,
+                      onTap: ref.read(newSpecFlowProvider.notifier).close,
                     ),
-                    IntrinsicWidth(
-                      child: AmberButton(
-                        key: const ValueKey('new-spec-create'),
-                        label: planNext ? 'Criar e planejar' : 'Criar spec',
-                        height: 36,
-                        fontSize: 13,
-                        busy: _creating,
-                        onTap: canCreate ? _create : null,
-                      ),
+                    AmberButton(
+                      key: const ValueKey('new-spec-create'),
+                      label: planNext ? 'Criar e planejar' : 'Criar spec',
+                      height: 36,
+                      fontSize: 13,
+                      busy: _creating,
+                      onTap: canCreate ? _create : null,
                     ),
                   ],
                 ),

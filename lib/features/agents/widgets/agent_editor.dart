@@ -426,24 +426,37 @@ class AgentEditorState extends ConsumerState<AgentEditor> {
             ),
           ),
           const SizedBox(width: 8),
-          if (e != null) ...[
-            Flexible(
-              child: SmallButton(
-                key: const ValueKey('agent-delete'),
-                label: 'Excluir',
-                color: AppColors.red,
-                height: 32,
-                onTap: _busy ? null : _delete,
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
+          // SPEC-075: the buttons keep their own width, at the right; on a
+          // narrow window they shrink instead of the title.
           Flexible(
-            child: SmallButton(
-              key: const ValueKey('agent-test'),
-              label: 'Testar em sessão',
-              height: 32,
-              onTap: _busy ? null : _test,
+            child: Align(
+              alignment: Alignment.centerRight,
+              heightFactor: 1,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (e != null) ...[
+                    Flexible(
+                      child: SmallButton(
+                        key: const ValueKey('agent-delete'),
+                        label: 'Excluir',
+                        color: AppColors.red,
+                        height: 32,
+                        onTap: _busy ? null : _delete,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: SmallButton(
+                      key: const ValueKey('agent-test'),
+                      label: 'Testar em sessão',
+                      height: 32,
+                      onTap: _busy ? null : _test,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
