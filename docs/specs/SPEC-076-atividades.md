@@ -115,7 +115,7 @@ Canvas validado: [Atividades](https://claude.ai/artifact/24NmtjoJLK9oUBrQbabjPK)
 - **`buildActivities(...)`** (função pura) e **`activitiesProvider`** (todos os workspaces); `groupActivities` (R6) e `activityTabCount`.
 - **`quota_forecast.dart`**: `QuotaSamples` (leituras em memória) e `quotaForecast` (função pura, R7); `sessionQuotaWeight`.
 - **`automation_pause.dart`**: `automationPausedProvider` (R8), lido pelo `Autopilot._tick`/`scheduleTick` e pelo `_autoFixCi` do babysitter; `pauseAfterTurnProvider`, lido pelo `_advance`.
-- **`lib/ui/widgets/robot_avatar.dart`**: `RobotAvatar(seed, pose, size)`, `RobotIdentity.of(seed)` e o `RobotPainter` (R9–R11).
+- **`lib/features/activities/widgets/robot_avatar.dart`**: `RobotAvatar(seed, pose, size)`, `RobotIdentity.of(seed)` e o `RobotPainter` (R9–R11).
 - **`lib/features/activities/activities_screen.dart`** e `widgets/` (lista, linha, painel, cota) (R15–R23). `AppSection.activities`.
 - No Quadro: `CardRobot` e `CardBalloon` no `SpecCard`, e a contagem no `_Header` (R13, R14).
 
@@ -148,8 +148,8 @@ t2 e t3 dependem de t1; t3 usa o `RobotAvatar` da t2.
 - [ ] Grupos com pedido ou erro sobem e, dentro do grupo, o que precisa de você vem primeiro [R6] verificar: flutter test test/features/activities/activity_test.dart
 - [ ] A cota mostra "neste ritmo, acaba em…" ou "dura até renovar" a partir das leituras [R7] verificar: flutter test test/features/activities/quota_forecast_test.dart
 - [ ] "Pausar automáticos" segura o Autopilot e o Corrigir CI automático; "Pausar após o turno" não avança a etapa [R8] verificar: flutter test test/features/activities/automation_pause_test.dart
-- [ ] O robô tem forma, cor e nome estáveis pela semente, uma pose por estado, fica parado com "reduzir movimento" e não vaza ticker [R9, R10, R11] verificar: flutter test test/ui/widgets/robot_avatar_test.dart
-- [ ] O card do Quadro mostra o robô (nunca em Feito), o balão com o pedido e o botão, e a barra conta agentes trabalhando e pedidos [R12, R13, R14] verificar: flutter test test/features/board/board_robots_test.dart
+- [ ] O robô tem forma, cor e nome estáveis pela semente, uma pose por estado, fica parado com "reduzir movimento" e não vaza ticker [R9, R10, R11] verificar: flutter test test/features/activities/robot_avatar_test.dart
+- [ ] O card do Quadro mostra o robô (nunca em Feito), o balão com o pedido e o botão, e a barra conta agentes trabalhando e pedidos [R12, R13, R14] verificar: flutter test test/features/activities/board_robots_test.dart
 - [ ] A tela Atividades lista, agrupa, filtra pelas abas, age pela linha e mostra o painel do selecionado; o menu mostra o selo [R15–R22] verificar: flutter test test/features/activities/activities_screen_test.dart
 - [ ] Clicar no robô do card abre a Atividades selecionada, e "Ver no Quadro" volta ao card [R23] verificar: flutter test test/features/activities/activities_screen_test.dart
 - [ ] Com sessões reais do `claude` em dois workspaces, a Atividades e o Quadro mostram os robôs se mexendo conforme a ferramenta [R3, R10, R13] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-076/app/`)
