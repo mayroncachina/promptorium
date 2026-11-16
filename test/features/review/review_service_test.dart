@@ -1602,7 +1602,7 @@ void main() {
     await settle();
     final status = e.c.read(prBabysitterProvider)[e.sessionId]!.status!;
     expect(status.summary, contains('com conflito'));
-    expect(status.summary, contains('1 check(s) falhando'));
+    expect(status.summary, contains('1 de 1 check falhou'));
     final sent = e.cli.last.writtenJson.last['message']['content'] as String;
     expect(sent, contains('@ana (comentário):'));
     expect(sent, contains('Faltou tratar o erro de rede.'));

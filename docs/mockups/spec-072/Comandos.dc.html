@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Stack com o bloco Comandos</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:34px;padding:0 14px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(34,39,50,.6);color:#E7E9EE;font:500 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.sm{height:28px;font-size:12px;padding:0 10px;border-radius:8px}
+.cta.off,.btn.off{opacity:.42}
+.link{background:none;border:0;padding:0;color:#F2A541;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:5px}
+.it{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1)}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#8B93A3;text-transform:uppercase}
+.lbl{display:block;font-size:12px;color:#A0A8B6;margin-bottom:6px}
+.in{height:34px;width:100%;border-radius:8px;border:1px solid rgba(255,255,255,.16);background:rgba(10,12,16,.55);color:#E7E9EE;font:400 12px 'JetBrains Mono',monospace;padding:0 10px}
+.in.sm{height:30px;font-size:11.5px}
+.in.foc{border-color:#F2A541;box-shadow:0 0 0 2px rgba(242,165,65,.25)}
+.chip{height:30px;padding:0 12px;border-radius:15px;border:1px solid rgba(255,255,255,.14);color:#A0A8B6;font:400 12px 'IBM Plex Sans';display:inline-flex;align-items:center;background:transparent}
+.chip.on{border-color:#F2A541;color:#F2A541;background:rgba(242,165,65,.1)}
+.card{flex:1;min-width:0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.card.on{border-color:rgba(242,165,65,.75);background:rgba(242,165,65,.08)}
+.card b{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card span{font-size:12px;color:#A0A8B6;line-height:1.4}
+.radio{width:16px;height:16px;border-radius:8px;border:1.5px solid #7C8595;display:inline-block;flex:none}
+.radio.on{border-color:#F2A541;box-shadow:inset 0 0 0 3px #12151B;background:#F2A541}
+.chk{list-style:none;border-radius:10px;padding:9px 10px;display:flex;gap:9px;align-items:flex-start;border:1px solid rgba(255,255,255,.07);background:rgba(10,12,16,.35)}
+.chk.bad{border-color:rgba(242,107,107,.55);background:rgba(242,107,107,.07)}
+.chk.warn{border-color:rgba(242,165,65,.45)}
+.mk{width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.mk.ok{background:rgba(79,209,181,.16);border:1px solid rgba(79,209,181,.6)}
+.mk.bad{background:rgba(242,107,107,.16);border:1px solid rgba(242,107,107,.7)}
+.mk.warn{background:rgba(242,165,65,.16);border:1px solid rgba(242,165,65,.6)}
+.mk.na{border:1px solid rgba(255,255,255,.2)}
+.chk .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chk .t b{font-size:12.5px;font-weight:600}
+.chk .t small{font-size:11.5px;color:#A0A8B6;line-height:1.35}
+.st{font:600 10.5px 'IBM Plex Sans';letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:5px;flex:none;margin-top:1px}
+.st.ok{color:#4FD1B5;background:rgba(79,209,181,.1)}
+.st.bad{color:#FF8A8A;background:rgba(242,107,107,.12)}
+.st.warn{color:#F2A541;background:rgba(242,165,65,.12)}
+.st.na{color:#8B93A3;background:rgba(255,255,255,.05)}
+.step{font-size:12px;color:#A0A8B6;line-height:1.4;display:flex;gap:6px}
+.step i{font-style:normal;color:#7C8595;font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:1px}
+.step em{font-style:normal;color:#E7E9EE}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:5}
+.note.warn{background:#F2A541}
+.si{display:flex;gap:10px;padding:8px;border-radius:8px;align-items:flex-start}
+.si.cur{background:rgba(242,165,65,.1)}
+.bd{width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;font:600 11px 'IBM Plex Sans'}
+.bd.done{background:rgba(79,209,181,.14);border:1px solid rgba(79,209,181,.55)}
+.bd.cur{background:#F2A541;color:#1A1206}
+.bd.todo{border:1px solid rgba(255,255,255,.22);color:#A0A8B6;font-weight:400}
+.si b{display:block;font-size:13px;font-weight:500}
+.si.cur b{color:#F2A541;font-weight:600}
+.si small{display:block;font-size:11px;color:#A0A8B6}
+.lk{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;font-size:12px;color:#F2A541}
+.lk.hl{background:rgba(242,165,65,.12);box-shadow:inset 0 0 0 1px rgba(242,165,65,.45)}
+.tag{white-space:nowrap;font:500 10.5px 'IBM Plex Sans';padding:1px 7px;border-radius:9px;border:1px solid}
+.sec{border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.sec h4{margin:0 0 8px;font:600 12.5px 'IBM Plex Sans';display:flex;align-items:center;gap:8px}
+.kv{display:flex;align-items:center;gap:10px;font-size:12px;padding:4px 0}
+a{color:#F2A541}a:hover{color:#FFD08A}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <button class="cta" style="height:30px"><span>Novo projeto</span></button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+ <div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h5l2 2h7v8H3z"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div>
+ <div style="flex:1"></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2"/></svg></div>
+</nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#8B93A3"><span class="mono" style="color:#4FD1B5">● claude 2.1.300</span><span>5 h: 34% · semana: 12%</span><span style="flex:1"></span><span class="mono">0.18.0</span></footer>
+
+<aside class="g" style="position:absolute;left:72px;top:60px;bottom:44px;width:232px;border-radius:16px;padding:14px 10px 12px;display:flex;flex-direction:column;gap:2px">
+ <div style="padding:0 6px 10px"><div class="cap">Loja da Ana</div><div class="mono" style="font-size:11px;color:#A0A8B6;margin-top:3px">~/workspace/loja-da-ana</div></div>
+ <div class="si"><span class="bd done"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="#4FD1B5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2 4-4.4"/></svg></span><div><b>Pasta e repositório</b><small>git init · main · commit inicial</small></div></div><div class="si"><span class="bd done"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="#4FD1B5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.2l2 2 4-4.4"/></svg></span><div><b>Visão</b><small>MVP com 5 funcionalidades</small></div></div><div class="si cur"><span class="bd cur">3</span><div><b>Stack e convenções</b><small>Flutter · Riverpod · Drift</small></div></div><div class="si"><span class="bd todo">4</span><div><b>Roadmap</b><small>8 specs · 4 etapas</small></div></div><div class="si"><span class="bd todo">5</span><div><b>Revisar e criar</b><small>Arquivos, quadro e 1ª sessão</small></div></div>
+ <div style="height:6px"></div>
+ <div class="lk"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M4 10h12M4 14h12"/></svg><span>Configuração do projeto</span></div><div class="lk"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a5 5 0 0 0-3 9v3h6v-3a5 5 0 0 0-3-9z"/></svg><span>Memória do projeto</span></div><div class="lk"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16V9M8 16V5M13 16v-5M18 16V7"/></svg><span>Métricas</span></div><div class="lk"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h3l2-5 4 10 2-5h3"/></svg><span>Saúde do projeto</span> <span class="tag" style="color:#4FD1B5;border-color:rgba(79,209,181,.5);margin-left:auto">novo</span></div>
+ <div style="flex:1"></div>
+ <div style="font-size:11px;color:#A0A8B6;padding:0 6px 8px">Planner · 4 chamadas</div>
+ <div style="margin:0 4px;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(34,39,50,.5);font-size:11px;color:#A0A8B6;line-height:1.4">O planner só lê o repositório. Nada é gravado até Criar projeto.</div>
+ <div style="text-align:center;font-size:12px;color:#A0A8B6;padding:8px 0 2px">Descartar plano</div>
+</aside>
+<section style="position:absolute;left:312px;top:60px;bottom:44px;width:658px;display:flex;flex-direction:column">
+ <div style="display:flex;align-items:flex-start;padding:16px 20px 10px;border-bottom:1px solid rgba(255,255,255,.07)"><div style="flex:1"><div style="font-size:17px;font-weight:600">Stack e convenções</div><div style="font-size:12px;color:#A0A8B6;margin-top:2px">Proposta do planner a partir da visão. Clique numa alternativa para trocar.</div></div><button class="btn sm">Pedir outra proposta</button></div>
+ <div style="padding:12px 20px;overflow:hidden">
+  <div class="g" style="border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:14px;margin-bottom:6px">
+ <span class="cap" style="width:96px;flex:none">App</span>
+ <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px">Flutter <span class="tag" style="color:#4FD1B5;border-color:#4FD1B580">sua escolha</span></div><div style="font-size:11.5px;color:#A0A8B6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Fixado pelo modelo Flutter app.</div></div>
+ <div style="display:flex;gap:5px;flex:none"></div>
+</div>
+  <div class="g" style="border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:14px;margin-bottom:6px">
+ <span class="cap" style="width:96px;flex:none">Estado</span>
+ <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px">Riverpod <span class="tag" style="color:#4FD1B5;border-color:#4FD1B580">sua escolha</span></div><div style="font-size:11.5px;color:#A0A8B6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Fixado pelo modelo Flutter app.</div></div>
+ <div style="display:flex;gap:5px;flex:none"></div>
+</div>
+  <div class="g" style="border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:14px;margin-bottom:6px">
+ <span class="cap" style="width:96px;flex:none">Banco de dados</span>
+ <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px">Drift (SQLite)</div><div style="font-size:11.5px;color:#A0A8B6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Pedidos e estoque offline, com migrations versionadas.</div></div>
+ <div style="display:flex;gap:5px;flex:none"><span class="chip" style="height:24px;font-size:11.5px;padding:0 9px">Isar</span><span class="chip" style="height:24px;font-size:11.5px;padding:0 9px">Hive</span></div>
+</div>
+  <div class="g" style="border-radius:10px;padding:12px 14px;margin-top:10px;border-color:rgba(242,165,65,.35)">
+   <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:13px;font-weight:600">Comandos</span><span style="font-size:11.5px;color:#A0A8B6;flex:1">vão para o <span class="mono">.promptorium/config.yml</span></span><button class="btn sm">Detectar do repositório</button></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">instalar</label><span class="mono" style="font-size:11px;color:#A0A8B6">worktree.preparar</span><input class="in sm" value="test ! -f pubspec.yaml || flutter pub get" readonly style="opacity:.75;font-size:11px;padding:0 8px"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#A0A8B6;border-color:rgba(255,255,255,.2);display:inline-flex;gap:4px;align-items:center"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#8B93A3" stroke-width="1.8" stroke-linecap="round"><path d="M6 9V6a4 4 0 0 1 8 0v3M4 9h12v8H4z"/></svg>já existe</span></span></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">rodar</label><span class="mono" style="font-size:11px;color:#A0A8B6">executar</span><input class="in sm foc" value="flutter run -d linux"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#4FD1B5;border-color:rgba(79,209,181,.5)">novo</span></span></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">dev</label><span class="mono" style="font-size:11px;color:#A0A8B6">dev</span><input class="in sm" value="" placeholder="vazio: não entra no config.yml"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#8B93A3;border-color:rgba(255,255,255,.14)">não se aplica</span></span></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">testes</label><span class="mono" style="font-size:11px;color:#A0A8B6">testes</span><input class="in sm" value="flutter test" readonly style="opacity:.75;font-size:11px;padding:0 8px"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#A0A8B6;border-color:rgba(255,255,255,.2);display:inline-flex;gap:4px;align-items:center"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#8B93A3" stroke-width="1.8" stroke-linecap="round"><path d="M6 9V6a4 4 0 0 1 8 0v3M4 9h12v8H4z"/></svg>já existe</span></span></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">lint</label><span class="mono" style="font-size:11px;color:#A0A8B6">lint</span><input class="in sm" value="flutter analyze" readonly style="opacity:.75;font-size:11px;padding:0 8px"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#A0A8B6;border-color:rgba(255,255,255,.2);display:inline-flex;gap:4px;align-items:center"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#8B93A3" stroke-width="1.8" stroke-linecap="round"><path d="M6 9V6a4 4 0 0 1 8 0v3M4 9h12v8H4z"/></svg>já existe</span></span></div>
+   <div style="display:grid;grid-template-columns:58px 108px minmax(0,1fr) 100px;gap:8px;align-items:center;padding:4px 0">
+ <label style="font-size:12px">formatar</label><span class="mono" style="font-size:11px;color:#A0A8B6">formatar</span><input class="in sm" value="dart format {arquivo}" readonly style="opacity:.75;font-size:11px;padding:0 8px"><span style="justify-self:end"><span class="tag" style="font-size:10px;padding:1px 6px;color:#A0A8B6;border-color:rgba(255,255,255,.2);display:inline-flex;gap:4px;align-items:center"><svg aria-hidden="true" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="#8B93A3" stroke-width="1.8" stroke-linecap="round"><path d="M6 9V6a4 4 0 0 1 8 0v3M4 9h12v8H4z"/></svg>já existe</span></span></div>
+   <div style="font-size:11px;color:#8B93A3;margin-top:6px">"já existe": o config.yml já tem a chave, e ela fica como está. Só as chaves vazias são preenchidas.</div>
+  </div>
+ </div>
+</section>
+<aside class="g" style="position:absolute;left:978px;right:8px;top:60px;bottom:44px;border-radius:16px;display:flex;flex-direction:column">
+ <div style="display:flex;align-items:center;padding:14px 16px 10px"><span class="cap" style="flex:1">CLAUDE.md</span><span class="tag" style="color:#A0A8B6;border-color:rgba(255,255,255,.2)">editável</span></div>
+ <div style="margin:0 16px 10px;padding:9px 10px;border-radius:8px;border:1px solid rgba(242,165,65,.45);background:rgba(242,165,65,.08);display:flex;gap:8px;align-items:center"><span style="font-size:11.5px;color:#F2D3A0;flex:1;line-height:1.35">Um comando mudou depois que o CLAUDE.md foi escrito.</span><button class="btn sm">Atualizar</button></div>
+ <div class="mono" style="flex:1;margin:0 16px 12px;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.55);font-size:11.5px;line-height:1.6;color:#C9CED8;white-space:pre-line;overflow:hidden"># Loja da Ana
+
+App Flutter de pedidos para a loja da Ana.
+
+## Stack
+- Flutter (desktop e Android) · Riverpod
+- Drift (SQLite), migrations em lib/data
+
+## Comandos
+- Instalar: flutter pub get
+- Rodar: flutter run -d linux
+- Testes: flutter test
+- Lint: flutter analyze
+- Formatar: dart format
+
+## Convenções
+- Um widget por arquivo; lógica fora dos widgets.
+- Commits pequenos, em português, imperativo.</div>
+ <div style="display:flex;justify-content:space-between;padding:10px 16px 14px;border-top:1px solid rgba(255,255,255,.07)"><button class="btn sm">Voltar</button><button class="cta" style="height:30px">Próximo: Roadmap</button></div>
+</aside>
+<div class="note" style="left:340px;top:640px">R12 · uma linha por comando, com a chave do config.yml; o que já existe fica travado</div>
+<div class="note warn" style="left:340px;top:670px">R12 · editar um comando marca o CLAUDE.md como desatualizado →</div>
+<div class="note" style="left:340px;top:700px">R14 · "Detectar do repositório" lê o pubspec.yaml e preenche só as linhas vazias</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

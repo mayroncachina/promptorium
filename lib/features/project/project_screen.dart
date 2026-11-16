@@ -6,6 +6,9 @@ import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../sessions/widgets/session_style.dart';
+import '../../core/providers/provider_availability.dart';
+import 'cost_estimate.dart';
+import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_planner.dart';
 import 'project_service.dart';
@@ -196,6 +199,20 @@ class _Stepper extends ConsumerWidget {
     }
   }
 
+  /// "Planner · 4 chamadas" on a subscription plan, dollars only with an
+  /// API key (SPEC-072 R8).
+  String? _plannerLine(WidgetRef ref) {
+    final calls = ref.watch(plannerCallsProvider(workspace.id));
+    final sub = ref
+        .watch(providerAvailabilityProvider('claude'))
+        .value
+        ?.subscriptionType;
+    if (sub != null) {
+      return calls.total > 0 ? 'Planner · ${calls.label}' : null;
+    }
+    return plan.costUsd > 0 ? 'Planner · ${formatCost(plan.costUsd)}' : null;
+  }
+
   Future<void> _discard(BuildContext context, WidgetRef ref) async {
     final ok = await showAppDialog<bool>(
       context: context,
@@ -282,10 +299,13 @@ class _Stepper extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const _StepItem(
+                  _StepItem(
+                    key: const ValueKey('project-stepper-repo'),
                     number: 1,
                     title: 'Pasta e repositório',
-                    subtitle: 'git init · commit inicial',
+                    // The branch of the Começar screen (SPEC-072 R6).
+                    subtitle:
+                        'git init · ${ProjectConfig.loadSync(workspace.path).baseBranch ?? 'main'} · commit inicial',
                     state: _StepState.done,
                   ),
                   for (final s in ProjectStep.values)
@@ -364,12 +384,34 @@ class _Stepper extends ConsumerWidget {
                       style: TextStyle(fontSize: 12),
                     ),
                   ),
+                  // The Saúde inside the flow (SPEC-072 R14, P8).
+                  TextButton.icon(
+                    key: const ValueKey('project-health-open'),
+                    onPressed: () => showAppDialog<void>(
+                      context: context,
+                      barrierColor: AppColors.scrim,
+                      builder: (ctx) => Dialog(
+                        backgroundColor: AppColors.panel,
+                        child: SizedBox(
+                          width: 900,
+                          height: 620,
+                          child: ProjectHealthView(workspace: workspace),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.monitor_heart_outlined, size: 16),
+                    label: const Text(
+                      'Saúde do projeto',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
                   const Spacer(),
-                  if (plan.costUsd > 0)
+                  if (_plannerLine(ref) case final line?)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(6, 0, 6, 8),
                       child: Text(
-                        'Planner · ${formatCost(plan.costUsd)}',
+                        line,
+                        key: const ValueKey('project-planner-cost'),
                         style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.textSecondary,

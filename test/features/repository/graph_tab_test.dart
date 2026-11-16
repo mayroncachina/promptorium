@@ -760,7 +760,7 @@ void main() {
       [s],
       {
         's1': const PrWatch(
-          status: PrStatus(state: 'OPEN', checks: [('build', 'FAILURE')]),
+          status: PrStatus(state: 'OPEN', checks: [PrCheck(name: 'build', state: 'FAILURE')]),
         ),
       },
     );

@@ -135,6 +135,9 @@ enum MergeState {
   rebaseManual('Rebase em andamento'),
   pendencias('Pendências'),
 
+  /// The PR's CI failed (SPEC-073): never "Pronto para merge".
+  ciFalhou('CI falhou'),
+
   /// Conflict resolved by the agent, checked by the gate (SPEC-043 R2).
   resolvendo('Agente resolvendo o conflito…'),
   conferindo('Conferindo a resolução…'),
@@ -167,6 +170,7 @@ class MergeStatus {
       'Conferindo a resolução · $detail',
     MergeState.reprovada when detail != null =>
       'Resolução reprovada no gate · $detail',
+    MergeState.ciFalhou when detail != null => 'CI falhou · $detail',
     _ => state.label,
   };
 
@@ -183,7 +187,8 @@ class MergeStatus {
 /// pendencies, and only then ready. [conflictFiles] null = not checked yet.
 /// A conflict resolution (SPEC-043 R2) in progress, failed or outdated
 /// comes first; an approved one replaces "ready". [resolutionDetail]: the
-/// gate item running or the first that failed.
+/// gate item running or the first that failed. [ciFailed]: how many checks
+/// of the PR failed (SPEC-073), after the conflicts and before pendencies.
 MergeStatus mergeStatusOf({
   ResolutionState? resolution,
   String? resolutionDetail,
@@ -194,6 +199,7 @@ MergeStatus mergeStatusOf({
   bool staleBase = false,
   List<String>? conflictFiles,
   bool pending = false,
+  int ciFailed = 0,
 }) {
   switch (resolution) {
     case ResolutionState.resolvendo:
@@ -223,6 +229,12 @@ MergeStatus mergeStatusOf({
       detail: conflictFiles.length == 1
           ? first
           : '$first +${conflictFiles.length - 1}',
+    );
+  }
+  if (ciFailed > 0) {
+    return MergeStatus(
+      MergeState.ciFalhou,
+      detail: '$ciFailed ${ciFailed == 1 ? 'check' : 'checks'}',
     );
   }
   if (pending) return const MergeStatus(MergeState.pendencias);
@@ -259,7 +271,10 @@ PrimaryAction primaryActionOf(MergeStatus status, {required bool hasPr}) =>
       MergeState.verificando ||
       MergeState.resolvendo ||
       MergeState.conferindo ||
-      MergeState.resolvida =>
+      MergeState.resolvida ||
+      // "Corrigir CI" lives in the PR's CI panel; the header keeps the
+      // merge, which the readiness turns off (SPEC-073 mockup 2).
+      MergeState.ciFalhou =>
         hasPr ? PrimaryAction.mergearPr : PrimaryAction.fazerMerge,
       MergeState.reprovada => PrimaryAction.corrigirVerificar,
       MergeState.resolucaoDesatualizada => PrimaryAction.resolverDeNovo,

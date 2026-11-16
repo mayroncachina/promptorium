@@ -54,6 +54,7 @@ import '../specs/spec_file.dart';
 ///   marcar-commits-de-agente: true  # trailer nos commits das sessões
 /// review:
 ///   resolver-conflitos: automatico  # SPEC-043 R6 (padrão: manual)
+///   corrigir-ci: automatico         # SPEC-073 R11 (padrão: manual)
 /// ```
 ///
 /// Every key is optional; absent = the behaviour from before the key existed.
@@ -401,6 +402,7 @@ class ProjectConfig {
     this.host,
     this.hostType,
     this.autoResolveConflicts = false,
+    this.autoFixCi = false,
   });
 
   static const defaultSpecsDir = 'specs';
@@ -459,6 +461,11 @@ class ProjectConfig {
   /// the agent's conflict resolution by itself. Default `manual`.
   final bool autoResolveConflicts;
 
+  /// `review: corrigir-ci: automatico` (SPEC-073 R11, P1): a watched PR
+  /// whose CI failed gets one fix from the agent per red commit, without
+  /// the user. Default `manual`.
+  final bool autoFixCi;
+
   /// The verification in effect (defaults when absent).
   VerificationConfig get gate => verification ?? const VerificationConfig();
 
@@ -499,6 +506,7 @@ class ProjectConfig {
     String? host,
     String? hostType,
     bool? autoResolveConflicts,
+    bool? autoFixCi,
   }) => ProjectConfig(
     specsDir: specsDir ?? this.specsDir,
     testCommand: testCommand == null ? this.testCommand : testCommand(),
@@ -524,6 +532,7 @@ class ProjectConfig {
     host: host ?? this.host,
     hostType: hostType ?? this.hostType,
     autoResolveConflicts: autoResolveConflicts ?? this.autoResolveConflicts,
+    autoFixCi: autoFixCi ?? this.autoFixCi,
   );
 
   // The file text holds every field (only non-defaults are written).
@@ -699,6 +708,8 @@ class ProjectConfig {
       ),
       autoResolveConflicts:
           '${map('review')['resolver-conflitos'] ?? ''}'.trim() == 'automatico',
+      autoFixCi:
+          '${map('review')['corrigir-ci'] ?? ''}'.trim() == 'automatico',
     );
   }
 
@@ -809,8 +820,10 @@ class ProjectConfig {
     if (!git.isDefault) {
       b.writeln('git:\n  marcar-commits-de-agente: ${git.markAgentCommits}');
     }
-    if (autoResolveConflicts) {
-      b.writeln('review:\n  resolver-conflitos: automatico');
+    if (autoResolveConflicts || autoFixCi) {
+      b.writeln('review:');
+      if (autoResolveConflicts) b.writeln('  resolver-conflitos: automatico');
+      if (autoFixCi) b.writeln('  corrigir-ci: automatico');
     }
     if (!issues.isDefault) {
       b

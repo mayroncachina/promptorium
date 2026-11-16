@@ -203,6 +203,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     text: _saved.dev == null || _saved.dev!.path == '/' ? '' : _saved.dev!.path,
   );
   late bool _reviewerOn = _saved.reviewer.enabled;
+  late bool _autoFixCi = _saved.autoFixCi;
   late final _reviewerModel = TextEditingController(
     text: _saved.reviewer.model,
   );
@@ -307,6 +308,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           const ReviewerConfig().rounds,
     ),
     git: GitConfig(markAgentCommits: _markAgents),
+    autoFixCi: _autoFixCi,
     issues: _issues,
   );
 
@@ -921,6 +923,31 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
           ],
         ),
+      // SPEC-073 R13: `review: corrigir-ci: automatico`.
+      _label(
+        'CI do PR',
+        'o que fazer quando um check do GitHub Actions falha',
+      ),
+      CheckboxListTile(
+        key: const ValueKey('config-ci-auto'),
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        value: _autoFixCi,
+        title: const Text(
+          'Corrigir CI sozinho, uma vez por commit vermelho',
+          style: TextStyle(fontSize: 12),
+        ),
+        subtitle: const Text(
+          'Só em PR com "Acompanhar PR" ligado, depois que todos os checks '
+          'terminam. O log vai para a sessão; o agente commita e o app envia '
+          'ao PR. Falha com cara de intermitente roda de novo uma vez antes. '
+          'Se o commit da correção também ficar vermelho, para e avisa. '
+          'Desligado, "Corrigir CI" continua no card e no Review.',
+          style: TextStyle(fontSize: 11),
+        ),
+        onChanged: (v) => setState(() => _autoFixCi = v ?? false),
+      ),
       _label(
         'Branch base',
         'origem dos worktrees e destino do merge (vazio = a atual)',

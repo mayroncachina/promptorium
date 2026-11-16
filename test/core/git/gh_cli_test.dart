@@ -272,4 +272,14 @@ void main() {
       expect(info.defaultBranch, 'trunk');
     });
   });
+
+  test('SPEC-073: the whole failed log and the rerun of only the failed '
+      'jobs', () async {
+    final fake = FakeGh()..failedLog = 'test\tRun\t2026-11-15T10:00:00Z erro\n';
+    final gh = GhCli(fake.call, cwd: '/r');
+    expect(await gh.runFailedLogRaw(42), contains('test\tRun\t'));
+    expect(fake.calls.last.$2, ['run', 'view', '42', '--log-failed']);
+    await gh.runRerunFailed(42);
+    expect(fake.calls.last.$2, ['run', 'rerun', '42', '--failed']);
+  });
 }

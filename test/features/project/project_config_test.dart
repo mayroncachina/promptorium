@@ -408,4 +408,17 @@ autopilot:
     expect(find.byKey(const ValueKey('config-error')), findsOneWidget);
     expect(ProjectConfig.loadSync(tmp.path).specsDir, 'docs/specs');
   });
+
+  test('review: corrigir-ci: automatico (SPEC-073 R13, P1)', () {
+    final c = ProjectConfig.parse('review:\n  corrigir-ci: automatico\n');
+    expect(c.autoFixCi, isTrue);
+    expect(c.autoResolveConflicts, isFalse);
+    expect(c.toYaml(), contains('review:\n  corrigir-ci: automatico\n'));
+    expect(ProjectConfig.parse(c.toYaml()), c);
+    expect(
+      ProjectConfig.parse('review:\n  corrigir-ci: manual\n').autoFixCi,
+      isFalse,
+    );
+    expect(const ProjectConfig().autoFixCi, isFalse);
+  });
 }

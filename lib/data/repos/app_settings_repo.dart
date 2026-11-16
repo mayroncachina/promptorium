@@ -31,6 +31,15 @@ abstract final class AppSettingKeys {
   /// Zoom percent of one editor ('specs', 'code').
   static String editorZoom(String editor) => 'editor.zoom.$editor';
 
+  /// Seconds of the last refine rounds of any project, as a JSON list
+  /// (SPEC-072 R9; the last 20).
+  static const refineRounds = 'projeto.rodadasRefino';
+
+  /// Calls of the planner of a workspace, by kind, as a JSON map
+  /// (SPEC-072 R8, R10).
+  static String plannerCalls(int workspaceId) =>
+      'projeto.chamadasPlanner.$workspaceId';
+
   /// Last `rate_limit_event` (raw JSON): the footer shows the plan usage
   /// right after a restart (see `RateLimitController`).
   static const lastRateLimit = 'usage.rateLimit';

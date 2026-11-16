@@ -15,6 +15,7 @@ import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_service.dart';
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/spec_auto_planner.dart';
 import 'package:promptorium/features/project/widgets/plan_queue_view.dart';
 import 'package:promptorium/features/specs/spec_action.dart';
@@ -231,6 +232,8 @@ void main() {
       }
       expect(queue().phase, AutoPlanPhase.finished);
       expect(queue().plannedCount, 4);
+      // Each round's duration feeds the estimate (SPEC-072 R9).
+      expect(c.read(refineRoundsProvider), hasLength(4));
     });
 
     test('R5: only the specs given are planned, never ones that already '

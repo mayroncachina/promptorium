@@ -32,6 +32,7 @@ import 'step_gate.dart' show tailLines;
 import '../../ui/widgets/app_pressable.dart';
 import 'sprint_rules.dart';
 import 'sprint_state.dart';
+import 'widgets/ci_badge.dart';
 import 'widgets/spec_notes.dart';
 import 'widgets/board_card_flight.dart';
 import '../issues/issue_state_watcher.dart';
@@ -2013,6 +2014,11 @@ class SpecCard extends ConsumerWidget {
               // SPEC-052 R7: the agent's newest progress note.
               if (spec.stage != SpecStage.done) SpecNoteLine(spec: spec),
               SuggestionBanner(spec: spec),
+              // SPEC-073 R7: the CI of the spec's PR.
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: CiBadge(data: data),
+              ),
               const SizedBox(height: 6),
               Row(
                 children: [

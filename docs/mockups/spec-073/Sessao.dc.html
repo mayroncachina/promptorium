@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A sessão recebe o log</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1);box-shadow:0 0 16px rgba(242,165,65,.25)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sep{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+.hero{position:relative;width:48px;height:58px;border-radius:13px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:linear-gradient(160deg,rgba(242,165,65,.20),rgba(79,209,181,.10));border:1px solid rgba(242,165,65,.32)}
+.hero span{font:600 10.5px 'IBM Plex Sans';color:#E7E9EE}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:9}
+.note.warn{background:#F2A541}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.02);color:#E7E9EE;font:500 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.sm{height:26px;font-size:11.5px;padding:0 9px}
+.pill{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font:500 11px 'IBM Plex Sans';white-space:nowrap}
+.pill.teal{color:#8FEBD6;background:rgba(79,209,181,.12);border:1px solid rgba(79,209,181,.45)}
+.pill.amber{color:#FFD08A;background:rgba(242,165,65,.12);border:1px solid rgba(242,165,65,.45)}
+.dim{color:#8A93A3}
+.sec{color:#A0A8B6}
+.err{color:#F27A6E}
+.cut{color:#8A93A3;font-style:italic}
+.rl{position:absolute;left:72px;top:60px;bottom:44px;width:260px;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.rm{position:absolute;left:340px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.cap{font:600 12px 'IBM Plex Sans';color:#A0A8B6;padding:6px 4px 2px}
+.ri{border-radius:11px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;border:1px solid rgba(255,255,255,.08);background:#161A21}
+.ri.sel{border-color:rgba(242,165,65,.5);background:rgba(242,165,65,.07)}
+.ri b{font:600 13px 'IBM Plex Sans'}
+.ri small{font-size:11.5px;color:#A0A8B6;display:flex;align-items:center;gap:6px}
+.live{width:8px;height:8px;border-radius:4px;background:#4FD1B5;box-shadow:0 0 8px rgba(79,209,181,.8);flex:none}
+.sh{height:52px;padding:0 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sh b{font:600 14px 'IBM Plex Sans'}
+.tl{padding:12px 22px;display:flex;flex-direction:column;gap:8px}
+.an{align-self:center;font:500 11px 'IBM Plex Sans';color:#A0A8B6;display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.an.ci{color:#FFD08A;border-color:rgba(242,165,65,.35);background:rgba(242,165,65,.07)}
+.an.ok{color:#8FEBD6;border-color:rgba(79,209,181,.35);background:rgba(79,209,181,.07)}
+.msg{align-self:flex-end;width:640px;border-radius:12px;background:#221D14;border:1px solid rgba(242,165,65,.28);padding:10px 12px}
+.msg pre{margin:0;font:400 10.5px/1.5 'JetBrains Mono';font-variant-ligatures:none;color:#E2DCCF;white-space:pre}
+.tool{font:400 12px 'JetBrains Mono';color:#C9CED8;border-left:2px solid rgba(255,255,255,.14);padding:1px 0 1px 10px;display:flex;gap:8px}
+.tool i{font-style:normal;color:#A0A8B6}
+.tool .okc{color:#4FD1B5}
+.say{font-size:13px;color:#E7E9EE;line-height:1.5}
+code{font:500 12px 'JetBrains Mono';color:#FFD08A}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"/></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1;display:flex;justify-content:center"><span class="g2" style="width:520px;height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"/></svg><span style="flex:1">Buscar ou executar comando…</span><span class="mono" style="font-size:11px;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:1px 6px">Ctrl K</span></span></div>
+ <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13V9a5 5 0 0 1 10 0v4l1 1H4zM8 17h4"/></svg>
+ <button class="cta"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg><span>Nova spec</span></button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0"><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h9"/></svg><span class="badge">3</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm3 4-2 5-5 2 2-5 5-2Z"/></svg></div><div class="sep"></div><div class="hero"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4H6.5A3.5 3.5 0 0 0 3 7.5v7A3.5 3.5 0 0 0 6.5 18H8v3.2l4.2-3.2h5.3a3.5 3.5 0 0 0 3.5-3.5V11"/><path d="M7.5 9.8h5.5M7.5 13.2h3.5"/></svg><span>Prompt</span></div><div class="sep"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"/></svg></div><div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"/></svg><span class="badge">1</span></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4a2 2 0 1 0 0 .1M6 6v8M6 16a2 2 0 1 0 0 .1M14 8a2 2 0 1 0 0 .1M14 10c0 3-4 3-8 4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M5 7c4 0 6-2 10-2M15 3v4"/></svg></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg></div><div style="flex:1"></div><div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6ZM10 2v2M10 16v2M2 10h2M16 10h2"/></svg></div></nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#8A93A3"><span class="mono" style="color:#4FD1B5">● Claude Code CLI conectado</span><span>Sessões 1/3</span><span style="flex:1"></span><span class="mono">0.17.2</span></footer>
+
+<aside class="g rl">
+ <div class="cap">Sessões</div>
+ <div class="ri sel"><b>SPEC-021 · Cupom de desconto</b><small><span class="live"></span>trabalhando · Corrigir CI</small></div>
+ <div class="ri"><b>SPEC-019 · Frete grátis</b><small>parada · há 2 h</small></div>
+ <div class="ri"><b>VIBE-007 · Botão Comprar verde</b><small>conversa · ontem</small></div>
+</aside>
+
+<section class="g rm">
+ <div class="sh"><b>SPEC-021 · Cupom de desconto</b><span class="mono dim" style="font-size:12px">spec/021-cupom</span><span class="pill teal"><span class="live"></span>trabalhando · 1 min</span><span style="flex:1"></span><button class="btn sm">Parar</button></div>
+ <div class="tl">
+  <div class="an">Sessão retomada (--resume) no worktree da spec</div>
+  <div class="an ci"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#FFD08A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l4 4-9 9H4v-4z"/></svg>Corrigir CI · commit a1b2c3d · 2 checks · rodada CI1</div>
+  <div class="msg"><pre>O CI do PR #57 falhou no commit a1b2c3d (3 de 6 checks).
+
+## test (ubuntu) · Run flutter test · mesmo erro em test (macos)
+<span class="cut">… 1.204 linhas cortadas (linhas 12–1.215) …</span>
+test/cart/coupon_test.dart: aplica 10% sobre o total <span class="err">[E]</span>
+  <span class="err">Expected: &lt;90.0&gt;   Actual: &lt;100.0&gt;</span>
+
+## lint · Run flutter analyze
+<span class="err">error • The getter 'total' isn't defined for 'Cart' • coupon.dart:31:18</span>
+
+Sem log (fora do Actions): Vercel · Preview.
+Log completo: gh run view 9182734 --log-failed
+
+1. Ache a causa. Não mude o teste para esconder a falha.
+2. Corrija no worktree e rode os testes afetados e o lint.
+3. Faça commit. O Promptorium envia ao PR e acompanha o CI.
+Se a falha não for do código, responda "CI: falha externa: motivo".</pre></div>
+  <div class="tool"><i>Read</i>test/cart/coupon_test.dart</div>
+  <div class="tool"><i>Edit</i>lib/cart/coupon.dart · +2 -1</div>
+  <div class="tool"><i>Bash</i>flutter test test/cart/ · <span class="okc">24 testes ok</span></div>
+  <div class="tool"><i>Bash</i>git commit -m "fix(cart): cupom lê o subtotal"</div>
+  <div class="say">Corrigido: a etapa 2 trocou <code>Cart.total</code> por <code>subtotal</code>, e o cupom ainda lia o nome antigo. Os 24 testes do carrinho passam.</div>
+  <div class="an ok"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#4FD1B5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15V5M6 9l4-4 4 4"/></svg>Push feito pelo app · b7e4f19 → PR #57 · CI rodando</div>
+ </div>
+</section>
+<div class="note" style="left:400px;top:128px">parada? o app retoma no mesmo worktree</div>
+<div class="note" style="left:400px;top:262px">o trecho de cada job, o que foi cortado</div>
+<div class="note" style="left:400px;top:292px">e o comando do log completo</div>
+<div class="note warn" style="left:400px;top:400px">ocupada? a mensagem espera o turno acabar</div>
+<div class="note" style="left:1016px;top:615px">o agente só commita; o push é do app</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

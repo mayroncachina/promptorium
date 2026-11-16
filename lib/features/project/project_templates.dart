@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import 'project_config.dart';
-import 'project_plan.dart' show StackDecision;
+import 'project_plan.dart' show StackCommands, StackDecision;
+import 'stack_commands.dart';
 
 /// Starting points of "Novo projeto" (UX v2, U7; docs/mockups/v2/
 /// NovoProjeto.dc.html): a template fills the stack, the test / lint /
@@ -17,7 +18,20 @@ class ProjectTemplate {
     this.config = const ProjectConfig(),
     this.decisions = const [],
     this.claudeMd,
+    this.scaffold = '',
   });
+
+  /// A stack defined with "Outro…" (SPEC-072 R18): the proposal of the
+  /// modal as a template. Its commands go to the config.yml, its decisions
+  /// are pinned and its CLAUDE.md base carries the scaffold.
+  factory ProjectTemplate.fromStack(CustomStack s) => ProjectTemplate(
+    id: customTemplateId,
+    label: s.name,
+    config: mergeStackCommands(const ProjectConfig(), s.commands).config,
+    decisions: [for (final d in s.decisions) d.copyWith(pinned: true)],
+    claudeMd: customClaudeMd(s.claudeMd, scaffold: s.scaffold),
+    scaffold: s.scaffold,
+  );
 
   final String id;
   final String label;
@@ -31,7 +45,12 @@ class ProjectTemplate {
   /// `CLAUDE.md` written at creation (null = none; the planner proposes).
   final String? claudeMd;
 
+  /// The skeleton command of a custom stack (empty for the built-in ones).
+  final String scaffold;
+
   bool get isEmpty => id == 'empty';
+
+  bool get isCustom => id == customTemplateId;
 
   /// One-line description for the chip tooltip / the "O que acontece" box.
   String get summary => isEmpty
@@ -39,6 +58,7 @@ class ProjectTemplate {
       : [
           for (final d in decisions) d.choice,
           if (config.testCommand != null) 'testes: ${config.testCommand}',
+          if (isCustom && claudeMd != null) 'CLAUDE.md base',
         ].join(' · ');
 }
 
@@ -157,5 +177,80 @@ String? templateClaudeMd(String workspacePath) {
   for (final t in projectTemplates) {
     if (t.claudeMd?.trim() == mine && mine.isNotEmpty) return text;
   }
+  // The CLAUDE.md base of an "Outro…" stack, still as written (SPEC-072).
+  if (isCustomClaudeMd(text)) return text.substring(text.indexOf('\n') + 1);
   return null;
+}
+
+/// Id of the "Outro…" template.
+const customTemplateId = 'custom';
+
+/// A stack the Claude defined in the "Outro…" modal (SPEC-072 R17).
+@immutable
+class CustomStack {
+  const CustomStack({
+    required this.name,
+    this.decisions = const [],
+    this.commands = const StackCommands(),
+    this.scaffold = '',
+    this.claudeMd = '',
+  });
+
+  /// Short name for the chip ("Go · Fiber").
+  final String name;
+  final List<StackDecision> decisions;
+  final StackCommands commands;
+  final String scaffold;
+
+  /// The CLAUDE.md base (without the app's marker).
+  final String claudeMd;
+
+  CustomStack copyWith({StackCommands? commands}) => CustomStack(
+    name: name,
+    decisions: decisions,
+    commands: commands ?? this.commands,
+    scaffold: scaffold,
+    claudeMd: claudeMd,
+  );
+}
+
+const _customMark = '<!-- promptorium: CLAUDE.md base da stack';
+
+/// FNV-1a of [text] (stable across runs, unlike `hashCode`).
+String _fnv(String text) {
+  var h = 0x811c9dc5;
+  for (final c in text.codeUnits) {
+    h ^= c;
+    h = (h * 0x01000193) & 0xffffffff;
+  }
+  return h.toRadixString(16).padLeft(8, '0');
+}
+
+/// The CLAUDE.md base of a custom stack: the scaffold in the commands
+/// section (R18) and a first line that lets [templateClaudeMd] know it is
+/// still the base (a hash of the rest: an edit makes it the user's).
+String customClaudeMd(String base, {String scaffold = ''}) {
+  var body = base.trim();
+  final sc = scaffold.trim();
+  if (sc.isNotEmpty && !body.contains(sc)) {
+    final line = '- Esqueleto (scaffold): `$sc`';
+    final m = RegExp(r'^##\s+Comandos.*$', multiLine: true).firstMatch(body);
+    if (m != null) {
+      body = '${body.substring(0, m.end)}\n$line${body.substring(m.end)}';
+    } else {
+      body = '$body\n\n## Comandos\n$line';
+    }
+  }
+  body = '$body\n';
+  return '$_customMark ${_fnv(body)} -->\n$body';
+}
+
+/// Whether [text] is a custom CLAUDE.md base nobody edited.
+bool isCustomClaudeMd(String text) {
+  if (!text.startsWith(_customMark)) return false;
+  final nl = text.indexOf('\n');
+  if (nl < 0) return false;
+  final head = text.substring(0, nl);
+  final hash = RegExp(r'([0-9a-f]{8}) -->$').firstMatch(head)?.group(1);
+  return hash != null && hash == _fnv(text.substring(nl + 1));
 }

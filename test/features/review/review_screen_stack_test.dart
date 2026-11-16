@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/review/merge_options.dart';
 import 'package:promptorium/features/review/merge_readiness.dart';
+import 'package:promptorium/features/review/pr_babysitter.dart';
 import 'package:promptorium/features/review/restack.dart';
 import 'package:promptorium/features/review/review_screen.dart';
 import 'package:promptorium/features/review/review_service.dart';
@@ -267,6 +269,17 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('SPEC-073 · a card whose PR has red CI says "CI falhou", as '
+      'in the mockup, not "Pronto para merge"', (tester) async {
+    await pumpStack(
+      tester,
+      extra: [prBabysitterProvider.overrideWith(_RedCi.new)],
+    );
+    expect(stateOf(tester, 'a'), 'CI falhou · 2 checks');
+    expect(stateOf(tester, 'x'), 'Pronto para merge');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('R8 R10 · clicking a card only selects it; the primary action '
       'follows its state', (tester) async {
     final c = await pumpStack(tester);
@@ -500,4 +513,33 @@ void main() {
       findsOneWidget,
     );
   });
+}
+
+/// The PR of `a` with two failed checks (SPEC-073).
+class _RedCi extends PrBabysitter {
+  @override
+  Map<String, PrWatch> build() => {
+    'a': PrWatch(
+      status: parsePrView(
+        jsonEncode({
+          'state': 'OPEN',
+          'mergeable': 'MERGEABLE',
+          'headRefOid': 'a1b2c3d4e5',
+          'comments': [],
+          'reviews': [],
+          'statusCheckRollup': [
+            for (final name in ['test', 'lint'])
+              {
+                '__typename': 'CheckRun',
+                'name': name,
+                'workflowName': 'CI',
+                'status': 'COMPLETED',
+                'conclusion': 'FAILURE',
+                'detailsUrl': 'https://github.com/o/r/actions/runs/11/job/1',
+              },
+          ],
+        }),
+      ),
+    ),
+  };
 }
