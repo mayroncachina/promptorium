@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../../ui/theme/ambient.dart';
 import '../activity.dart';
 
 /// The robot of an agent (SPEC-076 R9–R11): a shape, a colour and a name
@@ -132,9 +133,11 @@ class RobotAvatar extends StatefulWidget {
   State<RobotAvatar> createState() => _RobotAvatarState();
 }
 
-class _RobotAvatarState extends State<RobotAvatar>
-    with SingleTickerProviderStateMixin {
-  late final Ticker _ticker = createTicker(_tick);
+class _RobotAvatarState extends State<RobotAvatar> {
+  /// On the ambient clock (24 Hz, `ambient.dart`), as the app's other
+  /// loops: a robot is a slow loop, and on Linux every frame redraws the
+  /// whole window. It follows [TickerMode] (out of the screen, R11).
+  Ticker? _ticker;
   final _time = ValueNotifier<double>(0);
   late final AppLifecycleListener _lifecycle;
   bool _still = false;
@@ -162,19 +165,22 @@ class _RobotAvatarState extends State<RobotAvatar>
 
   /// Runs the ticker only when it moves something on screen.
   void _sync() {
+    final ticker = _ticker;
+    if (ticker == null) return;
     final run = !_still && _focused;
-    if (run && !_ticker.isActive) {
-      _ticker.start();
-    } else if (!run && _ticker.isActive) {
+    if (run && !ticker.isActive) {
+      ticker.start();
+    } else if (!run && ticker.isActive) {
       _base += _last;
       _last = Duration.zero;
-      _ticker.stop();
+      ticker.stop();
     }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _ticker ??= AmbientVsync(context).createTicker(_tick);
     _still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     _sync();
   }
@@ -182,7 +188,7 @@ class _RobotAvatarState extends State<RobotAvatar>
   @override
   void dispose() {
     _lifecycle.dispose();
-    _ticker.dispose();
+    _ticker?.dispose();
     _time.dispose();
     super.dispose();
   }

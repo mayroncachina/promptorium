@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/features/activities/activity.dart';
 import 'package:promptorium/features/activities/widgets/robot_avatar.dart';
+import 'package:promptorium/ui/theme/ambient.dart';
 
 Widget host(Widget child, {bool reduce = false, bool ticking = true}) =>
     MaterialApp(
@@ -70,7 +71,7 @@ void main() {
       );
       expect(find.byKey(const ValueKey('robot-edit')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.binding.hasScheduledFrame, isTrue);
+      expect(AmbientTicker.debugActive, 1);
       final painter =
           tester
                   .widget<CustomPaint>(find.byKey(const ValueKey('robot-edit')))
@@ -91,7 +92,7 @@ void main() {
       );
       await tester.pump();
       expect(find.byKey(const ValueKey('robot-wave')), findsOneWidget);
-      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(AmbientTicker.debugActive, 0);
     });
 
     testWidgets('out of the screen (TickerMode off): no frames', (
@@ -103,8 +104,9 @@ void main() {
           ticking: false,
         ),
       );
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
       expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(tester.hasRunningAnimations, isFalse);
     });
 
     testWidgets('the window out of focus stops it; back, it moves again', (
@@ -114,12 +116,13 @@ void main() {
         host(const RobotAvatar(seed: 's', pose: ActivityPose.read)),
       );
       await tester.pump(const Duration(milliseconds: 50));
+      expect(AmbientTicker.debugActive, 1);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       await tester.pump();
-      expect(tester.binding.hasScheduledFrame, isFalse);
+      expect(AmbientTicker.debugActive, 0);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
-      expect(tester.binding.hasScheduledFrame, isTrue);
+      expect(AmbientTicker.debugActive, 1);
     });
 
     testWidgets('no ticker leaks when the robots leave the tree', (
@@ -138,8 +141,10 @@ void main() {
       );
       await tester.pump(const Duration(seconds: 2));
       expect(tester.takeException(), isNull);
+      expect(AmbientTicker.debugActive, ActivityPose.values.length);
       await tester.pumpWidget(host(const SizedBox()));
       await tester.pump();
+      expect(AmbientTicker.debugActive, 0);
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.binding.hasScheduledFrame, isFalse);
     });
