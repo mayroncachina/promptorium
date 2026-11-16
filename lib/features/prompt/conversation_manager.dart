@@ -22,7 +22,7 @@ import '../board/spec_runner.dart' show gateRunningProvider;
 import '../project/project_config.dart';
 import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
-    show PendingApproval, sessionIdGeneratorProvider;
+    show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
 import '../sessions/timeline.dart';
 import '../sessions/timeline_provider.dart';
 import '../specs/spec_service.dart' show specServiceProvider;
@@ -35,7 +35,21 @@ class LiveConversation {
     this.alive = true,
     this.busy = false,
     this.approvals = const [],
+    this.busySince,
+    this.recent = const [],
+    this.calls = 0,
+    this.lastText,
   });
+
+  /// When the running turn started (SPEC-076).
+  final DateTime? busySince;
+
+  /// The newest top-level tool calls, newest first (SPEC-076 R3).
+  final List<LiveTool> recent;
+  final int calls;
+  final String? lastText;
+
+  LiveTool? get tool => recent.firstOrNull;
 
   final bool alive;
 
@@ -102,8 +116,14 @@ class _Run {
   final String sid;
   double lastCost;
   bool busy = false;
+  DateTime? busySince;
   bool stopping = false;
   bool sawInit = false;
+
+  /// SPEC-076 R3.
+  final List<LiveTool> recent = [];
+  int calls = 0;
+  String? lastText;
   final List<PermissionRequest> pending = [];
   final Map<String, DateTime> pendingAt = {};
   final DateTime started = DateTime.now();
@@ -231,7 +251,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
       await _repo.countMessage(id);
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
     });
-    run.busy = true;
+    run
+      ..busy = true
+      ..busySince = DateTime.now()
+      ..calls = 0;
     _publish();
     await run.run.send(msg, images: images);
   }
@@ -511,6 +534,28 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         r.pendingAt[e.requestId] = DateTime.now();
       case ControlCancel():
         _take(id, e.requestId);
+      case AssistantMessage() when e.parentToolUseId == null:
+        for (final b in e.blocks) {
+          if (b is ToolUseBlock && !r.recent.any((t) => t.id == b.id)) {
+            r.recent.insert(
+              0,
+              LiveTool(
+                id: b.id,
+                name: b.name,
+                input: b.input,
+                at: DateTime.now(),
+              ),
+            );
+            if (r.recent.length > 5) r.recent.removeLast();
+            r.calls++;
+          }
+          if (b is TextBlock && b.text.trim().isNotEmpty) {
+            r.lastText = liveTextLine(b.text);
+          }
+        }
+      case ToolResult() when e.parentToolUseId == null:
+        final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
+        if (i >= 0) r.recent[i] = r.recent[i].finished();
       case Result():
         r.lastCost = math.max(r.lastCost, e.totalCostUsd);
         final u = e.usage;
@@ -532,7 +577,11 @@ class ConversationManager extends Notifier<ConversationManagerState> {
     }
 
     _timeline(id).push(e, seq: seq);
-    if (e is PermissionRequest || e is Result || e is ControlCancel) {
+    if (e is PermissionRequest ||
+        e is Result ||
+        e is ControlCancel ||
+        e is AssistantMessage ||
+        e is ToolResult) {
       _publish();
     }
   }
@@ -575,6 +624,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           key: LiveConversation(
             alive: value.run.isRunning,
             busy: value.busy,
+            busySince: value.busy ? value.busySince : null,
+            recent: List.unmodifiable(value.recent),
+            calls: value.calls,
+            lastText: value.lastText,
             approvals: [
               for (final p in value.pending)
                 PendingApproval(

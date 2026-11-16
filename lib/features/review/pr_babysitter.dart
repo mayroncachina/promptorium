@@ -14,6 +14,7 @@ import '../sessions/session_manager.dart';
 import 'ci_fixer.dart';
 import 'restack.dart' show howResolvedInstruction;
 import 'review_service.dart';
+import '../activities/automation_pause.dart';
 
 /// A comment of the PR (conversation or review body).
 @immutable
@@ -506,6 +507,8 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
   /// the CI is green or the user fixes or reruns by hand. Returns true when
   /// it acted.
   Future<bool> _autoFixCi(Session s, PrStatus status, String title) async {
+    // SPEC-076 R8: "Pausar automáticos" holds the automatic fix.
+    if (automationPaused(ref)) return false;
     final fixer = ref.read(ciFixerProvider.notifier);
     final id = s.id;
     final head = status.headSha;
