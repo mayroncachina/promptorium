@@ -29,6 +29,7 @@ import 'pr_import.dart' show importedPrOf;
 import '../../core/system/worktree_launcher.dart';
 import '../project/widgets/project_config_view.dart' show configFocusProvider;
 import '../settings/settings_sections.dart';
+import 'ci_fixer.dart' show ciFixAuthor;
 import 'conflict_resolution.dart';
 import 'restack.dart';
 import 'review_stack.dart';
@@ -2188,7 +2189,7 @@ extension on _ReviewMainState {
         ref.watch(reviewCommentsProvider(widget.item.spec!.id)).value ?? [];
     final rounds = <int, ReviewCommentRow>{};
     for (final c in rows) {
-      if (c.author == resolutionAuthor) continue;
+      if (c.author == resolutionAuthor || c.author == ciFixAuthor) continue;
       rounds.putIfAbsent(c.round, () => c);
     }
     final sorted = rounds.values.toList()
