@@ -88,16 +88,6 @@ void main() {
     expect(tail.last, '2026-11-07T13:30:00Z l50');
   });
 
-  test('SPEC-073: the whole failed log and the rerun of only the failed '
-      'jobs', () async {
-    final fake = FakeGh()..failedLog = 'test\tRun\t2026-11-15T10:00:00Z erro\n';
-    final gh = GhCli(fake.call, cwd: '/r');
-    expect(await gh.runFailedLogRaw(42), contains('test\tRun\t'));
-    expect(fake.calls.last.$2, ['run', 'view', '42', '--log-failed']);
-    await gh.runRerunFailed(42);
-    expect(fake.calls.last.$2, ['run', 'rerun', '42', '--failed']);
-  });
-
   group('issues (SPEC-074)', () {
     GhIssues issuesOf(FakeIssuesGh fake) =>
         GhIssues(GhCli(fake.call, cwd: '/r'), repo: fake.repo);
@@ -281,5 +271,15 @@ void main() {
       expect(info.hasIssuesEnabled, isFalse);
       expect(info.defaultBranch, 'trunk');
     });
+  });
+
+  test('SPEC-073: the whole failed log and the rerun of only the failed '
+      'jobs', () async {
+    final fake = FakeGh()..failedLog = 'test\tRun\t2026-11-15T10:00:00Z erro\n';
+    final gh = GhCli(fake.call, cwd: '/r');
+    expect(await gh.runFailedLogRaw(42), contains('test\tRun\t'));
+    expect(fake.calls.last.$2, ['run', 'view', '42', '--log-failed']);
+    await gh.runRerunFailed(42);
+    expect(fake.calls.last.$2, ['run', 'rerun', '42', '--failed']);
   });
 }
