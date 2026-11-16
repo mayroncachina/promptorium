@@ -2,6 +2,7 @@
 id: SPEC-077
 status: rascunho
 tipo: melhoria
+issue: 266
 ---
 
 # Copiar código
@@ -29,6 +30,8 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/XskeXq2BEUmcC9to3S1
 | `2-selecao.png` | Hoje e depois: a seleção do meio do parágrafo até a 6ª linha da query, e o texto que vai para a área de transferência | R6 |
 | `3-outros-lugares.png` | O mesmo bloco na spec da tela Specs (hover, foco pelo teclado, bloco sem linguagem), o "Copiar comando" no card Bash e o bloco dentro do plano pronto | R1, R9, R10, R11 |
 | `4-bloco-longo.png` | Query de 40 linhas recolhida e expandida | R8 |
+
+Issue: [#266](https://github.com/mayroncachina/promptorium/issues/266)
 
 ## Requisitos
 
