@@ -7,6 +7,7 @@ import '../auto_reviewer.dart' show ReviewPhase;
 import '../comment_anchor.dart';
 import '../conflict_resolution.dart';
 import '../merge_readiness.dart';
+import '../pr_babysitter.dart';
 import '../review_service.dart';
 import '../review_stack.dart';
 import '../restack.dart';
@@ -72,6 +73,7 @@ MergeStatus watchMergeStatus(
   );
   final rebase = ref.watch(rebaseStatusProvider(s.id)).value;
   final resolution = ref.watch(conflictResolutionProvider(s.id));
+  final pr = ref.watch(prBabysitterProvider.select((m) => m[s.id]?.status));
   return mergeStatusOf(
     resolution: resolution?.state,
     resolutionDetail: switch (resolution?.state) {
@@ -91,6 +93,7 @@ MergeStatus watchMergeStatus(
     staleBase: mark?.startsWith('desatualizada') ?? false,
     conflictFiles: files,
     pending: (criteria?.isNotEmpty ?? false) || comments > 0 || flagged,
+    ciFailed: pr != null && pr.open ? pr.failedChecks.length : 0,
   );
 }
 
@@ -103,6 +106,7 @@ MergeStatus watchMergeStatus(
   MergeState.baseDesatualizada => (Icons.sync_problem, AppColors.amber),
   MergeState.revisando => (Icons.rate_review_outlined, AppColors.blue),
   MergeState.pendencias => (Icons.error_outline, AppColors.amber),
+  MergeState.ciFalhou => (Icons.close, AppColors.red),
   MergeState.rebaseManual => (Icons.schedule, AppColors.amber),
   MergeState.resolvendo => (Icons.autorenew, AppColors.amber),
   MergeState.conferindo => (Icons.speed, AppColors.blue),

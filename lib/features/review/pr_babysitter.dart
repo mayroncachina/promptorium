@@ -5,10 +5,13 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
 import '../../core/git/git_service.dart';
 import '../../data/providers.dart';
+import '../project/project_config.dart' show ProjectConfig;
 import '../sessions/app_notifier.dart';
 import '../sessions/session_manager.dart';
+import 'ci_fixer.dart';
 import 'restack.dart' show howResolvedInstruction;
 import 'review_service.dart';
 
@@ -113,6 +116,93 @@ ReviewCommentsCompanion prCommentRow(
   verdict: Value(c.kind.contains('CHANGES') ? 'corrigir' : null),
 );
 
+/// The run and the job of a GitHub Actions check, from its `detailsUrl`
+/// (`…/actions/runs/<run>/job/<job>`); null when it is not one.
+({int run, int? job})? actionsRunOf(String? url) {
+  final m = RegExp(r'/actions/runs/(\d+)(?:/jobs?/(\d+))?')
+      .firstMatch(url ?? '');
+  if (m == null) return null;
+  return (run: int.parse(m[1]!), job: m[2] == null ? null : int.parse(m[2]!));
+}
+
+/// One check of a PR (SPEC-073 R1): a GitHub Actions job (with the run and
+/// the job of its log) or anything else (a `StatusContext`, another app),
+/// which has no log the app can read (R9).
+@immutable
+class PrCheck {
+  const PrCheck({
+    required this.name,
+    required this.state,
+    this.workflow = '',
+    this.url,
+    this.runId,
+    this.jobId,
+  });
+
+  final String name;
+
+  /// `SUCCESS` / `FAILURE` / `PENDING` / `IN_PROGRESS`…
+  final String state;
+
+  /// Workflow of an Actions check ('' = unknown or not Actions).
+  final String workflow;
+
+  /// Page of the check on the host.
+  final String? url;
+  final int? runId, jobId;
+
+  /// `gh run view <run> --log-failed` serves its log.
+  bool get hasLog => runId != null;
+
+  CiState get ci => ciStateOf([state]);
+  bool get failed => ci == CiState.failed;
+  bool get running => ci == CiState.running;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PrCheck &&
+      other.name == name &&
+      other.state == state &&
+      other.workflow == workflow &&
+      other.url == url &&
+      other.runId == runId &&
+      other.jobId == jobId;
+
+  @override
+  int get hashCode => Object.hash(name, state, workflow, url, runId, jobId);
+
+  @override
+  String toString() => 'PrCheck($name, $state)';
+}
+
+/// The check of a `statusCheckRollup` entry (null = not a map).
+PrCheck? parsePrCheck(Object? c) {
+  if (c is! Map) return null;
+  String text(Object? v) => v == null ? '' : '$v'.trim();
+  final status = text(c['conclusion']).isNotEmpty
+      ? text(c['conclusion'])
+      : text(c['state']).isNotEmpty
+      ? text(c['state'])
+      : text(c['status']);
+  final context = c['__typename'] == 'StatusContext' || c['context'] != null;
+  final url = text(c['detailsUrl']).isNotEmpty
+      ? text(c['detailsUrl'])
+      : text(c['targetUrl']);
+  final run = context ? null : actionsRunOf(url);
+  return PrCheck(
+    name: text(c['name']).isNotEmpty
+        ? text(c['name'])
+        : text(c['context']).isNotEmpty
+        ? text(c['context'])
+        : '?',
+    state: status.toUpperCase(),
+    workflow: text(c['workflowName']),
+    url: url.isEmpty ? null : url,
+    runId: run?.run,
+    jobId: run?.job,
+  );
+}
+
 /// What `gh pr view --json …` says about a PR.
 @immutable
 class PrStatus {
@@ -122,6 +212,7 @@ class PrStatus {
     this.reviewDecision = '',
     this.comments = const [],
     this.checks = const [],
+    this.headSha = '',
   });
 
   /// `OPEN` / `MERGED` / `CLOSED`.
@@ -133,18 +224,25 @@ class PrStatus {
   /// `APPROVED` / `CHANGES_REQUESTED` / `REVIEW_REQUIRED` / ''.
   final String reviewDecision;
   final List<PrComment> comments;
+  final List<PrCheck> checks;
 
-  /// (name, `SUCCESS` / `FAILURE` / `PENDING`…).
-  final List<(String, String)> checks;
+  /// The PR's commit (`headRefOid`; '' = unknown).
+  final String headSha;
 
   bool get open => state == 'OPEN';
   bool get conflicting => mergeable == 'CONFLICTING';
 
+  List<PrCheck> get failedChecks => [
+    for (final c in checks)
+      if (c.failed) c,
+  ];
+
+  /// The CI of the PR's commit.
+  CiState get ci => ciStateOf(checks.map((c) => c.state));
+
   String get summary {
-    final failed = checks.where((c) => c.$2 == 'FAILURE').length;
-    final pending = checks
-        .where((c) => c.$2 != 'SUCCESS' && c.$2 != 'FAILURE')
-        .length;
+    final failed = checks.where((c) => c.failed).length;
+    final pending = checks.where((c) => c.running).length;
     return [
       switch (state) {
         'MERGED' => 'mergeado',
@@ -154,10 +252,15 @@ class PrStatus {
       if (conflicting) 'com conflito',
       if (checks.isNotEmpty)
         failed > 0
-            ? '$failed check(s) falhando'
+            // SPEC-073 R2: "2 de 5 checks falharam".
+            ? '$failed de ${checks.length} '
+                  '${checks.length == 1 ? 'check' : 'checks'} '
+                  '${failed == 1 ? 'falhou' : 'falharam'}'
             : pending > 0
             ? '$pending check(s) rodando'
             : 'checks ✓',
+      if (headSha.isNotEmpty)
+        'commit ${headSha.substring(0, headSha.length.clamp(0, 7))}',
       switch (reviewDecision) {
         'APPROVED' => 'aprovado',
         'CHANGES_REQUESTED' => 'mudanças pedidas',
@@ -171,7 +274,8 @@ class PrStatus {
 
 /// Fields asked to `gh pr view --json`.
 const prViewFields =
-    'state,mergeable,reviewDecision,comments,reviews,statusCheckRollup';
+    'state,mergeable,reviewDecision,comments,reviews,statusCheckRollup,'
+    'headRefOid';
 
 /// Parses the JSON of `gh pr view --json [prViewFields]` (null = invalid).
 PrStatus? parsePrView(String text) {
@@ -208,14 +312,10 @@ PrStatus? parsePrView(String text) {
     mergeable: '${j['mergeable'] ?? 'UNKNOWN'}',
     reviewDecision: '${j['reviewDecision'] ?? ''}',
     comments: comments,
+    headSha: '${j['headRefOid'] ?? ''}',
     checks: [
       for (final c in (j['statusCheckRollup'] as List? ?? const []))
-        if (c is Map)
-          (
-            '${c['name'] ?? c['context'] ?? '?'}',
-            '${c['conclusion'] ?? c['state'] ?? c['status'] ?? ''}'
-                .toUpperCase(),
-          ),
+        ?parsePrCheck(c),
     ],
   );
 }
@@ -333,6 +433,10 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       ...state,
       sessionId: PrWatch(status: status, checkedAt: DateTime.now()),
     };
+    // SPEC-073 R7: the CI of a fix's commit.
+    final ciPhase = ref
+        .read(ciFixerProvider.notifier)
+        .onStatus(sessionId, status);
     // Not watched: "Verificar PR" only refreshes the status — no comments
     // to the agent, no round, no push.
     if (!isWatching(sessionId)) return;
@@ -354,6 +458,13 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     if (status.conflicting && !(previous?.conflicting ?? false)) {
       _notify('PR com conflito', title, sessionId);
     }
+    if (ciPhase == CiFixPhase.stopped) {
+      _notify(
+        'O CI continua vermelho depois da correção automática',
+        title,
+        sessionId,
+      );
+    }
     // New comments → a correction round in the same session.
     final seen =
         DateTime.tryParse(_settings.get(seenKey(sessionId)) ?? '') ??
@@ -374,6 +485,12 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
       }
       return;
     }
+    // SPEC-073 R11, R12: the CI fixed without the user, once per commit.
+    try {
+      if (await _autoFixCi(s, status, title)) return;
+    } catch (e) {
+      debugPrint('PR $sessionId: correção automática do CI — $e');
+    }
     // The agent's commits go to the PR when the session is idle.
     if (ref.read(sessionManagerProvider).live[sessionId]?.busy ?? false) return;
     try {
@@ -381,6 +498,72 @@ class PrBabysitter extends Notifier<Map<String, PrWatch>> {
     } catch (e) {
       debugPrint('PR $sessionId: push não feito — $e');
     }
+  }
+
+  /// `review: corrigir-ci: automatico` (SPEC-073 R11, R12): with every
+  /// check of a red commit finished, one fix per commit (an intermittent
+  /// log runs again once first). The fix's own commit red stops it, until
+  /// the CI is green or the user fixes or reruns by hand. Returns true when
+  /// it acted.
+  Future<bool> _autoFixCi(Session s, PrStatus status, String title) async {
+    final fixer = ref.read(ciFixerProvider.notifier);
+    final id = s.id;
+    final head = status.headSha;
+    if (head.isEmpty) return false;
+    final rec = fixer.record(id);
+    final ci = status.ci;
+    if (ci == CiState.passed && rec.stopped) {
+      await _settings.set(
+        CiRecord.key(id),
+        rec.copyWith(stopped: false).encode(),
+      );
+      return false;
+    }
+    // One message covers every failure: wait for the checks to finish.
+    if (ci != CiState.failed || status.checks.any((c) => c.running)) {
+      return false;
+    }
+    final current = fixer.state[id]?.phase;
+    if (current == CiFixPhase.queued ||
+        current == CiFixPhase.fixing ||
+        current == CiFixPhase.running ||
+        current == CiFixPhase.rerunning ||
+        current == CiFixPhase.stopped) {
+      return false;
+    }
+    // The automatic fix's commit is red too (the app may have restarted
+    // in between): stop and say so (R12).
+    if (rec.auto && rec.fixSha == head && !rec.stopped) {
+      await fixer.markStopped(id, head);
+      _notify(
+        'O CI continua vermelho depois da correção automática',
+        title,
+        id,
+      );
+      return true;
+    }
+    final ws = await ref.read(workspacesRepoProvider).getById(s.workspaceId);
+    final config = ws == null ? null : ProjectConfig.loadSync(ws.path);
+    if (config == null || !config.autoFixCi) return false;
+    // R10: never on a PR brought without write permission.
+    if (rec.stopped || fixer.pushBlocked(id) || rec.sha == head) return false;
+    final failure = await fixer.failure(id, status);
+    // P6: a check without log never goes to the agent.
+    if (failure.blockReason != null) return false;
+    final spec = s.specId == null
+        ? null
+        : await ref.read(specsRepoProvider).getById(s.specId!);
+    final label = spec?.code ?? title;
+    // P5: an intermittent failure runs again once before the fix.
+    if (failure.excerpt.flaky != null && rec.rerunSha != head) {
+      await fixer.rerun(id, auto: true);
+      _notify('Rodando de novo o CI de $label sozinho', title, id);
+      return true;
+    }
+    if (await fixer.fix(id, auto: true)) {
+      _notify('Corrigindo o CI de $label sozinho', title, id);
+    }
+    return true;
   }
 
   Future<void> _recordRound(Session s, List<PrComment> news) async {

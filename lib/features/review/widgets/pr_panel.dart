@@ -6,6 +6,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../pr_babysitter.dart';
 import '../review_service.dart';
+import 'ci_panel.dart';
 
 /// PR of the reviewed session (F16): its state, "Acompanhar PR", "Mergear
 /// PR" and "Resolver conflito".
@@ -85,69 +86,79 @@ class _PrPanelState extends ConsumerState<PrPanel> {
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 10,
-        runSpacing: 6,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (_openedError != null || watch?.error != null)
-            Text(_openedError ?? watch!.error!),
-          if (hasPr)
-            Text(
-              status == null
-                  ? 'PR: ${watch?.error ?? 'não verificado'}'
-                  : 'PR ${status.summary}',
-              key: const ValueKey('review-pr-status'),
-              style: TextStyle(
-                fontSize: 12,
-                color: status?.conflicting ?? false
-                    ? AppColors.red
-                    : AppColors.textSecondary,
-              ),
-            ),
-          if (hasPr)
-            FilterChip(
-              key: const ValueKey('review-pr-babysit'),
-              label: const Text(
-                'Acompanhar PR',
-                style: TextStyle(fontSize: 11),
-              ),
-              selected: sitter.isWatching(_id),
-              onSelected: _busy
-                  ? null
-                  : (_) => _do('', () => sitter.toggle(_id)),
-            ),
-          if (hasPr)
-            SmallButton(
-              key: const ValueKey('review-pr-check'),
-              label: 'Verificar agora',
-              onTap: _busy ? null : () => _do('', () => sitter.check(_id)),
-            ),
-          if (hasPr && (status?.open ?? true))
-            SmallButton(
-              key: const ValueKey('review-pr-merge'),
-              label: 'Mergear PR…',
-              color: AppColors.amber,
-              onTap: _busy ? null : widget.onMergePr,
-            ),
-          if (conflict)
-            SmallButton(
-              key: const ValueKey('review-resolve-conflict'),
-              label: 'Resolver conflito com o agente',
-              color: AppColors.red,
-              onTap: _busy
-                  ? null
-                  : () => _do(
-                      'Instruções enviadas à sessão.',
-                      () =>
-                          ref.read(reviewServiceProvider).resolveConflict(_id),
-                    ),
-            ),
-          if (_message != null && _message!.isNotEmpty)
-            Text(
-              _message!,
-              style: const TextStyle(fontSize: 11, color: AppColors.amber),
-            ),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              if (_openedError != null || watch?.error != null)
+                Text(_openedError ?? watch!.error!),
+              if (hasPr)
+                Text(
+                  status == null
+                      ? 'PR: ${watch?.error ?? 'não verificado'}'
+                      : 'PR ${status.summary}',
+                  key: const ValueKey('review-pr-status'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: status?.conflicting ?? false
+                        ? AppColors.red
+                        : AppColors.textSecondary,
+                  ),
+                ),
+              if (hasPr)
+                FilterChip(
+                  key: const ValueKey('review-pr-babysit'),
+                  label: const Text(
+                    'Acompanhar PR',
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  selected: sitter.isWatching(_id),
+                  onSelected: _busy
+                      ? null
+                      : (_) => _do('', () => sitter.toggle(_id)),
+                ),
+              if (hasPr)
+                SmallButton(
+                  key: const ValueKey('review-pr-check'),
+                  label: 'Verificar agora',
+                  onTap: _busy ? null : () => _do('', () => sitter.check(_id)),
+                ),
+              if (hasPr && (status?.open ?? true))
+                SmallButton(
+                  key: const ValueKey('review-pr-merge'),
+                  label: 'Mergear PR…',
+                  color: AppColors.amber,
+                  onTap: _busy ? null : widget.onMergePr,
+                ),
+              if (conflict)
+                SmallButton(
+                  key: const ValueKey('review-resolve-conflict'),
+                  label: 'Resolver conflito com o agente',
+                  color: AppColors.red,
+                  onTap: _busy
+                      ? null
+                      : () => _do(
+                          'Instruções enviadas à sessão.',
+                          () => ref
+                              .read(reviewServiceProvider)
+                              .resolveConflict(_id),
+                        ),
+                ),
+              if (_message != null && _message!.isNotEmpty)
+                Text(
+                  _message!,
+                  style: const TextStyle(fontSize: 11, color: AppColors.amber),
+                ),
+            ],
+          ),
+          // SPEC-073 R2: the failed checks, their log and "Corrigir CI".
+          if (hasPr && status != null && status.open)
+            CiPanel(sessionId: _id, status: status),
         ],
       ),
     );

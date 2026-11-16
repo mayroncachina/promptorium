@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../ci_fixer.dart' show ciFixAuthor;
 import '../conflict_resolution.dart' show resolutionAuthor;
 
 import '../../../data/providers.dart';
@@ -253,9 +254,15 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
     final rounds = <int, List<ReviewCommentRow>>{};
     // SPEC-043 R9: the conflict resolutions have their own history.
     final resolutions = <ReviewCommentRow>[];
+    // SPEC-073 R4: the CI fixes too (CI1, CI2…).
+    final ciFixes = <ReviewCommentRow>[];
     for (final c in comments) {
       if (c.author == resolutionAuthor) {
         resolutions.add(c);
+        continue;
+      }
+      if (c.author == ciFixAuthor) {
+        ciFixes.add(c);
         continue;
       }
       rounds.putIfAbsent(c.round, () => []).add(c);
@@ -442,6 +449,22 @@ class _SpecReviewPanelState extends ConsumerState<SpecReviewPanel> {
                               'mesmo-assim' => AppColors.amber,
                               _ => AppColors.textSecondary,
                             },
+                          ),
+                        ),
+                      ),
+                  ],
+                  if (ciFixes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text('CORREÇÕES DE CI', style: _title),
+                    for (final c in ciFixes.reversed)
+                      Padding(
+                        key: ValueKey('review-ci-history-${c.id}'),
+                        padding: const EdgeInsets.only(top: 3, left: 8),
+                        child: Text(
+                          '${_when(c.createdAt)} · ${c.body}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ),
