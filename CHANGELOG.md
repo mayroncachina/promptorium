@@ -2,6 +2,81 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.18.0] - 2026-11-16
+
+### Funcionalidades
+
+- **spec-072:** Ambiente, hospedagem e branch inicial na tela Começar (R1–R6, R15, R20–R22) (24f6e1a)
+- **spec-072:** Custo e tempo honestos na criação (R7–R10) (c3ed3fb)
+- **spec-072:** Comandos da stack no config.yml e Saúde no stepper (R11–R14) (4e7c25c)
+- **spec-072:** Stack fora dos modelos com o chip "Outro…" (R16–R19) (b52e618)
+- **review:** Checks com run, job e workflow, e o corte do log do CI (SPEC-073 R1, R3, R9) (c81f2e0)
+- **review:** Corrigir CI e Rodar de novo, no Review e no card (SPEC-073 R2, R4–R8, R10) (bb662ad)
+- **review:** Corrigir CI sozinho, uma vez por commit vermelho (SPEC-073 R11–R13) (a83bc66)
+- **issues:** Comandos de issue no GhCli, issue: N lido no sync (migração v28 provisória), diagnóstico do GitHub e o selo #N na Bandeja, no Quadro e em Specs (SPEC-074 R1, R2, R12) (75f7765)
+- **issues:** O PR da spec ligada leva Closes #N ou Parte de #N, o Pronto para merge mostra a linha da issue, o estado das issues muda só o selo e a spec ganha Criar issue (SPEC-074 R8, R9, R11) (56eedde)
+- **issues:** Com o opt-in issues.comentar-andamento, o anotar_andamento mantém um comentário por spec na issue, e a configuração do projeto ganha a seção Issues do GitHub (SPEC-074 R10) (5e78ca9)
+- **issues:** Importar issues na Bandeja e na paleta, com filtros, páginas de 50 e sem duplicar; a issue vira rascunho com o Objetivo, e o menu da spec refina com o Claude, atualiza com a issue e desliga (SPEC-074 R3–R7, R12) (21be11d)
+- **spec-076:** Núcleo da Atividades — registro, o que o agente faz, cota e pausas (t1) (537a8e8)
+- **spec-076:** Robôs dos agentes e o Quadro com robôs (t2) (f18e0f7)
+- **spec-076:** Tela Atividades, item no menu com o selo e o robô do card (t3) (b0e9e20)
+
+### Correções
+
+- **spec-072:** Custo e tempo depois das opções de Revisar e criar (R10) (dc3676c)
+- **spec-072:** Chips do Ponto de partida e "Gravar no git" não esticam na linha toda (0cf757a)
+- **spec-072:** Comandos legíveis no modal "Outro…" e alternativas da stack como chips (bff5345)
+- **spec-072:** A chave worktree.preparar cabe numa linha no modal "Outro…" (0080e0e)
+- **spec-073:** "Rodar de novo" e "Corrigir CI" lado a lado no Review (612f24a)
+- **spec-073:** "Corrigir CI" sai do modo plano antes de mandar o log (339f949)
+- **spec-073:** PR com CI vermelho aparece como "CI falhou" na lista do Review (08bfd4d)
+- **issues:** A fila da importação é por pasta do workspace (SPEC-074 R4) (9252a8e)
+- **spec-074:** Título ## da issue desce um nível no Objetivo, não dois (7f3e7f1)
+- **spec-074:** O selo "#N fechada" aparece inteiro no card do Quadro (d3c0c30)
+- **spec-074:** Selo da issue não corta no card estreito do Quadro (14275bd)
+- **spec-075:** Botões com a largura do texto, só expand estica (9e77a27)
+
+### Desempenho
+
+- **spec-076:** Robôs no relógio ambiente (24 Hz), como os outros laços (c1f9270)
+
+### Documentação
+
+- SPEC-072, criação confiável (#241) (41a8961)
+- **spec-072:** Link do PR #244 (31b5311)
+- **spec-072:** Status em-revisao, um valor que o app reconhece (b0d11e9)
+- **spec-072:** Stack fora dos modelos pelo chip Outro (R16–R19) (711058c)
+- **spec-072:** Hospedagem GitHub, GitLab ou Local no Ambiente (R20–R22) (8154d34)
+- **spec-072:** A hospedagem segue o Repositório remoto (R20–R22, P11) (99f5d0d)
+- **spec-072:** Aprovada (b967807)
+- **spec-072:** Marca os critérios de R1 a R22 (86c22ca)
+- **spec-072:** Prints do app compilado e critérios manuais marcados (5e56db3)
+- SPEC-073, CI vermelho vira correção (#242) (7f4af44)
+- **spec-073:** Link do PR #245 (a8b9166)
+- **spec-073:** Status em-revisao, um valor que o app reconhece (cf66721)
+- **spec-073:** Aprovada (cf0d826)
+- **spec-073:** Decisões P1–P6 registradas e critérios marcados (84fcddc)
+- **spec-073:** Prints do app compilado e critério manual marcado (3189336)
+- SPEC-074, issues e specs nos dois sentidos (#243) (de1efd2)
+- **spec-074:** Link do PR #246 (7cec7c9)
+- **spec-074:** Status em-revisao, um valor que o app reconhece (ae7e63b)
+- **spec-074:** Aprovada (23d1c79)
+- **spec-074:** Decisões P1–P6 registradas e critérios de aceite marcados (f3cbd0d)
+- **spec-074:** Prints do app compilado e critério manual marcado (1a9e607)
+- **spec-075:** Spec dos botões com a largura do texto (4520779)
+- **spec-075:** Prints antes e depois (ff35f32)
+- **spec-076:** Mockups do canvas da Atividades (e3d8a0a)
+- **spec-076:** Spec da Atividades (02815b9)
+- **spec-076:** Link do PR (2f1fb3f)
+- **spec-076:** Prints do app real e critérios conferidos (f2fb0ee)
+
+### Testes
+
+- **spec-072:** O rádio do remoto entra na tela antes do toque (027ef42)
+- **issues:** O selo conta a semântica pelo widget, sem timer pendente, e a busca do dublê não conta os PRs (SPEC-074 R1, R12) (e59a66b)
+- **specs:** O print da miniatura procura a chamada do navegador, não a primeira (o Specs pergunta o remote ao git, SPEC-074 R2) (ecbe125)
+- **spec-076:** O menu tem onze itens, dez com atalho (119d65b)
+
 ## [0.17.2] - 2026-11-15
 
 ### Correções
