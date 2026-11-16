@@ -11,9 +11,13 @@ import 'package:promptorium/core/claude/claude_cli.dart';
 import 'package:promptorium/core/claude/readonly_run.dart'
     show PlannerException;
 import 'package:promptorium/core/git/git_service.dart';
+import 'package:promptorium/core/providers/provider_availability.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
 import 'package:promptorium/features/ideas/idea_import.dart' show ideaMaxChars;
+import 'package:promptorium/features/project/environment_check.dart'
+    show environmentProbeProvider;
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_config.dart';
 import 'package:promptorium/features/project/project_plan.dart';
 import 'package:promptorium/features/project/project_templates.dart';
@@ -27,6 +31,7 @@ import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/ui/theme/app_theme.dart';
 
 import '../../helpers/test_db.dart';
+import 'environment_check_test.dart' show FakeProbe;
 import '../../ui/preferences_test.dart' show unmount;
 import '../sessions/session_test_utils.dart' show FakeCli;
 import 'spec_auto_planner_test.dart' show answerFor;
@@ -93,6 +98,7 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
   bool withWorkspace = true,
   Size size = const Size(1440, 900),
   String path = '/r',
+  String? subscription = 'max',
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -105,6 +111,15 @@ Future<(ProviderContainer, AppDatabase)> pumpProject(
       appDatabaseProvider.overrideWithValue(db),
       currentBranchProvider.overrideWith((ref, root) async => 'main'),
       claudeProcessStarterProvider.overrideWithValue(cli.start),
+      // The Começar "Ambiente" (SPEC-072): no real git or claude.
+      environmentProbeProvider.overrideWithValue(FakeProbe()),
+      providerAvailabilityProvider.overrideWith(
+        (ref, id) async => ProviderAvailability(
+          ProviderStatus.ready,
+          '',
+          subscriptionType: subscription,
+        ),
+      ),
     ],
   );
   if (withWorkspace) {
@@ -211,6 +226,11 @@ class QueueScreen {
         appDatabaseProvider.overrideWithValue(db),
         currentBranchProvider.overrideWith((ref, root) async => 'main'),
         claudeProcessStarterProvider.overrideWithValue(FakeCli().start),
+        environmentProbeProvider.overrideWithValue(FakeProbe()),
+        providerAvailabilityProvider.overrideWith(
+          (ref, id) async =>
+              const ProviderAvailability(ProviderStatus.ready, ''),
+        ),
         specDesignerProvider.overrideWith(
           (ref) => designer = QueueDesigner(ref),
         ),
@@ -377,6 +397,189 @@ void main() {
     await unmount(tester, c);
   });
 
+  testWidgets('the stepper shows the branch of the Começar screen '
+      '(SPEC-072 R6)', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-stepper-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    File('${tmp.path}/.promptorium/config.yml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('branch-base: trunk\n');
+    final (c, _) = await pumpProject(
+      tester,
+      data: const ProjectPlanData(vision: vision),
+      path: tmp.path,
+    );
+    expect(find.text('git init · trunk · commit inicial'), findsOneWidget);
+    await unmount(tester, c);
+  });
+
+  testWidgets('Revisar e criar shows Custo e tempo and the queue time; the '
+      'stepper counts calls on a subscription plan and dollars with an API '
+      'key (SPEC-072 R8, R10)', (tester) async {
+    const data = ProjectPlanData(
+      vision: vision,
+      stack: stack,
+      roadmap: roadmap,
+    );
+    var (c, db) = await pumpProject(
+      tester,
+      data: data,
+      step: ProjectStep.create,
+    );
+    final ws = (await db.select(db.workspaces).get()).single;
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(
+          AppSettingKeys.plannerCalls(ws.id),
+          const PlannerCalls({'visao': 2, 'stack': 1, 'roadmap': 1}).encode(),
+        );
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AppSettingKeys.refineRounds, '[110,120,130]');
+    await tester.pumpAndSettle();
+    expect(find.text('Planner · 4 chamadas'), findsOneWidget);
+    expect(find.byKey(const ValueKey('project-cost')), findsOneWidget);
+    expect(
+      find.text('4 chamadas feitas (visão 2, stack 1, roadmap 1)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('3 specs × ~2 min ≈ 6 min · mediana de 3 rodadas'),
+      findsOneWidget,
+    );
+    expect(find.text('Refina e planeja as 3 specs · ~6 min'), findsOneWidget);
+    expect(find.byKey(const ValueKey('usage-quota-note')), findsOneWidget);
+    await unmount(tester, c);
+
+    // API key: dollars, and the ceiling in "Uso".
+    (c, db) = await pumpProject(
+      tester,
+      data: data,
+      step: ProjectStep.create,
+      subscription: null,
+    );
+    final ws2 = (await db.select(db.workspaces).get()).single;
+    await (db.update(db.projectPlans)
+          ..where((p) => p.workspaceId.equals(ws2.id)))
+        .write(const ProjectPlansCompanion(costUsd: Value(0.42)));
+    await tester.pumpAndSettle();
+    expect(find.text('Planner · \$0.42'), findsOneWidget);
+    expect(find.byKey(const ValueKey('usage-api')), findsOneWidget);
+    await unmount(tester, c);
+  });
+
+  testWidgets('Stack: the Comandos block shows each config.yml key, locks '
+      'what the config.yml has, and editing marks the CLAUDE.md stale; '
+      '"Detectar do repositório" fills only the empty lines (SPEC-072 R12, '
+      'R14)', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-cmds-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    File('${tmp.path}/.promptorium/config.yml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('testes: flutter test\nbranch-base: main\n');
+    File('${tmp.path}/pubspec.yaml').writeAsStringSync(
+      'name: loja\ndependencies:\n  flutter:\n    sdk: flutter\n',
+    );
+    final (c, db) = await pumpProject(
+      tester,
+      path: tmp.path,
+      data: const ProjectPlanData(
+        vision: vision,
+        stack: StackPlan(
+          decisions: [StackDecision(area: 'App', choice: 'Flutter')],
+          claudeMd: '# Loja',
+          commands: StackCommands(run: 'flutter run -d linux', test: 'x'),
+        ),
+      ),
+      step: ProjectStep.stack,
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('commands-card')), findsOneWidget);
+    expect(find.text('worktree.preparar'), findsOneWidget);
+    expect(find.text('executar'), findsOneWidget);
+    String badge(String k) =>
+        tester.widget<Text>(find.byKey(ValueKey('commands-$k-badge'))).data!;
+    expect(badge('test'), 'já existe');
+    expect(badge('run'), 'novo');
+    expect(badge('dev'), 'não se aplica');
+    // The existing value, read-only.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('commands-test')),
+        matching: find.text('flutter test'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('project-claudemd-refresh')),
+      findsNothing,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('commands-run')),
+      'flutter run -d macos',
+    );
+    await tester.pumpAndSettle();
+    var s = (await stored(db)).stack;
+    expect(s.commands.run, 'flutter run -d macos');
+    expect(s.claudeMdStale, isTrue);
+    expect(find.byKey(const ValueKey('project-claudemd-refresh')), findsOne);
+
+    // pubspec.yaml: the detection fills install, lint and format only.
+    await tester.tap(find.byKey(const ValueKey('commands-detect')));
+    await tester.pumpAndSettle();
+    s = (await stored(db)).stack;
+    expect(s.commands.install, 'flutter pub get');
+    expect(s.commands.lint, 'flutter analyze');
+    expect(s.commands.run, 'flutter run -d macos');
+    expect(find.textContaining('lido de pubspec.yaml'), findsOneWidget);
+
+    // "Saúde do projeto" opens the Saúde with "Analisar repositório".
+    await tester.tap(find.byKey(const ValueKey('project-health-open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Analisar repositório'), findsOneWidget);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    await unmount(tester, c);
+  });
+
+  testWidgets('Revisar e criar lists the config.yml; it opens to show + and = '
+      '(SPEC-072 R13)', (tester) async {
+    final tmp = Directory.systemTemp.createTempSync('promptorium-cfgrow-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    File('${tmp.path}/.promptorium/config.yml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('testes: flutter test\nbranch-base: main\n');
+    final (c, _) = await pumpProject(
+      tester,
+      path: tmp.path,
+      data: ProjectPlanData(
+        vision: vision,
+        stack: stack.copyWith(
+          commands: const StackCommands(
+            run: 'flutter run -d linux',
+            format: 'dart format',
+          ),
+        ),
+        roadmap: roadmap,
+      ),
+      step: ProjectStep.create,
+    );
+    expect(find.byKey(const ValueKey('project-config-row')), findsOneWidget);
+    expect(find.text('M  '), findsOneWidget);
+    expect(find.text('2 linhas novas · 2 mantidas'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('project-config-row')));
+    await tester.pumpAndSettle();
+    expect(find.text('+  executar: flutter run -d linux'), findsOneWidget);
+    expect(find.text('+  formatar: dart format {arquivo}'), findsOneWidget);
+    expect(find.text('=  testes: flutter test'), findsOneWidget);
+    expect(find.text('da stack ({arquivo} acrescentado)'), findsOneWidget);
+    await unmount(tester, c);
+  });
+
   testWidgets('Stack: an alternative becomes the choice and marks the '
       'CLAUDE.md as stale', (tester) async {
     final (c, db) = await pumpProject(
@@ -386,6 +589,13 @@ void main() {
     );
     expect(find.text('decidir'), findsOneWidget);
     expect(find.text('# Receitas'), findsOneWidget);
+    // An alternative is a chip with its label's width, not a whole row.
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('project-stack-alt-Banco-SQLite')))
+          .width,
+      lessThan(160),
+    );
     await tester.tap(
       find.byKey(const ValueKey('project-stack-alt-Banco-SQLite')),
     );

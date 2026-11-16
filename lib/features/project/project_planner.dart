@@ -11,8 +11,9 @@ import '../../data/providers.dart';
 import '../sessions/session_manager.dart' show sessionIdGeneratorProvider;
 import '../../core/claude/readonly_run.dart'
     show PlannerException, runReadOnlyClaude, structuredOutput;
+import 'cost_estimate.dart';
 import 'project_plan.dart';
-import 'project_templates.dart' show templateClaudeMd;
+import 'project_templates.dart' show CustomStack, templateClaudeMd;
 
 /// The planner of the Projeto screen: short, read-only `claude -p` runs with
 /// `--json-schema` (like "Gerar tarefas"). The Visão conversation keeps one
@@ -53,6 +54,16 @@ final stackSchema = _object({
     }),
   },
   'claudeMd': _str,
+  // The commands of the CLAUDE.md, for the config.yml (SPEC-072 R11).
+  'commands': _object({for (final k in StackCommands.keys) k: _str}),
+});
+
+/// The "Outro…" modal (SPEC-072 R17): the stack schema plus a short name
+/// and the skeleton command.
+final customStackSchema = _object({
+  'name': _str,
+  ...(stackSchema['properties'] as Map<String, Object?>),
+  'scaffold': _str,
 });
 
 final _specSchema = _object({
@@ -107,7 +118,37 @@ const stackSystemPrompt =
     'CLAUDE.md do projeto em Markdown: título e resumo, stack, comandos '
     '(instalar, rodar, testar, lint — os que a stack terá) e convenções de '
     'código e de commits. Seja conciso: ele é lido no início de toda sessão '
-    'de agente.';
+    'de agente. Em commands, os mesmos comandos que o CLAUDE.md lista, para '
+    'o .promptorium/config.yml: install (dependências; protegido pela '
+    'existência do manifesto, porque o projeto começa vazio, ex.: '
+    '"test ! -f pubspec.yaml || flutter pub get"), run (roda o app), dev '
+    '(servidor de desenvolvimento), test, lint e format (formata um arquivo; '
+    'use {arquivo} no lugar do caminho). Texto vazio quando o comando não se '
+    'aplica (ex.: dev num app de desktop). Mantenha exatamente os comandos '
+    'indicados como fixados.';
+
+/// The "Outro…" modal: a stack from a free description (SPEC-072 R17).
+const customStackSystemPrompt =
+    '$_base Defina a stack de um projeto novo a partir da descrição do '
+    'usuário, que é a fonte da verdade: não troque o que ele pediu. Em name, '
+    'um nome curto da stack para um botão (ex.: "Go · Fiber"). Em decisions, '
+    'uma entrada por área relevante (Linguagem, Framework, Banco, '
+    'Migrations, Testes…) com choice, why (uma frase) e até 2 alternatives. '
+    'Em commands: install (dependências, protegido pela existência do '
+    'manifesto, porque o projeto começa vazio, ex.: "test ! -f go.mod || go '
+    'mod download"), run, dev, test, lint e format (formata um arquivo, com '
+    '{arquivo} no lugar do caminho); texto vazio quando não se aplica. Em '
+    'scaffold, o comando que cria o esqueleto do projeto (vazio se não '
+    'houver). Em claudeMd, um CLAUDE.md base conciso em Markdown: título, '
+    'stack, uma seção "## Comandos" com os comandos e o scaffold, e '
+    'convenções de código e de commits. Num pedido de ajuste, devolva a '
+    'proposta COMPLETA atualizada.';
+
+/// User message of the "Outro…" modal: the description, or an adjustment
+/// of the same conversation.
+String customStackPrompt(String text, {bool adjust = false}) => adjust
+    ? 'Ajuste pedido: ${text.trim()}'
+    : 'Descrição da stack: ${text.trim()}';
 
 const roadmapSystemPrompt =
     '$_base Etapa Roadmap: transforme a visão e a stack em specs. Cada spec '
@@ -148,6 +189,7 @@ String stackPrompt(
   List<StackDecision> fixed = const [],
   String? request,
   String? baseClaudeMd,
+  StackCommands commands = const StackCommands(),
 }) {
   final b = StringBuffer()
     ..writeln('Visão do projeto (JSON):')
@@ -171,6 +213,18 @@ String stackPrompt(
       b.writeln('- ${d.area}: ${d.choice}');
     }
   }
+  final pinned = [
+    for (final k in StackCommands.keys)
+      if (commands.pinned.contains(k)) k,
+  ];
+  if (pinned.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Comandos fixados (mantenha exatamente em commands):');
+    for (final k in pinned) {
+      b.writeln('- $k: ${commands[k].isEmpty ? '(vazio)' : commands[k]}');
+    }
+  }
   if (request != null && request.trim().isNotEmpty) {
     b
       ..writeln()
@@ -188,6 +242,15 @@ String roadmapPrompt(VisionPlan vision, StackPlan stack, {String? request}) {
     ..writeln('Stack:');
   for (final d in stack.decisions) {
     b.writeln('- ${d.area}: ${d.choice}');
+  }
+  if (stack.scaffold.trim().isNotEmpty) {
+    // The "Outro…" stack (SPEC-072 R18): the base of the first Fundação spec.
+    b
+      ..writeln()
+      ..writeln(
+        'Comando que cria o esqueleto (scaffold): ${stack.scaffold.trim()} '
+        '— use-o como base da primeira spec da Fundação.',
+      );
   }
   if (request != null && request.trim().isNotEmpty) {
     b
@@ -281,8 +344,13 @@ Map _map(Result r) {
   );
 }
 
-/// Stack proposal; decisions in [fixed] keep the user's choice.
-StackPlan parseStackResult(Result r, {List<StackDecision> fixed = const []}) {
+/// Stack proposal; decisions in [fixed] keep the user's choice, and the
+/// pinned commands of [commands] stay as they are (SPEC-072 R11).
+StackPlan parseStackResult(
+  Result r, {
+  List<StackDecision> fixed = const [],
+  StackCommands commands = const StackCommands(),
+}) {
   final proposed = StackPlan.fromJson(_map(r));
   if (proposed.decisions.isEmpty) {
     throw const PlannerException('O planner não propôs nenhuma tecnologia.');
@@ -306,7 +374,32 @@ StackPlan parseStackResult(Result r, {List<StackDecision> fixed = const []}) {
   for (final d in fixed) {
     if (seen.add(stackAreaKey(d.area))) decisions.add(d);
   }
-  return proposed.copyWith(decisions: decisions, claudeMdStale: false);
+  var cmds = proposed.commands;
+  for (final k in commands.pinned) {
+    cmds = cmds.withValue(k, commands[k], pin: true);
+  }
+  return proposed.copyWith(
+    decisions: decisions,
+    claudeMdStale: false,
+    commands: cmds,
+  );
+}
+
+/// The answer of the "Outro…" modal (SPEC-072 R17).
+CustomStack parseCustomStackResult(Result r) {
+  final m = _map(r);
+  final stack = StackPlan.fromJson(m);
+  final name = m['name'] is String ? (m['name'] as String).trim() : '';
+  if (stack.decisions.isEmpty || name.isEmpty) {
+    throw const PlannerException('O Claude não propôs uma stack.');
+  }
+  return CustomStack(
+    name: name,
+    decisions: stack.decisions,
+    commands: stack.commands,
+    scaffold: m['scaffold'] is String ? (m['scaffold'] as String).trim() : '',
+    claudeMd: stack.claudeMd,
+  );
 }
 
 /// Area of a stack decision, compared without case, accents and synonyms
@@ -424,20 +517,27 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         ),
       );
 
+  /// One planner call; [kind] counts it for "Planner · N chamadas"
+  /// (SPEC-072 R8, R10), also when it fails.
   Future<Result> _run(
     Workspace ws,
     ClaudeOptions options,
-    String prompt,
-  ) async {
-    final r = await runReadOnlyClaude(
-      ref,
-      workspaceId: ws.id,
-      cwd: ws.path,
-      options: options,
-      prompt: prompt,
-    );
-    await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
-    return r;
+    String prompt, {
+    required String kind,
+  }) async {
+    try {
+      final r = await runReadOnlyClaude(
+        ref,
+        workspaceId: ws.id,
+        cwd: ws.path,
+        options: options,
+        prompt: prompt,
+      );
+      await ref.read(projectPlansRepoProvider).addCost(ws.id, r.totalCostUsd);
+      return r;
+    } finally {
+      await recordPlannerCalls(ref, ws.id, kind);
+    }
   }
 
   /// One Visão turn: stores [text], asks the planner and stores its answer
@@ -467,6 +567,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
             resumeId: resume,
           ),
           msg,
+          kind: 'visao',
         );
         final out = parseVisionResult(r);
         data = data.copyWith(
@@ -513,6 +614,11 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         for (final d in data.stack.decisions)
           if (keepChoices || d.pinned) d,
       ];
+      // keepChoices (refresh the CLAUDE.md): the commands edited by hand
+      // stay too.
+      final cmds = keepChoices
+          ? data.stack.commands.copyWithAllPinned()
+          : data.stack.commands;
       final r = await _run(
         ws,
         _options(stackSystemPrompt, stackSchema),
@@ -521,9 +627,17 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           fixed: fixed,
           request: request,
           baseClaudeMd: templateClaudeMd(ws.path),
+          commands: cmds,
         ),
+        kind: 'stack',
       );
-      final stack = parseStackResult(r, fixed: fixed);
+      var stack = parseStackResult(r, fixed: fixed, commands: cmds);
+      // Edited by hand: not pinned for the next proposal.
+      if (keepChoices) {
+        stack = stack.copyWith(
+          commands: stack.commands.withPinned(data.stack.commands.pinned),
+        );
+      }
       final (_, latest) = await _load(ws);
       await _save(ws, latest.copyWith(stack: stack));
     },
@@ -539,6 +653,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         ws,
         _options(roadmapSystemPrompt, roadmapSchema, budget: roadmapBudgetUsd),
         roadmapPrompt(data.vision, data.stack, request: request),
+        kind: 'roadmap',
       );
       final roadmap = parseRoadmapResult(r);
       final (_, latest) = await _load(ws);
@@ -554,6 +669,7 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
           ws,
           _options(ideaSystemPrompt, ideaSpecSchema),
           ideaPrompt(idea, phase, data),
+          kind: 'ideia',
         );
         final m = _map(r);
         final spec = m['spec'] is Map
@@ -649,6 +765,32 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
         );
       });
 
+  /// Edits one command of the "Comandos" block; the CLAUDE.md goes stale
+  /// (SPEC-072 R12).
+  Future<void> editCommand(Workspace ws, String key, String value) =>
+      _edit(ws, (d) {
+        if (d.stack.commands[key] == value.trim()) return d;
+        return d.copyWith(
+          stack: d.stack.copyWith(
+            commands: d.stack.commands.withValue(key, value),
+            claudeMdStale: d.stack.claudeMd.isNotEmpty,
+          ),
+        );
+      });
+
+  /// "Detectar do repositório": fills the empty commands (R14).
+  Future<void> fillCommands(Workspace ws, StackCommands detected) =>
+      _edit(ws, (d) {
+        final next = d.stack.commands.fillEmpty(detected);
+        if (next == d.stack.commands) return d;
+        return d.copyWith(
+          stack: d.stack.copyWith(
+            commands: next,
+            claudeMdStale: d.stack.claudeMd.isNotEmpty,
+          ),
+        );
+      });
+
   Future<void> editClaudeMd(Workspace ws, String text) =>
       _edit(ws, (d) => d.copyWith(stack: d.stack.copyWith(claudeMd: text)));
 
@@ -698,8 +840,12 @@ class ProjectPlanner extends Notifier<Map<int, PlannerActivity>> {
       ref.read(projectPlansRepoProvider).start(ws.id);
 
   /// Discards the plan (files, specs and tasks already created stay).
-  Future<void> discard(Workspace ws) =>
-      ref.read(projectPlansRepoProvider).delete(ws.id);
+  Future<void> discard(Workspace ws) async {
+    await ref.read(projectPlansRepoProvider).delete(ws.id);
+    await ref
+        .read(appSettingsProvider.notifier)
+        .remove(AppSettingKeys.plannerCalls(ws.id));
+  }
 }
 
 final projectPlannerProvider =

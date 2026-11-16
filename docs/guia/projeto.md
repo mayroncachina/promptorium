@@ -5,23 +5,73 @@
 Sem workspace aberto, ou em **Novo projeto…**, a tela Começar oferece três caminhos:
 
 - **Abrir pasta existente**.
-- **Criar projeto novo**: nome da pasta, onde criar, modelo de partida e remoto ("Só local por enquanto" ou "Conectar a" uma URL). Termina em "Criar e planejar com o planner" ou "Criar sem planejar".
+- **Criar projeto novo**: nome da pasta, onde criar, branch inicial (`main` por padrão), modelo de partida e remoto ("Só local por enquanto" ou "Conectar a" uma URL). Termina em "Criar e planejar com o planner" ou "Criar sem planejar".
 - **Clonar de uma URL**.
 
-Abaixo ficam os projetos recentes.
+Em "Abrir pasta existente" e "Clonar de uma URL", a coluna da direita mostra os projetos recentes.
 
 Os **modelos** (Vazio, Flutter app, Next.js, API Python, CLI Dart) preenchem os comandos de testes, lint, formatação e preparação do `.promptorium/config.yml`, as decisões de stack e um `CLAUDE.md` mínimo.
+
+### Outra stack
+
+Quando nenhum modelo serve, o último chip, **Outro…**, abre **Definir a stack com o Claude**. Descreva a stack em texto livre ("API em Go com Fiber e Postgres, testes com go test") e clique em **Propor stack**. O Claude, somente leitura, devolve uma prévia: nome curto, decisões com o porquê, os seis comandos (editáveis), o comando de scaffold e um CLAUDE.md base, que abre para ler.
+
+- **Pedir ajuste** continua a mesma conversa e troca a prévia. **Cancelar**, enquanto ele pensa, encerra a chamada; um erro aparece no próprio modal, com "Tentar de novo".
+- **Usar esta stack** fecha o modal e a stack vira o ponto de partida: o chip mostra o nome ("Go · Fiber") e um lápis que reabre a conversa. Fechar sem usar não muda nada.
+- Ao criar, os comandos vão para o config.yml, o CLAUDE.md base é gravado como o de um modelo (o do plano o substitui), as decisões e os comandos entram fixados na etapa Stack, e o scaffold vai ao planner do roadmap como base da primeira spec da Fundação. O app não roda o scaffold.
+- Cada proposta ou ajuste é uma chamada e soma no custo ("+1 chamada" em "O que acontece" e em Revisar e criar).
+- A stack vale enquanto a tela Começar está aberta. Com o Claude Code vermelho no Ambiente, o chip fica desabilitado.
+
+### Ambiente
+
+Em "Criar projeto novo", o bloco **Ambiente** confere, antes de criar:
+
+- **Git**: instalado e com nome e e-mail. Sem identidade, os campos Nome e E-mail e **Gravar no git** gravam no `git config --global` (os comandos aparecem escritos embaixo, para quem prefere o terminal).
+- **Claude Code**: instalado, compatível e logado, com a versão e o plano. Deslogado, **Abrir terminal com claude auth login**; o item confere de novo quando a janela do app volta ao foco.
+- **Hospedagem**: sai do "Repositório remoto". "Só local" é **Local**, sem checagem. Uma URL do `github.com` é **GitHub** e confere o `gh`; uma do `gitlab.com` é **GitLab** e confere o `glab` no host da URL. Outro host fica como "não reconhecido": PR e MR pelo app indisponíveis. A CLI da hospedagem é só aviso, nunca bloqueia.
+- **Pasta**: "Criar dentro de" existe e é gravável, e o destino não existe (ou é sobra de uma criação que falhou).
+
+Cada item mostra **ok**, **bloqueia** ou **aviso**. Git ou Pasta vermelhos, ou uma branch inválida, desabilitam os dois botões; Claude vermelho desabilita só "Criar e planejar". A checagem roda ao abrir, 300 ms depois de mudar o nome, a pasta ou o remoto, e em **Verificar de novo**. Um item que passa de 5 s fica como aviso e não bloqueia.
+
+A branch inicial vira a branch do repositório e o `branch-base:` do `.promptorium/config.yml`, que nasce no commit inicial (também no modelo Vazio). Com GitHub ou GitLab, o config.yml também ganha `hospedagem:`.
+
+### Custo e tempo
+
+"O que acontece" não promete segundos nem dólares: mostra as 3 chamadas do planner (visão, stack e roadmap; cada mensagem a mais na Visão é mais uma) e a fila de refino em "1 rodada por spec". O app guarda a duração das últimas 20 rodadas da fila, de qualquer projeto; com 3 ou mais, a estimativa usa a mediana ("8 specs × ~2 min ≈ 16 min"), e sem histórico fica em "1–3 min" por spec.
+
+No plano por assinatura (Pro, Max), o bloco **Uso** mostra a quota da janela de 5 h e da semana, com a hora em que renova, porque não há cobrança por chamada; o stepper mostra "Planner · N chamadas". Com chave de API, aparece o teto em dólares de cada chamada. Revisar e criar repete tudo na seção **Custo e tempo**, com as chamadas já feitas e, quando o projeto já tem specs executadas, o tempo médio de execução por spec.
 
 ## Planejar com o planner
 
 O planejamento tem quatro etapas:
 
 1. **Visão**: uma conversa com o planner. O plano (resumo, público, MVP, fora do escopo, dúvidas) é atualizado a cada resposta.
-2. **Stack e convenções**: uma escolha por área, com alternativas clicáveis, e o `CLAUDE.md` editável.
+2. **Stack e convenções**: uma escolha por área, com alternativas clicáveis, o bloco **Comandos** e o `CLAUDE.md` editável.
 3. **Roadmap**: specs da Fundação e do MVP com código, requisitos (as etapas, no máximo 6 por spec) e dependências, numa ordem de execução em ondas. Tudo é editável à mão; ideias para depois podem virar specs.
 4. **Revisar e criar**: grava o `CLAUDE.md` e as specs na pasta configurada, coloca as specs no Quadro, commita e, se você quiser, abre a sessão da primeira etapa.
 
 O planner roda somente leitura. O rascunho do plano fica salvo no app até você criar ou descartar.
+
+### Comandos
+
+O bloco **Comandos** da etapa Stack traz os comandos que o CLAUDE.md lista, cada um com a chave do `.promptorium/config.yml` ao lado:
+
+| Comando | Chave |
+|---|---|
+| instalar | `worktree.preparar` |
+| rodar | `executar` |
+| dev | `dev` |
+| testes | `testes` |
+| lint | `lint` |
+| formatar | `formatar` |
+
+- Um comando que o config.yml já tem aparece com o valor de lá, travado, e a marca "já existe". Os outros são editáveis: "novo" quando vão entrar, "não se aplica" quando estão vazios.
+- Os comandos de um modelo de partida entram fixados, e o planner não os troca.
+- Editar um comando marca o CLAUDE.md como desatualizado; **Atualizar** reescreve o CLAUDE.md mantendo as escolhas e os comandos.
+- **Detectar do repositório** aparece quando a pasta tem um manifesto (`pubspec.yaml`, `package.json`…) e preenche só as linhas vazias.
+- Em "Criar projeto", os comandos preenchem só as chaves vazias do config.yml (nunca sobrescrevem), `formatar` ganha ` {arquivo}` quando falta, e o config.yml entra no commit "Plano inicial do projeto". Em Revisar e criar, a linha do config.yml abre e mostra o que entra (`+`) e o que fica como estava (`=`).
+
+O link **Saúde do projeto** do stepper abre a Saúde, com "Analisar repositório", também num projeto criado pelo planner.
 
 ## Refino e plano automáticos
 

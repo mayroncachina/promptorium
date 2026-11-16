@@ -176,6 +176,14 @@ class StackDecision {
 
   bool get isUndecided => choice.isEmpty || choice == undecided;
 
+  StackDecision copyWith({bool? pinned}) => StackDecision(
+    area: area,
+    choice: choice,
+    why: why,
+    alternatives: alternatives,
+    pinned: pinned ?? this.pinned,
+  );
+
   /// Picks [option] (an alternative); the previous choice becomes one.
   StackDecision choose(String option) => StackDecision(
     area: area,
@@ -207,14 +215,156 @@ class StackDecision {
 }
 
 @immutable
+/// The six commands of a stack (SPEC-072 R11), each going to one key of
+/// the config.yml ([StackCommands.configKeys]). Empty = does not apply.
+@immutable
+class StackCommands {
+  const StackCommands({
+    this.install = '',
+    this.run = '',
+    this.dev = '',
+    this.test = '',
+    this.lint = '',
+    this.format = '',
+    this.pinned = const {},
+  });
+
+  /// The order of the "Comandos" block.
+  static const keys = ['install', 'run', 'dev', 'test', 'lint', 'format'];
+
+  /// Label of each command in the block.
+  static const labels = {
+    'install': 'instalar',
+    'run': 'rodar',
+    'dev': 'dev',
+    'test': 'testes',
+    'lint': 'lint',
+    'format': 'formatar',
+  };
+
+  /// The config.yml key of each command (R12).
+  static const configKeys = {
+    'install': 'worktree.preparar',
+    'run': 'executar',
+    'dev': 'dev',
+    'test': 'testes',
+    'lint': 'lint',
+    'format': 'formatar',
+  };
+
+  final String install, run, dev, test, lint, format;
+
+  /// Commands the planner keeps as they are (a template's, R11).
+  final Set<String> pinned;
+
+  String operator [](String key) => switch (key) {
+    'install' => install,
+    'run' => run,
+    'dev' => dev,
+    'test' => test,
+    'lint' => lint,
+    'format' => format,
+    _ => '',
+  };
+
+  bool get isEmpty => keys.every((k) => this[k].trim().isEmpty);
+
+  /// [key] set to [value] (trimmed).
+  StackCommands withValue(String key, String value, {bool? pin}) {
+    final m = {for (final k in keys) k: this[k]};
+    m[key] = value.trim();
+    final p = {...pinned};
+    if (pin == true) p.add(key);
+    if (pin == false) p.remove(key);
+    return StackCommands._fromMap(m, p);
+  }
+
+  /// Every non-empty command pinned.
+  StackCommands copyWithAllPinned() => StackCommands._fromMap(
+    {for (final k in keys) k: this[k]},
+    {
+      ...pinned,
+      for (final k in keys)
+        if (this[k].isNotEmpty) k,
+    },
+  );
+
+  /// The same commands with [pins] as the pinned set.
+  StackCommands withPinned(Set<String> pins) =>
+      StackCommands._fromMap({for (final k in keys) k: this[k]}, {...pins});
+
+  /// [other]'s non-empty commands where these are empty.
+  StackCommands fillEmpty(StackCommands other) {
+    final m = {
+      for (final k in keys) k: this[k].trim().isEmpty ? other[k] : this[k],
+    };
+    return StackCommands._fromMap(m, pinned);
+  }
+
+  factory StackCommands._fromMap(Map<String, String> m, Set<String> pinned) =>
+      StackCommands(
+        install: m['install'] ?? '',
+        run: m['run'] ?? '',
+        dev: m['dev'] ?? '',
+        test: m['test'] ?? '',
+        lint: m['lint'] ?? '',
+        format: m['format'] ?? '',
+        pinned: pinned,
+      );
+
+  /// A plan without the key (older) reads every command empty.
+  factory StackCommands.fromJson(Object? j) {
+    if (j is! Map) return const StackCommands();
+    final p = j['pinned'];
+    return StackCommands._fromMap(
+      {for (final k in keys) k: j[k] is String ? (j[k] as String).trim() : ''},
+      {
+        if (p is List)
+          for (final x in p)
+            if (keys.contains(x)) x as String,
+      },
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    for (final k in keys) k: this[k],
+    if (pinned.isNotEmpty)
+      'pinned': [
+        for (final k in keys)
+          if (pinned.contains(k)) k,
+      ],
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is StackCommands &&
+      keys.every((k) => this[k] == other[k]) &&
+      setEquals(pinned, other.pinned);
+
+  @override
+  int get hashCode =>
+      Object.hash(install, run, dev, test, lint, format, pinned.length);
+}
+
 class StackPlan {
   const StackPlan({
     this.decisions = const [],
     this.claudeMd = '',
     this.claudeMdStale = false,
+    this.commands = const StackCommands(),
+    this.scaffold = '',
   });
 
   final List<StackDecision> decisions;
+
+  /// The command that creates the skeleton, from a stack defined with
+  /// "Outro…" (SPEC-072 R18); the roadmap's first Fundação spec starts
+  /// from it. The app never runs it (P10).
+  final String scaffold;
+
+  /// The commands of the stack, merged into the config.yml at creation
+  /// (SPEC-072 R11, R13).
+  final StackCommands commands;
 
   /// Content of the project's CLAUDE.md (editable).
   final String claudeMd;
@@ -228,10 +378,14 @@ class StackPlan {
     List<StackDecision>? decisions,
     String? claudeMd,
     bool? claudeMdStale,
+    StackCommands? commands,
+    String? scaffold,
   }) => StackPlan(
     decisions: decisions ?? this.decisions,
     claudeMd: claudeMd ?? this.claudeMd,
     claudeMdStale: claudeMdStale ?? this.claudeMdStale,
+    commands: commands ?? this.commands,
+    scaffold: scaffold ?? this.scaffold,
   );
 
   factory StackPlan.fromJson(Object? j) {
@@ -246,6 +400,8 @@ class StackPlan {
       ],
       claudeMd: j['claudeMd'] is String ? j['claudeMd'] as String : '',
       claudeMdStale: j['claudeMdStale'] == true,
+      commands: StackCommands.fromJson(j['commands']),
+      scaffold: j['scaffold'] is String ? (j['scaffold'] as String).trim() : '',
     );
   }
 
@@ -253,6 +409,9 @@ class StackPlan {
     'decisions': [for (final d in decisions) d.toJson()],
     'claudeMd': claudeMd,
     if (claudeMdStale) 'claudeMdStale': true,
+    if (!commands.isEmpty || commands.pinned.isNotEmpty)
+      'commands': commands.toJson(),
+    if (scaffold.isNotEmpty) 'scaffold': scaffold,
   };
 }
 

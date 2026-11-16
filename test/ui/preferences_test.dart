@@ -10,6 +10,8 @@ import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/app_settings_repo.dart';
+import 'package:promptorium/features/project/environment_check.dart'
+    show environmentProbeProvider;
 import 'package:promptorium/ui/shell/app_shell.dart';
 import 'package:promptorium/ui/shell/navigation.dart';
 import 'package:promptorium/ui/shell/side_bar.dart';
@@ -17,6 +19,7 @@ import 'package:promptorium/features/sessions/widgets/session_style.dart'
     show AmberButton;
 import 'package:promptorium/ui/theme/app_theme.dart';
 
+import '../features/project/environment_check_test.dart' show FakeProbe;
 import '../helpers/test_db.dart';
 
 /// Shell inside a container whose settings were loaded (like the splash does).
@@ -43,6 +46,8 @@ Future<ProviderContainer> pumpLoadedShell(
       if (directoryPicker != null)
         directoryPickerProvider.overrideWithValue(directoryPicker),
       if (repoSetup != null) repoSetupProvider.overrideWithValue(repoSetup),
+      // The Começar "Ambiente" (SPEC-072): all green, no real git or claude.
+      environmentProbeProvider.overrideWithValue(FakeProbe()),
       // No real git under FakeAsync.
       currentBranchProvider.overrideWith(
         (ref, root) async => branchOf?.call(root),
@@ -401,6 +406,8 @@ void main() {
     await tester.pump();
     expect(find.textContaining('O modelo preenche Flutter'), findsOneWidget);
     // Remote without URL is refused before touching the disk.
+    await tester.ensureVisible(find.byType(Radio<bool>).last);
+    await tester.pump();
     await tester.tap(find.byType(Radio<bool>).last);
     await tester.pump();
     // SPEC-071 R26: Enter in the name creates, like the main button.
@@ -448,6 +455,7 @@ class _FakeRepoSetup extends RepoSetup {
     String folder, {
     bool commitFiles = true,
     String? remoteUrl,
+    String branch = 'main',
   }) async {
     calls.add('init $folder files=$commitFiles remote=$remoteUrl');
     repos.add(folder);

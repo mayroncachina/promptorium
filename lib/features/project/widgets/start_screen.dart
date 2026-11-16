@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -11,8 +12,16 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../../core/fs/project_paths.dart';
+import '../../review/review_host.dart' show remoteHost;
+import '../../sessions/session_manager.dart' show sessionIdGeneratorProvider;
+import '../cost_estimate.dart';
+import '../custom_stack.dart';
+import '../environment_check.dart';
 import '../project_service.dart';
 import '../project_templates.dart';
+import 'custom_stack_dialog.dart';
+import 'environment_panel.dart';
+import 'usage_block.dart';
 
 /// "Começar" (UX v2, U7; docs/mockups/v2/NovoProjeto.dc.html): the three
 /// ways a workspace comes in (an existing folder, a new project, a clone),
@@ -55,10 +64,24 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   final _cloneInto = TextEditingController(
     text: tildePath(defaultProjectParent()),
   );
+  final _branch = TextEditingController(text: 'main');
   String _template = 'empty';
   bool _withRemote = false;
   bool _busy = false;
   String? _error;
+
+  /// "Ambiente" (SPEC-072 R1–R4).
+  late final EnvironmentChecker _env;
+
+  /// The "Outro…" conversation (lives while the screen is open, P9) and
+  /// the stack chosen in it (R16–R19).
+  CustomStackChat? _chat;
+  CustomStack? _custom;
+
+  /// Why "Branch inicial" is invalid (R5), checked 300 ms after typing.
+  String? _branchError;
+  Timer? _branchTimer;
+  int _branchRun = 0;
 
   /// Loaded once (a stream subscription here would outlive the screen in
   /// tests; the list only feeds "Recentes").
@@ -70,15 +93,177 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     ref.read(workspacesRepoProvider).getAll().then((list) {
       if (mounted) setState(() => _recent = list);
     });
+    _env = EnvironmentChecker(ref.read(environmentProbeProvider))
+      ..addListener(_onEnv);
+    if (_origin == _Origin.create) _env.checkAll(_envInput);
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _parent, _remote, _open, _cloneUrl, _cloneInto]) {
+    _branchTimer?.cancel();
+    _chat
+      ?..removeListener(_onEnv)
+      ..dispose();
+    _env
+      ..removeListener(_onEnv)
+      ..dispose();
+    for (final c in [
+      _name,
+      _parent,
+      _remote,
+      _open,
+      _cloneUrl,
+      _cloneInto,
+      _branch,
+    ]) {
       c.dispose();
     }
     super.dispose();
   }
+
+  void _onEnv() {
+    if (mounted) setState(() {});
+  }
+
+  /// The hosting of the "Repositório remoto" radio and URL (R20).
+  Hosting get _hosting => detectHosting(
+    withRemote: _withRemote,
+    url: _remote.text,
+    config: _selected.config,
+  );
+
+  EnvInput get _envInput => EnvInput(
+    parent: _parent.text,
+    name: _name.text,
+    hosting: _hosting,
+    hostname: remoteHost(_remote.text.trim()),
+  );
+
+  /// Name, folder or remote changed: Pasta and the hosting run again (R2).
+  void _envChanged() {
+    setState(() {});
+    if (_origin == _Origin.create) _env.inputChanged(_envInput);
+  }
+
+  void _branchChanged() {
+    setState(() {});
+    _branchTimer?.cancel();
+    final value = _branch.text;
+    final run = ++_branchRun;
+    _branchTimer = Timer(const Duration(milliseconds: 300), () async {
+      final why = await ref.read(environmentProbeProvider).branchError(value);
+      if (mounted && run == _branchRun) setState(() => _branchError = why);
+    });
+  }
+
+  String get _branchName =>
+      _branch.text.trim().isEmpty ? 'main' : _branch.text.trim();
+
+  /// The Claude item once it answered ok: the plan of "Uso" (R8).
+  EnvItem? get _claudeOk {
+    final c = _env[EnvKind.claude];
+    return _origin == _Origin.create && c?.state == EnvState.ok ? c : null;
+  }
+
+  /// The starting point: a built-in template or the "Outro…" stack (R18).
+  ProjectTemplate get _selected =>
+      _template == customTemplateId && _custom != null
+      ? ProjectTemplate.fromStack(_custom!)
+      : templateById(_template);
+
+  /// Why "Outro…" is off: it calls the Claude (R16, P2).
+  String? get _customBlocked => _env[EnvKind.claude]?.state == EnvState.blocked
+      ? 'Entre no Claude Code para definir outra stack'
+      : null;
+
+  /// "Outro…" / the pencil: opens the modal with the conversation so far.
+  Future<void> _openCustom() async {
+    final chat = _chat ??= CustomStackChat(
+      run: ref.read(customStackRunProvider),
+      newSessionId: ref.read(sessionIdGeneratorProvider),
+      cwd: () => customStackCwd(_parent.text),
+    )..addListener(_onEnv);
+    final use = await showCustomStackDialog(
+      context,
+      chat,
+      subscriptionType: _env[EnvKind.claude]?.subscriptionType,
+    );
+    if (!mounted) return;
+    if (use && chat.proposal != null) {
+      setState(() {
+        _custom = chat.proposal;
+        _template = customTemplateId;
+      });
+      _envChanged();
+    }
+  }
+
+  /// The last chip: "Outro…", or the chosen stack with a pencil (R16, R18).
+  Widget _customChip() {
+    final custom = _custom;
+    final selected = _template == customTemplateId && custom != null;
+    final blocked = _customBlocked;
+    final color = selected ? AppColors.amber : AppColors.textSecondary;
+    final chip = Material(
+      key: const ValueKey('start-template-custom'),
+      color: selected ? AppColors.amberTint : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(color: selected ? AppColors.amber : AppColors.border),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: _busy || (blocked != null && custom == null)
+            ? null
+            : custom == null
+            ? _openCustom
+            : () {
+                setState(() => _template = customTemplateId);
+                _envChanged();
+              },
+        child: Container(
+          height: 30,
+          padding: EdgeInsets.only(left: 12, right: custom == null ? 12 : 4),
+          // No alignment: in the Wrap it would stretch the chip to the
+          // whole row.
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                custom?.name ?? 'Outro…',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: blocked != null && custom == null
+                      ? AppColors.textDisabled
+                      : color,
+                ),
+              ),
+              if (custom != null)
+                IconButton(
+                  key: const ValueKey('start-template-custom-edit'),
+                  tooltip: blocked ?? 'Rever a stack com o Claude',
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 13,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  onPressed: _busy || blocked != null ? null : _openCustom,
+                  icon: Icon(Icons.edit_outlined, color: color),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Semantics(
+      key: const ValueKey('start-template-custom-semantics'),
+      hint: blocked,
+      child: blocked == null ? chip : Tooltip(message: blocked, child: chip),
+    );
+  }
+
+  EnvGate get _gate => envGate(_env.items, branchError: _branchError);
 
   String get _target => [
     _parent.text.trim().replaceAll(RegExp(r'/+$'), ''),
@@ -93,7 +278,8 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           : Platform.environment['HOME'],
     );
     if (picked != null && mounted) {
-      setState(() => into.text = tildePath(picked));
+      into.text = tildePath(picked);
+      _envChanged();
     }
   }
 
@@ -125,8 +311,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           parent: _parent.text,
           name: _name.text,
           remoteUrl: _withRemote ? _remote.text : null,
-          template: templateById(_template),
+          template: _selected,
           plan: plan,
+          branch: _branchName,
+          customStackCalls: _chat?.calls ?? 0,
         );
     ref.read(navigationProvider.notifier).go(AppSection.project);
   });
@@ -243,7 +431,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                           },
                         ),
                         const SizedBox(width: 22),
-                        SizedBox(width: 280, child: _side(workspaces)),
+                        SizedBox(
+                          width: _origin == _Origin.create ? 360 : 280,
+                          child: _side(workspaces),
+                        ),
                       ],
                     ),
                   ),
@@ -274,10 +465,14 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
-          onTap: () => setState(() {
-            _origin = o;
-            _error = null;
-          }),
+          onTap: () {
+            final was = _origin;
+            setState(() {
+              _origin = o;
+              _error = null;
+            });
+            if (o == _Origin.create && was != o) _env.checkAll(_envInput);
+          },
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -339,7 +534,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
           enabled: !_busy,
           style: _mono,
           decoration: _field(hint: hint),
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => _envChanged(),
         ),
       ),
       if (browse) ...[
@@ -369,7 +564,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         );
 
   Widget _createForm() {
-    final t = templateById(_template);
+    final t = _selected;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -388,10 +583,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                     enabled: !_busy,
                     style: _mono,
                     decoration: _field(hint: 'meu-projeto'),
-                    onChanged: (_) => setState(() {}),
-                    // Enter creates, like the main button (R26).
+                    onChanged: (_) => _envChanged(),
+                    // Enter creates, like the main button (SPEC-071 R26),
+                    // unless the environment blocks it (SPEC-072 R4).
                     onSubmitted: (_) {
-                      if (!_busy && _name.text.trim().isNotEmpty) {
+                      if (!_busy &&
+                          _name.text.trim().isNotEmpty &&
+                          _gate.canPlan) {
                         _create(plan: true);
                       }
                     },
@@ -415,11 +613,61 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         if (_name.text.trim().isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            'Será criada: $_target · branch main · commit inicial',
+            'Será criada: $_target · branch $_branchName · commit inicial',
             key: const ValueKey('start-target'),
             style: _mono.copyWith(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
+        const SizedBox(height: 14),
+        const Text('Branch inicial', style: _label),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            SizedBox(
+              width: 220,
+              child: Semantics(
+                label: 'Branch inicial',
+                textField: true,
+                child: TextField(
+                  key: const ValueKey('start-branch'),
+                  controller: _branch,
+                  enabled: !_busy,
+                  style: _mono,
+                  decoration: _field(hint: 'main'),
+                  onChanged: (_) => _branchChanged(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _branchError == null
+                  ? Text.rich(
+                      TextSpan(
+                        text: 'Gravada como ',
+                        children: [
+                          TextSpan(
+                            text: 'branch-base:',
+                            style: _mono.copyWith(fontSize: 11),
+                          ),
+                          const TextSpan(text: ' no .promptorium/config.yml'),
+                        ],
+                      ),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
+                    )
+                  : Text(
+                      _branchError!,
+                      key: const ValueKey('start-branch-error'),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.red,
+                      ),
+                    ),
+            ),
+          ],
+        ),
         const SizedBox(height: 14),
         const Text('Ponto de partida', style: _label),
         const SizedBox(height: 6),
@@ -446,25 +694,32 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   child: Container(
                     height: 30,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    alignment: Alignment.center,
-                    child: Text(
-                      tp.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: tp.id == _template
-                            ? AppColors.amber
-                            : AppColors.textSecondary,
+                    // widthFactor 1: the chip keeps the label's width in the
+                    // Wrap (an alignment would stretch it to the whole row).
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        tp.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: tp.id == _template
+                              ? AppColors.amber
+                              : AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+            _customChip(),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           t.isEmpty
               ? '"Vazio" deixa tudo para o planner.'
+              : t.isCustom
+              ? 'Definida com o Claude: ${t.summary}; o planner só ajusta.'
               : 'O modelo preenche ${t.summary}; o planner só ajusta.',
           key: const ValueKey('start-template-summary'),
           style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
@@ -474,7 +729,10 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         RadioGroup<bool>(
           groupValue: _withRemote,
           onChanged: (v) {
-            if (!_busy && v != null) setState(() => _withRemote = v);
+            if (!_busy && v != null) {
+              _withRemote = v;
+              _envChanged();
+            }
           },
           child: Row(
             children: [
@@ -494,6 +752,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                   enabled: !_busy && _withRemote,
                   style: _mono,
                   decoration: _field(hint: 'git@github.com:org/projeto.git'),
+                  onChanged: (_) => _envChanged(),
                 ),
               ),
             ],
@@ -503,32 +762,74 @@ class _StartScreenState extends ConsumerState<StartScreen> {
         const SizedBox(height: 14),
         const Divider(height: 1, color: AppColors.border),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            AmberButton(
-              key: const ValueKey('start-create-plan'),
-              label: _busy ? 'Criando…' : 'Criar e planejar com o planner',
-              height: 34,
-              onTap: _busy || _name.text.trim().isEmpty
-                  ? null
-                  : () => _create(plan: true),
-            ),
-            SmallButton(
-              key: const ValueKey('start-create'),
-              label: 'Criar sem planejar',
-              height: 34,
-              onTap: _busy || _name.text.trim().isEmpty
-                  ? null
-                  : () => _create(plan: false),
-            ),
-            const Text(
-              'Nada é enviado ao planner até você escrever a ideia.',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-            ),
-          ],
+        Builder(
+          builder: (context) {
+            final gate = _gate;
+            final named = _name.text.trim().isNotEmpty;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // The reason is part of the button's semantics (R15).
+                Semantics(
+                  key: const ValueKey('start-create-plan-semantics'),
+                  hint: gate.planReason,
+                  child: AmberButton(
+                    key: const ValueKey('start-create-plan'),
+                    label: _busy
+                        ? 'Criando…'
+                        : 'Criar e planejar com o planner',
+                    height: 34,
+                    onTap: _busy || !named || !gate.canPlan
+                        ? null
+                        : () => _create(plan: true),
+                  ),
+                ),
+                Semantics(
+                  key: const ValueKey('start-create-semantics'),
+                  hint: gate.canCreate ? null : gate.reason,
+                  child: SmallButton(
+                    key: const ValueKey('start-create'),
+                    label: 'Criar sem planejar',
+                    height: 34,
+                    onTap: _busy || !named || !gate.canCreate
+                        ? null
+                        : () => _create(plan: false),
+                  ),
+                ),
+                if (gate.reason case final why?)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 14,
+                        color: gate.canCreate ? AppColors.amber : AppColors.red,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          why,
+                          key: const ValueKey('start-env-reason'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: gate.canCreate
+                                ? AppColors.amber
+                                : AppColors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  const Text(
+                    'Nada é enviado ao planner até você escrever a ideia.',
+                    style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -592,27 +893,40 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   );
 
   Widget _side(List<Workspace> workspaces) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      if (_origin == _Origin.create) ...[
+        EnvironmentPanel(
+          checker: _env,
+          hosting: _hosting,
+          onRecheck: () => _env.checkAll(_envInput, refreshClaude: true),
+          onBrowse: () => _browse(_parent),
+        ),
+        const SizedBox(height: 14),
+      ],
       const Text('O QUE ACONTECE', style: sectionTitleStyle),
       const SizedBox(height: 8),
-      for (final (i, line) in const [
-        'Pasta, git init e commit inicial · 1 s',
-        'Ideia num parágrafo → o planner propõe visão, stack e roadmap de '
-            'uma vez · ~US\$ 0,30 · opcional',
-        'Revisar e criar: CLAUDE.md, specs e Quadro',
-      ].indexed)
+      // Calls and the queue time, not "1 s" and dollars (SPEC-072 R7).
+      for (final (i, line) in startSteps(
+        QueueEstimate(ref.watch(refineRoundsProvider)),
+        customCalls: _chat?.calls ?? 0,
+      ).indexed)
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Text(
             '${i + 1}. $line',
+            key: ValueKey('start-step-${i + 1}'),
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
         ),
-      if (workspaces.isNotEmpty) ...[
+      if (_claudeOk case final c?) ...[
+        const SizedBox(height: 10),
+        UsageBlock(subscriptionType: c.subscriptionType),
+      ],
+      if (workspaces.isNotEmpty && _origin != _Origin.create) ...[
         const SizedBox(height: 14),
         const Text('RECENTES', style: sectionTitleStyle),
         const SizedBox(height: 8),
