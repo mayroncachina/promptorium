@@ -452,13 +452,11 @@ class _StepDecisionCompilePhaseState
       const SizedBox(height: 10),
       Align(
         alignment: Alignment.centerLeft,
-        child: IntrinsicWidth(
-          child: AmberButton(
-            key: const ValueKey('step-decision-compile-retry'),
-            label: 'Tentar de novo',
-            height: 34,
-            onTap: _retry,
-          ),
+        child: AmberButton(
+          key: const ValueKey('step-decision-compile-retry'),
+          label: 'Tentar de novo',
+          height: 34,
+          onTap: _retry,
         ),
       ),
     ],
@@ -510,23 +508,19 @@ class _StepDecisionCompilePhaseState
       spacing: 8,
       runSpacing: 6,
       children: [
-        IntrinsicWidth(
-          child: AmberButton(
-            key: const ValueKey('step-decision-recompile'),
-            label: 'Recompilar',
-            height: 34,
-            onTap: _recompile,
-          ),
+        AmberButton(
+          key: const ValueKey('step-decision-recompile'),
+          label: 'Recompilar',
+          height: 34,
+          onTap: _recompile,
         ),
-        IntrinsicWidth(
-          child: SmallButton(
-            key: const ValueKey('step-decision-open-editor'),
-            label: 'Abrir no editor',
-            height: 34,
-            fontSize: 13,
-            background: AppColors.surfaceRaised,
-            onTap: _openEditor,
-          ),
+        SmallButton(
+          key: const ValueKey('step-decision-open-editor'),
+          label: 'Abrir no editor',
+          height: 34,
+          fontSize: 13,
+          background: AppColors.surfaceRaised,
+          onTap: _openEditor,
         ),
       ],
     ),
@@ -617,47 +611,41 @@ class _StepDecisionCompilePhaseState
             runSpacing: 6,
             children: [
               StepDecisionSessionButton(onTap: _request.onOpenSession),
-              IntrinsicWidth(
-                child: SmallButton(
-                  key: const ValueKey('step-decision-compile-back'),
-                  label: 'Voltar',
-                  height: 34,
-                  fontSize: 13,
-                  background: Colors.transparent,
-                  border: Colors.transparent,
-                  trailing: const StepKbd('⌫'),
-                  onTap: _busy ? null : _request.onBack,
-                ),
+              SmallButton(
+                key: const ValueKey('step-decision-compile-back'),
+                label: 'Voltar',
+                height: 34,
+                fontSize: 13,
+                background: Colors.transparent,
+                border: Colors.transparent,
+                trailing: const StepKbd('⌫'),
+                onTap: _busy ? null : _request.onBack,
               ),
               if (_changesSpec)
-                IntrinsicWidth(
-                  child: SmallButton(
-                    key: const ValueKey('step-decision-only-spec'),
-                    label: 'Só alterar a spec',
-                    height: 34,
-                    fontSize: 13,
-                    background: AppColors.surfaceRaised,
-                    onTap: _canSubmit ? _saveOnly : null,
-                  ),
-                ),
-              IntrinsicWidth(
-                child: SmallButton(
-                  key: const ValueKey('step-decision-submit'),
-                  label: _busy
-                      ? 'Retomando…'
-                      : _answersOnly
-                      ? 'Enviar e continuar'
-                      : 'Compilar e continuar',
+                SmallButton(
+                  key: const ValueKey('step-decision-only-spec'),
+                  label: 'Só alterar a spec',
                   height: 34,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.onAmber,
-                  background: AppColors.amber,
-                  border: AppColors.amber,
-                  icon: Icons.check,
-                  trailing: const StepKbd('Ctrl+Enter', onAmber: true),
-                  onTap: _canSubmit ? _continue : null,
+                  background: AppColors.surfaceRaised,
+                  onTap: _canSubmit ? _saveOnly : null,
                 ),
+              SmallButton(
+                key: const ValueKey('step-decision-submit'),
+                label: _busy
+                    ? 'Retomando…'
+                    : _answersOnly
+                    ? 'Enviar e continuar'
+                    : 'Compilar e continuar',
+                height: 34,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.onAmber,
+                background: AppColors.amber,
+                border: AppColors.amber,
+                icon: Icons.check,
+                trailing: const StepKbd('Ctrl+Enter', onAmber: true),
+                onTap: _canSubmit ? _continue : null,
               ),
             ],
           ),

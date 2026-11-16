@@ -84,14 +84,11 @@ class DevServerControl extends ConsumerWidget {
       port: dev.port,
       environment: dev.environment,
     );
-    // SmallButton fills the width a Wrap offers: each one keeps its own.
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (final w in [pill, ...buttons(s, start)]) IntrinsicWidth(child: w),
-      ],
+      children: [pill, ...buttons(s, start)],
     );
   }
 

@@ -792,15 +792,20 @@ class _ModelButton extends StatelessWidget {
       child: Container(
         height: 30,
         padding: const EdgeInsets.symmetric(horizontal: 10),
-        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.surfaceRaised,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: AppColors.border),
         ),
-        child: Text(
-          modelLabel(model),
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        child: Center(
+          widthFactor: 1,
+          child: Text(
+            modelLabel(model),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ),
       ),
     );
