@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
+import '../activities/activities_state.dart' show activitiesNeedingYouProvider;
 import '../board/board_rules.dart';
 import '../board/board_screen.dart' show specStepsProvider;
 import '../prompt/conversation_manager.dart';
@@ -333,8 +334,14 @@ final navBadgesProvider = Provider.autoDispose<Map<AppSection, int>>((ref) {
   ];
   final prompt = approvals.where((i) => i.conversationId != null).length;
   final sessions = approvals.length - prompt;
+  // SPEC-076 R15: what needs you in every workspace (none open: nothing
+  // runs, and the list is not read).
+  final everywhere = ref.watch(activeWorkspaceProvider) == null
+      ? 0
+      : ref.watch(activitiesNeedingYouProvider);
   return {
     if (total > 0) AppSection.home: total,
+    if (everywhere > 0) AppSection.activities: everywhere,
     if (count(InboxKind.needsAnswer) > 0)
       AppSection.tasks: count(InboxKind.needsAnswer),
     if (sessions > 0) AppSection.sessions: sessions,

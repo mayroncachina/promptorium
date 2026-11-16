@@ -173,3 +173,7 @@ Na implementação:
 - P9 · **"Parar" pede confirmação** para agente e VIBE (perde o turno em andamento); servidor de dev, release e Corrigir CI param direto.
 - P10 · **"Pausar após o turno"** segura só a próxima etapa da spec (`_advance`); o gate das etapas que o agente marcou roda normalmente, porque faz parte do turno que terminou.
 - P11 · **Etapa parada e sessão que falhou** contam como "precisa de você" (são o "Interrompidas" e "Precisam de resposta" do Início), porque o agente está parado esperando a pessoa.
+- P12 · **Robôs no relógio ambiente.** **Decidido:** o `RobotAvatar` usa o `AmbientTicker` do app (24 Hz), o mesmo das ondas e dos spinners, e não um ticker a cada vsync. No Linux cada frame redesenha a janela inteira; um laço lento a 24 Hz parece igual e custa menos.
+- P13 · **Review sem nada vivo no Quadro.** **Decidido:** o card em Review cuja sessão já terminou mostra o robô com a prancheta (esperando a sua revisão), como no canvas, mas não vira linha da Atividades: não há processo vivo.
+- P14 · **Menu com onze itens.** **Decidido:** o espaço entre os itens do menu lateral cai de 4 para 2 px, para os onze itens caberem na janela mínima (1100 × 700).
+- P15 · **Selo só com workspace aberto.** **Decidido:** sem nenhum workspace aberto o selo da Atividades não lê as listas (nada pode estar rodando).

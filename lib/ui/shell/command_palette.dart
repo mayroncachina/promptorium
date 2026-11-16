@@ -318,7 +318,8 @@ List<PaletteCommand> paletteCommands(
           },
         ),
     for (final s in [
-      ...AppSection.navItems,
+      ...AppSection.shortcutItems,
+      AppSection.activities,
       AppSection.skills,
       AppSection.mcp,
       AppSection.settings,

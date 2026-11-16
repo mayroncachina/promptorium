@@ -23,6 +23,8 @@ import '../project/project_config.dart' show projectConfigProvider;
 import '../project/spec_auto_planner.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../specs/widgets/spec_action_banner.dart' show ActionSpinner;
+import '../activities/activities_screen.dart' show openActivities;
+import '../activities/activities_state.dart' show activitiesProvider;
 import '../activities/widgets/board_robots.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
@@ -1995,6 +1997,14 @@ class SpecCard extends ConsumerWidget {
                         workspaceId: spec.workspaceId,
                         code: spec.code,
                         stage: spec.stage,
+                        // SPEC-076 R23: the robot opens the Atividades.
+                        onTap: () {
+                          final a = cardActivityOf(
+                            ref.read(activitiesProvider),
+                            spec.id,
+                          );
+                          if (a != null) openActivities(ref, a.id);
+                        },
                       ),
                     ),
                   ),

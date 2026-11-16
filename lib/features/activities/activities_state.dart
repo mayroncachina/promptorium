@@ -21,12 +21,6 @@ import 'quota_forecast.dart';
 
 /// The registry of the Atividades (SPEC-076 R1): every workspace, live.
 
-/// Ticks every few seconds while something reads the list: the dev servers
-/// have no app-wide change stream, and the times move.
-final activityClockProvider = StreamProvider.autoDispose<DateTime>(
-  (ref) => Stream.periodic(const Duration(seconds: 3), (_) => DateTime.now()),
-);
-
 /// The queue of the Autopilot of a workspace (R1): what "Executar tudo"
 /// starts and what waits, when it is on; the same with a schedule.
 List<QueuedSpec> autopilotQueue(
@@ -128,7 +122,10 @@ typedef ActivitiesSnapshot = ({
   List<int> order,
 });
 
-/// Everything the Atividades lists, of every workspace (R1).
+/// Everything the Atividades lists, of every workspace (R1). It follows
+/// the providers it reads; the dev servers have no app-wide change stream,
+/// so the Atividades screen refreshes it every few seconds while open
+/// ([refreshActivities]).
 final activitiesProvider = Provider.autoDispose<List<Activity>>(
   (ref) => ref.watch(activitiesSnapshotProvider).items,
 );
@@ -136,7 +133,7 @@ final activitiesProvider = Provider.autoDispose<List<Activity>>(
 final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
   ref,
 ) {
-  final now = ref.watch(activityClockProvider).value ?? DateTime.now();
+  final now = DateTime.now();
   final workspaces = ref.watch(workspacesProvider).value ?? const [];
   final manager = ref.watch(sessionManagerProvider);
   final conversations = ref.watch(conversationManagerProvider);
@@ -244,3 +241,7 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
 final activitiesNeedingYouProvider = Provider.autoDispose<int>(
   (ref) => ref.watch(activitiesProvider).where((a) => a.needsYou).length,
 );
+
+/// Reads the list again (the dev servers and the times).
+void refreshActivities(WidgetRef ref) =>
+    ref.invalidate(activitiesSnapshotProvider);
