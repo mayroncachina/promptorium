@@ -544,19 +544,15 @@ class _PortTakenCard extends StatelessWidget {
             spacing: 10,
             runSpacing: 8,
             children: [
-              IntrinsicWidth(
-                child: AmberButton(
-                  key: const ValueKey('preview-use-running'),
-                  label: 'Usar o que está no ar',
-                  onTap: onUse,
-                ),
+              AmberButton(
+                key: const ValueKey('preview-use-running'),
+                label: 'Usar o que está no ar',
+                onTap: onUse,
               ),
-              IntrinsicWidth(
-                child: SmallButton(
-                  key: const ValueKey('preview-retry'),
-                  label: 'Tentar de novo',
-                  onTap: onRetry,
-                ),
+              SmallButton(
+                key: const ValueKey('preview-retry'),
+                label: 'Tentar de novo',
+                onTap: onRetry,
               ),
             ],
           ),

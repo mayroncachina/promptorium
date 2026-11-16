@@ -354,31 +354,25 @@ class _ImportedPrPanelState extends ConsumerState<ImportedPrPanel> {
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                IntrinsicWidth(
-                  child: SmallButton(
-                    key: const ValueKey('imported-pr-run-reviewer'),
-                    label: 'Rodar revisor',
-                    onTap: _reviewing || busy
-                        ? null
-                        : () => unawaited(_runReviewer(pr)),
-                  ),
+                SmallButton(
+                  key: const ValueKey('imported-pr-run-reviewer'),
+                  label: 'Rodar revisor',
+                  onTap: _reviewing || busy
+                      ? null
+                      : () => unawaited(_runReviewer(pr)),
                 ),
                 if (!pr.canPush || local > 0)
-                  IntrinsicWidth(
-                    child: SmallButton(
-                      key: const ValueKey('imported-pr-patch'),
-                      label: 'Copiar patch',
-                      onTap: busy || local == 0
-                          ? null
-                          : () => unawaited(_copyPatch()),
-                    ),
+                  SmallButton(
+                    key: const ValueKey('imported-pr-patch'),
+                    label: 'Copiar patch',
+                    onTap: busy || local == 0
+                        ? null
+                        : () => unawaited(_copyPatch()),
                   ),
-                IntrinsicWidth(
-                  child: SmallButton(
-                    key: const ValueKey('imported-pr-release'),
-                    label: 'Soltar o PR',
-                    onTap: busy ? null : () => unawaited(_release(local)),
-                  ),
+                SmallButton(
+                  key: const ValueKey('imported-pr-release'),
+                  label: 'Soltar o PR',
+                  onTap: busy ? null : () => unawaited(_release(local)),
                 ),
                 if (pr.canPush)
                   InkWell(

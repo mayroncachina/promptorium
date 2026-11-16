@@ -170,17 +170,15 @@ class StepDecisionSessionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = IntrinsicWidth(
-      child: SmallButton(
-        key: const ValueKey('step-decision-open-session'),
-        label: 'Abrir sessão',
-        height: 34,
-        fontSize: 13,
-        background: AppColors.surfaceRaised,
-        icon: Icons.group_outlined,
-        trailing: const StepKbd('Ctrl+O'),
-        onTap: onTap,
-      ),
+    final button = SmallButton(
+      key: const ValueKey('step-decision-open-session'),
+      label: 'Abrir sessão',
+      height: 34,
+      fontSize: 13,
+      background: AppColors.surfaceRaised,
+      icon: Icons.group_outlined,
+      trailing: const StepKbd('Ctrl+O'),
+      onTap: onTap,
     );
     if (onTap != null) return button;
     return Tooltip(message: 'Esta etapa ainda não tem sessão', child: button);
@@ -241,25 +239,21 @@ class StepDecisionFooter extends StatelessWidget {
               runSpacing: 6,
               children: [
                 if (status == StepDecisionStatus.failed)
-                  IntrinsicWidth(
-                    child: AmberButton(
-                      key: const ValueKey('step-decision-retry'),
-                      label: 'Tentar de novo',
-                      height: 34,
-                      onTap: onRetry,
-                    ),
+                  AmberButton(
+                    key: const ValueKey('step-decision-retry'),
+                    label: 'Tentar de novo',
+                    height: 34,
+                    onTap: onRetry,
                   ),
                 if (status == StepDecisionStatus.loading && !otherOpen)
-                  IntrinsicWidth(
-                    child: SmallButton(
-                      key: const ValueKey('step-decision-other-button'),
-                      label: 'Outra resposta',
-                      height: 34,
-                      fontSize: 13,
-                      background: AppColors.surfaceRaised,
-                      trailing: const StepKbd('5'),
-                      onTap: onOther,
-                    ),
+                  SmallButton(
+                    key: const ValueKey('step-decision-other-button'),
+                    label: 'Outra resposta',
+                    height: 34,
+                    fontSize: 13,
+                    background: AppColors.surfaceRaised,
+                    trailing: const StepKbd('5'),
+                    onTap: onOther,
                   ),
                 StepDecisionSessionButton(onTap: onOpenSession),
                 if (ready && missing > 0)
@@ -274,20 +268,18 @@ class StepDecisionFooter extends StatelessWidget {
                     ),
                   ),
                 if (ready || missing == 0)
-                  IntrinsicWidth(
-                    child: SmallButton(
-                      key: const ValueKey('step-decision-compile-button'),
-                      label: 'Compilar',
-                      height: 34,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onAmber,
-                      background: AppColors.amber,
-                      border: AppColors.amber,
-                      icon: Icons.check,
-                      trailing: const StepKbd('Ctrl+Enter', onAmber: true),
-                      onTap: missing == 0 ? onCompile : null,
-                    ),
+                  SmallButton(
+                    key: const ValueKey('step-decision-compile-button'),
+                    label: 'Compilar',
+                    height: 34,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.onAmber,
+                    background: AppColors.amber,
+                    border: AppColors.amber,
+                    icon: Icons.check,
+                    trailing: const StepKbd('Ctrl+Enter', onAmber: true),
+                    onTap: missing == 0 ? onCompile : null,
                   ),
               ],
             ),
