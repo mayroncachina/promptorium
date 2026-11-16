@@ -16,10 +16,22 @@ class ProviderAvailability {
     this.status,
     this.message, {
     this.authVerified = true,
+    this.version,
+    this.subscriptionType,
   });
   final ProviderStatus status;
   final String message;
   final bool authVerified;
+
+  /// `x.y.z` of `--version`, when it answered.
+  final String? version;
+
+  /// `subscriptionType` of `claude auth status --json` (`pro`, `max`), null
+  /// with an API key or an older CLI (SPEC-072 R8, P6).
+  final String? subscriptionType;
+
+  /// Whether the CLI runs on a subscription plan (quota, not dollars).
+  bool get subscription => subscriptionType != null;
   bool get available => status == ProviderStatus.ready;
   String get label => switch (status) {
     ProviderStatus.ready =>
@@ -71,7 +83,9 @@ Future<ProviderAvailability> inspectProvider(
     };
     final version = await probe(exe, ['--version']);
     if (version.exitCode != 0) return missing;
-    if (!RegExp(r'\d+\.\d+\.\d+').hasMatch('${version.stdout}')) {
+    final semver = RegExp(r'\d+\.\d+\.\d+').firstMatch('${version.stdout}');
+    String? plan;
+    if (semver == null) {
       return const ProviderAvailability(
         ProviderStatus.incompatible,
         'Versão do CLI não reconhecida. Atualize o provedor.',
@@ -114,15 +128,20 @@ Future<ProviderAvailability> inspectProvider(
         );
       }
       if (auth.exitCode != 0 || data['loggedIn'] != true) {
-        return const ProviderAvailability(
+        return ProviderAvailability(
           ProviderStatus.loginRequired,
           'Execute claude auth login no terminal e depois verifique novamente.',
+          version: semver.group(0),
         );
       }
+      final sub = data['subscriptionType'];
+      if (sub is String && sub.trim().isNotEmpty) plan = sub.trim();
     }
-    return const ProviderAvailability(
+    return ProviderAvailability(
       ProviderStatus.ready,
       'CLI instalado, autenticado e compatível.',
+      version: semver.group(0),
+      subscriptionType: plan,
     );
   } on ProcessException {
     return missing;

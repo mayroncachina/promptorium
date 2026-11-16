@@ -30,17 +30,19 @@ class RepoSetup {
   bool isEmptyFolder(String folder) => Directory(folder).listSync().isEmpty;
 
   /// `git init`, `origin` = [remoteUrl] (if given) and a first commit: with
-  /// the folder's files when [commitFiles], otherwise empty. Safe to retry
-  /// after a failure (e.g. missing git identity).
+  /// the folder's files when [commitFiles], otherwise empty. The repository
+  /// starts on [branch] (SPEC-072 R6). Safe to retry after a failure (e.g.
+  /// missing git identity).
   Future<void> init(
     String folder, {
     bool commitFiles = true,
     String? remoteUrl,
+    String branch = 'main',
   }) async {
     final url = remoteUrl?.trim();
     if (url != null && url.isNotEmpty) _checkUrl(url);
     final git = GitService(folder, run: _run);
-    await _initMain(git);
+    await _initBranch(git, branch.trim().isEmpty ? 'main' : branch.trim());
     if (url != null && url.isNotEmpty) {
       final remotes = (await git.git(['remote'])).split('\n');
       await git.git([
@@ -54,12 +56,13 @@ class RepoSetup {
     await git.git(['commit', '-q', '--allow-empty', '-m', 'Commit inicial']);
   }
 
-  /// `git init -b main` (R25). A git older than 2.28 has no `-b`, and a
-  /// re-init of a folder left by an older failure ignores it, so an unborn
-  /// HEAD (no commits yet) is always pointed at `main` by hand.
-  Future<void> _initMain(GitService git) async {
+  /// `git init -b <branch>` (SPEC-071 R25, SPEC-072 R6). A git older than
+  /// 2.28 has no `-b`, and a re-init of a folder left by an older failure
+  /// ignores it, so an unborn HEAD (no commits yet) is always pointed at
+  /// [branch] by hand.
+  Future<void> _initBranch(GitService git, String branch) async {
     try {
-      await git.git(['init', '-q', '-b', 'main']);
+      await git.git(['init', '-q', '-b', branch]);
     } on GitException catch (e) {
       final err = '${e.stderr}${e.stdout}';
       if (!err.contains('unknown switch') && !err.contains('initial-branch')) {
@@ -70,8 +73,60 @@ class RepoSetup {
     try {
       await git.git(['rev-parse', '--verify', '-q', 'HEAD']);
     } on GitException {
-      await git.git(['symbolic-ref', 'HEAD', 'refs/heads/main']);
+      await git.git(['symbolic-ref', 'HEAD', 'refs/heads/$branch']);
     }
+  }
+
+  /// Why [name] cannot be a branch (`git check-ref-format --branch`), or
+  /// null when it can (SPEC-072 R5).
+  Future<String?> checkBranchName(String name) async {
+    final n = name.trim();
+    if (n.isEmpty) return 'Informe a branch inicial.';
+    if (n.startsWith('-')) return 'O nome não pode começar com "-".';
+    final ProcessResult r;
+    try {
+      r = await _run('git', ['check-ref-format', '--branch', n]);
+    } on ProcessException {
+      return null; // no git: the Git item says so
+    }
+    if (r.exitCode == 0) return null;
+    return '"$n" não é um nome de branch válido.';
+  }
+
+  /// The name and e-mail git commits with, as effective in [folder] (env,
+  /// global and system config), read from `git var GIT_AUTHOR_IDENT`.
+  /// Throws like [checkIdentity].
+  Future<({String name, String email})> identity(String folder) async {
+    final git = GitService(folder, run: _run);
+    final String author;
+    try {
+      author = await git.git(['var', 'GIT_AUTHOR_IDENT']);
+      await git.git(['var', 'GIT_COMMITTER_IDENT']);
+    } on GitException catch (e) {
+      if (e.message == 'git não encontrado') {
+        throw const InvalidWorkspaceFolder(gitNotFound);
+      }
+      throw const InvalidWorkspaceFolder(missingGitIdentity);
+    }
+    final m = RegExp(r'^(.*?)\s*<([^>]*)>').firstMatch(author.trim());
+    return (
+      name: m?.group(1)?.trim() ?? author.trim(),
+      email: m?.group(2)?.trim() ?? '',
+    );
+  }
+
+  /// `git config --global user.name` and `user.email` ("Gravar no git",
+  /// SPEC-072 R3).
+  Future<void> setGlobalIdentity(String name, String email) async {
+    final n = name.trim();
+    final e = email.trim();
+    if (n.isEmpty || e.isEmpty) {
+      throw const InvalidWorkspaceFolder('Informe o nome e o e-mail.');
+    }
+    final home = Platform.environment['HOME'] ?? Directory.systemTemp.path;
+    final git = GitService(home, run: _run);
+    await git.git(['config', '--global', 'user.name', n]);
+    await git.git(['config', '--global', 'user.email', e]);
   }
 
   /// Fails (with [missingGitIdentity]) when git has no name / e-mail to
@@ -79,18 +134,7 @@ class RepoSetup {
   /// `git var` applies the same rule as `git commit`, so this is checked
   /// before anything is created (R21).
   Future<void> checkIdentity(String folder) async {
-    final git = GitService(folder, run: _run);
-    try {
-      await git.git(['var', 'GIT_AUTHOR_IDENT']);
-      await git.git(['var', 'GIT_COMMITTER_IDENT']);
-    } on GitException catch (e) {
-      if (e.message == 'git não encontrado') {
-        throw const InvalidWorkspaceFolder(
-          'O git não foi encontrado. Instale o git e tente de novo.',
-        );
-      }
-      throw const InvalidWorkspaceFolder(missingGitIdentity);
-    }
+    await identity(folder);
   }
 
   /// Whether [folder] holds only what a failed "Novo projeto" left behind: a
@@ -179,6 +223,9 @@ class RepoSetup {
     return name.isEmpty || name.startsWith('.') ? 'repo' : name;
   }
 }
+
+/// The git executable is not on the PATH.
+const gitNotFound = 'O git não foi encontrado. Instale o git e tente de novo.';
 
 /// How to fix a missing git identity (pt-BR, shown in "Novo projeto").
 const missingGitIdentity =

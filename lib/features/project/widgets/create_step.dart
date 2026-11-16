@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,12 +14,18 @@ import '../../board/board_screen.dart' show SpecCardData;
 import '../../board/widgets/run_spec_dialog.dart';
 import '../../sessions/session_manager.dart' show slugify;
 import '../../sessions/widgets/session_style.dart';
+import '../../../core/providers/provider_availability.dart';
+import '../cost_estimate.dart';
+import '../project_config.dart';
 import '../project_plan.dart';
 import '../project_planner.dart';
 import '../project_service.dart';
 import '../spec_auto_planner.dart';
+import '../spec_metrics.dart';
+import '../stack_commands.dart';
 import 'plan_queue_view.dart';
 import 'project_widgets.dart';
+import 'usage_block.dart';
 
 /// Step 5 · Revisar e criar: what will be written (files, commit, tasks,
 /// first session) and, once created, the summary of the project.
@@ -49,6 +56,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
       .hasTemplateClaudeMd(widget.workspace);
   late bool _writeClaudeMd = !_claudeMdExists || _templateClaudeMd;
   bool _commit = true;
+  bool _configOpen = false;
   bool _runFirst = true;
   bool _autoPlan = true;
   bool _busy = false;
@@ -133,7 +141,13 @@ class _CreateStepState extends ConsumerState<CreateStep> {
         .value;
     final first = roadmap.firstSpec;
     final hasClaudeMd = widget.data.stack.claudeMd.trim().isNotEmpty;
+    // The stack's commands merged into the config.yml (SPEC-072 R13).
+    final merge = mergeStackCommands(
+      ProjectConfig.loadSync(widget.workspace.path),
+      widget.data.stack.commands,
+    );
     final files = [
+      if (!done && merge.changed) ProjectConfig.filePath,
       if (hasClaudeMd && _writeClaudeMd) 'CLAUDE.md',
       for (final s in roadmap.specs)
         'specs/SPEC-…-${slugify(s.title, maxLength: 40)}.md',
@@ -177,29 +191,33 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           for (final f in files)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: f == 'CLAUDE.md' && _claudeMdExists
-                                          ? 'M  '
-                                          : 'A  ',
-                                      style: const TextStyle(
-                                        color: AppColors.teal,
+                            if (f == ProjectConfig.filePath)
+                              _configRow(merge)
+                            else
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text:
+                                            f == 'CLAUDE.md' && _claudeMdExists
+                                            ? 'M  '
+                                            : 'A  ',
+                                        style: const TextStyle(
+                                          color: AppColors.teal,
+                                        ),
                                       ),
-                                    ),
-                                    TextSpan(text: f),
-                                  ],
-                                ),
-                                style: const TextStyle(
-                                  fontFamily: AppFonts.mono,
-                                  fontSize: 12,
-                                  color: AppColors.text,
+                                      TextSpan(text: f),
+                                    ],
+                                  ),
+                                  style: const TextStyle(
+                                    fontFamily: AppFonts.mono,
+                                    fontSize: 12,
+                                    color: AppColors.text,
+                                  ),
                                 ),
                               ),
-                            ),
                           if (!done && hasClaudeMd)
                             _Check(
                               key: const ValueKey('project-write-claudemd'),
@@ -278,6 +296,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                           onChanged: (v) => setState(() => _runFirst = v),
                         ),
                       ),
+                    if (!done) _costSection(roadmap.specs.length),
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
@@ -370,6 +389,8 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                     writeClaudeMd: hasClaudeMd && _writeClaudeMd,
                     commit: _commit,
                     firstRun: _runFirst && first != null,
+                    refineTime: QueueEstimate(ref.watch(refineRoundsProvider))
+                        .short(roadmap.specs.length),
                   ),
                 )
               : _Steps(
@@ -381,6 +402,164 @@ class _CreateStepState extends ConsumerState<CreateStep> {
                 ),
         ),
       ],
+    );
+  }
+
+  /// The config.yml line: opens to show what enters (`+`) and what stays
+  /// as it was (`=`) (SPEC-072 R13).
+  Widget _configRow(CommandsMerge merge) {
+    const mono = TextStyle(fontFamily: AppFonts.mono, fontSize: 12);
+    final exists = File('${widget.workspace.path}/${ProjectConfig.filePath}')
+        .existsSync();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            key: const ValueKey('project-config-row'),
+            onTap: () => setState(() => _configOpen = !_configOpen),
+            child: Row(
+              children: [
+                Text(
+                  exists ? 'M  ' : 'A  ',
+                  style: mono.copyWith(
+                    color: exists ? AppColors.amber : AppColors.teal,
+                  ),
+                ),
+                const Text(ProjectConfig.filePath, style: mono),
+                Icon(
+                  _configOpen ? Icons.expand_less : Icons.expand_more,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${merge.added} ${merge.added == 1 ? 'linha nova' : 'linhas novas'}'
+                  ' · ${merge.kept} ${merge.kept == 1 ? 'mantida' : 'mantidas'}',
+                  key: const ValueKey('project-config-summary'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_configOpen)
+            Container(
+              key: const ValueKey('project-config-lines'),
+              margin: const EdgeInsets.only(top: 6, left: 6),
+              padding: const EdgeInsets.only(left: 10),
+              decoration: const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.border)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final l in merge.lines)
+                    Container(
+                      color: l.added ? SessionColors.addBg : null,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${l.mark}  ${l.key}: ${l.value}',
+                              style: mono.copyWith(
+                                color: l.added
+                                    ? AppColors.text
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                          if (l.note case final n?)
+                            Text(
+                              n,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// "Custo e tempo" (SPEC-072 R10): the calls already made, the queue
+  /// estimate, the execution of this project's specs and the usage now.
+  Widget _costSection(int specs) {
+    final ws = widget.workspace;
+    final calls = ref.watch(plannerCallsProvider(ws.id));
+    final queue = QueueEstimate(ref.watch(refineRoundsProvider));
+    final execution = executionEstimate([
+      for (final m in ref.watch(specMetricsProvider(ws.id)).value ?? const [])
+        m.time,
+    ]);
+    final availability = ref.watch(providerAvailabilityProvider('claude'));
+    const label = TextStyle(fontSize: 12, color: AppColors.textSecondary);
+    const value = TextStyle(fontSize: 12, color: AppColors.text);
+    Widget row(String name, Widget child, {Key? key}) => Padding(
+      key: key,
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 100, child: Text(name, style: label)),
+          Expanded(child: child),
+        ],
+      ),
+    );
+    return _Section(
+      key: const ValueKey('project-cost'),
+      icon: AppIcons.sparkle,
+      title: 'Custo e tempo',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          row(
+            'Planner',
+            Text(
+              calls.total == 0
+                  ? 'nenhuma chamada ainda'
+                  : '${calls.label} feitas (${calls.detail})',
+              key: const ValueKey('project-cost-calls'),
+              style: value,
+            ),
+          ),
+          row(
+            'Fila de refino',
+            Text(
+              [queue.forSpecs(specs), ?queue.basis].join(' · '),
+              key: const ValueKey('project-cost-queue'),
+              style: value,
+            ),
+          ),
+          if (execution != null)
+            row(
+              'Execução',
+              Text(
+                execution,
+                key: const ValueKey('project-cost-execution'),
+                style: value,
+              ),
+            ),
+          if (availability.value case final a? when a.available)
+            row(
+              'Uso',
+              UsageBlock(subscriptionType: a.subscriptionType, title: false),
+            ),
+        ],
+      ),
     );
   }
 
@@ -512,6 +691,7 @@ class _CreateStepState extends ConsumerState<CreateStep> {
 
 class _Section extends StatelessWidget {
   const _Section({
+    super.key,
     required this.icon,
     required this.title,
     required this.child,

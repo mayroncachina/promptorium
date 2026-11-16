@@ -223,10 +223,14 @@ class ChipButton extends StatelessWidget {
           child: Container(
             height: height,
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: AppColors.text),
+            // widthFactor 1: in a Wrap the chip keeps its label's width (an
+            // alignment would stretch it to the whole row).
+            child: Center(
+              widthFactor: 1,
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: AppColors.text),
+              ),
             ),
           ),
         ),

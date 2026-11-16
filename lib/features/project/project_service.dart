@@ -9,12 +9,15 @@ import '../../core/git/git_service.dart';
 import '../../core/git/repo_setup.dart';
 import '../../data/providers.dart';
 import '../prompt/conversation_manager.dart';
+import '../review/review_host.dart' show detectReviewHost, remoteHost;
 import '../sessions/session_manager.dart';
 import '../specs/spec_service.dart';
+import 'cost_estimate.dart';
 import 'project_config.dart';
 import 'project_plan.dart';
 import 'project_templates.dart';
 import 'spec_auto_planner.dart';
+import 'stack_commands.dart';
 
 class ProjectException implements Exception {
   const ProjectException(this.message);
@@ -60,15 +63,20 @@ class ProjectService {
 
   final Ref _ref;
 
-  /// Creates `<parent>/<name>`, runs `git init` (with an empty first commit
-  /// and, optionally, `origin`), adds it as the active workspace and starts
-  /// its plan. An existing empty folder is reused.
+  /// Creates `<parent>/<name>`, runs `git init` on [branch] (with a first
+  /// commit and, optionally, `origin`), adds it as the active workspace and
+  /// starts its plan. An existing empty folder is reused.
+  ///
+  /// The config.yml of the first commit always has `branch-base:` (SPEC-072
+  /// R6, P5) and, for a GitHub / GitLab remote, `hospedagem:` (R22).
   Future<Workspace> createProject({
     required String parent,
     required String name,
     String? remoteUrl,
     ProjectTemplate? template,
     bool plan = true,
+    String branch = 'main',
+    int customStackCalls = 0,
   }) async {
     final n = name.trim();
     if (n.isEmpty) throw const ProjectException('Informe o nome da pasta.');
@@ -87,6 +95,10 @@ class ProjectService {
     final path = base.endsWith('/') ? '$base$n' : '$base/$n';
     final dir = Directory(path);
     final setup = _ref.read(repoSetupProvider);
+    final b = branch.trim().isEmpty ? 'main' : branch.trim();
+    if (await setup.checkBranchName(b) case final why?) {
+      throw ProjectException(why);
+    }
     final kind = await FileSystemEntity.type(path);
     if (kind != FileSystemEntityType.notFound &&
         kind != FileSystemEntityType.directory) {
@@ -108,30 +120,43 @@ class ProjectService {
     if (kind == FileSystemEntityType.notFound) await dir.create();
     // Template files first: the initial commit carries them (UX v2, U7).
     final t = template;
+    await ProjectConfig.save(
+      path,
+      initialConfig(t?.config ?? const ProjectConfig(), b, remoteUrl),
+    );
     if (t != null && !t.isEmpty) {
-      await ProjectConfig.save(path, t.config);
       if (t.claudeMd case final md?) {
         await File('$path/CLAUDE.md').writeAsString(md);
       }
     }
     try {
-      await setup.init(path, remoteUrl: remoteUrl);
+      await setup.init(path, remoteUrl: remoteUrl, branch: b);
     } catch (e) {
       throw ProjectException(repoSetupError(e));
     }
     final ws = await _ref.read(workspaceActionsProvider).addFolder(path);
+    // The proposals of the "Outro…" modal count in the cost (SPEC-072 R19).
+    await recordPlannerCalls(_ref, ws.id, 'outro', customStackCalls);
     if (plan) {
       await _ref.read(projectPlansRepoProvider).start(ws.id);
-      if (t != null && t.decisions.isNotEmpty) {
-        // The planner keeps pinned choices.
+      final commands = t == null
+          ? const StackCommands()
+          : commandsOfConfig(t.config);
+      if (t != null && (t.decisions.isNotEmpty || !commands.isEmpty)) {
+        // The planner keeps pinned choices and commands (SPEC-072 R11).
         await _ref
             .read(projectPlansRepoProvider)
             .update(
               ws.id,
               ProjectPlansCompanion(
                 data: Value(
-                  ProjectPlanData(stack: StackPlan(decisions: t.decisions))
-                      .encode(),
+                  ProjectPlanData(
+                    stack: StackPlan(
+                      decisions: t.decisions,
+                      commands: commands,
+                      scaffold: t.scaffold,
+                    ),
+                  ).encode(),
                 ),
               ),
             );
@@ -241,6 +266,18 @@ class ProjectService {
       files.add('CLAUDE.md');
     }
 
+    // The stack's commands fill the empty keys of the config.yml
+    // (SPEC-072 R13).
+    final merge = mergeStackCommands(
+      ProjectConfig.loadSync(ws.path),
+      data.stack.commands,
+    );
+    if (merge.changed) {
+      await ProjectConfig.save(ws.path, merge.config);
+      _ref.invalidate(projectConfigProvider(ws.path));
+      files.add(ProjectConfig.filePath);
+    }
+
     final specService = _ref.read(specServiceProvider);
     final specsRepo = _ref.read(specsRepoProvider);
     final specs = <Spec>[];
@@ -332,6 +369,26 @@ class ProjectService {
       commitError: commitError,
     );
   }
+}
+
+/// The config.yml of a new project: [base] (the template's) with
+/// `branch-base:` (SPEC-072 R6) and, when [remoteUrl] is on GitHub or
+/// GitLab, `hospedagem: {host, tipo}` (R22). Local and unrecognized hosts
+/// write no `hospedagem:`.
+ProjectConfig initialConfig(
+  ProjectConfig base,
+  String branch,
+  String? remoteUrl,
+) {
+  var c = base.copyWith(baseBranch: () => branch);
+  final url = remoteUrl?.trim() ?? '';
+  if (url.isEmpty) return c;
+  final type = detectReviewHost(url, base);
+  final host = remoteHost(url);
+  if (type != null && host != null) {
+    c = c.copyWith(host: host, hostType: type);
+  }
+  return c;
 }
 
 /// Moves a folder to the desktop trash (recoverable). Overridden in tests.

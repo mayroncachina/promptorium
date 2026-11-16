@@ -12,6 +12,7 @@ import '../board/board_rules.dart';
 import '../specs/spec_action.dart';
 import '../specs/spec_design.dart';
 import '../specs/spec_service.dart';
+import 'cost_estimate.dart';
 
 /// Commit of the specs planned by the queue (SPEC-037 R7).
 const specPlansCommitMessage = 'Plano das specs';
@@ -613,6 +614,7 @@ class SpecAutoPlanner extends Notifier<AutoPlanState> {
       }
       if (started) throw const PlannerException('A execução já começou.');
       final (:plans, :missing) = await _dependencies(ws, spec);
+      final clock = Stopwatch()..start();
       final answer = await ref
           .read(specDesignerProvider)
           .refineAndPlan(
@@ -621,6 +623,8 @@ class SpecAutoPlanner extends Notifier<AutoPlanState> {
             dependencyPlans: plans,
             cancelled: cancel.future,
           );
+      // The estimate of the queue (SPEC-072 R9).
+      await recordRefineRound(ref, clock.elapsed);
       await _service.save(
         ws,
         spec,

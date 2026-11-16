@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'project_config.dart';
 import 'project_memory.dart';
@@ -195,3 +196,7 @@ Future<bool> applyDetectionToWorkspace(
   );
   return changed;
 }
+
+/// [detectStack] of a folder ("Detectar do repositório", SPEC-072 R14).
+final stackDetectionProvider = FutureProvider.autoDispose
+    .family<StackDetection, String>((ref, path) => detectStack(path));

@@ -8,7 +8,10 @@ import 'package:promptorium/core/git/repo_setup.dart';
 import 'package:promptorium/core/process/process_runner.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/project/project_config.dart';
+import 'package:promptorium/features/project/cost_estimate.dart';
 import 'package:promptorium/features/project/project_plan.dart';
+import 'package:promptorium/features/project/project_planner.dart'
+    show parseCustomStackResult;
 import 'package:promptorium/features/project/project_service.dart';
 import 'package:promptorium/features/project/project_templates.dart';
 import 'package:promptorium/features/board/board_rules.dart';
@@ -17,6 +20,7 @@ import 'package:promptorium/features/specs/spec_service.dart';
 import '../../core/git/git_test_utils.dart';
 import '../../core/git/repo_setup_test.dart' show gitRun;
 import '../../helpers/test_db.dart';
+import 'custom_stack_test.dart' show customResult, goFiber;
 
 const plan = ProjectPlanData(
   vision: VisionPlan(summary: 'Receitas', mvp: ['Cadastro']),
@@ -188,6 +192,100 @@ void main() {
     expect(File('${tmp.path}/vazio2/CLAUDE.md').existsSync(), isFalse);
   });
 
+  test('createProject starts on the chosen branch and writes branch-base: '
+      'and, for GitHub / GitLab, hospedagem: before the first commit '
+      '(SPEC-072 R5, R6, R22, P5)', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'tronco',
+      branch: 'trunk',
+      remoteUrl: 'git@github.com:ana/tronco.git',
+    );
+    expect(await gitIn(ws.path, ['branch', '--show-current']), 'trunk\n');
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.baseBranch, 'trunk');
+    expect(config.host, 'github.com');
+    expect(config.hostType, 'github');
+    // In the initial commit.
+    expect(
+      await gitIn(ws.path, ['show', 'HEAD:.promptorium/config.yml']),
+      allOf(contains('branch-base: trunk'), contains('hospedagem:')),
+    );
+
+    // GitLab, with a template: its commands stay.
+    final gl = await service().createProject(
+      parent: tmp.path,
+      name: 'lab',
+      template: templateById('flutter'),
+      remoteUrl: 'https://gitlab.com/ana/lab.git',
+      plan: false,
+    );
+    final glc = ProjectConfig.loadSync(gl.path);
+    expect((glc.host, glc.hostType), ('gitlab.com', 'gitlab'));
+    expect(glc.testCommand, 'flutter test');
+    expect(glc.baseBranch, 'main');
+
+    // "Vazio" and only local: branch-base: main, no hospedagem:.
+    final local = await service().createProject(
+      parent: tmp.path,
+      name: 'local',
+      template: templateById('empty'),
+      plan: false,
+    );
+    final lc = ProjectConfig.loadSync(local.path);
+    expect(lc.baseBranch, 'main');
+    expect(lc.host, isNull);
+    expect(
+      await gitIn(local.path, ['ls-tree', '--name-only', '-r', 'HEAD']),
+      contains('.promptorium/config.yml'),
+    );
+
+    // A host that is neither: no hospedagem:.
+    final other = await service().createProject(
+      parent: tmp.path,
+      name: 'outro',
+      remoteUrl: 'git@example.com:ana/outro.git',
+      plan: false,
+    );
+    expect(ProjectConfig.loadSync(other.path).hostType, isNull);
+
+    // An invalid branch is refused before anything is created.
+    await expectLater(
+      service().createProject(
+        parent: tmp.path,
+        name: 'ruim',
+        branch: 'com espaço',
+      ),
+      throwsA(
+        isA<ProjectException>().having(
+          (e) => e.message,
+          'message',
+          contains('não é um nome de branch'),
+        ),
+      ),
+    );
+    expect(Directory('${tmp.path}/ruim').existsSync(), isFalse);
+  });
+
+  test('initialConfig: hospedagem only for GitHub / GitLab (SPEC-072 R22)', () {
+    const base = ProjectConfig(testCommand: 'go test ./...');
+    expect(initialConfig(base, 'main', null).host, isNull);
+    expect(initialConfig(base, 'main', '').host, isNull);
+    expect(initialConfig(base, 'dev', null).baseBranch, 'dev');
+    expect(initialConfig(base, 'main', '/srv/repo.git').host, isNull);
+    final gh = initialConfig(base, 'main', 'https://github.com/a/b');
+    expect(
+      (gh.host, gh.hostType, gh.testCommand),
+      ('github.com', 'github', 'go test ./...'),
+    );
+    // A self-hosted GitLab known by the template's hospedagem:.
+    const own = ProjectConfig(host: 'git.empresa.com', hostType: 'gitlab');
+    expect(
+      initialConfig(own, 'main', 'git@git.empresa.com:a/b.git').hostType,
+      'gitlab',
+    );
+  });
+
   test('createProject rejects bad names and non-empty folders', () async {
     Future<void> bad(String parent, String name, String message) => expectLater(
       service().createProject(parent: parent, name: name),
@@ -271,6 +369,83 @@ void main() {
       service().createProject(parent: tmp.path, name: 'sobra'),
       throwsA(isA<ProjectException>()),
     );
+  });
+
+  test('materialize merges the stack commands into the config.yml, only the '
+      'empty keys, and commits it (SPEC-072 R13)', () async {
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'loja',
+      template: templateById('flutter'),
+    );
+    // The template's commands came pinned into the plan (R11).
+    final row = await c.read(projectPlansRepoProvider).get(ws.id);
+    final pinned = ProjectPlanData.decode(row!.data).stack.commands;
+    expect(pinned.test, 'flutter test');
+    expect(pinned.pinned, contains('test'));
+
+    final withCommands = plan.copyWith(
+      stack: plan.stack.copyWith(
+        commands: const StackCommands(
+          run: 'flutter run -d linux',
+          test: 'outro teste',
+          format: 'dart format',
+        ),
+      ),
+    );
+    await c
+        .read(projectPlansRepoProvider)
+        .update(
+          ws.id,
+          ProjectPlansCompanion(data: Value(withCommands.encode())),
+        );
+    final out = await service().materialize(ws);
+    expect(out.commitError, isNull);
+    expect(out.files, contains('.promptorium/config.yml'));
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.runCommand, 'flutter run -d linux');
+    expect(config.testCommand, 'flutter test'); // kept
+    expect(config.formatCommand, 'dart format {arquivo}'); // the template's
+    expect(config.baseBranch, 'main');
+    expect(
+      await gitIn(ws.path, ['show', 'HEAD:.promptorium/config.yml']),
+      contains('executar: flutter run -d linux'),
+    );
+    expect(await gitIn(ws.path, ['status', '--porcelain']), '');
+  });
+
+  test('createProject with an "Outro…" stack: commands in the config.yml, '
+      'the CLAUDE.md base, pinned decisions and the modal calls counted '
+      '(SPEC-072 R18, R19)', () async {
+    final stack = parseCustomStackResult(customResult(goFiber()));
+    final ws = await service().createProject(
+      parent: tmp.path,
+      name: 'loja-go',
+      template: ProjectTemplate.fromStack(stack),
+      customStackCalls: 2,
+    );
+    final config = ProjectConfig.loadSync(ws.path);
+    expect(config.testCommand, 'go test ./...');
+    expect(config.runCommand, 'go run ./cmd/api');
+    expect(config.formatCommand, 'gofmt -w {arquivo}');
+    expect(config.baseBranch, 'main');
+    expect(
+      File('${ws.path}/CLAUDE.md').readAsStringSync(),
+      contains('Esqueleto (scaffold)'),
+    );
+    expect(service().hasTemplateClaudeMd(ws), isTrue);
+    final data = ProjectPlanData.decode(
+      (await c.read(projectPlansRepoProvider).get(ws.id))!.data,
+    );
+    expect(data.stack.decisions.map((d) => d.choice), [
+      'Go 1.23',
+      'Fiber v2',
+      'GORM',
+    ]);
+    expect(data.stack.decisions.every((d) => d.pinned), isTrue);
+    expect(data.stack.commands.pinned, contains('test'));
+    expect(data.stack.scaffold, startsWith('go mod init'));
+    expect(c.read(plannerCallsProvider(ws.id)).detail, 'stack do Outro… 2');
   });
 
   test('materialize: CLAUDE.md, approved specs with translated '
