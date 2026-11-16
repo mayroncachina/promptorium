@@ -164,6 +164,7 @@ void main() {
     test('rows already created keep their code and are not created', () {
       final items = batchItemsOf(threeSpecs());
       final done = Spec(
+        issueCommentPending: false,
         id: 9,
         workspaceId: 1,
         code: 'SPEC-021',

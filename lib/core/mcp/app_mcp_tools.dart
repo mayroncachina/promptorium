@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/issues/issue_progress.dart';
 import '../../data/providers.dart';
 import '../../features/board/board_rules.dart' show stepsOf;
 import '../../features/board/spec_runner.dart' show parseSessionSteps;
@@ -682,12 +683,29 @@ class AppMcpTools implements McpToolbox {
           sessionId: grant.sessionId,
           steps: session!.steps,
         );
+    // SPEC-074 R10: with the opt-in, the comment on the issue follows.
+    final issue = spec.issueNumber;
+    final published = await _ref
+        .read(issueProgressPublisherProvider)
+        .afterNote(spec.id);
+    final where = switch (published) {
+      null => '',
+      (published: true, reason: _) => ' e publicada na issue #$issue',
+      (published: false, :final reason) =>
+        '; a issue #$issue não foi atualizada ($reason): a próxima nota '
+            'tenta de novo',
+    };
     return McpToolOutcome(
       'Nota gravada em ${spec.code}'
-      '${session.steps == null ? '' : ' (${session.steps})'}. Ela aparece no '
-      'card do Quadro e não conclui a etapa: isso continua com o marcador '
-      'ETAPA CONCLUÍDA e o gate.',
-      data: {'spec': spec.code, 'nota': note.id},
+      '${session.steps == null ? '' : ' (${session.steps})'}$where. Ela '
+      'aparece no card do Quadro e não conclui a etapa: isso continua com o '
+      'marcador ETAPA CONCLUÍDA e o gate.',
+      data: {
+        'spec': spec.code,
+        'nota': note.id,
+        if (published != null) 'issue': issue,
+        if (published != null) 'publicada': published.published,
+      },
     );
   }
 }

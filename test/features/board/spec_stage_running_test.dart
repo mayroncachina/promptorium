@@ -86,6 +86,7 @@ void main() {
           tokensOut: 0,
         );
         Spec spec(SpecStage stage) => Spec(
+          issueCommentPending: false,
           hasPlan: false,
           inTray: false,
           kind: SpecKind.spec,

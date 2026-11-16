@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Andamento na issue e o opt-in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08)}
+.mono{font-family:'JetBrains Mono',monospace}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:9}
+.note.warn{background:#F2A541}
+.cap{font:600 11px 'IBM Plex Sans';letter-spacing:.08em;color:#7C8595;text-transform:uppercase}
+.issue{font:600 11px 'JetBrains Mono';color:#9CC3FF;border:1px solid rgba(120,170,255,.45);background:rgba(120,170,255,.08);border-radius:6px;padding:0 6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.pane{position:absolute;top:56px;bottom:20px;border-radius:16px;overflow:hidden}
+.ph{height:46px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+/* a issue no navegador, neutra */
+.web{background:#0F1217;border:1px solid rgba(255,255,255,.1)}
+.url{flex:1;height:28px;border-radius:7px;background:rgba(255,255,255,.05);display:flex;align-items:center;padding:0 10px;font:400 12px 'JetBrains Mono';color:#A0A8B6}
+.ib{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.it1{font:600 20px 'IBM Plex Sans';margin:0}
+.it1 span{color:#7C8595;font-weight:400}
+.open{font:600 12px 'IBM Plex Sans';color:#0B2A20;background:#4FD1B5;border-radius:12px;padding:3px 10px}
+.cm{border:1px solid rgba(255,255,255,.12);border-radius:10px;overflow:hidden}
+.cmh{height:36px;display:flex;align-items:center;gap:8px;padding:0 12px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.1);font:400 12.5px 'IBM Plex Sans';color:#A0A8B6}
+.cmh b{color:#E7E9EE;font-weight:600}
+.av{width:22px;height:22px;border-radius:11px;background:#3B4658;display:flex;align-items:center;justify-content:center;font:600 10px 'IBM Plex Sans';color:#E7E9EE}
+.cmb{padding:12px 14px;font:400 13px/1.6 'IBM Plex Sans';color:#D5D9E0;display:flex;flex-direction:column;gap:6px}
+.cmb h5{margin:0;font:600 14px 'IBM Plex Sans';color:#E7E9EE}
+.tl{display:flex;gap:10px;align-items:baseline}
+.tl .r{font:600 12px 'JetBrains Mono';width:28px;flex:none}
+.tl .s{width:86px;flex:none;font:500 12px 'IBM Plex Sans'}
+.tl q{color:#A0A8B6;quotes:'“' '”'}
+.ok{color:#7BE3CC}.run{color:#F2A541}.pend{color:#7C8595}
+.ft{font:400 12px 'IBM Plex Sans';color:#7C8595;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;margin-top:4px}
+.flow{position:absolute;left:20px;width:760px;top:526px;bottom:20px;border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:9px}
+.flow h4{margin:0;font:600 13.5px 'IBM Plex Sans'}
+.st{display:flex;gap:10px;align-items:flex-start;font:400 12.5px/1.5 'IBM Plex Sans';color:#C9CED8}
+.st b{width:20px;height:20px;border-radius:10px;flex:none;border:1px solid rgba(242,165,65,.5);color:#FFC879;font:600 11px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.st code{font:500 12px 'JetBrains Mono';color:#9CC3FF}
+.ev{font:400 12.5px 'IBM Plex Sans';color:#A0A8B6;display:flex;gap:8px;align-items:center;padding-left:6px}
+/* configuração */
+.sec{padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sec h4{margin:0 0 4px;font:600 14px 'IBM Plex Sans'}
+.sec p{margin:0;font:400 12.5px/1.5 'IBM Plex Sans';color:#A0A8B6}
+.row{display:flex;gap:14px;align-items:flex-start;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)}
+.row .tx{flex:1;min-width:0}
+.row b{display:block;font:600 13.5px 'IBM Plex Sans';color:#E7E9EE}
+.row span{display:block;margin-top:3px;font:400 12.5px/1.5 'IBM Plex Sans';color:#A0A8B6}
+.sw{width:38px;height:22px;border-radius:11px;background:#2A303B;border:1px solid rgba(255,255,255,.14);position:relative;flex:none;padding:0;margin-top:2px}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:8px;background:#7C8595}
+.sw.on{background:rgba(242,165,65,.3);border-color:#F2A541}
+.sw.on::after{left:18px;background:#F2A541}
+.yml{margin:12px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(10,12,16,.55);padding:10px 12px;font:400 12.5px/1.7 'JetBrains Mono';color:#C9CED8;white-space:pre}
+.yml i{font-style:normal;color:#7BE3CC}
+.yml u{text-decoration:none;color:#FFC879}
+.yml s{text-decoration:none;color:#7C8595}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<div class="cap" style="position:absolute;left:24px;top:24px">No GitHub · como o comentário aparece na issue</div>
+<div class="cap" style="position:absolute;left:802px;top:24px">No app · Projeto › Configuração › Issues do GitHub</div>
+<section class="pane web" aria-label="Issue 226 no navegador" style="left:20px;width:760px;bottom:262px">
+ <div class="ph"><span style="width:10px;height:10px;border-radius:5px;background:#3A414E"></span><span style="width:10px;height:10px;border-radius:5px;background:#3A414E"></span><span class="url">github.com/ana-souza/loja-da-ana/issues/226</span></div>
+ <div class="ib">
+  <h2 class="it1">Pix com QR code na confirmação <span>#226</span></h2>
+  <div style="display:flex;gap:10px;align-items:center"><span class="open">Aberta</span><span style="font:400 12.5px 'IBM Plex Sans';color:#A0A8B6">ana-souza abriu há 12 dias · 3 comentários</span></div>
+  <div class="ev"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v14M6 7a4 4 0 0 0 8 0V3"></path></svg>ana-souza mencionou esta issue no PR #251 · Pix com QR code na confirmação</div>
+  <div class="cm">
+   <div class="cmh"><span class="av">AS</span><b>ana-souza</b> comentou há 3 horas · editado há 2 min</div>
+   <div class="cmb">
+    <h5>Andamento da SPEC-023</h5>
+    <div class="tl"><span class="r ok">R1</span><span class="s ok">feito</span><q>QR code gerado no servidor; a tela só mostra a imagem.</q></div>
+    <div class="tl"><span class="r ok">R2</span><span class="s ok">feito</span><q>Copia e cola ao lado do QR, com botão de copiar.</q></div>
+    <div class="tl"><span class="r run">R3</span><span class="s run">em execução</span><q>Webhook do PSP chega; falta validar a assinatura.</q></div>
+    <div class="tl"><span class="r pend">R4</span><span class="s pend">a fazer</span><span></span></div>
+    <div class="ft">Atualizado pelo Promptorium a cada nota de andamento · PR #251 em rascunho</div>
+   </div>
+  </div>
+ </div>
+</section>
+<section class="pane g" aria-label="Configuração do projeto" style="left:800px;width:546px">
+ <div class="ph" style="font:600 14px 'IBM Plex Sans'">Configuração do projeto<span style="margin-left:auto;font:400 12px 'JetBrains Mono';color:#7C8595">.promptorium/config.yml</span></div>
+ <div class="sec"><h4>Issues do GitHub</h4><p>Vale para todos que usam este repositório no app.</p></div>
+ <div class="row"><div class="tx"><b>Closes #N no PR da spec</b><span>O PR de uma spec com issue: N fecha a issue no merge.</span></div><button class="sw on" role="switch" aria-checked="true" aria-label="Closes no PR"></button></div>
+ <div class="row"><div class="tx"><b>Comentar o andamento nas issues</b><span>Um comentário por spec, atualizado a cada nota de andamento do agente. Quem acompanha a issue vê.</span></div><button class="sw on" role="switch" aria-checked="true" aria-label="Comentar o andamento"></button></div>
+ <div class="row" style="border-bottom:0"><div class="tx"><b>Conferir issues fechadas</b><span>A cada 10 minutos com o app aberto, e ao abrir o Quadro.</span></div><button class="sw on" role="switch" aria-checked="true" aria-label="Conferir issues fechadas"></button></div>
+ <div class="yml"><i>issues</i>:
+  <i>closes-no-pr</i>: <u>true</u>          <s># padrão</s>
+  <i>comentar-andamento</i>: <u>true</u>    <s># padrão: false</s>
+  <i>conferir-fechadas</i>: <u>true</u>     <s># padrão</s></div>
+</section>
+<section class="g flow" aria-label="Como a nota chega na issue">
+ <h4>Quando o agente chama anotar_andamento</h4>
+ <div class="st"><b>1</b><span>A nota entra em <code>spec_notes</code> e aparece no Quadro, como hoje (SPEC-052).</span></div>
+ <div class="st"><b>2</b><span>Com o opt-in ligado e a spec com <code>issue: 226</code>, o app reescreve o comentário da spec na issue: um por spec, com o estado de cada requisito e a última nota.</span></div>
+ <div class="st"><b>3</b><span>Sem rede ou sem <code>gh</code>: a nota fica no app, o selo da spec mostra “comentário pendente”, e a próxima nota tenta de novo.</span></div>
+</section>
+<div class="note warn" style="left:420px;top:440px">↑ um comentário só, editado a cada nota: a issue não enche</div>
+<div class="note" style="left:396px;top:229px">← comenta com a conta do gh logado</div>
+<div class="note warn" style="left:1000px;top:300px">↑ desligado por padrão: opt-in por workspace</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
