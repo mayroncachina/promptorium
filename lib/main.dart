@@ -15,6 +15,7 @@ import 'core/git/git_service.dart';
 import 'core/perf/frame_monitor.dart';
 import 'core/tray_backend_native.dart';
 import 'core/tray_service.dart';
+import 'features/activities/quota_forecast.dart';
 import 'features/board/autopilot.dart';
 import 'features/home/tray_radar.dart';
 import 'features/repository/graph/commit_model_badge.dart';
@@ -87,6 +88,8 @@ Future<void> main() async {
     (_, radar) => _tray?.update(radar.status),
     fireImmediately: true,
   );
+  // SPEC-076 R7: the readings of the quota feed the forecast from now on.
+  container.read(quotaSamplesProvider);
   // Plan usage in the footer: `claude -p /usage` costs no tokens.
   final usage = container.read(usagePollerProvider);
   unawaited(usage.refresh());

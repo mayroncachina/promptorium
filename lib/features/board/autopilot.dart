@@ -11,6 +11,7 @@ import '../sessions/session_manager.dart';
 import 'board_rules.dart';
 import 'spec_runner.dart';
 import 'sprint_rules.dart';
+import '../activities/automation_pause.dart';
 
 /// "Agendar Autopilot" of a workspace (F17): every day at [hour]:[minute]
 /// (with the app open) it turns on, spending at most [budgetUsd] that day.
@@ -317,6 +318,7 @@ class Autopilot extends Notifier<Set<int>> {
   /// Called every minute (`main.dart`): starts the workspaces whose
   /// schedule is due.
   Future<void> scheduleTick({DateTime? now}) async {
+    if (automationPaused(ref)) return;
     final at = now ?? DateTime.now();
     final workspaces = await ref.read(workspacesRepoProvider).getAll();
     for (final ws in workspaces) {
@@ -452,6 +454,8 @@ class Autopilot extends Notifier<Set<int>> {
 
   Future<void> _tick(int workspaceId) async {
     if (!isOn(workspaceId)) return;
+    // SPEC-076 R8: "Pausar automáticos" holds new starts.
+    if (automationPaused(ref)) return;
     if (await checkBudget(workspaceId)) return;
     final plan = await planFor(workspaceId);
     final review = plan.unblockAt == UnblockAt.review;

@@ -155,6 +155,34 @@ class PendingApproval {
   String get requestId => request.requestId;
 }
 
+/// One tool call of a live session (SPEC-076 R3): what the Atividades and
+/// the robots show. [input] is the raw input (the target is computed with
+/// the session's worktree as root).
+@immutable
+class LiveTool {
+  const LiveTool({
+    required this.id,
+    required this.name,
+    required this.input,
+    required this.at,
+    this.done = false,
+  });
+
+  final String id;
+  final String name;
+  final Map<String, dynamic> input;
+  final DateTime at;
+
+  /// Its result arrived: the agent is between tools (thinking).
+  final bool done;
+
+  LiveTool finished() =>
+      LiveTool(id: id, name: name, input: input, at: at, done: true);
+}
+
+/// Tools that write files (SPEC-076 R3: "arquivos" of the turn).
+const fileEditTools = {'Edit', 'Write', 'MultiEdit', 'NotebookEdit'};
+
 /// Runtime state of a session with a live process.
 @immutable
 class LiveSession {
@@ -163,7 +191,25 @@ class LiveSession {
     this.approvals = const [],
     this.subagentsRunning = 0,
     this.busySince,
+    this.tool,
+    this.recent = const [],
+    this.calls = 0,
+    this.files = 0,
+    this.lastText,
   });
+
+  /// The newest top-level tool call of the turn (null = none yet).
+  final LiveTool? tool;
+
+  /// The last five top-level tool calls, newest first.
+  final List<LiveTool> recent;
+
+  /// Tool calls / files edited in the running (or last) turn.
+  final int calls;
+  final int files;
+
+  /// The newest text of the agent (one line, cut).
+  final String? lastText;
 
   final bool alive;
   final List<PendingApproval> approvals;
@@ -209,6 +255,27 @@ class SessionException implements Exception {
 }
 
 /// Mutable bookkeeping of one running process.
+/// Records the top-level tool call [b] in [p] (SPEC-076 R3).
+void _trackTool(_Proc p, ToolUseBlock b) {
+  if (p.recent.any((t) => t.id == b.id)) return;
+  p.recent.insert(
+    0,
+    LiveTool(id: b.id, name: b.name, input: b.input, at: DateTime.now()),
+  );
+  if (p.recent.length > 5) p.recent.removeLast();
+  p.calls++;
+  if (fileEditTools.contains(b.name)) {
+    final path = b.input['file_path'] ?? b.input['notebook_path'];
+    if (path is String) p.files.add(path);
+  }
+}
+
+/// The agent's text as one line of at most 200 characters.
+String liveTextLine(String text) {
+  final one = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+  return one.length <= 200 ? one : '${one.substring(0, 199)}…';
+}
+
 class _Proc {
   _Proc(
     this.process,
@@ -265,6 +332,13 @@ class _Proc {
 
   /// Bytes of the hooks log already shown.
   int hookOffset = 0;
+
+  /// SPEC-076 R3: the newest tool calls (newest first), calls and edited
+  /// files of the turn, and the agent's newest text.
+  final List<LiveTool> recent = [];
+  int calls = 0;
+  final Set<String> files = {};
+  String? lastText;
   StreamSubscription<ClaudeEvent>? sub;
   StreamSubscription<String>? logSub;
 }
@@ -449,6 +523,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     proc.busy = true;
     proc.busySince = DateTime.now();
     proc.lastActivity = DateTime.now();
+    // A new turn counts its own calls and files (SPEC-076 R3).
+    proc
+      ..calls = 0
+      ..files.clear();
     _publish();
     await _enqueue(id, proc, () async {
       final json = AppEventTypes.userMessage(msg, DateTime.now());
@@ -1391,9 +1469,18 @@ class SessionManager extends Notifier<SessionManagerState> {
           if (b is ToolUseBlock && ToolItem.isSubagentTool(b.name)) {
             p.subagents.add(b.id);
           }
+          if (e.parentToolUseId != null) continue;
+          if (b is ToolUseBlock) _trackTool(p, b);
+          if (b is TextBlock && b.text.trim().isNotEmpty) {
+            p.lastText = liveTextLine(b.text);
+          }
         }
       case ToolResult():
         p.subagents.remove(e.toolUseId);
+        if (e.parentToolUseId == null) {
+          final i = p.recent.indexWhere((t) => t.id == e.toolUseId);
+          if (i >= 0) p.recent[i] = p.recent[i].finished();
+        }
         await _readHooks(id, p);
       case Result():
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
@@ -1546,6 +1633,11 @@ class SessionManager extends Notifier<SessionManagerState> {
             alive: value.process.isRunning,
             subagentsRunning: value.subagents.length,
             busySince: value.busy ? value.busySince : null,
+            tool: value.recent.firstOrNull,
+            recent: List.unmodifiable(value.recent),
+            calls: value.calls,
+            files: value.files.length,
+            lastText: value.lastText,
             approvals: [
               for (final r in value.pending)
                 PendingApproval(
