@@ -235,9 +235,7 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
   );
   return (
     items: items,
-    labels: {
-      for (final w in list) w.id: ?w.autopilotLabel,
-    },
+    labels: {for (final w in list) w.id: ?w.autopilotLabel},
     order: [for (final w in list) w.id],
   );
 });

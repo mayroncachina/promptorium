@@ -23,6 +23,7 @@ import '../project/project_config.dart' show projectConfigProvider;
 import '../project/spec_auto_planner.dart';
 import '../../ui/widgets/app_icon.dart';
 import '../specs/widgets/spec_action_banner.dart' show ActionSpinner;
+import '../activities/widgets/board_robots.dart';
 import 'autopilot.dart';
 import 'board_rules.dart';
 import '../vibe/widgets/vibe_card.dart' show VibeCard;
@@ -1106,6 +1107,14 @@ class _Header extends ConsumerWidget {
             key: const ValueKey('board-bar-strip'),
             mainAxisSize: MainAxisSize.min,
             children: [
+              // SPEC-076 R14.
+              Flexible(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: BoardAgentsCount(workspaceId: workspaceId),
+                ),
+              ),
               Flexible(
                 flex: 3,
                 child: Text(
@@ -1891,73 +1900,105 @@ class SpecCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // SPEC-076 R13: the agent's robot on the top right.
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // The left group takes the free space: the issue badge
-                  // ("#188 fechada") does not share it with a Spacer.
                   Expanded(
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          spec.code,
-                          style: const TextStyle(
-                            fontFamily: AppFonts.mono,
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        // SPEC-074 R1.
-                        if (spec.issueNumber != null) ...[
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Listener(
-                              onPointerDown: AppPressable.claim,
-                              child: IssueBadge(spec: spec, compact: true),
+                        Row(
+                          children: [
+                            // The left group takes the free space: the issue badge
+                            // ("#188 fechada") does not share it with a Spacer.
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Text(
+                                    spec.code,
+                                    style: const TextStyle(
+                                      fontFamily: AppFonts.mono,
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  // SPEC-074 R1.
+                                  if (spec.issueNumber != null) ...[
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Listener(
+                                        onPointerDown: AppPressable.claim,
+                                        child: IssueBadge(
+                                          spec: spec,
+                                          compact: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (spec.phase != null) ...[
+                                    const SizedBox(width: 6),
+                                    _Chip(spec.phase!),
+                                  ],
+                                  const SizedBox(width: 6),
+                                  Listener(
+                                    onPointerDown: AppPressable.claim,
+                                    child: GateFixBadge(
+                                      data: data,
+                                      compact: true,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            if (data.cost > 0)
+                              Text(
+                                formatCost(data.cost),
+                                style: const TextStyle(
+                                  fontFamily: AppFonts.mono,
+                                  fontSize: 11,
+                                  color: AppColors.textMuted,
+                                ),
+                              ),
+                            Listener(
+                              onPointerDown: AppPressable.claim,
+                              child: _CardMenu(
+                                data: data,
+                                canRun: canRun,
+                                onMove: onMove,
+                                isFirst: isFirst,
+                                isLast: isLast,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          spec.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
-                        ],
-                        if (spec.phase != null) ...[
-                          const SizedBox(width: 6),
-                          _Chip(spec.phase!),
-                        ],
-                        const SizedBox(width: 6),
-                        Listener(
-                          onPointerDown: AppPressable.claim,
-                          child: GateFixBadge(data: data, compact: true),
                         ),
                       ],
                     ),
                   ),
-                  if (data.cost > 0)
-                    Text(
-                      formatCost(data.cost),
-                      style: const TextStyle(
-                        fontFamily: AppFonts.mono,
-                        fontSize: 11,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
                   Listener(
                     onPointerDown: AppPressable.claim,
-                    child: _CardMenu(
-                      data: data,
-                      canRun: canRun,
-                      onMove: onMove,
-                      isFirst: isFirst,
-                      isLast: isLast,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6, top: 2),
+                      child: CardRobot(
+                        specId: spec.id,
+                        workspaceId: spec.workspaceId,
+                        code: spec.code,
+                        stage: spec.stage,
+                      ),
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                spec.title,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
               ),
               const SizedBox(height: 8),
               Listener(
@@ -2048,6 +2089,11 @@ class SpecCard extends ConsumerWidget {
                     ),
                   ),
                 ],
+              ),
+              // SPEC-076 R13: the agent's request, answered from here.
+              Listener(
+                onPointerDown: AppPressable.claim,
+                child: CardBalloon(specId: spec.id, code: spec.code),
               ),
               BoardSpecAction(data: data),
             ],
