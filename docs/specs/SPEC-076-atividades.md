@@ -27,7 +27,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/24NmtjoJLK9oUBrQbab
 | `2-quadro.png` | O Quadro com o robô no card, o balão do pedido, o robô dormindo da fila do Autopilot e a barra "N agentes trabalhando" | R9–R14 |
 | `3-robos.png` | Os robôs, um estado por animação | R9–R12 |
 
-Issue: [#260](https://github.com/mayroncachina/promptorium/issues/260) (sub-issue de [#240](https://github.com/mayroncachina/promptorium/issues/240)) · PR: [#PR_NUM](https://github.com/mayroncachina/promptorium/pull/PR_NUM)
+Issue: [#260](https://github.com/mayroncachina/promptorium/issues/260) (sub-issue de [#240](https://github.com/mayroncachina/promptorium/issues/240)) · PR: [#261](https://github.com/mayroncachina/promptorium/pull/261)
 
 ## Requisitos
 
