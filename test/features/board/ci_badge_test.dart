@@ -133,10 +133,10 @@ void main() {
       requirements: const [],
       dependsOn: const [],
       autoAdvance: false,
+      issueCommentPending: false,
       reviewRounds: 0,
       gateResends: 0,
       rejectedHunks: 0,
-      issueCommentPending: false,
     );
     final session = Session(
       provider: 'claude',
