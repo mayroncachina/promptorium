@@ -143,17 +143,17 @@ t2 e t3 dependem de t1; t3 usa o `RobotAvatar` da t2.
 
 ## Critérios de aceite
 
-- [ ] Sessões, conversas, gate, PR acompanhado, Corrigir CI, release, planner, servidor de dev e a fila do Autopilot de todos os workspaces viram atividades, cada uma na coluna certa, e o que terminou some [R1, R2] verificar: flutter test test/features/activities/activity_test.dart
-- [ ] A ferramenta em uso de uma sessão viva vira a pose do robô e a última ação [R3, R10] verificar: flutter test test/features/activities/activity_test.dart
-- [ ] Grupos com pedido ou erro sobem e, dentro do grupo, o que precisa de você vem primeiro [R6] verificar: flutter test test/features/activities/activity_test.dart
-- [ ] A cota mostra "neste ritmo, acaba em…" ou "dura até renovar" a partir das leituras [R7] verificar: flutter test test/features/activities/quota_forecast_test.dart
-- [ ] "Pausar automáticos" segura o Autopilot e o Corrigir CI automático; "Pausar após o turno" não avança a etapa [R8] verificar: flutter test test/features/activities/automation_pause_test.dart
-- [ ] O robô tem forma, cor e nome estáveis pela semente, uma pose por estado, fica parado com "reduzir movimento" e não vaza ticker [R9, R10, R11] verificar: flutter test test/features/activities/robot_avatar_test.dart
-- [ ] O card do Quadro mostra o robô (nunca em Feito), o balão com o pedido e o botão, e a barra conta agentes trabalhando e pedidos [R12, R13, R14] verificar: flutter test test/features/activities/board_robots_test.dart
-- [ ] A tela Atividades lista, agrupa, filtra pelas abas, age pela linha e mostra o painel do selecionado; o menu mostra o selo [R15–R22] verificar: flutter test test/features/activities/activities_screen_test.dart
-- [ ] Clicar no robô do card abre a Atividades selecionada, e "Ver no Quadro" volta ao card [R23] verificar: flutter test test/features/activities/activities_screen_test.dart
-- [ ] Com sessões reais do `claude` em dois workspaces, a Atividades e o Quadro mostram os robôs se mexendo conforme a ferramenta [R3, R10, R13] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-076/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R23] verificar: flutter analyze
+- [x] Sessões, conversas, gate, PR acompanhado, Corrigir CI, release, planner, servidor de dev e a fila do Autopilot de todos os workspaces viram atividades, cada uma na coluna certa, e o que terminou some [R1, R2] verificar: flutter test test/features/activities/activity_test.dart
+- [x] A ferramenta em uso de uma sessão viva vira a pose do robô e a última ação [R3, R10] verificar: flutter test test/features/activities/activity_test.dart
+- [x] Grupos com pedido ou erro sobem e, dentro do grupo, o que precisa de você vem primeiro [R6] verificar: flutter test test/features/activities/activity_test.dart
+- [x] A cota mostra "neste ritmo, acaba em…" ou "dura até renovar" a partir das leituras [R7] verificar: flutter test test/features/activities/quota_forecast_test.dart
+- [x] "Pausar automáticos" segura o Autopilot e o Corrigir CI automático; "Pausar após o turno" não avança a etapa [R8] verificar: flutter test test/features/activities/automation_pause_test.dart
+- [x] O robô tem forma, cor e nome estáveis pela semente, uma pose por estado, fica parado com "reduzir movimento" e não vaza ticker [R9, R10, R11] verificar: flutter test test/features/activities/robot_avatar_test.dart
+- [x] O card do Quadro mostra o robô (nunca em Feito), o balão com o pedido e o botão, e a barra conta agentes trabalhando e pedidos [R12, R13, R14] verificar: flutter test test/features/activities/board_robots_test.dart
+- [x] A tela Atividades lista, agrupa, filtra pelas abas, age pela linha e mostra o painel do selecionado; o menu mostra o selo [R15–R22] verificar: flutter test test/features/activities/activities_screen_test.dart
+- [x] Clicar no robô do card abre a Atividades selecionada, e "Ver no Quadro" volta ao card [R23] verificar: flutter test test/features/activities/activities_screen_test.dart
+- [x] Com sessões reais do `claude` em dois workspaces, a Atividades e o Quadro mostram os robôs se mexendo conforme a ferramenta [R3, R10, R13] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-076/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R23] verificar: flutter analyze
 
 ## Decisões
 
