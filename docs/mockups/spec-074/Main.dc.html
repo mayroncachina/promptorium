@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Importar issues</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0C10}
+*{box-sizing:border-box}
+.app{position:relative;overflow:hidden;color:#E7E9EE;font-family:'IBM Plex Sans',sans-serif;background:radial-gradient(900px 620px at 8% -10%,rgba(242,165,65,.14),transparent 62%),radial-gradient(900px 700px at 102% 108%,rgba(79,209,181,.13),transparent 62%),#0A0C10}
+.dots{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.2px);background-size:28px 28px;pointer-events:none}
+.g{background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.g2{background:rgba(34,39,50,.6);border:1px solid rgba(255,255,255,.08)}
+.mono{font-family:'JetBrains Mono',monospace}
+.cta{height:32px;padding:0 12px;border:0;border-radius:9px;background:#F2A541;color:#1A1206;font:600 12px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.it{position:relative;width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid transparent;flex:none}
+.it.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.1)}
+.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#F2A541;color:#1A1206;font:600 10px 'JetBrains Mono';display:flex;align-items:center;justify-content:center}
+.sepv{width:28px;height:1px;background:rgba(255,255,255,.1);flex:none}
+.note{position:absolute;font:500 11px 'IBM Plex Sans';color:#1A1206;background:#4FD1B5;border-radius:6px;padding:3px 7px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);z-index:9}
+.note.warn{background:#F2A541}
+.qb{position:absolute;left:72px;right:8px;top:60px;bottom:44px;border-radius:16px;overflow:hidden}
+.qbar{height:56px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.qbar h2{margin:0;font:600 16px 'IBM Plex Sans'}
+.seg{display:flex;border:1px solid rgba(255,255,255,.12);border-radius:9px;overflow:hidden}
+.seg span{font:500 12.5px 'IBM Plex Sans';color:#A0A8B6;padding:6px 12px}
+.seg span.on{background:rgba(255,255,255,.08);color:#E7E9EE}
+.tbtn{height:30px;padding:0 10px;border-radius:8px;border:1px solid rgba(242,165,65,.55);background:rgba(242,165,65,.12);color:#FFD08A;font:500 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px}
+.tbtn b{font:600 11px 'JetBrains Mono';background:#F2A541;color:#1A1206;border-radius:5px;padding:0 5px}
+.gh{height:34px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#E7E9EE;font:500 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.go{height:34px;padding:0 14px;border-radius:9px;border:0;background:#F2A541;color:#1A1206;font:600 13px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.cols2{position:absolute;top:56px;left:322px;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 14px 14px 10px}
+.qcol{border-radius:14px;background:rgba(25,29,36,.55);border:1px solid rgba(255,255,255,.07);padding:10px;display:flex;flex-direction:column;gap:8px}
+.qcol .ch{display:flex;align-items:center;gap:8px;font:600 12px 'IBM Plex Sans';color:#A0A8B6;letter-spacing:.06em;text-transform:uppercase;padding:2px 4px 4px}
+.qcol .ch b{font:500 11px 'JetBrains Mono';color:#7C8595}
+.kc{border-radius:11px;background:#161A21;border:1px solid rgba(255,255,255,.09);padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.kc .c{font:500 11px 'JetBrains Mono';color:#A0A8B6;display:flex;align-items:center;gap:6px}
+.kc .t{font:500 13px 'IBM Plex Sans';color:#E7E9EE}
+.kc .m{font:400 11.5px 'IBM Plex Sans';color:#7C8595}
+.tray{position:absolute;top:56px;left:0;bottom:0;width:322px;border-right:1px solid rgba(255,255,255,.08);background:rgba(17,20,26,.78);display:flex;flex-direction:column}
+.trh{padding:14px 14px 8px;display:flex;align-items:flex-start;gap:8px}
+.trh h4{margin:0;font:600 14px 'IBM Plex Sans';display:flex;gap:7px;align-items:center}
+.trh .sub{margin-top:2px;font:400 11.5px 'IBM Plex Sans';color:#A0A8B6}
+.tg{padding:6px 10px 2px}
+.tg .gl{font:600 11px 'IBM Plex Sans';letter-spacing:.06em;text-transform:uppercase;color:#7C8595;padding:4px 4px 6px;display:flex;gap:6px;align-items:center}
+.tc{display:flex;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:#161A21;margin-bottom:6px;align-items:flex-start}
+.tc .c{font:500 11px 'JetBrains Mono';color:#A0A8B6;display:flex;align-items:center;gap:6px}
+.tc .t{font:500 13px 'IBM Plex Sans';color:#E7E9EE}
+.tc .m{font:400 11.5px 'IBM Plex Sans';color:#7C8595;display:flex;gap:6px;align-items:center;margin-top:3px}
+.st3{font:500 11px 'IBM Plex Sans';border-radius:6px;padding:0 6px;border:1px solid}
+.st3.dr{color:#A0A8B6;border-color:rgba(255,255,255,.16)}
+.st3.ap{color:#7BE3CC;border-color:rgba(79,209,181,.45);background:rgba(79,209,181,.08)}
+.cb{width:18px;height:18px;border-radius:5px;border:1.5px solid #5B6372;flex:none;display:flex;align-items:center;justify-content:center;background:transparent;padding:0}
+.cb.on{background:#F2A541;border-color:#F2A541}
+.cb.dis{border-style:dashed;border-color:#3A414E}
+.scrim{position:absolute;inset:0;background:rgba(6,8,11,.66);z-index:6}
+.dlg{position:absolute;left:50%;transform:translateX(-50%);border-radius:16px;background:#161A21;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.6);z-index:7;overflow:hidden}
+.dh{padding:16px 20px 12px;display:flex;align-items:flex-start;gap:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.dh h3{margin:0;font:600 16px 'IBM Plex Sans'}
+.dh .sub{margin-top:3px;font:400 12.5px 'IBM Plex Sans';color:#A0A8B6}
+.x{width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;display:flex;align-items:center;justify-content:center;padding:0}
+.df{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid rgba(255,255,255,.07)}
+.df .info{font:400 12px 'IBM Plex Sans';color:#A0A8B6;flex:1}
+.issue{font:600 11px 'JetBrains Mono';color:#9CC3FF;border:1px solid rgba(120,170,255,.45);background:rgba(120,170,255,.08);border-radius:6px;padding:0 6px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.issue.closed{color:#C9B6FF;border-color:rgba(175,140,255,.5);background:rgba(175,140,255,.1)}
+.lbl{font:500 11px 'IBM Plex Sans';border-radius:10px;padding:0 8px;border:1px solid;white-space:nowrap}
+.lbl.bug{color:#FFB1A8;border-color:rgba(242,122,110,.5)}
+.lbl.enh{color:#9CC3FF;border-color:rgba(120,170,255,.5)}
+.lbl.chk{color:#FFD08A;border-color:rgba(242,165,65,.5)}
+.lbl.adm{color:#C9CED8;border-color:rgba(255,255,255,.2)}
+header,nav,footer{z-index:2}
+</style>
+<style>
+.flt{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.07);flex-wrap:wrap}
+.srch{flex:1;min-width:220px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(10,12,16,.5);display:flex;align-items:center;gap:8px;padding:0 10px;color:#7C8595;font:400 13px 'IBM Plex Sans'}
+.dd{height:34px;padding:0 10px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#C9CED8;font:500 12.5px 'IBM Plex Sans';display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.dd b{color:#E7E9EE;font-weight:600}
+.dd.on{border-color:rgba(242,165,65,.55);background:rgba(242,165,65,.08)}
+.cnt{display:flex;align-items:center;gap:10px;padding:8px 20px 4px;font:400 12px 'IBM Plex Sans';color:#A0A8B6}
+.lk{font:500 12px 'IBM Plex Sans';color:#F2A541;background:none;border:0;padding:0}
+.rows{padding:2px 12px;display:flex;flex-direction:column;gap:2px}
+.rw{display:flex;gap:12px;padding:8px 10px;border-radius:10px;border:1px solid transparent;align-items:center;min-height:52px}
+.rw.on{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.07)}
+.rw.lock{opacity:.6}
+.rn{font:600 12px 'JetBrains Mono';color:#9CC3FF;width:44px;flex:none}
+.rc{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rt{display:flex;align-items:center;gap:8px;min-width:0}
+.ti{font:600 13.5px 'IBM Plex Sans';color:#E7E9EE;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rm{font:400 11.5px 'IBM Plex Sans';color:#A0A8B6;display:flex;gap:10px;align-items:center}
+.to{font:500 11.5px 'JetBrains Mono';color:#7C8595;white-space:nowrap;width:110px;text-align:right}
+.to b{color:#FFC879;font-weight:600}
+.done{font:500 11.5px 'IBM Plex Sans';color:#7BE3CC;border:1px solid rgba(79,209,181,.4);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.more{margin:6px 22px 10px;height:32px;border-radius:9px;border:1px dashed rgba(255,255,255,.16);background:transparent;color:#C9CED8;font:500 12.5px 'IBM Plex Sans';display:flex;align-items:center;justify-content:center;gap:6px;width:calc(100% - 44px)}
+</style>
+</helmet>
+<div class="app" style="width:1366px;height:768px">
+<div class="dots" aria-hidden="true"></div>
+<header class="g" style="position:absolute;left:8px;right:8px;top:8px;height:44px;border-radius:14px;display:flex;align-items:center;gap:12px;padding:0 8px 0 12px">
+ <span style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><svg aria-hidden="true" width="18" height="20" viewBox="0 0 18 20" fill="none" stroke="#F2A541" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 1v6L1.6 16.2C1 17.3 1.8 19 3 19h12c1.2 0 2-1.7 1.4-2.8L11 7V1M5.5 1h7"></path></svg>Promptorium</span>
+ <span class="g2" style="height:30px;border-radius:8px;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:12px;color:#A0A8B6">Workspace <b style="color:#E7E9EE;font-weight:600">loja-da-ana</b> <span class="mono" style="color:#4FD1B5;font-size:11px">main</span></span>
+ <div style="flex:1"></div>
+ <button class="cta"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"></path></svg>Nova spec</button>
+</header>
+<nav class="g" aria-label="Seções" style="position:absolute;left:8px;top:60px;bottom:44px;width:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0">
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h9"></path></svg></div>
+ <div class="sepv"></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h7l4 4v12H5zM8 9h5M8 12h5"></path></svg></div>
+ <div class="it on"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#F2A541" stroke-width="1.5" stroke-linejoin="round"><path d="M3 4h4v12H3zM9 4h4v8H9zM15 4h3v10h-3z"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h14v12H3zM6 8l3 2-3 2M11 12h3"></path></svg></div>
+ <div class="it"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#A0A8B6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v14M6 7a4 4 0 0 0 8 0V3M14 17v-6"></path></svg></div>
+</nav>
+<footer class="g" style="position:absolute;left:8px;right:8px;bottom:8px;height:28px;border-radius:10px;display:flex;align-items:center;gap:14px;padding:0 12px;font-size:11px;color:#7C8595"><span class="mono" style="color:#4FD1B5">● claude</span><span>gh logado como ana-souza</span><span style="flex:1"></span><span class="mono">0.18.0</span></footer>
+<section class="g qb" aria-label="Quadro">
+ <div class="qbar"><h2>Quadro</h2><div class="seg"><span class="on">Colunas</span><span>Grafo</span></div><span class="tbtn">Bandeja<b>2</b></span><span style="flex:1"></span><span class="go">Executar tudo</span></div>
+ <div class="tray"><div class="trh"><div style="flex:1"><h4>Bandeja</h4><div class="sub">Rascunhos e aprovadas que ainda não estão no quadro.</div></div></div></div>
+ <div class="cols2"><div class="qcol"><div class="ch">Backlog<b>2</b></div></div><div class="qcol"><div class="ch">Em execução<b>1</b></div></div><div class="qcol"><div class="ch">Review<b>1</b></div></div><div class="qcol"><div class="ch">Feito<b>4</b></div></div></div>
+</section>
+<div class="scrim" aria-hidden="true"></div>
+<div class="dlg" role="dialog" aria-label="Importar issues" style="top:62px;width:820px">
+ <div class="dh">
+  <div style="flex:1"><h3>Importar issues</h3><div class="sub">ana-souza/loja-da-ana no GitHub · cada issue marcada vira uma spec em rascunho na Bandeja</div></div>
+  <button class="x" aria-label="Fechar"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#C9CED8" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5 5 15"></path></svg></button>
+ </div>
+ <div class="flt">
+  <label class="srch"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#7C8595" stroke-width="1.6" stroke-linecap="round"><path d="M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3zM13.5 13.5 17 17"></path></svg><span>Buscar no título e no texto…</span></label>
+  <button class="dd">Estado <b>Abertas</b></button>
+  <button class="dd on">Label <b>checkout</b></button>
+  <button class="dd">Milestone <b>v1.2</b></button>
+  <button class="dd">Responsável <b>qualquer</b></button>
+ </div>
+ <div class="cnt"><span>14 issues abertas com estes filtros · mostrando 6</span><span style="flex:1"></span><button class="lk">Marcar todas</button></div>
+ <div class="rows" role="group" aria-label="Issues">
+  <div class="rw on"><button class="cb on" aria-label="Importar #212" aria-pressed="true"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3 3 7-7"></path></svg></button><span class="rn">#212</span><div class="rc"><div class="rt"><span class="ti">Carrinho some ao trocar de aba</span><span class="lbl bug">bug</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>@lucas-andrade</span><span>aberta há 9 dias</span></div></div><span class="to">vira <b>SPEC-024</b></span></div>
+  <div class="rw on"><button class="cb on" aria-label="Importar #215" aria-pressed="true"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3 3 7-7"></path></svg></button><span class="rn">#215</span><div class="rc"><div class="rt"><span class="ti">Cupom não aplica em produto já com desconto</span><span class="lbl bug">bug</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>@ana-souza</span><span>checklist · 3 itens</span></div></div><span class="to">vira <b>SPEC-025</b></span></div>
+  <div class="rw on"><button class="cb on" aria-label="Importar #218" aria-pressed="true"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#1A1206" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 10.5l3 3 7-7"></path></svg></button><span class="rn">#218</span><div class="rc"><div class="rt"><span class="ti">Frete grátis acima de R$ 199</span><span class="lbl enh">enhancement</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>sem responsável</span><span>2 imagens</span></div></div><span class="to">vira <b>SPEC-026</b></span></div>
+  <div class="rw lock"><span class="cb dis" aria-hidden="true"></span><span class="rn">#226</span><div class="rc"><div class="rt"><span class="ti">Pix com QR code na confirmação</span><span class="lbl enh">enhancement</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>@ana-souza</span></div></div><span class="done">já importada · SPEC-023</span><button class="lk">Abrir</button></div>
+  <div class="rw"><button class="cb" aria-label="Importar #229" aria-pressed="false"></button><span class="rn">#229</span><div class="rc"><div class="rt"><span class="ti">Endereço salvo aparece duplicado no checkout</span><span class="lbl bug">bug</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>@lucas-andrade</span></div></div><span class="to"></span></div>
+  <div class="rw"><button class="cb" aria-label="Importar #231" aria-pressed="false"></button><span class="rn">#231</span><div class="rc"><div class="rt"><span class="ti">Cupom expira no meio do pagamento</span><span class="lbl bug">bug</span><span class="lbl chk">checkout</span></div><div class="rm"><span>v1.2</span><span>sem responsável</span></div></div><span class="to"></span></div>
+ </div>
+ <button class="more"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="#C9CED8" stroke-width="1.6" stroke-linecap="round"><path d="M5 8l5 5 5-5"></path></svg>Carregar mais 8</button>
+ <div class="df"><span class="info">Entram como rascunho na Bandeja, com <span class="mono" style="color:#C9CED8">issue: N</span> no frontmatter. Nada muda no GitHub.</span><button class="gh">Cancelar</button><button class="go">Importar 3 issues</button></div>
+</div>
+<div class="note" style="left:1100px;top:132px">← label, milestone, responsável e busca</div>
+<div class="note" style="left:1100px;top:345px">← número previsto (SPEC-068)</div>
+<div class="note warn" style="left:1100px;top:404px">← já importada: travada, sem duplicar</div>
+<div class="note" style="left:1100px;top:612px">← páginas de 50</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1366,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -108,6 +108,7 @@ void main() {
 
     test('prompt: spec embedded, done / now / later, commit and marker', () {
       final spec = Spec(
+        issueCommentPending: false,
         hasPlan: false,
         inTray: false,
         kind: SpecKind.spec,
@@ -269,6 +270,7 @@ id: SPEC-009
       'flutter test test/b_test.dart',
     ]);
     final spec = Spec(
+      issueCommentPending: false,
       hasPlan: false,
       inTray: false,
       kind: SpecKind.spec,
@@ -327,6 +329,7 @@ status: aprovada
 - R1 → docs/mockups/spec-009/R1-lista.b.html
 ''';
     final spec = Spec(
+      issueCommentPending: false,
       hasPlan: false,
       inTray: false,
       kind: SpecKind.spec,

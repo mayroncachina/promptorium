@@ -26,6 +26,7 @@ import 'board_screen_test.dart' show pumpBoard, pumpFor, text;
 import 'spec_runner_test.dart' show resultLine;
 
 Spec spec(int id, String code, List<String> deps, {SpecStage? stage}) => Spec(
+  issueCommentPending: false,
   hasPlan: false,
   inTray: false,
   kind: SpecKind.spec,

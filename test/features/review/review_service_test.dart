@@ -45,6 +45,9 @@ class FakeCommands {
 
   /// While set, `which` waits for it (a slow probe).
   Completer<void>? gate;
+
+  /// `gh repo view --json defaultBranchRef` (SPEC-074 R8).
+  String defaultBranch = 'main';
   final calls = <(String, List<String>, String?)>[];
 
   Future<ProcessResult> call(
@@ -67,6 +70,9 @@ class FakeCommands {
         inline,
         apiError ? 'offline' : '',
       );
+    }
+    if (exe == 'gh' && args.take(2).join(' ') == 'repo view') {
+      return ProcessResult(1, 0, '$defaultBranch\n', '');
     }
     if (exe == 'gh' && args.take(2).join(' ') == 'pr view') {
       return ProcessResult(1, 0, prView ?? '{}', '');
@@ -1465,6 +1471,82 @@ void main() {
     );
     expect(gh.$2, containsAllInOrder(['--title', 'TASK-001: Barra de status']));
   });
+
+  test('SPEC-074 R8: the line of the issue in the body: Closes into the '
+      'default branch, Parte de into another, Issue: when off, none '
+      'without issue:', () {
+    expect(prIssueLine(issue: null, base: 'main'), isNull);
+    expect(
+      prIssueLine(issue: 226, base: 'main', defaultBranch: 'main'),
+      'Closes #226',
+    );
+    expect(
+      prIssueLine(issue: 226, base: 'spec/020-frete', defaultBranch: 'main'),
+      'Parte de #226',
+    );
+    expect(
+      prIssueLine(
+        issue: 226,
+        base: 'main',
+        defaultBranch: 'main',
+        closesInPr: false,
+      ),
+      'Issue: #226',
+    );
+    expect(prIssueLine(issue: 226, base: 'master'), 'Closes #226');
+    expect(
+      prIssueDetail(issue: 226, base: 'main', defaultBranch: 'main'),
+      '#226 fecha quando este PR entrar na main',
+    );
+    expect(
+      prIssueDetail(issue: 226, base: 'spec/020-frete', defaultBranch: 'main'),
+      '#226 não fecha: a base é spec/020-frete',
+    );
+  });
+
+  for (final (defaultBranch, line) in [
+    ('main', 'Closes #226'),
+    ('develop', 'Parte de #226'),
+  ]) {
+    test(
+      'SPEC-074 R8: Criar PR of a linked spec (default branch '
+      '$defaultBranch) carries "$line"; "Pronto para merge?" says it',
+      () async {
+        final cmds = FakeCommands()..defaultBranch = defaultBranch;
+        final e = await setUpSession(commands: cmds);
+        final remote = '${tmp.path}/remote.git';
+        await Process.run('git', ['init', '-q', '--bare', remote]);
+        await gitIn(repo, ['remote', 'add', 'origin', remote]);
+        final spec = await e.c
+            .read(specsRepoProvider)
+            .insert(
+              workspaceId: e.ws.id,
+              code: 'SPEC-023',
+              title: 'Pix',
+              path: 'specs/SPEC-023-pix.md',
+              issueNumber: 226,
+            );
+        final db = e.c.read(appDatabaseProvider);
+        await (db.update(db.sessions)..where((x) => x.id.equals(e.sessionId)))
+            .write(SessionsCompanion(specId: Value(spec.id)));
+        final item = await e.review.issueReadiness(e.sessionId);
+        expect(item!.label, 'Issue #226');
+        expect(
+          item.detail,
+          defaultBranch == 'main'
+              ? '#226 fecha quando este PR entrar na main'
+              : '#226 não fecha: a base é main',
+        );
+        await e.review.createPr(e.sessionId);
+        final gh = cmds.calls.lastWhere(
+          (c) => c.$1 == 'gh' && c.$2.take(2).join(' ') == 'pr create',
+        );
+        final body = gh.$2[gh.$2.indexOf('--body') + 1];
+        expect(body, contains('\n\n$line\n\nCriado pelo Promptorium'));
+        expect(RegExp(r'Closes|Parte de').allMatches(body), hasLength(1));
+      },
+    );
+  }
 
   test('Criar PR: gh not logged in blocks it; draft adds --draft; PR '
       'checks are read', () async {

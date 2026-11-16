@@ -134,7 +134,23 @@ class SpecHeaderState {
     this.generateReason,
     this.runningId,
     this.runningLabel,
+    this.onCreateIssue,
+    this.createIssueReason,
+    this.issueMenu = const [],
   });
+
+  /// "Criar issue" (SPEC-074 R11): shown when the spec has no `issue:`
+  /// ([onCreateIssue] or [createIssueReason] set); off with the reason
+  /// without GitHub (R2).
+  final VoidCallback? onCreateIssue;
+  final String? createIssueReason;
+
+  bool get offersCreateIssue =>
+      onCreateIssue != null || createIssueReason != null;
+
+  /// Items of "Mais ações" for the linked GitHub issue (SPEC-074 R6, R7,
+  /// R11), before archive / delete.
+  final List<SpecAction> issueMenu;
 
   /// The execution started (`stage != backlog`): only "Clonar para alterar".
   final bool locked;
@@ -212,7 +228,22 @@ List<SpecAction> specHeaderActions(SpecHeaderState s) {
 
 List<SpecAction> _specHeaderActions(SpecHeaderState s) {
   final why = s.unavailableReason ?? 'Aguarde a spec carregar.';
+  final createIssue = SpecAction(
+    id: 'create-issue',
+    keyName: 'spec-create-issue',
+    label: 'Criar issue',
+    icon: Icons.add_task,
+    emphasis: SpecActionEmphasis.secondary,
+    tooltip:
+        'Cria uma issue no GitHub com o Objetivo e os requisitos, e liga a '
+        'spec a ela.',
+    onTap: s.onCreateIssue,
+    unavailableReason: s.createIssueReason,
+    // The first to go to "Mais ações" without room.
+    priority: -2,
+  );
   final menu = <SpecAction>[
+    ...s.issueMenu,
     if (s.onArchive != null)
       SpecAction(
         id: 'archive',
@@ -277,10 +308,12 @@ List<SpecAction> _specHeaderActions(SpecHeaderState s) {
         onTap: s.onClone,
         unavailableReason: why,
       ),
+      if (s.offersCreateIssue) createIssue.toMenu(),
       ...menu,
     ];
   }
   return [
+    if (s.offersCreateIssue) createIssue,
     SpecAction(
       id: 'refine',
       keyName: 'spec-refine',
@@ -456,6 +489,7 @@ class SpecHeader extends StatelessWidget {
     this.lockAlert = false,
     this.planned = false,
     this.agentCreated = false,
+    this.issueBadge,
   });
 
   final String title;
@@ -491,6 +525,9 @@ class SpecHeader extends StatelessWidget {
   /// "Criada pelo agente" next to the status (SPEC-052 R6).
   final bool agentCreated;
 
+  /// The `#N` of the linked issue, on the path line (SPEC-074 R1).
+  final Widget? issueBadge;
+
   @override
   Widget build(BuildContext context) {
     final identity = Column(
@@ -514,6 +551,10 @@ class SpecHeader extends StatelessWidget {
                 ),
               ),
               // SPEC-052 R6: on the path line, so the title keeps its width.
+              if (issueBadge != null) ...[
+                const SizedBox(width: 8),
+                issueBadge!,
+              ],
               if (agentCreated) ...[
                 const SizedBox(width: 8),
                 const AgentCreatedChip(key: ValueKey('spec-agent-chip')),

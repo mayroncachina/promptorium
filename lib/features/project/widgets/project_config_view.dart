@@ -216,6 +216,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
   late bool _requireCommit = _saved.gate.requireCommit;
   late bool _requireClean = _saved.gate.requireCleanTree;
   late bool _markAgents = _saved.git.markAgentCommits;
+  late IssuesConfig _issues = _saved.issues;
   late String? _agent = _saved.agent;
   late List<SpecSubagent> _subagents = _saved.subagents;
   String? _error;
@@ -308,6 +309,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
     ),
     git: GitConfig(markAgentCommits: _markAgents),
     autoFixCi: _autoFixCi,
+    issues: _issues,
   );
 
   /// `dev:` from the three fields (SPEC-051 R1); empty command = none.
@@ -494,6 +496,102 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Group "Issues do GitHub" (SPEC-074 R8–R10): in the `config.yml`, the
+  /// same for everyone who uses the repository in the app (P1).
+  Widget _issuesGroup() {
+    Widget toggle(
+      String key,
+      String title,
+      String detail,
+      bool value,
+      IssuesConfig Function(bool) set,
+    ) => MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Switch(
+              key: ValueKey('config-issues-$key'),
+              value: value,
+              activeThumbColor: AppColors.amber,
+              onChanged: (v) => setState(() => _issues = set(v)),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Container(
+      key: const ValueKey('config-issues-group'),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Issues do GitHub',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Vale para todos que usam este repositório no app.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          toggle(
+            'closes',
+            'Closes #N no PR da spec',
+            'O PR de uma spec com issue: N fecha a issue no merge.',
+            _issues.closesInPr,
+            (v) => _issues.copyWith(closesInPr: v),
+          ),
+          toggle(
+            'comment',
+            'Comentar o andamento nas issues',
+            'Um comentário por spec, atualizado a cada nota de andamento do '
+                'agente. Quem acompanha a issue vê. Desligado por padrão.',
+            _issues.commentProgress,
+            (v) => _issues.copyWith(commentProgress: v),
+          ),
+          toggle(
+            'check',
+            'Conferir issues fechadas',
+            'A cada 10 minutos com o app aberto, e ao abrir o Quadro.',
+            _issues.checkClosed,
+            (v) => _issues.copyWith(checkClosed: v),
+          ),
+        ],
       ),
     );
   }
@@ -695,6 +793,8 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
       ),
       const SizedBox(height: 16),
       _gitGroup(path),
+      const SizedBox(height: 16),
+      _issuesGroup(),
       _label('Formatar ao editar', '{arquivo} = arquivo editado pelo agente'),
       _field(
         const ValueKey('config-format'),

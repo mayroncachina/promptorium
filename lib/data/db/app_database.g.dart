@@ -1136,6 +1136,75 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _issueNumberMeta = const VerificationMeta(
+    'issueNumber',
+  );
+  @override
+  late final GeneratedColumn<int> issueNumber = GeneratedColumn<int>(
+    'issue_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<IssueState?, String> issueState =
+      GeneratedColumn<String>(
+        'issue_state',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<IssueState?>($SpecsTable.$converterissueStaten);
+  static const VerificationMeta _issueClosedAtMeta = const VerificationMeta(
+    'issueClosedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> issueClosedAt =
+      GeneratedColumn<DateTime>(
+        'issue_closed_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _issueClosedByMeta = const VerificationMeta(
+    'issueClosedBy',
+  );
+  @override
+  late final GeneratedColumn<String> issueClosedBy = GeneratedColumn<String>(
+    'issue_closed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _issueImportedAtMeta = const VerificationMeta(
+    'issueImportedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> issueImportedAt =
+      GeneratedColumn<DateTime>(
+        'issue_imported_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _issueCommentPendingMeta =
+      const VerificationMeta('issueCommentPending');
+  @override
+  late final GeneratedColumn<bool> issueCommentPending = GeneratedColumn<bool>(
+    'issue_comment_pending',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("issue_comment_pending" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1171,6 +1240,12 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
     inTray,
     kind,
     agentSession,
+    issueNumber,
+    issueState,
+    issueClosedAt,
+    issueClosedBy,
+    issueImportedAt,
+    issueCommentPending,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1399,6 +1474,51 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         ),
       );
     }
+    if (data.containsKey('issue_number')) {
+      context.handle(
+        _issueNumberMeta,
+        issueNumber.isAcceptableOrUnknown(
+          data['issue_number']!,
+          _issueNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('issue_closed_at')) {
+      context.handle(
+        _issueClosedAtMeta,
+        issueClosedAt.isAcceptableOrUnknown(
+          data['issue_closed_at']!,
+          _issueClosedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('issue_closed_by')) {
+      context.handle(
+        _issueClosedByMeta,
+        issueClosedBy.isAcceptableOrUnknown(
+          data['issue_closed_by']!,
+          _issueClosedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('issue_imported_at')) {
+      context.handle(
+        _issueImportedAtMeta,
+        issueImportedAt.isAcceptableOrUnknown(
+          data['issue_imported_at']!,
+          _issueImportedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('issue_comment_pending')) {
+      context.handle(
+        _issueCommentPendingMeta,
+        issueCommentPending.isAcceptableOrUnknown(
+          data['issue_comment_pending']!,
+          _issueCommentPendingMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1554,6 +1674,32 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
         DriftSqlType.string,
         data['${effectivePrefix}agent_session'],
       ),
+      issueNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}issue_number'],
+      ),
+      issueState: $SpecsTable.$converterissueStaten.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}issue_state'],
+        ),
+      ),
+      issueClosedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}issue_closed_at'],
+      ),
+      issueClosedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}issue_closed_by'],
+      ),
+      issueImportedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}issue_imported_at'],
+      ),
+      issueCommentPending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}issue_comment_pending'],
+      )!,
     );
   }
 
@@ -1572,6 +1718,10 @@ class $SpecsTable extends Specs with TableInfo<$SpecsTable, Spec> {
       const StringListConverter();
   static JsonTypeConverter2<SpecKind, String, String> $converterkind =
       const EnumNameConverter<SpecKind>(SpecKind.values);
+  static JsonTypeConverter2<IssueState, String, String> $converterissueState =
+      const EnumNameConverter<IssueState>(IssueState.values);
+  static JsonTypeConverter2<IssueState?, String?, String?>
+  $converterissueStaten = JsonTypeConverter2.asNullable($converterissueState);
 }
 
 class Spec extends DataClass implements Insertable<Spec> {
@@ -1672,6 +1822,25 @@ class Spec extends DataClass implements Insertable<Spec> {
   /// Session of `origem: agente` / `sessao:` in the frontmatter (a spec
   /// created through the Promptorium MCP); null for the others.
   final String? agentSession;
+
+  /// `issue: N` of the frontmatter, filled by every reading of the file.
+  final int? issueNumber;
+
+  /// State of the issue on GitHub (null = not checked yet). The rest of
+  /// this block belongs to the app, like the origin of SPEC-068.
+  final IssueState? issueState;
+  final DateTime? issueClosedAt;
+
+  /// `PR #250`, `à mão` (null = open or unknown).
+  final String? issueClosedBy;
+
+  /// When "Importar issues" (or "Atualizar com a issue") took the issue's
+  /// text: an issue edited after it "mudou" (R7).
+  final DateTime? issueImportedAt;
+
+  /// The progress comment could not be published (R10): the next note
+  /// tries again.
+  final bool issueCommentPending;
   const Spec({
     required this.id,
     required this.workspaceId,
@@ -1706,6 +1875,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     required this.inTray,
     required this.kind,
     this.agentSession,
+    this.issueNumber,
+    this.issueState,
+    this.issueClosedAt,
+    this.issueClosedBy,
+    this.issueImportedAt,
+    required this.issueCommentPending,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1793,6 +1968,24 @@ class Spec extends DataClass implements Insertable<Spec> {
     if (!nullToAbsent || agentSession != null) {
       map['agent_session'] = Variable<String>(agentSession);
     }
+    if (!nullToAbsent || issueNumber != null) {
+      map['issue_number'] = Variable<int>(issueNumber);
+    }
+    if (!nullToAbsent || issueState != null) {
+      map['issue_state'] = Variable<String>(
+        $SpecsTable.$converterissueStaten.toSql(issueState),
+      );
+    }
+    if (!nullToAbsent || issueClosedAt != null) {
+      map['issue_closed_at'] = Variable<DateTime>(issueClosedAt);
+    }
+    if (!nullToAbsent || issueClosedBy != null) {
+      map['issue_closed_by'] = Variable<String>(issueClosedBy);
+    }
+    if (!nullToAbsent || issueImportedAt != null) {
+      map['issue_imported_at'] = Variable<DateTime>(issueImportedAt);
+    }
+    map['issue_comment_pending'] = Variable<bool>(issueCommentPending);
     return map;
   }
 
@@ -1865,6 +2058,22 @@ class Spec extends DataClass implements Insertable<Spec> {
       agentSession: agentSession == null && nullToAbsent
           ? const Value.absent()
           : Value(agentSession),
+      issueNumber: issueNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueNumber),
+      issueState: issueState == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueState),
+      issueClosedAt: issueClosedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueClosedAt),
+      issueClosedBy: issueClosedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueClosedBy),
+      issueImportedAt: issueImportedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(issueImportedAt),
+      issueCommentPending: Value(issueCommentPending),
     );
   }
 
@@ -1917,6 +2126,16 @@ class Spec extends DataClass implements Insertable<Spec> {
         serializer.fromJson<String>(json['kind']),
       ),
       agentSession: serializer.fromJson<String?>(json['agentSession']),
+      issueNumber: serializer.fromJson<int?>(json['issueNumber']),
+      issueState: $SpecsTable.$converterissueStaten.fromJson(
+        serializer.fromJson<String?>(json['issueState']),
+      ),
+      issueClosedAt: serializer.fromJson<DateTime?>(json['issueClosedAt']),
+      issueClosedBy: serializer.fromJson<String?>(json['issueClosedBy']),
+      issueImportedAt: serializer.fromJson<DateTime?>(json['issueImportedAt']),
+      issueCommentPending: serializer.fromJson<bool>(
+        json['issueCommentPending'],
+      ),
     );
   }
   @override
@@ -1964,6 +2183,14 @@ class Spec extends DataClass implements Insertable<Spec> {
         $SpecsTable.$converterkind.toJson(kind),
       ),
       'agentSession': serializer.toJson<String?>(agentSession),
+      'issueNumber': serializer.toJson<int?>(issueNumber),
+      'issueState': serializer.toJson<String?>(
+        $SpecsTable.$converterissueStaten.toJson(issueState),
+      ),
+      'issueClosedAt': serializer.toJson<DateTime?>(issueClosedAt),
+      'issueClosedBy': serializer.toJson<String?>(issueClosedBy),
+      'issueImportedAt': serializer.toJson<DateTime?>(issueImportedAt),
+      'issueCommentPending': serializer.toJson<bool>(issueCommentPending),
     };
   }
 
@@ -2001,6 +2228,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     bool? inTray,
     SpecKind? kind,
     Value<String?> agentSession = const Value.absent(),
+    Value<int?> issueNumber = const Value.absent(),
+    Value<IssueState?> issueState = const Value.absent(),
+    Value<DateTime?> issueClosedAt = const Value.absent(),
+    Value<String?> issueClosedBy = const Value.absent(),
+    Value<DateTime?> issueImportedAt = const Value.absent(),
+    bool? issueCommentPending,
   }) => Spec(
     id: id ?? this.id,
     workspaceId: workspaceId ?? this.workspaceId,
@@ -2041,6 +2274,18 @@ class Spec extends DataClass implements Insertable<Spec> {
     inTray: inTray ?? this.inTray,
     kind: kind ?? this.kind,
     agentSession: agentSession.present ? agentSession.value : this.agentSession,
+    issueNumber: issueNumber.present ? issueNumber.value : this.issueNumber,
+    issueState: issueState.present ? issueState.value : this.issueState,
+    issueClosedAt: issueClosedAt.present
+        ? issueClosedAt.value
+        : this.issueClosedAt,
+    issueClosedBy: issueClosedBy.present
+        ? issueClosedBy.value
+        : this.issueClosedBy,
+    issueImportedAt: issueImportedAt.present
+        ? issueImportedAt.value
+        : this.issueImportedAt,
+    issueCommentPending: issueCommentPending ?? this.issueCommentPending,
   );
   Spec copyWithCompanion(SpecsCompanion data) {
     return Spec(
@@ -2115,6 +2360,24 @@ class Spec extends DataClass implements Insertable<Spec> {
       agentSession: data.agentSession.present
           ? data.agentSession.value
           : this.agentSession,
+      issueNumber: data.issueNumber.present
+          ? data.issueNumber.value
+          : this.issueNumber,
+      issueState: data.issueState.present
+          ? data.issueState.value
+          : this.issueState,
+      issueClosedAt: data.issueClosedAt.present
+          ? data.issueClosedAt.value
+          : this.issueClosedAt,
+      issueClosedBy: data.issueClosedBy.present
+          ? data.issueClosedBy.value
+          : this.issueClosedBy,
+      issueImportedAt: data.issueImportedAt.present
+          ? data.issueImportedAt.value
+          : this.issueImportedAt,
+      issueCommentPending: data.issueCommentPending.present
+          ? data.issueCommentPending.value
+          : this.issueCommentPending,
     );
   }
 
@@ -2153,7 +2416,13 @@ class Spec extends DataClass implements Insertable<Spec> {
           ..write('originTitle: $originTitle, ')
           ..write('inTray: $inTray, ')
           ..write('kind: $kind, ')
-          ..write('agentSession: $agentSession')
+          ..write('agentSession: $agentSession, ')
+          ..write('issueNumber: $issueNumber, ')
+          ..write('issueState: $issueState, ')
+          ..write('issueClosedAt: $issueClosedAt, ')
+          ..write('issueClosedBy: $issueClosedBy, ')
+          ..write('issueImportedAt: $issueImportedAt, ')
+          ..write('issueCommentPending: $issueCommentPending')
           ..write(')'))
         .toString();
   }
@@ -2193,6 +2462,12 @@ class Spec extends DataClass implements Insertable<Spec> {
     inTray,
     kind,
     agentSession,
+    issueNumber,
+    issueState,
+    issueClosedAt,
+    issueClosedBy,
+    issueImportedAt,
+    issueCommentPending,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2230,7 +2505,13 @@ class Spec extends DataClass implements Insertable<Spec> {
           other.originTitle == this.originTitle &&
           other.inTray == this.inTray &&
           other.kind == this.kind &&
-          other.agentSession == this.agentSession);
+          other.agentSession == this.agentSession &&
+          other.issueNumber == this.issueNumber &&
+          other.issueState == this.issueState &&
+          other.issueClosedAt == this.issueClosedAt &&
+          other.issueClosedBy == this.issueClosedBy &&
+          other.issueImportedAt == this.issueImportedAt &&
+          other.issueCommentPending == this.issueCommentPending);
 }
 
 class SpecsCompanion extends UpdateCompanion<Spec> {
@@ -2267,6 +2548,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
   final Value<bool> inTray;
   final Value<SpecKind> kind;
   final Value<String?> agentSession;
+  final Value<int?> issueNumber;
+  final Value<IssueState?> issueState;
+  final Value<DateTime?> issueClosedAt;
+  final Value<String?> issueClosedBy;
+  final Value<DateTime?> issueImportedAt;
+  final Value<bool> issueCommentPending;
   const SpecsCompanion({
     this.id = const Value.absent(),
     this.workspaceId = const Value.absent(),
@@ -2301,6 +2588,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.inTray = const Value.absent(),
     this.kind = const Value.absent(),
     this.agentSession = const Value.absent(),
+    this.issueNumber = const Value.absent(),
+    this.issueState = const Value.absent(),
+    this.issueClosedAt = const Value.absent(),
+    this.issueClosedBy = const Value.absent(),
+    this.issueImportedAt = const Value.absent(),
+    this.issueCommentPending = const Value.absent(),
   });
   SpecsCompanion.insert({
     this.id = const Value.absent(),
@@ -2336,6 +2629,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     this.inTray = const Value.absent(),
     this.kind = const Value.absent(),
     this.agentSession = const Value.absent(),
+    this.issueNumber = const Value.absent(),
+    this.issueState = const Value.absent(),
+    this.issueClosedAt = const Value.absent(),
+    this.issueClosedBy = const Value.absent(),
+    this.issueImportedAt = const Value.absent(),
+    this.issueCommentPending = const Value.absent(),
   }) : workspaceId = Value(workspaceId),
        code = Value(code),
        title = Value(title),
@@ -2374,6 +2673,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Expression<bool>? inTray,
     Expression<String>? kind,
     Expression<String>? agentSession,
+    Expression<int>? issueNumber,
+    Expression<String>? issueState,
+    Expression<DateTime>? issueClosedAt,
+    Expression<String>? issueClosedBy,
+    Expression<DateTime>? issueImportedAt,
+    Expression<bool>? issueCommentPending,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2410,6 +2715,13 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       if (inTray != null) 'in_tray': inTray,
       if (kind != null) 'kind': kind,
       if (agentSession != null) 'agent_session': agentSession,
+      if (issueNumber != null) 'issue_number': issueNumber,
+      if (issueState != null) 'issue_state': issueState,
+      if (issueClosedAt != null) 'issue_closed_at': issueClosedAt,
+      if (issueClosedBy != null) 'issue_closed_by': issueClosedBy,
+      if (issueImportedAt != null) 'issue_imported_at': issueImportedAt,
+      if (issueCommentPending != null)
+        'issue_comment_pending': issueCommentPending,
     });
   }
 
@@ -2447,6 +2759,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     Value<bool>? inTray,
     Value<SpecKind>? kind,
     Value<String?>? agentSession,
+    Value<int?>? issueNumber,
+    Value<IssueState?>? issueState,
+    Value<DateTime?>? issueClosedAt,
+    Value<String?>? issueClosedBy,
+    Value<DateTime?>? issueImportedAt,
+    Value<bool>? issueCommentPending,
   }) {
     return SpecsCompanion(
       id: id ?? this.id,
@@ -2482,6 +2800,12 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
       inTray: inTray ?? this.inTray,
       kind: kind ?? this.kind,
       agentSession: agentSession ?? this.agentSession,
+      issueNumber: issueNumber ?? this.issueNumber,
+      issueState: issueState ?? this.issueState,
+      issueClosedAt: issueClosedAt ?? this.issueClosedAt,
+      issueClosedBy: issueClosedBy ?? this.issueClosedBy,
+      issueImportedAt: issueImportedAt ?? this.issueImportedAt,
+      issueCommentPending: issueCommentPending ?? this.issueCommentPending,
     );
   }
 
@@ -2597,6 +2921,26 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
     if (agentSession.present) {
       map['agent_session'] = Variable<String>(agentSession.value);
     }
+    if (issueNumber.present) {
+      map['issue_number'] = Variable<int>(issueNumber.value);
+    }
+    if (issueState.present) {
+      map['issue_state'] = Variable<String>(
+        $SpecsTable.$converterissueStaten.toSql(issueState.value),
+      );
+    }
+    if (issueClosedAt.present) {
+      map['issue_closed_at'] = Variable<DateTime>(issueClosedAt.value);
+    }
+    if (issueClosedBy.present) {
+      map['issue_closed_by'] = Variable<String>(issueClosedBy.value);
+    }
+    if (issueImportedAt.present) {
+      map['issue_imported_at'] = Variable<DateTime>(issueImportedAt.value);
+    }
+    if (issueCommentPending.present) {
+      map['issue_comment_pending'] = Variable<bool>(issueCommentPending.value);
+    }
     return map;
   }
 
@@ -2635,7 +2979,13 @@ class SpecsCompanion extends UpdateCompanion<Spec> {
           ..write('originTitle: $originTitle, ')
           ..write('inTray: $inTray, ')
           ..write('kind: $kind, ')
-          ..write('agentSession: $agentSession')
+          ..write('agentSession: $agentSession, ')
+          ..write('issueNumber: $issueNumber, ')
+          ..write('issueState: $issueState, ')
+          ..write('issueClosedAt: $issueClosedAt, ')
+          ..write('issueClosedBy: $issueClosedBy, ')
+          ..write('issueImportedAt: $issueImportedAt, ')
+          ..write('issueCommentPending: $issueCommentPending')
           ..write(')'))
         .toString();
   }
@@ -16325,6 +16675,12 @@ typedef $$SpecsTableCreateCompanionBuilder = SpecsCompanion Function({
   Value<bool> inTray,
   Value<SpecKind> kind,
   Value<String?> agentSession,
+  Value<int?> issueNumber,
+  Value<IssueState?> issueState,
+  Value<DateTime?> issueClosedAt,
+  Value<String?> issueClosedBy,
+  Value<DateTime?> issueImportedAt,
+  Value<bool> issueCommentPending,
 });
 typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<int> id,
@@ -16360,6 +16716,12 @@ typedef $$SpecsTableUpdateCompanionBuilder = SpecsCompanion Function({
   Value<bool> inTray,
   Value<SpecKind> kind,
   Value<String?> agentSession,
+  Value<int?> issueNumber,
+  Value<IssueState?> issueState,
+  Value<DateTime?> issueClosedAt,
+  Value<String?> issueClosedBy,
+  Value<DateTime?> issueImportedAt,
+  Value<bool> issueCommentPending,
 });
 
 final class $$SpecsTableReferences
@@ -16737,6 +17099,37 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
 
   ColumnFilters<String> get agentSession => $composableBuilder(
     column: $table.agentSession,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get issueNumber => $composableBuilder(
+    column: $table.issueNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<IssueState?, IssueState, String>
+  get issueState => $composableBuilder(
+    column: $table.issueState,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<DateTime> get issueClosedAt => $composableBuilder(
+    column: $table.issueClosedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get issueClosedBy => $composableBuilder(
+    column: $table.issueClosedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get issueImportedAt => $composableBuilder(
+    column: $table.issueImportedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get issueCommentPending => $composableBuilder(
+    column: $table.issueCommentPending,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17176,6 +17569,36 @@ class $$SpecsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get issueNumber => $composableBuilder(
+    column: $table.issueNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get issueState => $composableBuilder(
+    column: $table.issueState,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get issueClosedAt => $composableBuilder(
+    column: $table.issueClosedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get issueClosedBy => $composableBuilder(
+    column: $table.issueClosedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get issueImportedAt => $composableBuilder(
+    column: $table.issueImportedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get issueCommentPending => $composableBuilder(
+    column: $table.issueCommentPending,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorkspacesTableOrderingComposer get workspaceId {
     final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -17359,6 +17782,37 @@ class $$SpecsTableAnnotationComposer
 
   GeneratedColumn<String> get agentSession => $composableBuilder(
     column: $table.agentSession,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get issueNumber => $composableBuilder(
+    column: $table.issueNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<IssueState?, String> get issueState =>
+      $composableBuilder(
+        column: $table.issueState,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<DateTime> get issueClosedAt => $composableBuilder(
+    column: $table.issueClosedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get issueClosedBy => $composableBuilder(
+    column: $table.issueClosedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get issueImportedAt => $composableBuilder(
+    column: $table.issueImportedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get issueCommentPending => $composableBuilder(
+    column: $table.issueCommentPending,
     builder: (column) => column,
   );
 
@@ -17708,6 +18162,12 @@ class $$SpecsTableTableManager
                 Value<bool> inTray = const Value.absent(),
                 Value<SpecKind> kind = const Value.absent(),
                 Value<String?> agentSession = const Value.absent(),
+                Value<int?> issueNumber = const Value.absent(),
+                Value<IssueState?> issueState = const Value.absent(),
+                Value<DateTime?> issueClosedAt = const Value.absent(),
+                Value<String?> issueClosedBy = const Value.absent(),
+                Value<DateTime?> issueImportedAt = const Value.absent(),
+                Value<bool> issueCommentPending = const Value.absent(),
               }) => SpecsCompanion(
                 id: id,
                 workspaceId: workspaceId,
@@ -17742,6 +18202,12 @@ class $$SpecsTableTableManager
                 inTray: inTray,
                 kind: kind,
                 agentSession: agentSession,
+                issueNumber: issueNumber,
+                issueState: issueState,
+                issueClosedAt: issueClosedAt,
+                issueClosedBy: issueClosedBy,
+                issueImportedAt: issueImportedAt,
+                issueCommentPending: issueCommentPending,
               ),
           createCompanionCallback:
               ({
@@ -17779,6 +18245,12 @@ class $$SpecsTableTableManager
                 Value<bool> inTray = const Value.absent(),
                 Value<SpecKind> kind = const Value.absent(),
                 Value<String?> agentSession = const Value.absent(),
+                Value<int?> issueNumber = const Value.absent(),
+                Value<IssueState?> issueState = const Value.absent(),
+                Value<DateTime?> issueClosedAt = const Value.absent(),
+                Value<String?> issueClosedBy = const Value.absent(),
+                Value<DateTime?> issueImportedAt = const Value.absent(),
+                Value<bool> issueCommentPending = const Value.absent(),
               }) => SpecsCompanion.insert(
                 id: id,
                 workspaceId: workspaceId,
@@ -17813,6 +18285,12 @@ class $$SpecsTableTableManager
                 inTray: inTray,
                 kind: kind,
                 agentSession: agentSession,
+                issueNumber: issueNumber,
+                issueState: issueState,
+                issueClosedAt: issueClosedAt,
+                issueClosedBy: issueClosedBy,
+                issueImportedAt: issueImportedAt,
+                issueCommentPending: issueCommentPending,
               ),
           withReferenceMapper: (p0) => p0
               .map(
