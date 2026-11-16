@@ -67,6 +67,7 @@ void main() {
   test('R1 · the new order and R6 · the shortcuts', () {
     expect(AppSection.navItems, [
       AppSection.home,
+      AppSection.activities,
       AppSection.project,
       AppSection.prompt,
       AppSection.specs,

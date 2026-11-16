@@ -71,6 +71,7 @@ void main() {
 
     expect(AppSection.navItems.map((s) => s.navLabel), [
       'Início',
+      'Atividades',
       'Projeto',
       'Prompt',
       'Specs',
@@ -82,7 +83,7 @@ void main() {
       'Ferramentas',
     ]);
     // The Prompt is the featured item (SPEC-055 R2).
-    expect(find.byType(SideBarItem), findsNWidgets(10));
+    expect(find.byType(SideBarItem), findsNWidgets(11));
     expect(find.byType(SideBarFeaturedItem), findsOneWidget);
     for (final s in AppSection.navItems) {
       expect(find.byKey(ValueKey('nav-${s.name}')), findsOneWidget);
@@ -288,6 +289,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
+    // The Atividades read every workspace's lists: unmount before the end,
+    // so drift's closing timer does not outlive the test.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(Duration.zero);
   });
 
   testWidgets('"Nova sessão" and Ctrl+N open the new session dialog', (

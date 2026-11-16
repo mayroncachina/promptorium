@@ -60,6 +60,9 @@ abstract final class AppIcons {
     'M3 13h5l1.5 3h5L16 13h5',
   ]);
 
+  /// Pulse of the Atividades (SPEC-076).
+  static final activities = AppIconData(['M3 12h4l3-8 4 16 3-8h4']);
+
   /// Compass of the Projeto screen.
   static final project = AppIconData([
     svgCircle(12, 12, 9),
