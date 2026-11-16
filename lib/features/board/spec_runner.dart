@@ -33,6 +33,7 @@ import 'orchestrator/step_classifier.dart';
 import 'orchestrator/step_plan.dart';
 import 'step_gate.dart';
 import 'test_count.dart';
+import '../activities/automation_pause.dart';
 
 class SpecRunException implements Exception {
   const SpecRunException(this.message);
@@ -1884,6 +1885,14 @@ class SpecRunner {
       // sending to it) waits for that queue.
       unawaited(
         Future<void>.microtask(() async {
+          // SPEC-076 R8, P10: "Pausar após o turno" holds the next step.
+          if (_ref.read(pauseAfterTurnProvider.notifier).take(s.id)) {
+            await _manager.note(
+              s.id,
+              'Pausada após o turno: a próxima etapa não começou.',
+            );
+            return;
+          }
           if (!await _continueHere(s, spec, steps)) await _advance(s);
         }),
       );

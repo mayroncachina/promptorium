@@ -31,6 +31,7 @@ import '../../features/specs/new_spec_view.dart';
 import '../../features/specs/specs_screen.dart';
 import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
+import '../../features/activities/activities_screen.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/glass.dart';
@@ -336,6 +337,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   static Widget _screen(AppSection s) => switch (s) {
     AppSection.home => const HomeScreen(),
+    AppSection.activities => const ActivitiesScreen(),
     AppSection.project => const ProjectScreen(),
     AppSection.sessions => const SessionsScreen(),
     AppSection.prompt => const PromptScreen(),

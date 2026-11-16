@@ -12,8 +12,9 @@ import 'navigation.dart';
 
 const _itemSize = 44.0;
 
-/// Gap below every item.
-const _gap = 4.0;
+/// Gap below every item (2: with the Atividades, SPEC-076, eleven items
+/// still fit a 700 px window).
+const _gap = 2.0;
 
 /// The featured item (the Prompt, SPEC-055 R2): 48 × 58.
 const _featuredSize = Size(48, 58);

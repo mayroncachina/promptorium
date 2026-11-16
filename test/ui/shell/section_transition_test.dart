@@ -99,8 +99,9 @@ Color? iconColor(WidgetTester tester, AppSection s) => tester
 void main() {
   test('every section has a coherent place in the sidebar order', () {
     expect(AppSection.home.navIndex, 0);
-    expect(AppSection.prompt.navIndex, 2);
-    expect(AppSection.tasks.navIndex, 4);
+    expect(AppSection.activities.navIndex, 1);
+    expect(AppSection.prompt.navIndex, 3);
+    expect(AppSection.tasks.navIndex, 5);
     for (final tool in AppSection.toolTabs) {
       expect(tool.navItem, AppSection.agents);
       expect(tool.navIndex, AppSection.navItems.indexOf(AppSection.agents));

@@ -7,6 +7,9 @@ import '../widgets/app_icon.dart';
 enum AppSection {
   /// "Para você": everything waiting for a human decision (UX v2, U1).
   home('Início', null),
+
+  /// What is running now in every workspace (SPEC-076).
+  activities('Atividades', null),
   project('Projeto', 'Novo projeto'),
   sessions('Sessões', 'Nova sessão'),
 
@@ -45,6 +48,7 @@ enum AppSection {
   /// "Ferramentas" (Agentes / Skills / MCP as tabs).
   static const navItems = [
     home,
+    activities,
     project,
     prompt,
     specs,
@@ -74,9 +78,21 @@ enum AppSection {
     return i < 0 ? navItems.length : i;
   }
 
-  /// Ctrl+1…9 and Ctrl+0 targets (same order as the sidebar; the tenth
-  /// item is Ctrl+0).
-  static const shortcutItems = navItems;
+  /// Ctrl+1…9 and Ctrl+0 targets (the sidebar's order; the tenth item is
+  /// Ctrl+0). The Atividades stays out (SPEC-076 P6): it would push every
+  /// other shortcut one key and take Ferramentas' Ctrl+0.
+  static const shortcutItems = [
+    home,
+    project,
+    prompt,
+    specs,
+    tasks,
+    sessions,
+    review,
+    repository,
+    code,
+    agents,
+  ];
 
   /// Version of the shortcut layout; a change shows a one-time notice.
   /// 4: Repositório after Review, Ferramentas on Ctrl+0 (SPEC-044).
@@ -94,6 +110,7 @@ enum AppSection {
 
   AppIconData get icon => switch (this) {
     home => AppIcons.home,
+    activities => AppIcons.activities,
     project => AppIcons.project,
     sessions => AppIcons.sessions,
     prompt => AppIcons.prompt,
