@@ -323,6 +323,8 @@ void main() {
       expect(find.byKey(const ValueKey('replay-step-3')), findsOneWidget);
       expect(find.byKey(const ValueKey('replay-step-4')), findsNothing);
       expect(find.textContaining('só a.dart'), findsOneWidget);
+      // The cursor (last step) is outside the file's steps: no "0 de N".
+      expect(position(tester), contains('só a.dart: – de'));
       expect(find.byKey(const ValueKey('replay-final-diff')), findsOneWidget);
 
       // A line no edit wrote: "veio de um comando".

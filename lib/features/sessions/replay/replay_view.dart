@@ -357,15 +357,18 @@ class _ReplayViewState extends ConsumerState<ReplayView> {
         if (e.value != null) e.key: e.value!.target,
     };
 
+    // The cursor can sit outside the filter (chosen from "Resultado").
+    final at = vis.indexOf(cur);
+    final posInVis = at < 0 ? '–' : '${at + 1}';
     final toolbar = _Toolbar(
       playing: _timer != null,
       speed: _speed,
       step: step,
       total: steps.length,
       filterInfo: c.file != null
-          ? 'só ${baseName(c.file!)}: ${vis.indexOf(cur) + 1} de ${vis.length}'
+          ? 'só ${baseName(c.file!)}: $posInVis de ${vis.length}'
           : c.filter != ReplayFilter.all
-          ? '${c.filter.label}: ${vis.indexOf(cur) + 1} de ${vis.length}'
+          ? '${c.filter.label}: $posInVis de ${vis.length}'
           : null,
       file: c.file,
       onClearFile: () => _setCursor(c.copyWith(file: () => null)),
