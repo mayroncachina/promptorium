@@ -23,6 +23,10 @@ class UsageEntriesRepo {
             ..orderBy([(e) => OrderingTerm.desc(e.at)]))
           .watch();
 
+  /// Every entry of the session [sessionId].
+  Stream<List<UsageEntry>> bySession(String sessionId) =>
+      (_db.select(_t)..where((e) => e.sessionId.equals(sessionId))).watch();
+
   /// Entries of [workspaceIds] (null = every workspace) since [since] (null
   /// = all), only those of a spec when [withSpec].
   Stream<List<UsageEntry>> byWorkspace(

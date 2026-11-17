@@ -105,8 +105,6 @@ class SpecCardData {
 
   Session? get lastSession => sessions.isEmpty ? null : sessions.last;
 
-  double get cost => sessions.fold(0.0, (a, s) => a + s.costUsd);
-
   /// Step the card highlights: the one running / waiting, else the next.
   StepView? get current =>
       steps
@@ -1954,15 +1952,8 @@ class SpecCard extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                            if (data.cost > 0)
-                              Text(
-                                formatCost(data.cost),
-                                style: const TextStyle(
-                                  fontFamily: AppFonts.mono,
-                                  fontSize: 11,
-                                  color: AppColors.textMuted,
-                                ),
-                              ),
+                            // SPEC-081 R6 (P2): no cost on the card; it
+                            // is in the panel the click opens, in quota.
                             Listener(
                               onPointerDown: AppPressable.claim,
                               child: _CardMenu(
