@@ -298,4 +298,33 @@ void main() {
     expect(row.description, '');
     await db.close();
   });
+
+  test('v29 → v30 (SPEC-081) creates the usage entries, nothing else '
+      'changes', () async {
+    final schema = await verifier.schemaAt(29);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.usageEntries)
+        .insert(
+          UsageEntriesCompanion.insert(
+            workspaceId: const Value(1),
+            source: UsageSource.etapa,
+            at: DateTime(2026, 11, 17),
+          ),
+        );
+    final row = await db.select(db.usageEntries).getSingle();
+    expect(row.tokensIn, 0);
+    expect(row.costUsd, 0);
+    expect(row.weekPct, equals(null));
+    expect(row.estimated, isFalse);
+    expect(
+      (await db.select(db.workspaces).getSingle()).name,
+      'r',
+      reason: 'the workspaces are kept',
+    );
+    await db.close();
+  });
 }

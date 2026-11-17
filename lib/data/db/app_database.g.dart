@@ -15922,6 +15922,981 @@ class SnippetsCompanion extends UpdateCompanion<Snippet> {
   }
 }
 
+class $UsageEntriesTable extends UsageEntries
+    with TableInfo<$UsageEntriesTable, UsageEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UsageEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES specs (id) ON DELETE CASCADE',
+    ),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<UsageSource, String> source =
+      GeneratedColumn<String>(
+        'source',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<UsageSource>($UsageEntriesTable.$convertersource);
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<String> step = GeneratedColumn<String>(
+    'step',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES conversations (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _modelMeta = const VerificationMeta('model');
+  @override
+  late final GeneratedColumn<String> model = GeneratedColumn<String>(
+    'model',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _tokensInMeta = const VerificationMeta(
+    'tokensIn',
+  );
+  @override
+  late final GeneratedColumn<int> tokensIn = GeneratedColumn<int>(
+    'tokens_in',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensCacheWriteMeta = const VerificationMeta(
+    'tokensCacheWrite',
+  );
+  @override
+  late final GeneratedColumn<int> tokensCacheWrite = GeneratedColumn<int>(
+    'tokens_cache_write',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensCacheReadMeta = const VerificationMeta(
+    'tokensCacheRead',
+  );
+  @override
+  late final GeneratedColumn<int> tokensCacheRead = GeneratedColumn<int>(
+    'tokens_cache_read',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tokensOutMeta = const VerificationMeta(
+    'tokensOut',
+  );
+  @override
+  late final GeneratedColumn<int> tokensOut = GeneratedColumn<int>(
+    'tokens_out',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _costUsdMeta = const VerificationMeta(
+    'costUsd',
+  );
+  @override
+  late final GeneratedColumn<double> costUsd = GeneratedColumn<double>(
+    'cost_usd',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _fiveHourPctMeta = const VerificationMeta(
+    'fiveHourPct',
+  );
+  @override
+  late final GeneratedColumn<double> fiveHourPct = GeneratedColumn<double>(
+    'five_hour_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weekPctMeta = const VerificationMeta(
+    'weekPct',
+  );
+  @override
+  late final GeneratedColumn<double> weekPct = GeneratedColumn<double>(
+    'week_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedMeta = const VerificationMeta(
+    'estimated',
+  );
+  @override
+  late final GeneratedColumn<bool> estimated = GeneratedColumn<bool>(
+    'estimated',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("estimated" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    specId,
+    source,
+    step,
+    sessionId,
+    conversationId,
+    model,
+    at,
+    tokensIn,
+    tokensCacheWrite,
+    tokensCacheRead,
+    tokensOut,
+    costUsd,
+    fiveHourPct,
+    weekPct,
+    estimated,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'usage_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UsageEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('model')) {
+      context.handle(
+        _modelMeta,
+        model.isAcceptableOrUnknown(data['model']!, _modelMeta),
+      );
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('tokens_in')) {
+      context.handle(
+        _tokensInMeta,
+        tokensIn.isAcceptableOrUnknown(data['tokens_in']!, _tokensInMeta),
+      );
+    }
+    if (data.containsKey('tokens_cache_write')) {
+      context.handle(
+        _tokensCacheWriteMeta,
+        tokensCacheWrite.isAcceptableOrUnknown(
+          data['tokens_cache_write']!,
+          _tokensCacheWriteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tokens_cache_read')) {
+      context.handle(
+        _tokensCacheReadMeta,
+        tokensCacheRead.isAcceptableOrUnknown(
+          data['tokens_cache_read']!,
+          _tokensCacheReadMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tokens_out')) {
+      context.handle(
+        _tokensOutMeta,
+        tokensOut.isAcceptableOrUnknown(data['tokens_out']!, _tokensOutMeta),
+      );
+    }
+    if (data.containsKey('cost_usd')) {
+      context.handle(
+        _costUsdMeta,
+        costUsd.isAcceptableOrUnknown(data['cost_usd']!, _costUsdMeta),
+      );
+    }
+    if (data.containsKey('five_hour_pct')) {
+      context.handle(
+        _fiveHourPctMeta,
+        fiveHourPct.isAcceptableOrUnknown(
+          data['five_hour_pct']!,
+          _fiveHourPctMeta,
+        ),
+      );
+    }
+    if (data.containsKey('week_pct')) {
+      context.handle(
+        _weekPctMeta,
+        weekPct.isAcceptableOrUnknown(data['week_pct']!, _weekPctMeta),
+      );
+    }
+    if (data.containsKey('estimated')) {
+      context.handle(
+        _estimatedMeta,
+        estimated.isAcceptableOrUnknown(data['estimated']!, _estimatedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UsageEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UsageEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
+      source: $UsageEntriesTable.$convertersource.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}source'],
+        )!,
+      ),
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}step'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      model: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}model'],
+      ),
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}at'],
+      )!,
+      tokensIn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_in'],
+      )!,
+      tokensCacheWrite: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_cache_write'],
+      )!,
+      tokensCacheRead: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_cache_read'],
+      )!,
+      tokensOut: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tokens_out'],
+      )!,
+      costUsd: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}cost_usd'],
+      )!,
+      fiveHourPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}five_hour_pct'],
+      ),
+      weekPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}week_pct'],
+      ),
+      estimated: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}estimated'],
+      )!,
+    );
+  }
+
+  @override
+  $UsageEntriesTable createAlias(String alias) {
+    return $UsageEntriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<UsageSource, String, String> $convertersource =
+      const EnumNameConverter<UsageSource>(UsageSource.values);
+}
+
+class UsageEntry extends DataClass implements Insertable<UsageEntry> {
+  final int id;
+  final int? workspaceId;
+  final int? specId;
+  final UsageSource source;
+
+  /// Steps of the session (`R2`, `REV1`); null outside a step.
+  final String? step;
+  final String? sessionId;
+  final int? conversationId;
+  final String? model;
+  final DateTime at;
+
+  /// New input tokens of the turn.
+  final int tokensIn;
+  final int tokensCacheWrite;
+  final int tokensCacheRead;
+  final int tokensOut;
+
+  /// Estimated cost of the turn (the CLI's `total_cost_usd` difference).
+  final double costUsd;
+
+  /// Weight in the windows (0–1) by the ruler of the moment (R4); null
+  /// until a ruler exists.
+  final double? fiveHourPct;
+  final double? weekPct;
+
+  /// Rebuilt from the events of before (R5): weighed by today's ruler.
+  final bool estimated;
+  const UsageEntry({
+    required this.id,
+    this.workspaceId,
+    this.specId,
+    required this.source,
+    this.step,
+    this.sessionId,
+    this.conversationId,
+    this.model,
+    required this.at,
+    required this.tokensIn,
+    required this.tokensCacheWrite,
+    required this.tokensCacheRead,
+    required this.tokensOut,
+    required this.costUsd,
+    this.fiveHourPct,
+    this.weekPct,
+    required this.estimated,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || workspaceId != null) {
+      map['workspace_id'] = Variable<int>(workspaceId);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    {
+      map['source'] = Variable<String>(
+        $UsageEntriesTable.$convertersource.toSql(source),
+      );
+    }
+    if (!nullToAbsent || step != null) {
+      map['step'] = Variable<String>(step);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    if (!nullToAbsent || model != null) {
+      map['model'] = Variable<String>(model);
+    }
+    map['at'] = Variable<DateTime>(at);
+    map['tokens_in'] = Variable<int>(tokensIn);
+    map['tokens_cache_write'] = Variable<int>(tokensCacheWrite);
+    map['tokens_cache_read'] = Variable<int>(tokensCacheRead);
+    map['tokens_out'] = Variable<int>(tokensOut);
+    map['cost_usd'] = Variable<double>(costUsd);
+    if (!nullToAbsent || fiveHourPct != null) {
+      map['five_hour_pct'] = Variable<double>(fiveHourPct);
+    }
+    if (!nullToAbsent || weekPct != null) {
+      map['week_pct'] = Variable<double>(weekPct);
+    }
+    map['estimated'] = Variable<bool>(estimated);
+    return map;
+  }
+
+  UsageEntriesCompanion toCompanion(bool nullToAbsent) {
+    return UsageEntriesCompanion(
+      id: Value(id),
+      workspaceId: workspaceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workspaceId),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      source: Value(source),
+      step: step == null && nullToAbsent ? const Value.absent() : Value(step),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      model: model == null && nullToAbsent
+          ? const Value.absent()
+          : Value(model),
+      at: Value(at),
+      tokensIn: Value(tokensIn),
+      tokensCacheWrite: Value(tokensCacheWrite),
+      tokensCacheRead: Value(tokensCacheRead),
+      tokensOut: Value(tokensOut),
+      costUsd: Value(costUsd),
+      fiveHourPct: fiveHourPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fiveHourPct),
+      weekPct: weekPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekPct),
+      estimated: Value(estimated),
+    );
+  }
+
+  factory UsageEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UsageEntry(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int?>(json['workspaceId']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      source: $UsageEntriesTable.$convertersource.fromJson(
+        serializer.fromJson<String>(json['source']),
+      ),
+      step: serializer.fromJson<String?>(json['step']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      model: serializer.fromJson<String?>(json['model']),
+      at: serializer.fromJson<DateTime>(json['at']),
+      tokensIn: serializer.fromJson<int>(json['tokensIn']),
+      tokensCacheWrite: serializer.fromJson<int>(json['tokensCacheWrite']),
+      tokensCacheRead: serializer.fromJson<int>(json['tokensCacheRead']),
+      tokensOut: serializer.fromJson<int>(json['tokensOut']),
+      costUsd: serializer.fromJson<double>(json['costUsd']),
+      fiveHourPct: serializer.fromJson<double?>(json['fiveHourPct']),
+      weekPct: serializer.fromJson<double?>(json['weekPct']),
+      estimated: serializer.fromJson<bool>(json['estimated']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int?>(workspaceId),
+      'specId': serializer.toJson<int?>(specId),
+      'source': serializer.toJson<String>(
+        $UsageEntriesTable.$convertersource.toJson(source),
+      ),
+      'step': serializer.toJson<String?>(step),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'model': serializer.toJson<String?>(model),
+      'at': serializer.toJson<DateTime>(at),
+      'tokensIn': serializer.toJson<int>(tokensIn),
+      'tokensCacheWrite': serializer.toJson<int>(tokensCacheWrite),
+      'tokensCacheRead': serializer.toJson<int>(tokensCacheRead),
+      'tokensOut': serializer.toJson<int>(tokensOut),
+      'costUsd': serializer.toJson<double>(costUsd),
+      'fiveHourPct': serializer.toJson<double?>(fiveHourPct),
+      'weekPct': serializer.toJson<double?>(weekPct),
+      'estimated': serializer.toJson<bool>(estimated),
+    };
+  }
+
+  UsageEntry copyWith({
+    int? id,
+    Value<int?> workspaceId = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
+    UsageSource? source,
+    Value<String?> step = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    Value<String?> model = const Value.absent(),
+    DateTime? at,
+    int? tokensIn,
+    int? tokensCacheWrite,
+    int? tokensCacheRead,
+    int? tokensOut,
+    double? costUsd,
+    Value<double?> fiveHourPct = const Value.absent(),
+    Value<double?> weekPct = const Value.absent(),
+    bool? estimated,
+  }) => UsageEntry(
+    id: id ?? this.id,
+    workspaceId: workspaceId.present ? workspaceId.value : this.workspaceId,
+    specId: specId.present ? specId.value : this.specId,
+    source: source ?? this.source,
+    step: step.present ? step.value : this.step,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    model: model.present ? model.value : this.model,
+    at: at ?? this.at,
+    tokensIn: tokensIn ?? this.tokensIn,
+    tokensCacheWrite: tokensCacheWrite ?? this.tokensCacheWrite,
+    tokensCacheRead: tokensCacheRead ?? this.tokensCacheRead,
+    tokensOut: tokensOut ?? this.tokensOut,
+    costUsd: costUsd ?? this.costUsd,
+    fiveHourPct: fiveHourPct.present ? fiveHourPct.value : this.fiveHourPct,
+    weekPct: weekPct.present ? weekPct.value : this.weekPct,
+    estimated: estimated ?? this.estimated,
+  );
+  UsageEntry copyWithCompanion(UsageEntriesCompanion data) {
+    return UsageEntry(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      source: data.source.present ? data.source.value : this.source,
+      step: data.step.present ? data.step.value : this.step,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      model: data.model.present ? data.model.value : this.model,
+      at: data.at.present ? data.at.value : this.at,
+      tokensIn: data.tokensIn.present ? data.tokensIn.value : this.tokensIn,
+      tokensCacheWrite: data.tokensCacheWrite.present
+          ? data.tokensCacheWrite.value
+          : this.tokensCacheWrite,
+      tokensCacheRead: data.tokensCacheRead.present
+          ? data.tokensCacheRead.value
+          : this.tokensCacheRead,
+      tokensOut: data.tokensOut.present ? data.tokensOut.value : this.tokensOut,
+      costUsd: data.costUsd.present ? data.costUsd.value : this.costUsd,
+      fiveHourPct: data.fiveHourPct.present
+          ? data.fiveHourPct.value
+          : this.fiveHourPct,
+      weekPct: data.weekPct.present ? data.weekPct.value : this.weekPct,
+      estimated: data.estimated.present ? data.estimated.value : this.estimated,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UsageEntry(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('specId: $specId, ')
+          ..write('source: $source, ')
+          ..write('step: $step, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('model: $model, ')
+          ..write('at: $at, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensCacheWrite: $tokensCacheWrite, ')
+          ..write('tokensCacheRead: $tokensCacheRead, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('fiveHourPct: $fiveHourPct, ')
+          ..write('weekPct: $weekPct, ')
+          ..write('estimated: $estimated')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    specId,
+    source,
+    step,
+    sessionId,
+    conversationId,
+    model,
+    at,
+    tokensIn,
+    tokensCacheWrite,
+    tokensCacheRead,
+    tokensOut,
+    costUsd,
+    fiveHourPct,
+    weekPct,
+    estimated,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UsageEntry &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.specId == this.specId &&
+          other.source == this.source &&
+          other.step == this.step &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.model == this.model &&
+          other.at == this.at &&
+          other.tokensIn == this.tokensIn &&
+          other.tokensCacheWrite == this.tokensCacheWrite &&
+          other.tokensCacheRead == this.tokensCacheRead &&
+          other.tokensOut == this.tokensOut &&
+          other.costUsd == this.costUsd &&
+          other.fiveHourPct == this.fiveHourPct &&
+          other.weekPct == this.weekPct &&
+          other.estimated == this.estimated);
+}
+
+class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
+  final Value<int> id;
+  final Value<int?> workspaceId;
+  final Value<int?> specId;
+  final Value<UsageSource> source;
+  final Value<String?> step;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<String?> model;
+  final Value<DateTime> at;
+  final Value<int> tokensIn;
+  final Value<int> tokensCacheWrite;
+  final Value<int> tokensCacheRead;
+  final Value<int> tokensOut;
+  final Value<double> costUsd;
+  final Value<double?> fiveHourPct;
+  final Value<double?> weekPct;
+  final Value<bool> estimated;
+  const UsageEntriesCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.source = const Value.absent(),
+    this.step = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.model = const Value.absent(),
+    this.at = const Value.absent(),
+    this.tokensIn = const Value.absent(),
+    this.tokensCacheWrite = const Value.absent(),
+    this.tokensCacheRead = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.fiveHourPct = const Value.absent(),
+    this.weekPct = const Value.absent(),
+    this.estimated = const Value.absent(),
+  });
+  UsageEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.specId = const Value.absent(),
+    required UsageSource source,
+    this.step = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.model = const Value.absent(),
+    required DateTime at,
+    this.tokensIn = const Value.absent(),
+    this.tokensCacheWrite = const Value.absent(),
+    this.tokensCacheRead = const Value.absent(),
+    this.tokensOut = const Value.absent(),
+    this.costUsd = const Value.absent(),
+    this.fiveHourPct = const Value.absent(),
+    this.weekPct = const Value.absent(),
+    this.estimated = const Value.absent(),
+  }) : source = Value(source),
+       at = Value(at);
+  static Insertable<UsageEntry> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<int>? specId,
+    Expression<String>? source,
+    Expression<String>? step,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<String>? model,
+    Expression<DateTime>? at,
+    Expression<int>? tokensIn,
+    Expression<int>? tokensCacheWrite,
+    Expression<int>? tokensCacheRead,
+    Expression<int>? tokensOut,
+    Expression<double>? costUsd,
+    Expression<double>? fiveHourPct,
+    Expression<double>? weekPct,
+    Expression<bool>? estimated,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (specId != null) 'spec_id': specId,
+      if (source != null) 'source': source,
+      if (step != null) 'step': step,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (model != null) 'model': model,
+      if (at != null) 'at': at,
+      if (tokensIn != null) 'tokens_in': tokensIn,
+      if (tokensCacheWrite != null) 'tokens_cache_write': tokensCacheWrite,
+      if (tokensCacheRead != null) 'tokens_cache_read': tokensCacheRead,
+      if (tokensOut != null) 'tokens_out': tokensOut,
+      if (costUsd != null) 'cost_usd': costUsd,
+      if (fiveHourPct != null) 'five_hour_pct': fiveHourPct,
+      if (weekPct != null) 'week_pct': weekPct,
+      if (estimated != null) 'estimated': estimated,
+    });
+  }
+
+  UsageEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? workspaceId,
+    Value<int?>? specId,
+    Value<UsageSource>? source,
+    Value<String?>? step,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<String?>? model,
+    Value<DateTime>? at,
+    Value<int>? tokensIn,
+    Value<int>? tokensCacheWrite,
+    Value<int>? tokensCacheRead,
+    Value<int>? tokensOut,
+    Value<double>? costUsd,
+    Value<double?>? fiveHourPct,
+    Value<double?>? weekPct,
+    Value<bool>? estimated,
+  }) {
+    return UsageEntriesCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      specId: specId ?? this.specId,
+      source: source ?? this.source,
+      step: step ?? this.step,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      model: model ?? this.model,
+      at: at ?? this.at,
+      tokensIn: tokensIn ?? this.tokensIn,
+      tokensCacheWrite: tokensCacheWrite ?? this.tokensCacheWrite,
+      tokensCacheRead: tokensCacheRead ?? this.tokensCacheRead,
+      tokensOut: tokensOut ?? this.tokensOut,
+      costUsd: costUsd ?? this.costUsd,
+      fiveHourPct: fiveHourPct ?? this.fiveHourPct,
+      weekPct: weekPct ?? this.weekPct,
+      estimated: estimated ?? this.estimated,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(
+        $UsageEntriesTable.$convertersource.toSql(source.value),
+      );
+    }
+    if (step.present) {
+      map['step'] = Variable<String>(step.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (model.present) {
+      map['model'] = Variable<String>(model.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<DateTime>(at.value);
+    }
+    if (tokensIn.present) {
+      map['tokens_in'] = Variable<int>(tokensIn.value);
+    }
+    if (tokensCacheWrite.present) {
+      map['tokens_cache_write'] = Variable<int>(tokensCacheWrite.value);
+    }
+    if (tokensCacheRead.present) {
+      map['tokens_cache_read'] = Variable<int>(tokensCacheRead.value);
+    }
+    if (tokensOut.present) {
+      map['tokens_out'] = Variable<int>(tokensOut.value);
+    }
+    if (costUsd.present) {
+      map['cost_usd'] = Variable<double>(costUsd.value);
+    }
+    if (fiveHourPct.present) {
+      map['five_hour_pct'] = Variable<double>(fiveHourPct.value);
+    }
+    if (weekPct.present) {
+      map['week_pct'] = Variable<double>(weekPct.value);
+    }
+    if (estimated.present) {
+      map['estimated'] = Variable<bool>(estimated.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UsageEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('specId: $specId, ')
+          ..write('source: $source, ')
+          ..write('step: $step, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('model: $model, ')
+          ..write('at: $at, ')
+          ..write('tokensIn: $tokensIn, ')
+          ..write('tokensCacheWrite: $tokensCacheWrite, ')
+          ..write('tokensCacheRead: $tokensCacheRead, ')
+          ..write('tokensOut: $tokensOut, ')
+          ..write('costUsd: $costUsd, ')
+          ..write('fiveHourPct: $fiveHourPct, ')
+          ..write('weekPct: $weekPct, ')
+          ..write('estimated: $estimated')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15956,9 +16931,18 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $StepRunsTable stepRuns = $StepRunsTable(this);
   late final $SpecNotesTable specNotes = $SpecNotesTable(this);
   late final $SnippetsTable snippets = $SnippetsTable(this);
+  late final $UsageEntriesTable usageEntries = $UsageEntriesTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
+  );
+  late final Index usageEntriesSpec = Index(
+    'usage_entries_spec',
+    'CREATE INDEX usage_entries_spec ON usage_entries (spec_id, at)',
+  );
+  late final Index usageEntriesWorkspace = Index(
+    'usage_entries_workspace',
+    'CREATE INDEX usage_entries_workspace ON usage_entries (workspace_id, at)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -15991,7 +16975,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stepRuns,
     specNotes,
     snippets,
+    usageEntries,
     snippetsBodyHash,
+    usageEntriesSpec,
+    usageEntriesWorkspace,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -16184,6 +17171,34 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('snippets', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'specs',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversations',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('usage_entries', kind: UpdateKind.update)],
+    ),
   ]);
 }
 
@@ -16368,6 +17383,24 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'workspaces__id__usage_entries__workspace_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -16619,6 +17652,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -16904,6 +17962,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -16929,6 +18012,7 @@ class $$WorkspacesTableTableManager
             bool specDraftsRefs,
             bool autopilotStatesRefs,
             bool snippetsRefs,
+            bool usageEntriesRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -16985,6 +18069,7 @@ class $$WorkspacesTableTableManager
                 specDraftsRefs = false,
                 autopilotStatesRefs = false,
                 snippetsRefs = false,
+                usageEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -16998,6 +18083,7 @@ class $$WorkspacesTableTableManager
                     if (specDraftsRefs) db.specDrafts,
                     if (autopilotStatesRefs) db.autopilotStates,
                     if (snippetsRefs) db.snippets,
+                    if (usageEntriesRefs) db.usageEntries,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -17191,6 +18277,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17221,6 +18328,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool specDraftsRefs,
         bool autopilotStatesRefs,
         bool snippetsRefs,
+        bool usageEntriesRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -17938,6 +19046,24 @@ final class $$SpecsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'specs__id__usage_entries__spec_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.specId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
@@ -18405,6 +19531,31 @@ class $$SpecsTableFilterComposer extends Composer<_$AppDatabase, $SpecsTable> {
           }) => $$SpecNotesTableFilterComposer(
             $db: $db,
             $table: $db.specNotes,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -19096,6 +20247,31 @@ class $$SpecsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.specId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SpecsTableTableManager
@@ -19123,6 +20299,7 @@ class $$SpecsTableTableManager
             bool specDuelsRefs,
             bool stepRunsRefs,
             bool specNotesRefs,
+            bool usageEntriesRefs,
           })
         > {
   $$SpecsTableTableManager(_$AppDatabase db, $SpecsTable table)
@@ -19323,6 +20500,7 @@ class $$SpecsTableTableManager
                 specDuelsRefs = false,
                 stepRunsRefs = false,
                 specNotesRefs = false,
+                usageEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -19336,6 +20514,7 @@ class $$SpecsTableTableManager
                     if (specDuelsRefs) db.specDuels,
                     if (stepRunsRefs) db.stepRuns,
                     if (specNotesRefs) db.specNotes,
+                    if (usageEntriesRefs) db.usageEntries,
                   ],
                   addJoins:
                       <
@@ -19541,6 +20720,27 @@ class $$SpecsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Spec,
+                          $SpecsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SpecsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SpecsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.specId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -19573,6 +20773,7 @@ typedef $$SpecsTableProcessedTableManager =
         bool specDuelsRefs,
         bool stepRunsRefs,
         bool specNotesRefs,
+        bool usageEntriesRefs,
       })
     >;
 typedef $$SpecStepsTableCreateCompanionBuilder = SpecStepsCompanion Function({
@@ -20934,6 +22135,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'sessions__id__usage_entries__session_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -21246,6 +22465,31 @@ class $$SessionsTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21731,6 +22975,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -21755,6 +23024,7 @@ class $$SessionsTableTableManager
             bool pendingNoticesRefs,
             bool reviewCommentsRefs,
             bool snippetsRefs,
+            bool usageEntriesRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -21902,6 +23172,7 @@ class $$SessionsTableTableManager
                 pendingNoticesRefs = false,
                 reviewCommentsRefs = false,
                 snippetsRefs = false,
+                usageEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -21911,6 +23182,7 @@ class $$SessionsTableTableManager
                     if (pendingNoticesRefs) db.pendingNotices,
                     if (reviewCommentsRefs) db.reviewComments,
                     if (snippetsRefs) db.snippets,
+                    if (usageEntriesRefs) db.usageEntries,
                   ],
                   addJoins:
                       <
@@ -22071,6 +23343,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -22100,6 +23393,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool pendingNoticesRefs,
         bool reviewCommentsRefs,
         bool snippetsRefs,
+        bool usageEntriesRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -22561,6 +23855,24 @@ final class $$ConversationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$UsageEntriesTable, List<UsageEntry>>
+  _usageEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.usageEntries,
+    aliasName: 'conversations__id__usage_entries__conversation_id',
+  );
+
+  $$UsageEntriesTableProcessedTableManager get usageEntriesRefs {
+    final manager = $$UsageEntriesTableTableManager(
+      $_db,
+      $_db.usageEntries,
+    ).filter((f) => f.conversationId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ConversationsTableFilterComposer
@@ -22749,6 +24061,31 @@ class $$ConversationsTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> usageEntriesRefs(
+    Expression<bool> Function($$UsageEntriesTableFilterComposer f) f,
+  ) {
+    final $$UsageEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.usageEntries,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23076,6 +24413,31 @@ class $$ConversationsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> usageEntriesRefs<T extends Object>(
+    Expression<T> Function($$UsageEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$UsageEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.usageEntries,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$UsageEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ConversationsTableTableManager
@@ -23096,6 +24458,7 @@ class $$ConversationsTableTableManager
             bool sessionId,
             bool conversationEventsRefs,
             bool snippetsRefs,
+            bool usageEntriesRefs,
           })
         > {
   $$ConversationsTableTableManager(_$AppDatabase db, $ConversationsTable table)
@@ -23211,12 +24574,14 @@ class $$ConversationsTableTableManager
                 sessionId = false,
                 conversationEventsRefs = false,
                 snippetsRefs = false,
+                usageEntriesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (conversationEventsRefs) db.conversationEvents,
                     if (snippetsRefs) db.snippets,
+                    if (usageEntriesRefs) db.usageEntries,
                   ],
                   addJoins:
                       <
@@ -23303,6 +24668,27 @@ class $$ConversationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (usageEntriesRefs)
+                        await $_getPrefetchedData<
+                          Conversation,
+                          $ConversationsTable,
+                          UsageEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationsTableReferences
+                              ._usageEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).usageEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -23328,6 +24714,7 @@ typedef $$ConversationsTableProcessedTableManager =
         bool sessionId,
         bool conversationEventsRefs,
         bool snippetsRefs,
+        bool usageEntriesRefs,
       })
     >;
 typedef $$ConversationEventsTableCreateCompanionBuilder =
@@ -29298,6 +30685,819 @@ typedef $$SnippetsTableProcessedTableManager =
         bool originSessionId,
       })
     >;
+typedef $$UsageEntriesTableCreateCompanionBuilder =
+    UsageEntriesCompanion Function({
+      Value<int> id,
+      Value<int?> workspaceId,
+      Value<int?> specId,
+      required UsageSource source,
+      Value<String?> step,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String?> model,
+      required DateTime at,
+      Value<int> tokensIn,
+      Value<int> tokensCacheWrite,
+      Value<int> tokensCacheRead,
+      Value<int> tokensOut,
+      Value<double> costUsd,
+      Value<double?> fiveHourPct,
+      Value<double?> weekPct,
+      Value<bool> estimated,
+    });
+typedef $$UsageEntriesTableUpdateCompanionBuilder =
+    UsageEntriesCompanion Function({
+      Value<int> id,
+      Value<int?> workspaceId,
+      Value<int?> specId,
+      Value<UsageSource> source,
+      Value<String?> step,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String?> model,
+      Value<DateTime> at,
+      Value<int> tokensIn,
+      Value<int> tokensCacheWrite,
+      Value<int> tokensCacheRead,
+      Value<int> tokensOut,
+      Value<double> costUsd,
+      Value<double?> fiveHourPct,
+      Value<double?> weekPct,
+      Value<bool> estimated,
+    });
+
+final class $$UsageEntriesTableReferences
+    extends BaseReferences<_$AppDatabase, $UsageEntriesTable, UsageEntry> {
+  $$UsageEntriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('usage_entries__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager? get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id');
+    if ($_column == null) return null;
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SpecsTable _specIdTable(_$AppDatabase db) =>
+      db.specs.createAlias('usage_entries__spec_id__specs__id');
+
+  $$SpecsTableProcessedTableManager? get specId {
+    final $_column = $_itemColumn<int>('spec_id');
+    if ($_column == null) return null;
+    final manager = $$SpecsTableTableManager(
+      $_db,
+      $_db.specs,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_specIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('usage_entries__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConversationsTable _conversationIdTable(_$AppDatabase db) => db
+      .conversations
+      .createAlias('usage_entries__conversation_id__conversations__id');
+
+  $$ConversationsTableProcessedTableManager? get conversationId {
+    final $_column = $_itemColumn<int>('conversation_id');
+    if ($_column == null) return null;
+    final manager = $$ConversationsTableTableManager(
+      $_db,
+      $_db.conversations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_conversationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$UsageEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<UsageSource, UsageSource, String> get source =>
+      $composableBuilder(
+        column: $table.source,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weekPct => $composableBuilder(
+    column: $table.weekPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get estimated => $composableBuilder(
+    column: $table.estimated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableFilterComposer get specId {
+    final $$SpecsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableFilterComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableFilterComposer get conversationId {
+    final $$ConversationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get model => $composableBuilder(
+    column: $table.model,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensIn => $composableBuilder(
+    column: $table.tokensIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tokensOut => $composableBuilder(
+    column: $table.tokensOut,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get costUsd => $composableBuilder(
+    column: $table.costUsd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weekPct => $composableBuilder(
+    column: $table.weekPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get estimated => $composableBuilder(
+    column: $table.estimated,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableOrderingComposer get specId {
+    final $$SpecsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableOrderingComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableOrderingComposer get conversationId {
+    final $$ConversationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UsageEntriesTable> {
+  $$UsageEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<UsageSource, String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<String> get model =>
+      $composableBuilder(column: $table.model, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensIn =>
+      $composableBuilder(column: $table.tokensIn, builder: (column) => column);
+
+  GeneratedColumn<int> get tokensCacheWrite => $composableBuilder(
+    column: $table.tokensCacheWrite,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get tokensCacheRead => $composableBuilder(
+    column: $table.tokensCacheRead,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get tokensOut =>
+      $composableBuilder(column: $table.tokensOut, builder: (column) => column);
+
+  GeneratedColumn<double> get costUsd =>
+      $composableBuilder(column: $table.costUsd, builder: (column) => column);
+
+  GeneratedColumn<double> get fiveHourPct => $composableBuilder(
+    column: $table.fiveHourPct,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get weekPct =>
+      $composableBuilder(column: $table.weekPct, builder: (column) => column);
+
+  GeneratedColumn<bool> get estimated =>
+      $composableBuilder(column: $table.estimated, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SpecsTableAnnotationComposer get specId {
+    final $$SpecsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.specId,
+      referencedTable: $db.specs,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SpecsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.specs,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableAnnotationComposer get conversationId {
+    final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$UsageEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UsageEntriesTable,
+          UsageEntry,
+          $$UsageEntriesTableFilterComposer,
+          $$UsageEntriesTableOrderingComposer,
+          $$UsageEntriesTableAnnotationComposer,
+          $$UsageEntriesTableCreateCompanionBuilder,
+          $$UsageEntriesTableUpdateCompanionBuilder,
+          (UsageEntry, $$UsageEntriesTableReferences),
+          UsageEntry,
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool specId,
+            bool sessionId,
+            bool conversationId,
+          })
+        > {
+  $$UsageEntriesTableTableManager(_$AppDatabase db, $UsageEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UsageEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UsageEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UsageEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> workspaceId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<UsageSource> source = const Value.absent(),
+                Value<String?> step = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                Value<DateTime> at = const Value.absent(),
+                Value<int> tokensIn = const Value.absent(),
+                Value<int> tokensCacheWrite = const Value.absent(),
+                Value<int> tokensCacheRead = const Value.absent(),
+                Value<int> tokensOut = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<double?> fiveHourPct = const Value.absent(),
+                Value<double?> weekPct = const Value.absent(),
+                Value<bool> estimated = const Value.absent(),
+              }) => UsageEntriesCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                specId: specId,
+                source: source,
+                step: step,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                model: model,
+                at: at,
+                tokensIn: tokensIn,
+                tokensCacheWrite: tokensCacheWrite,
+                tokensCacheRead: tokensCacheRead,
+                tokensOut: tokensOut,
+                costUsd: costUsd,
+                fiveHourPct: fiveHourPct,
+                weekPct: weekPct,
+                estimated: estimated,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> workspaceId = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                required UsageSource source,
+                Value<String?> step = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String?> model = const Value.absent(),
+                required DateTime at,
+                Value<int> tokensIn = const Value.absent(),
+                Value<int> tokensCacheWrite = const Value.absent(),
+                Value<int> tokensCacheRead = const Value.absent(),
+                Value<int> tokensOut = const Value.absent(),
+                Value<double> costUsd = const Value.absent(),
+                Value<double?> fiveHourPct = const Value.absent(),
+                Value<double?> weekPct = const Value.absent(),
+                Value<bool> estimated = const Value.absent(),
+              }) => UsageEntriesCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                specId: specId,
+                source: source,
+                step: step,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                model: model,
+                at: at,
+                tokensIn: tokensIn,
+                tokensCacheWrite: tokensCacheWrite,
+                tokensCacheRead: tokensCacheRead,
+                tokensOut: tokensOut,
+                costUsd: costUsd,
+                fiveHourPct: fiveHourPct,
+                weekPct: weekPct,
+                estimated: estimated,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$UsageEntriesTable, UsageEntry>(table),
+                  $$UsageEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                specId = false,
+                sessionId = false,
+                conversationId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (specId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.specId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._specIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._specIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sessionId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._sessionIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._sessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (conversationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.conversationId,
+                            referencedTable: $$UsageEntriesTableReferences
+                                ._conversationIdTable(db),
+                            referencedColumn: $$UsageEntriesTableReferences
+                                ._conversationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$UsageEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UsageEntriesTable,
+      UsageEntry,
+      $$UsageEntriesTableFilterComposer,
+      $$UsageEntriesTableOrderingComposer,
+      $$UsageEntriesTableAnnotationComposer,
+      $$UsageEntriesTableCreateCompanionBuilder,
+      $$UsageEntriesTableUpdateCompanionBuilder,
+      (UsageEntry, $$UsageEntriesTableReferences),
+      UsageEntry,
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool specId,
+        bool sessionId,
+        bool conversationId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29354,4 +31554,6 @@ class $AppDatabaseManager {
       $$SpecNotesTableTableManager(_db, _db.specNotes);
   $$SnippetsTableTableManager get snippets =>
       $$SnippetsTableTableManager(_db, _db.snippets);
+  $$UsageEntriesTableTableManager get usageEntries =>
+      $$UsageEntriesTableTableManager(_db, _db.usageEntries);
 }
