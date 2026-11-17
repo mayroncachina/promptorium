@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 29) {
+    await db.customStatement('DROP TABLE IF EXISTS snippets');
+  }
   if (version < 15) {
     for (final c in ['provider', 'external_id', 'run_config']) {
       await db.customStatement('ALTER TABLE sessions DROP COLUMN $c');
@@ -597,5 +600,62 @@ void main() {
         .into(db.specSuggestions)
         .insert(SpecSuggestionsCompanion.insert(specId: 1, body: 'x'));
     expect((await db.select(db.specSuggestions).getSingle()).state, 'pendente');
+  });
+
+  // SPEC-078 R5.
+  test('v28 → v29 creates snippets by workspace; deleting the workspace '
+      'deletes them and deleting the conversation keeps the label', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig29-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 28);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name = 'snippets_body_hash'",
+        )
+        .getSingle();
+    expect(index.read<String>('sql'), contains('workspace_id, body_hash'));
+
+    final conv = await db
+        .into(db.conversations)
+        .insert(
+          ConversationsCompanion.insert(
+            workspaceId: 1,
+            title: 'Pedidos atrasados',
+            model: 'opus',
+          ),
+        );
+    await db
+        .into(db.snippets)
+        .insert(
+          SnippetsCompanion.insert(
+            workspaceId: 1,
+            name: 'Atrasados',
+            nameKey: 'atrasados',
+            body: 'select 1;',
+            bodyHash: 'h',
+            originConversationId: Value(conv),
+            originLabel: const Value('Pedidos atrasados'),
+          ),
+        );
+    await (db.delete(db.conversations)..where((c) => c.id.equals(conv))).go();
+    final kept = await db.select(db.snippets).getSingle();
+    expect(kept.originConversationId, isNull);
+    expect(kept.originLabel, 'Pedidos atrasados');
+
+    await db.customStatement('DELETE FROM workspaces WHERE id = 1');
+    expect(await db.select(db.snippets).get(), isEmpty);
   });
 }

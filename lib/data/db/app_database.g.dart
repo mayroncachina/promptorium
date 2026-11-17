@@ -15034,6 +15034,894 @@ class SpecNotesCompanion extends UpdateCompanion<SpecNote> {
   }
 }
 
+class $SnippetsTable extends Snippets with TableInfo<$SnippetsTable, Snippet> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SnippetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameKeyMeta = const VerificationMeta(
+    'nameKey',
+  );
+  @override
+  late final GeneratedColumn<String> nameKey = GeneratedColumn<String>(
+    'name_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _languageMeta = const VerificationMeta(
+    'language',
+  );
+  @override
+  late final GeneratedColumn<String> language = GeneratedColumn<String>(
+    'language',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _bodyMeta = const VerificationMeta('body');
+  @override
+  late final GeneratedColumn<String> body = GeneratedColumn<String>(
+    'body',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyHashMeta = const VerificationMeta(
+    'bodyHash',
+  );
+  @override
+  late final GeneratedColumn<String> bodyHash = GeneratedColumn<String>(
+    'body_hash',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originConversationIdMeta =
+      const VerificationMeta('originConversationId');
+  @override
+  late final GeneratedColumn<int> originConversationId = GeneratedColumn<int>(
+    'origin_conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES conversations (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _originSessionIdMeta = const VerificationMeta(
+    'originSessionId',
+  );
+  @override
+  late final GeneratedColumn<String> originSessionId = GeneratedColumn<String>(
+    'origin_session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _originLabelMeta = const VerificationMeta(
+    'originLabel',
+  );
+  @override
+  late final GeneratedColumn<String> originLabel = GeneratedColumn<String>(
+    'origin_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usesMeta = const VerificationMeta('uses');
+  @override
+  late final GeneratedColumn<int> uses = GeneratedColumn<int>(
+    'uses',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    name,
+    nameKey,
+    language,
+    description,
+    body,
+    bodyHash,
+    originConversationId,
+    originSessionId,
+    originLabel,
+    uses,
+    lastUsedAt,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'snippets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Snippet> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('name_key')) {
+      context.handle(
+        _nameKeyMeta,
+        nameKey.isAcceptableOrUnknown(data['name_key']!, _nameKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameKeyMeta);
+    }
+    if (data.containsKey('language')) {
+      context.handle(
+        _languageMeta,
+        language.isAcceptableOrUnknown(data['language']!, _languageMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('body')) {
+      context.handle(
+        _bodyMeta,
+        body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyMeta);
+    }
+    if (data.containsKey('body_hash')) {
+      context.handle(
+        _bodyHashMeta,
+        bodyHash.isAcceptableOrUnknown(data['body_hash']!, _bodyHashMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_bodyHashMeta);
+    }
+    if (data.containsKey('origin_conversation_id')) {
+      context.handle(
+        _originConversationIdMeta,
+        originConversationId.isAcceptableOrUnknown(
+          data['origin_conversation_id']!,
+          _originConversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_session_id')) {
+      context.handle(
+        _originSessionIdMeta,
+        originSessionId.isAcceptableOrUnknown(
+          data['origin_session_id']!,
+          _originSessionIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('origin_label')) {
+      context.handle(
+        _originLabelMeta,
+        originLabel.isAcceptableOrUnknown(
+          data['origin_label']!,
+          _originLabelMeta,
+        ),
+      );
+    }
+    if (data.containsKey('uses')) {
+      context.handle(
+        _usesMeta,
+        uses.isAcceptableOrUnknown(data['uses']!, _usesMeta),
+      );
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {workspaceId, nameKey},
+  ];
+  @override
+  Snippet map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Snippet(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      nameKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_key'],
+      )!,
+      language: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}language'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      )!,
+      body: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body'],
+      )!,
+      bodyHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body_hash'],
+      )!,
+      originConversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}origin_conversation_id'],
+      ),
+      originSessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_session_id'],
+      ),
+      originLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin_label'],
+      ),
+      uses: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}uses'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SnippetsTable createAlias(String alias) {
+    return $SnippetsTable(attachedDatabase, alias);
+  }
+}
+
+class Snippet extends DataClass implements Insertable<Snippet> {
+  final int id;
+  final int workspaceId;
+  final String name;
+
+  /// [name] in lower case: unique within the workspace (R4).
+  final String nameKey;
+
+  /// Word of the fence (`sql`); null = plain text.
+  final String? language;
+  final String description;
+  final String body;
+
+  /// SHA-1 of [body] (P9): "✓ Salvo" of a block without reading the bodies.
+  final String bodyHash;
+
+  /// Conversation or session it came from; null once deleted (the label
+  /// stays, R11).
+  final int? originConversationId;
+  final String? originSessionId;
+
+  /// Title of the origin when it was saved.
+  final String? originLabel;
+  final int uses;
+  final DateTime? lastUsedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Snippet({
+    required this.id,
+    required this.workspaceId,
+    required this.name,
+    required this.nameKey,
+    this.language,
+    required this.description,
+    required this.body,
+    required this.bodyHash,
+    this.originConversationId,
+    this.originSessionId,
+    this.originLabel,
+    required this.uses,
+    this.lastUsedAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['name'] = Variable<String>(name);
+    map['name_key'] = Variable<String>(nameKey);
+    if (!nullToAbsent || language != null) {
+      map['language'] = Variable<String>(language);
+    }
+    map['description'] = Variable<String>(description);
+    map['body'] = Variable<String>(body);
+    map['body_hash'] = Variable<String>(bodyHash);
+    if (!nullToAbsent || originConversationId != null) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId);
+    }
+    if (!nullToAbsent || originSessionId != null) {
+      map['origin_session_id'] = Variable<String>(originSessionId);
+    }
+    if (!nullToAbsent || originLabel != null) {
+      map['origin_label'] = Variable<String>(originLabel);
+    }
+    map['uses'] = Variable<int>(uses);
+    if (!nullToAbsent || lastUsedAt != null) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SnippetsCompanion toCompanion(bool nullToAbsent) {
+    return SnippetsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      name: Value(name),
+      nameKey: Value(nameKey),
+      language: language == null && nullToAbsent
+          ? const Value.absent()
+          : Value(language),
+      description: Value(description),
+      body: Value(body),
+      bodyHash: Value(bodyHash),
+      originConversationId: originConversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originConversationId),
+      originSessionId: originSessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originSessionId),
+      originLabel: originLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originLabel),
+      uses: Value(uses),
+      lastUsedAt: lastUsedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUsedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Snippet.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Snippet(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      name: serializer.fromJson<String>(json['name']),
+      nameKey: serializer.fromJson<String>(json['nameKey']),
+      language: serializer.fromJson<String?>(json['language']),
+      description: serializer.fromJson<String>(json['description']),
+      body: serializer.fromJson<String>(json['body']),
+      bodyHash: serializer.fromJson<String>(json['bodyHash']),
+      originConversationId: serializer.fromJson<int?>(
+        json['originConversationId'],
+      ),
+      originSessionId: serializer.fromJson<String?>(json['originSessionId']),
+      originLabel: serializer.fromJson<String?>(json['originLabel']),
+      uses: serializer.fromJson<int>(json['uses']),
+      lastUsedAt: serializer.fromJson<DateTime?>(json['lastUsedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'name': serializer.toJson<String>(name),
+      'nameKey': serializer.toJson<String>(nameKey),
+      'language': serializer.toJson<String?>(language),
+      'description': serializer.toJson<String>(description),
+      'body': serializer.toJson<String>(body),
+      'bodyHash': serializer.toJson<String>(bodyHash),
+      'originConversationId': serializer.toJson<int?>(originConversationId),
+      'originSessionId': serializer.toJson<String?>(originSessionId),
+      'originLabel': serializer.toJson<String?>(originLabel),
+      'uses': serializer.toJson<int>(uses),
+      'lastUsedAt': serializer.toJson<DateTime?>(lastUsedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Snippet copyWith({
+    int? id,
+    int? workspaceId,
+    String? name,
+    String? nameKey,
+    Value<String?> language = const Value.absent(),
+    String? description,
+    String? body,
+    String? bodyHash,
+    Value<int?> originConversationId = const Value.absent(),
+    Value<String?> originSessionId = const Value.absent(),
+    Value<String?> originLabel = const Value.absent(),
+    int? uses,
+    Value<DateTime?> lastUsedAt = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Snippet(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    name: name ?? this.name,
+    nameKey: nameKey ?? this.nameKey,
+    language: language.present ? language.value : this.language,
+    description: description ?? this.description,
+    body: body ?? this.body,
+    bodyHash: bodyHash ?? this.bodyHash,
+    originConversationId: originConversationId.present
+        ? originConversationId.value
+        : this.originConversationId,
+    originSessionId: originSessionId.present
+        ? originSessionId.value
+        : this.originSessionId,
+    originLabel: originLabel.present ? originLabel.value : this.originLabel,
+    uses: uses ?? this.uses,
+    lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Snippet copyWithCompanion(SnippetsCompanion data) {
+    return Snippet(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      name: data.name.present ? data.name.value : this.name,
+      nameKey: data.nameKey.present ? data.nameKey.value : this.nameKey,
+      language: data.language.present ? data.language.value : this.language,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      body: data.body.present ? data.body.value : this.body,
+      bodyHash: data.bodyHash.present ? data.bodyHash.value : this.bodyHash,
+      originConversationId: data.originConversationId.present
+          ? data.originConversationId.value
+          : this.originConversationId,
+      originSessionId: data.originSessionId.present
+          ? data.originSessionId.value
+          : this.originSessionId,
+      originLabel: data.originLabel.present
+          ? data.originLabel.value
+          : this.originLabel,
+      uses: data.uses.present ? data.uses.value : this.uses,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Snippet(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('name: $name, ')
+          ..write('nameKey: $nameKey, ')
+          ..write('language: $language, ')
+          ..write('description: $description, ')
+          ..write('body: $body, ')
+          ..write('bodyHash: $bodyHash, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originSessionId: $originSessionId, ')
+          ..write('originLabel: $originLabel, ')
+          ..write('uses: $uses, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    name,
+    nameKey,
+    language,
+    description,
+    body,
+    bodyHash,
+    originConversationId,
+    originSessionId,
+    originLabel,
+    uses,
+    lastUsedAt,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Snippet &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.name == this.name &&
+          other.nameKey == this.nameKey &&
+          other.language == this.language &&
+          other.description == this.description &&
+          other.body == this.body &&
+          other.bodyHash == this.bodyHash &&
+          other.originConversationId == this.originConversationId &&
+          other.originSessionId == this.originSessionId &&
+          other.originLabel == this.originLabel &&
+          other.uses == this.uses &&
+          other.lastUsedAt == this.lastUsedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SnippetsCompanion extends UpdateCompanion<Snippet> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> name;
+  final Value<String> nameKey;
+  final Value<String?> language;
+  final Value<String> description;
+  final Value<String> body;
+  final Value<String> bodyHash;
+  final Value<int?> originConversationId;
+  final Value<String?> originSessionId;
+  final Value<String?> originLabel;
+  final Value<int> uses;
+  final Value<DateTime?> lastUsedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const SnippetsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.nameKey = const Value.absent(),
+    this.language = const Value.absent(),
+    this.description = const Value.absent(),
+    this.body = const Value.absent(),
+    this.bodyHash = const Value.absent(),
+    this.originConversationId = const Value.absent(),
+    this.originSessionId = const Value.absent(),
+    this.originLabel = const Value.absent(),
+    this.uses = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  SnippetsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String name,
+    required String nameKey,
+    this.language = const Value.absent(),
+    this.description = const Value.absent(),
+    required String body,
+    required String bodyHash,
+    this.originConversationId = const Value.absent(),
+    this.originSessionId = const Value.absent(),
+    this.originLabel = const Value.absent(),
+    this.uses = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       name = Value(name),
+       nameKey = Value(nameKey),
+       body = Value(body),
+       bodyHash = Value(bodyHash);
+  static Insertable<Snippet> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? name,
+    Expression<String>? nameKey,
+    Expression<String>? language,
+    Expression<String>? description,
+    Expression<String>? body,
+    Expression<String>? bodyHash,
+    Expression<int>? originConversationId,
+    Expression<String>? originSessionId,
+    Expression<String>? originLabel,
+    Expression<int>? uses,
+    Expression<DateTime>? lastUsedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (name != null) 'name': name,
+      if (nameKey != null) 'name_key': nameKey,
+      if (language != null) 'language': language,
+      if (description != null) 'description': description,
+      if (body != null) 'body': body,
+      if (bodyHash != null) 'body_hash': bodyHash,
+      if (originConversationId != null)
+        'origin_conversation_id': originConversationId,
+      if (originSessionId != null) 'origin_session_id': originSessionId,
+      if (originLabel != null) 'origin_label': originLabel,
+      if (uses != null) 'uses': uses,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  SnippetsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? name,
+    Value<String>? nameKey,
+    Value<String?>? language,
+    Value<String>? description,
+    Value<String>? body,
+    Value<String>? bodyHash,
+    Value<int?>? originConversationId,
+    Value<String?>? originSessionId,
+    Value<String?>? originLabel,
+    Value<int>? uses,
+    Value<DateTime?>? lastUsedAt,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return SnippetsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      name: name ?? this.name,
+      nameKey: nameKey ?? this.nameKey,
+      language: language ?? this.language,
+      description: description ?? this.description,
+      body: body ?? this.body,
+      bodyHash: bodyHash ?? this.bodyHash,
+      originConversationId: originConversationId ?? this.originConversationId,
+      originSessionId: originSessionId ?? this.originSessionId,
+      originLabel: originLabel ?? this.originLabel,
+      uses: uses ?? this.uses,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (nameKey.present) {
+      map['name_key'] = Variable<String>(nameKey.value);
+    }
+    if (language.present) {
+      map['language'] = Variable<String>(language.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (body.present) {
+      map['body'] = Variable<String>(body.value);
+    }
+    if (bodyHash.present) {
+      map['body_hash'] = Variable<String>(bodyHash.value);
+    }
+    if (originConversationId.present) {
+      map['origin_conversation_id'] = Variable<int>(originConversationId.value);
+    }
+    if (originSessionId.present) {
+      map['origin_session_id'] = Variable<String>(originSessionId.value);
+    }
+    if (originLabel.present) {
+      map['origin_label'] = Variable<String>(originLabel.value);
+    }
+    if (uses.present) {
+      map['uses'] = Variable<int>(uses.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SnippetsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('name: $name, ')
+          ..write('nameKey: $nameKey, ')
+          ..write('language: $language, ')
+          ..write('description: $description, ')
+          ..write('body: $body, ')
+          ..write('bodyHash: $bodyHash, ')
+          ..write('originConversationId: $originConversationId, ')
+          ..write('originSessionId: $originSessionId, ')
+          ..write('originLabel: $originLabel, ')
+          ..write('uses: $uses, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15067,6 +15955,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SpecDuelsTable specDuels = $SpecDuelsTable(this);
   late final $StepRunsTable stepRuns = $StepRunsTable(this);
   late final $SpecNotesTable specNotes = $SpecNotesTable(this);
+  late final $SnippetsTable snippets = $SnippetsTable(this);
+  late final Index snippetsBodyHash = Index(
+    'snippets_body_hash',
+    'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -15097,6 +15990,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     specDuels,
     stepRuns,
     specNotes,
+    snippets,
+    snippetsBodyHash,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -15268,6 +16163,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('spec_notes', kind: UpdateKind.delete)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('snippets', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversations',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('snippets', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('snippets', kind: UpdateKind.update)],
+    ),
   ]);
 }
 
@@ -15433,6 +16349,25 @@ final class $$WorkspacesTableReferences
     final cache = $_typedResult.readTableOrNull(
       _autopilotStatesRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SnippetsTable, List<Snippet>> _snippetsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.snippets,
+    aliasName: 'workspaces__id__snippets__workspace_id',
+  );
+
+  $$SnippetsTableProcessedTableManager get snippetsRefs {
+    final manager = $$SnippetsTableTableManager(
+      $_db,
+      $_db.snippets,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -15659,6 +16594,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$AutopilotStatesTableFilterComposer(
             $db: $db,
             $table: $db.autopilotStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> snippetsRefs(
+    Expression<bool> Function($$SnippetsTableFilterComposer f) f,
+  ) {
+    final $$SnippetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableFilterComposer(
+            $db: $db,
+            $table: $db.snippets,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -15919,6 +16879,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> snippetsRefs<T extends Object>(
+    Expression<T> Function($$SnippetsTableAnnotationComposer a) f,
+  ) {
+    final $$SnippetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -15943,6 +16928,7 @@ class $$WorkspacesTableTableManager
             bool projectPlansRefs,
             bool specDraftsRefs,
             bool autopilotStatesRefs,
+            bool snippetsRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -15998,6 +16984,7 @@ class $$WorkspacesTableTableManager
                 projectPlansRefs = false,
                 specDraftsRefs = false,
                 autopilotStatesRefs = false,
+                snippetsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -16010,6 +16997,7 @@ class $$WorkspacesTableTableManager
                     if (projectPlansRefs) db.projectPlans,
                     if (specDraftsRefs) db.specDrafts,
                     if (autopilotStatesRefs) db.autopilotStates,
+                    if (snippetsRefs) db.snippets,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -16182,6 +17170,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (snippetsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          Snippet
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._snippetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).snippetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -16211,6 +17220,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool projectPlansRefs,
         bool specDraftsRefs,
         bool autopilotStatesRefs,
+        bool snippetsRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -19906,6 +20916,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SnippetsTable, List<Snippet>> _snippetsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.snippets,
+    aliasName: 'sessions__id__snippets__origin_session_id',
+  );
+
+  $$SnippetsTableProcessedTableManager get snippetsRefs {
+    final manager = $$SnippetsTableTableManager($_db, $_db.snippets).filter(
+      (f) => f.originSessionId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -20193,6 +21221,31 @@ class $$SessionsTableFilterComposer
           }) => $$ReviewCommentsTableFilterComposer(
             $db: $db,
             $table: $db.reviewComments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> snippetsRefs(
+    Expression<bool> Function($$SnippetsTableFilterComposer f) f,
+  ) {
+    final $$SnippetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.originSessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableFilterComposer(
+            $db: $db,
+            $table: $db.snippets,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -20653,6 +21706,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> snippetsRefs<T extends Object>(
+    Expression<T> Function($$SnippetsTableAnnotationComposer a) f,
+  ) {
+    final $$SnippetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.originSessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -20676,6 +21754,7 @@ class $$SessionsTableTableManager
             bool conversationsRefs,
             bool pendingNoticesRefs,
             bool reviewCommentsRefs,
+            bool snippetsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -20822,6 +21901,7 @@ class $$SessionsTableTableManager
                 conversationsRefs = false,
                 pendingNoticesRefs = false,
                 reviewCommentsRefs = false,
+                snippetsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -20830,6 +21910,7 @@ class $$SessionsTableTableManager
                     if (conversationsRefs) db.conversations,
                     if (pendingNoticesRefs) db.pendingNotices,
                     if (reviewCommentsRefs) db.reviewComments,
+                    if (snippetsRefs) db.snippets,
                   ],
                   addJoins:
                       <
@@ -20969,6 +22050,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (snippetsRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          Snippet
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._snippetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).snippetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.originSessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -20997,6 +22099,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool conversationsRefs,
         bool pendingNoticesRefs,
         bool reviewCommentsRefs,
+        bool snippetsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -21440,6 +22543,24 @@ final class $$ConversationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$SnippetsTable, List<Snippet>> _snippetsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.snippets,
+    aliasName: 'conversations__id__snippets__origin_conversation_id',
+  );
+
+  $$SnippetsTableProcessedTableManager get snippetsRefs {
+    final manager = $$SnippetsTableTableManager($_db, $_db.snippets).filter(
+      (f) => f.originConversationId.id.sqlEquals($_itemColumn<int>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ConversationsTableFilterComposer
@@ -21603,6 +22724,31 @@ class $$ConversationsTableFilterComposer
           }) => $$ConversationEventsTableFilterComposer(
             $db: $db,
             $table: $db.conversationEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> snippetsRefs(
+    Expression<bool> Function($$SnippetsTableFilterComposer f) f,
+  ) {
+    final $$SnippetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.originConversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableFilterComposer(
+            $db: $db,
+            $table: $db.snippets,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -21905,6 +23051,31 @@ class $$ConversationsTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> snippetsRefs<T extends Object>(
+    Expression<T> Function($$SnippetsTableAnnotationComposer a) f,
+  ) {
+    final $$SnippetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.snippets,
+      getReferencedColumn: (t) => t.originConversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SnippetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ConversationsTableTableManager
@@ -21924,6 +23095,7 @@ class $$ConversationsTableTableManager
             bool workspaceId,
             bool sessionId,
             bool conversationEventsRefs,
+            bool snippetsRefs,
           })
         > {
   $$ConversationsTableTableManager(_$AppDatabase db, $ConversationsTable table)
@@ -22038,11 +23210,13 @@ class $$ConversationsTableTableManager
                 workspaceId = false,
                 sessionId = false,
                 conversationEventsRefs = false,
+                snippetsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (conversationEventsRefs) db.conversationEvents,
+                    if (snippetsRefs) db.snippets,
                   ],
                   addJoins:
                       <
@@ -22108,6 +23282,27 @@ class $$ConversationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (snippetsRefs)
+                        await $_getPrefetchedData<
+                          Conversation,
+                          $ConversationsTable,
+                          Snippet
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationsTableReferences
+                              ._snippetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).snippetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.originConversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -22132,6 +23327,7 @@ typedef $$ConversationsTableProcessedTableManager =
         bool workspaceId,
         bool sessionId,
         bool conversationEventsRefs,
+        bool snippetsRefs,
       })
     >;
 typedef $$ConversationEventsTableCreateCompanionBuilder =
@@ -27415,6 +28611,693 @@ typedef $$SpecNotesTableProcessedTableManager =
       SpecNote,
       PrefetchHooks Function({bool specId})
     >;
+typedef $$SnippetsTableCreateCompanionBuilder = SnippetsCompanion Function({
+  Value<int> id,
+  required int workspaceId,
+  required String name,
+  required String nameKey,
+  Value<String?> language,
+  Value<String> description,
+  required String body,
+  required String bodyHash,
+  Value<int?> originConversationId,
+  Value<String?> originSessionId,
+  Value<String?> originLabel,
+  Value<int> uses,
+  Value<DateTime?> lastUsedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$SnippetsTableUpdateCompanionBuilder = SnippetsCompanion Function({
+  Value<int> id,
+  Value<int> workspaceId,
+  Value<String> name,
+  Value<String> nameKey,
+  Value<String?> language,
+  Value<String> description,
+  Value<String> body,
+  Value<String> bodyHash,
+  Value<int?> originConversationId,
+  Value<String?> originSessionId,
+  Value<String?> originLabel,
+  Value<int> uses,
+  Value<DateTime?> lastUsedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+final class $$SnippetsTableReferences
+    extends BaseReferences<_$AppDatabase, $SnippetsTable, Snippet> {
+  $$SnippetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('snippets__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConversationsTable _originConversationIdTable(_$AppDatabase db) => db
+      .conversations
+      .createAlias('snippets__origin_conversation_id__conversations__id');
+
+  $$ConversationsTableProcessedTableManager? get originConversationId {
+    final $_column = $_itemColumn<int>('origin_conversation_id');
+    if ($_column == null) return null;
+    final manager = $$ConversationsTableTableManager(
+      $_db,
+      $_db.conversations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(
+      _originConversationIdTable($_db),
+    );
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _originSessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('snippets__origin_session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get originSessionId {
+    final $_column = $_itemColumn<String>('origin_session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_originSessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SnippetsTableFilterComposer
+    extends Composer<_$AppDatabase, $SnippetsTable> {
+  $$SnippetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bodyHash => $composableBuilder(
+    column: $table.bodyHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get originLabel => $composableBuilder(
+    column: $table.originLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get uses => $composableBuilder(
+    column: $table.uses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableFilterComposer get originConversationId {
+    final $$ConversationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originConversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get originSessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SnippetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SnippetsTable> {
+  $$SnippetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get language => $composableBuilder(
+    column: $table.language,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get body => $composableBuilder(
+    column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bodyHash => $composableBuilder(
+    column: $table.bodyHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get originLabel => $composableBuilder(
+    column: $table.originLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get uses => $composableBuilder(
+    column: $table.uses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableOrderingComposer get originConversationId {
+    final $$ConversationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originConversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableOrderingComposer get originSessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SnippetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SnippetsTable> {
+  $$SnippetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get nameKey =>
+      $composableBuilder(column: $table.nameKey, builder: (column) => column);
+
+  GeneratedColumn<String> get language =>
+      $composableBuilder(column: $table.language, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get body =>
+      $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get bodyHash =>
+      $composableBuilder(column: $table.bodyHash, builder: (column) => column);
+
+  GeneratedColumn<String> get originLabel => $composableBuilder(
+    column: $table.originLabel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get uses =>
+      $composableBuilder(column: $table.uses, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableAnnotationComposer get originConversationId {
+    final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originConversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get originSessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.originSessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SnippetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SnippetsTable,
+          Snippet,
+          $$SnippetsTableFilterComposer,
+          $$SnippetsTableOrderingComposer,
+          $$SnippetsTableAnnotationComposer,
+          $$SnippetsTableCreateCompanionBuilder,
+          $$SnippetsTableUpdateCompanionBuilder,
+          (Snippet, $$SnippetsTableReferences),
+          Snippet,
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool originConversationId,
+            bool originSessionId,
+          })
+        > {
+  $$SnippetsTableTableManager(_$AppDatabase db, $SnippetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SnippetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SnippetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SnippetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> nameKey = const Value.absent(),
+                Value<String?> language = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                Value<String> body = const Value.absent(),
+                Value<String> bodyHash = const Value.absent(),
+                Value<int?> originConversationId = const Value.absent(),
+                Value<String?> originSessionId = const Value.absent(),
+                Value<String?> originLabel = const Value.absent(),
+                Value<int> uses = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SnippetsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                name: name,
+                nameKey: nameKey,
+                language: language,
+                description: description,
+                body: body,
+                bodyHash: bodyHash,
+                originConversationId: originConversationId,
+                originSessionId: originSessionId,
+                originLabel: originLabel,
+                uses: uses,
+                lastUsedAt: lastUsedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String name,
+                required String nameKey,
+                Value<String?> language = const Value.absent(),
+                Value<String> description = const Value.absent(),
+                required String body,
+                required String bodyHash,
+                Value<int?> originConversationId = const Value.absent(),
+                Value<String?> originSessionId = const Value.absent(),
+                Value<String?> originLabel = const Value.absent(),
+                Value<int> uses = const Value.absent(),
+                Value<DateTime?> lastUsedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => SnippetsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                name: name,
+                nameKey: nameKey,
+                language: language,
+                description: description,
+                body: body,
+                bodyHash: bodyHash,
+                originConversationId: originConversationId,
+                originSessionId: originSessionId,
+                originLabel: originLabel,
+                uses: uses,
+                lastUsedAt: lastUsedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SnippetsTable, Snippet>(table),
+                  $$SnippetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                originConversationId = false,
+                originSessionId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$SnippetsTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$SnippetsTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (originConversationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.originConversationId,
+                            referencedTable: $$SnippetsTableReferences
+                                ._originConversationIdTable(db),
+                            referencedColumn: $$SnippetsTableReferences
+                                ._originConversationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (originSessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.originSessionId,
+                            referencedTable: $$SnippetsTableReferences
+                                ._originSessionIdTable(db),
+                            referencedColumn: $$SnippetsTableReferences
+                                ._originSessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$SnippetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SnippetsTable,
+      Snippet,
+      $$SnippetsTableFilterComposer,
+      $$SnippetsTableOrderingComposer,
+      $$SnippetsTableAnnotationComposer,
+      $$SnippetsTableCreateCompanionBuilder,
+      $$SnippetsTableUpdateCompanionBuilder,
+      (Snippet, $$SnippetsTableReferences),
+      Snippet,
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool originConversationId,
+        bool originSessionId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -27469,4 +29352,6 @@ class $AppDatabaseManager {
       $$StepRunsTableTableManager(_db, _db.stepRuns);
   $$SpecNotesTableTableManager get specNotes =>
       $$SpecNotesTableTableManager(_db, _db.specNotes);
+  $$SnippetsTableTableManager get snippets =>
+      $$SnippetsTableTableManager(_db, _db.snippets);
 }
