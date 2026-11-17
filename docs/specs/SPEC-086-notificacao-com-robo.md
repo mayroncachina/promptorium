@@ -3,6 +3,7 @@ id: SPEC-086
 status: rascunho
 tipo: melhoria
 depende-de: SPEC-076
+issue: 276
 ---
 
 # Notificação com o robô
@@ -20,6 +21,8 @@ Esta spec:
 - quando um agente **precisa de você** e a janela está em segundo plano, a notificação mostra **o robô daquele agente acenando** (SPEC-076), como imagem estática, e o nome dele no título;
 - o **clique traz o app para a frente e abre direto no pedido**: o workspace certo, a tela certa, o cartão do pedido em foco;
 - tem **regras contra spam**: uma notificação por agente, que se atualiza; um resumo quando vários pedem juntos; nada com a janela em foco; e a notificação some quando o pedido é respondido.
+
+Issue: [#276](https://github.com/mayroncachina/promptorium/issues/276) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/TT6sHU1TBgjjn1B8vF5uGe). Capturas em `docs/mockups/spec-086/`:
 
