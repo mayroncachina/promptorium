@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -18,6 +17,7 @@ import 'core/tray_service.dart';
 import 'features/activities/quota_forecast.dart';
 import 'features/board/autopilot.dart';
 import 'features/home/tray_radar.dart';
+import 'features/notifications/agent_alerts.dart';
 import 'features/repository/graph/commit_model_badge.dart';
 import 'features/repository/graph/graph_tab.dart' show graphAuthorBadgeProvider;
 import 'features/review/pr_babysitter.dart';
@@ -45,13 +45,6 @@ Future<void> main() async {
     await windowManager.show();
     await windowManager.focus();
   });
-
-  // local_notifier 0.1.6 README ("Usage"); needs libnotify on Linux.
-  try {
-    await localNotifier.setup(appName: 'Promptorium');
-  } catch (e) {
-    debugPrint('notificações indisponíveis: $e');
-  }
 
   // Closing the window must not leave `claude` processes orphaned: intercept
   // the close (window_manager 0.5.2 `setPreventClose` + `onWindowClose`), stop every
@@ -88,6 +81,16 @@ Future<void> main() async {
     (_, radar) => _tray?.update(radar.status),
     fireImmediately: true,
   );
+  // SPEC-086: the notification with the robot when an agent needs the
+  // person and the window is in the background (lifecycle `resumed` = in
+  // front: focused, not minimized, not hidden).
+  // The binding keeps the listener for the app's lifetime.
+  AppLifecycleListener(
+    onStateChange: (s) => container
+        .read(windowActiveProvider.notifier)
+        .set(s == AppLifecycleState.resumed),
+  );
+  container.listen(agentAlertsProvider, (_, _) {});
   // SPEC-076 R7: the readings of the quota feed the forecast from now on.
   container.read(quotaSamplesProvider);
   // Plan usage in the footer: `claude -p /usage` costs no tokens.

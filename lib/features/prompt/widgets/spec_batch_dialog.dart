@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -11,6 +10,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart';
 import '../spec_batch.dart';
 import 'answer_spec_bar.dart';
+import '../../../ui/widgets/markdown/app_markdown.dart';
 
 /// "N specs nesta resposta" and the review list (SPEC-068 R1, R3–R6, R9).
 
@@ -408,10 +408,7 @@ class _SpecBatchDialogState extends ConsumerState<SpecBatchDialog> {
                 child: SingleChildScrollView(
                   key: const ValueKey('spec-batch-preview'),
                   padding: const EdgeInsets.all(16),
-                  child: MarkdownBody(
-                    data: SpecDocument.parse(text).body,
-                    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
-                  ),
+                  child: AppMarkdown(data: SpecDocument.parse(text).body),
                 ),
               ),
             ],

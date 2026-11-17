@@ -48,7 +48,7 @@ Nas [Releases do GitHub](https://github.com/mayroncachina/promptorium/releases):
 
 | Arquivo | Uso |
 |---|---|
-| `promptorium_<versão>_amd64.deb` | `sudo apt install ./promptorium_<versão>_amd64.deb`. Instala em `/opt/promptorium`, com o comando `promptorium`, atalho no menu e ícones. O apt instala o `git` e as bibliotecas (GTK, libnotify, X11); o `gh` é recomendado. |
+| `promptorium_<versão>_amd64.deb` | `sudo apt install ./promptorium_<versão>_amd64.deb`. Instala em `/opt/promptorium`, com o comando `promptorium`, atalho no menu e ícones. O apt instala o `git` e as bibliotecas (GTK, X11); o `gh` é recomendado. |
 | `promptorium-<versão>-linux-x64.tar.gz` | Portátil: extrair e rodar `./promptorium`, sem atalho no menu. |
 
 ## A partir do código

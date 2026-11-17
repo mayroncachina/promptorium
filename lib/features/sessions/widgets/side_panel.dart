@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../notifications/alert_target.dart' show AlertSpotlight;
+
 import '../../../core/providers/agent_event.dart' show PermissionRequest;
 import '../../../data/providers.dart';
 import '../../../ui/shell/footer_stats.dart' show formatTokens;
@@ -139,6 +141,24 @@ class ApprovalCard extends ConsumerStatefulWidget {
 
 class _ApprovalCardState extends ConsumerState<ApprovalCard> {
   bool _busy = false;
+
+  /// "Aprovar" / "Aprovar edição": the focus after a click on the
+  /// notification (SPEC-086 R7).
+  final _primary = FocusNode(debugLabel: 'approval-primary');
+
+  /// The answers of a question: the focus goes to the first one.
+  final _questions = FocusNode(
+    debugLabel: 'approval-questions',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  @override
+  void dispose() {
+    _primary.dispose();
+    _questions.dispose();
+    super.dispose();
+  }
 
   Future<void> _run(Future<void> Function(SessionManager m) action) async {
     if (_busy) return;
@@ -363,6 +383,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
               const SizedBox(width: 8),
               AmberButton(
                 key: ValueKey('approve-${a.requestId}'),
+                focusNode: _primary,
                 label: 'Aprovar edição',
                 height: 34,
                 onTap: _busy ? null : () => _approve(always: false),
@@ -395,6 +416,18 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
 
   @override
   Widget build(BuildContext context) {
+    final r = widget.approval.request;
+    final question = r.toolName == 'AskUserQuestion';
+    final spec = agentSpecRequest(r) != null && !isEditTool(r.toolName);
+    return AlertSpotlight(
+      requestId: widget.approval.requestId,
+      primary: question || spec ? null : _primary,
+      within: question ? _questions : null,
+      child: _card(),
+    );
+  }
+
+  Widget _card() {
     final a = widget.approval;
     final r = a.request;
     final stats = editStats(r.toolName, r.input);
@@ -428,13 +461,16 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
               ),
             ),
             const SizedBox(height: 8),
-            QuestionCard(
-              questions: questions,
-              busy: _busy,
-              onDecline: _deny,
-              onSubmit: (answers) => _approve(
-                always: false,
-                input: askAnswerInput(r.input, answers),
+            Focus(
+              focusNode: _questions,
+              child: QuestionCard(
+                questions: questions,
+                busy: _busy,
+                onDecline: _deny,
+                onSubmit: (answers) => _approve(
+                  always: false,
+                  input: askAnswerInput(r.input, answers),
+                ),
               ),
             ),
           ],
@@ -535,6 +571,7 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
               Expanded(
                 child: AmberButton(
                   key: ValueKey('approve-${a.requestId}'),
+                  focusNode: _primary,
                   label: 'Aprovar',
                   expand: true,
                   onTap: _busy ? null : () => _approve(always: false),

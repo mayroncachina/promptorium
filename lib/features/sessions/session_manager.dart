@@ -36,6 +36,7 @@ import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
 import '../review/ci_fixer.dart' show ciFixerProvider;
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
+import '../notifications/agent_alerts.dart' show alertSettingsProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
 import 'session_changes.dart';
@@ -1695,8 +1696,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     _timeline(id).push(UnknownEvent(json), seq: row.seq);
   }
 
-  /// Native notification. The click goes back to the screen the session was
-  /// created from; approvals always go to Sessões (only answered there).
+  /// The bell, and the native notification of "concluída" / "falhou": the
+  /// click goes back to the screen the session was created from. Approvals
+  /// go to the bell pointing at Sessões; the system notification is
+  /// [AgentAlerts]'s (SPEC-086).
   void _notify(String title, String body, String id, {bool approval = false}) {
     final section = approval
         ? AppSection.sessions
@@ -1707,17 +1710,19 @@ class SessionManager extends Notifier<SessionManagerState> {
           .add(title: title, body: body, section: section.name, sessionId: id)
           .catchError((Object e) => debugPrint('notificação não gravada: $e')),
     );
+    // SPEC-086: an approval goes to the system through [AgentAlerts] (the
+    // robot, R1); "concluída" / "falhou" only with its option on (R15).
+    if (approval || !ref.read(alertSettingsProvider).sessions) return;
     ref
         .read(appNotifierProvider)
         .show(
           title,
           body,
           onClick: () {
-            final origin = _origins[id] ?? AppSection.sessions;
             ref.read(selectedSessionProvider.notifier).select(id);
             ref
                 .read(navigationProvider.notifier)
-                .go(approval ? AppSection.sessions : origin);
+                .go(_origins[id] ?? AppSection.sessions);
           },
         );
   }

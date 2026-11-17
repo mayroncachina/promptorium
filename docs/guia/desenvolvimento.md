@@ -10,14 +10,13 @@
 | clang, cmake, ninja, pkg-config | — | Toolchain Linux do Flutter |
 | `libgtk-3-dev` | — | Janela |
 | `libsqlite3-dev` | — | Banco local |
-| `libnotify-dev` | — | Notificações nativas |
 | `libx11-dev`, `libxi-dev` | — | Ícone na bandeja (`tray_manager` 0.8, por D-Bus, sem AppIndicator) |
 | `gh` | opcional | PRs no Review |
 | `python3` | opcional | Hooks gerenciados (Configurações › Automações) |
 
 ```bash
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev \
-  libsqlite3-dev libnotify-dev libx11-dev libxi-dev
+  libsqlite3-dev libx11-dev libxi-dev
 ```
 
 ## Rodar

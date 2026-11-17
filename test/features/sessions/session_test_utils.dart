@@ -21,10 +21,23 @@ class FakeNotifier implements AppNotifier {
   final clicks = <VoidCallback?>[];
 
   @override
-  Future<void> show(String title, String body, {VoidCallback? onClick}) async {
+  Future<int?> show(
+    String title,
+    String body, {
+    VoidCallback? onClick,
+    NotificationImage? image,
+    int? replaces,
+    List<(String, String)> actions = const [clickAction],
+    String? noActionsHint,
+    String? category,
+  }) async {
     shown.add((title, body));
     clicks.add(onClick);
+    return shown.length;
   }
+
+  @override
+  Future<void> close(int id) async {}
 }
 
 /// Every fake `claude` started by the manager, with its argv and cwd.

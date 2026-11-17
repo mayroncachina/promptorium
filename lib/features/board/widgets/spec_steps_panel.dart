@@ -7,6 +7,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_dialog.dart';
 import '../../../ui/widgets/app_toast.dart';
 import '../../sessions/session_manager.dart';
+import '../../sessions/replay/open_replay.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart' show selectedSpecProvider;
 import '../board_rules.dart';
@@ -607,6 +608,11 @@ class _StepRow extends ConsumerWidget {
           color: AppColors.panelSolid,
           icon: const Icon(Icons.more_horiz, color: AppColors.textSecondary),
           onSelected: (v) => switch (v) {
+            'replay' => () {
+              final open = openReplay(ref, step.sessionId!);
+              if (inDialog) Navigator.of(context).pop();
+              return open;
+            }(),
             'done' =>
               ref
                   .read(specStepsRepoProvider)
@@ -618,6 +624,11 @@ class _StepRow extends ConsumerWidget {
             _ => rewindStepAction(context, ref, spec, step, redo: v == 'redo'),
           },
           itemBuilder: (_) => [
+            if (step.sessionId != null && step.status != StepStatus.running)
+              const PopupMenuItem(
+                value: 'replay',
+                child: Text('Ver replay', style: TextStyle(fontSize: 12)),
+              ),
             if (!step.isDone)
               const PopupMenuItem(
                 value: 'done',
