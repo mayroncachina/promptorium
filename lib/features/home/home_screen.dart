@@ -100,6 +100,7 @@ class _Inbox extends ConsumerWidget {
 
 Color _colorOf(InboxKind k) => switch (k) {
   InboxKind.approval => AppColors.amber,
+  InboxKind.secret => AppColors.amber,
   InboxKind.needsAnswer => AppColors.red,
   InboxKind.review => AppColors.blue,
   InboxKind.prProblem => AppColors.lilac,
@@ -275,6 +276,27 @@ class _InboxRow extends ConsumerWidget {
             ref.read(navigationProvider.notifier).go(AppSection.prompt);
           },
         ),
+        null,
+      ),
+      InboxKind.secret => (
+        item.sessionId == null
+            ? SmallButton(
+                key: key,
+                label: 'Abrir review',
+                height: 28,
+                background: SessionColors.selectedBg,
+                border: SessionColors.selectedBorder,
+                onTap: goReview,
+              )
+            : AmberButton(
+                key: key,
+                label: 'Ver achados',
+                height: 28,
+                onTap: () => openSessionIn(
+                  ProviderScope.containerOf(context),
+                  item.sessionId!,
+                ),
+              ),
         null,
       ),
       InboxKind.needsAnswer => (
