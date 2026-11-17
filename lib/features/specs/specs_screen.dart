@@ -58,6 +58,7 @@ import '../board/board_rules.dart'
     show canArchiveSpec, canDeleteSpec, isInTray, specStageLabel, stepsOf;
 import '../board/board_screen.dart' show specStepsProvider;
 import '../board/widgets/spec_steps_panel.dart';
+import '../../ui/widgets/markdown/app_markdown.dart';
 
 /// First message of "Refinar com IA" (Prompt screen, mode
 /// [PromptMode.refine]: edits ask for approval inline — DT-35).
@@ -2629,7 +2630,7 @@ class SpecPreview extends StatelessWidget {
                 ),
               ),
             ),
-          MarkdownBody(data: doc.body, styleSheet: style),
+          AppMarkdown(data: doc.body, styleSheet: style),
         ],
       ),
     );
