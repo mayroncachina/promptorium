@@ -440,6 +440,24 @@ List<AgentRequest> agentRequests(
           ),
         );
       }
+    } else if (a.id.startsWith('secret:')) {
+      // SPEC-085 R7: a commit, push or PR stopped by the Vigia de segredos.
+      out.add(
+        AgentRequest(
+          key: a.id,
+          seed: seed,
+          where: a.title,
+          what: 'Segredo encontrado: ${a.subtitle}',
+          since: a.startedAt ?? DateTime.now(),
+          target: AlertTarget(
+            workspaceId: a.workspaceId,
+            kind: AlertKind.needsInput,
+            specId: a.specId,
+            sessionId: a.sessionId,
+            requestId: a.id,
+          ),
+        ),
+      );
     } else if (a.id.startsWith('step:') && a.specId != null) {
       out.add(
         AgentRequest(

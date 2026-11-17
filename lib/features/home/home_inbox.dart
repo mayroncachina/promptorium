@@ -1,3 +1,5 @@
+import '../secrets/secret_blocks.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,6 +22,9 @@ import '../sessions/timeline.dart' show toolTarget;
 enum InboxKind {
   /// A `control_request` of a session or a Prompt conversation.
   approval,
+
+  /// A commit, push or PR stopped by the Vigia de segredos (SPEC-085 R7).
+  secret,
 
   /// A step in `needs_input` (the gate refused it or the session ended
   /// without the marker).
@@ -81,6 +86,7 @@ class InboxGroup {
 
   String get title => switch (kind) {
     InboxKind.approval => 'Aprovações pendentes',
+    InboxKind.secret => 'Segredo encontrado',
     InboxKind.needsAnswer => 'Precisam de resposta',
     InboxKind.review => 'Aguardando review',
     InboxKind.prProblem => 'PR com problema',
@@ -111,6 +117,7 @@ List<InboxGroup> buildInbox({
   required List<ReviewItem> reviewQueue,
   required Map<String, PrWatch> prWatches,
   required bool Function(String sessionId) isAlive,
+  List<PendingSecret> secrets = const [],
 }) {
   final byId = {for (final s in specs) s.id: s};
   final sessionById = {for (final s in sessions) s.id: s};
@@ -256,11 +263,26 @@ List<InboxGroup> buildInbox({
         ),
   ];
 
+  final secretItems = [
+    for (final p in secrets)
+      InboxItem(
+        kind: InboxKind.secret,
+        ref: byId[p.specId]?.code ?? 'Vigia de segredos',
+        title: p.title,
+        detail: p.detail,
+        at: p.at,
+        sessionId: p.sessionId,
+        specId: p.specId,
+        specCode: byId[p.specId]?.code,
+      ),
+  ];
+
   List<InboxItem> sorted(List<InboxItem> l) =>
       l..sort((a, b) => b.at.compareTo(a.at));
   return [
     for (final (kind, items) in [
       (InboxKind.approval, approvals),
+      (InboxKind.secret, secretItems),
       (InboxKind.needsAnswer, needsAnswer),
       (InboxKind.review, review),
       (InboxKind.prProblem, prs),
@@ -317,6 +339,10 @@ final workspaceInboxProvider = Provider.autoDispose
             ref.watch(reviewQueueProvider(workspaceId)).value ?? const [],
         prWatches: ref.watch(prBabysitterProvider),
         isAlive: manager.isAlive,
+        secrets: [
+          for (final p in ref.watch(secretBlocksProvider).values)
+            if (p.workspaceId == workspaceId) p,
+        ],
       );
     });
 

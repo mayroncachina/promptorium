@@ -1,3 +1,5 @@
+import 'secret_block_card.dart';
+
 import 'dart:collection';
 import 'dart:math' as math;
 
@@ -73,18 +75,21 @@ class TimelineView extends ConsumerWidget {
       reveal: reveal,
       child: SessionSnippetScope(
         sessionId: sessionId,
-        child: TimelineListView(
-          key: ValueKey('timeline-$sessionId'),
-          reveal: reveal,
-          editInfo: (t) =>
-              diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
-          footer: since == null
-              ? null
-              : SessionActivity(items: snap.items, since: since),
-          items: snap.items,
-          loading: snap.loading,
-          root: root,
-          waitingTools: waitingTools,
+        child: SecretSessionScope(
+          sessionId: sessionId,
+          child: TimelineListView(
+            key: ValueKey('timeline-$sessionId'),
+            reveal: reveal,
+            editInfo: (t) =>
+                diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
+            footer: since == null
+                ? null
+                : SessionActivity(items: snap.items, since: since),
+            items: snap.items,
+            loading: snap.loading,
+            root: root,
+            waitingTools: waitingTools,
+          ),
         ),
       ),
     );
@@ -430,6 +435,10 @@ class TimelineItemView extends StatelessWidget {
         editInfo: editInfo,
       ),
       ThinkingItem() => ThinkingCard(item: it),
+      SecretBlockItem() => switch (SecretSessionScope.of(context)) {
+        final String id => SecretBlockCard(item: it, sessionId: id),
+        null => _Notice(it),
+      },
       NoticeItem() => _Notice(it),
     };
   }

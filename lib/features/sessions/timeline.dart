@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import '../../core/claude/claude_event.dart';
 import '../../core/claude/claude_args.dart';
+import '../../core/claude/managed_hooks.dart' show secretBlockTitle;
 import '../../core/providers/permission_policy.dart';
+import '../../core/secrets/secret_scanner.dart';
 
 /// Event types written by the app itself into `session_events` (they never
 /// come from the CLI; `ClaudeEvent.fromJson` turns them into [UnknownEvent]).
@@ -27,6 +29,51 @@ abstract final class AppEventTypes {
   }) => {
     'type': denied,
     'tool_use_id': toolUseId,
+    'at': (at ?? DateTime.now()).toIso8601String(),
+  };
+
+  /// The Vigia de segredos blocked a commit, push or PR (SPEC-085 R7):
+  /// `{"type":"promptorium_secrets","block":…,"action":"commit|push|pr",
+  /// "command":…,"findings":[…],"partial":bool}`. The findings are already
+  /// masked ([SecretFinding.toJson]); the value is never stored.
+  static const secrets = 'promptorium_secrets';
+
+  /// A finding of a block was handled (R9, R11): `{"type":
+  /// "promptorium_secret_resolved","block":…,"finding":`fingerprint`,
+  /// "path":…,"how":"removido|ignorado|pedido","text":…}`.
+  static const secretResolved = 'promptorium_secret_resolved';
+
+  static Map<String, dynamic> secretsEvent({
+    required String block,
+    required String action,
+    String? command,
+    required List<Map<String, Object?>> findings,
+    bool partial = false,
+    DateTime? at,
+  }) => {
+    'type': secrets,
+    'block': block,
+    'action': action,
+    'command': ?command,
+    'findings': findings,
+    'partial': partial,
+    'at': (at ?? DateTime.now()).toIso8601String(),
+  };
+
+  static Map<String, dynamic> secretResolvedEvent({
+    required String block,
+    required String finding,
+    required String path,
+    required String how,
+    String? text,
+    DateTime? at,
+  }) => {
+    'type': secretResolved,
+    'block': block,
+    'finding': finding,
+    'path': path,
+    'how': how,
+    'text': ?text,
     'at': (at ?? DateTime.now()).toIso8601String(),
   };
 
@@ -157,6 +204,45 @@ class NoticeItem extends TimelineItem {
   final NoticeLevel level;
 }
 
+/// The card of a commit, push or PR blocked by the Vigia de segredos
+/// (SPEC-085 R7). A [NoticeItem] for every reader that does not know it
+/// (replay, search): its text is the title.
+class SecretBlockItem extends NoticeItem {
+  SecretBlockItem({
+    required this.block,
+    required this.action,
+    required this.findings,
+    this.command,
+    this.partial = false,
+    super.at,
+  }) : super(
+         secretBlockTitle(action, findings.length),
+         level: NoticeLevel.error,
+       );
+
+  final String block;
+
+  /// `commit`, `push` or `pr`.
+  final String action;
+  final String? command;
+  final List<SecretFinding> findings;
+  final bool partial;
+
+  /// How each finding was handled, by `path\u0000fingerprint`.
+  final Map<String, String> resolved = {};
+
+  static String keyOf(SecretFinding f) => '${f.path}\u0000${f.fingerprint}';
+
+  String? resolution(SecretFinding f) => resolved[keyOf(f)];
+
+  List<SecretFinding> get open => [
+    for (final f in findings)
+      if (!resolved.containsKey(keyOf(f))) f,
+  ];
+
+  bool get done => open.isEmpty;
+}
+
 // --- reducer -----------------------------------------------------------------
 
 /// Builds the timeline of one session from its events, in order.
@@ -170,6 +256,10 @@ class Timeline {
   final Map<String?, ThinkingItem> _liveThinking = {};
   bool _sawInit = false;
   final Set<String> _deniedIds = {};
+  final Map<String, SecretBlockItem> _secretBlocks = {};
+
+  /// A block of the Vigia de segredos by its id (SPEC-085).
+  SecretBlockItem? secretBlock(String id) => _secretBlocks[id];
 
   /// Model reported by the first `system/init`.
   String? model;
@@ -369,6 +459,29 @@ class Timeline {
             at: at,
           ),
         );
+      case AppEventTypes.secrets:
+        final block = '${j['block'] ?? ''}';
+        final item = SecretBlockItem(
+          block: block,
+          action: '${j['action'] ?? 'commit'}',
+          command: j['command'] as String?,
+          partial: j['partial'] == true,
+          findings: [
+            if (j['findings'] case final List l)
+              for (final f in l) ?SecretFinding.fromJson(f),
+          ],
+          at: at,
+        );
+        _secretBlocks[block] = item;
+        items.add(item);
+      case AppEventTypes.secretResolved:
+        final b = _secretBlocks['${j['block']}'];
+        final how = '${j['how'] ?? ''}';
+        b?.resolved['${j['path']}\u0000${j['finding']}'] = how;
+        final text = j['text'];
+        if (text is String && text.isNotEmpty) {
+          items.add(NoticeItem(text, at: at));
+        }
     }
   }
 

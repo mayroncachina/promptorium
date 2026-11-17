@@ -224,6 +224,16 @@ List<PaletteCommand> paletteCommands(
                   : manager.deny(a.sessionId, a.requestId),
             ),
           );
+        case InboxKind.secret:
+          if (id == null) continue;
+          pending.add(
+            PaletteCommand(
+              label: 'Ver achados',
+              detail: '${it.ref} · ${it.detail}',
+              group: 'Pendentes',
+              run: () => openSession(id),
+            ),
+          );
         case InboxKind.needsAnswer:
           if (id == null) continue;
           pending.add(
