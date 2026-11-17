@@ -135,13 +135,13 @@ Não. Os prints do rascunho ficam no JSON que já existe em `spec_drafts.data`; 
 
 ## Critérios de aceite
 
-- [ ] Ctrl V com imagem anexa o print, com texto cola o texto, e o arrastar e "Anexar print…" aceitam imagens [R1] verificar: flutter test test/features/specs/prints/print_paste_test.dart
-- [ ] A imagem é lida com `wl-paste` ou `xclip`, e a falta da ferramenta mostra o aviso com o comando [R2] verificar: flutter test test/core/clipboard/clipboard_image_test.dart
-- [ ] O print grande é reduzido para 1568 px, o arquivo inválido é recusado e o quinto print também [R3] verificar: flutter test test/features/specs/prints/spec_prints_test.dart
-- [ ] Os cartões mostram a miniatura, Ver e Remover, ficam no rascunho e somem ao descartar [R4] verificar: flutter test test/features/specs/prints/print_paste_test.dart
-- [ ] "Planejar a spec" exige Bug ou Referência em cada print, e o aviso de dados sensíveis aparece [R5, R12] verificar: flutter test test/features/specs/prints/print_paste_test.dart
-- [ ] O primeiro turno do planner leva as imagens e o tipo; a resposta traz a descrição e as marcas [R6, R7] verificar: flutter test test/features/specs/prints/spec_planner_prints_test.dart
-- [ ] O rascunho mostra a Referência visual, e a marca do app de referência no texto bloqueia "Criar spec" [R8, R9] verificar: flutter test test/features/specs/prints/brand_guard_test.dart
-- [ ] Criar a spec grava os prints em `docs/mockups/spec-0NN/` e a seção "Referência visual" no texto [R10, R11] verificar: flutter test test/features/specs/prints/spec_prints_test.dart
-- [ ] No app, um print de bug colado com Ctrl V e um print de referência de outro app viram duas specs com o mockup em `docs/mockups/`, e a de referência não cita a marca do outro app [R1–R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-083/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
+- [x] Ctrl V com imagem anexa o print, com texto cola o texto, e o arrastar e "Anexar print…" aceitam imagens [R1] verificar: flutter test test/features/specs/prints/print_paste_test.dart
+- [x] A imagem é lida com `wl-paste` ou `xclip`, e a falta da ferramenta mostra o aviso com o comando [R2] verificar: flutter test test/core/clipboard/clipboard_image_test.dart
+- [x] O print grande é reduzido para 1568 px, o arquivo inválido é recusado e o quinto print também [R3] verificar: flutter test test/features/specs/prints/spec_prints_test.dart
+- [x] Os cartões mostram a miniatura, Ver e Remover, ficam no rascunho e somem ao descartar [R4] verificar: flutter test test/features/specs/prints/print_paste_test.dart
+- [x] "Planejar a spec" exige Bug ou Referência em cada print, e o aviso de dados sensíveis aparece [R5, R12] verificar: flutter test test/features/specs/prints/print_paste_test.dart
+- [x] O primeiro turno do planner leva as imagens e o tipo; a resposta traz a descrição e as marcas [R6, R7] verificar: flutter test test/features/specs/prints/spec_planner_prints_test.dart
+- [x] O rascunho mostra a Referência visual, e a marca do app de referência no texto bloqueia "Criar spec" [R8, R9] verificar: flutter test test/features/specs/prints/brand_guard_test.dart
+- [x] Criar a spec grava os prints em `docs/mockups/spec-0NN/` e a seção "Referência visual" no texto [R10, R11] verificar: flutter test test/features/specs/prints/spec_prints_test.dart
+- [x] No app, um print de bug colado com Ctrl V e um print de referência de outro app viram duas specs com o mockup em `docs/mockups/`, e a de referência não cita a marca do outro app [R1–R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-083/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R12] verificar: flutter analyze
