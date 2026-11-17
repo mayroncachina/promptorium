@@ -2,6 +2,7 @@
 id: SPEC-084
 status: rascunho
 tipo: recurso
+issue: 270
 ---
 
 # Ponto de restauração
@@ -19,6 +20,8 @@ Esta spec:
 - o ponto guarda o `HEAD`, a branch e **todo o working tree, com os arquivos não rastreados**, sem mexer no índice, no stash nem nos arquivos da pessoa;
 - põe um botão **"Desfazer o que o agente fez"** na sessão, que volta o último turno em um clique, mesmo com o git sujo;
 - mostra antes **o que vai mudar**, separa o que a pessoa editou depois do turno e deixa refazer o que foi desfeito.
+
+Issue: [#270](https://github.com/mayroncachina/promptorium/issues/270) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/4kUbHocUqgLjPcXTuWYCg5). Capturas em `docs/mockups/spec-084/`:
 
