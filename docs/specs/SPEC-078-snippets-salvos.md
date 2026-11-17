@@ -149,13 +149,13 @@ Sim. **v29** (a única migração da 0.19.0): cria a tabela `snippets` e o índi
 
 ## Critérios de aceite
 
-- [ ] A barra do bloco tem Salvar na timeline e no plano pronto, e não na tela Specs [R1, P8] verificar: flutter test test/features/snippets/save_snippet_test.dart
-- [ ] O balão sugere o nome pelo comentário ou pelo título e salva o código exato do bloco [R2, R3] verificar: flutter test test/features/snippets/snippet_naming_test.dart
-- [ ] Nome repetido troca Salvar por Substituir; código já salvo mostra "✓ Salvo" [R4] verificar: flutter test test/features/snippets/save_snippet_test.dart
-- [ ] A tabela `snippets` é criada na v29, por workspace, e apagar o workspace apaga os snippets [R5] verificar: flutter test test/data/migration_test.dart
-- [ ] A paleta lista os snippets no grupo Snippets, filtra com `$`, mostra a prévia, copia com Enter e insere com Ctrl+Enter [R6, R7, R8] verificar: flutter test test/features/snippets/snippet_palette_test.dart
-- [ ] Inserir põe um bloco cercado com a linguagem no composer da tela aberta e soma um uso [R8] verificar: flutter test test/features/snippets/snippet_actions_test.dart
-- [ ] O diálogo Snippets busca, edita com Ctrl+S, pergunta antes de perder mudanças, abre a origem e exclui com Desfazer [R9–R12] verificar: flutter test test/features/snippets/snippets_dialog_test.dart
-- [ ] O painel do Prompt mostra os cinco últimos snippets e "Ver todos" [R13] verificar: flutter test test/features/prompt/prompt_side_panel_test.dart
-- [ ] No app, a query de uma resposta vira snippet, é achada com Ctrl K `$atras`, copiada e colada no DBeaver, e inserida no composer de outra conversa [R1–R8] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-078/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R14] verificar: flutter analyze
+- [x] A barra do bloco tem Salvar na timeline e no plano pronto, e não na tela Specs [R1, P8] verificar: flutter test test/features/snippets/save_snippet_test.dart
+- [x] O balão sugere o nome pelo comentário ou pelo título e salva o código exato do bloco [R2, R3] verificar: flutter test test/features/snippets/snippet_naming_test.dart
+- [x] Nome repetido troca Salvar por Substituir; código já salvo mostra "✓ Salvo" [R4] verificar: flutter test test/features/snippets/save_snippet_test.dart
+- [x] A tabela `snippets` é criada na v29, por workspace, e apagar o workspace apaga os snippets [R5] verificar: flutter test test/data/migration_test.dart
+- [x] A paleta lista os snippets no grupo Snippets, filtra com `$`, mostra a prévia, copia com Enter e insere com Ctrl+Enter [R6, R7, R8] verificar: flutter test test/features/snippets/snippet_palette_test.dart
+- [x] Inserir põe um bloco cercado com a linguagem no composer da tela aberta e soma um uso [R8] verificar: flutter test test/features/snippets/snippet_actions_test.dart
+- [x] O diálogo Snippets busca, edita com Ctrl+S, pergunta antes de perder mudanças, abre a origem e exclui com Desfazer [R9–R12] verificar: flutter test test/features/snippets/snippets_dialog_test.dart
+- [x] O painel do Prompt mostra os cinco últimos snippets e "Ver todos" [R13] verificar: flutter test test/features/prompt/prompt_side_panel_test.dart
+- [x] No app, a query de uma resposta vira snippet, é achada com Ctrl K `$atras`, copiada e colada no DBeaver, e inserida no composer de outra conversa [R1–R8] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-078/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R14] verificar: flutter analyze
