@@ -1,6 +1,7 @@
 ---
 id: SPEC-082
-status: rascunho
+status: aprovada
+versão: 0.19.0
 tipo: recurso
 issue: 275
 ---
@@ -100,15 +101,15 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/YGDGPkpgnDGFVQe3f3u
 - Ler o jsonl para qualquer coisa além do conteúdo anterior dos arquivos, ou importar sessões feitas fora do app.
 - Explicar automaticamente "por que deu errado" com o Claude.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **De onde vem o histórico.** (a) O banco (`session_events`); (b) o jsonl do Claude Code; (c) o banco, com o jsonl só para o conteúdo anterior dos arquivos. **Recomendação: (c).** O banco já tem todas as sessões do app, com a hora de cada evento e o que só o app sabe (a mensagem digitada, que o CLI não ecoa no stdin; a aprovação negada; as notas do gate). O jsonl some quando o Claude Code limpa as transcrições antigas (30 dias por padrão), muda de formato entre versões e não existe para outros provedores. Mas ele tem uma coisa que o banco não tem: o `originalFile` de cada edição, o arquivo inteiro antes dela. Por isso entra só para isso, sob demanda, e a falta dele não quebra nada.
-- P2 · **Base do "arquivo neste ponto".** jsonl, depois `startSha` da etapa, depois `baseBranch`. **Recomendação:** essa ordem. O jsonl é exato; o `startSha` é exato para sessões de etapa; a `baseBranch` pode estar desatualizada se a pessoa mexeu no worktree, e por isso é a última.
-- P3 · **Só sessões ou também conversas.** **Recomendação:** só sessões nesta spec. É onde está o trabalho das specs (etapas, Corrigir CI, correções do revisor). As conversas usam a mesma `Timeline` e entram depois sem mudar o componente.
-- P4 · **Eixo da linha do tempo.** Por passo (cada passo a mesma largura) ou pelo tempo real. **Recomendação: por passo**, com as horas como marcas e as pausas longas cortadas. No tempo real, uma espera de 2 h por aprovação esmaga a sessão inteira num canto, e 30 leituras seguidas de 1 s viram um borrão.
-- P5 · **"Quem escreveu esta linha?" nesta spec.** **Recomendação: entra.** É o atalho que responde "de onde veio isto" e custa pouco: procurar a linha no `new_string` das edições do arquivo, do fim para o começo. O caso que não acha (linha gerada por um comando) tem a resposta "veio de um comando".
-- P6 · **Velocidade do "tocar".** **Recomendação:** um passo por segundo, com 1×, 2× e 4×, e parar num erro. Tocar é para assistir a sequência; quem quer ir rápido arrasta.
-- P7 · **Subagentes.** Na faixa principal, recolhidos numa marca só, ou abertos. **Recomendação:** recolhidos numa marca "Subagente · 23 passos" que se abre numa faixa embaixo, só dele. Abertos por padrão, um subagente grande esconde o que o agente principal fez.
+- P1 · **De onde vem o histórico.** (a) O banco (`session_events`); (b) o jsonl do Claude Code; (c) o banco, com o jsonl só para o conteúdo anterior dos arquivos. **Recomendação: (c).** O banco já tem todas as sessões do app, com a hora de cada evento e o que só o app sabe (a mensagem digitada, que o CLI não ecoa no stdin; a aprovação negada; as notas do gate). O jsonl some quando o Claude Code limpa as transcrições antigas (30 dias por padrão), muda de formato entre versões e não existe para outros provedores. Mas ele tem uma coisa que o banco não tem: o `originalFile` de cada edição, o arquivo inteiro antes dela. Por isso entra só para isso, sob demanda, e a falta dele não quebra nada. **Decidido:** (c) o banco (`session_events`), com o jsonl do Claude Code só para o conteúdo anterior dos arquivos, sob demanda.
+- P2 · **Base do "arquivo neste ponto".** jsonl, depois `startSha` da etapa, depois `baseBranch`. **Recomendação:** essa ordem. O jsonl é exato; o `startSha` é exato para sessões de etapa; a `baseBranch` pode estar desatualizada se a pessoa mexeu no worktree, e por isso é a última. **Decidido:** a ordem jsonl, depois `startSha` da etapa, depois `baseBranch`.
+- P3 · **Só sessões ou também conversas.** **Recomendação:** só sessões nesta spec. É onde está o trabalho das specs (etapas, Corrigir CI, correções do revisor). As conversas usam a mesma `Timeline` e entram depois sem mudar o componente. **Decidido:** só sessões nesta spec; as conversas entram depois sem mudar o componente.
+- P4 · **Eixo da linha do tempo.** Por passo (cada passo a mesma largura) ou pelo tempo real. **Recomendação: por passo**, com as horas como marcas e as pausas longas cortadas. No tempo real, uma espera de 2 h por aprovação esmaga a sessão inteira num canto, e 30 leituras seguidas de 1 s viram um borrão. **Decidido:** por passo, com as horas como marcas e as pausas longas cortadas.
+- P5 · **"Quem escreveu esta linha?" nesta spec.** **Recomendação: entra.** É o atalho que responde "de onde veio isto" e custa pouco: procurar a linha no `new_string` das edições do arquivo, do fim para o começo. O caso que não acha (linha gerada por um comando) tem a resposta "veio de um comando". **Decidido:** entra; a linha que nenhuma edição escreveu mostra "veio de um comando".
+- P6 · **Velocidade do "tocar".** **Recomendação:** um passo por segundo, com 1×, 2× e 4×, e parar num erro. Tocar é para assistir a sequência; quem quer ir rápido arrasta. **Decidido:** um passo por segundo, com 1×, 2× e 4×, e parar num erro.
+- P7 · **Subagentes.** Na faixa principal, recolhidos numa marca só, ou abertos. **Recomendação:** recolhidos numa marca "Subagente · 23 passos" que se abre numa faixa embaixo, só dele. Abertos por padrão, um subagente grande esconde o que o agente principal fez. **Decidido:** recolhidos numa marca "Subagente · N passos", que se abre numa faixa embaixo, só dele.
 
 ## Design
 
