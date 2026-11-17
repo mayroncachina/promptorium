@@ -231,9 +231,7 @@ class _UndoDialogState extends State<UndoDialog> {
 
   Widget _actions(UndoPlan? plan) {
     final n = _selected?.length ?? 0;
-    final commits = plan == null || plan.filesOnly || widget.redo
-        ? 0
-        : plan.commits.length;
+    final commits = plan == null || plan.filesOnly ? 0 : plan.commits.length;
     final String label;
     if (plan != null && plan.filesOnly && !widget.redo) {
       label = 'Desfazer só os arquivos';
@@ -285,7 +283,10 @@ class _UndoDialogState extends State<UndoDialog> {
 
   Widget _body(UndoPlan plan) {
     const max = 8;
-    final restore = plan.restore;
+    // Created and deleted files first: they are the surprises.
+    int rank(UndoFile f) => f.kind == TreeChangeKind.modified ? 1 : 0;
+    final restore = [...plan.restore]
+      ..sort((a, b) => rank(a).compareTo(rank(b)));
     final shown = _showAll || restore.length <= max
         ? restore
         : restore.take(max - 1).toList();
@@ -321,7 +322,7 @@ class _UndoDialogState extends State<UndoDialog> {
           children: [
             Expanded(
               child: Text(
-                '${widget.redo ? 'ARQUIVOS QUE VOLTAM AO DEPOIS' : 'ARQUIVOS QUE VOLTAM'} · ${restore.length}',
+                'ARQUIVOS QUE VOLTAM · ${restore.length}',
                 style: sectionTitleStyle,
               ),
             ),
@@ -883,6 +884,8 @@ Future<void> openUndoDialog(
       SnackBar(
         key: const ValueKey('undo-toast'),
         duration: const Duration(seconds: 10),
+        // With an action a SnackBar stays by default; this one leaves (R11).
+        persist: false,
         content: Text('Turno ${current.turn} desfeito.'),
         action: SnackBarAction(
           label: 'Refazer',
