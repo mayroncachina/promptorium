@@ -182,6 +182,9 @@ class QuotaRulerController extends Notifier<QuotaRuler> {
         divisions: _decode(settings[AppSettingKeys.quotaRulerSevenDay]),
       ),
     );
+    // Entries recorded while there was no ruler (or the history of before)
+    // get the weight now (R4).
+    if (state.ready) ref.read(usageLedgerProvider).applyPendingWeights();
   }
 
   void addCost(double usd) {

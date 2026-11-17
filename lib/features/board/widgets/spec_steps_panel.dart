@@ -315,7 +315,7 @@ class SpecStepsPanel extends ConsumerWidget {
         ],
         const SizedBox(height: 10),
         Expanded(
-          flex: hasCost ? 2 : 1,
+          flex: 1,
           child: steps.isEmpty
               ? const Center(
                   child: Text(
@@ -346,7 +346,7 @@ class SpecStepsPanel extends ConsumerWidget {
         // SPEC-081 R8: what every origin of the spec cost, below the steps.
         if (hasCost)
           Flexible(
-            flex: 3,
+            flex: 2,
             child: SingleChildScrollView(
               key: const ValueKey('spec-cost-scroll'),
               padding: const EdgeInsets.only(top: 12, right: 4),

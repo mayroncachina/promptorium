@@ -435,8 +435,9 @@ class _CriterionRow extends ConsumerWidget {
   }
 }
 
-/// The weight of a session (SPEC-081 R8): "≈ 0,8% da semana · ≈ 18% da
-/// janela de 5 h"; tokens while there is no ruler; dollars with an API key.
+/// The weight of a session (SPEC-081 R8): "≈ 0,8% semana · ≈ 18% 5 h"
+/// (it fits the line); tokens while there is no ruler; dollars with an API
+/// key.
 String sessionQuotaLabel(WidgetRef ref, String sessionId) {
   final total = specCostOf(
     ref.watch(sessionUsageProvider(sessionId)).value ?? const [],
@@ -449,7 +450,7 @@ String sessionQuotaLabel(WidgetRef ref, String sessionId) {
     return '${formatTokens(total.tokens)} tokens · % depois da primeira '
         'leitura de cota';
   }
-  return '${formatQuota(total.week)} da semana · '
-      '${formatFiveHour(total.fiveHour)}'
-      '${(total.fiveHour ?? 0) * 100 < 99.5 ? ' da janela de 5 h' : ''}';
+  final five = formatFiveHour(total.fiveHour, short: true);
+  return '${formatQuota(total.week)} semana · '
+      '${five.endsWith('jan.') ? five : '$five 5 h'}';
 }

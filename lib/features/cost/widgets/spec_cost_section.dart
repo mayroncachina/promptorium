@@ -415,6 +415,7 @@ class _StackedBar extends StatelessWidget {
         height: 6,
         child: Row(
           spacing: 2,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final MapEntry(:key, :value) in cost.bySource.entries)
               if (cost.share(value) > 0)
@@ -526,35 +527,7 @@ class _Table extends StatelessWidget {
             child: ExcludeSemantics(
               child: line(
                 key: r.key,
-                label: Row(
-                  spacing: 5,
-                  children: [
-                    ?r.leading,
-                    Flexible(
-                      child: Text(
-                        r.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: r.labelColor,
-                          fontFamily: r.labelColor == null
-                              ? null
-                              : AppFonts.mono,
-                        ),
-                      ),
-                    ),
-                    if (r.detail != null)
-                      Flexible(
-                        child: Text(
-                          r.detail!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _muted,
-                        ),
-                      ),
-                  ],
-                ),
+                label: _RowLabel(row: r),
                 cells: dollars
                     ? [
                         r.extra,
@@ -575,6 +548,57 @@ class _Table extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The label of a line: the dot, the origin and its sessions or rounds
+/// beside it; in a narrow panel (the Specs screen) the detail goes below,
+/// so the origin is never cut.
+class _RowLabel extends StatelessWidget {
+  const _RowLabel({required this.row});
+
+  final _Row row;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final r = row;
+      final label = Text(
+        r.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          color: r.labelColor,
+          fontFamily: r.labelColor == null ? null : AppFonts.mono,
+        ),
+      );
+      final detail = r.detail == null
+          ? null
+          : Text(
+              r.detail!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _muted,
+            );
+      final wide = box.maxWidth >= 150;
+      return Row(
+        spacing: 5,
+        children: [
+          ?r.leading,
+          if (wide || detail == null) ...[
+            Flexible(flex: 2, child: label),
+            if (detail != null) Flexible(child: detail),
+          ] else
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [label, detail],
+              ),
+            ),
+        ],
+      );
+    },
+  );
 }
 
 /// "Ver turnos": the entries of the spec, newest first (R8). A turn of a

@@ -142,8 +142,24 @@ void main() {
       );
       addTearDown(c2.dispose);
       await c2.read(appSettingsProvider.notifier).load();
+      // An entry recorded without a ruler gets it when the stored one loads.
+      final later = await c2
+          .read(usageEntriesRepoProvider)
+          .add(
+            UsageEntriesCompanion.insert(
+              workspaceId: Value(ws),
+              source: UsageSource.vibe,
+              at: DateTime(2026, 11, 17),
+              costUsd: const Value(1),
+            ),
+          );
       c2.read(quotaRulerProvider.notifier).loadStored();
       expect(c2.read(quotaRulerProvider).fiveHourRuler, closeTo(0.03, 1e-9));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final weighed = await (db.select(
+        db.usageEntries,
+      )..where((e) => e.id.equals(later))).getSingle();
+      expect(weighed.fiveHourPct, closeTo(0.03, 1e-9));
     });
   });
 }
