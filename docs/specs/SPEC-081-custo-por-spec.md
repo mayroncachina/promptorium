@@ -1,6 +1,7 @@
 ---
 id: SPEC-081
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 depende-de: SPEC-076
 issue: 271
@@ -17,14 +18,14 @@ E o número que existe está na unidade errada. O usuário está no plano Max: n
 Esta spec:
 - passa a **registrar o consumo de cada turno** de tudo o que trabalha numa spec (etapas, revisor automático, Corrigir CI, VIBE, refinamento, classificador e decisões do Orquestrador), com a spec e a origem;
 - converte o consumo em **peso na janela de 5 h e na semana**, em % e em tokens, a partir das leituras de cota que o app já recebe (`rate_limit_event` e `/usage`), como a Atividades (SPEC-076 R7) faz com as sessões vivas;
-- mostra o custo **no painel da spec**, que abre com o clique que já existe no card do Quadro, com a divisão por origem e por etapa. O card não muda;
+- mostra o custo **no painel da spec**, que abre com o clique que já existe no card do Quadro, com a divisão por origem e por etapa. O card perde o "US$ x" que mostra hoje e fica sem nenhum custo;
 - cria um **ranking das specs que mais custaram**, em Projeto → Métricas.
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/8jY976rNGUu6w2TNxAoGTr). Capturas em `docs/mockups/spec-081/`:
 
 | Captura | O que mostra | Requisitos |
 |---|---|---|
-| `1-quadro.png` | O Quadro com o card como é hoje e, ao clicar numa spec rodando, o painel com a seção Cota e o peso de agora | R6, R7, R8 |
+| `1-quadro.png` | O Quadro com o card sem custo e, ao clicar numa spec rodando, o painel com a seção Cota e o peso de agora | R6, R7, R8 |
 | `2-detalhe.png` | O painel da spec com a seção Cota: totais, divisão por origem, por etapa e a lista de turnos | R8, R9 |
 | `3-ranking.png` | Projeto → Métricas com "Specs que mais custaram", o período e a troca de unidade | R10, R11 |
 | `4-estados.png` | Sem leitura de cota ainda, chave de API (US$), histórico estimado e a lista de turnos | R3, R5, R8, R12 |
@@ -51,7 +52,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/8jY976rNGUu6w2TNxAo
 
 ### Onde aparece
 
-- R6 · **O card não muda.** O card do Quadro fica como é hoje: não ganha selo, ícone, botão nem número de custo, e nenhum gatilho novo. O custo aparece **só quando a pessoa clica no card**, com o clique (a seleção) que já existe hoje e que abre o painel da spec (R8). O arrasto e o clique no robô (SPEC-076) continuam como estão. O texto em US$ que o card já mostra hoje fica como está nesta spec (P2).
+- R6 · **O card fica sem custo.** O "US$ x" que o card do Quadro mostra hoje (a soma do custo das sessões, ao lado dos selos) **sai**, e o card não ganha selo, ícone, botão nem número de custo no lugar, nem gatilho novo. O custo aparece **só quando a pessoa clica no card**, com o clique (a seleção) que já existe hoje e que abre o painel da spec (R8), e ali em % da cota (R12 para a chave de API). O arrasto e o clique no robô (SPEC-076) continuam como estão (P2).
 - R7 · **Ao vivo.** Com a spec rodando, a seção Cota do painel mostra também o peso da sessão viva na janela de 5 h atual, o mesmo da Atividades (SPEC-076 R7): "agora ≈ 9% · 5 h, rodando", em teal, e os números da seção se atualizam a cada turno.
 - R8 · **No detalhe da spec.** O painel da spec no Quadro (`spec_steps_panel.dart`) ganha a seção **Cota**, abaixo das etapas:
   - os totais: "≈ 6% da semana", "≈ 1,4 janela de 5 h" e "1,8 M tokens" (com "+ 41 M lidos do cache" embaixo);
@@ -63,7 +64,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/8jY976rNGUu6w2TNxAo
 - R9 · **A janela de 5 h de hoje.** No detalhe, quando a spec gastou na janela atual, aparece "nesta janela: ≈ 23% (renova às 14:00)", para a pessoa saber se ainda dá para mandar outra rodada antes de renovar.
 - R10 · **Ranking.** Projeto → Métricas ganha, no topo, **"Specs que mais custaram"**: as 10 specs do workspace com mais peso no período, com o código, o título, a coluna, uma barra pelo peso, a % da semana, a janela de 5 h, os tokens e a origem que mais pesou. O período é **7 dias** (padrão), **30 dias** ou **Tudo**, pelos lançamentos dentro do período. Clicar numa linha abre a spec no Quadro, com o painel aberto. Um "Todos os workspaces" junta as specs dos workspaces abertos, com o nome do workspace na linha.
 - R11 · **A tabela de métricas.** A coluna "Custo" (US$) de Projeto → Métricas vira "Cota (semana)", com o mesmo número do painel da spec, e o resumo do topo ("12 spec(s) · …") troca o US$ pelo peso somado.
-- R12 · **Chave de API.** Sem plano (`subscriptionType` nulo, chave de API), não há cota: o painel da spec e o ranking mostram o US$, que nesse caso é o que a pessoa paga, com "estimativa do CLI" ao lado. O detalhe mantém a divisão por origem e por etapa.
+- R12 · **Chave de API.** Sem plano (`subscriptionType` nulo, chave de API), não há cota: o painel da spec e o ranking mostram o US$ (o card continua sem custo, R6), que nesse caso é o que a pessoa paga, com "estimativa do CLI" ao lado. O detalhe mantém a divisão por origem e por etapa.
 - R13 · **Formato.** Pesos com "≈" e uma casa decimal abaixo de 10% ("≈ 0,4%"), sem casa acima ("≈ 23%"); abaixo de 0,1%, "< 0,1%". Janelas acima de 100% viram "1,4 janela de 5 h". Tokens em "k" e "M" com vírgula decimal ("812 k", "1,8 M"). Estados nunca só pela cor: o "agora" em teal vem com o texto "rodando".
 
 ### Acessibilidade
@@ -82,18 +83,18 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/8jY976rNGUu6w2TNxAo
 
 ## Decisões em aberto
 
-- P1 · **Como transformar consumo em % da cota.** (a) Repartir a subida da cota entre os turnos do app no intervalo; (b) uma régua aprendida (mediana de subida ÷ custo, R3); (c) uma tabela fixa por plano. **Recomendação: (b).** A (a) joga na spec o que a pessoa gastou no terminal ao mesmo tempo. A (c) depende de números que a Anthropic não publica e que mudam. A régua se ajusta sozinha e a mediana descarta os intervalos contaminados.
-- P2 · **O US$ que o card já mostra hoje.** O card mostra hoje, ao lado dos selos, o custo em US$ das sessões das etapas. O pedido é deixar o card exatamente como é. **Recomendação:** manter nesta spec, como pedido, e decidir à parte se ele sai: no plano Max ele é a unidade errada e conta só as etapas, então fica diferente do número do painel.
-- P2a · **O que a seção Cota destaca.** % da semana, janela de 5 h ou tokens. **Recomendação: % da semana primeiro**, com a janela de 5 h ao lado e os tokens no terceiro quadro. Uma spec atravessa várias janelas de 5 h, e "140% da janela" confunde; a semana acumula, como a spec.
-- P3 · **Tokens: com ou sem cache.** A leitura de cache é a maior parte dos tokens (40 M num dia) e pesa pouco na cota. **Recomendação:** o número principal é entrada nova + escrita de cache + saída; a leitura de cache aparece à parte ("+ 41 M lidos do cache").
-- P4 · **Onde fica o ranking.** Em Projeto → Métricas, na Atividades ou numa tela nova. **Recomendação: Projeto → Métricas**, que já é a tela de "o que cada spec custou" (F14). A Atividades é do que está vivo agora.
-- P5 · **Histórico de antes (R5).** Reconstruir dos eventos, mostrar só a partir de agora ou somar o total da sessão sem divisão. **Recomendação: reconstruir dos eventos**, marcado como estimado. Sem isso, o ranking começa vazio e as specs já feitas, que são as que a pessoa quer comparar, ficam de fora.
-- P6 · **Corrigir CI na sessão da spec.** O Corrigir CI manda a mensagem para a sessão que já existe. **Recomendação:** marcar a origem no turno (o `CiFixer` avisa o `SessionManager` que o próximo turno é dele), e não abrir uma sessão nova só para separar o custo.
-- P7 · **Ranking por padrão.** Só o workspace ativo ou todos. **Recomendação:** o workspace ativo, com "Todos os workspaces" ao lado, como as Métricas já são por workspace.
+- P1 · **Como transformar consumo em % da cota.** (a) Repartir a subida da cota entre os turnos do app no intervalo; (b) uma régua aprendida (mediana de subida ÷ custo, R3); (c) uma tabela fixa por plano. **Decidido: (b).** A (a) joga na spec o que a pessoa gastou no terminal ao mesmo tempo. A (c) depende de números que a Anthropic não publica e que mudam. A régua se ajusta sozinha e a mediana descarta os intervalos contaminados.
+- P2 · **O US$ que o card já mostra hoje.** O card mostra hoje, ao lado dos selos, o custo em US$ das sessões das etapas. **Decidido:** o "US$ x" **sai do card**, que fica sem nenhum custo, e o custo aparece só no painel lateral, em % da cota. No plano Max o US$ é a unidade errada e conta só as etapas, então ficaria diferente do número do painel.
+- P2a · **O que a seção Cota destaca.** % da semana, janela de 5 h ou tokens. **Decidido: % da semana primeiro**, com a janela de 5 h ao lado e os tokens no terceiro quadro. Uma spec atravessa várias janelas de 5 h, e "140% da janela" confunde; a semana acumula, como a spec.
+- P3 · **Tokens: com ou sem cache.** A leitura de cache é a maior parte dos tokens (40 M num dia) e pesa pouco na cota. **Decidido:** o número principal é entrada nova + escrita de cache + saída; a leitura de cache aparece à parte ("+ 41 M lidos do cache").
+- P4 · **Onde fica o ranking.** Em Projeto → Métricas, na Atividades ou numa tela nova. **Decidido: Projeto → Métricas**, que já é a tela de "o que cada spec custou" (F14). A Atividades é do que está vivo agora.
+- P5 · **Histórico de antes (R5).** Reconstruir dos eventos, mostrar só a partir de agora ou somar o total da sessão sem divisão. **Decidido: reconstruir dos eventos**, marcado como estimado. Sem isso, o ranking começa vazio e as specs já feitas, que são as que a pessoa quer comparar, ficam de fora.
+- P6 · **Corrigir CI na sessão da spec.** O Corrigir CI manda a mensagem para a sessão que já existe. **Decidido:** marcar a origem no turno (o `CiFixer` avisa o `SessionManager` que o próximo turno é dele), e não abrir uma sessão nova só para separar o custo.
+- P7 · **Ranking por padrão.** Só o workspace ativo ou todos. **Decidido:** o workspace ativo, com "Todos os workspaces" ao lado, como as Métricas já são por workspace.
 
 ## Design
 
-Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2TNxAoGTr). Quatro artboards: o Quadro com o card como hoje e o painel aberto, o detalhe da spec, o ranking e os estados.
+Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2TNxAoGTr). Quatro artboards: o Quadro com o card sem custo e o painel aberto, o detalhe da spec, o ranking e os estados.
 
 ### O que já existe
 
@@ -104,7 +105,7 @@ Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2T
 - `lib/features/prompt/conversation_manager.dart`: o mesmo para as conversas (VIBE, refinamento, Prompt).
 - `lib/core/claude/readonly_run.dart`: `runReadOnlyClaude`, o `claude -p` do revisor, do Orquestrador, da verificação e do protótipo. Hoje o custo dele se perde.
 - `lib/features/review/ci_fixer.dart`: envia a mensagem do Corrigir CI para a sessão da spec.
-- `lib/features/board/board_screen.dart`: `SpecCardData.cost` (soma em US$ das sessões da spec) e o clique no card que abre o painel; o card não muda. `widgets/spec_steps_panel.dart`: o "3/3 etapas · US$".
+- `lib/features/board/board_screen.dart`: `SpecCardData.cost` (soma em US$ das sessões da spec), o `Text(formatCost(data.cost))` do card (que sai, R6) e o clique no card que abre o painel. `widgets/spec_steps_panel.dart`: o "3/3 etapas · US$".
 - `lib/features/project/spec_metrics.dart` e `widgets/spec_metrics_view.dart` (F14): as métricas por spec, com a coluna Custo.
 - `lib/features/project/widgets/usage_block.dart` e `provider_availability.dart`: o plano (`subscriptionType`) para o R12.
 
@@ -125,7 +126,7 @@ Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2T
 - `lib/features/sessions/session_manager.dart`, `lib/features/prompt/conversation_manager.dart`, `lib/core/claude/readonly_run.dart`, `lib/core/claude/usage_tracker.dart`, `lib/core/claude/usage_poller.dart`.
 - Quem chama `runReadOnlyClaude` numa spec: `lib/features/review/auto_reviewer.dart`, `lib/features/board/orchestrator/step_classifier.dart`, `lib/features/board/step_decision.dart`, `lib/features/board/step_decision_compiler.dart`, `lib/features/specs/spec_verifier.dart`, `lib/features/specs/spec_answers.dart`, `lib/features/specs/spec_design.dart`, `lib/features/specs/prototype/prototype_service.dart`.
 - `lib/features/review/ci_fixer.dart` (origem do turno, P6).
-- `lib/features/board/board_screen.dart`, `lib/features/board/widgets/spec_steps_panel.dart`, `lib/features/specs/widgets/step_trace_panel.dart`.
+- `lib/features/board/board_screen.dart` (tirar o `Text(formatCost(data.cost))` do card, perto da linha 1957, e o `SpecCardData.cost` se mais ninguém o usar), `lib/features/board/widgets/spec_steps_panel.dart`, `lib/features/specs/widgets/step_trace_panel.dart`.
 - `lib/features/project/spec_metrics.dart`, `lib/features/project/widgets/spec_metrics_view.dart`.
 - `lib/features/sessions/widgets/session_style.dart` (formatos).
 - Novos em `lib/features/cost/` e os testes em `test/features/cost/`.
@@ -140,7 +141,7 @@ Sim. Uma tabela nova, `usage_entries`, na **v29** (provisória: a atual é a v28
 - `UsageLedger`: o turno é a diferença do acumulado; turno sem consumo não grava; origem e spec de cada caminho (etapa, `REVn`, revisor, CI, VIBE, refinamento pelo código, Orquestrador).
 - `specCostOf`: totais, por origem, por etapa, nesta janela; lançamentos sem peso ficam só com tokens.
 - Backfill: lê os `result` dos eventos, uma vez só, marca como estimado.
-- Widgets: o card do Quadro não muda (sem selo, ícone ou botão novos); clicar no card abre o painel com a seção Cota; com sessão viva aparece o "agora"; o detalhe mostra as três divisões; o ranking ordena, filtra pelo período e abre a spec; chave de API mostra US$.
+- Widgets: o card do Quadro não mostra custo (sem US$, selo, ícone ou botão novos); clicar no card abre o painel com a seção Cota; com sessão viva aparece o "agora"; o detalhe mostra as três divisões; o ranking ordena, filtra pelo período e abre a spec; chave de API mostra US$.
 
 ## Critérios de aceite
 
@@ -148,11 +149,11 @@ Sim. Uma tabela nova, `usage_entries`, na **v29** (provisória: a atual é a v28
 - [ ] A régua sai da mediana das divisões na mesma janela e ignora a janela que renovou [R3] verificar: flutter test test/features/cost/quota_ruler_test.dart
 - [ ] O peso fica no lançamento e um lançamento sem régua recebe o peso depois [R4] verificar: flutter test test/features/cost/usage_ledger_test.dart
 - [ ] O histórico de antes é reconstruído dos eventos uma vez só, marcado como estimado [R5] verificar: flutter test test/features/cost/usage_backfill_test.dart
-- [ ] O card do Quadro fica como hoje, e o clique que já existe nele abre o painel com a seção Cota [R6, R8] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [ ] O card do Quadro não mostra mais o US$ nem nenhum custo, e o clique que já existe nele abre o painel com a seção Cota [R6, R8] verificar: flutter test test/features/cost/spec_cost_section_test.dart
 - [ ] Com a spec rodando, a seção mostra "agora" com o peso na janela de 5 h atual [R7, R13, R14] verificar: flutter test test/features/cost/spec_cost_section_test.dart
 - [ ] O detalhe mostra os totais, a divisão por origem e por etapa, "nesta janela" e os turnos [R8, R9] verificar: flutter test test/features/cost/spec_cost_section_test.dart
 - [ ] O ranking lista as 10 que mais custaram no período, junta os workspaces e abre a spec [R10, R11] verificar: flutter test test/features/cost/spec_cost_ranking_test.dart
-- [ ] Com chave de API, card, detalhe e ranking mostram US$ com "estimativa do CLI" [R12] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [ ] Com chave de API, o detalhe e o ranking mostram US$ com "estimativa do CLI" [R12] verificar: flutter test test/features/cost/spec_cost_section_test.dart
 - [ ] A migração cria `usage_entries` sem tocar nas outras tabelas [R1] verificar: flutter test test/data/db/migration_test.dart
 - [ ] No app, uma spec rodada de ponta a ponta (etapas, revisor, Corrigir CI e uma VIBE) mostra no painel da spec a soma de todas as origens, e o ranking a coloca na posição certa [R1–R10] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-081/app/`)
 - [ ] O projeto compila e a análise estática passa [R1–R14] verificar: flutter analyze
