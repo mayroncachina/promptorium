@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -15,6 +14,7 @@ import '../../sessions/widgets/session_style.dart';
 import '../../specs/spec_service.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../spec_from_answer.dart';
+import '../../../ui/widgets/markdown/app_markdown.dart';
 
 /// Where a spec of an answer goes (SPEC-016): the spec of the same `id` in
 /// the project, its file as read now, and the code a new spec would get.
@@ -479,10 +479,7 @@ class _AnswerSpecPreviewState extends State<_AnswerSpecPreview> {
       case _Tab.rendered:
         return SingleChildScrollView(
           padding: const EdgeInsets.all(14),
-          child: MarkdownBody(
-            data: SpecDocument.parse(_markdown.text).body,
-            styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
-          ),
+          child: AppMarkdown(data: SpecDocument.parse(_markdown.text).body),
         );
       case _Tab.markdown:
         return TextField(
