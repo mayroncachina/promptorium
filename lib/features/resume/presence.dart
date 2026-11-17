@@ -68,6 +68,8 @@ class PresenceTracker {
     final away = now.difference(_activeAt);
     if (away < l) return null;
     final span = (since: _activeAt, away: away);
+    // Counted once: the input that follows is not another return.
+    _activeAt = now;
     _returns.add(span);
     return span;
   }
@@ -91,10 +93,9 @@ class PresenceTracker {
   AwaySpan? focus(DateTime now) {
     if (focused) return null;
     focused = true;
-    final span = _check(now);
-    // The focus alone does not mean seen: the next input writes.
-    _activeAt = now;
-    return span;
+    // The focus alone is not activity: a window that flickers in and out
+    // of focus with nobody there is still away (P1).
+    return _check(now);
   }
 
   /// The window lost the focus: the last seen is written now (R1).

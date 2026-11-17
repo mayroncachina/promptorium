@@ -40,6 +40,7 @@ class _ResumeHostState extends ConsumerState<ResumeHost> {
     _presence = ref.read(presenceProvider);
     HardwareKeyboard.instance.addHandler(_onKey);
     _returns = _presence.returns.listen((span) {
+      debugPrint('Retomar: voltou depois de ${span.away.inMinutes} min');
       if (!mounted) return;
       ref.read(resumeProvider.notifier).showBack(span);
     });
@@ -143,6 +144,7 @@ class ResumeOverlay extends ConsumerWidget {
     final s = view.summary;
     final empty = st.mode == ResumeMode.compact ? !s.hasNews : s.isEmpty;
     if (empty && st.origin != ResumeOrigin.manual) {
+      debugPrint('Retomar: nada a mostrar (${st.mode.name})');
       // Acting on the last item closes the card (R9).
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final c = ref.read(resumeProvider.notifier);

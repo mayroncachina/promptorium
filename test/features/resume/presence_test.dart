@@ -30,6 +30,17 @@ void main() {
   });
 
   group('with the app open (R2)', () {
+    test('a window flickering in and out of focus is still away', () {
+      final p = PresenceTracker(now: t0)..input(t0);
+      final spans = <AwaySpan?>[];
+      for (var m = 5; m < 40; m += 5) {
+        p.blur(t0.add(Duration(minutes: m)));
+        spans.add(p.focus(t0.add(Duration(minutes: m, seconds: 1))));
+      }
+      // The focus at 30 min ends the absence that began with the input.
+      expect(spans.whereType<AwaySpan>().single.since, t0);
+    });
+
     test('back after 30 min without focus', () {
       final p = PresenceTracker(now: t0)..input(t0);
       final spans = <AwaySpan>[];
@@ -38,8 +49,11 @@ void main() {
       expect(p.focus(t0.add(const Duration(minutes: 20))), isNull);
       p.blur(t0.add(const Duration(minutes: 21)));
       final span = p.focus(t0.add(const Duration(minutes: 55)));
-      expect(span?.since, t0.add(const Duration(minutes: 20)));
-      expect(span?.away, const Duration(minutes: 35));
+      // The focus alone is not activity: away since the last input.
+      expect(span?.since, t0);
+      expect(span?.away, const Duration(minutes: 55));
+      // The input right after is the same return, not another.
+      expect(p.input(t0.add(const Duration(minutes: 56))), isNull);
     });
 
     test('stopped in focus: the first input after 47 min is a return', () {
