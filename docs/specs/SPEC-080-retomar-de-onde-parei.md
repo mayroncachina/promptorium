@@ -3,6 +3,7 @@ id: SPEC-080
 status: rascunho
 tipo: recurso
 depende-de: SPEC-076
+issue: 274
 ---
 
 # Retomar de onde parei
@@ -30,7 +31,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/WSsmky38kLxdN4Za4GK
 | `3-inicio.png` | Depois de fechar: a faixa "Desde a sua última visita" no topo do Início, com o que ainda não foi resolvido | R12, R13 |
 | `4-configuracoes.png` | Configurações › Retomar de onde parei: quando mostrar, o tempo fora, o que entra e o "visto por último" | R14, R15 |
 
-Issue: a criar.
+Issue: [#274](https://github.com/mayroncachina/promptorium/issues/274) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 ## Requisitos
 
