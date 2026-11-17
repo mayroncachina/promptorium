@@ -12,6 +12,8 @@ import 'board_rules.dart';
 import 'spec_runner.dart';
 import 'sprint_rules.dart';
 import '../activities/automation_pause.dart';
+import '../resume/activity_journal.dart'
+    show autopilotFinished, autopilotStarted, writeJournal;
 
 /// "Agendar Autopilot" of a workspace (F17): every day at [hour]:[minute]
 /// (with the app open) it turns on, spending at most [budgetUsd] that day.
@@ -469,6 +471,13 @@ class Autopilot extends Notifier<Set<int>> {
             .read(specRunnerProvider)
             .runAuto(s.id, reviewUnblocks: review);
         started++;
+        // SPEC-080 R6: the journal of "Retomar de onde parei".
+        unawaited(
+          writeJournal(
+            ref.read(activityEventsRepoProvider),
+            autopilotStarted(workspaceId, s),
+          ),
+        );
         if (wasWaiting.contains(s.id)) {
           _announce(workspaceId, startedAfterWait(s, plan.unblockAt));
         }
@@ -498,6 +507,12 @@ class Autopilot extends Notifier<Set<int>> {
       final inReview = now
           .where((s) => s.stage == SpecStage.review && s.kind != SpecKind.vibe)
           .length;
+      unawaited(
+        writeJournal(
+          ref.read(activityEventsRepoProvider),
+          autopilotFinished(workspaceId, inReview),
+        ),
+      );
       _announce(
         workspaceId,
         'Executar tudo terminou: $inReview '
