@@ -1,11 +1,116 @@
+import 'dart:io';
+
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/specs/spec_draft.dart';
+import 'package:promptorium/features/specs/spec_planner.dart';
 import 'package:promptorium/features/specs/spec_lint.dart';
 import 'package:promptorium/features/specs/spec_prints.dart';
 
+import '../spec_planner_test.dart' show plannerOutput, resultLine;
+import '../specs_screen_test.dart' show settleIo;
+import 'print_harness.dart';
 import 'print_test_utils.dart';
 
 void main() {
+  group('the draft (R8, R9)', () {
+    setUpPrintHarness();
+
+    testWidgets('R8, R9: a brand of the reference app in the draft blocks '
+        '"Criar spec", is highlighted and the planner can rewrite', (
+      tester,
+    ) async {
+      await pump(tester);
+      final f = File('${tmp.path}/p.png')..writeAsBytesSync([1]);
+      final done = <bool>[];
+      c.read(specDraftsRepoProvider).start(ws.id).then((_) async {
+        await c
+            .read(specDraftsRepoProvider)
+            .update(
+              ws.id,
+              SpecDraftsCompanion(
+                data: Value(
+                  SpecDraftData(
+                        title: 'Comparar respostas',
+                        objective: 'Ver duas respostas.',
+                        requirements: const [
+                          'As respostas ficam em colunas, como no Nimbo, e rolam '
+                              'juntas.',
+                        ],
+                        prints: [
+                          fakePrint(
+                            f.path,
+                            kind: PrintKind.reference,
+                            description: 'Três colunas',
+                            brands: const ['Nimbo'],
+                          ),
+                        ],
+                        printsSent: true,
+                      )
+                      .withUserMessage('Ideia')
+                      .withAnswer(
+                        reply: 'ok',
+                        draft: PlannerDraft(
+                          title: 'Comparar respostas',
+                          objective: 'Ver duas respostas.',
+                          requirements: const [
+                            'As respostas ficam em colunas, como no Nimbo, e '
+                                'rolam juntas.',
+                          ],
+                        ),
+                        suggestions: const [],
+                        knownSpecs: const {},
+                      )
+                      .encode(),
+                ),
+              ),
+            );
+        done.add(true);
+      });
+      await settleIo(tester, until: () => done.isNotEmpty);
+      c.read(newSpecFlowProvider.notifier).converse();
+      await settleIo(tester, until: () => key('new-spec-create').present);
+      expect(key('brand-warning-Nimbo'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'A spec cita “Nimbo” do app de referência',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(enabled(tester, 'new-spec-create'), isFalse);
+      expect(
+        find.text('Tire as citações ao app de referência (1)'),
+        findsOneWidget,
+      );
+
+      await tester.tap(key('brand-rewrite'));
+      await settleIo(tester, until: () => cli.processes.isNotEmpty);
+      cli.last.emit(
+        resultLine({
+          ...plannerOutput(
+            title: 'Comparar respostas',
+            requirements: const [
+              'As respostas ficam em colunas iguais e rolam juntas.',
+            ],
+          ),
+          'prints': [
+            {
+              'nome': 'print-1.png',
+              'descricao': 'Três colunas',
+              'marcas': ['Nimbo'],
+            },
+          ],
+        }),
+      );
+      await settleIo(tester, until: () => !key('brand-warning-Nimbo').present);
+      await settleIo(tester, until: () => c.read(specPlannerProvider).isEmpty);
+      expect(enabled(tester, 'new-spec-create'), isTrue);
+      expect(key('brand-block-hint'), findsNothing);
+    });
+  });
+
   group('brandMentions (R9)', () {
     SpecDraftData draft({
       String title = 'Comparar respostas',

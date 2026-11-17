@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -12,6 +13,7 @@ import 'package:promptorium/features/specs/spec_draft.dart';
 import 'package:promptorium/features/specs/spec_file.dart';
 import 'package:promptorium/features/specs/spec_planner.dart';
 import 'package:promptorium/features/specs/spec_prints.dart';
+import 'package:promptorium/features/specs/specs_screen.dart' show SpecPreview;
 
 import '../../../helpers/test_db.dart';
 import '../../sessions/session_test_utils.dart';
@@ -367,5 +369,29 @@ void main() {
       expect(f.existsSync(), isFalse);
       expect(await c.read(specDraftsRepoProvider).get(ws.id), isNull);
     });
+  });
+
+  testWidgets('R11: the preview of the spec shows the print, resolved from '
+      'the folder of the spec file', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SpecPreview(
+            text:
+                '---\nid: SPEC-073\n---\n\n# Botão\n\n'
+                '![Print 1: o botão cortado](../mockups/spec-073/print-1.png)\n',
+            imageDirectory: '/w/docs/specs',
+          ),
+        ),
+      ),
+    );
+    final img = tester.widget<Image>(
+      find.byKey(const ValueKey('markdown-image-print-1.png')),
+    );
+    expect(
+      (img.image as FileImage).file.path,
+      '/w/docs/mockups/spec-073/print-1.png',
+    );
+    expect(img.semanticLabel, 'Print 1: o botão cortado');
   });
 }

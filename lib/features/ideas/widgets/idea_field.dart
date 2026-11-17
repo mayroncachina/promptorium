@@ -10,6 +10,26 @@ import '../../../ui/widgets/app_icon.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../idea_import.dart';
 
+/// Extensions of the files that become prints when dropped (SPEC-083 R1).
+const printImageExtensions = {'png', 'jpg', 'jpeg', 'webp', 'gif'};
+
+/// Opens the native chooser filtered to images (SPEC-083 R1, "Anexar
+/// print…"); null when cancelled. Overridden in widget tests.
+final printFilePickerProvider = Provider<Future<String?> Function()>(
+  (ref) => () async {
+    final f = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Imagens (PNG, JPEG, WebP, GIF)',
+          extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'],
+        ),
+      ],
+      confirmButtonText: 'Anexar',
+    );
+    return f?.path;
+  },
+);
+
 /// Opens the native chooser filtered to PDF, Markdown and TXT (SPEC-057
 /// R1); null when cancelled. Overridden in widget tests, where platform
 /// channels do not answer.
@@ -74,6 +94,9 @@ class IdeaField extends ConsumerStatefulWidget {
     this.maxLines = 8,
     this.autofocus = false,
     this.onChanged,
+    this.onImageFiles,
+    this.onAttachPrint,
+    this.printHint,
   });
 
   /// Owned by the screen, which reads the idea from it.
@@ -88,6 +111,16 @@ class IdeaField extends ConsumerStatefulWidget {
 
   /// Called on typing and on every import or removal.
   final ValueChanged<String>? onChanged;
+
+  /// Image files dropped on the field (SPEC-083 R1). Null = images are
+  /// imported like any other file (the Começar screen).
+  final ValueChanged<List<String>>? onImageFiles;
+
+  /// "Anexar print…" next to "Importar arquivo" (SPEC-083 R1).
+  final VoidCallback? onAttachPrint;
+
+  /// Line of the footer when prints are accepted ("ou cole com Ctrl V").
+  final String? printHint;
 
   @override
   ConsumerState<IdeaField> createState() => _IdeaFieldState();
@@ -166,11 +199,26 @@ class _IdeaFieldState extends ConsumerState<IdeaField> {
 
   Future<void> _dropped(DropDoneDetails d) async {
     setState(() => _dragging = false);
-    if (d.files.isEmpty) return;
-    final first = d.files.first;
+    var files = d.files;
+    // SPEC-083 R1: images become prints; the rest is imported as text.
+    if (widget.onImageFiles case final onImages?) {
+      bool image(String path) =>
+          printImageExtensions.contains(path.split('.').last.toLowerCase());
+      final images = [
+        for (final f in files)
+          if (image(f.path)) f.path,
+      ];
+      if (images.isNotEmpty) onImages(images);
+      files = [
+        for (final f in files)
+          if (!image(f.path)) f,
+      ];
+    }
+    if (files.isEmpty) return;
+    final first = files.first;
     await _import(
       first.path,
-      notice: d.files.length > 1
+      notice: files.length > 1
           ? 'Importamos só ${first.name}; o campo recebe um arquivo por vez.'
           : null,
     );
@@ -532,19 +580,36 @@ class _IdeaFieldState extends ConsumerState<IdeaField> {
         children: [
           SmallButton(
             key: const ValueKey('idea-import'),
-            label: 'Importar arquivo',
+            label: widget.onAttachPrint == null
+                ? 'Importar arquivo'
+                : 'Importar…',
             icon: Icons.attach_file,
             semanticLabel: 'Importar arquivo PDF, Markdown ou TXT (Ctrl+O)',
             fontWeight: FontWeight.w600,
             onTap: reading == null ? () => _pick() : null,
           ),
+          if (widget.onAttachPrint case final attach?) ...[
+            const SizedBox(width: 8),
+            SmallButton(
+              key: const ValueKey('idea-attach-print'),
+              label: 'Anexar print…',
+              icon: Icons.image_outlined,
+              semanticLabel: 'Anexar print: PNG, JPEG, WebP ou GIF',
+              fontWeight: FontWeight.w600,
+              onTap: attach,
+            ),
+          ],
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'PDF, Markdown ou TXT · ou arraste para o campo',
+              widget.printHint ??
+                  'PDF, Markdown ou TXT · ou arraste para o campo',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
             ),
           ),
           if (count > 0)
