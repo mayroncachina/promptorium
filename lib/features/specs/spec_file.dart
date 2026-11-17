@@ -1068,6 +1068,10 @@ const subagentsKey = 'subagentes';
 
 /// Markdown of a new spec ("Nova spec"). What is not given stays as in the
 /// empty template (SPEC-039 R6).
+/// `tipo:` of the frontmatter (`bug` for a spec from a bug print,
+/// SPEC-083 R7).
+const specTypeKey = 'tipo';
+
 String newSpecMarkdown({
   required String code,
   required String title,
@@ -1076,6 +1080,8 @@ String newSpecMarkdown({
   List<String> outOfScope = const [],
   List<String> dependsOn = const [],
   List<({String text, String suggestion})> questions = const [],
+  String? type,
+  String visualReference = '',
 }) {
   final requirementLines = [
     for (final (i, r) in requirements.indexed) '- R${i + 1} · $r',
@@ -1090,14 +1096,14 @@ String newSpecMarkdown({
 ---
 id: $code
 status: ${specStatusValue(SpecStatus.draft)}
-${dependsOn.isEmpty ? '' : '$dependsOnKey: [${dependsOn.join(', ')}]\n'}---
+${type == null ? '' : '$specTypeKey: $type\n'}${dependsOn.isEmpty ? '' : '$dependsOnKey: [${dependsOn.join(', ')}]\n'}---
 
 # $title
 
 ## Objetivo
 
 ${objective.isEmpty ? 'Descreva o problema e o resultado esperado.' : objective}
-
+${visualReference.isEmpty ? '' : '\n## Referência visual\n\n$visualReference\n'}
 ## Requisitos
 
 ${requirements.isEmpty ? '- R1 ·' : requirementLines}

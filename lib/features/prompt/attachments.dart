@@ -38,6 +38,24 @@ class AttachmentException implements Exception {
   String toString() => message;
 }
 
+/// A new `.promptorium/attachments/<date>/` folder of [workspacePath], the
+/// git-ignored place of the attachments (and of the prints of a spec draft,
+/// SPEC-083 R4).
+Future<Directory> attachmentBatchDir(
+  String workspacePath, {
+  DateTime? now,
+}) async {
+  final root = p.normalize(workspacePath);
+  final stamp = (now ?? DateTime.now()).toIso8601String().replaceAll(
+    RegExp(r'[:.]'),
+    '-',
+  );
+  final batch = Directory('$root/.promptorium/attachments/$stamp');
+  await batch.create(recursive: true);
+  await File('$root/.promptorium/.gitignore').writeAsString('attachments/\n');
+  return batch;
+}
+
 /// What goes with the message.
 class PreparedAttachments {
   const PreparedAttachments({
@@ -116,16 +134,7 @@ Future<PreparedAttachments> prepareAttachments(
       mentions.add(p.relative(path, from: root).replaceAll('\\', '/'));
       continue;
     }
-    if (batch == null) {
-      final stamp = (now ?? DateTime.now()).toIso8601String().replaceAll(
-        RegExp(r'[:.]'),
-        '-',
-      );
-      batch = Directory('$root/.promptorium/attachments/$stamp');
-      await batch.create(recursive: true);
-      await File('$root/.promptorium/.gitignore')
-          .writeAsString('attachments/\n');
-    }
+    batch ??= await attachmentBatchDir(root, now: now);
     var target = File('${batch.path}/$name');
     var n = 1;
     while (await target.exists()) {

@@ -435,6 +435,7 @@ class SpecService {
     String Function(String code)? render,
     String? agentSession,
     bool inTray = true,
+    Future<void> Function(String code)? attach,
   }) {
     if (agentSession == null) {
       return _create(
@@ -443,6 +444,7 @@ class SpecService {
         body: body,
         render: render,
         inTray: inTray,
+        attach: attach,
       );
     }
     return _serial(
@@ -453,6 +455,7 @@ class SpecService {
         render: render,
         agentSession: agentSession,
         inTray: inTray,
+        attach: attach,
       ),
     );
   }
@@ -464,6 +467,7 @@ class SpecService {
     String Function(String code)? render,
     String? agentSession,
     bool inTray = true,
+    Future<void> Function(String code)? attach,
   }) async {
     final t = title.trim();
     if (t.isEmpty) throw const SpecException('Informe o título da spec.');
@@ -488,8 +492,11 @@ class SpecService {
       );
     }
     try {
+      // SPEC-083 R10: files that go with the spec (the prints), written
+      // with the code just reserved; a failure creates nothing.
+      if (attach != null) await attach(code);
       await file.writeAsString(text);
-    } on FileSystemException {
+    } catch (_) {
       // SPEC-039 R6: an empty file would take the code of the next try.
       await file.delete().catchError((Object _) => file);
       rethrow;
