@@ -133,7 +133,7 @@ Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2T
 
 ### Migração
 
-Sim. Uma tabela nova, `usage_entries`, na **v29** (provisória: a atual é a v28; quem integrar por último renumera, como na SPEC-074). Nenhuma coluna das tabelas que existem muda. A reconstrução do histórico (R5) não é feita na migração, para não travar a abertura do app: roda depois, em segundo plano.
+Sim. Uma tabela nova, `usage_entries`, na **v30** (provisória: a main está na v29, a `snippets` da SPEC-078; o coordenador renumera na integração da 0.20). Nenhuma coluna das tabelas que existem muda. A reconstrução do histórico (R5) não é feita na migração, para não travar a abertura do app: roda depois, em segundo plano.
 
 ### Testes
 
@@ -145,15 +145,15 @@ Sim. Uma tabela nova, `usage_entries`, na **v29** (provisória: a atual é a v28
 
 ## Critérios de aceite
 
-- [ ] Cada turno de etapa, revisor, Corrigir CI, VIBE, refinamento e Orquestrador grava um lançamento com a spec e a origem certas [R1, R2] verificar: flutter test test/features/cost/usage_ledger_test.dart
-- [ ] A régua sai da mediana das divisões na mesma janela e ignora a janela que renovou [R3] verificar: flutter test test/features/cost/quota_ruler_test.dart
-- [ ] O peso fica no lançamento e um lançamento sem régua recebe o peso depois [R4] verificar: flutter test test/features/cost/usage_ledger_test.dart
-- [ ] O histórico de antes é reconstruído dos eventos uma vez só, marcado como estimado [R5] verificar: flutter test test/features/cost/usage_backfill_test.dart
-- [ ] O card do Quadro não mostra mais o US$ nem nenhum custo, e o clique que já existe nele abre o painel com a seção Cota [R6, R8] verificar: flutter test test/features/cost/spec_cost_section_test.dart
-- [ ] Com a spec rodando, a seção mostra "agora" com o peso na janela de 5 h atual [R7, R13, R14] verificar: flutter test test/features/cost/spec_cost_section_test.dart
-- [ ] O detalhe mostra os totais, a divisão por origem e por etapa, "nesta janela" e os turnos [R8, R9] verificar: flutter test test/features/cost/spec_cost_section_test.dart
-- [ ] O ranking lista as 10 que mais custaram no período, junta os workspaces e abre a spec [R10, R11] verificar: flutter test test/features/cost/spec_cost_ranking_test.dart
-- [ ] Com chave de API, o detalhe e o ranking mostram US$ com "estimativa do CLI" [R12] verificar: flutter test test/features/cost/spec_cost_section_test.dart
-- [ ] A migração cria `usage_entries` sem tocar nas outras tabelas [R1] verificar: flutter test test/data/db/migration_test.dart
+- [x] Cada turno de etapa, revisor, Corrigir CI, VIBE, refinamento e Orquestrador grava um lançamento com a spec e a origem certas [R1, R2] verificar: flutter test test/features/cost/usage_ledger_test.dart
+- [x] A régua sai da mediana das divisões na mesma janela e ignora a janela que renovou [R3] verificar: flutter test test/features/cost/quota_ruler_test.dart
+- [x] O peso fica no lançamento e um lançamento sem régua recebe o peso depois [R4] verificar: flutter test test/features/cost/usage_ledger_test.dart
+- [x] O histórico de antes é reconstruído dos eventos uma vez só, marcado como estimado [R5] verificar: flutter test test/features/cost/usage_backfill_test.dart
+- [x] O card do Quadro não mostra mais o US$ nem nenhum custo, e o clique que já existe nele abre o painel com a seção Cota [R6, R8] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [x] Com a spec rodando, a seção mostra "agora" com o peso na janela de 5 h atual [R7, R13, R14] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [x] O detalhe mostra os totais, a divisão por origem e por etapa, "nesta janela" e os turnos [R8, R9] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [x] O ranking lista as 10 que mais custaram no período, junta os workspaces e abre a spec [R10, R11] verificar: flutter test test/features/cost/spec_cost_ranking_test.dart
+- [x] Com chave de API, o detalhe e o ranking mostram US$ com "estimativa do CLI" [R12] verificar: flutter test test/features/cost/spec_cost_section_test.dart
+- [x] A migração cria `usage_entries` sem tocar nas outras tabelas [R1] verificar: flutter test test/data/migration_test.dart test/data/generated_migration_test.dart
 - [ ] No app, uma spec rodada de ponta a ponta (etapas, revisor, Corrigir CI e uma VIBE) mostra no painel da spec a soma de todas as origens, e o ranking a coloca na posição certa [R1–R10] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-081/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R14] verificar: flutter analyze
+- [x] O projeto compila e a análise estática passa [R1–R14] verificar: flutter analyze

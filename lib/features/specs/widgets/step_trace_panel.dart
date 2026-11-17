@@ -18,6 +18,8 @@ import '../../sessions/session_manager.dart'
     show sessionManagerProvider, sessionTitle;
 import '../../sessions/replay/open_replay.dart';
 import '../../sessions/replay/replay_view.dart' show replayAvailable;
+import '../../cost/cost_format.dart';
+import '../../cost/spec_cost.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
 
@@ -243,7 +245,9 @@ class StepTracePanel extends ConsumerWidget {
               (session.endedAt ?? DateTime.now()).difference(session.startedAt),
             ),
           ),
-          _kv('Custo', formatCost(session.costUsd)),
+          // SPEC-081 R8: the weight of the session, not the US\$ (that only
+          // with an API key, R12).
+          _kv('Cota', sessionQuotaLabel(ref, session.id)),
           _kv('Modelo', session.model),
           if (step.startSha case final sha?)
             _kv('Checkpoint', sha.length > 8 ? sha.substring(0, 8) : sha),
@@ -429,4 +433,24 @@ class _CriterionRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The weight of a session (SPEC-081 R8): "≈ 0,8% semana · ≈ 18% 5 h"
+/// (it fits the line); tokens while there is no ruler; dollars with an API
+/// key.
+String sessionQuotaLabel(WidgetRef ref, String sessionId) {
+  final total = specCostOf(
+    ref.watch(sessionUsageProvider(sessionId)).value ?? const [],
+  ).total;
+  if (total.turns == 0) return '—';
+  if (ref.watch(costInDollarsProvider)) {
+    return '${formatUsd(total.costUsd)} · estimativa do CLI';
+  }
+  if (total.week == null && total.fiveHour == null) {
+    return '${formatTokens(total.tokens)} tokens · % depois da primeira '
+        'leitura de cota';
+  }
+  final five = formatFiveHour(total.fiveHour, short: true);
+  return '${formatQuota(total.week)} semana · '
+      '${five.endsWith('jan.') ? five : '$five 5 h'}';
 }
