@@ -154,11 +154,11 @@ Canvas para validar: [Retomar de onde parei](https://claude.ai/artifact/WSsmky38
 
 ### Migração
 
-Sim. **v29** (número provisório: outras specs em andamento, como a SPEC-078, também pedem a v29; quem for implementada depois renumera): cria a tabela `activity_events` e o índice `(workspace_id, at)`. Atualizar `drift_schemas/`, `schema_versions.dart` e o teste de migração. O visto por último e as preferências ficam em `app_settings` (sem migração).
+Sim. **v30** (número provisório: a v29 ficou com `snippets`, da SPEC-078, e outras specs da 0.20 também pedem a v30; o coordenador renumera na integração): cria a tabela `activity_events` e o índice `(workspace_id, at)`. Atualizar `drift_schemas/`, `schema_versions.dart` e o teste de migração. O visto por último e as preferências ficam em `app_settings` (sem migração).
 
 ### Arquivos tocados
 
-- `lib/data/db/app_database.dart`, `app_database.g.dart`, `schema_versions.dart`, `drift_schemas/drift_schema_v29.json`
+- `lib/data/db/app_database.dart`, `app_database.g.dart`, `schema_versions.dart`, `drift_schemas/drift_schema_v30.json`
 - `lib/data/repos/activity_events_repo.dart` (novo), `app_settings_repo.dart`, `lib/data/providers.dart`
 - `lib/features/resume/` (novo)
 - `lib/features/board/spec_runner.dart`, `autopilot.dart`, `lib/features/review/pr_babysitter.dart`, `ci_fixer.dart`, `lib/features/repository/releases/release_dispatcher.dart`, `lib/features/sessions/session_manager.dart`, `lib/features/prompt/conversation_manager.dart` (ganchos do diário)
@@ -178,14 +178,14 @@ Sim. **v29** (número provisório: outras specs em andamento, como a SPEC-078, t
 
 ## Critérios de aceite
 
-- [ ] O visto por último é gravado com foco e entrada, no máximo uma vez por minuto, e a volta depois do limite é detectada ao abrir e com o app aberto [R1, R2] verificar: flutter test test/features/resume/presence_test.dart
-- [ ] O cartão junta os workspaces em Espera por você, Terminou e Continua rodando, com robô, detalhe, hora e uma ação por item [R3, R4, R5, R9] verificar: flutter test test/features/resume/resume_summary_test.dart
-- [ ] O diário registra gate, PR, CI, release, sessões longas e o Autopilot, e apaga o que tem mais de 14 dias [R6] verificar: flutter test test/features/resume/activity_journal_test.dart
-- [ ] Ao abrir, PRs mergeados e CI terminados no GitHub entram no diário com a hora do GitHub [R7] verificar: flutter test test/features/resume/github_catch_up_test.dart
-- [ ] Eventos da mesma spec, PR ou release viram um item, e o que espera não se repete [R8] verificar: flutter test test/features/resume/resume_summary_test.dart
-- [ ] O cartão grande ao abrir e o compacto ao voltar, não modais; Tudo visto e a faixa do Início [R10–R12] verificar: flutter test test/features/resume/resume_card_test.dart
-- [ ] "O que aconteceu" na Atividades e "Retomar de onde parei" na paleta abrem o cartão [R13] verificar: flutter test test/features/resume/resume_card_test.dart
-- [ ] Configurações › Retomar de onde parei liga, desliga, muda o limite e os tipos [R14] verificar: flutter test test/features/settings/resume_settings_test.dart
-- [ ] A tabela `activity_events` é criada na v29 [R6] verificar: flutter test test/data/migration_test.dart
-- [ ] No app, com uma spec rodando no Autopilot, fechar, mergear o PR no GitHub e reabrir mostra o cartão com o merge, o que espera e o que roda, e cada ação leva à tela certa [R1–R15] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-080/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze
+- [x] O visto por último é gravado com foco e entrada, no máximo uma vez por minuto, e a volta depois do limite é detectada ao abrir e com o app aberto [R1, R2] verificar: flutter test test/features/resume/presence_test.dart
+- [x] O cartão junta os workspaces em Espera por você, Terminou e Continua rodando, com robô, detalhe, hora e uma ação por item [R3, R4, R5, R9] verificar: flutter test test/features/resume/resume_summary_test.dart
+- [x] O diário registra gate, PR, CI, release, sessões longas e o Autopilot, e apaga o que tem mais de 14 dias [R6] verificar: flutter test test/features/resume/activity_journal_test.dart
+- [x] Ao abrir, PRs mergeados e CI terminados no GitHub entram no diário com a hora do GitHub [R7] verificar: flutter test test/features/resume/github_catch_up_test.dart
+- [x] Eventos da mesma spec, PR ou release viram um item, e o que espera não se repete [R8] verificar: flutter test test/features/resume/resume_summary_test.dart
+- [x] O cartão grande ao abrir e o compacto ao voltar, não modais; Tudo visto e a faixa do Início [R10–R12] verificar: flutter test test/features/resume/resume_card_test.dart
+- [x] "O que aconteceu" na Atividades e "Retomar de onde parei" na paleta abrem o cartão [R13] verificar: flutter test test/features/resume/resume_card_test.dart
+- [x] Configurações › Retomar de onde parei liga, desliga, muda o limite e os tipos [R14] verificar: flutter test test/features/settings/resume_settings_test.dart
+- [x] A tabela `activity_events` é criada na v30 (provisória) [R6] verificar: flutter test test/data/migration_test.dart
+- [x] No app, com uma spec rodando no Autopilot, fechar, mergear o PR no GitHub e reabrir mostra o cartão com o merge, o que espera e o que roda, e cada ação leva à tela certa [R1–R15] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-080/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze
