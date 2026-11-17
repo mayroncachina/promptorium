@@ -14,7 +14,10 @@ import '../../board/widgets/step_status_motion.dart';
 import '../../review/review_screen.dart' show stepCommitsProvider;
 import '../../review/review_service.dart'
     show reviewInitialStepProvider, selectedReviewProvider;
-import '../../sessions/session_manager.dart' show sessionTitle;
+import '../../sessions/session_manager.dart'
+    show sessionManagerProvider, sessionTitle;
+import '../../sessions/replay/open_replay.dart';
+import '../../sessions/replay/replay_view.dart' show replayAvailable;
 import '../../sessions/widgets/session_style.dart';
 import '../spec_file.dart';
 
@@ -274,6 +277,19 @@ class StepTracePanel extends ConsumerWidget {
                   ? null
                   : () => openSession(ref, session.id),
             ),
+            if (session != null &&
+                replayAvailable(
+                  session.status,
+                  alive: ref.watch(
+                    sessionManagerProvider.select((m) => m.isAlive(session.id)),
+                  ),
+                ))
+              SmallButton(
+                key: const ValueKey('step-trace-replay'),
+                label: 'Ver replay',
+                height: 28,
+                onTap: () => openReplay(ref, session.id),
+              ),
             if (step.startSha != null &&
                 spec.worktreePath != null &&
                 spec.stage != SpecStage.done)
