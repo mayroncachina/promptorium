@@ -149,13 +149,14 @@ Canvas para validar: [Notificação com o robô](https://claude.ai/artifact/TT6s
 
 ## Critérios de aceite
 
-- [ ] Um pedido de agente com a janela em segundo plano gera uma notificação com o robô acenando e o nome dele, e com a janela em foco não gera [R1–R3] verificar: flutter test test/features/notifications/agent_alerts_test.dart
-- [ ] A notificação sai pelo DBus com `image-data`, `desktop-entry` e a ação `default`, e se adapta a servidores sem ações ou sem servidor [R4, R5] verificar: flutter test test/core/system/desktop_notifications_test.dart
-- [ ] O clique traz a janela e abre o pedido no workspace, na tela e no cartão certos, com o foco no botão principal [R6, R7] verificar: flutter test test/features/notifications/alert_target_test.dart
-- [ ] Uma notificação por agente, atualizada; resumo com três ou mais; espera de 3 s; fecha ao responder; um lembrete só [R9–R13] verificar: flutter test test/features/notifications/agent_alerts_test.dart
-- [ ] O robô da notificação é o mesmo da Atividades e do Quadro para a mesma semente [R3] verificar: flutter test test/features/activities/robot_snapshot_test.dart
+- [x] Um pedido de agente com a janela em segundo plano gera uma notificação com o robô acenando e o nome dele, e com a janela em foco não gera [R1–R3] verificar: flutter test test/features/notifications/agent_alerts_test.dart
+- [x] A notificação sai pelo DBus com `image-data`, `desktop-entry` e a ação `default`, e se adapta a servidores sem ações ou sem servidor [R4, R5] verificar: flutter test test/core/system/desktop_notifications_test.dart
+- [x] O clique traz a janela e abre o pedido no workspace, na tela e no cartão certos, com o foco no botão principal [R6, R7] verificar: flutter test test/features/notifications/alert_target_test.dart
+- [x] Uma notificação por agente, atualizada; resumo com três ou mais; espera de 3 s; fecha ao responder; um lembrete só [R9–R13] verificar: flutter test test/features/notifications/agent_alerts_test.dart
+- [x] O robô da notificação é o mesmo da Atividades e do Quadro para a mesma semente [R3] verificar: flutter test test/features/activities/robot_snapshot_test.dart
 - [ ] No app, com a janela minimizada, um pedido real mostra a notificação com o robô no GNOME (Wayland) e no KDE ou `dunst`, e o clique abre o cartão de aprovação com o foco no Aprovar [R1–R8] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-086/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R16] verificar: flutter analyze
+  - Conferido em 17/11 no GNOME Shell 46 (X11, sessão DBus real, tela bloqueada): a notificação saiu com `image-data` 128 × 128, `desktop-entry`, `urgency` 1, `category` e as ações `default` e `abrir` (`dbus-monitor`), e fechou sozinha quando a janela voltou (R12). O clique foi conferido com um servidor de notificações num DBus privado (`ActivationToken` + `ActionInvoked default`): o app voltou do escondido, trocou do workspace "blog" para "loja", saiu do Código para Sessões, acendeu o anel e deixou o foco no Aprovar (Enter aprovou). Falta conferir no GNOME Wayland e no KDE ou `dunst`.
+- [x] O projeto compila e a análise estática passa [R1–R16] verificar: flutter analyze
 
 ## Decisões
 
