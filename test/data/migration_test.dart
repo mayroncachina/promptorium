@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 31) {
+    await db.customStatement('DROP TABLE IF EXISTS usage_entries');
+  }
   if (version < 30) {
     await db.customStatement('DROP TABLE IF EXISTS activity_events');
   }
@@ -707,5 +710,75 @@ void main() {
 
     await db.customStatement('DELETE FROM workspaces WHERE id = 1');
     expect(await db.select(db.activityEvents).get(), isEmpty);
+  });
+  // SPEC-081 R1.
+  test('v30 → v31 creates usage_entries and its indexes; deleting the spec '
+      'deletes them and deleting the session keeps them', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await db.customStatement(
+      "INSERT INTO specs (workspace_id, code, title, path) "
+      "VALUES (1, 'SPEC-001', 'x', 'specs/x.md')",
+    );
+    await downgrade(db, 30);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final indexes = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'index' "
+          "AND tbl_name = 'usage_entries' AND name LIKE 'usage_entries_%'",
+        )
+        .get();
+    expect(
+      {for (final r in indexes) r.read<String>('name')},
+      {'usage_entries_spec', 'usage_entries_workspace'},
+    );
+    expect((await db.select(db.specs).getSingle()).code, 'SPEC-001');
+
+    await db
+        .into(db.sessions)
+        .insert(
+          SessionsCompanion.insert(
+            id: 's1',
+            workspaceId: 1,
+            worktreePath: '/r',
+            branch: 'main',
+            model: 'sonnet',
+            specId: const Value(1),
+          ),
+        );
+    for (final spec in [1, null]) {
+      await db
+          .into(db.usageEntries)
+          .insert(
+            UsageEntriesCompanion.insert(
+              workspaceId: const Value(1),
+              specId: Value(spec),
+              source: UsageSource.etapa,
+              sessionId: const Value('s1'),
+              at: DateTime(2026, 11, 17),
+              tokensIn: const Value(10),
+            ),
+          );
+    }
+    await (db.delete(db.sessions)..where((s) => s.id.equals('s1'))).go();
+    final kept = await db.select(db.usageEntries).get();
+    expect(kept, hasLength(2));
+    expect(kept.every((e) => e.sessionId == null), isTrue);
+
+    await db.customStatement('DELETE FROM specs WHERE id = 1');
+    final left = await db.select(db.usageEntries).get();
+    expect(left.single.specId, isNull);
   });
 }

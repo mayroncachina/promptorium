@@ -27,6 +27,7 @@ import 'repos/specs_repo.dart';
 import 'repos/sprints_repo.dart';
 import 'repos/step_runs_repo.dart';
 import 'repos/tasks_repo.dart';
+import 'repos/usage_entries_repo.dart';
 import 'repos/workspaces_repo.dart';
 
 export 'db/app_database.dart';
@@ -104,6 +105,9 @@ final snippetsRepoProvider = Provider(
 );
 final activityEventsRepoProvider = Provider(
   (ref) => ActivityEventsRepo(ref.watch(appDatabaseProvider)),
+);
+final usageEntriesRepoProvider = Provider(
+  (ref) => UsageEntriesRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

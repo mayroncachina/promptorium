@@ -497,6 +497,16 @@ void main() {
       e.cli.last.emit(answer('Não achei a causa.'));
       await until(() async => e.st?.phase == CiFixPhase.noCommit);
       expect(e.st!.detail, 'Não achei a causa.');
+      // SPEC-081 P6: the turn of the fix is of the CI fixer in the register.
+      final db = e.c.read(appDatabaseProvider);
+      final entries = await db.select(db.usageEntries).get();
+      expect(entries.last.source, UsageSource.ci);
+      expect(entries.last.sessionId, e.id);
+      expect(
+        entries.where((x) => x.source == UsageSource.ci),
+        hasLength(1),
+        reason: 'the turn before the fix is not of the CI fixer',
+      );
     });
 
     test('"CI: falha externa" keeps the reason', () async {

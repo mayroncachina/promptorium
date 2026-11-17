@@ -547,6 +547,8 @@ class StepDecisionOptions
       ref,
       workspaceId: ws.id,
       cancelled: run.stopRequest,
+      specId: spec.id,
+      usageSource: UsageSource.orquestrador,
       cwd: cwd,
       options: ClaudeOptions(
         permissionMode: ClaudePermissionMode.defaultMode,

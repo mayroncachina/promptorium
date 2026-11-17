@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 30;
+const appSchemaVersion = 31;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -872,6 +872,59 @@ class ActivityEvents extends Table {
   DateTimeColumn get at => dateTime()();
 }
 
+/// One turn of a session, a conversation or a `claude -p` of the app
+/// (SPEC-081 R1, schema v31): its tokens, its estimated cost and its weight
+/// in the 5-hour and weekly windows of the plan. Deleting the workspace or
+/// the spec deletes it; deleting the session or conversation keeps it.
+@TableIndex(name: 'usage_entries_spec', columns: {#specId, #at})
+@TableIndex(name: 'usage_entries_workspace', columns: {#workspaceId, #at})
+class UsageEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId => integer().nullable().references(
+    Workspaces,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  IntColumn get specId => integer().nullable().references(
+    Specs,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get source => textEnum<UsageSource>()();
+
+  /// Steps of the session (`R2`, `REV1`); null outside a step.
+  TextColumn get step => text().nullable()();
+  TextColumn get sessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get conversationId => integer().nullable().references(
+    Conversations,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get model => text().nullable()();
+  DateTimeColumn get at => dateTime()();
+
+  /// New input tokens of the turn.
+  IntColumn get tokensIn => integer().withDefault(const Constant(0))();
+  IntColumn get tokensCacheWrite => integer().withDefault(const Constant(0))();
+  IntColumn get tokensCacheRead => integer().withDefault(const Constant(0))();
+  IntColumn get tokensOut => integer().withDefault(const Constant(0))();
+
+  /// Estimated cost of the turn (the CLI's `total_cost_usd` difference).
+  RealColumn get costUsd => real().withDefault(const Constant(0))();
+
+  /// Weight in the windows (0–1) by the ruler of the moment (R4); null
+  /// until a ruler exists.
+  RealColumn get fiveHourPct => real().nullable()();
+  RealColumn get weekPct => real().nullable()();
+
+  /// Rebuilt from the events of before (R5): weighed by today's ruler.
+  BoolColumn get estimated => boolean().withDefault(const Constant(false))();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -910,6 +963,7 @@ class AppSettings extends Table {
     SpecNotes,
     Snippets,
     ActivityEvents,
+    UsageEntries,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1317,6 +1371,14 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('activity_events')) return;
             await m.createTable(v.activityEvents);
             await m.createIndex(v.activityEventsAt);
+          },
+          // v31: one entry per turn (SPEC-081 R1). Nothing else changes;
+          // the history of before is rebuilt after opening (R5).
+          from30To31: (m, v) async {
+            if (await _hasTable('usage_entries')) return;
+            await m.createTable(v.usageEntries);
+            await m.createIndex(v.usageEntriesSpec);
+            await m.createIndex(v.usageEntriesWorkspace);
           },
         ),
       );

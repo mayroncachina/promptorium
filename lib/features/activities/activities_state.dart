@@ -181,16 +181,13 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
       locked: (s) => autoPlanner.lockOf(s.id) != null,
       starting: starting,
     );
-    for (final s in sessions) {
-      if (s.costUsd <= 0) continue;
-      final inWindow =
-          windowStart == null ||
-          s.endedAt == null ||
-          s.endedAt!.isAfter(windowStart);
-      if (inWindow && (s.endedAt == null || manager.isAlive(s.id))) {
-        costs[s.id] = s.costUsd;
-      }
-    }
+    costs.addAll(
+      windowSessionCosts(
+        sessions,
+        windowStart: windowStart,
+        isAlive: manager.isAlive,
+      ),
+    );
     list.add(
       ActivityWorkspace(
         id: ws.id,

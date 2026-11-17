@@ -298,6 +298,8 @@ class StepDecisionCompiler {
       _ref,
       workspaceId: ws.id,
       cancelled: cancelled,
+      specId: spec.id,
+      usageSource: UsageSource.orquestrador,
       cwd: worktree != null && await Directory(worktree).exists()
           ? worktree
           : ws.path,

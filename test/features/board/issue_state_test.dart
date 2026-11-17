@@ -195,9 +195,9 @@ void main() {
     expect(tip.message, startsWith('Fechada no GitHub em 14/11, pelo PR #205'));
   });
 
-  testWidgets('a card as narrow as in a ~1500 px window, with cost and '
-      'menu: the badge is not cut; "#2" with the state icon, the whole text '
-      'in the tooltip and for the screen reader', (tester) async {
+  testWidgets('a card as narrow as in a ~1500 px window, with the menu '
+      '(SPEC-081 R6: no cost any more): the badge is not cut, the whole '
+      'text in the tooltip and for the screen reader', (tester) async {
     await loadAppFonts();
     final handle = tester.ensureSemantics();
     final r = await pumpCanvas(
@@ -228,11 +228,12 @@ void main() {
     await pumpFor(tester, 20);
     // The width of the card in the app's print (8-quadro-issue-fechada).
     expect(tester.getSize(byKey('board-card-SPEC-001')).width, lessThan(230));
-    expect(find.text(r'$0.11'), findsOneWidget);
-    expect(byKey('issue-badge-short-SPEC-001'), findsOneWidget);
-    expect(find.text('#2'), findsOneWidget);
-    expect(find.textContaining('fecha'), findsNothing);
-    final text = tester.renderObject<RenderParagraph>(find.text('#2'));
+    // SPEC-081 R6: the card shows no cost.
+    expect(find.text(r'$0.11'), findsNothing);
+    // Without the cost the whole "#2 fechada" fits on the card.
+    expect(byKey('issue-badge-short-SPEC-001'), findsNothing);
+    expect(find.text('#2 fechada'), findsOneWidget);
+    final text = tester.renderObject<RenderParagraph>(find.text('#2 fechada'));
     expect(text.didExceedMaxLines, isFalse);
     final tip = tester.widget<Tooltip>(
       find
@@ -242,7 +243,7 @@ void main() {
           )
           .first,
     );
-    expect(tip.message, startsWith('#2 fechada\nFechada no GitHub em 14/11'));
+    expect(tip.message, startsWith('Fechada no GitHub em 14/11'));
     expect(find.bySemanticsLabel(RegExp('Issue 2, fechada')), findsWidgets);
     expect(tester.takeException(), isNull);
     handle.dispose();

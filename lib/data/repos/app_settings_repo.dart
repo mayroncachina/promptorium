@@ -44,6 +44,15 @@ abstract final class AppSettingKeys {
   /// right after a restart (see `RateLimitController`).
   static const lastRateLimit = 'usage.rateLimit';
 
+  /// Divisions of the ruler of each window (rise of the use ÷ cost of the
+  /// turns between two readings; JSON list, the last 20; SPEC-081 R3).
+  static const quotaRulerFiveHour = 'quota.ruler.five_hour';
+  static const quotaRulerSevenDay = 'quota.ruler.seven_day';
+
+  /// `1` once the history of before was rebuilt into `usage_entries`
+  /// (SPEC-081 R5).
+  static const usageBackfillDone = 'usage.backfill';
+
   /// Default model of a `RunKind` (`session`, `conversation`, `planner`).
   static String runModel(String kind) => 'claude.model.$kind';
 

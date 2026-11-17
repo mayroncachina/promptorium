@@ -229,6 +229,9 @@ typedef ReadOnlyClaudeRun = Future<Result> Function(
   int? workspaceId,
   String? providerId,
   Future<void>? cancelled,
+  int? specId,
+  UsageSource? usageSource,
+  String? usageStep,
 });
 
 /// The read-only run of the classification.
@@ -456,6 +459,8 @@ class StepClassifier extends Notifier<Map<int, StepClassifierState>> {
       // The Orquestrador only uses the Claude Code (D5).
       providerId: 'claude',
       cancelled: cancelled,
+      specId: spec.id,
+      usageSource: UsageSource.orquestrador,
       cwd: cwd,
       timeout: timeout,
       options: ClaudeOptions(
