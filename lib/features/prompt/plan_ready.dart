@@ -17,6 +17,7 @@ import '../specs/spec_service.dart' show selectedSpecProvider;
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
 import 'widgets/split_specs_dialog.dart';
+import '../../ui/widgets/markdown/app_markdown.dart';
 
 /// "Plano pronto" of the Planejar mode (UX v2, U4; DT-26).
 ///
@@ -294,9 +295,8 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
             constraints: BoxConstraints(maxHeight: _open ? 480 : 160),
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: SingleChildScrollView(
-              child: MarkdownBody(
+              child: AppMarkdown(
                 data: widget.plan,
-                selectable: true,
                 styleSheet: MarkdownStyleSheet(
                   p: const TextStyle(fontSize: 12, color: AppColors.text),
                   listBullet: const TextStyle(
