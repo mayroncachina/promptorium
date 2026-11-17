@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
 import '../notifications/agent_alerts.dart' show AlertSettingKeys;
 import '../project/project_config.dart';
+import '../sessions/restore/restore_service.dart' show RestoreSettingKeys;
 
 /// Sections of Configurações (UX v2, U9; docs/mockups/v2/Configuracoes.dc.html):
 /// the App group and the Workspace group, each entry with the words that
@@ -58,6 +59,11 @@ enum SettingsSection {
     'idle',
     'memória',
     'retomar',
+    'ponto',
+    'pontos',
+    'restauração',
+    'desfazer',
+    'turno',
   ]),
   notifications('Notificações', SettingsGroup.app, [
     'notificação',
@@ -174,7 +180,14 @@ bool sectionChanged(
           (settings[AppSettingKeys.disabledMcpServers] ?? '[]') != '[]' ||
           settings[AppSettingKeys.mcpServer] == '0' ||
           settings.containsKey(AppSettingKeys.mcpCreationLimit),
-    SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.sessions =>
+      now.idleMinutes != defaults.idleMinutes ||
+          [
+            RestoreSettingKeys.enabled,
+            RestoreSettingKeys.keepTurns,
+            RestoreSettingKeys.maxDays,
+            RestoreSettingKeys.maxFileMb,
+          ].any(settings.containsKey),
     SettingsSection.notifications => [
       AlertSettingKeys.agents,
       AlertSettingKeys.robot,

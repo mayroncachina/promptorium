@@ -20,6 +20,8 @@ import 'backups_view.dart';
 import 'notifications_view.dart';
 import 'orchestrator_view.dart';
 import 'providers_view.dart';
+import 'restore_points_settings.dart';
+import '../sessions/restore/restore_service.dart' show restoreSettingsProvider;
 import 'settings_choices.dart';
 import 'settings_sections.dart';
 
@@ -510,19 +512,24 @@ class _SessionsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(runPrefsProvider);
     final settings = ref.read(appSettingsProvider.notifier);
+    final restore = ref.watch(restoreSettingsProvider);
     return _Page(
       title: 'Sessões',
-      intro: 'Como o app trata uma sessão parada.',
+      intro: 'Como as sessões rodam e o que o app guarda delas.',
       trailing: SmallButton(
         key: const ValueKey('settings-reset-sessions'),
         label: 'Restaurar padrões da seção',
-        onTap: () => settings.remove(AppSettingKeys.idleMinutes),
+        onTap: () async {
+          await settings.remove(AppSettingKeys.idleMinutes);
+          for (final k in restoreSettingKeys) {
+            await settings.remove(k);
+          }
+        },
       ),
       effect: _Effect(
-        prefs.idleMinutes == 0
-            ? 'O processo de uma sessão parada nunca é fechado sozinho.'
-            : 'Uma sessão parada há ${prefs.idleMinutes} min tem o processo '
-                  'fechado; "Retomar" ou uma mensagem a reabre com o contexto.',
+        '${prefs.idleMinutes == 0 ? 'O processo de uma sessão parada nunca é fechado sozinho.' : 'Uma sessão parada há ${prefs.idleMinutes} min tem o processo '
+                  'fechado; "Retomar" ou uma mensagem a reabre com o contexto.'} '
+        '${restore.enabled ? 'Antes de cada turno o app grava um ponto de restauração: dá para desfazer os últimos ${restore.keepTurns} turnos de cada sessão.' : 'Nenhum ponto de restauração é gravado: "Desfazer o último turno" não aparece nas sessões novas.'}',
       ),
       children: [
         AgentCard(
@@ -546,6 +553,9 @@ class _SessionsSection extends ConsumerWidget {
             ),
           ],
         ),
+        // SPEC-084 R14.
+        const SizedBox(height: 16),
+        const RestorePointsSettingsCard(),
       ],
     );
   }
