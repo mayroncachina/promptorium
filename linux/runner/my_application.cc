@@ -10,6 +10,9 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  // "promptorium/window" (SPEC-086 R6): brings the window to the front with
+  // the activation token of a notification.
+  FlMethodChannel* window_channel;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -17,6 +20,40 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// "present" {token}: shows, de-iconifies and presents the window. With the
+// token of the notification's ActivationToken signal (Desktop Notifications
+// 1.2, xdg-activation on Wayland), GTK hands it to the compositor so the
+// window may take the focus: https://docs.gtk.org/gtk3/method.Window.set_startup_id.html
+static void window_method_cb(FlMethodChannel* channel, FlMethodCall* call,
+                             gpointer user_data) {
+  GtkWindow* window = GTK_WINDOW(user_data);
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (g_strcmp0(fl_method_call_get_name(call), "present") == 0) {
+    const gchar* token = nullptr;
+    FlValue* args = fl_method_call_get_args(call);
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      FlValue* value = fl_value_lookup_string(args, "token");
+      if (value != nullptr && fl_value_get_type(value) == FL_VALUE_TYPE_STRING) {
+        token = fl_value_get_string(value);
+      }
+    }
+    gtk_widget_show(GTK_WIDGET(window));
+    gtk_window_deiconify(window);
+    const gboolean with_token = token != nullptr && token[0] != '\0';
+    if (with_token) {
+      gtk_window_set_startup_id(window, token);
+      gtk_window_present(window);
+    } else {
+      gtk_window_present_with_time(window, gtk_get_current_event_time());
+    }
+    response = FL_METHOD_RESPONSE(
+        fl_method_success_response_new(fl_value_new_bool(with_token)));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(call, response, nullptr);
 }
 
 // Implements GApplication::activate.
@@ -105,6 +142,13 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->window_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+      "promptorium/window", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(
+      self->window_channel, window_method_cb, window, nullptr);
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -151,6 +195,7 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->window_channel);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 

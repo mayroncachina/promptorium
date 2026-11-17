@@ -23,6 +23,7 @@ import '../picked_elements.dart';
 import '../session_composer_draft.dart';
 import '../session_manager.dart';
 import 'session_style.dart';
+import '../../snippets/snippet_actions.dart';
 
 String permissionLabel(ClaudePermissionMode? m, {String provider = 'claude'}) =>
     permissionModeLabel(m, provider: provider);
@@ -148,10 +149,16 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
   /// The text came from a draft and was not sent (SPEC-033 R12).
   bool _fromDraft = false;
 
+  /// Unregisters it as the target of an inserted snippet (SPEC-078 R8).
+  late final VoidCallback _unregister;
+
   @override
   void initState() {
     super.initState();
     _text.addListener(_onText);
+    _unregister = ref
+        .read(composerTargetProvider)
+        .register(ComposerTarget(controller: _text, focusNode: _focus));
     _takeDraftAfterFrame();
   }
 
@@ -268,6 +275,7 @@ class _SessionComposerState extends ConsumerState<SessionComposer> {
 
   @override
   void dispose() {
+    _unregister();
     _text.removeListener(_onText);
     _text.dispose();
     _focus.dispose();

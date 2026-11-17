@@ -9,6 +9,8 @@ import 'package:promptorium/core/claude/usage_tracker.dart';
 import 'package:promptorium/core/git/git_service.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/data/repos/sessions_repo.dart';
+import 'package:promptorium/features/notifications/agent_alerts.dart'
+    show AlertSettingKeys;
 import 'package:promptorium/features/sessions/session_manager.dart';
 import 'package:promptorium/features/sessions/timeline.dart';
 import 'package:promptorium/features/sessions/timeline_provider.dart';
@@ -192,8 +194,8 @@ void main() {
     expect(cli.envs.last!['PROMPTORIUM_WORKTREE'], row.worktreePath);
   });
 
-  test('notification clicks: approvals → Sessões; done/failed → the screen '
-      'the session was created from', () async {
+  test('notification clicks: done/failed → the screen the session was '
+      'created from; approvals only in the bell', () async {
     final db = memoryDatabase();
     final cli = FakeCli();
     final notifier = FakeNotifier();
@@ -223,12 +225,14 @@ void main() {
     cli.last.emit(permissionLine('req-1'));
     await settle();
     nav.go(AppSection.code);
-    final approval = notifier.shown.indexWhere(
-      (n) => n.$1 == 'Aprovação pendente',
+    // SPEC-086: the approval goes to the system through AgentAlerts (with
+    // the robot), not here; the bell still gets it.
+    expect(
+      notifier.shown.map((n) => n.$1),
+      isNot(contains('Aprovação pendente')),
     );
-    notifier.clicks[approval]!();
-    expect(c.read(navigationProvider), AppSection.sessions);
-    expect(c.read(selectedSessionProvider), id);
+    final bell = await c.read(notificationsRepoProvider).recent();
+    expect(bell.map((n) => n.title), contains('Aprovação pendente'));
 
     await m.approve(id, 'req-1');
     cli.last.emit(lines.last); // result
@@ -248,6 +252,18 @@ void main() {
     nav.go(AppSection.code);
     notifier.clicks.last!();
     expect(c.read(navigationProvider), AppSection.sessions);
+
+    // SPEC-086 R15: "Avisar também quando uma sessão termina ou falha" off.
+    await c
+        .read(appSettingsProvider.notifier)
+        .set(AlertSettingKeys.sessions, 'false');
+    final before = notifier.shown.length;
+    await m.create(
+      NewSessionRequest(workspace: ws, title: 'Calada', prompt: 'Faça'),
+    );
+    cli.last.emit(lines.last);
+    await settle();
+    expect(notifier.shown, hasLength(before));
   });
 
   test('"sem perguntar": --dangerously-skip-permissions on create and on '
@@ -535,7 +551,16 @@ void main() {
     expect(queue, hasLength(1));
     expect(queue.single.sessionTitle, 'Shell da IDE');
     expect(queue.single.request.toolName, 'Bash');
-    expect(notifier.shown.map((n) => n.$1), contains('Aprovação pendente'));
+    // SPEC-086: the system notification of an approval is AgentAlerts's;
+    // here only the bell.
+    expect(
+      notifier.shown.map((n) => n.$1),
+      isNot(contains('Aprovação pendente')),
+    );
+    expect(
+      (await c.read(notificationsRepoProvider).recent()).map((n) => n.title),
+      contains('Aprovação pendente'),
+    );
     expect(c.read(footerStatsProvider).sessionsWaiting, 1);
     expect(c.read(footerStatsProvider).mcpTotal, greaterThan(0));
 

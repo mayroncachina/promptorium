@@ -35,8 +35,22 @@ class _Notifier implements AppNotifier {
   final shown = <(String, String)>[];
 
   @override
-  Future<void> show(String title, String body, {VoidCallback? onClick}) async =>
-      shown.add((title, body));
+  Future<int?> show(
+    String title,
+    String body, {
+    VoidCallback? onClick,
+    NotificationImage? image,
+    int? replaces,
+    List<(String, String)> actions = const [clickAction],
+    String? noActionsHint,
+    String? category,
+  }) async {
+    shown.add((title, body));
+    return shown.length;
+  }
+
+  @override
+  Future<void> close(int id) async {}
 }
 
 class _Timer implements Timer {

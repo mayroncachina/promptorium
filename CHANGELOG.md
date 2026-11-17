@@ -2,6 +2,51 @@
 
 Todas as mudanças relevantes do Promptorium.
 
+## [0.19.0] - 2026-11-17
+
+### Funcionalidades
+
+- **spec-077:** Copiar código, seleção única e blocos recolhíveis no markdown (9f9e28b)
+- **snippets:** Tabela snippets na migração v29, repositório, nome sugerido e copiar/inserir no composer (SPEC-078 R3, R5, R8) (cc239ce)
+- **snippets:** Salvar no bloco, grupo Snippets na paleta, diálogo Snippets e seção no painel do Prompt (SPEC-078 R1–R4, R6–R14) (c8b8c70)
+- **spec-082:** Passos do replay, estado neste ponto e arquivo neste ponto (3ca60c4)
+- **spec-082:** Aba Replay, linha do tempo, painel do passo e entradas "Ver replay" (df2892a)
+- **spec-086:** Notificações direto no DBus, com clique e token de ativação (c8c04c2)
+- **spec-086:** Robô parado acenando para a notificação (2de3075)
+- **spec-086:** Alertas com o robô, contra spam, e o clique abre o pedido (741c9e9)
+- **spec-086:** Configurações › Notificações com prévia e Testar notificação (bd251fb)
+
+### Correções
+
+- **spec-077:** Copiar mensagem só com o ícone (R7) (2df4da0)
+- **paleta:** Chips de prefixo no tamanho do texto e prévia do snippet sem rolagem (SPEC-078 R6, R7) (044999f)
+- **spec-082:** Posição no filtro com o cursor fora dele mostra "–" (1aeb83f)
+- **spec-086:** O foco do clique fica com o cartão da tela nova, não com o flutuante (f4e49ec)
+
+### Documentação
+
+- **spec-078:** Spec e canvas dos snippets salvos (7e0fecc)
+- **spec-078:** Issue #269 (e6a05d4)
+- **spec-077:** Spec e mockups de Copiar código (c55fae5)
+- **spec-077:** Issue #266 (ae7b8c0)
+- **spec-077:** Decisões fechadas, prints do app real e critérios conferidos (5fb78c5)
+- **spec-078:** Aprovada, decisões P1–P9 e versão 0.19.0 (dfd7ec0)
+- **spec-078:** Prints do app real e critérios conferidos (50aa9c5)
+- **spec-082:** Replay da sessão, rascunho e canvas (d5f93d0)
+- **spec-082:** Issue #275 (7e017b3)
+- **spec-082:** Aprovada, decisões P1–P7 e versão 0.19.0 (9683ae9)
+- **spec-082:** Prints do app real e critérios conferidos (1e56726)
+- **spec-086:** Notificação com o robô — spec e mockups (02740a3)
+- **spec-086:** Issue #276 (70c88de)
+- **spec-086:** Aprovada, decisões P1–P6 e versão 0.19.0 (51c671b)
+- **spec-086:** Prints do app real e critérios conferidos (c873064)
+
+### Testes
+
+- **spec-086:** Import a mais (4ac6e53)
+- **spec-086:** Import a mais (16539af)
+- **spec-082:** Limite de 100 ms no passo do cursor do replay, para os runners do CI (f3d5a40)
+
 ## [0.18.0] - 2026-11-16
 
 ### Funcionalidades
