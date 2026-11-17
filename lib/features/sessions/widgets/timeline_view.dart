@@ -627,8 +627,8 @@ class _AssistantTextState extends State<_AssistantText> {
                           child: CopyButton(
                             key: const ValueKey('copy-message'),
                             text: () => item.text,
-                            label: 'Copiar mensagem',
-                            tooltip: 'Copiar a resposta em markdown',
+                            iconOnly: true,
+                            tooltip: 'Copiar mensagem (markdown)',
                             semanticLabel: 'Copiar mensagem',
                             announcement: 'Mensagem copiada',
                           ),

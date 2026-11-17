@@ -67,7 +67,15 @@ void main() {
     await tester.tap(copyMessage);
     await tester.pump();
     expect(copied, [_answer]);
-    expect(find.text('Copiado'), findsOneWidget);
+    // Icon only: no visible text, the check icon confirms.
+    expect(
+      find.descendant(of: copyMessage, matching: find.byType(Text)),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: copyMessage, matching: find.byIcon(Icons.check)),
+      findsOneWidget,
+    );
     await tester.pump(CopyButton.copiedFor);
   });
 
