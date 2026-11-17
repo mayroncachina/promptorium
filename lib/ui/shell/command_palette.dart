@@ -679,17 +679,20 @@ class _CommandPaletteState extends State<CommandPalette> {
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                  child: Wrap(
-                    runSpacing: 4,
-                    children: [
-                      _chip('Tudo', null, activePrefix),
-                      for (final e in palettePrefixes.entries)
-                        _chip(
-                          '${e.key} ${e.value.join(' e ')}',
-                          e.key,
-                          activePrefix,
-                        ),
-                    ],
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      runSpacing: 4,
+                      children: [
+                        _chip('Tudo', null, activePrefix),
+                        for (final e in palettePrefixes.entries)
+                          _chip(
+                            '${e.key} ${e.value.join(' e ')}',
+                            e.key,
+                            activePrefix,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(height: 1),
@@ -874,8 +877,10 @@ class _CommandPaletteState extends State<CommandPalette> {
   /// The list, and at its right the preview of the selected command (R7).
   Widget _withPreview(Widget? preview, Widget list) {
     if (preview == null) return list;
+    // Taller than the list alone: 14 code lines, the description and the
+    // usage line fit without scrolling (R7).
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 360),
+      constraints: const BoxConstraints(maxHeight: 440),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -904,17 +909,20 @@ class _CommandPaletteState extends State<CommandPalette> {
         child: Container(
           height: 24,
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: on ? AppColors.amberTint : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: on ? AppColors.amber : AppColors.border),
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: on ? AppColors.amber : AppColors.textSecondary,
+          // Centered without growing to the Wrap's width.
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: on ? AppColors.amber : AppColors.textSecondary,
+              ),
             ),
           ),
         ),
