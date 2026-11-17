@@ -3,6 +3,7 @@ id: SPEC-078
 status: rascunho
 tipo: melhoria
 depende-de: SPEC-077
+issue: 269
 ---
 
 # Snippets salvos
@@ -27,7 +28,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/GxygfLvsPiwVLJVUmRS
 | `3-gerenciar.png` | O diálogo Snippets: lista com busca à esquerda, o snippet aberto para editar à direita, a origem e as ações | R9–R12 |
 | `4-painel-e-composer.png` | A seção Snippets no painel do Prompt e o snippet inserido no composer como bloco cercado | R5, R8 |
 
-Issue: a criar.
+Issue: [#269](https://github.com/mayroncachina/promptorium/issues/269) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 ## Requisitos
 
