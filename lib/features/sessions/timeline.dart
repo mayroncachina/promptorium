@@ -177,6 +177,10 @@ class Timeline {
   /// Number of events applied (persisted or live).
   int applied = 0;
 
+  /// Context tokens of each top-level answer (SPEC-082 R6): `items` is the
+  /// length of [items] once the answer was applied.
+  final List<({int items, int tokens})> contextTokens = [];
+
   ToolItem? tool(String id) => _tools[id];
 
   List<TimelineItem> _target(String? parent) {
@@ -294,6 +298,7 @@ class Timeline {
               break;
           }
         }
+        _recordContext(e);
       case ToolResult():
         final t = _tools[e.toolUseId];
         if (t != null) {
@@ -313,10 +318,27 @@ class Timeline {
         items.add(_resultNotice(e, now));
       case SystemOther(subtype: 'api_retry'):
         items.add(NoticeItem('Falha na API; tentando novamente…', at: now));
+      case SystemOther(subtype: 'compact_boundary'):
+        items.add(NoticeItem(compactionNotice, at: now));
       case UnknownEvent():
         _applyApp(e.json, now);
       default:
         break;
+    }
+  }
+
+  /// Notice of a `system/compact_boundary` (SPEC-082 R2).
+  static const compactionNotice = 'Contexto compactado';
+
+  void _recordContext(AssistantMessage e) {
+    if (e.parentToolUseId != null) return;
+    if (e.json['message'] case {'usage': final Map<String, dynamic> u}) {
+      final usage = Usage.fromJson(u);
+      final ctx =
+          usage.inputTokens +
+          usage.cacheReadInputTokens +
+          usage.cacheCreationInputTokens;
+      if (ctx > 0) contextTokens.add((items: items.length, tokens: ctx));
     }
   }
 

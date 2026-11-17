@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 28;
+const appSchemaVersion = 29;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -796,6 +796,53 @@ class SpecNotes extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Code blocks of an answer saved by the user (SPEC-078 R5, schema v29), by
+/// workspace: deleting the workspace deletes them. Nothing goes to the
+/// repository.
+@TableIndex(name: 'snippets_body_hash', columns: {#workspaceId, #bodyHash})
+class Snippets extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+
+  /// [name] in lower case: unique within the workspace (R4).
+  TextColumn get nameKey => text()();
+
+  /// Word of the fence (`sql`); null = plain text.
+  TextColumn get language => text().nullable()();
+  TextColumn get description => text().withDefault(const Constant(''))();
+  TextColumn get body => text()();
+
+  /// SHA-1 of [body] (P9): "✓ Salvo" of a block without reading the bodies.
+  TextColumn get bodyHash => text()();
+
+  /// Conversation or session it came from; null once deleted (the label
+  /// stays, R11).
+  IntColumn get originConversationId => integer().nullable().references(
+    Conversations,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  TextColumn get originSessionId => text().nullable().references(
+    Sessions,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+
+  /// Title of the origin when it was saved.
+  TextColumn get originLabel => text().nullable()();
+  IntColumn get uses => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lastUsedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  List<Set<Column>> get uniqueKeys => [
+    {workspaceId, nameKey},
+  ];
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -832,6 +879,7 @@ class AppSettings extends Table {
     SpecDuels,
     StepRuns,
     SpecNotes,
+    Snippets,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1225,6 +1273,13 @@ class AppDatabase extends _$AppDatabase {
                 await m.addColumn(v.specs, c);
               }
             }
+          },
+          // v29: the snippets of a workspace (SPEC-078 R5) and the index of
+          // their hashes (P9).
+          from28To29: (m, v) async {
+            if (await _hasTable('snippets')) return;
+            await m.createTable(v.snippets);
+            await m.createIndex(v.snippetsBodyHash);
           },
         ),
       );

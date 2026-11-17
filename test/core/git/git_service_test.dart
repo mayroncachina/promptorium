@@ -20,6 +20,17 @@ void main() {
   });
   tearDown(() => tmp.deleteSync(recursive: true));
 
+  test('show and mergeBase (SPEC-082 R7)', () async {
+    final head = (await git.headSha())!;
+    File('$repo/a.txt').writeAsStringSync('mudou\n');
+    expect(await git.show(head, 'a.txt'), isNotNull);
+    expect(await git.show(head, 'a.txt'), isNot('mudou\n'));
+    expect(await git.show(head, 'nao-existe.txt'), isNull);
+    expect(await git.show('0000000', 'a.txt'), isNull);
+    expect(await git.mergeBase('main', 'HEAD'), head);
+    expect(await git.mergeBase('main', 'nada'), isNull);
+  });
+
   test('currentBranch, detached HEAD and log', () async {
     expect(await git.currentBranch(), 'main');
     final log = await git.log(5);
