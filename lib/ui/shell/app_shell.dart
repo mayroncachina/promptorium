@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/agents/agents_screen.dart';
 import '../../features/code/code_screen.dart';
 import '../../features/home/home_inbox.dart';
+import '../../features/notifications/alert_target.dart'
+    show alertNoticeProvider;
 import '../../features/home/home_screen.dart';
 import '../../features/mcp/mcp_screen.dart';
 import '../../features/mcp/mcp_state.dart' show mcpListProvider;
@@ -357,6 +359,18 @@ class _AppShellState extends ConsumerState<AppShell> {
     final section = ref.watch(navigationProvider);
     // Watches the workspace's specs / agents / skills / config (F11).
     ref.watch(workspaceWatcherProvider);
+    // SPEC-086 R7: the request of a notification was already answered.
+    ref.listen(alertNoticeProvider, (_, notice) {
+      if (notice == null) return;
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showAppToast(
+          SnackBar(
+            key: const ValueKey('alert-notice'),
+            content: Text(notice.text),
+          ),
+        );
+    });
     return Shortcuts(
       shortcuts: shellShortcuts,
       child: Actions(
