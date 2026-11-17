@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'spec_file.dart';
+import 'spec_prints.dart' show findBrand;
 
 /// What a structure warning of the editor points at (SPEC-023 R8).
 enum SpecWarningKind {
@@ -31,6 +32,9 @@ enum SpecWarningKind {
 
   /// `issue:` that is not a number (SPEC-074 R1).
   invalidIssue,
+
+  /// The text cites a brand read in a reference print (SPEC-083 R9).
+  referenceBrand,
 
   /// `## Perguntas em aberto` outside the `- P<n> · …` format, with
   /// suggestions counted as questions (SPEC-028 R3). Shown as its own
@@ -107,13 +111,20 @@ const knownFrontmatterKeys = {
   specIssueKey,
   specOriginKey,
   specSessionKey,
+  specTypeKey,
 };
 
 /// Structure warnings of a spec, in line order (SPEC-023 R8). They only
 /// inform: saving and approving go on. With [knownCodes] (the specs of the
 /// workspace), a dependency on a spec outside it is a warning too
-/// (SPEC-063 R3).
-List<SpecWarning> lintSpec(String text, {Set<String>? knownCodes}) {
+/// (SPEC-063 R3). [referenceBrands] are the brands of the spec's reference
+/// prints (`index.json` of its mockups, SPEC-083 R9): a line that cites one
+/// is a warning.
+List<SpecWarning> lintSpec(
+  String text, {
+  Set<String>? knownCodes,
+  List<String> referenceBrands = const [],
+}) {
   final doc = SpecDocument.parse(text);
   final reqs = doc.requirementLines;
   final criteria = parseCriteria(text);
@@ -199,6 +210,7 @@ List<SpecWarning> lintSpec(String text, {Set<String>? knownCodes}) {
     }
   }
   out.addAll(_frontmatterWarnings(doc, knownCodes));
+  out.addAll(_brandWarnings(text, referenceBrands));
   final scan = doc.openQuestionsScan;
   if (scan.offFormat) {
     out.add(
@@ -218,6 +230,30 @@ List<SpecWarning> lintSpec(String text, {Set<String>? knownCodes}) {
         ? a.line.compareTo(b.line)
         : a.kind.index.compareTo(b.kind.index),
   );
+  return out;
+}
+
+/// SPEC-083 R9: one warning per line that cites a reference app's brand.
+List<SpecWarning> _brandWarnings(String text, List<String> brands) {
+  if (brands.isEmpty) return const [];
+  final out = <SpecWarning>[];
+  for (final (i, line) in text.split('\n').indexed) {
+    final cited = [
+      for (final b in brands)
+        if (findBrand(line, b).isNotEmpty) b,
+    ];
+    if (cited.isEmpty) continue;
+    out.add(
+      SpecWarning(
+        line: i + 1,
+        message:
+            'Cita o app de referência: a spec tem um print de referência e o '
+            'texto cita ${cited.map((b) => '“$b”').join(', ')}. Troque pelo '
+            'que a tela faz.',
+        kind: SpecWarningKind.referenceBrand,
+      ),
+    );
+  }
   return out;
 }
 

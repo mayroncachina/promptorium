@@ -57,6 +57,9 @@ Object? structuredOutput(Result r) {
 ///
 /// Model, effort and auto-compact not set in [options] come from the planner
 /// defaults of Configurações ([RunPrefs]).
+///
+/// [images] go as `image` blocks of the message, before the text (the
+/// prints of "Nova spec", SPEC-083 R6).
 Future<Result> runReadOnlyClaude(
   Ref ref, {
   required String cwd,
@@ -67,6 +70,7 @@ Future<Result> runReadOnlyClaude(
   String? providerId,
   Future<void>? cancelled,
   String denyMessage = 'O planner do Promptorium é somente leitura.',
+  List<ImagePart> images = const [],
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -193,7 +197,7 @@ Future<Result> runReadOnlyClaude(
     );
   }
   try {
-    await process.send(prompt);
+    await process.send(prompt, images: images);
     return await response;
   } finally {
     finished = true;

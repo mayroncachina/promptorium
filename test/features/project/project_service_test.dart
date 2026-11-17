@@ -69,6 +69,7 @@ class _FlakySpecService extends SpecService {
     String Function(String code)? render,
     String? agentSession,
     bool inTray = true,
+    Future<void> Function(String code)? attach,
   }) {
     if (++calls == failAt) throw const SpecException('disco cheio');
     return super.create(
@@ -78,6 +79,7 @@ class _FlakySpecService extends SpecService {
       render: render,
       agentSession: agentSession,
       inTray: inTray,
+      attach: attach,
     );
   }
 }

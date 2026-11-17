@@ -8,6 +8,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/providers/agent_provider.dart' show PromptMode;
 import '../../data/providers.dart';
@@ -31,6 +32,7 @@ import 'prototype/prototype_delete.dart';
 import 'prototype/prototype_files.dart';
 import 'prototype/prototype_service.dart';
 import 'prototype/prototype_view.dart';
+import 'spec_prints.dart' show referenceBrandsOf;
 import 'spec_lint.dart';
 import 'spec_planner.dart';
 import 'spec_editor_handle.dart';
@@ -601,6 +603,21 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     }
   }
 
+  /// SPEC-083 R9: the lint warns when the text cites a brand of the
+  /// spec's reference prints.
+  Future<void> _loadBrands(Workspace ws, Spec spec) async {
+    final brands = await referenceBrandsOf(
+      p.join(ws.path, mockupDir(spec.code)),
+    );
+    if (!mounted || brands.isEmpty || _loadedSpecId != spec.id) return;
+    final c = _controller;
+    if (c == null) return;
+    setState(() {
+      _brands = brands;
+      _setWarnings(c.text);
+    });
+  }
+
   Future<void> _load(Workspace ws, Spec spec) async {
     // SPEC-027 R6: another spec makes the deletion final.
     if (_loadedSpecId != spec.id) _undo.discardLater();
@@ -672,7 +689,9 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
       ..addListener(_onText);
     _lintTimer?.cancel();
     _skeletonTimer?.cancel();
+    _brands = const [];
     _setWarnings(shown);
+    unawaited(_loadBrands(ws, spec));
     setState(() {
       // A reload of the same text, with nothing covering it, just stays.
       if (_docSpecId != spec.id || _skeletonDue) _fadeTurn++;
@@ -697,8 +716,16 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
   /// (SPEC-063 R3); empty until the list arrives.
   Set<String> _knownCodes = const {};
 
+  /// Brands of the open spec's reference prints (`index.json` of its
+  /// mockups, SPEC-083 R9).
+  List<String> _brands = const [];
+
   void _setWarnings(String text) {
-    _warnings = lintSpec(text, knownCodes: _knownCodes);
+    _warnings = lintSpec(
+      text,
+      knownCodes: _knownCodes,
+      referenceBrands: _brands,
+    );
     final scan = SpecDocument.parse(text).openQuestionsScan;
     _questionMarks.value = {
       for (final l in scan.suggestionLines) l - 1: AppColors.amber,
@@ -996,7 +1023,11 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
     final questions = doc.openQuestions;
     // The format notice has its own strip (SPEC-028 R3).
     final warnings = [
-      for (final w in lintSpec(c.text, knownCodes: _knownCodes))
+      for (final w in lintSpec(
+        c.text,
+        knownCodes: _knownCodes,
+        referenceBrands: _brands,
+      ))
         if (w.kind != SpecWarningKind.openQuestionsFormat) w,
     ];
     if (questions.isNotEmpty || warnings.isNotEmpty) {
@@ -1860,6 +1891,7 @@ class _SpecsScreenState extends ConsumerState<SpecsScreen> {
                         setState(() => _warningsOpen = !_warningsOpen),
                     onWarning: _goToLine,
                     onFixWarning: _fixWarning,
+                    imageDirectory: p.dirname(p.join(ws.path, spec.path)),
                     lockedBanner: locked
                         ? '${spec.code} já foi iniciada (${specStageLabel(spec.stage)}): '
                               'não é editável. Use "Clonar para alterar" '
@@ -2259,9 +2291,13 @@ class _EditorBody extends StatelessWidget {
     this.dependsNotice,
     this.onFixDepends,
     this.onFixWarning,
+    this.imageDirectory,
   });
 
   final ValueChanged<SpecWarning>? onFixWarning;
+
+  /// Folder of the spec file, for the images of the preview (SPEC-083).
+  final String? imageDirectory;
 
   /// A variation of `depende-de` (SPEC-063 R2): the notice above the
   /// editor with "Trocar agora".
@@ -2314,6 +2350,7 @@ class _EditorBody extends StatelessWidget {
     final preview = Consumer(
       builder: (context, ref, _) => SpecPreview(
         text: text,
+        imageDirectory: imageDirectory,
         scale: ref.watch(editorZoomProvider(SpecsScreen.editorKey)) / 100,
       ),
     );
@@ -2567,9 +2604,18 @@ class SpecDependsAliasNotice extends StatelessWidget {
 
 /// Rendered spec (frontmatter shown as a status line, like the mockup).
 class SpecPreview extends StatelessWidget {
-  const SpecPreview({super.key, required this.text, this.scale = 1});
+  const SpecPreview({
+    super.key,
+    required this.text,
+    this.scale = 1,
+    this.imageDirectory,
+  });
 
   final String text;
+
+  /// Folder of the spec file: relative images resolve from it (SPEC-083
+  /// R11).
+  final String? imageDirectory;
 
   /// Text scale (editor zoom / 100).
   final double scale;
@@ -2630,7 +2676,11 @@ class SpecPreview extends StatelessWidget {
                 ),
               ),
             ),
-          AppMarkdown(data: doc.body, styleSheet: style),
+          AppMarkdown(
+            data: doc.body,
+            styleSheet: style,
+            imageDirectory: imageDirectory,
+          ),
         ],
       ),
     );
