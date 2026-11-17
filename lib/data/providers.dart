@@ -6,6 +6,7 @@ import '../core/git/git_root.dart';
 import '../core/git/repo_setup.dart';
 import '../core/process/process_runner.dart';
 import 'db/app_database.dart';
+import 'repos/activity_events_repo.dart';
 import 'repos/agent_settings_repo.dart';
 import 'repos/app_settings_repo.dart';
 import 'repos/conversations_repo.dart';
@@ -100,6 +101,9 @@ final specNotesRepoProvider = Provider(
 );
 final snippetsRepoProvider = Provider(
   (ref) => SnippetsRepo(ref.watch(appDatabaseProvider)),
+);
+final activityEventsRepoProvider = Provider(
+  (ref) => ActivityEventsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),
