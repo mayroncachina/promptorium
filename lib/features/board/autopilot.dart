@@ -527,7 +527,7 @@ class Autopilot extends Notifier<Set<int>> {
       ref
           .read(appNotifierProvider)
           .show('Executar tudo', body)
-          .catchError((_) {}),
+          .catchError((_) => null),
     );
   }
 }

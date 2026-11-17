@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -45,13 +44,6 @@ Future<void> main() async {
     await windowManager.show();
     await windowManager.focus();
   });
-
-  // local_notifier 0.1.6 README ("Usage"); needs libnotify on Linux.
-  try {
-    await localNotifier.setup(appName: 'Promptorium');
-  } catch (e) {
-    debugPrint('notificações indisponíveis: $e');
-  }
 
   // Closing the window must not leave `claude` processes orphaned: intercept
   // the close (window_manager 0.5.2 `setPreventClose` + `onWindowClose`), stop every
