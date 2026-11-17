@@ -161,6 +161,12 @@ void main() {
       expect(after.costUsd, 0.02);
       expect(after.messageCount, 2);
       expect(c.read(conversationManagerProvider).isBusy(id), isFalse);
+      // SPEC-081 R1: the turn is in the register (free Prompt: no spec).
+      final entry = await db.select(db.usageEntries).getSingle();
+      expect(entry.conversationId, id);
+      expect(entry.source, UsageSource.livre);
+      expect(entry.costUsd, 0.02);
+      expect(entry.workspaceId, ws.id);
 
       final events = await c.read(conversationsRepoProvider).events(id);
       expect(events.map((e) => e.type), [

@@ -39,6 +39,7 @@ import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../notifications/agent_alerts.dart' show alertSettingsProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
+import '../cost/usage_ledger.dart';
 import 'session_changes.dart';
 import 'timeline.dart';
 import 'timeline_provider.dart';
@@ -294,6 +295,10 @@ class _Proc {
 
   /// Highest cumulative `total_cost_usd` seen (the session cost).
   double lastCost;
+
+  /// Last `total_cost_usd` of this process (the cost of a turn is the
+  /// difference; SPEC-081 R1). Null before its first `result`.
+  double? seenCost;
   final List<PermissionRequest> pending = [];
   final DateTime started = DateTime.now();
   final Map<String, DateTime> pendingAt = {};
@@ -503,6 +508,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       if (conv == null) {
         throw const SessionException('A conversa desta VIBE não existe mais.');
       }
+      // SPEC-081 P6: a mark of the CI fixer goes with the message.
+      ref.read(usageLedgerProvider).moveMark(id, conv.id);
       await ref.read(conversationManagerProvider.notifier).send(conv.id, msg);
       return;
     }
@@ -1484,6 +1491,12 @@ class SessionManager extends Notifier<SessionManagerState> {
         }
         await _readHooks(id, p);
       case Result():
+        final turn = turnCost(
+          e.totalCostUsd,
+          lastSeen: p.seenCost,
+          stored: p.lastCost,
+        );
+        p.seenCost = e.totalCostUsd;
         p.lastCost = math.max(p.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -1495,6 +1508,10 @@ class SessionManager extends Notifier<SessionManagerState> {
               u.cacheReadInputTokens,
           tokensOut: u.outputTokens,
         );
+        // SPEC-081 R1: one entry per turn, with its spec and origin.
+        await ref
+            .read(usageLedgerProvider)
+            .recordSessionTurn(id, e, costUsd: turn);
         p.subagents.clear();
         p.busy = false;
         p.busySince = null;

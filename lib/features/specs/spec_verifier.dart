@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cost/usage_ledger.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/readonly_run.dart';
 import '../../core/providers/claude_code_provider.dart';
@@ -102,6 +103,9 @@ final verificationAgentProvider = Provider<VerificationAgent>(
           workspaceId: ws.id,
           cwd: ws.path,
           providerId: provider,
+          // SPEC-081 R2: the prompt starts with "Spec SPEC-NNN".
+          specCode: specCodeInText(prompt),
+          usageSource: UsageSource.verificacao,
           cancelled: cancellation.future,
           options: ClaudeOptions(
             permissionMode: ClaudePermissionMode.defaultMode,
