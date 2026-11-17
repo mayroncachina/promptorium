@@ -260,6 +260,63 @@ void main() {
       await tester.pump(const Duration(seconds: 6));
     });
 
+    testWidgets('o cartão flutuante que sai junto com a tela deixa o foco '
+        'para o cartão da tela nova', (tester) async {
+      tester.view.physicalSize = const Size(1200, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = ProviderContainer();
+      addTearDown(c.dispose);
+      final onSessions = ValueNotifier(false);
+      addTearDown(onSessions.dispose);
+      Widget card() => SizedBox(
+        width: 400,
+        child: ApprovalCard(
+          approval: _approval('req-1'),
+          onOpen: () {},
+          onApprove: ({required bool always, input}) async {},
+          onDeny: () async {},
+        ),
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(
+            theme: AppTheme.dark(),
+            home: Scaffold(
+              body: ValueListenableBuilder<bool>(
+                valueListenable: onSessions,
+                builder: (_, sessions, _) => Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // The floating card over the screen being left…
+                    if (!sessions)
+                      KeyedSubtree(
+                        key: const ValueKey('floating'),
+                        child: card(),
+                      ),
+                    const Spacer(),
+                    // …and the card of Sessões, built by the navigation.
+                    if (sessions)
+                      KeyedSubtree(key: const ValueKey('panel'), child: card()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // The click: navigates and asks for the focus in the same step.
+      onSessions.value = true;
+      c.read(alertFocusProvider.notifier).request(const AlertFocus('req-1'));
+      await tester.pumpAndSettle();
+      final focused = FocusManager.instance.primaryFocus!;
+      expect(focused.debugLabel, 'approval-primary');
+      final panel = tester.getRect(find.byKey(const ValueKey('panel')));
+      expect(panel.contains(focused.rect.center), isTrue);
+      await tester.pump(const Duration(seconds: 6));
+    });
+
     testWidgets('pergunta: o foco vai para a primeira resposta', (
       tester,
     ) async {

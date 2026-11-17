@@ -223,15 +223,22 @@ class _AlertSpotlightState extends ConsumerState<AlertSpotlight> {
   void initState() {
     super.initState();
     // The usual case: the screen is built after the request.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _maybe(ref.read(alertFocusProvider));
-    });
+    _maybe(ref.read(alertFocusProvider));
   }
 
   void _maybe(AlertFocus? f) {
     if (f == null || f.requestId != widget.requestId) return;
-    ref.read(alertFocusProvider.notifier).take(f);
-    unawaited(_spot(f));
+    // After the frame: the click navigates in the same step it asks for the
+    // focus, so a card about to go away (the floating one of
+    // GlobalApprovals, over the screen being left) leaves the request to
+    // the card of the new screen.
+    WidgetsBinding.instance
+      ..addPostFrameCallback((_) {
+        if (!mounted || !identical(ref.read(alertFocusProvider), f)) return;
+        ref.read(alertFocusProvider.notifier).take(f);
+        unawaited(_spot(f));
+      })
+      ..ensureVisualUpdate();
   }
 
   Future<void> _spot(AlertFocus f) async {
