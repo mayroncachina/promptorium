@@ -134,14 +134,14 @@ O ponto é um commit feito com o `snapshot()` (índice temporário + `commit-tre
 
 ## Critérios de aceite
 
-- [ ] Antes de cada turno o app grava um ponto com o `HEAD`, a branch e o working tree com os não rastreados, sem mudar o índice nem o stash [R1, R2, R3] verificar: flutter test test/core/git/git_snapshot_test.dart
-- [ ] Gravar o ponto não passa de 5 s, e uma falha deixa o turno seguir com a nota na timeline [R4] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
-- [ ] O plano separa o que o agente mudou, o que a pessoa mudou depois e o que não mudou no turno, com commits e enviados [R6, R7, R12, R16] verificar: flutter test test/features/sessions/restore/undo_plan_test.dart
-- [ ] Desfazer o exemplo do problema volta os 40 arquivos, recria o apagado, apaga o criado, descarta o commit e mantém o arquivo da pessoa; Refazer volta ao estado desfeito [R8, R11] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
-- [ ] Os pontos respeitam a retenção, somem com a sessão e a Higiene não os oferece [R13, R15] verificar: flutter test test/features/sessions/restore/restore_retention_test.dart
-- [ ] O botão, a janela, a seção do painel e o marcador da timeline aparecem e funcionam [R5, R9, R10] verificar: flutter test test/features/sessions/widgets/undo_dialog_test.dart
-- [ ] No app, uma sessão real com `sed -i` em vários arquivos, um arquivo criado e um commit volta em um clique, com um arquivo editado à mão antes do turno intacto [R1–R12] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-084/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R17] verificar: flutter analyze
+- [x] Antes de cada turno o app grava um ponto com o `HEAD`, a branch e o working tree com os não rastreados, sem mudar o índice nem o stash [R1, R2, R3] verificar: flutter test test/core/git/git_snapshot_test.dart
+- [x] Gravar o ponto não passa de 5 s, e uma falha deixa o turno seguir com a nota na timeline [R4] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
+- [x] O plano separa o que o agente mudou, o que a pessoa mudou depois e o que não mudou no turno, com commits e enviados [R6, R7, R12, R16] verificar: flutter test test/features/sessions/restore/undo_plan_test.dart
+- [x] Desfazer o exemplo do problema volta os 40 arquivos, recria o apagado, apaga o criado, descarta o commit e mantém o arquivo da pessoa; Refazer volta ao estado desfeito [R8, R11] verificar: flutter test test/features/sessions/restore/restore_service_test.dart
+- [x] Os pontos respeitam a retenção, somem com a sessão e a Higiene não os oferece [R13, R15] verificar: flutter test test/features/sessions/restore/restore_retention_test.dart
+- [x] O botão, a janela, a seção do painel e o marcador da timeline aparecem e funcionam [R5, R9, R10] verificar: flutter test test/features/sessions/widgets/undo_dialog_test.dart
+- [x] No app, uma sessão real com `sed -i` em vários arquivos, um arquivo criado e um commit volta em um clique, com um arquivo editado à mão antes do turno intacto [R1–R12] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-084/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R17] verificar: flutter analyze
 
 ## Decisões em aberto
 
