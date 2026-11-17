@@ -2,6 +2,7 @@
 id: SPEC-079
 status: rascunho
 tipo: recurso
+issue: 272
 ---
 
 # Comparar respostas
@@ -26,7 +27,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/G9sgBDiJxEPDSrdFWx2
 | `3-lado-a-lado.png` | As duas respostas prontas, as métricas comparadas (tempo, tokens, peso na janela de 5 h e na semana) e "Continuar com esta" | R6, R7, R9 |
 | `4-escolhida.png` | Depois de escolher o B: a resposta na timeline, o cartão recolhido da comparação e o composer de volta, já no Opus | R10–R12 |
 
-Issue: a criar.
+Issue: [#272](https://github.com/mayroncachina/promptorium/issues/272) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 ## Requisitos
 
