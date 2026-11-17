@@ -14,6 +14,7 @@ import '../../../core/providers/provider_preferences.dart';
 import '../../../data/providers.dart';
 import '../../../data/repos/conversations_repo.dart';
 import '../../mcp/mcp_rules.dart';
+import '../../cost/usage_ledger.dart';
 import '../../sessions/session_manager.dart'
     show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
 import '../../sessions/timeline.dart';
@@ -371,6 +372,18 @@ class CompareController extends Notifier<Map<int, CompareView>> {
         final i = s.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) s.recent[i] = s.recent[i].finished();
       case Result():
+        // Both forks consume quota, even when discarded or not chosen.
+        await ref
+            .read(usageLedgerProvider)
+            .recordConversationTurn(
+              id,
+              e,
+              costUsd: turnCost(
+                e.totalCostUsd,
+                stored: side.metrics?.costUsd ?? 0,
+              ),
+              model: side.model,
+            );
         finished = true;
         side = side.copyWith(
           metrics: CompareMetrics.ofResult(e, s.tools),

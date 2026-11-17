@@ -18,6 +18,7 @@ import 'repos/spec_drafts_repo.dart';
 import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
+import 'repos/restore_points_repo.dart';
 import 'repos/snippets_repo.dart';
 import 'repos/spec_duels_repo.dart';
 import 'repos/spec_notes_repo.dart';
@@ -108,6 +109,9 @@ final activityEventsRepoProvider = Provider(
 );
 final usageEntriesRepoProvider = Provider(
   (ref) => UsageEntriesRepo(ref.watch(appDatabaseProvider)),
+);
+final restorePointsRepoProvider = Provider(
+  (ref) => RestorePointsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

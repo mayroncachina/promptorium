@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 32) {
+    await db.customStatement('DROP TABLE IF EXISTS restore_points');
+  }
   if (version < 31) {
     await db.customStatement('DROP TABLE IF EXISTS usage_entries');
   }
@@ -780,5 +783,55 @@ void main() {
     await db.customStatement('DELETE FROM specs WHERE id = 1');
     final left = await db.select(db.usageEntries).get();
     expect(left.single.specId, isNull);
+  });
+  // SPEC-084 R3, R13.
+  test('v31 → v32 creates restore_points; deleting the session deletes '
+      'its points', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 31);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name = 'restore_points_session'",
+        )
+        .getSingle();
+    expect(index.read<String>('sql'), contains('session_id, turn'));
+
+    await SessionsRepo(db).insert(
+      id: 's1',
+      workspaceId: 1,
+      worktreePath: '/r',
+      branch: 'main',
+      model: 'opus',
+    );
+    await db
+        .into(db.restorePoints)
+        .insert(
+          RestorePointsCompanion.insert(
+            workspaceId: 1,
+            sessionId: const Value('s1'),
+            worktreePath: '/r',
+            turn: 1,
+            startedAt: DateTime(2026, 11, 17),
+            startHead: 'a',
+            startSha: 'b',
+          ),
+        );
+    expect(await db.select(db.restorePoints).get(), hasLength(1));
+    await SessionsRepo(db).delete('s1');
+    expect(await db.select(db.restorePoints).get(), isEmpty);
   });
 }

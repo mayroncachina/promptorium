@@ -17699,6 +17699,1521 @@ class UsageEntriesCompanion extends UpdateCompanion<UsageEntry> {
   }
 }
 
+class $RestorePointsTable extends RestorePoints
+    with TableInfo<$RestorePointsTable, RestorePoint> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RestorePointsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES conversations (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _worktreePathMeta = const VerificationMeta(
+    'worktreePath',
+  );
+  @override
+  late final GeneratedColumn<String> worktreePath = GeneratedColumn<String>(
+    'worktree_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _turnMeta = const VerificationMeta('turn');
+  @override
+  late final GeneratedColumn<int> turn = GeneratedColumn<int>(
+    'turn',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _promptMeta = const VerificationMeta('prompt');
+  @override
+  late final GeneratedColumn<String> prompt = GeneratedColumn<String>(
+    'prompt',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _eventSeqMeta = const VerificationMeta(
+    'eventSeq',
+  );
+  @override
+  late final GeneratedColumn<int> eventSeq = GeneratedColumn<int>(
+    'event_seq',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startBranchMeta = const VerificationMeta(
+    'startBranch',
+  );
+  @override
+  late final GeneratedColumn<String> startBranch = GeneratedColumn<String>(
+    'start_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startHeadMeta = const VerificationMeta(
+    'startHead',
+  );
+  @override
+  late final GeneratedColumn<String> startHead = GeneratedColumn<String>(
+    'start_head',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startShaMeta = const VerificationMeta(
+    'startSha',
+  );
+  @override
+  late final GeneratedColumn<String> startSha = GeneratedColumn<String>(
+    'start_sha',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endBranchMeta = const VerificationMeta(
+    'endBranch',
+  );
+  @override
+  late final GeneratedColumn<String> endBranch = GeneratedColumn<String>(
+    'end_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endHeadMeta = const VerificationMeta(
+    'endHead',
+  );
+  @override
+  late final GeneratedColumn<String> endHead = GeneratedColumn<String>(
+    'end_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endShaMeta = const VerificationMeta('endSha');
+  @override
+  late final GeneratedColumn<String> endSha = GeneratedColumn<String>(
+    'end_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _filesMeta = const VerificationMeta('files');
+  @override
+  late final GeneratedColumn<int> files = GeneratedColumn<int>(
+    'files',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<int> bytes = GeneratedColumn<int>(
+    'bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _changedFilesMeta = const VerificationMeta(
+    'changedFiles',
+  );
+  @override
+  late final GeneratedColumn<int> changedFiles = GeneratedColumn<int>(
+    'changed_files',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _commitsMeta = const VerificationMeta(
+    'commits',
+  );
+  @override
+  late final GeneratedColumn<int> commits = GeneratedColumn<int>(
+    'commits',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _largeFilesMeta = const VerificationMeta(
+    'largeFiles',
+  );
+  @override
+  late final GeneratedColumn<String> largeFiles = GeneratedColumn<String>(
+    'large_files',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('ativo'),
+  );
+  static const VerificationMeta _undoBranchMeta = const VerificationMeta(
+    'undoBranch',
+  );
+  @override
+  late final GeneratedColumn<String> undoBranch = GeneratedColumn<String>(
+    'undo_branch',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoHeadMeta = const VerificationMeta(
+    'undoHead',
+  );
+  @override
+  late final GeneratedColumn<String> undoHead = GeneratedColumn<String>(
+    'undo_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoShaMeta = const VerificationMeta(
+    'undoSha',
+  );
+  @override
+  late final GeneratedColumn<String> undoSha = GeneratedColumn<String>(
+    'undo_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoneHeadMeta = const VerificationMeta(
+    'undoneHead',
+  );
+  @override
+  late final GeneratedColumn<String> undoneHead = GeneratedColumn<String>(
+    'undone_head',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _undoneShaMeta = const VerificationMeta(
+    'undoneSha',
+  );
+  @override
+  late final GeneratedColumn<String> undoneSha = GeneratedColumn<String>(
+    'undone_sha',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _usedAtMeta = const VerificationMeta('usedAt');
+  @override
+  late final GeneratedColumn<DateTime> usedAt = GeneratedColumn<DateTime>(
+    'used_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    sessionId,
+    conversationId,
+    worktreePath,
+    turn,
+    prompt,
+    eventSeq,
+    startedAt,
+    startBranch,
+    startHead,
+    startSha,
+    endedAt,
+    endBranch,
+    endHead,
+    endSha,
+    files,
+    bytes,
+    changedFiles,
+    commits,
+    largeFiles,
+    state,
+    undoBranch,
+    undoHead,
+    undoSha,
+    undoneHead,
+    undoneSha,
+    usedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'restore_points';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RestorePoint> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('worktree_path')) {
+      context.handle(
+        _worktreePathMeta,
+        worktreePath.isAcceptableOrUnknown(
+          data['worktree_path']!,
+          _worktreePathMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_worktreePathMeta);
+    }
+    if (data.containsKey('turn')) {
+      context.handle(
+        _turnMeta,
+        turn.isAcceptableOrUnknown(data['turn']!, _turnMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_turnMeta);
+    }
+    if (data.containsKey('prompt')) {
+      context.handle(
+        _promptMeta,
+        prompt.isAcceptableOrUnknown(data['prompt']!, _promptMeta),
+      );
+    }
+    if (data.containsKey('event_seq')) {
+      context.handle(
+        _eventSeqMeta,
+        eventSeq.isAcceptableOrUnknown(data['event_seq']!, _eventSeqMeta),
+      );
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('start_branch')) {
+      context.handle(
+        _startBranchMeta,
+        startBranch.isAcceptableOrUnknown(
+          data['start_branch']!,
+          _startBranchMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_head')) {
+      context.handle(
+        _startHeadMeta,
+        startHead.isAcceptableOrUnknown(data['start_head']!, _startHeadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startHeadMeta);
+    }
+    if (data.containsKey('start_sha')) {
+      context.handle(
+        _startShaMeta,
+        startSha.isAcceptableOrUnknown(data['start_sha']!, _startShaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startShaMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('end_branch')) {
+      context.handle(
+        _endBranchMeta,
+        endBranch.isAcceptableOrUnknown(data['end_branch']!, _endBranchMeta),
+      );
+    }
+    if (data.containsKey('end_head')) {
+      context.handle(
+        _endHeadMeta,
+        endHead.isAcceptableOrUnknown(data['end_head']!, _endHeadMeta),
+      );
+    }
+    if (data.containsKey('end_sha')) {
+      context.handle(
+        _endShaMeta,
+        endSha.isAcceptableOrUnknown(data['end_sha']!, _endShaMeta),
+      );
+    }
+    if (data.containsKey('files')) {
+      context.handle(
+        _filesMeta,
+        files.isAcceptableOrUnknown(data['files']!, _filesMeta),
+      );
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    }
+    if (data.containsKey('changed_files')) {
+      context.handle(
+        _changedFilesMeta,
+        changedFiles.isAcceptableOrUnknown(
+          data['changed_files']!,
+          _changedFilesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('commits')) {
+      context.handle(
+        _commitsMeta,
+        commits.isAcceptableOrUnknown(data['commits']!, _commitsMeta),
+      );
+    }
+    if (data.containsKey('large_files')) {
+      context.handle(
+        _largeFilesMeta,
+        largeFiles.isAcceptableOrUnknown(data['large_files']!, _largeFilesMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
+    if (data.containsKey('undo_branch')) {
+      context.handle(
+        _undoBranchMeta,
+        undoBranch.isAcceptableOrUnknown(data['undo_branch']!, _undoBranchMeta),
+      );
+    }
+    if (data.containsKey('undo_head')) {
+      context.handle(
+        _undoHeadMeta,
+        undoHead.isAcceptableOrUnknown(data['undo_head']!, _undoHeadMeta),
+      );
+    }
+    if (data.containsKey('undo_sha')) {
+      context.handle(
+        _undoShaMeta,
+        undoSha.isAcceptableOrUnknown(data['undo_sha']!, _undoShaMeta),
+      );
+    }
+    if (data.containsKey('undone_head')) {
+      context.handle(
+        _undoneHeadMeta,
+        undoneHead.isAcceptableOrUnknown(data['undone_head']!, _undoneHeadMeta),
+      );
+    }
+    if (data.containsKey('undone_sha')) {
+      context.handle(
+        _undoneShaMeta,
+        undoneSha.isAcceptableOrUnknown(data['undone_sha']!, _undoneShaMeta),
+      );
+    }
+    if (data.containsKey('used_at')) {
+      context.handle(
+        _usedAtMeta,
+        usedAt.isAcceptableOrUnknown(data['used_at']!, _usedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RestorePoint map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RestorePoint(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      worktreePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}worktree_path'],
+      )!,
+      turn: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}turn'],
+      )!,
+      prompt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}prompt'],
+      )!,
+      eventSeq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}event_seq'],
+      ),
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      startBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_branch'],
+      ),
+      startHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_head'],
+      )!,
+      startSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}start_sha'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      endBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_branch'],
+      ),
+      endHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_head'],
+      ),
+      endSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_sha'],
+      ),
+      files: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}files'],
+      )!,
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes'],
+      )!,
+      changedFiles: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}changed_files'],
+      )!,
+      commits: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}commits'],
+      )!,
+      largeFiles: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}large_files'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      undoBranch: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_branch'],
+      ),
+      undoHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_head'],
+      ),
+      undoSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undo_sha'],
+      ),
+      undoneHead: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undone_head'],
+      ),
+      undoneSha: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}undone_sha'],
+      ),
+      usedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}used_at'],
+      )!,
+    );
+  }
+
+  @override
+  $RestorePointsTable createAlias(String alias) {
+    return $RestorePointsTable(attachedDatabase, alias);
+  }
+}
+
+class RestorePoint extends DataClass implements Insertable<RestorePoint> {
+  final int id;
+  final int workspaceId;
+
+  /// The session of the turn, or the conversation of a VIBE (one of them).
+  final String? sessionId;
+  final int? conversationId;
+
+  /// Worktree the turn ran in (the point is of this directory, P8).
+  final String worktreePath;
+
+  /// 1, 2, 3… within the session.
+  final int turn;
+
+  /// Start of the message that opened the turn (the dialog title).
+  final String prompt;
+
+  /// `seq` of that message in the timeline (the marker, R10).
+  final int? eventSeq;
+  final DateTime startedAt;
+
+  /// Start of the turn: branch (null = detached HEAD), HEAD and the commit
+  /// with the whole working tree (= HEAD when the tree was clean).
+  final String? startBranch;
+  final String startHead;
+  final String startSha;
+
+  /// End of the turn (null while it runs or when it was not recorded).
+  final DateTime? endedAt;
+  final String? endBranch;
+  final String? endHead;
+  final String? endSha;
+
+  /// Uncommitted files kept at the start and their size (the tooltip).
+  final int files;
+  final int bytes;
+
+  /// What the turn changed (files, commits): the list of the panel.
+  final int changedFiles;
+  final int commits;
+
+  /// JSON array of untracked files above the size limit (R4): not kept.
+  final String largeFiles;
+
+  /// `ativo`, `desfeito` or `refeito` (R9, R11).
+  final String state;
+
+  /// "Antes de desfazer" (R8): branch, HEAD and working tree before the
+  /// undo, and the working tree right after it (what Refazer compares).
+  final String? undoBranch;
+  final String? undoHead;
+  final String? undoSha;
+  final String? undoneHead;
+  final String? undoneSha;
+
+  /// Last time it was recorded, undone or redone (the 14 days of R13).
+  final DateTime usedAt;
+  const RestorePoint({
+    required this.id,
+    required this.workspaceId,
+    this.sessionId,
+    this.conversationId,
+    required this.worktreePath,
+    required this.turn,
+    required this.prompt,
+    this.eventSeq,
+    required this.startedAt,
+    this.startBranch,
+    required this.startHead,
+    required this.startSha,
+    this.endedAt,
+    this.endBranch,
+    this.endHead,
+    this.endSha,
+    required this.files,
+    required this.bytes,
+    required this.changedFiles,
+    required this.commits,
+    required this.largeFiles,
+    required this.state,
+    this.undoBranch,
+    this.undoHead,
+    this.undoSha,
+    this.undoneHead,
+    this.undoneSha,
+    required this.usedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    map['worktree_path'] = Variable<String>(worktreePath);
+    map['turn'] = Variable<int>(turn);
+    map['prompt'] = Variable<String>(prompt);
+    if (!nullToAbsent || eventSeq != null) {
+      map['event_seq'] = Variable<int>(eventSeq);
+    }
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || startBranch != null) {
+      map['start_branch'] = Variable<String>(startBranch);
+    }
+    map['start_head'] = Variable<String>(startHead);
+    map['start_sha'] = Variable<String>(startSha);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    if (!nullToAbsent || endBranch != null) {
+      map['end_branch'] = Variable<String>(endBranch);
+    }
+    if (!nullToAbsent || endHead != null) {
+      map['end_head'] = Variable<String>(endHead);
+    }
+    if (!nullToAbsent || endSha != null) {
+      map['end_sha'] = Variable<String>(endSha);
+    }
+    map['files'] = Variable<int>(files);
+    map['bytes'] = Variable<int>(bytes);
+    map['changed_files'] = Variable<int>(changedFiles);
+    map['commits'] = Variable<int>(commits);
+    map['large_files'] = Variable<String>(largeFiles);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || undoBranch != null) {
+      map['undo_branch'] = Variable<String>(undoBranch);
+    }
+    if (!nullToAbsent || undoHead != null) {
+      map['undo_head'] = Variable<String>(undoHead);
+    }
+    if (!nullToAbsent || undoSha != null) {
+      map['undo_sha'] = Variable<String>(undoSha);
+    }
+    if (!nullToAbsent || undoneHead != null) {
+      map['undone_head'] = Variable<String>(undoneHead);
+    }
+    if (!nullToAbsent || undoneSha != null) {
+      map['undone_sha'] = Variable<String>(undoneSha);
+    }
+    map['used_at'] = Variable<DateTime>(usedAt);
+    return map;
+  }
+
+  RestorePointsCompanion toCompanion(bool nullToAbsent) {
+    return RestorePointsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      worktreePath: Value(worktreePath),
+      turn: Value(turn),
+      prompt: Value(prompt),
+      eventSeq: eventSeq == null && nullToAbsent
+          ? const Value.absent()
+          : Value(eventSeq),
+      startedAt: Value(startedAt),
+      startBranch: startBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startBranch),
+      startHead: Value(startHead),
+      startSha: Value(startSha),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      endBranch: endBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endBranch),
+      endHead: endHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endHead),
+      endSha: endSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endSha),
+      files: Value(files),
+      bytes: Value(bytes),
+      changedFiles: Value(changedFiles),
+      commits: Value(commits),
+      largeFiles: Value(largeFiles),
+      state: Value(state),
+      undoBranch: undoBranch == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoBranch),
+      undoHead: undoHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoHead),
+      undoSha: undoSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoSha),
+      undoneHead: undoneHead == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneHead),
+      undoneSha: undoneSha == null && nullToAbsent
+          ? const Value.absent()
+          : Value(undoneSha),
+      usedAt: Value(usedAt),
+    );
+  }
+
+  factory RestorePoint.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RestorePoint(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      worktreePath: serializer.fromJson<String>(json['worktreePath']),
+      turn: serializer.fromJson<int>(json['turn']),
+      prompt: serializer.fromJson<String>(json['prompt']),
+      eventSeq: serializer.fromJson<int?>(json['eventSeq']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      startBranch: serializer.fromJson<String?>(json['startBranch']),
+      startHead: serializer.fromJson<String>(json['startHead']),
+      startSha: serializer.fromJson<String>(json['startSha']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      endBranch: serializer.fromJson<String?>(json['endBranch']),
+      endHead: serializer.fromJson<String?>(json['endHead']),
+      endSha: serializer.fromJson<String?>(json['endSha']),
+      files: serializer.fromJson<int>(json['files']),
+      bytes: serializer.fromJson<int>(json['bytes']),
+      changedFiles: serializer.fromJson<int>(json['changedFiles']),
+      commits: serializer.fromJson<int>(json['commits']),
+      largeFiles: serializer.fromJson<String>(json['largeFiles']),
+      state: serializer.fromJson<String>(json['state']),
+      undoBranch: serializer.fromJson<String?>(json['undoBranch']),
+      undoHead: serializer.fromJson<String?>(json['undoHead']),
+      undoSha: serializer.fromJson<String?>(json['undoSha']),
+      undoneHead: serializer.fromJson<String?>(json['undoneHead']),
+      undoneSha: serializer.fromJson<String?>(json['undoneSha']),
+      usedAt: serializer.fromJson<DateTime>(json['usedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'worktreePath': serializer.toJson<String>(worktreePath),
+      'turn': serializer.toJson<int>(turn),
+      'prompt': serializer.toJson<String>(prompt),
+      'eventSeq': serializer.toJson<int?>(eventSeq),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'startBranch': serializer.toJson<String?>(startBranch),
+      'startHead': serializer.toJson<String>(startHead),
+      'startSha': serializer.toJson<String>(startSha),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'endBranch': serializer.toJson<String?>(endBranch),
+      'endHead': serializer.toJson<String?>(endHead),
+      'endSha': serializer.toJson<String?>(endSha),
+      'files': serializer.toJson<int>(files),
+      'bytes': serializer.toJson<int>(bytes),
+      'changedFiles': serializer.toJson<int>(changedFiles),
+      'commits': serializer.toJson<int>(commits),
+      'largeFiles': serializer.toJson<String>(largeFiles),
+      'state': serializer.toJson<String>(state),
+      'undoBranch': serializer.toJson<String?>(undoBranch),
+      'undoHead': serializer.toJson<String?>(undoHead),
+      'undoSha': serializer.toJson<String?>(undoSha),
+      'undoneHead': serializer.toJson<String?>(undoneHead),
+      'undoneSha': serializer.toJson<String?>(undoneSha),
+      'usedAt': serializer.toJson<DateTime>(usedAt),
+    };
+  }
+
+  RestorePoint copyWith({
+    int? id,
+    int? workspaceId,
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    String? worktreePath,
+    int? turn,
+    String? prompt,
+    Value<int?> eventSeq = const Value.absent(),
+    DateTime? startedAt,
+    Value<String?> startBranch = const Value.absent(),
+    String? startHead,
+    String? startSha,
+    Value<DateTime?> endedAt = const Value.absent(),
+    Value<String?> endBranch = const Value.absent(),
+    Value<String?> endHead = const Value.absent(),
+    Value<String?> endSha = const Value.absent(),
+    int? files,
+    int? bytes,
+    int? changedFiles,
+    int? commits,
+    String? largeFiles,
+    String? state,
+    Value<String?> undoBranch = const Value.absent(),
+    Value<String?> undoHead = const Value.absent(),
+    Value<String?> undoSha = const Value.absent(),
+    Value<String?> undoneHead = const Value.absent(),
+    Value<String?> undoneSha = const Value.absent(),
+    DateTime? usedAt,
+  }) => RestorePoint(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    worktreePath: worktreePath ?? this.worktreePath,
+    turn: turn ?? this.turn,
+    prompt: prompt ?? this.prompt,
+    eventSeq: eventSeq.present ? eventSeq.value : this.eventSeq,
+    startedAt: startedAt ?? this.startedAt,
+    startBranch: startBranch.present ? startBranch.value : this.startBranch,
+    startHead: startHead ?? this.startHead,
+    startSha: startSha ?? this.startSha,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    endBranch: endBranch.present ? endBranch.value : this.endBranch,
+    endHead: endHead.present ? endHead.value : this.endHead,
+    endSha: endSha.present ? endSha.value : this.endSha,
+    files: files ?? this.files,
+    bytes: bytes ?? this.bytes,
+    changedFiles: changedFiles ?? this.changedFiles,
+    commits: commits ?? this.commits,
+    largeFiles: largeFiles ?? this.largeFiles,
+    state: state ?? this.state,
+    undoBranch: undoBranch.present ? undoBranch.value : this.undoBranch,
+    undoHead: undoHead.present ? undoHead.value : this.undoHead,
+    undoSha: undoSha.present ? undoSha.value : this.undoSha,
+    undoneHead: undoneHead.present ? undoneHead.value : this.undoneHead,
+    undoneSha: undoneSha.present ? undoneSha.value : this.undoneSha,
+    usedAt: usedAt ?? this.usedAt,
+  );
+  RestorePoint copyWithCompanion(RestorePointsCompanion data) {
+    return RestorePoint(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      worktreePath: data.worktreePath.present
+          ? data.worktreePath.value
+          : this.worktreePath,
+      turn: data.turn.present ? data.turn.value : this.turn,
+      prompt: data.prompt.present ? data.prompt.value : this.prompt,
+      eventSeq: data.eventSeq.present ? data.eventSeq.value : this.eventSeq,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      startBranch: data.startBranch.present
+          ? data.startBranch.value
+          : this.startBranch,
+      startHead: data.startHead.present ? data.startHead.value : this.startHead,
+      startSha: data.startSha.present ? data.startSha.value : this.startSha,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      endBranch: data.endBranch.present ? data.endBranch.value : this.endBranch,
+      endHead: data.endHead.present ? data.endHead.value : this.endHead,
+      endSha: data.endSha.present ? data.endSha.value : this.endSha,
+      files: data.files.present ? data.files.value : this.files,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+      changedFiles: data.changedFiles.present
+          ? data.changedFiles.value
+          : this.changedFiles,
+      commits: data.commits.present ? data.commits.value : this.commits,
+      largeFiles: data.largeFiles.present
+          ? data.largeFiles.value
+          : this.largeFiles,
+      state: data.state.present ? data.state.value : this.state,
+      undoBranch: data.undoBranch.present
+          ? data.undoBranch.value
+          : this.undoBranch,
+      undoHead: data.undoHead.present ? data.undoHead.value : this.undoHead,
+      undoSha: data.undoSha.present ? data.undoSha.value : this.undoSha,
+      undoneHead: data.undoneHead.present
+          ? data.undoneHead.value
+          : this.undoneHead,
+      undoneSha: data.undoneSha.present ? data.undoneSha.value : this.undoneSha,
+      usedAt: data.usedAt.present ? data.usedAt.value : this.usedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorePoint(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('turn: $turn, ')
+          ..write('prompt: $prompt, ')
+          ..write('eventSeq: $eventSeq, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('startBranch: $startBranch, ')
+          ..write('startHead: $startHead, ')
+          ..write('startSha: $startSha, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('endBranch: $endBranch, ')
+          ..write('endHead: $endHead, ')
+          ..write('endSha: $endSha, ')
+          ..write('files: $files, ')
+          ..write('bytes: $bytes, ')
+          ..write('changedFiles: $changedFiles, ')
+          ..write('commits: $commits, ')
+          ..write('largeFiles: $largeFiles, ')
+          ..write('state: $state, ')
+          ..write('undoBranch: $undoBranch, ')
+          ..write('undoHead: $undoHead, ')
+          ..write('undoSha: $undoSha, ')
+          ..write('undoneHead: $undoneHead, ')
+          ..write('undoneSha: $undoneSha, ')
+          ..write('usedAt: $usedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    id,
+    workspaceId,
+    sessionId,
+    conversationId,
+    worktreePath,
+    turn,
+    prompt,
+    eventSeq,
+    startedAt,
+    startBranch,
+    startHead,
+    startSha,
+    endedAt,
+    endBranch,
+    endHead,
+    endSha,
+    files,
+    bytes,
+    changedFiles,
+    commits,
+    largeFiles,
+    state,
+    undoBranch,
+    undoHead,
+    undoSha,
+    undoneHead,
+    undoneSha,
+    usedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RestorePoint &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.worktreePath == this.worktreePath &&
+          other.turn == this.turn &&
+          other.prompt == this.prompt &&
+          other.eventSeq == this.eventSeq &&
+          other.startedAt == this.startedAt &&
+          other.startBranch == this.startBranch &&
+          other.startHead == this.startHead &&
+          other.startSha == this.startSha &&
+          other.endedAt == this.endedAt &&
+          other.endBranch == this.endBranch &&
+          other.endHead == this.endHead &&
+          other.endSha == this.endSha &&
+          other.files == this.files &&
+          other.bytes == this.bytes &&
+          other.changedFiles == this.changedFiles &&
+          other.commits == this.commits &&
+          other.largeFiles == this.largeFiles &&
+          other.state == this.state &&
+          other.undoBranch == this.undoBranch &&
+          other.undoHead == this.undoHead &&
+          other.undoSha == this.undoSha &&
+          other.undoneHead == this.undoneHead &&
+          other.undoneSha == this.undoneSha &&
+          other.usedAt == this.usedAt);
+}
+
+class RestorePointsCompanion extends UpdateCompanion<RestorePoint> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<String> worktreePath;
+  final Value<int> turn;
+  final Value<String> prompt;
+  final Value<int?> eventSeq;
+  final Value<DateTime> startedAt;
+  final Value<String?> startBranch;
+  final Value<String> startHead;
+  final Value<String> startSha;
+  final Value<DateTime?> endedAt;
+  final Value<String?> endBranch;
+  final Value<String?> endHead;
+  final Value<String?> endSha;
+  final Value<int> files;
+  final Value<int> bytes;
+  final Value<int> changedFiles;
+  final Value<int> commits;
+  final Value<String> largeFiles;
+  final Value<String> state;
+  final Value<String?> undoBranch;
+  final Value<String?> undoHead;
+  final Value<String?> undoSha;
+  final Value<String?> undoneHead;
+  final Value<String?> undoneSha;
+  final Value<DateTime> usedAt;
+  const RestorePointsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.worktreePath = const Value.absent(),
+    this.turn = const Value.absent(),
+    this.prompt = const Value.absent(),
+    this.eventSeq = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.startBranch = const Value.absent(),
+    this.startHead = const Value.absent(),
+    this.startSha = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.endBranch = const Value.absent(),
+    this.endHead = const Value.absent(),
+    this.endSha = const Value.absent(),
+    this.files = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.changedFiles = const Value.absent(),
+    this.commits = const Value.absent(),
+    this.largeFiles = const Value.absent(),
+    this.state = const Value.absent(),
+    this.undoBranch = const Value.absent(),
+    this.undoHead = const Value.absent(),
+    this.undoSha = const Value.absent(),
+    this.undoneHead = const Value.absent(),
+    this.undoneSha = const Value.absent(),
+    this.usedAt = const Value.absent(),
+  });
+  RestorePointsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    required String worktreePath,
+    required int turn,
+    this.prompt = const Value.absent(),
+    this.eventSeq = const Value.absent(),
+    required DateTime startedAt,
+    this.startBranch = const Value.absent(),
+    required String startHead,
+    required String startSha,
+    this.endedAt = const Value.absent(),
+    this.endBranch = const Value.absent(),
+    this.endHead = const Value.absent(),
+    this.endSha = const Value.absent(),
+    this.files = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.changedFiles = const Value.absent(),
+    this.commits = const Value.absent(),
+    this.largeFiles = const Value.absent(),
+    this.state = const Value.absent(),
+    this.undoBranch = const Value.absent(),
+    this.undoHead = const Value.absent(),
+    this.undoSha = const Value.absent(),
+    this.undoneHead = const Value.absent(),
+    this.undoneSha = const Value.absent(),
+    this.usedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       worktreePath = Value(worktreePath),
+       turn = Value(turn),
+       startedAt = Value(startedAt),
+       startHead = Value(startHead),
+       startSha = Value(startSha);
+  static Insertable<RestorePoint> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<String>? worktreePath,
+    Expression<int>? turn,
+    Expression<String>? prompt,
+    Expression<int>? eventSeq,
+    Expression<DateTime>? startedAt,
+    Expression<String>? startBranch,
+    Expression<String>? startHead,
+    Expression<String>? startSha,
+    Expression<DateTime>? endedAt,
+    Expression<String>? endBranch,
+    Expression<String>? endHead,
+    Expression<String>? endSha,
+    Expression<int>? files,
+    Expression<int>? bytes,
+    Expression<int>? changedFiles,
+    Expression<int>? commits,
+    Expression<String>? largeFiles,
+    Expression<String>? state,
+    Expression<String>? undoBranch,
+    Expression<String>? undoHead,
+    Expression<String>? undoSha,
+    Expression<String>? undoneHead,
+    Expression<String>? undoneSha,
+    Expression<DateTime>? usedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (worktreePath != null) 'worktree_path': worktreePath,
+      if (turn != null) 'turn': turn,
+      if (prompt != null) 'prompt': prompt,
+      if (eventSeq != null) 'event_seq': eventSeq,
+      if (startedAt != null) 'started_at': startedAt,
+      if (startBranch != null) 'start_branch': startBranch,
+      if (startHead != null) 'start_head': startHead,
+      if (startSha != null) 'start_sha': startSha,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (endBranch != null) 'end_branch': endBranch,
+      if (endHead != null) 'end_head': endHead,
+      if (endSha != null) 'end_sha': endSha,
+      if (files != null) 'files': files,
+      if (bytes != null) 'bytes': bytes,
+      if (changedFiles != null) 'changed_files': changedFiles,
+      if (commits != null) 'commits': commits,
+      if (largeFiles != null) 'large_files': largeFiles,
+      if (state != null) 'state': state,
+      if (undoBranch != null) 'undo_branch': undoBranch,
+      if (undoHead != null) 'undo_head': undoHead,
+      if (undoSha != null) 'undo_sha': undoSha,
+      if (undoneHead != null) 'undone_head': undoneHead,
+      if (undoneSha != null) 'undone_sha': undoneSha,
+      if (usedAt != null) 'used_at': usedAt,
+    });
+  }
+
+  RestorePointsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<String>? worktreePath,
+    Value<int>? turn,
+    Value<String>? prompt,
+    Value<int?>? eventSeq,
+    Value<DateTime>? startedAt,
+    Value<String?>? startBranch,
+    Value<String>? startHead,
+    Value<String>? startSha,
+    Value<DateTime?>? endedAt,
+    Value<String?>? endBranch,
+    Value<String?>? endHead,
+    Value<String?>? endSha,
+    Value<int>? files,
+    Value<int>? bytes,
+    Value<int>? changedFiles,
+    Value<int>? commits,
+    Value<String>? largeFiles,
+    Value<String>? state,
+    Value<String?>? undoBranch,
+    Value<String?>? undoHead,
+    Value<String?>? undoSha,
+    Value<String?>? undoneHead,
+    Value<String?>? undoneSha,
+    Value<DateTime>? usedAt,
+  }) {
+    return RestorePointsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      worktreePath: worktreePath ?? this.worktreePath,
+      turn: turn ?? this.turn,
+      prompt: prompt ?? this.prompt,
+      eventSeq: eventSeq ?? this.eventSeq,
+      startedAt: startedAt ?? this.startedAt,
+      startBranch: startBranch ?? this.startBranch,
+      startHead: startHead ?? this.startHead,
+      startSha: startSha ?? this.startSha,
+      endedAt: endedAt ?? this.endedAt,
+      endBranch: endBranch ?? this.endBranch,
+      endHead: endHead ?? this.endHead,
+      endSha: endSha ?? this.endSha,
+      files: files ?? this.files,
+      bytes: bytes ?? this.bytes,
+      changedFiles: changedFiles ?? this.changedFiles,
+      commits: commits ?? this.commits,
+      largeFiles: largeFiles ?? this.largeFiles,
+      state: state ?? this.state,
+      undoBranch: undoBranch ?? this.undoBranch,
+      undoHead: undoHead ?? this.undoHead,
+      undoSha: undoSha ?? this.undoSha,
+      undoneHead: undoneHead ?? this.undoneHead,
+      undoneSha: undoneSha ?? this.undoneSha,
+      usedAt: usedAt ?? this.usedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (worktreePath.present) {
+      map['worktree_path'] = Variable<String>(worktreePath.value);
+    }
+    if (turn.present) {
+      map['turn'] = Variable<int>(turn.value);
+    }
+    if (prompt.present) {
+      map['prompt'] = Variable<String>(prompt.value);
+    }
+    if (eventSeq.present) {
+      map['event_seq'] = Variable<int>(eventSeq.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (startBranch.present) {
+      map['start_branch'] = Variable<String>(startBranch.value);
+    }
+    if (startHead.present) {
+      map['start_head'] = Variable<String>(startHead.value);
+    }
+    if (startSha.present) {
+      map['start_sha'] = Variable<String>(startSha.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (endBranch.present) {
+      map['end_branch'] = Variable<String>(endBranch.value);
+    }
+    if (endHead.present) {
+      map['end_head'] = Variable<String>(endHead.value);
+    }
+    if (endSha.present) {
+      map['end_sha'] = Variable<String>(endSha.value);
+    }
+    if (files.present) {
+      map['files'] = Variable<int>(files.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<int>(bytes.value);
+    }
+    if (changedFiles.present) {
+      map['changed_files'] = Variable<int>(changedFiles.value);
+    }
+    if (commits.present) {
+      map['commits'] = Variable<int>(commits.value);
+    }
+    if (largeFiles.present) {
+      map['large_files'] = Variable<String>(largeFiles.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (undoBranch.present) {
+      map['undo_branch'] = Variable<String>(undoBranch.value);
+    }
+    if (undoHead.present) {
+      map['undo_head'] = Variable<String>(undoHead.value);
+    }
+    if (undoSha.present) {
+      map['undo_sha'] = Variable<String>(undoSha.value);
+    }
+    if (undoneHead.present) {
+      map['undone_head'] = Variable<String>(undoneHead.value);
+    }
+    if (undoneSha.present) {
+      map['undone_sha'] = Variable<String>(undoneSha.value);
+    }
+    if (usedAt.present) {
+      map['used_at'] = Variable<DateTime>(usedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RestorePointsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('worktreePath: $worktreePath, ')
+          ..write('turn: $turn, ')
+          ..write('prompt: $prompt, ')
+          ..write('eventSeq: $eventSeq, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('startBranch: $startBranch, ')
+          ..write('startHead: $startHead, ')
+          ..write('startSha: $startSha, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('endBranch: $endBranch, ')
+          ..write('endHead: $endHead, ')
+          ..write('endSha: $endSha, ')
+          ..write('files: $files, ')
+          ..write('bytes: $bytes, ')
+          ..write('changedFiles: $changedFiles, ')
+          ..write('commits: $commits, ')
+          ..write('largeFiles: $largeFiles, ')
+          ..write('state: $state, ')
+          ..write('undoBranch: $undoBranch, ')
+          ..write('undoHead: $undoHead, ')
+          ..write('undoSha: $undoSha, ')
+          ..write('undoneHead: $undoneHead, ')
+          ..write('undoneSha: $undoneSha, ')
+          ..write('usedAt: $usedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -17735,6 +19250,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SnippetsTable snippets = $SnippetsTable(this);
   late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
   late final $UsageEntriesTable usageEntries = $UsageEntriesTable(this);
+  late final $RestorePointsTable restorePoints = $RestorePointsTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
@@ -17750,6 +19266,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index usageEntriesWorkspace = Index(
     'usage_entries_workspace',
     'CREATE INDEX usage_entries_workspace ON usage_entries (workspace_id, at)',
+  );
+  late final Index restorePointsSession = Index(
+    'restore_points_session',
+    'CREATE INDEX restore_points_session ON restore_points (session_id, turn)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -17784,10 +19304,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     snippets,
     activityEvents,
     usageEntries,
+    restorePoints,
     snippetsBodyHash,
     activityEventsAt,
     usageEntriesSpec,
     usageEntriesWorkspace,
+    restorePointsSession,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -18015,6 +19537,27 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('usage_entries', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'conversations',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -18235,6 +19778,24 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_usageEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'workspaces__id__restore_points__workspace_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -18536,6 +20097,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$UsageEntriesTableFilterComposer(
             $db: $db,
             $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -18871,6 +20457,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -18898,6 +20509,7 @@ class $$WorkspacesTableTableManager
             bool snippetsRefs,
             bool activityEventsRefs,
             bool usageEntriesRefs,
+            bool restorePointsRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -18956,6 +20568,7 @@ class $$WorkspacesTableTableManager
                 snippetsRefs = false,
                 activityEventsRefs = false,
                 usageEntriesRefs = false,
+                restorePointsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -18971,6 +20584,7 @@ class $$WorkspacesTableTableManager
                     if (snippetsRefs) db.snippets,
                     if (activityEventsRefs) db.activityEvents,
                     if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -19206,6 +20820,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -19238,6 +20873,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool snippetsRefs,
         bool activityEventsRefs,
         bool usageEntriesRefs,
+        bool restorePointsRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -23062,6 +24698,24 @@ final class $$SessionsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'sessions__id__restore_points__session_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$SessionsTableFilterComposer
@@ -23399,6 +25053,31 @@ class $$SessionsTableFilterComposer
           }) => $$UsageEntriesTableFilterComposer(
             $db: $db,
             $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -23909,6 +25588,31 @@ class $$SessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$SessionsTableTableManager
@@ -23934,6 +25638,7 @@ class $$SessionsTableTableManager
             bool reviewCommentsRefs,
             bool snippetsRefs,
             bool usageEntriesRefs,
+            bool restorePointsRefs,
           })
         > {
   $$SessionsTableTableManager(_$AppDatabase db, $SessionsTable table)
@@ -24082,6 +25787,7 @@ class $$SessionsTableTableManager
                 reviewCommentsRefs = false,
                 snippetsRefs = false,
                 usageEntriesRefs = false,
+                restorePointsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -24092,6 +25798,7 @@ class $$SessionsTableTableManager
                     if (reviewCommentsRefs) db.reviewComments,
                     if (snippetsRefs) db.snippets,
                     if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
                   ],
                   addJoins:
                       <
@@ -24273,6 +25980,27 @@ class $$SessionsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Session,
+                          $SessionsTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$SessionsTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$SessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -24303,6 +26031,7 @@ typedef $$SessionsTableProcessedTableManager =
         bool reviewCommentsRefs,
         bool snippetsRefs,
         bool usageEntriesRefs,
+        bool restorePointsRefs,
       })
     >;
 typedef $$SessionEventsTableCreateCompanionBuilder =
@@ -24782,6 +26511,24 @@ final class $$ConversationsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$RestorePointsTable, List<RestorePoint>>
+  _restorePointsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.restorePoints,
+    aliasName: 'conversations__id__restore_points__conversation_id',
+  );
+
+  $$RestorePointsTableProcessedTableManager get restorePointsRefs {
+    final manager = $$RestorePointsTableTableManager(
+      $_db,
+      $_db.restorePoints,
+    ).filter((f) => f.conversationId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ConversationsTableFilterComposer
@@ -24995,6 +26742,31 @@ class $$ConversationsTableFilterComposer
           }) => $$UsageEntriesTableFilterComposer(
             $db: $db,
             $table: $db.usageEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> restorePointsRefs(
+    Expression<bool> Function($$RestorePointsTableFilterComposer f) f,
+  ) {
+    final $$RestorePointsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableFilterComposer(
+            $db: $db,
+            $table: $db.restorePoints,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -25347,6 +27119,31 @@ class $$ConversationsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> restorePointsRefs<T extends Object>(
+    Expression<T> Function($$RestorePointsTableAnnotationComposer a) f,
+  ) {
+    final $$RestorePointsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.restorePoints,
+      getReferencedColumn: (t) => t.conversationId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RestorePointsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ConversationsTableTableManager
@@ -25368,6 +27165,7 @@ class $$ConversationsTableTableManager
             bool conversationEventsRefs,
             bool snippetsRefs,
             bool usageEntriesRefs,
+            bool restorePointsRefs,
           })
         > {
   $$ConversationsTableTableManager(_$AppDatabase db, $ConversationsTable table)
@@ -25484,6 +27282,7 @@ class $$ConversationsTableTableManager
                 conversationEventsRefs = false,
                 snippetsRefs = false,
                 usageEntriesRefs = false,
+                restorePointsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -25491,6 +27290,7 @@ class $$ConversationsTableTableManager
                     if (conversationEventsRefs) db.conversationEvents,
                     if (snippetsRefs) db.snippets,
                     if (usageEntriesRefs) db.usageEntries,
+                    if (restorePointsRefs) db.restorePoints,
                   ],
                   addJoins:
                       <
@@ -25598,6 +27398,27 @@ class $$ConversationsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (restorePointsRefs)
+                        await $_getPrefetchedData<
+                          Conversation,
+                          $ConversationsTable,
+                          RestorePoint
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ConversationsTableReferences
+                              ._restorePointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ConversationsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).restorePointsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.conversationId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -25624,6 +27445,7 @@ typedef $$ConversationsTableProcessedTableManager =
         bool conversationEventsRefs,
         bool snippetsRefs,
         bool usageEntriesRefs,
+        bool restorePointsRefs,
       })
     >;
 typedef $$ConversationEventsTableCreateCompanionBuilder =
@@ -32897,6 +34719,950 @@ typedef $$UsageEntriesTableProcessedTableManager =
         bool conversationId,
       })
     >;
+typedef $$RestorePointsTableCreateCompanionBuilder =
+    RestorePointsCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      required String worktreePath,
+      required int turn,
+      Value<String> prompt,
+      Value<int?> eventSeq,
+      required DateTime startedAt,
+      Value<String?> startBranch,
+      required String startHead,
+      required String startSha,
+      Value<DateTime?> endedAt,
+      Value<String?> endBranch,
+      Value<String?> endHead,
+      Value<String?> endSha,
+      Value<int> files,
+      Value<int> bytes,
+      Value<int> changedFiles,
+      Value<int> commits,
+      Value<String> largeFiles,
+      Value<String> state,
+      Value<String?> undoBranch,
+      Value<String?> undoHead,
+      Value<String?> undoSha,
+      Value<String?> undoneHead,
+      Value<String?> undoneSha,
+      Value<DateTime> usedAt,
+    });
+typedef $$RestorePointsTableUpdateCompanionBuilder =
+    RestorePointsCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<String> worktreePath,
+      Value<int> turn,
+      Value<String> prompt,
+      Value<int?> eventSeq,
+      Value<DateTime> startedAt,
+      Value<String?> startBranch,
+      Value<String> startHead,
+      Value<String> startSha,
+      Value<DateTime?> endedAt,
+      Value<String?> endBranch,
+      Value<String?> endHead,
+      Value<String?> endSha,
+      Value<int> files,
+      Value<int> bytes,
+      Value<int> changedFiles,
+      Value<int> commits,
+      Value<String> largeFiles,
+      Value<String> state,
+      Value<String?> undoBranch,
+      Value<String?> undoHead,
+      Value<String?> undoSha,
+      Value<String?> undoneHead,
+      Value<String?> undoneSha,
+      Value<DateTime> usedAt,
+    });
+
+final class $$RestorePointsTableReferences
+    extends BaseReferences<_$AppDatabase, $RestorePointsTable, RestorePoint> {
+  $$RestorePointsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('restore_points__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $SessionsTable _sessionIdTable(_$AppDatabase db) =>
+      db.sessions.createAlias('restore_points__session_id__sessions__id');
+
+  $$SessionsTableProcessedTableManager? get sessionId {
+    final $_column = $_itemColumn<String>('session_id');
+    if ($_column == null) return null;
+    final manager = $$SessionsTableTableManager(
+      $_db,
+      $_db.sessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ConversationsTable _conversationIdTable(_$AppDatabase db) => db
+      .conversations
+      .createAlias('restore_points__conversation_id__conversations__id');
+
+  $$ConversationsTableProcessedTableManager? get conversationId {
+    final $_column = $_itemColumn<int>('conversation_id');
+    if ($_column == null) return null;
+    final manager = $$ConversationsTableTableManager(
+      $_db,
+      $_db.conversations,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_conversationIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RestorePointsTableFilterComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get turn => $composableBuilder(
+    column: $table.turn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get eventSeq => $composableBuilder(
+    column: $table.eventSeq,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startHead => $composableBuilder(
+    column: $table.startHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endBranch => $composableBuilder(
+    column: $table.endBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endHead => $composableBuilder(
+    column: $table.endHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endSha => $composableBuilder(
+    column: $table.endSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get files => $composableBuilder(
+    column: $table.files,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get commits => $composableBuilder(
+    column: $table.commits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoHead => $composableBuilder(
+    column: $table.undoHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoSha => $composableBuilder(
+    column: $table.undoSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get undoneSha => $composableBuilder(
+    column: $table.undoneSha,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableFilterComposer get sessionId {
+    final $$SessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableFilterComposer get conversationId {
+    final $$ConversationsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableFilterComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableOrderingComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get turn => $composableBuilder(
+    column: $table.turn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get prompt => $composableBuilder(
+    column: $table.prompt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get eventSeq => $composableBuilder(
+    column: $table.eventSeq,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startHead => $composableBuilder(
+    column: $table.startHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get startSha => $composableBuilder(
+    column: $table.startSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endBranch => $composableBuilder(
+    column: $table.endBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endHead => $composableBuilder(
+    column: $table.endHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endSha => $composableBuilder(
+    column: $table.endSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get files => $composableBuilder(
+    column: $table.files,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get commits => $composableBuilder(
+    column: $table.commits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoHead => $composableBuilder(
+    column: $table.undoHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoSha => $composableBuilder(
+    column: $table.undoSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get undoneSha => $composableBuilder(
+    column: $table.undoneSha,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get usedAt => $composableBuilder(
+    column: $table.usedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableOrderingComposer get sessionId {
+    final $$SessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableOrderingComposer get conversationId {
+    final $$ConversationsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableOrderingComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RestorePointsTable> {
+  $$RestorePointsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get worktreePath => $composableBuilder(
+    column: $table.worktreePath,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get turn =>
+      $composableBuilder(column: $table.turn, builder: (column) => column);
+
+  GeneratedColumn<String> get prompt =>
+      $composableBuilder(column: $table.prompt, builder: (column) => column);
+
+  GeneratedColumn<int> get eventSeq =>
+      $composableBuilder(column: $table.eventSeq, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get startBranch => $composableBuilder(
+    column: $table.startBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get startHead =>
+      $composableBuilder(column: $table.startHead, builder: (column) => column);
+
+  GeneratedColumn<String> get startSha =>
+      $composableBuilder(column: $table.startSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get endBranch =>
+      $composableBuilder(column: $table.endBranch, builder: (column) => column);
+
+  GeneratedColumn<String> get endHead =>
+      $composableBuilder(column: $table.endHead, builder: (column) => column);
+
+  GeneratedColumn<String> get endSha =>
+      $composableBuilder(column: $table.endSha, builder: (column) => column);
+
+  GeneratedColumn<int> get files =>
+      $composableBuilder(column: $table.files, builder: (column) => column);
+
+  GeneratedColumn<int> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  GeneratedColumn<int> get changedFiles => $composableBuilder(
+    column: $table.changedFiles,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get commits =>
+      $composableBuilder(column: $table.commits, builder: (column) => column);
+
+  GeneratedColumn<String> get largeFiles => $composableBuilder(
+    column: $table.largeFiles,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get undoBranch => $composableBuilder(
+    column: $table.undoBranch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get undoHead =>
+      $composableBuilder(column: $table.undoHead, builder: (column) => column);
+
+  GeneratedColumn<String> get undoSha =>
+      $composableBuilder(column: $table.undoSha, builder: (column) => column);
+
+  GeneratedColumn<String> get undoneHead => $composableBuilder(
+    column: $table.undoneHead,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get undoneSha =>
+      $composableBuilder(column: $table.undoneSha, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get usedAt =>
+      $composableBuilder(column: $table.usedAt, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$SessionsTableAnnotationComposer get sessionId {
+    final $$SessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.sessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.sessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ConversationsTableAnnotationComposer get conversationId {
+    final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.conversationId,
+      referencedTable: $db.conversations,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ConversationsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.conversations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RestorePointsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RestorePointsTable,
+          RestorePoint,
+          $$RestorePointsTableFilterComposer,
+          $$RestorePointsTableOrderingComposer,
+          $$RestorePointsTableAnnotationComposer,
+          $$RestorePointsTableCreateCompanionBuilder,
+          $$RestorePointsTableUpdateCompanionBuilder,
+          (RestorePoint, $$RestorePointsTableReferences),
+          RestorePoint,
+          PrefetchHooks Function({
+            bool workspaceId,
+            bool sessionId,
+            bool conversationId,
+          })
+        > {
+  $$RestorePointsTableTableManager(_$AppDatabase db, $RestorePointsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RestorePointsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RestorePointsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RestorePointsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<String> worktreePath = const Value.absent(),
+                Value<int> turn = const Value.absent(),
+                Value<String> prompt = const Value.absent(),
+                Value<int?> eventSeq = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<String?> startBranch = const Value.absent(),
+                Value<String> startHead = const Value.absent(),
+                Value<String> startSha = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> endBranch = const Value.absent(),
+                Value<String?> endHead = const Value.absent(),
+                Value<String?> endSha = const Value.absent(),
+                Value<int> files = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> changedFiles = const Value.absent(),
+                Value<int> commits = const Value.absent(),
+                Value<String> largeFiles = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> undoBranch = const Value.absent(),
+                Value<String?> undoHead = const Value.absent(),
+                Value<String?> undoSha = const Value.absent(),
+                Value<String?> undoneHead = const Value.absent(),
+                Value<String?> undoneSha = const Value.absent(),
+                Value<DateTime> usedAt = const Value.absent(),
+              }) => RestorePointsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                worktreePath: worktreePath,
+                turn: turn,
+                prompt: prompt,
+                eventSeq: eventSeq,
+                startedAt: startedAt,
+                startBranch: startBranch,
+                startHead: startHead,
+                startSha: startSha,
+                endedAt: endedAt,
+                endBranch: endBranch,
+                endHead: endHead,
+                endSha: endSha,
+                files: files,
+                bytes: bytes,
+                changedFiles: changedFiles,
+                commits: commits,
+                largeFiles: largeFiles,
+                state: state,
+                undoBranch: undoBranch,
+                undoHead: undoHead,
+                undoSha: undoSha,
+                undoneHead: undoneHead,
+                undoneSha: undoneSha,
+                usedAt: usedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                required String worktreePath,
+                required int turn,
+                Value<String> prompt = const Value.absent(),
+                Value<int?> eventSeq = const Value.absent(),
+                required DateTime startedAt,
+                Value<String?> startBranch = const Value.absent(),
+                required String startHead,
+                required String startSha,
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String?> endBranch = const Value.absent(),
+                Value<String?> endHead = const Value.absent(),
+                Value<String?> endSha = const Value.absent(),
+                Value<int> files = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> changedFiles = const Value.absent(),
+                Value<int> commits = const Value.absent(),
+                Value<String> largeFiles = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> undoBranch = const Value.absent(),
+                Value<String?> undoHead = const Value.absent(),
+                Value<String?> undoSha = const Value.absent(),
+                Value<String?> undoneHead = const Value.absent(),
+                Value<String?> undoneSha = const Value.absent(),
+                Value<DateTime> usedAt = const Value.absent(),
+              }) => RestorePointsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                worktreePath: worktreePath,
+                turn: turn,
+                prompt: prompt,
+                eventSeq: eventSeq,
+                startedAt: startedAt,
+                startBranch: startBranch,
+                startHead: startHead,
+                startSha: startSha,
+                endedAt: endedAt,
+                endBranch: endBranch,
+                endHead: endHead,
+                endSha: endSha,
+                files: files,
+                bytes: bytes,
+                changedFiles: changedFiles,
+                commits: commits,
+                largeFiles: largeFiles,
+                state: state,
+                undoBranch: undoBranch,
+                undoHead: undoHead,
+                undoSha: undoSha,
+                undoneHead: undoneHead,
+                undoneSha: undoneSha,
+                usedAt: usedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RestorePointsTable, RestorePoint>(table),
+                  $$RestorePointsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                workspaceId = false,
+                sessionId = false,
+                conversationId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (workspaceId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.workspaceId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._workspaceIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._workspaceIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (sessionId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.sessionId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._sessionIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._sessionIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (conversationId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.conversationId,
+                            referencedTable: $$RestorePointsTableReferences
+                                ._conversationIdTable(db),
+                            referencedColumn: $$RestorePointsTableReferences
+                                ._conversationIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$RestorePointsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RestorePointsTable,
+      RestorePoint,
+      $$RestorePointsTableFilterComposer,
+      $$RestorePointsTableOrderingComposer,
+      $$RestorePointsTableAnnotationComposer,
+      $$RestorePointsTableCreateCompanionBuilder,
+      $$RestorePointsTableUpdateCompanionBuilder,
+      (RestorePoint, $$RestorePointsTableReferences),
+      RestorePoint,
+      PrefetchHooks Function({
+        bool workspaceId,
+        bool sessionId,
+        bool conversationId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -32957,4 +35723,6 @@ class $AppDatabaseManager {
       $$ActivityEventsTableTableManager(_db, _db.activityEvents);
   $$UsageEntriesTableTableManager get usageEntries =>
       $$UsageEntriesTableTableManager(_db, _db.usageEntries);
+  $$RestorePointsTableTableManager get restorePoints =>
+      $$RestorePointsTableTableManager(_db, _db.restorePoints);
 }

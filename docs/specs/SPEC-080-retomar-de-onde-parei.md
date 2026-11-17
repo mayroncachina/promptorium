@@ -154,7 +154,7 @@ Canvas para validar: [Retomar de onde parei](https://claude.ai/artifact/WSsmky38
 
 ### Migração
 
-Sim. **v30** (número provisório: a v29 ficou com `snippets`, da SPEC-078, e outras specs da 0.20 também pedem a v30; o coordenador renumera na integração): cria a tabela `activity_events` e o índice `(workspace_id, at)`. Atualizar `drift_schemas/`, `schema_versions.dart` e o teste de migração. O visto por último e as preferências ficam em `app_settings` (sem migração).
+Sim. **v30** (a v29 ficou com `snippets`, da SPEC-078): cria a tabela `activity_events` e o índice `(workspace_id, at)`. Atualizar `drift_schemas/`, `schema_versions.dart` e o teste de migração. O visto por último e as preferências ficam em `app_settings` (sem migração).
 
 ### Arquivos tocados
 
@@ -186,6 +186,6 @@ Sim. **v30** (número provisório: a v29 ficou com `snippets`, da SPEC-078, e ou
 - [x] O cartão grande ao abrir e o compacto ao voltar, não modais; Tudo visto e a faixa do Início [R10–R12] verificar: flutter test test/features/resume/resume_card_test.dart
 - [x] "O que aconteceu" na Atividades e "Retomar de onde parei" na paleta abrem o cartão [R13] verificar: flutter test test/features/resume/resume_card_test.dart
 - [x] Configurações › Retomar de onde parei liga, desliga, muda o limite e os tipos [R14] verificar: flutter test test/features/settings/resume_settings_test.dart
-- [x] A tabela `activity_events` é criada na v30 (provisória) [R6] verificar: flutter test test/data/migration_test.dart
+- [x] A tabela `activity_events` é criada na v30 [R6] verificar: flutter test test/data/migration_test.dart
 - [x] No app, com uma spec rodando no Autopilot, fechar, mergear o PR no GitHub e reabrir mostra o cartão com o merge, o que espera e o que roda, e cada ação leva à tela certa [R1–R15] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-080/app/`)
 - [x] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze

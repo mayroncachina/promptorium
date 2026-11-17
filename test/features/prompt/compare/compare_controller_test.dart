@@ -270,6 +270,30 @@ void main() {
     expect(run.b.weight!.five, 0);
   });
 
+  test(
+    'both comparison forks enter the usage ledger even when discarded',
+    () async {
+      final id = await existing();
+      await startCompare(id);
+      runOf('A').emit(resultOf(cost: 0.1));
+      runOf('B').emit(resultOf(cost: 0.4));
+      await settle();
+      await settle();
+      await ctl().discard(id);
+      final entries = await db.select(db.usageEntries).get();
+      expect(entries, hasLength(2));
+      expect(
+        {for (final e in entries) e.model: e.costUsd},
+        {'sonnet': 0.1, 'opus': 0.4},
+      );
+      expect(
+        entries.every((e) => e.conversationId == id && e.specId == null),
+        isTrue,
+      );
+      expect(entries.fold(0, (n, e) => n + e.tokensOut), 1800);
+    },
+  );
+
   test('choosing a side moves the conversation onto its fork, model and '
       'mode, and keeps the other folded (R11)', () async {
     final id = await existing();

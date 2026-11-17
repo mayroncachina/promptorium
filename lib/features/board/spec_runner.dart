@@ -17,6 +17,7 @@ import '../../core/git/worktree_setup.dart';
 import '../../core/process/shell_runner.dart';
 import '../../data/providers.dart';
 import '../sessions/app_notifier.dart';
+import '../sessions/restore/restore_service.dart' show restoreServiceProvider;
 import '../sessions/session_manager.dart';
 import '../project/spec_auto_planner.dart';
 import '../project/project_config.dart';
@@ -1535,6 +1536,10 @@ class SpecRunner {
       }
     } on GitException catch (e) {
       debugPrint('${spec.code}: início da etapa não gravado — $e');
+    }
+    // SPEC-084 R17: the first turn of the step reuses this snapshot.
+    if (sha != null) {
+      _ref.read(restoreServiceProvider).offerCheckpoint(worktree, sha, stash);
     }
     await _ref
         .read(specStepsRepoProvider)

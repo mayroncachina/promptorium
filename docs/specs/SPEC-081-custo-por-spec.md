@@ -133,7 +133,7 @@ Canvas para validar: [Custo por spec](https://claude.ai/artifact/8jY976rNGUu6w2T
 
 ### Migração
 
-Sim. Uma tabela nova, `usage_entries`, na **v30** (provisória: a main está na v29, a `snippets` da SPEC-078; o coordenador renumera na integração da 0.20). Nenhuma coluna das tabelas que existem muda. A reconstrução do histórico (R5) não é feita na migração, para não travar a abertura do app: roda depois, em segundo plano.
+Sim. Uma tabela nova, `usage_entries`, na **v31** (a v30 ficou com `activity_events`, da SPEC-080). Nenhuma coluna das tabelas que existem muda. A reconstrução do histórico (R5) não é feita na migração, para não travar a abertura do app: roda depois, em segundo plano.
 
 ### Testes
 

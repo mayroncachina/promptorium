@@ -212,6 +212,7 @@ class UsageLedger {
     int conversationId,
     Result e, {
     required double costUsd,
+    String? model,
   }) async {
     final mark = _marks.remove(_conversationKey(conversationId));
     if (e.usage.total <= 0) return;
@@ -235,7 +236,7 @@ class UsageLedger {
         specId: o.specId,
         source: o.source,
         conversationId: c.id,
-        model: resultModel(e, c.model),
+        model: resultModel(e, model ?? c.model),
         usage: e.usage,
         costUsd: costUsd,
       );

@@ -22,6 +22,8 @@ import 'features/notifications/agent_alerts.dart';
 import 'features/repository/graph/commit_model_badge.dart';
 import 'features/repository/graph/graph_tab.dart' show graphAuthorBadgeProvider;
 import 'features/review/pr_babysitter.dart';
+import 'features/sessions/restore/restore_service.dart'
+    show restoreServiceProvider;
 import 'features/sessions/session_manager.dart';
 import 'ui/theme/tokens.dart';
 
@@ -58,9 +60,14 @@ Future<void> main() async {
   );
   // A worktree that goes away (merge, discard) stops its development server
   // first (SPEC-051 R5).
+  // Its restore points go with it (SPEC-084 R13).
   GitService.beforeRemoveWorktree = (path) => Future.wait([
     container.read(devServerRegistryProvider).stopWorktree(path),
     container.read(previewBrowserProvider).close(path),
+    container
+        .read(restoreServiceProvider)
+        .dropWorktree(path)
+        .catchError((Object e) => debugPrint('pontos de $path: $e')),
   ]);
   await windowManager.setPreventClose(true);
   final closeHandler = _CloseHandler(container);
