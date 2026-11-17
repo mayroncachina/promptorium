@@ -55,6 +55,16 @@ Future<String> commitDiff(GitService git) async {
   return parts.join('\n');
 }
 
+/// Only what is staged (the manual commit with a partial index).
+Future<String> stagedDiff(GitService git) async {
+  try {
+    await git.git(['rev-parse', '-q', '--verify', 'HEAD']);
+    return await git.git([..._diffArgs, '--cached', 'HEAD']);
+  } on GitException {
+    return git.git([..._diffArgs, '--cached', _emptyTree]);
+  }
+}
+
 /// Added lines of the commits not on any remote yet (`HEAD --not
 /// --remotes`, at most 500 commits).
 Future<String> pushDiff(GitService git) => git.git([

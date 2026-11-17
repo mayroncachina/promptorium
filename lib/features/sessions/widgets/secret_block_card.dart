@@ -37,9 +37,8 @@ class _SecretBlockCardState extends ConsumerState<SecretBlockCard> {
       await job();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showAppToast(SnackBar(content: Text('Não deu certo: $e')));
+        ScaffoldMessenger.of(context)
+            .showAppToast(SnackBar(content: Text('Não deu certo: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);

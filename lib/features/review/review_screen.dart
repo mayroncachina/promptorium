@@ -1,3 +1,5 @@
+import '../secrets/secret_flow.dart';
+
 import 'dart:async';
 
 import '../../core/fs/dir_watcher.dart';
@@ -1012,9 +1014,15 @@ class _ReviewMainState extends ConsumerState<_ReviewMain> {
 
   Future<void> _createPr({bool draft = false}) =>
       _run(draft ? 'Criar PR rascunho' : 'Criar PR', () async {
-        final url = await _service.createPr(_id, draft: draft);
+        // SPEC-085 R5: the Vigia de segredos may stop it; once the
+        // findings are handled the PR is created again.
+        final url = await withSecretGuard(
+          context,
+          ref,
+          () => _service.createPr(_id, draft: draft),
+        );
         _refresh();
-        if (!mounted) return;
+        if (!mounted || url == null) return;
         await showPrCreatedDialog(
           context,
           url: url,

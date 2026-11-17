@@ -1,3 +1,5 @@
+import 'secrets_view.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -176,6 +178,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       'Avisos do sistema quando a janela do Promptorium está '
                       'em segundo plano.',
                   children: [NotificationsView()],
+                ),
+                SettingsSection.secrets => const _Page(
+                  title: 'Vigia de segredos',
+                  intro:
+                      'Confere o que vai entrar num commit, push ou PR e '
+                      'bloqueia chaves, tokens e arquivos .env.',
+                  children: [SecretsSettingsView()],
                 ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(

@@ -1,3 +1,5 @@
+import '../../core/secrets/secret_guard.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -1012,6 +1014,27 @@ class ReviewService {
     );
   }
 
+  /// The Vigia de segredos before a commit / push of the app (SPEC-085
+  /// R5): throws [SecretsFound].
+  Future<void> _guardSecrets(
+    String worktree,
+    Workspace ws,
+    SecretCheckKind kind, {
+    Session? session,
+    Spec? spec,
+  }) => _ref
+      .read(secretGuardProvider)
+      .check(
+        worktree,
+        kind,
+        workspaceId: ws.id,
+        origin: SecretOrigin.app,
+        specId: spec?.id,
+        title: spec != null
+            ? '${spec.code} · ${spec.title}'
+            : session?.title ?? session?.branch,
+      );
+
   /// "Criar PR": commit pending changes, `git push -u <remote> <branch>`,
   /// `gh pr create` (title/body from the task, `--fill` without one).
   /// Returns the PR URL (also stored in `sessions.pr_url`).
@@ -1033,12 +1056,30 @@ class ReviewService {
     } on GitException catch (e) {
       throw ReviewException('$e');
     }
+    await _guardSecrets(
+      s.worktreePath,
+      c.workspace,
+      SecretCheckKind.commit,
+      session: s,
+      spec: spec,
+    );
     try {
       await _commitPending(
         git,
         pendingCommitMessage(s, task, spec),
         trailer: await _appTrailer(c.workspace, s, spec),
       );
+    } on GitException catch (e) {
+      throw ReviewException('Falha ao enviar a branch: $e');
+    }
+    await _guardSecrets(
+      s.worktreePath,
+      c.workspace,
+      SecretCheckKind.push,
+      session: s,
+      spec: spec,
+    );
+    try {
       await git.git([
         'push',
         '-u',
@@ -1282,6 +1323,13 @@ class ReviewService {
         'O remote mudou e não corresponde ao destino do request salvo. Corrija o upstream antes de enviar commits.',
       );
     }
+    await _guardSecrets(
+      c.session.worktreePath,
+      c.workspace,
+      SecretCheckKind.push,
+      session: c.session,
+      spec: c.spec,
+    );
     await git.git(['push']);
     return true;
   }
@@ -1512,6 +1560,13 @@ class ReviewService {
       }
       await _releaseAgent(c.session, c.spec);
       final wt = _git(c.session.worktreePath);
+      await _guardSecrets(
+        c.session.worktreePath,
+        c.workspace,
+        SecretCheckKind.commit,
+        session: c.session,
+        spec: c.spec,
+      );
       try {
         await _commitPending(
           wt,
@@ -2631,11 +2686,11 @@ class ReviewService {
       if (status == null) throw const ReviewException('PR não lido');
       final total = status.checks.length;
       final passed = status.checks
-          .where((x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.state))
+          .where(
+            (x) => const ['SUCCESS', 'NEUTRAL', 'SKIPPED'].contains(x.state),
+          )
           .length;
-      final failed = status.checks
-          .where((x) => x.failed)
-          .length;
+      final failed = status.checks.where((x) => x.failed).length;
       checks = total == passed
           ? null
           : failed > 0

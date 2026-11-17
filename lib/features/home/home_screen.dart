@@ -1,3 +1,6 @@
+import '../secrets/secret_blocks.dart';
+import '../secrets/secret_flow.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -280,13 +283,23 @@ class _InboxRow extends ConsumerWidget {
       ),
       InboxKind.secret => (
         item.sessionId == null
-            ? SmallButton(
+            ? AmberButton(
                 key: key,
-                label: 'Abrir review',
+                label: 'Ver achados',
                 height: 28,
-                background: SessionColors.selectedBg,
-                border: SessionColors.selectedBorder,
-                onTap: goReview,
+                onTap: () {
+                  final p = ref
+                      .read(secretBlocksProvider)
+                      .values
+                      .where(
+                        (p) =>
+                            p.sessionId == null &&
+                            p.title == item.title &&
+                            p.at == item.at,
+                      )
+                      .firstOrNull;
+                  if (p != null) openPendingSecret(context, ref, p);
+                },
               )
             : AmberButton(
                 key: key,

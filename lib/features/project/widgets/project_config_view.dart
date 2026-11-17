@@ -924,10 +924,7 @@ class _ProjectConfigViewState extends ConsumerState<ProjectConfigView> {
           ],
         ),
       // SPEC-073 R13: `review: corrigir-ci: automatico`.
-      _label(
-        'CI do PR',
-        'o que fazer quando um check do GitHub Actions falha',
-      ),
+      _label('CI do PR', 'o que fazer quando um check do GitHub Actions falha'),
       CheckboxListTile(
         key: const ValueKey('config-ci-auto'),
         dense: true,

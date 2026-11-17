@@ -1,3 +1,5 @@
+import '../../secrets/secret_flow.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -396,8 +398,13 @@ class SpecStepsPanel extends ConsumerWidget {
                     label: 'Commitar o que sobrou',
                     onTap: () => _gateAction(
                       context,
-                      () =>
-                          ref.read(specRunnerProvider).commitLeftovers(spec.id),
+                      () => withSecretGuard(
+                        context,
+                        ref,
+                        () => ref
+                            .read(specRunnerProvider)
+                            .commitLeftovers(spec.id),
+                      ),
                     ),
                   ),
                 ),
