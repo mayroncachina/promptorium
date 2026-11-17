@@ -19214,6 +19214,622 @@ class RestorePointsCompanion extends UpdateCompanion<RestorePoint> {
   }
 }
 
+class $SecretWaiversTable extends SecretWaivers
+    with TableInfo<$SecretWaiversTable, SecretWaiver> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SecretWaiversTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _ruleMeta = const VerificationMeta('rule');
+  @override
+  late final GeneratedColumn<String> rule = GeneratedColumn<String>(
+    'rule',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pathMeta = const VerificationMeta('path');
+  @override
+  late final GeneratedColumn<String> path = GeneratedColumn<String>(
+    'path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fingerprintMeta = const VerificationMeta(
+    'fingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> fingerprint = GeneratedColumn<String>(
+    'fingerprint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUsedAt = GeneratedColumn<DateTime>(
+    'last_used_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    rule,
+    path,
+    fingerprint,
+    scope,
+    reason,
+    origin,
+    createdAt,
+    lastUsedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'secret_waivers';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SecretWaiver> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('rule')) {
+      context.handle(
+        _ruleMeta,
+        rule.isAcceptableOrUnknown(data['rule']!, _ruleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ruleMeta);
+    }
+    if (data.containsKey('path')) {
+      context.handle(
+        _pathMeta,
+        path.isAcceptableOrUnknown(data['path']!, _pathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pathMeta);
+    }
+    if (data.containsKey('fingerprint')) {
+      context.handle(
+        _fingerprintMeta,
+        fingerprint.isAcceptableOrUnknown(
+          data['fingerprint']!,
+          _fingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fingerprintMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scopeMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_originMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SecretWaiver map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SecretWaiver(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      rule: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule'],
+      )!,
+      path: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}path'],
+      )!,
+      fingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fingerprint'],
+      )!,
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_used_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SecretWaiversTable createAlias(String alias) {
+    return $SecretWaiversTable(attachedDatabase, alias);
+  }
+}
+
+class SecretWaiver extends DataClass implements Insertable<SecretWaiver> {
+  final int id;
+  final int workspaceId;
+
+  /// Id of the rule (`stripe`, `env-file`…).
+  final String rule;
+
+  /// Path of the finding, relative to the repository.
+  final String path;
+
+  /// Fingerprint of the value (of the added content, for a sensitive file).
+  final String fingerprint;
+
+  /// `valor` (the same value in any file) or `arquivo` (the rule in this
+  /// path).
+  final String scope;
+  final String reason;
+
+  /// Who asked: `sessao:<id>`, `app` or `manual`.
+  final String origin;
+  final DateTime createdAt;
+
+  /// Last time it matched a finding; 90 days without a match removes it
+  /// (R12).
+  final DateTime lastUsedAt;
+  const SecretWaiver({
+    required this.id,
+    required this.workspaceId,
+    required this.rule,
+    required this.path,
+    required this.fingerprint,
+    required this.scope,
+    required this.reason,
+    required this.origin,
+    required this.createdAt,
+    required this.lastUsedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['rule'] = Variable<String>(rule);
+    map['path'] = Variable<String>(path);
+    map['fingerprint'] = Variable<String>(fingerprint);
+    map['scope'] = Variable<String>(scope);
+    map['reason'] = Variable<String>(reason);
+    map['origin'] = Variable<String>(origin);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['last_used_at'] = Variable<DateTime>(lastUsedAt);
+    return map;
+  }
+
+  SecretWaiversCompanion toCompanion(bool nullToAbsent) {
+    return SecretWaiversCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      rule: Value(rule),
+      path: Value(path),
+      fingerprint: Value(fingerprint),
+      scope: Value(scope),
+      reason: Value(reason),
+      origin: Value(origin),
+      createdAt: Value(createdAt),
+      lastUsedAt: Value(lastUsedAt),
+    );
+  }
+
+  factory SecretWaiver.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SecretWaiver(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      rule: serializer.fromJson<String>(json['rule']),
+      path: serializer.fromJson<String>(json['path']),
+      fingerprint: serializer.fromJson<String>(json['fingerprint']),
+      scope: serializer.fromJson<String>(json['scope']),
+      reason: serializer.fromJson<String>(json['reason']),
+      origin: serializer.fromJson<String>(json['origin']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      lastUsedAt: serializer.fromJson<DateTime>(json['lastUsedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'rule': serializer.toJson<String>(rule),
+      'path': serializer.toJson<String>(path),
+      'fingerprint': serializer.toJson<String>(fingerprint),
+      'scope': serializer.toJson<String>(scope),
+      'reason': serializer.toJson<String>(reason),
+      'origin': serializer.toJson<String>(origin),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'lastUsedAt': serializer.toJson<DateTime>(lastUsedAt),
+    };
+  }
+
+  SecretWaiver copyWith({
+    int? id,
+    int? workspaceId,
+    String? rule,
+    String? path,
+    String? fingerprint,
+    String? scope,
+    String? reason,
+    String? origin,
+    DateTime? createdAt,
+    DateTime? lastUsedAt,
+  }) => SecretWaiver(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    rule: rule ?? this.rule,
+    path: path ?? this.path,
+    fingerprint: fingerprint ?? this.fingerprint,
+    scope: scope ?? this.scope,
+    reason: reason ?? this.reason,
+    origin: origin ?? this.origin,
+    createdAt: createdAt ?? this.createdAt,
+    lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+  );
+  SecretWaiver copyWithCompanion(SecretWaiversCompanion data) {
+    return SecretWaiver(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      rule: data.rule.present ? data.rule.value : this.rule,
+      path: data.path.present ? data.path.value : this.path,
+      fingerprint: data.fingerprint.present
+          ? data.fingerprint.value
+          : this.fingerprint,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecretWaiver(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('rule: $rule, ')
+          ..write('path: $path, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('scope: $scope, ')
+          ..write('reason: $reason, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    rule,
+    path,
+    fingerprint,
+    scope,
+    reason,
+    origin,
+    createdAt,
+    lastUsedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SecretWaiver &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.rule == this.rule &&
+          other.path == this.path &&
+          other.fingerprint == this.fingerprint &&
+          other.scope == this.scope &&
+          other.reason == this.reason &&
+          other.origin == this.origin &&
+          other.createdAt == this.createdAt &&
+          other.lastUsedAt == this.lastUsedAt);
+}
+
+class SecretWaiversCompanion extends UpdateCompanion<SecretWaiver> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> rule;
+  final Value<String> path;
+  final Value<String> fingerprint;
+  final Value<String> scope;
+  final Value<String> reason;
+  final Value<String> origin;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> lastUsedAt;
+  const SecretWaiversCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.rule = const Value.absent(),
+    this.path = const Value.absent(),
+    this.fingerprint = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+  });
+  SecretWaiversCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String rule,
+    required String path,
+    required String fingerprint,
+    required String scope,
+    required String reason,
+    required String origin,
+    this.createdAt = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+  }) : workspaceId = Value(workspaceId),
+       rule = Value(rule),
+       path = Value(path),
+       fingerprint = Value(fingerprint),
+       scope = Value(scope),
+       reason = Value(reason),
+       origin = Value(origin);
+  static Insertable<SecretWaiver> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? rule,
+    Expression<String>? path,
+    Expression<String>? fingerprint,
+    Expression<String>? scope,
+    Expression<String>? reason,
+    Expression<String>? origin,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? lastUsedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (rule != null) 'rule': rule,
+      if (path != null) 'path': path,
+      if (fingerprint != null) 'fingerprint': fingerprint,
+      if (scope != null) 'scope': scope,
+      if (reason != null) 'reason': reason,
+      if (origin != null) 'origin': origin,
+      if (createdAt != null) 'created_at': createdAt,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+    });
+  }
+
+  SecretWaiversCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? rule,
+    Value<String>? path,
+    Value<String>? fingerprint,
+    Value<String>? scope,
+    Value<String>? reason,
+    Value<String>? origin,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? lastUsedAt,
+  }) {
+    return SecretWaiversCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      rule: rule ?? this.rule,
+      path: path ?? this.path,
+      fingerprint: fingerprint ?? this.fingerprint,
+      scope: scope ?? this.scope,
+      reason: reason ?? this.reason,
+      origin: origin ?? this.origin,
+      createdAt: createdAt ?? this.createdAt,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (rule.present) {
+      map['rule'] = Variable<String>(rule.value);
+    }
+    if (path.present) {
+      map['path'] = Variable<String>(path.value);
+    }
+    if (fingerprint.present) {
+      map['fingerprint'] = Variable<String>(fingerprint.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<DateTime>(lastUsedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SecretWaiversCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('rule: $rule, ')
+          ..write('path: $path, ')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('scope: $scope, ')
+          ..write('reason: $reason, ')
+          ..write('origin: $origin, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('lastUsedAt: $lastUsedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -19251,6 +19867,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
   late final $UsageEntriesTable usageEntries = $UsageEntriesTable(this);
   late final $RestorePointsTable restorePoints = $RestorePointsTable(this);
+  late final $SecretWaiversTable secretWaivers = $SecretWaiversTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
@@ -19270,6 +19887,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final Index restorePointsSession = Index(
     'restore_points_session',
     'CREATE INDEX restore_points_session ON restore_points (session_id, turn)',
+  );
+  late final Index secretWaiversWorkspace = Index(
+    'secret_waivers_workspace',
+    'CREATE INDEX secret_waivers_workspace ON secret_waivers (workspace_id)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -19305,11 +19926,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     activityEvents,
     usageEntries,
     restorePoints,
+    secretWaivers,
     snippetsBodyHash,
     activityEventsAt,
     usageEntriesSpec,
     usageEntriesWorkspace,
     restorePointsSession,
+    secretWaiversWorkspace,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -19558,6 +20181,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('restore_points', kind: UpdateKind.delete)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('secret_waivers', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -19796,6 +20426,24 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_restorePointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$SecretWaiversTable, List<SecretWaiver>>
+  _secretWaiversRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.secretWaivers,
+    aliasName: 'workspaces__id__secret_waivers__workspace_id',
+  );
+
+  $$SecretWaiversTableProcessedTableManager get secretWaiversRefs {
+    final manager = $$SecretWaiversTableTableManager(
+      $_db,
+      $_db.secretWaivers,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_secretWaiversRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -20122,6 +20770,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$RestorePointsTableFilterComposer(
             $db: $db,
             $table: $db.restorePoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> secretWaiversRefs(
+    Expression<bool> Function($$SecretWaiversTableFilterComposer f) f,
+  ) {
+    final $$SecretWaiversTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.secretWaivers,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SecretWaiversTableFilterComposer(
+            $db: $db,
+            $table: $db.secretWaivers,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -20482,6 +21155,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> secretWaiversRefs<T extends Object>(
+    Expression<T> Function($$SecretWaiversTableAnnotationComposer a) f,
+  ) {
+    final $$SecretWaiversTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.secretWaivers,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SecretWaiversTableAnnotationComposer(
+            $db: $db,
+            $table: $db.secretWaivers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -20510,6 +21208,7 @@ class $$WorkspacesTableTableManager
             bool activityEventsRefs,
             bool usageEntriesRefs,
             bool restorePointsRefs,
+            bool secretWaiversRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -20569,6 +21268,7 @@ class $$WorkspacesTableTableManager
                 activityEventsRefs = false,
                 usageEntriesRefs = false,
                 restorePointsRefs = false,
+                secretWaiversRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -20585,6 +21285,7 @@ class $$WorkspacesTableTableManager
                     if (activityEventsRefs) db.activityEvents,
                     if (usageEntriesRefs) db.usageEntries,
                     if (restorePointsRefs) db.restorePoints,
+                    if (secretWaiversRefs) db.secretWaivers,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -20841,6 +21542,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (secretWaiversRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          SecretWaiver
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._secretWaiversRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).secretWaiversRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -20874,6 +21596,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool activityEventsRefs,
         bool usageEntriesRefs,
         bool restorePointsRefs,
+        bool secretWaiversRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -35663,6 +36386,418 @@ typedef $$RestorePointsTableProcessedTableManager =
         bool conversationId,
       })
     >;
+typedef $$SecretWaiversTableCreateCompanionBuilder =
+    SecretWaiversCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      required String rule,
+      required String path,
+      required String fingerprint,
+      required String scope,
+      required String reason,
+      required String origin,
+      Value<DateTime> createdAt,
+      Value<DateTime> lastUsedAt,
+    });
+typedef $$SecretWaiversTableUpdateCompanionBuilder =
+    SecretWaiversCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String> rule,
+      Value<String> path,
+      Value<String> fingerprint,
+      Value<String> scope,
+      Value<String> reason,
+      Value<String> origin,
+      Value<DateTime> createdAt,
+      Value<DateTime> lastUsedAt,
+    });
+
+final class $$SecretWaiversTableReferences
+    extends BaseReferences<_$AppDatabase, $SecretWaiversTable, SecretWaiver> {
+  $$SecretWaiversTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) =>
+      db.workspaces.createAlias('secret_waivers__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SecretWaiversTableFilterComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableOrderingComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rule => $composableBuilder(
+    column: $table.rule,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get path => $composableBuilder(
+    column: $table.path,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SecretWaiversTable> {
+  $$SecretWaiversTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get rule =>
+      $composableBuilder(column: $table.rule, builder: (column) => column);
+
+  GeneratedColumn<String> get path =>
+      $composableBuilder(column: $table.path, builder: (column) => column);
+
+  GeneratedColumn<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SecretWaiversTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SecretWaiversTable,
+          SecretWaiver,
+          $$SecretWaiversTableFilterComposer,
+          $$SecretWaiversTableOrderingComposer,
+          $$SecretWaiversTableAnnotationComposer,
+          $$SecretWaiversTableCreateCompanionBuilder,
+          $$SecretWaiversTableUpdateCompanionBuilder,
+          (SecretWaiver, $$SecretWaiversTableReferences),
+          SecretWaiver,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$SecretWaiversTableTableManager(_$AppDatabase db, $SecretWaiversTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SecretWaiversTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SecretWaiversTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SecretWaiversTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> rule = const Value.absent(),
+                Value<String> path = const Value.absent(),
+                Value<String> fingerprint = const Value.absent(),
+                Value<String> scope = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> lastUsedAt = const Value.absent(),
+              }) => SecretWaiversCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                rule: rule,
+                path: path,
+                fingerprint: fingerprint,
+                scope: scope,
+                reason: reason,
+                origin: origin,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String rule,
+                required String path,
+                required String fingerprint,
+                required String scope,
+                required String reason,
+                required String origin,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> lastUsedAt = const Value.absent(),
+              }) => SecretWaiversCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                rule: rule,
+                path: path,
+                fingerprint: fingerprint,
+                scope: scope,
+                reason: reason,
+                origin: origin,
+                createdAt: createdAt,
+                lastUsedAt: lastUsedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SecretWaiversTable, SecretWaiver>(table),
+                  $$SecretWaiversTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$SecretWaiversTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$SecretWaiversTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SecretWaiversTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SecretWaiversTable,
+      SecretWaiver,
+      $$SecretWaiversTableFilterComposer,
+      $$SecretWaiversTableOrderingComposer,
+      $$SecretWaiversTableAnnotationComposer,
+      $$SecretWaiversTableCreateCompanionBuilder,
+      $$SecretWaiversTableUpdateCompanionBuilder,
+      (SecretWaiver, $$SecretWaiversTableReferences),
+      SecretWaiver,
+      PrefetchHooks Function({bool workspaceId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -35725,4 +36860,6 @@ class $AppDatabaseManager {
       $$UsageEntriesTableTableManager(_db, _db.usageEntries);
   $$RestorePointsTableTableManager get restorePoints =>
       $$RestorePointsTableTableManager(_db, _db.restorePoints);
+  $$SecretWaiversTableTableManager get secretWaivers =>
+      $$SecretWaiversTableTableManager(_db, _db.secretWaivers);
 }

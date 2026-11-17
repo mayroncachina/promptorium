@@ -1,3 +1,5 @@
+import '../../core/secrets/secret_guard.dart';
+
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -68,6 +70,18 @@ class VibeService {
   final Ref _ref;
 
   GitService _git(String root) => _ref.read(gitServiceFactoryProvider)(root);
+
+  /// SPEC-085 R5: the Vigia de segredos before a commit of the VIBE.
+  Future<void> _guardSecrets(String wt, Spec spec) => _ref
+      .read(secretGuardProvider)
+      .check(
+        wt,
+        SecretCheckKind.commit,
+        workspaceId: spec.workspaceId,
+        origin: SecretOrigin.app,
+        specId: spec.id,
+        title: '${spec.code} · ${spec.title}',
+      );
 
   Future<String> _base(Workspace ws) async {
     final config = ProjectConfig.loadSync(ws.path);
@@ -247,6 +261,7 @@ class VibeService {
     try {
       final config = ProjectConfig.loadSync(ws.path);
       final git = _git(wt);
+      await _guardSecrets(wt, spec);
       await git.commitAll('${spec.code} R1: ${spec.title}');
       final base = spec.baseBranch ?? await _base(ws);
       String? start;
@@ -353,6 +368,7 @@ class VibeService {
         timeout: config.gate.timeout,
       );
       if (!r.ok) out.writeln('depois: ${r.output.trim()}');
+      await _guardSecrets(wt, spec);
       await git.commitAll('${spec.code} R1: prints de antes e depois');
     }
     final ok = before.existsSync() && after.existsSync();

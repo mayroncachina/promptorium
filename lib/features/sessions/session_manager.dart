@@ -25,6 +25,8 @@ import '../../core/mcp/app_mcp_config.dart';
 import '../../core/mcp/app_mcp_server.dart' show AppMcpServer, McpAccess;
 import '../../core/mcp/app_mcp_tools.dart' show alwaysAllowSuggestions;
 import '../../core/process/shell_runner.dart';
+import '../../core/secrets/secret_guard.dart';
+import '../../core/secrets/secret_scanner.dart';
 import '../../data/providers.dart';
 import '../../data/repos/durable_state_repo.dart';
 import '../../data/repos/sessions_repo.dart';
@@ -36,6 +38,7 @@ import '../prompt/conversation_manager.dart' show conversationManagerProvider;
 import '../project/project_config.dart';
 import '../review/ci_fixer.dart' show ciFixerProvider;
 import '../review/conflict_resolution.dart' show conflictResolverProvider;
+import '../secrets/secret_blocks.dart';
 import '../notifications/agent_alerts.dart' show alertSettingsProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
@@ -386,6 +389,22 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// sessions as interrupted) and no new process starts.
   bool _shuttingDown = false;
 
+  /// Sessions whose hook has the Vigia de segredos (SPEC-085 R1); the
+  /// others are checked at the end of each turn (R2).
+  final Set<String> _secretHooks = {};
+
+  /// Sessions told once that they have no hook (R2), and the findings
+  /// already shown by the end-of-turn check.
+  final Set<String> _secretNoHookNoted = {};
+
+  /// Claude sessions started without `python3` (no hook at all, R2).
+  final Set<String> _noPython = {};
+
+  /// Tests have no hooks: let them exercise the end-of-turn check (R2).
+  @visibleForTesting
+  static bool secretTurnCheckWithoutHooks = false;
+  final Map<String, Set<String>> _secretSeen = {};
+
   @override
   SessionManagerState build() {
     ref.onDispose(() {
@@ -651,6 +670,77 @@ class SessionManager extends Notifier<SessionManagerState> {
       await _flushNotices(id);
     }
     return true;
+  }
+
+  /// A message of the app to the agent (the Vigia de segredos, SPEC-085
+  /// R9): delivered like [notifyUserEdit] (now, in the running turn, or
+  /// with the next message).
+  ///
+  /// [resume]: a session without a process is resumed with the message
+  /// (the agent repeats the commit, R9).
+  Future<bool> notifyAgent(
+    String id,
+    String text, {
+    bool resume = false,
+  }) async {
+    final list = _notices.putIfAbsent(id, () => []);
+    if (!list.contains(text)) {
+      list.add(text);
+      await _durable((r) => r.addNotice(id, text));
+    }
+    final p = _procs[id];
+    if (p == null && resume && !_shuttingDown) {
+      final all = await _takeNotices(id) ?? [text];
+      try {
+        await send(id, all.join('\n'));
+        return true;
+      } catch (e) {
+        _notices.putIfAbsent(id, () => []).addAll(all);
+        debugPrint('sessão $id: aviso do vigia fica para a próxima — $e');
+        return false;
+      }
+    }
+    if (p == null || p.pending.isNotEmpty || p.stopping) return false;
+    if (p.busy) {
+      await _sendMidTurn(id, p);
+    } else {
+      await _flushNotices(id);
+    }
+    return true;
+  }
+
+  /// Appends an app event of the Vigia de segredos to the session's
+  /// timeline (`promptorium_secrets` / `promptorium_secret_resolved`).
+  Future<void> appendSecretEvent(String id, Map<String, dynamic> json) async {
+    final row = await _repo.appendEvent(
+      id,
+      type: '${json['type']}',
+      json: _encode(json),
+    );
+    _timeline(id).push(UnknownEvent(json), seq: row.seq);
+    _publish();
+  }
+
+  /// Rewrites the rules of the Vigia de segredos of every live session of
+  /// [workspaceId] (a waiver was added or removed, R11).
+  Future<void> refreshSecrets(int workspaceId) async {
+    final hooks = ref.read(managedHooksProvider);
+    if (hooks == null) return;
+    for (final id in [..._secretHooks]) {
+      try {
+        final row = await _repo.getById(id);
+        if (row == null || row.workspaceId != workspaceId) continue;
+        final cwd = row.worktreePath;
+        await hooks.writeSecrets(
+          id,
+          await ref
+              .read(secretGuardProvider)
+              .hookJson(workspaceId: workspaceId, root: cwd),
+        );
+      } catch (e) {
+        debugPrint('sessão $id: regras do vigia não atualizadas — $e');
+      }
+    }
   }
 
   /// Notices not delivered yet (tests / UI).
@@ -1430,7 +1520,10 @@ class SessionManager extends Notifier<SessionManagerState> {
     if (hooks == null) return plain();
     await _hookCleanups[id];
     try {
-      if (!await pythonAvailable()) return await plain();
+      if (!await pythonAvailable()) {
+        _noPython.add(id);
+        return await plain();
+      }
       final settings = ref.read(appSettingsProvider.notifier);
       final enabled = {
         for (final h in ManagedHook.values)
@@ -1441,6 +1534,22 @@ class SessionManager extends Notifier<SessionManagerState> {
       // someone else's, so no forced push of any kind.
       final row = await _repo.getById(id);
       final foreignPr = row?.prUrl != null && row?.specId == null;
+      // SPEC-085 R1: the rules of the Vigia de segredos for the hook.
+      Map<String, Object?>? secrets;
+      if (enabled.contains(ManagedHook.secrets) && row != null) {
+        try {
+          secrets = await ref
+              .read(secretGuardProvider)
+              .hookJson(workspaceId: row.workspaceId, root: cwd);
+        } catch (e) {
+          debugPrint('sessão $id: regras do vigia não preparadas — $e');
+        }
+      }
+      if (secrets != null) {
+        _secretHooks.add(id);
+      } else {
+        _secretHooks.remove(id);
+      }
       return await hooks.prepare(
         id,
         enabled: enabled,
@@ -1451,9 +1560,11 @@ class SessionManager extends Notifier<SessionManagerState> {
           cwd: cwd,
         ),
         formatCommand: config?.formatCommand,
+        secrets: secrets,
         extra: extra,
       );
     } catch (e) {
+      _secretHooks.remove(id);
       debugPrint('sessão $id: hooks do app não preparados — $e');
       return null;
     }
@@ -1467,7 +1578,16 @@ class SessionManager extends Notifier<SessionManagerState> {
       final (items, offset) = await hooks.readLog(id, p.hookOffset);
       p.hookOffset = offset;
       for (final a in items) {
-        await _note(id, a.text, error: a.error);
+        if (a.secrets != null) {
+          await _secretBlocked(id, a.secrets!);
+        } else {
+          await _note(id, a.text, error: a.error);
+        }
+        if (a.waived.isNotEmpty) {
+          try {
+            await ref.read(secretWaiversRepoProvider).touch(a.waived);
+          } catch (_) {}
+        }
         if (ref.mounted) ref.read(hookActivityProvider.notifier).add(a);
       }
     } catch (e) {
@@ -1604,6 +1724,13 @@ class SessionManager extends Notifier<SessionManagerState> {
           p.title,
           id,
         );
+        // SPEC-085 R2: no hook, the turn's commits are checked now.
+        if (!_secretHooks.contains(id)) {
+          unawaited(
+            _secretTurnCheck(id)
+                .catchError((Object e) => debugPrint('sessão $id: vigia — $e')),
+          );
+        }
         // Not awaited: send() enqueues behind this job.
         if (_notices[id]?.isNotEmpty ?? false) {
           unawaited(Future<void>.microtask(() => _flushNotices(id)));
@@ -1774,6 +1901,93 @@ class SessionManager extends Notifier<SessionManagerState> {
 
   SessionTimelineNotifier _timeline(String id) =>
       ref.read(sessionTimelineProvider(id).notifier);
+
+  /// The hook (or the end-of-turn check) blocked a commit, push or PR
+  /// (SPEC-085 R7): the card in the timeline, the request "Segredo
+  /// encontrado" and the notification. [j] is the hook's log line: the
+  /// findings are already masked.
+  Future<void> _secretBlocked(String id, Map<String, Object?> j) async {
+    final findings = [
+      if (j['achados'] case final List l)
+        for (final f in l) ?SecretFinding.fromJson(f),
+    ];
+    if (findings.isEmpty) return;
+    final action = '${j['acao'] ?? 'commit'}';
+    final block = 's${DateTime.now().microsecondsSinceEpoch}';
+    await appendSecretEvent(
+      id,
+      AppEventTypes.secretsEvent(
+        block: block,
+        action: action,
+        command: j['comando'] as String?,
+        findings: [for (final f in findings) f.toJson()],
+        partial: j['parcial'] == true,
+      ),
+    );
+    final row = await _repo.getById(id);
+    if (row == null || !ref.mounted) return;
+    final title = _procs[id]?.title ?? _titleOf(row);
+    final pending = PendingSecret(
+      key: sessionSecretKey(id),
+      workspaceId: row.workspaceId,
+      sessionId: id,
+      specId: row.specId,
+      title: title,
+      findings: findings,
+      at: DateTime.now(),
+      action: action,
+    );
+    ref.read(secretBlocksProvider.notifier).add(pending);
+    _notify('Segredo encontrado', '$title: ${pending.detail}', id);
+  }
+
+  /// SPEC-085 R2: a session without the hook (Codex, no `python3`) has its
+  /// commits not sent yet checked at the end of each turn; the push of the
+  /// app is the last barrier.
+  Future<void> _secretTurnCheck(String id) async {
+    if (_secretHooks.contains(id) || !ref.mounted) return;
+    final guard = ref.read(secretGuardProvider);
+    if (!guard.prefs.enabled) return;
+    final row = await _repo.getById(id);
+    final cwd = row?.worktreePath;
+    if (row == null || cwd == null) return;
+    // Only where the hook cannot run: Codex, or no python3.
+    if (row.provider != 'codex' &&
+        !_noPython.contains(id) &&
+        !secretTurnCheckWithoutHooks) {
+      return;
+    }
+    if (_secretNoHookNoted.add(id)) {
+      final why = row.provider == 'codex' ? 'Codex' : 'sem python3';
+      await _note(
+        id,
+        'Vigia de segredos sem hook nesta sessão ($why): os commits são '
+        'conferidos ao fim do turno e antes do push',
+      );
+    }
+    final SecretScan res;
+    try {
+      res = await guard.scan(
+        cwd,
+        SecretCheckKind.push,
+        workspaceId: row.workspaceId,
+      );
+    } catch (e) {
+      debugPrint('sessão $id: vigia de segredos não conferiu o turno — $e');
+      return;
+    }
+    final seen = _secretSeen.putIfAbsent(id, () => {});
+    final fresh = [
+      for (final f in res.findings)
+        if (seen.add('${f.path}\u0000${f.ruleId}\u0000${f.fingerprint}')) f,
+    ];
+    if (fresh.isEmpty) return;
+    await _secretBlocked(id, {
+      'acao': 'commit',
+      'achados': [for (final f in fresh) f.toJson()],
+      'parcial': res.partial,
+    });
+  }
 
   Future<void> _note(String id, String text, {bool error = false}) async {
     final json = AppEventTypes.noteMessage(text, error: error);

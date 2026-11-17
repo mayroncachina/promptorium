@@ -1,3 +1,5 @@
+import '../../core/secrets/secret_guard.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -2408,6 +2410,17 @@ class SpecRunner {
         ws != null &&
         ProjectConfig.loadSync(ws.path).git.markAgentCommits &&
         gitSupportsAgentTrailer(await _ref.read(gitVersionProvider.future));
+    // SPEC-085 R5: the Vigia de segredos before the app's commit.
+    await _ref
+        .read(secretGuardProvider)
+        .check(
+          s.worktreePath,
+          SecretCheckKind.commit,
+          workspaceId: s.workspaceId,
+          origin: SecretOrigin.app,
+          specId: spec.id,
+          title: '${spec.code} · ${spec.title}',
+        );
     try {
       await _ref
           .read(gitServiceFactoryProvider)(s.worktreePath)

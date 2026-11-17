@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 33) {
+    await db.customStatement('DROP TABLE IF EXISTS secret_waivers');
+  }
   if (version < 32) {
     await db.customStatement('DROP TABLE IF EXISTS restore_points');
   }
@@ -833,5 +836,42 @@ void main() {
     expect(await db.select(db.restorePoints).get(), hasLength(1));
     await SessionsRepo(db).delete('s1');
     expect(await db.select(db.restorePoints).get(), isEmpty);
+  });
+  // SPEC-085 R11 (v33).
+  test('v32 → v33 creates the secret waivers by workspace; deleting the '
+      'workspace deletes them', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 32);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    await db
+        .into(db.secretWaivers)
+        .insert(
+          SecretWaiversCompanion.insert(
+            workspaceId: 1,
+            rule: 'stripe',
+            path: 'src/a.ts',
+            fingerprint: 'f',
+            scope: 'valor',
+            reason: 'chave de teste revogada',
+            origin: 'manual',
+          ),
+        );
+    final row = await db.select(db.secretWaivers).getSingle();
+    expect(row.lastUsedAt, isNotNull);
+    await db.customStatement('DELETE FROM workspaces WHERE id = 1');
+    expect(await db.select(db.secretWaivers).get(), isEmpty);
   });
 }

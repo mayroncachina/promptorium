@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 32;
+const appSchemaVersion = 33;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -999,6 +999,39 @@ class RestorePoints extends Table {
   DateTimeColumn get usedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Findings of the Vigia de segredos the user ignored with a reason
+/// (SPEC-085 R11, schema v33), by workspace. Only the fingerprint of the
+/// value is kept (`sha256` with the app's local salt), never the value.
+/// Nothing goes to the repository.
+@TableIndex(name: 'secret_waivers_workspace', columns: {#workspaceId})
+class SecretWaivers extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// Id of the rule (`stripe`, `env-file`…).
+  TextColumn get rule => text()();
+
+  /// Path of the finding, relative to the repository.
+  TextColumn get path => text()();
+
+  /// Fingerprint of the value (of the added content, for a sensitive file).
+  TextColumn get fingerprint => text()();
+
+  /// `valor` (the same value in any file) or `arquivo` (the rule in this
+  /// path).
+  TextColumn get scope => text()();
+  TextColumn get reason => text()();
+
+  /// Who asked: `sessao:<id>`, `app` or `manual`.
+  TextColumn get origin => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  /// Last time it matched a finding; 90 days without a match removes it
+  /// (R12).
+  DateTimeColumn get lastUsedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -1039,6 +1072,7 @@ class AppSettings extends Table {
     ActivityEvents,
     UsageEntries,
     RestorePoints,
+    SecretWaivers,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1440,6 +1474,13 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(v.snippets);
             await m.createIndex(v.snippetsBodyHash);
           },
+          // v33: waivers of the Vigia de segredos (SPEC-085 R11).
+          from32To33: (m, v) async {
+            if (await _hasTable('secret_waivers')) return;
+            await m.createTable(v.secretWaivers);
+            await m.createIndex(v.secretWaiversWorkspace);
+          },
+          // v32: restore points (SPEC-084 R3).
           from31To32: (m, v) async {
             if (await _hasTable('restore_points')) return;
             await m.createTable(v.restorePoints);

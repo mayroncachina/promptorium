@@ -1,3 +1,6 @@
+import '../../core/secrets/secret_guard.dart' show SecretSettingKeys;
+import '../../core/secrets/secret_rules.dart' show SecretRuleGroup;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -82,6 +85,17 @@ enum SettingsSection {
     'lembrete',
     'clique',
     'dbus',
+  ]),
+  secrets('Vigia de segredos', SettingsGroup.app, [
+    'segredo',
+    'segredos',
+    'vigia',
+    'chave',
+    'token',
+    '.env',
+    'gitleaks',
+    'commit',
+    'ignorados',
   ]),
   appearance('Aparência', SettingsGroup.app, [
     'aparência',
@@ -210,8 +224,16 @@ bool sectionChanged(
     SettingsSection.appearance =>
       settings[AppSettingKeys.glassEffects] == 'false' ||
           settings[AppSettingKeys.attentionShake] == 'false',
+    SettingsSection.secrets =>
+      [
+            SecretSettingKeys.enabled,
+            SecretSettingKeys.app,
+            SecretSettingKeys.manual,
+            for (final g in SecretRuleGroup.values) g.settingKey,
+          ].any((k) => settings[k] == '0') ||
+          settings[SecretSettingKeys.gitleaks] == '1',
     SettingsSection.automations => ManagedHook.values.any(
-      (h) => settings[h.settingKey] == '0',
+      (h) => h != ManagedHook.secrets && settings[h.settingKey] == '0',
     ),
     SettingsSection.providers =>
       (settings[AppSettingKeys.acpAgents] ?? '').trim().isNotEmpty,

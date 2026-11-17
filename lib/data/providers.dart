@@ -19,6 +19,7 @@ import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
 import 'repos/restore_points_repo.dart';
+import 'repos/secret_waivers_repo.dart';
 import 'repos/snippets_repo.dart';
 import 'repos/spec_duels_repo.dart';
 import 'repos/spec_notes_repo.dart';
@@ -112,6 +113,9 @@ final usageEntriesRepoProvider = Provider(
 );
 final restorePointsRepoProvider = Provider(
   (ref) => RestorePointsRepo(ref.watch(appDatabaseProvider)),
+);
+final secretWaiversRepoProvider = Provider(
+  (ref) => SecretWaiversRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),

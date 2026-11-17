@@ -1,3 +1,5 @@
+import '../secrets/secret_blocks.dart';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/dev/dev_server.dart' show DevServerStatus;
@@ -276,6 +278,7 @@ class ActivityLive {
     this.ci = const {},
     this.weights = const {},
     this.compares = const {},
+    this.secrets = const {},
   });
 
   final SessionManagerState sessions;
@@ -294,6 +297,9 @@ class ActivityLive {
 
   /// Comparisons of the Prompt waiting for a choice (SPEC-079 R9).
   final Map<int, CompareView> compares;
+
+  /// Commits / pushes stopped by the Vigia de segredos (SPEC-085 R5, R7).
+  final Map<String, PendingSecret> secrets;
 }
 
 /// The robot's seed of what works on [spec] (R5, P7): the spec, not the
@@ -509,6 +515,46 @@ List<Activity> _ofWorkspace(
         recent: _recent(l.recent, root),
         lastText: l.lastText,
         weight: live.weights[s.id],
+      ),
+    );
+  }
+
+  // --- "Segredo encontrado" (SPEC-085 R5, R7) ---------------------------
+  for (final p in live.secrets.values) {
+    if (p.workspaceId != ws.id) continue;
+    final s = p.sessionId == null
+        ? null
+        : ws.sessions.where((x) => x.id == p.sessionId).firstOrNull;
+    final spec = specById[p.specId ?? s?.specId];
+    if (s != null) used.add(s.id);
+    out.add(
+      Activity(
+        id: 'secret:${p.key}',
+        workspaceId: ws.id,
+        workspaceName: ws.name,
+        kind: ActivityKind.spec,
+        column: columnOf(spec),
+        pose: ActivityPose.wave,
+        title: spec == null ? p.title : '${spec.code} · ${spec.title}',
+        subtitle: p.detail,
+        status: 'Segredo encontrado',
+        tone: ActivityTone.attention,
+        needsYou: true,
+        startedAt: p.at,
+        lastAction: p.findings.first.where,
+        lastActionAt: p.at,
+        action: s == null ? ActivityAction.none : ActivityAction.respond,
+        sessionId: s?.id,
+        specId: spec?.id,
+        specCode: spec?.code,
+        seed: spec == null
+            ? 'session:${s?.id ?? p.key}'
+            : specSeed(ws.id, spec.code),
+        model: s?.model,
+        mode: s?.permissionMode,
+        branch: s?.branch,
+        agentName: s?.agentName,
+        tasks: tasks(spec),
       ),
     );
   }

@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/secrets/secret_guard.dart';
+import '../../data/providers.dart';
+import '../secrets/secret_flow.dart';
 import '../../core/git/git_service.dart';
 import '../../core/process/shell_runner.dart';
 import '../../ui/theme/tokens.dart';
@@ -350,6 +353,27 @@ class GitBody extends ConsumerStatefulWidget {
 class _GitBodyState extends ConsumerState<GitBody> {
   final _message = TextEditingController();
 
+  /// The manual commit goes through the Vigia de segredos (SPEC-085 R6):
+  /// with findings the window opens ("Commitar mesmo assim…"); false =
+  /// do not commit.
+  Future<bool> _secretsOk(GitPanelState s) async {
+    final ws = ref.read(activeWorkspaceProvider);
+    if (ws == null || _message.text.trim().isEmpty) return true;
+    final staged = s.entries.any((e) => e.x != ' ' && e.x != '?');
+    final ok = await withSecretGuard(context, ref, () async {
+      await ref
+          .read(secretGuardProvider)
+          .check(
+            widget.worktree,
+            staged ? SecretCheckKind.staged : SecretCheckKind.commit,
+            workspaceId: ws.id,
+            origin: SecretOrigin.manual,
+          );
+      return true;
+    }, manual: true);
+    return ok == true;
+  }
+
   @override
   void dispose() {
     _message.dispose();
@@ -486,6 +510,8 @@ class _GitBodyState extends ConsumerState<GitBody> {
                   onTap: s.busy || s.entries.isEmpty
                       ? null
                       : () async {
+                          // SPEC-085 R6: the Vigia de segredos first.
+                          if (!await _secretsOk(s)) return;
                           await n.commit(_message.text);
                           if (ref
                                   .read(gitPanelProvider(widget.worktree))

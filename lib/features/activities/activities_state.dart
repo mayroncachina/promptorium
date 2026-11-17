@@ -1,3 +1,5 @@
+import '../secrets/secret_blocks.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/claude/usage_tracker.dart';
@@ -226,6 +228,7 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
       ci: ref.watch(ciFixerProvider),
       weights: sessionQuotaWeights(costs, rate?.fiveHourUtilization),
       compares: ref.watch(compareControllerProvider),
+      secrets: ref.watch(secretBlocksProvider),
     ),
     now: now,
   );
