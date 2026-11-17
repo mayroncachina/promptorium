@@ -16,6 +16,7 @@ import '../widgets/app_dialog.dart';
 import '../widgets/staggered_entrance.dart';
 import 'about_update_card.dart';
 import 'update_flow.dart';
+import '../widgets/markdown/app_markdown.dart';
 
 const repositoryUrl = 'https://github.com/mayroncachina/promptorium';
 const changelogUrl = '$repositoryUrl/blob/main/CHANGELOG.md';
@@ -495,7 +496,7 @@ class _NewsBody extends StatelessWidget {
                       'Sem novidades para mostrar nesta versão.',
                       style: muted,
                     )
-                  : MarkdownBody(
+                  : AppMarkdown(
                       key: const ValueKey('about-changelog-body'),
                       data: section.markdown,
                       styleSheet: _newsStyle(context),

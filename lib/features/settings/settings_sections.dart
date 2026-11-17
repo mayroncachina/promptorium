@@ -6,6 +6,7 @@ import '../../core/claude/run_prefs.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../board/orchestrator/orchestrator_rules.dart';
+import '../notifications/agent_alerts.dart' show AlertSettingKeys;
 import '../project/project_config.dart';
 
 /// Sections of Configurações (UX v2, U9; docs/mockups/v2/Configuracoes.dc.html):
@@ -57,6 +58,16 @@ enum SettingsSection {
     'idle',
     'memória',
     'retomar',
+  ]),
+  notifications('Notificações', SettingsGroup.app, [
+    'notificação',
+    'notificações',
+    'avisar',
+    'aviso',
+    'robô',
+    'lembrete',
+    'clique',
+    'dbus',
   ]),
   appearance('Aparência', SettingsGroup.app, [
     'aparência',
@@ -164,6 +175,12 @@ bool sectionChanged(
           settings[AppSettingKeys.mcpServer] == '0' ||
           settings.containsKey(AppSettingKeys.mcpCreationLimit),
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.notifications => [
+      AlertSettingKeys.agents,
+      AlertSettingKeys.robot,
+      AlertSettingKeys.reminder,
+      AlertSettingKeys.sessions,
+    ].any((k) => settings[k] == 'false'),
     SettingsSection.appearance =>
       settings[AppSettingKeys.glassEffects] == 'false' ||
           settings[AppSettingKeys.attentionShake] == 'false',

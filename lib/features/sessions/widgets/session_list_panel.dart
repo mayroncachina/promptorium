@@ -6,6 +6,8 @@ import '../../../ui/theme/tokens.dart';
 import '../../../ui/widgets/app_pressable.dart';
 import '../../board/widgets/card_extras.dart' show LiveToolLine;
 import '../session_manager.dart';
+import '../replay/open_replay.dart';
+import '../replay/replay_view.dart' show replayAvailable;
 import '../sessions_screen.dart' show splitSessionProvider;
 import 'session_activity.dart';
 import 'session_style.dart';
@@ -197,6 +199,31 @@ class _SessionTile extends ConsumerWidget {
           ),
         ),
         child: InkWell(
+          onSecondaryTapDown: replayAvailable(session.status, alive: alive)
+              ? (details) async {
+                  final overlay =
+                      Overlay.of(context).context.findRenderObject()
+                          as RenderBox;
+                  final chosen = await showMenu<String>(
+                    context: context,
+                    position: RelativeRect.fromRect(
+                      Rect.fromLTWH(
+                        details.globalPosition.dx,
+                        details.globalPosition.dy,
+                        0,
+                        0,
+                      ),
+                      Offset.zero & overlay.size,
+                    ),
+                    items: const [
+                      PopupMenuItem(value: 'replay', child: Text('Ver replay')),
+                    ],
+                  );
+                  if (chosen == 'replay' && context.mounted) {
+                    await openReplay(ref, session.id);
+                  }
+                }
+              : null,
           borderRadius: radius,
           hoverColor: Colors.transparent,
           onTap: () =>

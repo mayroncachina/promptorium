@@ -10,6 +10,7 @@ import '../project/project_config.dart' show projectConfigProvider;
 import 'new_session_dialog.dart';
 import 'session_changes.dart';
 import 'preview_reload.dart';
+import 'replay/replay_view.dart';
 import 'session_dev.dart';
 import 'session_manager.dart';
 import 'timeline_provider.dart';
@@ -26,7 +27,7 @@ import 'widgets/side_panel.dart';
 import 'widgets/timeline_view.dart';
 import 'widgets/tool_expanded_view.dart';
 
-enum SessionTab { timeline, terminal, diff, preview, raw }
+enum SessionTab { timeline, replay, terminal, diff, preview, raw }
 
 /// Tab of one session's pane (kept per session: two panes side by side can
 /// show different tabs; UX v2, U3).
@@ -86,6 +87,18 @@ class SessionsScreen extends ConsumerWidget {
       if (s.id == splitId && s.id != selected?.id) second = s;
     }
 
+    // SPEC-082: the replay takes the whole width (list and panel hidden).
+    final replayFull =
+        second == null &&
+        selected != null &&
+        ref.watch(sessionTabProvider(selected.id)) == SessionTab.replay &&
+        replayAvailable(
+          selected.status,
+          alive: ref.watch(
+            sessionManagerProvider.select((m) => m.isAlive(selected!.id)),
+          ),
+        );
+
     return LayoutBuilder(
       builder: (context, c) {
         final narrow = c.maxWidth < 1100;
@@ -96,26 +109,29 @@ class SessionsScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: left,
-                child: SessionListPanel(
-                  sessions: sessions,
-                  selectedId: selected?.id,
-                  splitId: second?.id,
+              if (!replayFull) ...[
+                SizedBox(
+                  width: left,
+                  child: SessionListPanel(
+                    sessions: sessions,
+                    selectedId: selected?.id,
+                    splitId: second?.id,
+                  ),
                 ),
-              ),
-              const VerticalDivider(width: 1),
+                const VerticalDivider(width: 1),
+              ],
               Expanded(
                 child: selected == null
                     ? _Empty(hasWorkspace: ws != null)
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          _PanesBar(
-                            sessions: sessions,
-                            selected: selected,
-                            second: second,
-                          ),
+                          if (!replayFull)
+                            _PanesBar(
+                              sessions: sessions,
+                              selected: selected,
+                              second: second,
+                            ),
                           Expanded(
                             child: second == null
                                 ? _SessionMain(
@@ -153,11 +169,13 @@ class SessionsScreen extends ConsumerWidget {
                         ],
                       ),
               ),
-              const VerticalDivider(width: 1),
-              SizedBox(
-                width: right,
-                child: SessionSidePanel(session: selected),
-              ),
+              if (!replayFull) ...[
+                const VerticalDivider(width: 1),
+                SizedBox(
+                  width: right,
+                  child: SessionSidePanel(session: selected),
+                ),
+              ],
             ],
           ),
         );
@@ -344,14 +362,24 @@ class _SessionMain extends ConsumerWidget {
     final dev = ref.watch(sessionDevProvider(session.id));
     var tab = ref.watch(sessionTabProvider(session.id));
     if (tab == SessionTab.preview && dev == null) tab = SessionTab.timeline;
+    // SPEC-082 R1: the replay waits for the session to finish.
+    final canReplay = replayAvailable(
+      session.status,
+      alive: ref.watch(
+        sessionManagerProvider.select((m) => m.isAlive(session.id)),
+      ),
+    );
+    if (tab == SessionTab.replay && !canReplay) tab = SessionTab.timeline;
     final changes = ref.watch(sessionChangesProvider(session.id)).value;
     final s = session;
 
-    Widget tabButton(SessionTab t, String label) {
+    Widget tabButton(SessionTab t, String label, {bool enabled = true}) {
       final on = t == tab;
       return InkWell(
         key: ValueKey('session-tab-${t.name}'),
-        onTap: () => ref.read(sessionTabProvider(s.id).notifier).set(t),
+        onTap: enabled
+            ? () => ref.read(sessionTabProvider(s.id).notifier).set(t)
+            : null,
         child: Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -369,7 +397,11 @@ class _SessionMain extends ConsumerWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: on ? FontWeight.w500 : FontWeight.w400,
-              color: on ? AppColors.text : AppColors.textSecondary,
+              color: on
+                  ? AppColors.text
+                  : enabled
+                  ? AppColors.textSecondary
+                  : AppColors.textDisabled,
             ),
           ),
         ),
@@ -405,6 +437,17 @@ class _SessionMain extends ConsumerWidget {
           ),
         ],
       ),
+      SessionTab.replay => ReplayView(
+        key: ValueKey('replay-${s.id}'),
+        session: s,
+        onOpenInTimeline: (step) {
+          final tool = step.tool;
+          if (tool != null) {
+            ref.read(toolExpandedProvider.notifier).reveal(s.id, tool.id);
+          }
+          ref.read(sessionTabProvider(s.id).notifier).set(SessionTab.timeline);
+        },
+      ),
       SessionTab.terminal => SessionTerminalView(session: s),
       SessionTab.diff => SessionDiffView(sessionId: s.id),
       SessionTab.preview => PreviewTab(
@@ -431,6 +474,20 @@ class _SessionMain extends ConsumerWidget {
             child: Row(
               children: [
                 tabButton(SessionTab.timeline, 'Timeline'),
+                const SizedBox(width: 2),
+                if (canReplay)
+                  tabButton(SessionTab.replay, 'Replay')
+                else
+                  Tooltip(
+                    key: const ValueKey('session-tab-replay-tip'),
+                    message:
+                        'O replay fica disponível quando a sessão terminar',
+                    child: tabButton(
+                      SessionTab.replay,
+                      'Replay',
+                      enabled: false,
+                    ),
+                  ),
                 const SizedBox(width: 2),
                 tabButton(SessionTab.terminal, 'Terminal'),
                 const SizedBox(width: 2),
