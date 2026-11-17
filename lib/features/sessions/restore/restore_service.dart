@@ -195,8 +195,11 @@ class RestoreService {
       }
       return const CaptureResult();
     }
-    var cancelled = false;
     final timeout = _ref.read(restoreTimeoutProvider);
+    // The limit counts from here (the wait for the previous end of turn
+    // included); once the tree is captured in time the point is written
+    // whole, so a late answer never leaves a point the turn did not get.
+    final deadline = DateTime.now().add(timeout);
     try {
       return await _serial(
         worktree,
@@ -207,11 +210,10 @@ class RestoreService {
           sessionId: sessionId,
           conversationId: conversationId,
           prompt: prompt,
-          cancelled: () => cancelled,
+          deadline: deadline,
         ),
-      ).timeout(timeout);
+      );
     } on TimeoutException {
-      cancelled = true;
       return CaptureResult(failure: 'passou de ${timeout.inSeconds} s');
     } on GitException catch (e) {
       return CaptureResult(failure: _reason(e));
@@ -227,15 +229,18 @@ class RestoreService {
     required String? sessionId,
     required int? conversationId,
     required String prompt,
-    required bool Function() cancelled,
+    required DateTime deadline,
   }) async {
     final git = _git(worktree);
     final owner = restoreOwnerKey(
       sessionId: sessionId,
       conversationId: conversationId,
     );
-    final state = await _reuseOrCapture(git, worktree, settings);
-    if (cancelled()) return const CaptureResult();
+    final left = deadline.difference(DateTime.now());
+    if (left <= Duration.zero) throw TimeoutException(null);
+    // Past the limit the capture goes on alone and its commit is dropped
+    // (no ref keeps it).
+    final state = await _reuseOrCapture(git, worktree, settings).timeout(left);
     final turn = await _repo.nextTurn(
       sessionId: sessionId,
       conversationId: conversationId,

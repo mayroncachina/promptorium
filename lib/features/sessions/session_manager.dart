@@ -368,6 +368,10 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// (e.g. "Pausar agente") they go with the next message.
   final Map<String, List<String>> _notices = {};
 
+  /// Restore point of the first message of a session, recorded by [create]
+  /// before the process starts (SPEC-084 R1).
+  final Map<String, RestorePoint?> _firstPoints = {};
+
   /// Screen that was open when each session was created (Tarefas, Projeto,
   /// Skills…): clicking its "concluída / falhou" notification goes back
   /// there. Kept for the app session only (default: Sessões).
@@ -458,6 +462,9 @@ class SessionManager extends Notifier<SessionManagerState> {
     );
     if (r.prUrl != null) await _repo.setPrUrl(id, r.prUrl!);
     if (r.origin != null) await _note(id, r.origin!);
+    // SPEC-084 R1: the point of the first turn before the agent starts (its
+    // start competes with the git work for the machine).
+    _firstPoints[id] = await _checkpoint(id, prompt);
     final limits = await _agentLimits(r.agent, ws.path);
     final mcp = await _mcpRules();
     final env =
@@ -482,7 +489,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       root: ws.path,
       environment: env,
     );
-    await send(id, prompt);
+    try {
+      await send(id, prompt);
+    } finally {
+      _firstPoints.remove(id);
+    }
     return id;
   }
 
@@ -530,8 +541,11 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..calls = 0
       ..files.clear();
     _publish();
-    // SPEC-084 R1: the restore point of the turn, before the message goes.
-    final point = await _checkpoint(id, text);
+    // SPEC-084 R1: the restore point of the turn, before the message goes
+    // (the first one was recorded by [create]).
+    final point = _firstPoints.containsKey(id)
+        ? _firstPoints.remove(id)
+        : await _checkpoint(id, text);
     await _enqueue(id, proc, () async {
       final json = AppEventTypes.userMessage(msg, DateTime.now());
       final row = await _repo.appendEvent(

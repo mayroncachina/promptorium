@@ -1,3 +1,7 @@
+// Real git in temporary repositories: slow on a busy runner.
+@Timeout(Duration(minutes: 3))
+library;
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

@@ -15,7 +15,9 @@ import '../../features/prompt/conversation_manager.dart';
 import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_service.dart' show selectedReviewProvider;
 import '../../features/sessions/new_session_dialog.dart';
+import '../../features/sessions/restore/restore_service.dart';
 import '../../features/sessions/session_manager.dart';
+import '../../features/sessions/widgets/undo_dialog.dart';
 import '../../features/snippets/snippet_actions.dart';
 import '../../features/snippets/snippet_naming.dart';
 import '../../features/snippets/widgets/snippet_preview.dart';
@@ -269,8 +271,31 @@ List<PaletteCommand> paletteCommands(
     }
   }
 
+  // SPEC-084 R5: undo the last turn of the selected session.
+  final selectedId = ref.read(selectedSessionProvider);
+  final selected = sessions.where((x) => x.id == selectedId).firstOrNull;
+  final undoTarget = selected == null
+      ? null
+      : lastUndoable(
+          ref.read(sessionRestorePointsProvider(selected.id)).value ??
+              const <RestorePoint>[],
+        );
+  final selectedBusy =
+      selected != null &&
+      (ref.read(sessionManagerProvider).live[selected.id]?.busy ?? false);
+
   return [
     ...pending,
+    if (selected != null && undoTarget != null && !selectedBusy)
+      PaletteCommand(
+        label: 'Desfazer o último turno da sessão',
+        detail: '${sessionTitle(selected)} · turno ${undoTarget.turn}',
+        group: 'Ações',
+        run: () {
+          onNavigate(AppSection.sessions);
+          openUndoDialog(context, ref, session: selected, point: undoTarget);
+        },
+      ),
     if (ws != null)
       ref.read(autopilotProvider).contains(ws.id)
           ? PaletteCommand(
