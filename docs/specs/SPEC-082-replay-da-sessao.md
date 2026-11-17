@@ -158,15 +158,15 @@ Não. Tudo sai de `session_events`, `sessions` e `spec_steps`, que já existem. 
 
 ## Critérios de aceite
 
-- [ ] A aba Replay aparece nas sessões encerradas, desabilitada nas vivas, e habilita quando o processo termina [R1] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
-- [ ] A Timeline vira passos com o tipo, o alvo, a duração, o resultado e o turno, e as marcas do app [R2] verificar: flutter test test/features/sessions/replay/replay_step_test.dart
-- [ ] O cursor se arrasta, pula com clique, anda pelo teclado, toca em 1×/2×/4× e para no erro [R3, R4, R13] verificar: flutter test test/features/sessions/replay/replay_scrubber_test.dart
-- [ ] O painel mostra o diff da edição, o trecho lido, o comando com a saída e o texto, conforme o passo [R5] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
-- [ ] O estado neste ponto lista o que já leu e editou, "editou sem ler" e o último comando [R6] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
-- [ ] O arquivo neste ponto é reconstruído do jsonl, do `startSha` ou da `baseBranch`, e diz o motivo quando não dá [R7, R10] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
-- [ ] Escolher um arquivo do resultado destaca os passos que o tocaram, e "Quem escreveu?" leva ao passo certo [R8] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
-- [ ] Os filtros e a busca reduzem a lista e a linha do tempo [R9] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
-- [ ] Uma sessão com 5.000 eventos abre a aba em menos de 1 s [R11] verificar: flutter test test/features/sessions/replay/replay_perf_test.dart
-- [ ] "Ver replay" no rastro da etapa, no card e na lista abre a aba [R12] verificar: flutter test test/features/sessions/replay/replay_entry_test.dart
-- [ ] No app, o replay de uma etapa real que terminou mal leva, pelo "Quem escreveu?", à edição que causou o problema, com o arquivo naquele ponto [R1–R10] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-082/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
+- [x] A aba Replay aparece nas sessões encerradas, desabilitada nas vivas, e habilita quando o processo termina [R1] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
+- [x] A Timeline vira passos com o tipo, o alvo, a duração, o resultado e o turno, e as marcas do app [R2] verificar: flutter test test/features/sessions/replay/replay_step_test.dart
+- [x] O cursor se arrasta, pula com clique, anda pelo teclado, toca em 1×/2×/4× e para no erro [R3, R4, R13] verificar: flutter test test/features/sessions/replay/replay_scrubber_test.dart
+- [x] O painel mostra o diff da edição, o trecho lido, o comando com a saída e o texto, conforme o passo [R5] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
+- [x] O estado neste ponto lista o que já leu e editou, "editou sem ler" e o último comando [R6] verificar: flutter test test/features/sessions/replay/replay_state_test.dart
+- [x] O arquivo neste ponto é reconstruído do jsonl, do `startSha` ou da `baseBranch`, e diz o motivo quando não dá [R7, R10] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
+- [x] Escolher um arquivo do resultado destaca os passos que o tocaram, e "Quem escreveu?" leva ao passo certo [R8] verificar: flutter test test/features/sessions/replay/file_at_step_test.dart
+- [x] Os filtros e a busca reduzem a lista e a linha do tempo [R9] verificar: flutter test test/features/sessions/replay/replay_view_test.dart
+- [x] Uma sessão com 5.000 eventos abre a aba em menos de 1 s [R11] verificar: flutter test test/features/sessions/replay/replay_perf_test.dart
+- [x] "Ver replay" no rastro da etapa, no card e na lista abre a aba [R12] verificar: flutter test test/features/sessions/replay/replay_entry_test.dart
+- [x] No app, o replay de uma etapa real que terminou mal leva, pelo "Quem escreveu?", à edição que causou o problema, com o arquivo naquele ponto [R1–R10] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-082/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R13] verificar: flutter analyze
