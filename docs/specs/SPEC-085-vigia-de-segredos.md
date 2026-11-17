@@ -2,6 +2,7 @@
 id: SPEC-085
 status: rascunho
 tipo: recurso
+issue: 273
 ---
 
 # Vigia de segredos
@@ -17,6 +18,8 @@ Esta spec cria o **Vigia de segredos**:
 - se achar, **bloqueia** e mostra os achados **mascarados**, com três saídas: **remover**, **ignorar com justificativa** ou **abrir o arquivo**;
 - vale também para os commits e pushes que o **próprio app** faz (Criar PR, "arquivos restantes da etapa", VIBE) e para o **commit manual** da tela Código;
 - o segredo **nunca** aparece inteiro, nem na tela, nem nos logs, nem no banco.
+
+Issue: [#273](https://github.com/mayroncachina/promptorium/issues/273) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/EWDq9ALnW9HXQ15YvMd8nE). Capturas em `docs/mockups/spec-085/`:
 
