@@ -294,6 +294,10 @@ WorktreeKind? classifyWorktree({
   return null;
 }
 
+/// `refs/promptorium/restore/`: the restore points of the turns (SPEC-084),
+/// never offered by the hygiene (R15).
+const restoreRefsKey = 'restore';
+
 /// Whether the refs under `refs/promptorium/<key>/` belong to a closed spec:
 /// done / merged in the database, a session whose branch is gone, or a key
 /// the database no longer knows (deleted). Returns null for an open one.
@@ -303,6 +307,8 @@ RefGroup? closedRefGroup(
   required Map<String, RefKeyInfo> known,
   required Set<String> localBranches,
 }) {
+  // SPEC-084 R15: the restore points leave only by their own retention.
+  if (key == restoreRefsKey) return null;
   final info = known[key];
   if (info == null) return RefGroup(key: key, refs: refs, deleted: true);
   if (info.closed) {

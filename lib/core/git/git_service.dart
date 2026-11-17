@@ -212,6 +212,52 @@ class CommitOriginLog {
       commits.where((c) => c.kind == kind).length;
 }
 
+/// The working tree at a moment (SPEC-084 R2): HEAD, the branch (null =
+/// detached) and a commit with every file ([head] when the tree is clean).
+@immutable
+class TreeState {
+  const TreeState({
+    required this.head,
+    required this.branch,
+    required this.sha,
+    this.files = 0,
+    this.bytes = 0,
+    this.large = const [],
+  });
+
+  final String head;
+  final String? branch;
+  final String sha;
+
+  /// Uncommitted files kept in [sha] and their size.
+  final int files;
+  final int bytes;
+
+  /// Untracked files over the limit, left out.
+  final List<String> large;
+}
+
+enum TreeChangeKind { modified, created, deleted }
+
+/// One file of [GitService.treeChanges]; null lines = binary.
+@immutable
+class TreeChange {
+  const TreeChange({
+    required this.path,
+    required this.kind,
+    this.added,
+    this.removed,
+  });
+
+  final String path;
+  final TreeChangeKind kind;
+  final int? added;
+  final int? removed;
+
+  @override
+  String toString() => '${kind.name} $path';
+}
+
 /// Git operations on one repository (`git -C <repoRoot> …`).
 class GitService {
   GitService(this.repoRoot, {ProcessRunner? run, String? worktreesBase})
@@ -814,6 +860,362 @@ class GitService {
   Future<void> resetHard(String sha) async {
     await git(['reset', '-q', '--hard', _arg(sha, 'commit')]);
     await git(['clean', '-q', '-fd']);
+  }
+
+  // --- restore points (SPEC-084) ---------------------------------------------
+
+  /// The working tree as a commit for a restore point (SPEC-084 R2): HEAD,
+  /// the branch and a commit with the tracked and untracked files (ignored
+  /// ones left out), built in a scratch index like [snapshot], so neither
+  /// the tree, the index nor the stash is touched. A clean tree gives HEAD
+  /// itself. Untracked files bigger than [maxUntrackedBytes] stay out and
+  /// come back in [TreeState.large] (R4, P9). Throws [GitException] in a
+  /// repository without commits.
+  Future<TreeState> captureState({int? maxUntrackedBytes}) async {
+    final head = await headSha();
+    if (head == null) {
+      throw const GitException('repositório sem commit');
+    }
+    final branch = await currentBranch();
+    final entries = await status();
+    if (entries.isEmpty) {
+      return TreeState(head: head, branch: branch, sha: head);
+    }
+    final large = <String>[];
+    var bytes = 0;
+    var files = 0;
+    for (final e in entries) {
+      final f = File('$repoRoot/${e.path}');
+      final size = f.existsSync() ? f.lengthSync() : 0;
+      if (e.isUntracked &&
+          maxUntrackedBytes != null &&
+          size > maxUntrackedBytes) {
+        large.add(e.path);
+        continue;
+      }
+      files++;
+      bytes += size;
+    }
+    if (files == 0) {
+      return TreeState(head: head, branch: branch, sha: head, large: large);
+    }
+    final dir = await Directory.systemTemp.createTemp('promptorium-index');
+    try {
+      final index = '${dir.path}/index';
+      await _git(['read-tree', 'HEAD'], indexFile: index);
+      await _git([
+        'add',
+        '-A',
+        '--',
+        '.',
+        for (final l in large) ':(exclude,literal)$l',
+      ], indexFile: index);
+      final tree = (await _git(['write-tree'], indexFile: index)).trim();
+      final headTree = (await git(['rev-parse', 'HEAD^{tree}'])).trim();
+      if (tree == headTree) {
+        return TreeState(head: head, branch: branch, sha: head, large: large);
+      }
+      final sha = (await git([
+        '-c',
+        'user.name=Promptorium',
+        '-c',
+        'user.email=promptorium@localhost',
+        'commit-tree',
+        tree,
+        '-p',
+        head,
+        '-m',
+        'promptorium: ponto de restauração',
+      ])).trim();
+      return TreeState(
+        head: head,
+        branch: branch,
+        sha: sha,
+        files: files,
+        bytes: bytes,
+        large: large,
+      );
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  /// What changed from tree-ish [a] to [b], file by file, with the `+`/`−`
+  /// lines (`git diff --no-renames --name-status / --numstat`; a rename is a
+  /// deletion and a creation).
+  Future<List<TreeChange>> treeChanges(String a, String b) async {
+    if (a == b) return const [];
+    final names = await git([
+      'diff',
+      '--no-renames',
+      '--name-status',
+      '-z',
+      _arg(a, 'commit'),
+      _arg(b, 'commit'),
+    ]);
+    final nums = await git(['diff', '--no-renames', '--numstat', '-z', a, b]);
+    final lines = <String, (int?, int?)>{};
+    for (final rec in nums.split('\x00')) {
+      final f = rec.split('\t');
+      if (f.length < 3) continue;
+      lines[f.sublist(2).join('\t')] = (int.tryParse(f[0]), int.tryParse(f[1]));
+    }
+    final parts = names.split('\x00');
+    final out = <TreeChange>[];
+    for (var i = 0; i + 1 < parts.length; i += 2) {
+      final kind = parts[i].trim();
+      final path = parts[i + 1];
+      if (kind.isEmpty || path.isEmpty) continue;
+      final l = lines[path];
+      out.add(
+        TreeChange(
+          path: path,
+          kind: switch (kind[0]) {
+            'A' => TreeChangeKind.created,
+            'D' => TreeChangeKind.deleted,
+            _ => TreeChangeKind.modified,
+          },
+          added: l?.$1,
+          removed: l?.$2,
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// Puts [paths] back as they are in [sha] (a commit of [captureState]):
+  /// a file there is written to the working tree, a file missing there is
+  /// deleted; the index of these paths goes back to HEAD. Other files, and
+  /// the index of other paths, are not touched (SPEC-084 R8).
+  Future<void> restorePaths(String sha, Iterable<String> paths) async {
+    final list = paths.toList();
+    if (list.isEmpty) return;
+    final present = <String>{
+      for (final l in (await git([
+        '--literal-pathspecs',
+        'ls-tree',
+        '-r',
+        '-z',
+        '--name-only',
+        _arg(sha, 'commit'),
+        '--',
+        ...list,
+      ])).split('\x00'))
+        if (l.isNotEmpty) l,
+    };
+    const chunk = 200;
+    final back = [
+      for (final p in list)
+        if (present.contains(p)) p,
+    ];
+    for (var i = 0; i < back.length; i += chunk) {
+      await git([
+        '--literal-pathspecs',
+        'restore',
+        '--source=$sha',
+        '--worktree',
+        '--',
+        ...back.sublist(i, (i + chunk).clamp(0, back.length)),
+      ]);
+    }
+    for (final p in list) {
+      if (present.contains(p)) continue;
+      final f = File('$repoRoot/$p');
+      if (f.existsSync() || Link('$repoRoot/$p').existsSync()) f.deleteSync();
+      _removeEmptyParents(p);
+    }
+    await unstage(list);
+  }
+
+  /// The index of [paths] back to HEAD (`git reset -q -- …`), the working
+  /// tree untouched; paths neither in the index nor in HEAD are skipped
+  /// (`git reset` fails on them).
+  Future<void> unstage(Iterable<String> paths) async {
+    final list = paths.toList();
+    if (list.isEmpty) return;
+    Future<Set<String>> listed(List<String> args) async => {
+      for (final l in (await git([
+        '--literal-pathspecs',
+        ...args,
+        '--',
+        ...list,
+      ])).split('\x00'))
+        if (l.isNotEmpty) l,
+    };
+    final known = {
+      ...await listed(['ls-files', '-z']),
+      ...await listed(['ls-tree', '-r', '-z', '--name-only', 'HEAD']),
+    };
+    final reset = [
+      for (final p in list)
+        if (known.contains(p)) p,
+    ];
+    const chunk = 200;
+    for (var i = 0; i < reset.length; i += chunk) {
+      await git([
+        '--literal-pathspecs',
+        'reset',
+        '-q',
+        'HEAD',
+        '--',
+        ...reset.sublist(i, (i + chunk).clamp(0, reset.length)),
+      ]);
+    }
+  }
+
+  void _removeEmptyParents(String path) {
+    var dir = File('$repoRoot/$path').parent;
+    final root = Directory(repoRoot).absolute.path;
+    while (dir.absolute.path.length > root.length && dir.existsSync()) {
+      if (dir.listSync().isNotEmpty) return;
+      dir.deleteSync();
+      dir = dir.parent;
+    }
+  }
+
+  /// Points HEAD at [sha] without touching the working tree: on [branch]
+  /// (switched to with `symbolic-ref`, then moved with `reset --soft`) or
+  /// detached when [branch] is null (SPEC-084 R8). The index keeps its
+  /// entries.
+  Future<void> moveHead(String sha, {String? branch}) async {
+    _arg(sha, 'commit');
+    final from = await headSha();
+    if (branch == null) {
+      await git(['update-ref', '--no-deref', 'HEAD', sha]);
+    } else {
+      final current = await currentBranch();
+      if (current != branch) {
+        await git([
+          'symbolic-ref',
+          'HEAD',
+          'refs/heads/${_arg(branch, 'branch')}',
+        ]);
+      }
+      await git(['reset', '-q', '--soft', sha]);
+    }
+    // What the commits between the two HEADs changed is not left staged
+    // (a `reset --mixed` limited to those paths).
+    if (from != null && from != sha) {
+      await unstage([for (final c in await treeChanges(from, sha)) c.path]);
+    }
+  }
+
+  /// Commits of `<base>..<head>`, newest first.
+  Future<List<GitLogEntry>> commitsBetween(String base, String head) async {
+    if (base == head) return const [];
+    final out = await git([
+      'log',
+      '--format=%H%x1f%h%x1f%an%x1f%aI%x1f%s%x1e',
+      '${_arg(base, 'commit')}..${_arg(head, 'commit')}',
+    ]);
+    return [
+      for (final rec in out.split('\x1e'))
+        if (rec.trim().isNotEmpty) _logEntry(rec.trim()),
+    ];
+  }
+
+  /// Commits of `<base>..<head>` already in a remote branch, and those
+  /// branches (`git branch -r --contains`; SPEC-084 R12).
+  Future<({Set<String> commits, List<String> remotes})> pushedCommits(
+    String base,
+    String head,
+  ) async {
+    if (base == head) return (commits: <String>{}, remotes: <String>[]);
+    final all = (await git([
+      'rev-list',
+      '${_arg(base, 'commit')}..${_arg(head, 'commit')}',
+    ])).split('\n').where((l) => l.trim().isNotEmpty).map((l) => l.trim());
+    final local =
+        (await git(['rev-list', '$base..$head', '--not', '--remotes']))
+            .split('\n')
+            .where((l) => l.trim().isNotEmpty)
+            .map((l) => l.trim())
+            .toSet();
+    final pushed = {
+      for (final c in all)
+        if (!local.contains(c)) c,
+    };
+    if (pushed.isEmpty) return (commits: pushed, remotes: <String>[]);
+    final newest = all.firstWhere(pushed.contains);
+    final remotes = [
+      for (final l in (await git([
+        'branch',
+        '-r',
+        '--contains',
+        newest,
+      ])).split('\n'))
+        if (l.trim().isNotEmpty && !l.contains('->')) l.trim(),
+    ];
+    return (commits: pushed, remotes: remotes);
+  }
+
+  /// Refs under [prefix] with their hashes (`git for-each-ref`).
+  Future<Map<String, String>> refsUnder(String prefix) async {
+    final out = await git([
+      'for-each-ref',
+      '--format=%(refname) %(objectname)',
+      _arg(prefix, 'prefixo'),
+    ]);
+    return {
+      for (final l in out.split('\n'))
+        if (l.contains(' ')) l.split(' ').first: l.split(' ').last,
+    };
+  }
+
+  /// `git update-ref -d` of each of [refs] (missing ones are fine).
+  Future<void> deleteRefList(Iterable<String> refs) async {
+    for (final r in refs) {
+      try {
+        await git(['update-ref', '-d', _arg(r, 'ref')]);
+      } on GitException {
+        // already gone
+      }
+    }
+  }
+
+  /// Bytes of the objects that only the refs under [prefix] keep alive
+  /// (`git rev-list --disk-usage`; SPEC-084 R14). Null when git cannot tell.
+  Future<int?> diskUsageOnly(String prefix) async {
+    try {
+      final out = await git([
+        'rev-list',
+        '--objects',
+        '--disk-usage',
+        '--glob=${_arg(prefix, 'prefixo')}*',
+        '--not',
+        '--branches',
+        '--tags',
+        '--remotes',
+      ]);
+      return int.tryParse(out.trim());
+    } on GitException {
+      return null;
+    }
+  }
+
+  /// Ignored files and folders (`--directory`) changed after [since]: what a
+  /// restore point leaves out (SPEC-084 R6). At most [max].
+  Future<List<String>> ignoredChangedSince(
+    DateTime since, {
+    int max = 5,
+  }) async {
+    final out = await git([
+      'ls-files',
+      '--others',
+      '--ignored',
+      '--exclude-standard',
+      '--directory',
+      '-z',
+    ]);
+    final found = <String>[];
+    for (final p in out.split('\x00')) {
+      if (p.isEmpty) continue;
+      final stat = FileStat.statSync('$repoRoot/$p');
+      if (stat.type == FileSystemEntityType.notFound) continue;
+      if (stat.modified.isAfter(since)) found.add(p);
+      if (found.length >= max) break;
+    }
+    return found;
   }
 
   /// Last [n] commits of HEAD.
