@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../resume/resume_settings.dart';
 import '../../core/claude/run_extensions.dart';
 import '../../core/claude/run_prefs.dart';
 import '../../data/providers.dart';
@@ -170,6 +171,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
+                SettingsSection.resume => const _Page(
+                  title: 'Retomar de onde parei',
+                  intro:
+                      'Um cartão com o que esperou, terminou e continua '
+                      'rodando enquanto você estava fora.',
+                  children: [ResumeSettingsView()],
+                ),
                 SettingsSection.notifications => const _Page(
                   title: 'Notificações',
                   intro:

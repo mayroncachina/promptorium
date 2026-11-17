@@ -9,6 +9,7 @@ import '../data/providers.dart';
 import '../features/code/worktree_terminal.dart';
 import '../features/prompt/conversation_manager.dart';
 import '../features/prompt/compare/compare_controller.dart';
+import '../features/resume/presence.dart' show presenceProvider;
 import '../features/sessions/session_manager.dart';
 import '../features/sessions/widgets/session_terminal.dart';
 import 'dev/dev_server.dart';
@@ -177,6 +178,10 @@ Future<void> _stopWork(Ref ref) async {
     }
   }
 
+  // SPEC-080 R1: the visto por último is written on closing.
+  if (ref.exists(presenceProvider)) {
+    await step('visto por último', () => ref.read(presenceProvider).flush());
+  }
   await step(
     'terminais',
     () => ref.read(sessionTerminalsProvider.notifier).killAll(),

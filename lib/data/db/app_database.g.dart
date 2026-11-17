@@ -15922,6 +15922,808 @@ class SnippetsCompanion extends UpdateCompanion<Snippet> {
   }
 }
 
+class $ActivityEventsTable extends ActivityEvents
+    with TableInfo<$ActivityEventsTable, ActivityEvent> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActivityEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workspaceIdMeta = const VerificationMeta(
+    'workspaceId',
+  );
+  @override
+  late final GeneratedColumn<int> workspaceId = GeneratedColumn<int>(
+    'workspace_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workspaces (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _seedMeta = const VerificationMeta('seed');
+  @override
+  late final GeneratedColumn<String> seed = GeneratedColumn<String>(
+    'seed',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _specIdMeta = const VerificationMeta('specId');
+  @override
+  late final GeneratedColumn<int> specId = GeneratedColumn<int>(
+    'spec_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _conversationIdMeta = const VerificationMeta(
+    'conversationId',
+  );
+  @override
+  late final GeneratedColumn<int> conversationId = GeneratedColumn<int>(
+    'conversation_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _prNumberMeta = const VerificationMeta(
+    'prNumber',
+  );
+  @override
+  late final GeneratedColumn<int> prNumber = GeneratedColumn<int>(
+    'pr_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _releaseTagMeta = const VerificationMeta(
+    'releaseTag',
+  );
+  @override
+  late final GeneratedColumn<String> releaseTag = GeneratedColumn<String>(
+    'release_tag',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _groupKeyMeta = const VerificationMeta(
+    'groupKey',
+  );
+  @override
+  late final GeneratedColumn<String> groupKey = GeneratedColumn<String>(
+    'group_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workspaceId,
+    kind,
+    outcome,
+    title,
+    detail,
+    seed,
+    specId,
+    sessionId,
+    conversationId,
+    prNumber,
+    releaseTag,
+    groupKey,
+    at,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'activity_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActivityEvent> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('workspace_id')) {
+      context.handle(
+        _workspaceIdMeta,
+        workspaceId.isAcceptableOrUnknown(
+          data['workspace_id']!,
+          _workspaceIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_workspaceIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_outcomeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('seed')) {
+      context.handle(
+        _seedMeta,
+        seed.isAcceptableOrUnknown(data['seed']!, _seedMeta),
+      );
+    }
+    if (data.containsKey('spec_id')) {
+      context.handle(
+        _specIdMeta,
+        specId.isAcceptableOrUnknown(data['spec_id']!, _specIdMeta),
+      );
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    }
+    if (data.containsKey('conversation_id')) {
+      context.handle(
+        _conversationIdMeta,
+        conversationId.isAcceptableOrUnknown(
+          data['conversation_id']!,
+          _conversationIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pr_number')) {
+      context.handle(
+        _prNumberMeta,
+        prNumber.isAcceptableOrUnknown(data['pr_number']!, _prNumberMeta),
+      );
+    }
+    if (data.containsKey('release_tag')) {
+      context.handle(
+        _releaseTagMeta,
+        releaseTag.isAcceptableOrUnknown(data['release_tag']!, _releaseTagMeta),
+      );
+    }
+    if (data.containsKey('group_key')) {
+      context.handle(
+        _groupKeyMeta,
+        groupKey.isAcceptableOrUnknown(data['group_key']!, _groupKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupKeyMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActivityEvent map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActivityEvent(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workspaceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}workspace_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      )!,
+      seed: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}seed'],
+      ),
+      specId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}spec_id'],
+      ),
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      ),
+      conversationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}conversation_id'],
+      ),
+      prNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pr_number'],
+      ),
+      releaseTag: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}release_tag'],
+      ),
+      groupKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_key'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}at'],
+      )!,
+    );
+  }
+
+  @override
+  $ActivityEventsTable createAlias(String alias) {
+    return $ActivityEventsTable(attachedDatabase, alias);
+  }
+}
+
+class ActivityEvent extends DataClass implements Insertable<ActivityEvent> {
+  final int id;
+  final int workspaceId;
+
+  /// spec, gate, pr, ci, release, session, conversation, autopilot.
+  final String kind;
+
+  /// ok, failed, attention.
+  final String outcome;
+  final String title;
+  final String detail;
+
+  /// The robot's seed (SPEC-076 R5); null = an icon.
+  final String? seed;
+  final int? specId;
+  final String? sessionId;
+  final int? conversationId;
+  final int? prNumber;
+  final String? releaseTag;
+
+  /// Events with the same key become one item of the card (R8).
+  final String groupKey;
+  final DateTime at;
+  const ActivityEvent({
+    required this.id,
+    required this.workspaceId,
+    required this.kind,
+    required this.outcome,
+    required this.title,
+    required this.detail,
+    this.seed,
+    this.specId,
+    this.sessionId,
+    this.conversationId,
+    this.prNumber,
+    this.releaseTag,
+    required this.groupKey,
+    required this.at,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['workspace_id'] = Variable<int>(workspaceId);
+    map['kind'] = Variable<String>(kind);
+    map['outcome'] = Variable<String>(outcome);
+    map['title'] = Variable<String>(title);
+    map['detail'] = Variable<String>(detail);
+    if (!nullToAbsent || seed != null) {
+      map['seed'] = Variable<String>(seed);
+    }
+    if (!nullToAbsent || specId != null) {
+      map['spec_id'] = Variable<int>(specId);
+    }
+    if (!nullToAbsent || sessionId != null) {
+      map['session_id'] = Variable<String>(sessionId);
+    }
+    if (!nullToAbsent || conversationId != null) {
+      map['conversation_id'] = Variable<int>(conversationId);
+    }
+    if (!nullToAbsent || prNumber != null) {
+      map['pr_number'] = Variable<int>(prNumber);
+    }
+    if (!nullToAbsent || releaseTag != null) {
+      map['release_tag'] = Variable<String>(releaseTag);
+    }
+    map['group_key'] = Variable<String>(groupKey);
+    map['at'] = Variable<DateTime>(at);
+    return map;
+  }
+
+  ActivityEventsCompanion toCompanion(bool nullToAbsent) {
+    return ActivityEventsCompanion(
+      id: Value(id),
+      workspaceId: Value(workspaceId),
+      kind: Value(kind),
+      outcome: Value(outcome),
+      title: Value(title),
+      detail: Value(detail),
+      seed: seed == null && nullToAbsent ? const Value.absent() : Value(seed),
+      specId: specId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specId),
+      sessionId: sessionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionId),
+      conversationId: conversationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(conversationId),
+      prNumber: prNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prNumber),
+      releaseTag: releaseTag == null && nullToAbsent
+          ? const Value.absent()
+          : Value(releaseTag),
+      groupKey: Value(groupKey),
+      at: Value(at),
+    );
+  }
+
+  factory ActivityEvent.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActivityEvent(
+      id: serializer.fromJson<int>(json['id']),
+      workspaceId: serializer.fromJson<int>(json['workspaceId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      outcome: serializer.fromJson<String>(json['outcome']),
+      title: serializer.fromJson<String>(json['title']),
+      detail: serializer.fromJson<String>(json['detail']),
+      seed: serializer.fromJson<String?>(json['seed']),
+      specId: serializer.fromJson<int?>(json['specId']),
+      sessionId: serializer.fromJson<String?>(json['sessionId']),
+      conversationId: serializer.fromJson<int?>(json['conversationId']),
+      prNumber: serializer.fromJson<int?>(json['prNumber']),
+      releaseTag: serializer.fromJson<String?>(json['releaseTag']),
+      groupKey: serializer.fromJson<String>(json['groupKey']),
+      at: serializer.fromJson<DateTime>(json['at']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workspaceId': serializer.toJson<int>(workspaceId),
+      'kind': serializer.toJson<String>(kind),
+      'outcome': serializer.toJson<String>(outcome),
+      'title': serializer.toJson<String>(title),
+      'detail': serializer.toJson<String>(detail),
+      'seed': serializer.toJson<String?>(seed),
+      'specId': serializer.toJson<int?>(specId),
+      'sessionId': serializer.toJson<String?>(sessionId),
+      'conversationId': serializer.toJson<int?>(conversationId),
+      'prNumber': serializer.toJson<int?>(prNumber),
+      'releaseTag': serializer.toJson<String?>(releaseTag),
+      'groupKey': serializer.toJson<String>(groupKey),
+      'at': serializer.toJson<DateTime>(at),
+    };
+  }
+
+  ActivityEvent copyWith({
+    int? id,
+    int? workspaceId,
+    String? kind,
+    String? outcome,
+    String? title,
+    String? detail,
+    Value<String?> seed = const Value.absent(),
+    Value<int?> specId = const Value.absent(),
+    Value<String?> sessionId = const Value.absent(),
+    Value<int?> conversationId = const Value.absent(),
+    Value<int?> prNumber = const Value.absent(),
+    Value<String?> releaseTag = const Value.absent(),
+    String? groupKey,
+    DateTime? at,
+  }) => ActivityEvent(
+    id: id ?? this.id,
+    workspaceId: workspaceId ?? this.workspaceId,
+    kind: kind ?? this.kind,
+    outcome: outcome ?? this.outcome,
+    title: title ?? this.title,
+    detail: detail ?? this.detail,
+    seed: seed.present ? seed.value : this.seed,
+    specId: specId.present ? specId.value : this.specId,
+    sessionId: sessionId.present ? sessionId.value : this.sessionId,
+    conversationId: conversationId.present
+        ? conversationId.value
+        : this.conversationId,
+    prNumber: prNumber.present ? prNumber.value : this.prNumber,
+    releaseTag: releaseTag.present ? releaseTag.value : this.releaseTag,
+    groupKey: groupKey ?? this.groupKey,
+    at: at ?? this.at,
+  );
+  ActivityEvent copyWithCompanion(ActivityEventsCompanion data) {
+    return ActivityEvent(
+      id: data.id.present ? data.id.value : this.id,
+      workspaceId: data.workspaceId.present
+          ? data.workspaceId.value
+          : this.workspaceId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+      title: data.title.present ? data.title.value : this.title,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      seed: data.seed.present ? data.seed.value : this.seed,
+      specId: data.specId.present ? data.specId.value : this.specId,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      conversationId: data.conversationId.present
+          ? data.conversationId.value
+          : this.conversationId,
+      prNumber: data.prNumber.present ? data.prNumber.value : this.prNumber,
+      releaseTag: data.releaseTag.present
+          ? data.releaseTag.value
+          : this.releaseTag,
+      groupKey: data.groupKey.present ? data.groupKey.value : this.groupKey,
+      at: data.at.present ? data.at.value : this.at,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEvent(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('kind: $kind, ')
+          ..write('outcome: $outcome, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('seed: $seed, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('prNumber: $prNumber, ')
+          ..write('releaseTag: $releaseTag, ')
+          ..write('groupKey: $groupKey, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workspaceId,
+    kind,
+    outcome,
+    title,
+    detail,
+    seed,
+    specId,
+    sessionId,
+    conversationId,
+    prNumber,
+    releaseTag,
+    groupKey,
+    at,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActivityEvent &&
+          other.id == this.id &&
+          other.workspaceId == this.workspaceId &&
+          other.kind == this.kind &&
+          other.outcome == this.outcome &&
+          other.title == this.title &&
+          other.detail == this.detail &&
+          other.seed == this.seed &&
+          other.specId == this.specId &&
+          other.sessionId == this.sessionId &&
+          other.conversationId == this.conversationId &&
+          other.prNumber == this.prNumber &&
+          other.releaseTag == this.releaseTag &&
+          other.groupKey == this.groupKey &&
+          other.at == this.at);
+}
+
+class ActivityEventsCompanion extends UpdateCompanion<ActivityEvent> {
+  final Value<int> id;
+  final Value<int> workspaceId;
+  final Value<String> kind;
+  final Value<String> outcome;
+  final Value<String> title;
+  final Value<String> detail;
+  final Value<String?> seed;
+  final Value<int?> specId;
+  final Value<String?> sessionId;
+  final Value<int?> conversationId;
+  final Value<int?> prNumber;
+  final Value<String?> releaseTag;
+  final Value<String> groupKey;
+  final Value<DateTime> at;
+  const ActivityEventsCompanion({
+    this.id = const Value.absent(),
+    this.workspaceId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.title = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.seed = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.prNumber = const Value.absent(),
+    this.releaseTag = const Value.absent(),
+    this.groupKey = const Value.absent(),
+    this.at = const Value.absent(),
+  });
+  ActivityEventsCompanion.insert({
+    this.id = const Value.absent(),
+    required int workspaceId,
+    required String kind,
+    required String outcome,
+    required String title,
+    this.detail = const Value.absent(),
+    this.seed = const Value.absent(),
+    this.specId = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.conversationId = const Value.absent(),
+    this.prNumber = const Value.absent(),
+    this.releaseTag = const Value.absent(),
+    required String groupKey,
+    required DateTime at,
+  }) : workspaceId = Value(workspaceId),
+       kind = Value(kind),
+       outcome = Value(outcome),
+       title = Value(title),
+       groupKey = Value(groupKey),
+       at = Value(at);
+  static Insertable<ActivityEvent> custom({
+    Expression<int>? id,
+    Expression<int>? workspaceId,
+    Expression<String>? kind,
+    Expression<String>? outcome,
+    Expression<String>? title,
+    Expression<String>? detail,
+    Expression<String>? seed,
+    Expression<int>? specId,
+    Expression<String>? sessionId,
+    Expression<int>? conversationId,
+    Expression<int>? prNumber,
+    Expression<String>? releaseTag,
+    Expression<String>? groupKey,
+    Expression<DateTime>? at,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workspaceId != null) 'workspace_id': workspaceId,
+      if (kind != null) 'kind': kind,
+      if (outcome != null) 'outcome': outcome,
+      if (title != null) 'title': title,
+      if (detail != null) 'detail': detail,
+      if (seed != null) 'seed': seed,
+      if (specId != null) 'spec_id': specId,
+      if (sessionId != null) 'session_id': sessionId,
+      if (conversationId != null) 'conversation_id': conversationId,
+      if (prNumber != null) 'pr_number': prNumber,
+      if (releaseTag != null) 'release_tag': releaseTag,
+      if (groupKey != null) 'group_key': groupKey,
+      if (at != null) 'at': at,
+    });
+  }
+
+  ActivityEventsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workspaceId,
+    Value<String>? kind,
+    Value<String>? outcome,
+    Value<String>? title,
+    Value<String>? detail,
+    Value<String?>? seed,
+    Value<int?>? specId,
+    Value<String?>? sessionId,
+    Value<int?>? conversationId,
+    Value<int?>? prNumber,
+    Value<String?>? releaseTag,
+    Value<String>? groupKey,
+    Value<DateTime>? at,
+  }) {
+    return ActivityEventsCompanion(
+      id: id ?? this.id,
+      workspaceId: workspaceId ?? this.workspaceId,
+      kind: kind ?? this.kind,
+      outcome: outcome ?? this.outcome,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      seed: seed ?? this.seed,
+      specId: specId ?? this.specId,
+      sessionId: sessionId ?? this.sessionId,
+      conversationId: conversationId ?? this.conversationId,
+      prNumber: prNumber ?? this.prNumber,
+      releaseTag: releaseTag ?? this.releaseTag,
+      groupKey: groupKey ?? this.groupKey,
+      at: at ?? this.at,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workspaceId.present) {
+      map['workspace_id'] = Variable<int>(workspaceId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (seed.present) {
+      map['seed'] = Variable<String>(seed.value);
+    }
+    if (specId.present) {
+      map['spec_id'] = Variable<int>(specId.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (conversationId.present) {
+      map['conversation_id'] = Variable<int>(conversationId.value);
+    }
+    if (prNumber.present) {
+      map['pr_number'] = Variable<int>(prNumber.value);
+    }
+    if (releaseTag.present) {
+      map['release_tag'] = Variable<String>(releaseTag.value);
+    }
+    if (groupKey.present) {
+      map['group_key'] = Variable<String>(groupKey.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<DateTime>(at.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActivityEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('workspaceId: $workspaceId, ')
+          ..write('kind: $kind, ')
+          ..write('outcome: $outcome, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('seed: $seed, ')
+          ..write('specId: $specId, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('conversationId: $conversationId, ')
+          ..write('prNumber: $prNumber, ')
+          ..write('releaseTag: $releaseTag, ')
+          ..write('groupKey: $groupKey, ')
+          ..write('at: $at')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15956,9 +16758,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $StepRunsTable stepRuns = $StepRunsTable(this);
   late final $SpecNotesTable specNotes = $SpecNotesTable(this);
   late final $SnippetsTable snippets = $SnippetsTable(this);
+  late final $ActivityEventsTable activityEvents = $ActivityEventsTable(this);
   late final Index snippetsBodyHash = Index(
     'snippets_body_hash',
     'CREATE INDEX snippets_body_hash ON snippets (workspace_id, body_hash)',
+  );
+  late final Index activityEventsAt = Index(
+    'activity_events_at',
+    'CREATE INDEX activity_events_at ON activity_events (workspace_id, at)',
   );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -15991,7 +16798,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     stepRuns,
     specNotes,
     snippets,
+    activityEvents,
     snippetsBodyHash,
+    activityEventsAt,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -16184,6 +16993,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       ),
       result: [TableUpdate('snippets', kind: UpdateKind.update)],
     ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workspaces',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('activity_events', kind: UpdateKind.delete)],
+    ),
   ]);
 }
 
@@ -16368,6 +17184,24 @@ final class $$WorkspacesTableReferences
     ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_snippetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ActivityEventsTable, List<ActivityEvent>>
+  _activityEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activityEvents,
+    aliasName: 'workspaces__id__activity_events__workspace_id',
+  );
+
+  $$ActivityEventsTableProcessedTableManager get activityEventsRefs {
+    final manager = $$ActivityEventsTableTableManager(
+      $_db,
+      $_db.activityEvents,
+    ).filter((f) => f.workspaceId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activityEventsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -16619,6 +17453,31 @@ class $$WorkspacesTableFilterComposer
           }) => $$SnippetsTableFilterComposer(
             $db: $db,
             $table: $db.snippets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> activityEventsRefs(
+    Expression<bool> Function($$ActivityEventsTableFilterComposer f) f,
+  ) {
+    final $$ActivityEventsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableFilterComposer(
+            $db: $db,
+            $table: $db.activityEvents,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -16904,6 +17763,31 @@ class $$WorkspacesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> activityEventsRefs<T extends Object>(
+    Expression<T> Function($$ActivityEventsTableAnnotationComposer a) f,
+  ) {
+    final $$ActivityEventsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activityEvents,
+      getReferencedColumn: (t) => t.workspaceId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivityEventsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activityEvents,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorkspacesTableTableManager
@@ -16929,6 +17813,7 @@ class $$WorkspacesTableTableManager
             bool specDraftsRefs,
             bool autopilotStatesRefs,
             bool snippetsRefs,
+            bool activityEventsRefs,
           })
         > {
   $$WorkspacesTableTableManager(_$AppDatabase db, $WorkspacesTable table)
@@ -16985,6 +17870,7 @@ class $$WorkspacesTableTableManager
                 specDraftsRefs = false,
                 autopilotStatesRefs = false,
                 snippetsRefs = false,
+                activityEventsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -16998,6 +17884,7 @@ class $$WorkspacesTableTableManager
                     if (specDraftsRefs) db.specDrafts,
                     if (autopilotStatesRefs) db.autopilotStates,
                     if (snippetsRefs) db.snippets,
+                    if (activityEventsRefs) db.activityEvents,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -17191,6 +18078,27 @@ class $$WorkspacesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (activityEventsRefs)
+                        await $_getPrefetchedData<
+                          Workspace,
+                          $WorkspacesTable,
+                          ActivityEvent
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkspacesTableReferences
+                              ._activityEventsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkspacesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).activityEventsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workspaceId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -17221,6 +18129,7 @@ typedef $$WorkspacesTableProcessedTableManager =
         bool specDraftsRefs,
         bool autopilotStatesRefs,
         bool snippetsRefs,
+        bool activityEventsRefs,
       })
     >;
 typedef $$SprintsTableCreateCompanionBuilder = SprintsCompanion Function({
@@ -29298,6 +30207,496 @@ typedef $$SnippetsTableProcessedTableManager =
         bool originSessionId,
       })
     >;
+typedef $$ActivityEventsTableCreateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      required int workspaceId,
+      required String kind,
+      required String outcome,
+      required String title,
+      Value<String> detail,
+      Value<String?> seed,
+      Value<int?> specId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<int?> prNumber,
+      Value<String?> releaseTag,
+      required String groupKey,
+      required DateTime at,
+    });
+typedef $$ActivityEventsTableUpdateCompanionBuilder =
+    ActivityEventsCompanion Function({
+      Value<int> id,
+      Value<int> workspaceId,
+      Value<String> kind,
+      Value<String> outcome,
+      Value<String> title,
+      Value<String> detail,
+      Value<String?> seed,
+      Value<int?> specId,
+      Value<String?> sessionId,
+      Value<int?> conversationId,
+      Value<int?> prNumber,
+      Value<String?> releaseTag,
+      Value<String> groupKey,
+      Value<DateTime> at,
+    });
+
+final class $$ActivityEventsTableReferences
+    extends BaseReferences<_$AppDatabase, $ActivityEventsTable, ActivityEvent> {
+  $$ActivityEventsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkspacesTable _workspaceIdTable(_$AppDatabase db) => db.workspaces
+      .createAlias('activity_events__workspace_id__workspaces__id');
+
+  $$WorkspacesTableProcessedTableManager get workspaceId {
+    final $_column = $_itemColumn<int>('workspace_id')!;
+
+    final manager = $$WorkspacesTableTableManager(
+      $_db,
+      $_db.workspaces,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workspaceIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ActivityEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seed => $composableBuilder(
+    column: $table.seed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get prNumber => $composableBuilder(
+    column: $table.prNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkspacesTableFilterComposer get workspaceId {
+    final $$WorkspacesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableFilterComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seed => $composableBuilder(
+    column: $table.seed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get specId => $composableBuilder(
+    column: $table.specId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get prNumber => $composableBuilder(
+    column: $table.prNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get groupKey => $composableBuilder(
+    column: $table.groupKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkspacesTableOrderingComposer get workspaceId {
+    final $$WorkspacesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableOrderingComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActivityEventsTable> {
+  $$ActivityEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<String> get seed =>
+      $composableBuilder(column: $table.seed, builder: (column) => column);
+
+  GeneratedColumn<int> get specId =>
+      $composableBuilder(column: $table.specId, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<int> get conversationId => $composableBuilder(
+    column: $table.conversationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get prNumber =>
+      $composableBuilder(column: $table.prNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get releaseTag => $composableBuilder(
+    column: $table.releaseTag,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get groupKey =>
+      $composableBuilder(column: $table.groupKey, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  $$WorkspacesTableAnnotationComposer get workspaceId {
+    final $$WorkspacesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workspaceId,
+      referencedTable: $db.workspaces,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkspacesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workspaces,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActivityEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActivityEventsTable,
+          ActivityEvent,
+          $$ActivityEventsTableFilterComposer,
+          $$ActivityEventsTableOrderingComposer,
+          $$ActivityEventsTableAnnotationComposer,
+          $$ActivityEventsTableCreateCompanionBuilder,
+          $$ActivityEventsTableUpdateCompanionBuilder,
+          (ActivityEvent, $$ActivityEventsTableReferences),
+          ActivityEvent,
+          PrefetchHooks Function({bool workspaceId})
+        > {
+  $$ActivityEventsTableTableManager(
+    _$AppDatabase db,
+    $ActivityEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActivityEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActivityEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActivityEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workspaceId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> outcome = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> detail = const Value.absent(),
+                Value<String?> seed = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<int?> prNumber = const Value.absent(),
+                Value<String?> releaseTag = const Value.absent(),
+                Value<String> groupKey = const Value.absent(),
+                Value<DateTime> at = const Value.absent(),
+              }) => ActivityEventsCompanion(
+                id: id,
+                workspaceId: workspaceId,
+                kind: kind,
+                outcome: outcome,
+                title: title,
+                detail: detail,
+                seed: seed,
+                specId: specId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                prNumber: prNumber,
+                releaseTag: releaseTag,
+                groupKey: groupKey,
+                at: at,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workspaceId,
+                required String kind,
+                required String outcome,
+                required String title,
+                Value<String> detail = const Value.absent(),
+                Value<String?> seed = const Value.absent(),
+                Value<int?> specId = const Value.absent(),
+                Value<String?> sessionId = const Value.absent(),
+                Value<int?> conversationId = const Value.absent(),
+                Value<int?> prNumber = const Value.absent(),
+                Value<String?> releaseTag = const Value.absent(),
+                required String groupKey,
+                required DateTime at,
+              }) => ActivityEventsCompanion.insert(
+                id: id,
+                workspaceId: workspaceId,
+                kind: kind,
+                outcome: outcome,
+                title: title,
+                detail: detail,
+                seed: seed,
+                specId: specId,
+                sessionId: sessionId,
+                conversationId: conversationId,
+                prNumber: prNumber,
+                releaseTag: releaseTag,
+                groupKey: groupKey,
+                at: at,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ActivityEventsTable, ActivityEvent>(table),
+                  $$ActivityEventsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workspaceId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workspaceId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.workspaceId,
+                        referencedTable: $$ActivityEventsTableReferences
+                            ._workspaceIdTable(db),
+                        referencedColumn: $$ActivityEventsTableReferences
+                            ._workspaceIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ActivityEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActivityEventsTable,
+      ActivityEvent,
+      $$ActivityEventsTableFilterComposer,
+      $$ActivityEventsTableOrderingComposer,
+      $$ActivityEventsTableAnnotationComposer,
+      $$ActivityEventsTableCreateCompanionBuilder,
+      $$ActivityEventsTableUpdateCompanionBuilder,
+      (ActivityEvent, $$ActivityEventsTableReferences),
+      ActivityEvent,
+      PrefetchHooks Function({bool workspaceId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -29354,4 +30753,6 @@ class $AppDatabaseManager {
       $$SpecNotesTableTableManager(_db, _db.specNotes);
   $$SnippetsTableTableManager get snippets =>
       $$SnippetsTableTableManager(_db, _db.snippets);
+  $$ActivityEventsTableTableManager get activityEvents =>
+      $$ActivityEventsTableTableManager(_db, _db.activityEvents);
 }

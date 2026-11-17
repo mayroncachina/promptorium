@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../sessions/widgets/session_style.dart' show AmberButton, SmallButton;
+import '../resume/resume_state.dart' show resumeProvider;
 import 'activities_state.dart';
 import 'activity.dart';
 import 'activity_actions.dart';
@@ -348,6 +349,15 @@ class _Tabs extends ConsumerWidget {
               ],
             ),
           ),
+        ),
+        const SizedBox(width: 12),
+        // SPEC-080 R13: the journal of the last 24 h, even without being away.
+        SmallButton(
+          key: const ValueKey('activities-what-happened'),
+          label: 'O que aconteceu',
+          icon: Icons.history,
+          height: 28,
+          onTap: () => ref.read(resumeProvider.notifier).showManual(),
         ),
         const SizedBox(width: 12),
         const Text(

@@ -18,6 +18,7 @@ import '../prompt/conversation_manager.dart';
 import '../repository/hygiene/hygiene_tab.dart' show HygieneHomeCard;
 import '../review/review_service.dart' show selectedReviewProvider;
 import '../sessions/session_manager.dart';
+import '../resume/widgets/since_last_visit.dart';
 import '../sessions/widgets/session_style.dart';
 import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import 'home_inbox.dart';
@@ -83,6 +84,8 @@ class _Inbox extends ConsumerWidget {
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 18),
+        // SPEC-080 R12: what the "Retomar" card left unresolved.
+        const SinceLastVisit(),
         HygieneHomeCard(workspacePath: workspace.path),
         for (final g in groups) ...[
           _GroupTitle(group: g),
