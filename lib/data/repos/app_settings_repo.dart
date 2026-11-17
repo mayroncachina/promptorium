@@ -134,6 +134,27 @@ abstract final class AppSettingKeys {
   /// '1' once the default saved prompts were inserted (Fase 6).
   static const savedPromptsSeeded = 'prompts.seeded';
 
+  /// "Retomar de onde parei" (SPEC-080): the last time the person was seen
+  /// (ISO; window in focus and a key, a click or a scroll, R1).
+  static const resumeLastSeen = 'resume.lastSeenAt';
+
+  /// "Mostrar ao abrir o app" (`0` = off; on by default, R14).
+  static const resumeOnOpen = 'resume.onOpen';
+
+  /// "Mostrar ao voltar depois de", in minutes (`0` = never; 30, R14).
+  static const resumeAwayMinutes = 'resume.awayMinutes';
+
+  /// What does not enter "Terminou": `specs,prs,ci,releases,sessions`
+  /// (comma list of `ResumeKindGroup.name`; empty = everything, R14).
+  static const resumeHiddenKinds = 'resume.hiddenKinds';
+
+  /// "Desde a sua última visita" on the Início: the start of the window of
+  /// the card closed without "Tudo visto" (ISO; absent = no band, R12).
+  static const resumeBandSince = 'resume.bandSince';
+
+  /// "Tudo visto": the journal is seen until this time (ISO, R12).
+  static const resumeSeenUntil = 'resume.seenUntil';
+
   /// Labels of the last commands run from the palette, newest first, one
   /// per line (UX v2, U2).
   static const paletteRecent = 'ui.paletteRecent';

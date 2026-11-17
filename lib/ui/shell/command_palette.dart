@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../features/resume/resume_state.dart' show resumeProvider;
 import '../../features/board/autopilot.dart';
 import '../../features/board/board_rules.dart';
 import '../../features/board/widgets/board_tray.dart'
@@ -379,6 +380,14 @@ List<PaletteCommand> paletteCommands(
         ref.read(repositoryTabProvider.notifier).select('releases');
         onNavigate(AppSection.repository);
       },
+    ),
+    // SPEC-080 R13: the card with the journal of the last 24 h.
+    PaletteCommand(
+      label: 'Retomar de onde parei',
+      detail: 'o que esperou, terminou e continua rodando',
+      group: 'Ações',
+      searchText: 'o que aconteceu fora visto',
+      run: () => ref.read(resumeProvider.notifier).showManual(),
     ),
     for (final s in specs)
       if (s.status != SpecStatus.archived)

@@ -59,6 +59,14 @@ enum SettingsSection {
     'memória',
     'retomar',
   ]),
+  resume('Retomar de onde parei', SettingsGroup.app, [
+    'retomar',
+    'fora',
+    'visto',
+    'diário',
+    'voltar',
+    'cartão',
+  ]),
   notifications('Notificações', SettingsGroup.app, [
     'notificação',
     'notificações',
@@ -175,6 +183,11 @@ bool sectionChanged(
           settings[AppSettingKeys.mcpServer] == '0' ||
           settings.containsKey(AppSettingKeys.mcpCreationLimit),
     SettingsSection.sessions => now.idleMinutes != defaults.idleMinutes,
+    SettingsSection.resume => [
+      AppSettingKeys.resumeOnOpen,
+      AppSettingKeys.resumeAwayMinutes,
+      AppSettingKeys.resumeHiddenKinds,
+    ].any(settings.containsKey),
     SettingsSection.notifications => [
       AlertSettingKeys.agents,
       AlertSettingKeys.robot,

@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
-import '../../core/git/gh_cli.dart' show CiState, ciStateOf;
-import '../../data/db/app_database.dart';
+import '../../core/git/gh_cli.dart'
+    show CiState, ciStateOf, ghCliFactoryProvider;
+import '../../data/providers.dart';
 import '../../data/repos/activity_events_repo.dart';
 import '../activities/activity.dart' show specSeed;
 import 'activity_journal.dart';
@@ -250,4 +252,36 @@ Future<bool> catchUpGithub({
     }
   }
   return ok;
+}
+
+/// Reads what the catch-up needs from the database and runs it with `gh`
+/// in each workspace's repository (R7).
+Future<bool> runGithubCatchUp(
+  T Function<T>(ProviderListenable<T>) read,
+  DateTime since,
+) async {
+  final workspaces = await read(workspacesRepoProvider).getAll();
+  final sessions = <int, List<Session>>{};
+  final specs = <int, List<Spec>>{};
+  for (final ws in workspaces) {
+    sessions[ws.id] = await read(sessionsRepoProvider)
+        .watchByWorkspace(ws.id)
+        .first;
+    specs[ws.id] = await read(specsRepoProvider).watchByWorkspace(ws.id).first;
+  }
+  final prs = catchUpPrs(
+    workspaces: workspaces,
+    sessions: sessions,
+    specs: specs,
+    since: since,
+  );
+  if (prs.isEmpty) return true;
+  final gh = read(ghCliFactoryProvider);
+  return catchUpGithub(
+    prs: prs,
+    since: since,
+    repo: read(activityEventsRepoProvider),
+    view: (repoPath, n, fields) =>
+        gh(repoPath).gh(['pr', 'view', '$n', '--json', fields]),
+  );
 }

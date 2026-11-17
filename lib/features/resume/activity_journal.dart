@@ -549,6 +549,7 @@ List<JournalEntry> conversationTransitions({
         title: vibe ? _specTitle(c.spec!) : c.title,
         detail: 'terminou um turno de ${_minutes(took)}',
         seed: 'conv:$id',
+        specId: vibe ? c.spec!.id : null,
         conversationId: id,
         fixedGroupKey: 'conv:$id',
         at: now,

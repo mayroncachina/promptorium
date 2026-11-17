@@ -57,6 +57,14 @@ class ActivityEventsRepo {
     return (_db.delete(_t)..where((e) => e.at.isSmallerThanValue(limit))).go();
   }
 
+  /// How many events the journal keeps (Configurações, R14).
+  Stream<int> watchCount() {
+    final n = _t.id.count();
+    return (_db.selectOnly(_t)..addColumns([n]))
+        .watchSingle()
+        .map((r) => r.read(n) ?? 0);
+  }
+
   /// "Limpar o diário" (R14).
   Future<int> clear() => _db.delete(_t).go();
 }
