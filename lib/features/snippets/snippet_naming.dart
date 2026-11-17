@@ -1,6 +1,8 @@
 /// Names and labels of a snippet (SPEC-078 R3, R6).
 library;
 
+import '../../ui/widgets/code_editor/code_language.dart';
+
 /// Longest suggested name (R3).
 const snippetSuggestedMax = 60;
 
@@ -93,4 +95,95 @@ String shortName(String name, [int max = 24]) {
   final n = name.trim();
   if (n.length <= max) return n;
   return '${n.substring(0, max).trimRight()}…';
+}
+
+const _months = [
+  'jan.',
+  'fev.',
+  'mar.',
+  'abr.',
+  'mai.',
+  'jun.',
+  'jul.',
+  'ago.',
+  'set.',
+  'out.',
+  'nov.',
+  'dez.',
+];
+
+/// `12 nov.` (`12 nov. 2025` in another year).
+String snippetDate(DateTime at, {DateTime? now}) {
+  final n = now ?? DateTime.now();
+  final t = at.toLocal();
+  final d = '${t.day} ${_months[t.month - 1]}';
+  return t.year == n.year ? d : '$d ${t.year}';
+}
+
+/// Last use in the list (R9): `hoje`, `ontem`, `3 dias`, `12 nov.`, `nunca`.
+String snippetWhen(DateTime? at, {DateTime? now}) {
+  if (at == null) return 'nunca';
+  final n = now ?? DateTime.now();
+  final t = at.toLocal();
+  final days = DateTime(
+    n.year,
+    n.month,
+    n.day,
+  ).difference(DateTime(t.year, t.month, t.day)).inDays;
+  if (days <= 0) return 'hoje';
+  if (days == 1) return 'ontem';
+  if (days < 7) return '$days dias';
+  return snippetDate(t, now: n);
+}
+
+/// `usado 4 vezes · último uso ontem` (R7, R9).
+String snippetUsage(int uses, DateTime? lastUsedAt, {DateTime? now}) {
+  if (uses == 0) return 'nunca usado';
+  final times = uses == 1 ? 'usado 1 vez' : 'usado $uses vezes';
+  return '$times · último uso ${snippetWhen(lastUsedAt, now: now)}';
+}
+
+/// Words of the language picker (R2, R9): the fence words of the
+/// highlighted languages, [current] first when it is another one.
+List<String> snippetLanguageOptions(String? current) {
+  const words = [
+    'sql',
+    'bash',
+    'dart',
+    'python',
+    'javascript',
+    'typescript',
+    'json',
+    'yaml',
+    'xml',
+    'css',
+    'markdown',
+    'go',
+    'rust',
+    'java',
+    'kotlin',
+    'swift',
+    'cpp',
+    'cmake',
+    'ini',
+    'dockerfile',
+    'makefile',
+  ];
+  final c = current?.trim().toLowerCase();
+  return [
+    if (c != null && c.isNotEmpty && !words.contains(c)) c,
+    ...words,
+    'texto',
+  ];
+}
+
+/// The stored language of a picked word (`texto` = none).
+String? snippetLanguageOf(String word) => word == 'texto' ? null : word;
+
+/// What the screen reader says of a snippet (R14): "Snippet Pedidos
+/// atrasados, SQL, 17 linhas".
+String snippetSpoken(String name, String? language, String body) {
+  final lang =
+      CodeLanguage.forFence(language)?.label ?? snippetLanguageWord(language);
+  return 'Snippet $name, $lang, ${snippetLines(body)}';
 }

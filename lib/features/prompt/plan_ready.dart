@@ -14,6 +14,7 @@ import '../sessions/new_session_dialog.dart';
 import '../sessions/session_manager.dart' show PendingApproval, slugify;
 import '../sessions/widgets/session_style.dart';
 import '../specs/spec_service.dart' show selectedSpecProvider;
+import '../snippets/snippet_scope.dart';
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
 import 'widgets/split_specs_dialog.dart';
@@ -295,18 +296,21 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
             constraints: BoxConstraints(maxHeight: _open ? 480 : 160),
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: SingleChildScrollView(
-              child: AppMarkdown(
-                data: widget.plan,
-                styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(fontSize: 12, color: AppColors.text),
-                  listBullet: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.text,
-                  ),
-                  code: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.amber,
+              child: SnippetScope(
+                origin: SnippetOrigin.conversation(widget.conversation),
+                child: AppMarkdown(
+                  data: widget.plan,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 12, color: AppColors.text),
+                    listBullet: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text,
+                    ),
+                    code: const TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: AppColors.amber,
+                    ),
                   ),
                 ),
               ),

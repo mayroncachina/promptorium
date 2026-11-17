@@ -6,6 +6,25 @@ import '../code_editor/code_highlight.dart';
 import '../code_editor/code_language.dart';
 import '../copy_button.dart';
 
+/// Optional project actions supplied by the screen displaying the markdown.
+/// Documents without a scope keep only the standard Copy action.
+class CodeBlockActions extends InheritedWidget {
+  const CodeBlockActions({
+    super.key,
+    required this.builder,
+    required super.child,
+  });
+
+  final Widget Function(BuildContext, String, String?) builder;
+
+  static CodeBlockActions? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CodeBlockActions>();
+
+  @override
+  bool updateShouldNotify(CodeBlockActions oldWidget) =>
+      builder != oldWidget.builder;
+}
+
 /// Exact text and language of a markdown code block (the `pre` element,
 /// SPEC-077 R2): what is between the fences, without the final line break
 /// the parser adds. [language] is the fence's word as written, or null.
@@ -172,6 +191,8 @@ class _CodeBlockState extends State<CodeBlock> {
               ),
             ),
             const SizedBox(width: 8),
+            if (CodeBlockActions.of(context) case final actions?)
+              actions.builder(context, widget.code, widget.language),
             copy(const ValueKey('code-copy')),
           ],
         ),

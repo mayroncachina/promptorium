@@ -102,9 +102,11 @@ Future<void> copySnippet(
   Snippet s, {
   ScaffoldMessengerState? messenger,
 }) async {
+  // Read before any wait: the caller may be gone after it (a balloon).
+  final repo = ref.read(snippetsRepoProvider);
   await Clipboard.setData(ClipboardData(text: s.body));
   _toast(messenger, 'Snippet copiado: ${shortName(s.name)}');
-  await ref.read(snippetsRepoProvider).markUsed(s.id);
+  await repo.markUsed(s.id);
 }
 
 /// Inserts [s] in the composer of the open screen as a fenced block and
@@ -115,14 +117,15 @@ Future<void> insertSnippet(
   Snippet s, {
   ScaffoldMessengerState? messenger,
 }) async {
+  // Read before any wait: the caller may be gone after it (a balloon).
+  final repo = ref.read(snippetsRepoProvider);
+  final pending = ref.read(pendingSnippetInsertProvider.notifier);
+  final nav = ref.read(navigationProvider.notifier);
   final target = ref.read(composerTargetProvider).current;
   if (target == null) {
-    ref.read(pendingSnippetInsertProvider.notifier).set(s);
-    final went = await ref
-        .read(navigationProvider.notifier)
-        .request(AppSection.prompt);
-    if (!went) {
-      ref.read(pendingSnippetInsertProvider.notifier).set(null);
+    pending.set(s);
+    if (!await nav.request(AppSection.prompt)) {
+      pending.set(null);
       return;
     }
   } else {
@@ -130,5 +133,5 @@ Future<void> insertSnippet(
     target.focusNode.requestFocus();
   }
   _toast(messenger, 'Snippet inserido: ${shortName(s.name)}');
-  await ref.read(snippetsRepoProvider).markUsed(s.id);
+  await repo.markUsed(s.id);
 }

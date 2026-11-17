@@ -9,6 +9,7 @@ import '../../../ui/theme/tokens.dart';
 import '../../sessions/widgets/session_style.dart';
 import '../refine_changes.dart' show RefineSpecPanel;
 import '../refine_origin.dart' show refineOriginOf;
+import '../../snippets/widgets/snippets_section.dart';
 import 'prompt_composer.dart' show FileChip;
 import 'prompt_dialogs.dart';
 
@@ -298,6 +299,9 @@ class PromptSidePanel extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           SavedPromptsSection(onInsert: onInsert),
+          const SizedBox(height: 18),
+          // SPEC-078 R13.
+          const SnippetsSection(),
         ],
       ),
     );
@@ -308,7 +312,8 @@ class PromptSidePanel extends StatelessWidget {
 enum SideSection {
   context('Contexto', Icons.info_outline),
   files('Arquivos citados', Icons.insert_drive_file_outlined),
-  prompts('Prompts salvos', Icons.bookmark_border);
+  prompts('Prompts salvos', Icons.bookmark_border),
+  snippets('Snippets', Icons.code);
 
   const SideSection(this.label, this.icon);
 
@@ -392,6 +397,7 @@ class _PromptSideStripState extends State<PromptSideStrip> {
           widget.onInsert(p);
         },
       ),
+      SideSection.snippets => SnippetsSection(onDone: _close),
     };
     return CompositedTransformFollower(
       link: _links[s]!,
