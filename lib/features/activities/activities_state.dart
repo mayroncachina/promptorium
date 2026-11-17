@@ -16,6 +16,7 @@ import '../review/ci_fixer.dart';
 import '../review/pr_babysitter.dart';
 import '../sessions/session_manager.dart';
 import '../specs/spec_planner.dart';
+import '../prompt/compare/compare_controller.dart';
 import 'activity.dart';
 import 'quota_forecast.dart';
 
@@ -227,6 +228,7 @@ final activitiesSnapshotProvider = Provider.autoDispose<ActivitiesSnapshot>((
       prs: ref.watch(prBabysitterProvider),
       ci: ref.watch(ciFixerProvider),
       weights: sessionQuotaWeights(costs, rate?.fiveHourUtilization),
+      compares: ref.watch(compareControllerProvider),
     ),
     now: now,
   );

@@ -491,7 +491,8 @@ class CompareController extends Notifier<Map<int, CompareView>> {
   Future<Map<String, double>> _windowCosts(RateLimit? r) async {
     final start = r?.fiveHourResetsAt?.subtract(const Duration(hours: 5));
     try {
-      final sessions = await ref.read(sessionsRepoProvider).watchAll().first;
+      final db = ref.read(appDatabaseProvider);
+      final sessions = await db.select(db.sessions).get();
       return {
         for (final s in sessions)
           if (s.costUsd > 0 &&

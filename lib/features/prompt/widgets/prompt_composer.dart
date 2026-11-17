@@ -73,6 +73,10 @@ class PromptComposer extends ConsumerStatefulWidget {
     required this.onSend,
     required this.onStop,
     this.onVibe,
+    this.compareBar,
+    this.onToggleCompare,
+    this.onCompareSend,
+    this.sendLabel,
   });
 
   final TextEditingController controller;
@@ -111,6 +115,19 @@ class PromptComposer extends ConsumerStatefulWidget {
 
   /// "Fazer como tarefa" (SPEC-069 R1); null hides it.
   final VoidCallback? onVibe;
+
+  /// The strip of sides A and B while Comparar is on (SPEC-079 R1); the
+  /// model and mode then go on the sides.
+  final Widget? compareBar;
+
+  /// The Comparar switch (R1); null hides it.
+  final VoidCallback? onToggleCompare;
+
+  /// Ctrl+Shift+Enter: turns Comparar on and sends (R4); null = off.
+  final VoidCallback? onCompareSend;
+
+  /// Label of Enviar when free ("Enviar os dois").
+  final String? sendLabel;
 
   @override
   ConsumerState<PromptComposer> createState() => _PromptComposerState();
@@ -224,6 +241,14 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
       const SingleActivator(LogicalKeyboardKey.enter, control: true): () {
         if (!widget.busy && widget.blockedReason == null) widget.onSend();
       },
+      if (widget.onCompareSend case final compare?)
+        const SingleActivator(
+          LogicalKeyboardKey.enter,
+          control: true,
+          shift: true,
+        ): () {
+          if (!widget.busy) compare();
+        },
       if (showing) ...{
         const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
             _move(1, count),
@@ -372,23 +397,40 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                                 active: widget.provider,
                                 onSelected: widget.onProvider,
                               ),
-                              _ModelButton(
-                                models: widget.provider.models,
-                                model: widget.model,
-                                onSelected: widget.onModel,
-                              ),
-                              _ModeSwitch(
-                                mode: widget.mode,
-                                onSelected: widget.onMode,
-                              ),
-                              Text(
-                                widget.mode.hint,
-                                key: const ValueKey('prompt-mode-hint'),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary,
+                              if (widget.compareBar != null)
+                                const Text(
+                                  'o modelo e o modo vão nos lados',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                )
+                              else ...[
+                                _ModelButton(
+                                  models: widget.provider.models,
+                                  model: widget.model,
+                                  onSelected: widget.onModel,
                                 ),
-                              ),
+                                _ModeSwitch(
+                                  mode: widget.mode,
+                                  onSelected: widget.onMode,
+                                ),
+                                Text(
+                                  widget.mode.hint,
+                                  key: const ValueKey('prompt-mode-hint'),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                              // SPEC-079 R1: in the wrap, so a narrow
+                              // composer never overflows.
+                              if (widget.onToggleCompare case final toggle?)
+                                _CompareSwitch(
+                                  on: widget.compareBar != null,
+                                  onTap: widget.busy ? null : toggle,
+                                ),
                               if (widget.onVibe case final onVibe?)
                                 SmallButton(
                                   key: const ValueKey('prompt-vibe'),
@@ -423,9 +465,10 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                             key: const ValueKey('prompt-send'),
                             label: widget.busy
                                 ? 'Respondendo…'
-                                : widget.blockedReason != null
-                                ? 'Verificando…'
-                                : 'Enviar',
+                                : widget.sendLabel ??
+                                      (widget.blockedReason != null
+                                          ? 'Verificando…'
+                                          : 'Enviar'),
                             height: 32,
                             onTap: widget.busy || widget.blockedReason != null
                                 ? null
@@ -434,11 +477,46 @@ class _PromptComposerState extends ConsumerState<PromptComposer> {
                         ),
                       ],
                     ),
+                    if (widget.compareBar case final bar?) ...[
+                      const SizedBox(height: 10),
+                      bar,
+                    ],
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Comparar" (SPEC-079 R1): two columns; amber while on.
+class _CompareSwitch extends StatelessWidget {
+  const _CompareSwitch({required this.on, required this.onTap});
+
+  final bool on;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: on
+          ? 'Desligar a comparação'
+          : 'Comparar: o mesmo prompt em dois lados (Ctrl+Shift+Enter envia '
+                'comparando)',
+      child: Semantics(
+        toggled: on,
+        child: SmallButton(
+          key: const ValueKey('prompt-compare'),
+          label: 'Comparar',
+          icon: Icons.view_column_outlined,
+          height: 28,
+          color: on ? AppColors.amber : AppColors.text,
+          border: on ? AppColors.amber : AppColors.border,
+          background: on ? AppColors.amberTint : AppColors.panel,
+          onTap: onTap,
         ),
       ),
     );

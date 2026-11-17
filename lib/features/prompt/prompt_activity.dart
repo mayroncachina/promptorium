@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/agent_provider.dart';
 import '../../data/providers.dart';
+import 'compare/compare_controller.dart';
 import 'conversation_manager.dart';
 
 /// A Prompt conversation still answering: the dot and the tooltip of the
@@ -13,24 +14,31 @@ class PromptActivity {
     required this.conversationId,
     required this.title,
     required this.mode,
+    this.comparing = false,
   });
 
   final int conversationId;
   final String title;
   final PromptMode mode;
 
+  /// Its two sides of a comparison run (SPEC-079 R9).
+  final bool comparing;
+
   /// `Respondendo “Como funciona o carrinho?” · Perguntar`.
-  String get tooltip => 'Respondendo “$title” · ${mode.label}';
+  String get tooltip => comparing
+      ? 'Comparando respostas em “$title”'
+      : 'Respondendo “$title” · ${mode.label}';
 
   @override
   bool operator ==(Object other) =>
       other is PromptActivity &&
       other.conversationId == conversationId &&
       other.title == title &&
-      other.mode == mode;
+      other.mode == mode &&
+      other.comparing == comparing;
 
   @override
-  int get hashCode => Object.hash(conversationId, title, mode);
+  int get hashCode => Object.hash(conversationId, title, mode, comparing);
 }
 
 /// The most recent conversation of the active workspace that is `busy` (a
@@ -42,6 +50,11 @@ final promptActivityProvider = Provider.autoDispose<PromptActivity?>((ref) {
     for (final e in ref.watch(conversationManagerProvider).live.entries)
       if (e.value.busy) e.key,
   };
+  final comparing = {
+    for (final e in ref.watch(compareControllerProvider).entries)
+      if (e.value.run.anyLive) e.key,
+  };
+  busy.addAll(comparing);
   if (busy.isEmpty) return null;
   // Newest first, as the list of the Prompt screen.
   final conversations =
@@ -52,6 +65,7 @@ final promptActivityProvider = Provider.autoDispose<PromptActivity?>((ref) {
         conversationId: c.id,
         title: c.title,
         mode: PromptMode.fromName(c.mode),
+        comparing: comparing.contains(c.id),
       );
     }
   }
