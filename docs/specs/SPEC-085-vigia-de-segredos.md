@@ -1,6 +1,7 @@
 ---
 id: SPEC-085
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 issue: 273
 ---
@@ -19,7 +20,7 @@ Esta spec cria o **Vigia de segredos**:
 - vale também para os commits e pushes que o **próprio app** faz (Criar PR, "arquivos restantes da etapa", VIBE) e para o **commit manual** da tela Código;
 - o segredo **nunca** aparece inteiro, nem na tela, nem nos logs, nem no banco.
 
-Issue: [#273](https://github.com/mayroncachina/promptorium/issues/273) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
+Issue: [#273](https://github.com/mayroncachina/promptorium/issues/273) (sub-issue de [#278](https://github.com/mayroncachina/promptorium/issues/278))
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/EWDq9ALnW9HXQ15YvMd8nE). Capturas em `docs/mockups/spec-085/`:
 
@@ -164,10 +165,10 @@ Canvas para validar: [Vigia de segredos](https://claude.ai/artifact/EWDq9ALnW9HX
 
 ## Decisões em aberto
 
-- P1 · **Regras próprias ou gitleaks.** **Recomendação:** **regras próprias como padrão**, sempre ligadas, com o **gitleaks como complemento opcional** quando estiver instalado (R13). O gitleaks não vem com o app nem com as distros mais comuns, então depender dele deixaria a maioria sem vigia. As regras próprias ficam como dados, então o hook em Python e o Dart usam as mesmas, e dá para testar sem binário externo. O gitleaks soma cobertura (centenas de regras) para quem já o tem, sempre com `--redact`.
-- P2 · **Commit manual (tela Código) entra?** **Recomendação:** **sim, ligado por padrão**, com "Commitar mesmo assim…" no lugar de "Ignorar" (R6). O custo é baixo (a mesma conferência) e o erro é o mesmo, seja do agente ou da pessoa. Quem não quer desliga em Configurações. Commits feitos no terminal ficam de fora: o app não os vê.
-- P3 · **Bloquear o commit ou só o push.** **Recomendação:** **bloquear já no commit** do agente (o pedido) e garantir no push. Bloquear só no push deixaria o segredo no histórico local, e tirá-lo depois exige reescrever commits. No Codex e sem `python3`, o push é a última barreira (R2).
-- P4 · **Como a pessoa libera.** **Recomendação:** o hook **nega** (`deny`), e o app mostra o cartão com as ações. Responder ao `deny` não é possível, então "Ignorar" grava a justificativa e manda ao agente "pode repetir o commit". A alternativa, `permissionDecision: ask`, viraria uma aprovação comum, que o "Sempre permitir" e o modo "Sem perguntar" poderiam pular.
-- P5 · **Onde guardar as justificativas.** **Recomendação:** **no banco do app** (`secret_waivers`), local, com a impressão e não o valor. Um arquivo no repositório (como o `.gitleaksignore`) espalharia as impressões pelo time e pelo histórico. Para o time, os caminhos de `segredos.ignorar` no `config.yml` cobrem o caso (fixtures de teste).
-- P6 · **Máscara.** **Recomendação:** o **prefixo público** da regra (ou 2 caracteres) e o **tamanho**, nunca o final. Mostrar os últimos 4 caracteres, como fazem alguns painéis, já ajudaria a adivinhar uma senha curta.
-- P7 · **Fluxos automáticos.** **Recomendação:** o Autopilot e o Corrigir CI automático **param** na spec com o achado ("precisa de você") e seguem com as outras specs. O vigia nunca ignora sozinho.
+- P1 · **Regras próprias ou gitleaks.** **Decidido:** **regras próprias como padrão**, sempre ligadas, com o **gitleaks como complemento opcional** quando estiver instalado (R13). O gitleaks não vem com o app nem com as distros mais comuns, então depender dele deixaria a maioria sem vigia. As regras próprias ficam como dados, então o hook em Python e o Dart usam as mesmas, e dá para testar sem binário externo. O gitleaks soma cobertura (centenas de regras) para quem já o tem, sempre com `--redact`.
+- P2 · **Commit manual (tela Código) entra?** **Decidido:** **sim, ligado por padrão**, com "Commitar mesmo assim…" no lugar de "Ignorar" (R6). O custo é baixo (a mesma conferência) e o erro é o mesmo, seja do agente ou da pessoa. Quem não quer desliga em Configurações. Commits feitos no terminal ficam de fora: o app não os vê.
+- P3 · **Bloquear o commit ou só o push.** **Decidido:** **bloquear já no commit** do agente (o pedido) e garantir no push. Bloquear só no push deixaria o segredo no histórico local, e tirá-lo depois exige reescrever commits. No Codex e sem `python3`, o push é a última barreira (R2).
+- P4 · **Como a pessoa libera.** **Decidido:** o hook **nega** (`deny`), e o app mostra o cartão com as ações. Responder ao `deny` não é possível, então "Ignorar" grava a justificativa e manda ao agente "pode repetir o commit". A alternativa, `permissionDecision: ask`, viraria uma aprovação comum, que o "Sempre permitir" e o modo "Sem perguntar" poderiam pular.
+- P5 · **Onde guardar as justificativas.** **Decidido:** **no banco do app** (`secret_waivers`), local, com a impressão e não o valor. Um arquivo no repositório (como o `.gitleaksignore`) espalharia as impressões pelo time e pelo histórico. Para o time, os caminhos de `segredos.ignorar` no `config.yml` cobrem o caso (fixtures de teste).
+- P6 · **Máscara.** **Decidido:** o **prefixo público** da regra (ou 2 caracteres) e o **tamanho**, nunca o final. Mostrar os últimos 4 caracteres, como fazem alguns painéis, já ajudaria a adivinhar uma senha curta.
+- P7 · **Fluxos automáticos.** **Decidido:** o Autopilot e o Corrigir CI automático **param** na spec com o achado ("precisa de você") e seguem com as outras specs. O vigia nunca ignora sozinho.
