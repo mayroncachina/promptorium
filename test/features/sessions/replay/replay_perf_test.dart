@@ -72,6 +72,7 @@ void main() {
     // 100 key steps (the cursor follows a drag the same way). The median
     // frame, so a busy machine (other test files in parallel) does not fail
     // it; a walk over the whole session per move would still be caught.
+    // 100 ms and not 50: the GitHub runners took 54 ms on the median.
     final frames = <int>[];
     for (var k = 0; k < 100; k++) {
       final f = Stopwatch()..start();
@@ -81,7 +82,7 @@ void main() {
     }
     frames.sort();
     expect(position(tester), contains('Passo '));
-    expect(frames[frames.length ~/ 2] / 1000, lessThan(50));
+    expect(frames[frames.length ~/ 2] / 1000, lessThan(100));
     await pumpFor(tester, 2);
   });
 }
