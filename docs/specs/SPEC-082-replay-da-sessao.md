@@ -2,6 +2,7 @@
 id: SPEC-082
 status: rascunho
 tipo: recurso
+issue: 275
 ---
 
 # Replay da sessão
