@@ -14,6 +14,11 @@ import '../sessions/widgets/session_style.dart';
 import '../sessions/widgets/side_panel.dart' show ApprovalCard;
 import '../sessions/widgets/timeline_view.dart';
 import 'attachments.dart';
+import 'compare/compare_controller.dart';
+import 'compare/compare_run.dart';
+import 'compare/widgets/compare_bar.dart';
+import 'compare/widgets/compare_card.dart';
+import 'compare/widgets/compare_view.dart';
 import 'conversation_actions.dart';
 import 'conversation_manager.dart';
 import '../board/spec_runner.dart' show gateRunningProvider;
@@ -59,6 +64,11 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
   final List<String> _files = [];
   bool _dropping = false;
   bool _sending = false;
+
+  /// Comparar on in the composer, with its sides (SPEC-079 R1).
+  bool _compareOn = false;
+  CompareChoice _sideA = (model: 'sonnet', mode: PromptMode.ask);
+  CompareChoice _sideB = (model: 'opus', mode: PromptMode.ask);
 
   /// Width band of the last layout (below [sidePanelNarrowWidth]) and the
   /// choice of the button in it (SPEC-056 R10).
@@ -135,7 +145,118 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     if (picked.isNotEmpty && mounted) _addFiles(picked);
   }
 
+  /// The sides when Comparar is turned on (R1): the last pair of the
+  /// workspace (P8), else A = the current model and mode, B = the other.
+  (CompareChoice, CompareChoice) _initialSides(
+    Workspace? ws,
+    String model,
+    PromptMode mode,
+  ) {
+    final saved = ws == null
+        ? null
+        : decodeCompareSides(
+            ref.read(appSettingsProvider)[compareSidesKey(ws.id)],
+          );
+    return saved ?? defaultCompareSides(model, mode);
+  }
+
+  void _toggleCompare(Workspace? ws, String model, PromptMode mode) {
+    setState(() {
+      _compareOn = !_compareOn;
+      if (_compareOn) {
+        final (a, b) = _initialSides(ws, model, mode);
+        _sideA = a;
+        _sideB = b;
+      }
+    });
+  }
+
+  /// Sends the same prompt to the two sides (R4, R5).
+  Future<void> _sendCompare(
+    Workspace? ws,
+    Conversation? conv,
+    CompareChoice a,
+    CompareChoice b,
+  ) async {
+    final msg = _text.text.trim();
+    if (msg.isEmpty || _sending) return;
+    if (ws == null) {
+      _snack('Selecione um workspace na barra de título.');
+      return;
+    }
+    final problem = compareSidesProblem(a, b);
+    if (problem != null) {
+      _snack(problem);
+      return;
+    }
+    setState(() => _sending = true);
+    _text.clear();
+    final attached = List.of(_attached);
+    _attached.clear();
+    final files = List.of(_files);
+    _files.clear();
+    try {
+      final prepared = await prepareAttachments(ws.path, files);
+      final id = await ref
+          .read(compareControllerProvider.notifier)
+          .start(
+            workspace: ws,
+            conversationId: conv?.id,
+            prompt: prepared.applyTo(msg),
+            a: a,
+            b: b,
+            providerId: conv == null
+                ? ref.read(promptDraftProvider).providerId
+                : null,
+          );
+      if (mounted) setState(() => _compareOn = false);
+      ref.read(selectedConversationProvider.notifier).select(id);
+    } catch (e) {
+      if (_text.text.isEmpty) {
+        _text.text = msg;
+        _attached.addAll(attached);
+        _files.addAll(files);
+      }
+      _snack('$e');
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// "Continuar com esta" (R11): the composer comes back with the chosen
+  /// model and mode, focused.
+  Future<void> _choose(int id, String letter) async {
+    try {
+      await ref.read(compareControllerProvider.notifier).choose(id, letter);
+      _focus.requestFocus();
+    } catch (e) {
+      _snack('$e');
+    }
+  }
+
+  /// "Descartar os dois" (R12): the prompt goes back to the composer.
+  Future<void> _discard(int id) async {
+    if (!await confirmDiscardCompare(context)) return;
+    final back = await ref.read(compareControllerProvider.notifier).discard(id);
+    if (!mounted) return;
+    if (back.deleted) {
+      ref.read(selectedConversationProvider.notifier).select(null);
+    }
+    // After the frame that swaps the columns for the conversation: the
+    // field is rebuilt with the prompt and gets the focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focus.requestFocus();
+      _text.value = TextEditingValue(
+        text: back.prompt,
+        selection: TextSelection.collapsed(offset: back.prompt.length),
+      );
+    });
+    setState(() {});
+  }
+
   Future<void> _send(Workspace? ws, Conversation? conv) async {
+    if (_compareOn) return _sendCompare(ws, conv, _sideA, _sideB);
     final msg = _text.text.trim();
     if (msg.isEmpty || _sending) return;
     if (ws == null) {
@@ -250,6 +371,16 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     }
     final manager = ref.read(conversationManagerProvider.notifier);
     final draftCtl = ref.read(promptDraftProvider.notifier);
+    // SPEC-079: a comparison waiting for a choice (restored once, R13).
+    if (conv != null) ref.watch(compareRestoreProvider(conv.id));
+    final compare = conv == null ? null : ref.watch(compareProvider(conv.id));
+    final canCompare =
+        ws != null &&
+        providerId == 'claude' &&
+        conv?.specId == null &&
+        compare == null;
+    final comparing = _compareOn && canCompare;
+    final sidesProblem = comparing ? compareSidesProblem(_sideA, _sideB) : null;
 
     return CallbackShortcuts(
       bindings: {
@@ -278,7 +409,8 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
               _narrow = narrow;
               _panelOverride = null;
             }
-            final collapsed = _panelCollapsed;
+            // P7: the panel folds while a comparison is on screen.
+            final collapsed = _panelCollapsed || compare != null;
             final left = narrow ? 230.0 : 260.0;
             final right = collapsed ? sideStripWidth : (narrow ? 250.0 : 280.0);
             return ColoredBox(
@@ -333,6 +465,13 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                                           _focus.requestFocus();
                                         },
                                       )
+                              : compare != null
+                              ? ComparePanel(
+                                  view: compare,
+                                  root: ws?.path,
+                                  onChoose: (l) => _choose(conv.id, l),
+                                  onDiscard: () => _discard(conv.id),
+                                )
                               : _Conversation(
                                   key: ValueKey('conversation-main-${conv.id}'),
                                   conversation: conv,
@@ -396,7 +535,36 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
                             busy: busy,
                             // SPEC-071 R5: no request while the VIBE's gate
                             // runs.
-                            blockedReason: gateOf(conv),
+                            blockedReason: compare != null
+                                ? compareBlockedMessage
+                                : sidesProblem ?? gateOf(conv),
+                            sendLabel: compare != null
+                                ? 'Escolha uma resposta'
+                                : comparing
+                                ? 'Enviar os dois'
+                                : null,
+                            compareBar: comparing
+                                ? CompareBar(
+                                    models: provider.models,
+                                    a: _sideA,
+                                    b: _sideB,
+                                    onChanged: (a, b) => setState(() {
+                                      _sideA = a;
+                                      _sideB = b;
+                                    }),
+                                  )
+                                : null,
+                            onToggleCompare: canCompare
+                                ? () => _toggleCompare(ws, model, mode)
+                                : null,
+                            onCompareSend: canCompare
+                                ? () {
+                                    final (a, b) = _compareOn
+                                        ? (_sideA, _sideB)
+                                        : _initialSides(ws, model, mode);
+                                    _sendCompare(ws, conv, a, b);
+                                  }
+                                : null,
                             // SPEC-069 R1: "Fazer como tarefa".
                             onVibe: ws == null || conv?.specId != null
                                 ? null
@@ -870,6 +1038,10 @@ class _Conversation extends ConsumerWidget {
         assistantName: 'Claude Code · ${modelLabel(c.model)}',
         emptyText: 'Sem mensagens ainda.',
         editInfo: progress == null ? null : (t) => progress.edits[t.id],
+        // SPEC-079 R11: the folded comparison.
+        customItem: (i) => i is CompareItem
+            ? CompareCard(item: i, root: workspace?.path)
+            : null,
         answerFooter: (item) {
           final specs = detectAnswerSpecs(item.text);
           if (specs.isEmpty) return null;

@@ -5,6 +5,7 @@ import '../../data/providers.dart';
 import '../board/board_rules.dart';
 import '../home/home_inbox.dart' show approvalVerb, stepRef;
 import '../project/project_planner.dart' show PlannerActivity;
+import '../prompt/compare/compare_controller.dart' show CompareView;
 import '../prompt/conversation_manager.dart';
 import '../repository/releases/release_dispatcher.dart';
 import '../review/ci_fixer.dart';
@@ -138,6 +139,7 @@ class Activity {
     this.weight,
     this.devWorktree,
     this.robotLabel,
+    this.compareSide,
   });
 
   /// Unique in the list: `session:<id>`, `conv:<id>`, `gate:<spec>`…
@@ -200,6 +202,9 @@ class Activity {
 
   /// What goes under the robot instead of its name ("na fila", "gate").
   final String? robotLabel;
+
+  /// The side (`A`, `B`) of a comparison of the Prompt (SPEC-079 R9).
+  final String? compareSide;
 
   bool get hasRobot => seed != null;
 }
@@ -270,6 +275,7 @@ class ActivityLive {
     this.prs = const {},
     this.ci = const {},
     this.weights = const {},
+    this.compares = const {},
   });
 
   final SessionManagerState sessions;
@@ -285,6 +291,9 @@ class ActivityLive {
 
   /// Weight of each session in the 5-hour window.
   final Map<String, double> weights;
+
+  /// Comparisons of the Prompt waiting for a choice (SPEC-079 R9).
+  final Map<int, CompareView> compares;
 }
 
 /// The robot's seed of what works on [spec] (R5, P7): the spec, not the
@@ -817,6 +826,61 @@ List<Activity> _ofWorkspace(
         lastText: l.lastText,
       ),
     );
+  }
+
+  // --- the sides of a comparison (SPEC-079 R9) ------------------------------
+  for (final c in ws.conversations) {
+    final cv = live.compares[c.id];
+    if (cv == null) continue;
+    for (final side in cv.run.sides) {
+      final l = cv.liveOf(side.letter);
+      if (!side.state.live && l.approvals.isEmpty) continue;
+      final ask = l.approvals.firstOrNull;
+      final pose = ask != null ? ActivityPose.wave : poseOfTool(l.tool);
+      out.add(
+        Activity(
+          id: 'conv:${c.id}:${side.letter}',
+          workspaceId: ws.id,
+          workspaceName: ws.name,
+          kind: ActivityKind.prompt,
+          column: columnOf(null),
+          pose: pose,
+          title: c.title,
+          subtitle: 'Prompt · comparando ${side.letter}',
+          status: ask != null
+              ? 'quer ${approvalVerb(ask.request.toolName)}'
+              : poseLabel(pose, tool: l.tool),
+          tone: ask != null ? ActivityTone.attention : ActivityTone.normal,
+          needsYou: ask != null,
+          startedAt: side.startedAt ?? c.createdAt,
+          lastAction: ask != null
+              ? toolLine(
+                  LiveTool(
+                    id: ask.requestId,
+                    name: ask.request.toolName,
+                    input: ask.request.input,
+                    at: ask.receivedAt,
+                  ),
+                  root: ws.path,
+                )
+              : l.tool == null
+              ? null
+              : toolLine(l.tool!, root: ws.path),
+          lastActionAt: ask?.receivedAt ?? l.tool?.at,
+          calls: l.calls,
+          action: ask != null ? ActivityAction.respond : ActivityAction.stop,
+          conversationId: c.id,
+          compareSide: side.letter,
+          // The conversation's robot, with the letter of the side.
+          seed: 'conv:${c.id}',
+          robotLabel: side.letter,
+          model: side.model,
+          mode: side.mode.name,
+          recent: _recent(l.recent, ws.path),
+          lastText: l.lastText,
+        ),
+      );
+    }
   }
 
   // --- release -------------------------------------------------------------

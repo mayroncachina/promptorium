@@ -417,8 +417,17 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     if (!ref.mounted || _shuttingDown) return;
     final side = live.run.side(letter);
     if (side.state.live) {
+      final note = AppEventTypes.noteMessage(
+        s.stopping
+            ? 'Resposta interrompida'
+            : 'O processo encerrou antes de responder',
+        error: !s.stopping,
+      );
+      s.timeline.apply(UnknownEvent(note));
+      s.version++;
       live.run = live.run.withSide(
         side.copyWith(
+          events: [...side.events, jsonEncode(note)],
           state: s.stopping ? CompareSideState.stopped : CompareSideState.error,
           error: s.stopping
               ? null
@@ -491,12 +500,19 @@ class CompareController extends Notifier<Map<int, CompareView>> {
   Future<Map<String, double>> _windowCosts(RateLimit? r) async {
     final start = r?.fiveHourResetsAt?.subtract(const Duration(hours: 5));
     try {
-      final sessions = await ref.read(sessionsRepoProvider).watchAll().first;
+      final db = ref.read(appDatabaseProvider);
+      final sessions = await db.select(db.sessions).get();
+      // The Prompt conversations too: they spend the same window.
+      final conversations = await db.select(db.conversations).get();
       return {
         for (final s in sessions)
           if (s.costUsd > 0 &&
               (start == null || s.endedAt == null || s.endedAt!.isAfter(start)))
             'session:${s.id}': s.costUsd,
+        for (final c in conversations)
+          if (c.costUsd > 0 &&
+              (start == null || (c.updatedAt ?? c.createdAt).isAfter(start)))
+            'conv:${c.id}': c.costUsd,
       };
     } catch (_) {
       return const {};
@@ -748,7 +764,15 @@ class CompareController extends Notifier<Map<int, CompareView>> {
     for (final s in run.sides) {
       if (s.state.live) {
         interrupted = true;
-        r = r.withSide(s.copyWith(state: CompareSideState.stopped));
+        final note = AppEventTypes.noteMessage(
+          'Resposta interrompida: o aplicativo foi fechado',
+        );
+        r = r.withSide(
+          s.copyWith(
+            state: CompareSideState.stopped,
+            events: [...s.events, jsonEncode(note)],
+          ),
+        );
       }
     }
     _lives[id] = _Live(r, {

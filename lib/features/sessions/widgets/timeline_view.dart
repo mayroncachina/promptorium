@@ -109,6 +109,7 @@ class TimelineListView extends StatefulWidget {
     this.answerFooter,
     this.editInfo,
     this.reveal,
+    this.customItem,
   });
 
   final List<TimelineItem> items;
@@ -132,6 +133,10 @@ class TimelineListView extends StatefulWidget {
 
   /// Card to scroll into view, when off screen (SPEC-058 R8).
   final ToolReveal? reveal;
+
+  /// Widget of an item the screen draws itself (the folded comparison of
+  /// the Prompt, SPEC-079); null = the default view.
+  final Widget? Function(TimelineItem item)? customItem;
 
   @override
   State<TimelineListView> createState() => _TimelineListViewState();
@@ -310,13 +315,15 @@ class _TimelineListViewState extends State<TimelineListView> {
         final gap = prev == null
             ? 0.0
             : (item is ToolItem && prev is ToolItem ? 4.0 : 14.0);
-        final view = TimelineItemView(
-          item: item,
-          root: widget.root,
-          waitingTools: widget.waitingTools,
-          assistantName: widget.assistantName,
-          editInfo: widget.editInfo,
-        );
+        final view =
+            widget.customItem?.call(item) ??
+            TimelineItemView(
+              item: item,
+              root: widget.root,
+              waitingTools: widget.waitingTools,
+              assistantName: widget.assistantName,
+              editInfo: widget.editInfo,
+            );
         final extraBelow =
             item is AssistantTextItem &&
                 item.parentToolUseId == null &&

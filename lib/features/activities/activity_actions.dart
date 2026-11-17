@@ -9,6 +9,7 @@ import '../../ui/widgets/app_dialog.dart';
 import '../../ui/widgets/app_toast.dart';
 import '../board/board_screen.dart'
     show boardFocusSpecProvider, boardSelectedSpecProvider;
+import '../prompt/compare/compare_controller.dart';
 import '../prompt/conversation_manager.dart';
 import '../repository/releases/release_dispatcher.dart';
 import '../repository/repository_screen.dart' show repositoryTabProvider;
@@ -116,7 +117,9 @@ Future<void> stopActivity(WidgetRef ref, Activity a) async {
       final s = a.sessionId;
       if (s != null) await ref.read(ciFixerProvider.notifier).cancel(s);
     default:
-      if (a.conversationId case final c?) {
+      if ((a.conversationId, a.compareSide) case (final c?, final side?)) {
+        await ref.read(compareControllerProvider.notifier).stop(c, side);
+      } else if (a.conversationId case final c?) {
         await ref.read(conversationManagerProvider.notifier).stop(c);
       } else if (a.sessionId case final s?) {
         await ref.read(sessionManagerProvider.notifier).stop(s);

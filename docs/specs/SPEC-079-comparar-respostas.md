@@ -142,13 +142,13 @@ Não. A comparação é um evento da conversa (`conversation_events`, `type = 'c
 
 ## Critérios de aceite
 
-- [ ] O Comparar liga os lados A e B com modelo e modo, os atalhos preenchem, lados iguais e Editar não podem ser enviados [R1–R3] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
-- [ ] A faixa mostra a janela de 5 h e a semana, e fica âmbar com 80% ou mais [R4] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
-- [ ] Os dois lados começam juntos, como fork da sessão da conversa, e a sessão original não muda [R5] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] As colunas mostram a timeline de cada lado, o estado e as métricas de tempo, tokens, chamadas e peso, sem US$ [R6, R7] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
-- [ ] O peso divide a variação do uso pela proporção do custo e cai na regra da Atividades sem leitura [R8] verificar: flutter test test/features/prompt/compare/compare_weight_test.dart
-- [ ] Pedidos e Parar valem por lado [R9, R10] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] Escolher um lado continua a conversa pela sessão, modelo e modo dele, e guarda o outro recolhido; descartar volta ao ponto de antes [R11, R12] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] A comparação sem escolha volta ao reabrir o app, e o composer fica bloqueado até a escolha [R13, R14] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
-- [ ] No app, o mesmo prompt em Sonnet × Opus mostra as duas respostas lado a lado, o peso de cada uma na janela de 5 h e na semana, e a conversa continua no lado escolhido [R1–R14] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-079/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze
+- [x] O Comparar liga os lados A e B com modelo e modo, os atalhos preenchem, lados iguais e Editar não podem ser enviados [R1–R3] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
+- [x] A faixa mostra a janela de 5 h e a semana, e fica âmbar com 80% ou mais [R4] verificar: flutter test test/features/prompt/compare/compare_bar_test.dart
+- [x] Os dois lados começam juntos, como fork da sessão da conversa, e a sessão original não muda [R5] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] As colunas mostram a timeline de cada lado, o estado e as métricas de tempo, tokens, chamadas e peso, sem US$ [R6, R7] verificar: flutter test test/features/prompt/compare/compare_view_test.dart
+- [x] O peso divide a variação do uso pela proporção do custo e cai na regra da Atividades sem leitura [R8] verificar: flutter test test/features/prompt/compare/compare_weight_test.dart
+- [x] Pedidos e Parar valem por lado [R9, R10] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] Escolher um lado continua a conversa pela sessão, modelo e modo dele, e guarda o outro recolhido; descartar volta ao ponto de antes [R11, R12] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] A comparação sem escolha volta ao reabrir o app, e o composer fica bloqueado até a escolha [R13, R14] verificar: flutter test test/features/prompt/compare/compare_controller_test.dart
+- [x] No app, o mesmo prompt em Sonnet × Opus mostra as duas respostas lado a lado, o peso de cada uma na janela de 5 h e na semana, e a conversa continua no lado escolhido [R1–R14] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-079/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R15] verificar: flutter analyze
