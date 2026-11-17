@@ -39,6 +39,7 @@ dependencies:
   re_editor: ^0.10.0
   re_highlight: ^0.0.3
   flutter_markdown_plus: ^1.0.12
+  markdown: ^7.3.1
   xterm: ^4.0.0
   flutter_pty: ^0.4.2
   window_manager: ^0.5.2

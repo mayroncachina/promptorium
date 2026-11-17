@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/providers.dart';
@@ -12,6 +11,7 @@ import '../skill_catalog.dart';
 import '../skill_repository.dart';
 import '../skills_state.dart';
 import 'skill_dialogs.dart';
+import '../../../ui/widgets/markdown/app_markdown.dart';
 
 /// Instaladas: editor of the selected skill's SKILL.md (center) and its
 /// files, origin, usage and actions (right).
@@ -405,12 +405,7 @@ class _InstalledSkillViewState extends ConsumerState<InstalledSkillView> {
                       child: _preview
                           ? Padding(
                               padding: const EdgeInsets.all(14),
-                              child: MarkdownBody(
-                                data: _body.text,
-                                styleSheet: MarkdownStyleSheet.fromTheme(
-                                  Theme.of(context),
-                                ),
-                              ),
+                              child: AppMarkdown(data: _body.text),
                             )
                           : TextField(
                               key: const ValueKey('skill-body'),

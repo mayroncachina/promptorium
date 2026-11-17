@@ -114,4 +114,53 @@ enum CodeLanguage {
       _ => plaintext,
     };
   }
+
+  /// Language of a markdown fence info string (`sql`, `postgres`, `ts`…),
+  /// for the code blocks of [AppMarkdown] (SPEC-077 R5). Only the first word
+  /// counts and case is ignored; null for an unknown language or none.
+  static CodeLanguage? forFence(String? info) {
+    if (info == null) return null;
+    var word = info.trim().split(RegExp(r'\s+')).first.toLowerCase();
+    if (word.startsWith('language-')) word = word.substring(9);
+    word = word.replaceAll(RegExp(r'^[{.]+|[}]+$'), '');
+    if (word.isEmpty) return null;
+    return switch (word) {
+      'sql' ||
+      'postgres' ||
+      'postgresql' ||
+      'psql' ||
+      'pgsql' ||
+      'plpgsql' ||
+      'mysql' ||
+      'mariadb' ||
+      'sqlite' ||
+      'tsql' => sql,
+      'sh' ||
+      'bash' ||
+      'zsh' ||
+      'shell' ||
+      'console' ||
+      'shellsession' => shell,
+      'js' || 'jsx' || 'mjs' || 'cjs' || 'javascript' || 'node' => javascript,
+      'ts' || 'tsx' || 'typescript' => typescript,
+      'py' || 'python' || 'python3' => python,
+      'yml' || 'yaml' => yaml,
+      'json' || 'jsonc' || 'json5' || 'jsonl' => json,
+      'html' || 'htm' || 'xml' || 'svg' || 'xhtml' || 'plist' => xml,
+      'css' || 'scss' => css,
+      'toml' || 'ini' || 'cfg' => ini,
+      'md' || 'markdown' => markdown,
+      'dart' => dart,
+      'c' || 'h' || 'cpp' || 'c++' || 'cc' || 'cxx' || 'hpp' => cpp,
+      'cmake' => cmake,
+      'kotlin' || 'kt' || 'kts' => kotlin,
+      'swift' => swift,
+      'java' || 'gradle' => java,
+      'go' || 'golang' => go,
+      'rust' || 'rs' => rust,
+      'dockerfile' || 'docker' => dockerfile,
+      'makefile' || 'make' || 'mk' => makefile,
+      _ => null,
+    };
+  }
 }
