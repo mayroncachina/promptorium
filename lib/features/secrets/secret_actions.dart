@@ -152,6 +152,7 @@ class SecretActions {
         .notifyAgent(
           sessionId,
           asks.isEmpty ? secretsResolvedMessage : asks.join('\n'),
+          resume: true,
         );
     _ref
         .read(secretBlocksProvider.notifier)

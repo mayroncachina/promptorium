@@ -63,8 +63,16 @@ class SecretActionButton extends StatelessWidget {
     if (primary) {
       return FilledButton(
         style: style.copyWith(
-          backgroundColor: const WidgetStatePropertyAll(AppColors.amber),
-          foregroundColor: const WidgetStatePropertyAll(AppColors.onAmber),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (st) => st.contains(WidgetState.disabled)
+                ? AppColors.amber.withValues(alpha: .25)
+                : AppColors.amber,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (st) => st.contains(WidgetState.disabled)
+                ? AppColors.textMuted
+                : AppColors.onAmber,
+          ),
         ),
         onPressed: onPressed,
         child: Text(label),
@@ -114,31 +122,39 @@ class SecretFindingHeader extends StatelessWidget {
           color: AppColors.textSecondary,
         ),
         const SizedBox(width: 6),
-        Flexible(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: f.path,
-                  style: const TextStyle(color: AppColors.text),
-                ),
-                if (f.line != null)
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Text.rich(
                   TextSpan(
-                    text: ':${f.line}',
-                    style: const TextStyle(color: AppColors.textMuted),
+                    children: [
+                      TextSpan(
+                        text: f.path,
+                        style: const TextStyle(color: AppColors.text),
+                      ),
+                      if (f.line != null)
+                        TextSpan(
+                          text: ':${f.line}',
+                          style: const TextStyle(color: AppColors.textMuted),
+                        ),
+                    ],
                   ),
-              ],
-            ),
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontFamily: AppFonts.mono, fontSize: 12.5),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SecretRuleChip(f.ruleName),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
-        SecretRuleChip(f.ruleName),
-        const SizedBox(width: 8),
-        const Spacer(),
-        Flexible(
-          flex: 2,
+        const SizedBox(width: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
           child: Text(
             f.masked,
             key: ValueKey('secret-masked-${f.path}-${f.line}'),
@@ -209,10 +225,14 @@ class SecretFindingTile extends StatelessWidget {
     this.ignoreLabel = 'Ignorar com justificativa…',
     this.resolution,
     this.note,
+    this.enabled = true,
   });
 
   final SecretFinding finding;
   final VoidCallback? onRemove, onIgnore, onOpen;
+
+  /// False while an action runs: the buttons stay, disabled.
+  final bool enabled;
   final String ignoreLabel;
 
   /// How it was handled (`removido`, `ignorado`, `pedido`); null = open.
@@ -282,13 +302,13 @@ class SecretFindingTile extends StatelessWidget {
                       SecretActionButton(
                         key: ValueKey('secret-remove-${finding.path}'),
                         label: 'Remover',
-                        onPressed: onRemove,
+                        onPressed: enabled ? onRemove : null,
                       ),
                     if (onIgnore != null)
                       SecretActionButton(
                         key: ValueKey('secret-ignore-${finding.path}'),
                         label: ignoreLabel,
-                        onPressed: onIgnore,
+                        onPressed: enabled ? onIgnore : null,
                       ),
                     if (onOpen != null)
                       SecretActionButton(
@@ -724,8 +744,9 @@ class _SecretFindingsDialogState extends State<SecretFindingsDialog> {
                   ignoreLabel: widget.manual
                       ? 'Commitar mesmo assim…'
                       : 'Ignorar com justificativa…',
-                  onRemove: _busy ? null : () => _act(f, widget.onRemove),
-                  onIgnore: _busy ? null : () => _act(f, widget.onIgnore),
+                  enabled: !_busy,
+                  onRemove: () => _act(f, widget.onRemove),
+                  onIgnore: () => _act(f, widget.onIgnore),
                   onOpen: () => widget.onOpen(f),
                 ),
               const SizedBox(height: 12),

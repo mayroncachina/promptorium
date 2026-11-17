@@ -200,4 +200,10 @@ void main() {
     // 1 s on this machine; the GitHub runners are about 2× slower.
     expect(sw.elapsedMilliseconds, lessThan(4000));
   });
+
+  test('a new process does not read the log of the previous one', () async {
+    File(hooks.logOf('s1')).writeAsStringSync('{"evento":"fim"}\n');
+    await prepare();
+    expect(File(hooks.logOf('s1')).existsSync(), isFalse);
+  });
 }

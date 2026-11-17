@@ -117,7 +117,7 @@ class _SecretBlockCardState extends ConsumerState<SecretBlockCard> {
                     color: item.done ? AppColors.teal : AppColors.amber,
                   ),
                   const SizedBox(width: 8),
-                  Flexible(
+                  Expanded(
                     child: Text.rich(
                       TextSpan(
                         children: [
@@ -142,7 +142,6 @@ class _SecretBlockCardState extends ConsumerState<SecretBlockCard> {
                       style: const TextStyle(fontSize: 13.5),
                     ),
                   ),
-                  const Spacer(),
                   if (open.length > 1)
                     SecretActionButton(
                       key: ValueKey('secret-remove-all-${item.block}'),
@@ -185,16 +184,11 @@ class _SecretBlockCardState extends ConsumerState<SecretBlockCard> {
                   key: ValueKey('secret-finding-${f.path}-${f.line}'),
                   finding: f,
                   resolution: item.resolution(f),
-                  onRemove: _busy
-                      ? null
-                      : () => _run(
-                          () => _actions.removeInSession(
-                            widget.sessionId,
-                            item,
-                            f,
-                          ),
-                        ),
-                  onIgnore: _busy ? null : () => _ignore(f),
+                  enabled: !_busy,
+                  onRemove: () => _run(
+                    () => _actions.removeInSession(widget.sessionId, item, f),
+                  ),
+                  onIgnore: () => _ignore(f),
                   onOpen: () => _open(f),
                 ),
               const SizedBox(height: 10),
