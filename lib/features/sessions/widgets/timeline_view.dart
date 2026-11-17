@@ -12,6 +12,7 @@ import '../../../ui/widgets/copy_button.dart';
 import '../../../ui/widgets/diff_view.dart';
 import '../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../ui/widgets/motion_enter.dart';
+import '../../snippets/snippet_scope.dart';
 import '../edit_diff.dart';
 import '../session_manager.dart';
 import '../timeline.dart';
@@ -70,18 +71,21 @@ class TimelineView extends ConsumerWidget {
       onOpen: (t, origin) => expanded.open(sessionId, t.id, origin: origin),
       cards: expanded.cards(sessionId),
       reveal: reveal,
-      child: TimelineListView(
-        key: ValueKey('timeline-$sessionId'),
-        reveal: reveal,
-        editInfo: (t) =>
-            diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
-        footer: since == null
-            ? null
-            : SessionActivity(items: snap.items, since: since),
-        items: snap.items,
-        loading: snap.loading,
-        root: root,
-        waitingTools: waitingTools,
+      child: SessionSnippetScope(
+        sessionId: sessionId,
+        child: TimelineListView(
+          key: ValueKey('timeline-$sessionId'),
+          reveal: reveal,
+          editInfo: (t) =>
+              diffs[t.id] == null ? null : EditInfo(diff: diffs[t.id]),
+          footer: since == null
+              ? null
+              : SessionActivity(items: snap.items, since: since),
+          items: snap.items,
+          loading: snap.loading,
+          root: root,
+          waitingTools: waitingTools,
+        ),
       ),
     );
   }

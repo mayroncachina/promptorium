@@ -16,6 +16,10 @@ import '../../features/repository/repository_screen.dart';
 import '../../features/review/review_service.dart' show selectedReviewProvider;
 import '../../features/sessions/new_session_dialog.dart';
 import '../../features/sessions/session_manager.dart';
+import '../../features/snippets/snippet_actions.dart';
+import '../../features/snippets/snippet_naming.dart';
+import '../../features/snippets/widgets/snippet_preview.dart';
+import '../../features/snippets/widgets/snippets_dialog.dart';
 import '../../features/specs/new_spec_view.dart';
 import '../../features/specs/spec_service.dart' show selectedSpecProvider;
 
@@ -36,17 +40,46 @@ class PaletteCommand {
     this.group = 'Telas',
     this.detail,
     this.icon,
+    this.meta,
+    this.searchText,
+    this.semanticLabel,
+    this.preview,
+    this.secondary,
+    this.edit,
+    this.alwaysFor,
   });
 
   final String label;
+
+  /// Grey mono text at the right end (`sql · 17 linhas`, SPEC-078 R6).
+  final String? meta;
+
+  /// Also searched, never shown (a snippet's description, R6).
+  final String? searchText;
+
+  /// Read by the screen reader instead of the label (R14).
+  final String? semanticLabel;
+
+  /// Shown to the right of the list while selected (R7).
+  final Widget? preview;
+
+  /// Ctrl+Enter (insert a snippet in the composer, R8).
+  final VoidCallback? secondary;
+
+  /// Ctrl+E (edit a snippet, R9).
+  final VoidCallback? edit;
+
+  /// Prefix under which it is always listed, whatever the text
+  /// ("Gerenciar snippets" under `$`).
+  final String? alwaysFor;
 
   /// Icon of the screen of an "Ir para" command (16px before the label,
   /// SPEC-055 R5). Null = no icon.
   final AppIconData? icon;
   final String? shortcut;
 
-  /// `Pendentes`, `Ações`, `Telas`, `Specs`, `Sessões` (section of the
-  /// list; see [paletteGroups]).
+  /// `Pendentes`, `Ações`, `Telas`, `Specs`, `Snippets`, `Sessões` (section
+  /// of the list; see [paletteGroups]).
   final String group;
 
   /// Grey text after the label (what the action is about).
@@ -61,15 +94,18 @@ const paletteGroups = [
   'Ações',
   'Telas',
   'Specs',
+  'Snippets',
   'Sessões',
 ];
 
 /// Prefix of the query that restricts the list to some groups (UX v2):
-/// `>` actions and pending items, `#` specs, `:` sessions.
+/// `>` actions and pending items, `#` specs, `:` sessions, `$` snippets
+/// (SPEC-078 R6, P5).
 const palettePrefixes = {
   '>': ['Pendentes', 'Ações'],
   '#': ['Specs'],
   ':': ['Sessões'],
+  r'$': ['Snippets'],
 };
 
 /// `(groups, text)` of a query: `>apr` → (`[Pendentes, Ações]`, `apr`);
@@ -87,23 +123,28 @@ const palettePrefixes = {
 /// (`>`, `#`, `:`) keeps only its groups.
 List<PaletteCommand> filterCommands(List<PaletteCommand> all, String query) {
   final (groups, text) = parsePaletteQuery(query);
+  final q = query.trimLeft();
+  final prefix = groups == null ? null : q[0];
   final scoped = groups == null
       ? all
       : [
           for (final c in all)
             if (groups.contains(c.group)) c,
         ];
-  if (text.isEmpty) return scoped;
+  final pinned = prefix == null
+      ? const <PaletteCommand>[]
+      : [
+          for (final c in all)
+            if (c.alwaysFor == prefix && !groups!.contains(c.group)) c,
+        ];
+  if (text.isEmpty) return [...scoped, ...pinned];
   final scored = <(PaletteCommand, int)>[];
   for (final c in scoped) {
-    final s = fuzzyScore(
-      c.detail == null ? c.label : '${c.label} ${c.detail}',
-      text,
-    );
+    final s = fuzzyScore([c.label, ?c.detail, ?c.searchText].join(' '), text);
     if (s != null) scored.add((c, s));
   }
   scored.sort((a, b) => b.$2.compareTo(a.$2));
-  return [for (final (c, _) in scored) c];
+  return [for (final (c, _) in scored) c, ...pinned];
 }
 
 /// Everything Ctrl+K reaches (F10, UX v2): the pending items of Início
@@ -114,6 +155,7 @@ List<PaletteCommand> paletteCommands(
   BuildContext context,
   WidgetRef ref, {
   required void Function(AppSection) onNavigate,
+  List<Snippet>? snippets,
 }) {
   final ws = ref.read(activeWorkspaceProvider);
   final specs = ws == null
@@ -348,6 +390,29 @@ List<PaletteCommand> paletteCommands(
             onNavigate(AppSection.specs);
           },
         ),
+    // SPEC-078 R6–R9: the snippets of the workspace, used last first.
+    if (ws != null)
+      PaletteCommand(
+        label: 'Gerenciar snippets',
+        meta: '${snippets?.length ?? 0} no ${ws.name}',
+        icon: AppIcons.code,
+        group: 'Ações',
+        alwaysFor: r'$',
+        run: () => showSnippetsDialog(context, ref),
+      ),
+    for (final s in snippets ?? const <Snippet>[])
+      PaletteCommand(
+        label: s.name,
+        group: 'Snippets',
+        icon: AppIcons.code,
+        meta: snippetMeta(s.language, s.body),
+        searchText: s.description,
+        semanticLabel: snippetSpoken(s.name, s.language, s.body),
+        preview: SnippetPreview(snippet: s),
+        run: () => copySnippet(ref, s, messenger: messenger),
+        secondary: () => insertSnippet(ref, s, messenger: messenger),
+        edit: () => showSnippetsDialog(context, ref, selectId: s.id),
+      ),
     for (final x in sessions.take(50))
       PaletteCommand(
         label: sessionTitle(x),
@@ -402,6 +467,12 @@ List<PaletteCommand> withRecents(
           detail: c.detail,
           shortcut: c.shortcut,
           icon: c.icon,
+          meta: c.meta,
+          searchText: c.searchText,
+          semanticLabel: c.semanticLabel,
+          preview: c.preview,
+          secondary: c.secondary,
+          edit: c.edit,
           group: 'Recentes',
           run: c.run,
         ),
@@ -416,18 +487,30 @@ Future<void> showCommandPalette(
   required void Function(AppSection) onNavigate,
 }) {
   final settings = ref.read(appSettingsProvider.notifier);
-  final commands = withRecents(
-    paletteCommands(context, ref, onNavigate: onNavigate),
-    recentPaletteLabels(settings),
-  );
+  final ws = ref.read(activeWorkspaceProvider);
+  final recents = recentPaletteLabels(settings);
   return showAppDialog<void>(
     context: context,
     barrierColor: AppColors.scrim,
-    builder: (_) => CommandPalette(
-      commands: commands,
-      onRun: (c) => rememberPaletteLabel(settings, c.label),
-      // The shell's context: the palette is gone when the sheet opens.
-      onShortcuts: () => showShortcutSheet(context),
+    // The snippets arrive from their stream (SPEC-078 R6): the list is
+    // made again when they do.
+    builder: (_) => Consumer(
+      builder: (_, watch, _) => CommandPalette(
+        commands: withRecents(
+          paletteCommands(
+            context,
+            ref,
+            onNavigate: onNavigate,
+            snippets: ws == null
+                ? null
+                : watch.watch(snippetsProvider(ws.id)).value,
+          ),
+          recents,
+        ),
+        onRun: (c) => rememberPaletteLabel(settings, c.label),
+        // The shell's context: the palette is gone when the sheet opens.
+        onShortcuts: () => showShortcutSheet(context),
+      ),
     ),
   );
 }
@@ -469,11 +552,14 @@ class _CommandPaletteState extends State<CommandPalette> {
           ];
   }
 
-  void _run(PaletteCommand c) {
+  void _run(PaletteCommand c, [VoidCallback? action]) {
     widget.onRun?.call(c);
     Navigator.of(context).pop();
-    c.run();
+    (action ?? c.run)();
   }
+
+  PaletteCommand? _current(List<PaletteCommand> items) =>
+      items.isEmpty ? null : items[_selected.clamp(0, items.length - 1)];
 
   void _setPrefix(String? prefix) {
     final (_, text) = parsePaletteQuery(_query.text);
@@ -510,6 +596,8 @@ class _CommandPaletteState extends State<CommandPalette> {
       }
       rows.add(c);
     }
+    final current = _current(items);
+    final preview = current?.preview;
     return Align(
       alignment: const Alignment(0, -0.6),
       child: Material(
@@ -520,9 +608,24 @@ class _CommandPaletteState extends State<CommandPalette> {
         ),
         clipBehavior: Clip.antiAlias,
         child: SizedBox(
-          width: 640,
+          // A snippet opens its preview at the right (SPEC-078 R7).
+          width: preview == null ? 640 : 960,
           child: CallbackShortcuts(
             bindings: {
+              const SingleActivator(
+                LogicalKeyboardKey.enter,
+                control: true,
+              ): () {
+                final c = _current(items);
+                if (c?.secondary case final f?) _run(c!, f);
+              },
+              const SingleActivator(
+                LogicalKeyboardKey.keyE,
+                control: true,
+              ): () {
+                final c = _current(items);
+                if (c?.edit case final f?) _run(c!, f);
+              },
               const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
                   setState(() {
                     if (items.isNotEmpty) {
@@ -590,136 +693,161 @@ class _CommandPaletteState extends State<CommandPalette> {
                   ),
                 ),
                 const Divider(height: 1),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 360),
-                  child: items.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
-                            'Nenhum comando encontrado',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
+                _withPreview(
+                  preview,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 360),
+                    child: items.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text(
+                              'Nenhum comando encontrado',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          itemCount: rows.length,
-                          itemBuilder: (context, i) {
-                            final r = rows[i];
-                            if (r is String) {
-                              return Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  8,
-                                  16,
-                                  4,
-                                ),
-                                child: Text(
-                                  r.toUpperCase(),
-                                  key: ValueKey('palette-group-$r'),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.8,
-                                    color: AppColors.textSecondary,
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            itemCount: rows.length,
+                            itemBuilder: (context, i) {
+                              final r = rows[i];
+                              if (r is String) {
+                                return Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    r.toUpperCase(),
+                                    key: ValueKey('palette-group-$r'),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.8,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                );
+                              }
+                              final c = r as PaletteCommand;
+                              final sel = items.indexOf(c) == _selected;
+                              final row = InkWell(
+                                onTap: () => _run(c),
+                                child: Container(
+                                  height: 32,
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: sel
+                                        ? AppColors.amberTint
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      if (c.icon case final icon?) ...[
+                                        AppIcon(
+                                          icon,
+                                          key: ValueKey(
+                                            'palette-icon-${c.label}',
+                                          ),
+                                          size: 16,
+                                          color: sel
+                                              ? AppColors.amber
+                                              : AppColors.textSecondary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            text: c.label,
+                                            children: [
+                                              if (c.detail != null)
+                                                TextSpan(
+                                                  text: '  ${c.detail}',
+                                                  style: const TextStyle(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: sel
+                                                ? AppColors.amber
+                                                : AppColors.text,
+                                          ),
+                                        ),
+                                      ),
+                                      if (c.meta case final m?) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          m,
+                                          style: const TextStyle(
+                                            fontFamily: AppFonts.mono,
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                      if (c.shortcut != null) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          c.shortcut!,
+                                          style: const TextStyle(
+                                            fontFamily: AppFonts.mono,
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               );
-                            }
-                            final c = r as PaletteCommand;
-                            final sel = items.indexOf(c) == _selected;
-                            return InkWell(
-                              onTap: () => _run(c),
-                              child: Container(
-                                height: 32,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: sel
-                                      ? AppColors.amberTint
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  children: [
-                                    if (c.icon case final icon?) ...[
-                                      AppIcon(
-                                        icon,
-                                        key: ValueKey(
-                                          'palette-icon-${c.label}',
-                                        ),
-                                        size: 16,
-                                        color: sel
-                                            ? AppColors.amber
-                                            : AppColors.textSecondary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    Expanded(
-                                      child: Text.rich(
-                                        TextSpan(
-                                          text: c.label,
-                                          children: [
-                                            if (c.detail != null)
-                                              TextSpan(
-                                                text: '  ${c.detail}',
-                                                style: const TextStyle(
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: sel
-                                              ? AppColors.amber
-                                              : AppColors.text,
-                                        ),
-                                      ),
-                                    ),
-                                    if (c.shortcut != null) ...[
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        c.shortcut!,
-                                        style: const TextStyle(
-                                          fontFamily: AppFonts.mono,
-                                          fontSize: 11,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                              final spoken = c.semanticLabel;
+                              if (spoken == null) return row;
+                              return Semantics(
+                                button: true,
+                                selected: sel,
+                                label: spoken,
+                                excludeSemantics: true,
+                                child: row,
+                              );
+                            },
+                          ),
+                  ),
                 ),
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
                   child: Row(
                     children: [
-                      const Expanded(
-                        child: Text(
-                          '↑↓ navegar · Enter executar · Esc fechar',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                      Expanded(
+                        child: current?.secondary != null
+                            ? const _SnippetKeys()
+                            : const Text(
+                                '↑↓ navegar · Enter executar · Esc fechar',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                       ),
                       TextButton(
                         key: const ValueKey('palette-shortcuts'),
@@ -739,6 +867,28 @@ class _CommandPaletteState extends State<CommandPalette> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// The list, and at its right the preview of the selected command (R7).
+  Widget _withPreview(Widget? preview, Widget list) {
+    if (preview == null) return list;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 360),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: list),
+          const VerticalDivider(width: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              key: const ValueKey('palette-preview'),
+              padding: const EdgeInsets.all(16),
+              child: preview,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -768,6 +918,56 @@ class _CommandPaletteState extends State<CommandPalette> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Keys of a selected snippet in the footer (SPEC-078 R7).
+class _SnippetKeys extends StatelessWidget {
+  const _SnippetKeys();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget key(String k) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        k,
+        style: const TextStyle(
+          fontFamily: AppFonts.mono,
+          fontSize: 10.5,
+          color: AppColors.text,
+        ),
+      ),
+    );
+    const label = TextStyle(fontSize: 11, color: AppColors.textSecondary);
+    Widget pair(String k, String l) => Padding(
+      padding: const EdgeInsets.only(right: 14),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          key(k),
+          const SizedBox(width: 5),
+          Text(l, style: label),
+        ],
+      ),
+    );
+    return SingleChildScrollView(
+      key: const ValueKey('palette-snippet-keys'),
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          pair('Enter', 'copiar'),
+          pair('Ctrl Enter', 'inserir no composer'),
+          pair('Ctrl E', 'editar'),
+          pair('↑↓', 'navegar'),
+          pair('Esc', 'fechar'),
+        ],
       ),
     );
   }
