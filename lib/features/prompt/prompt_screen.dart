@@ -242,11 +242,17 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     if (back.deleted) {
       ref.read(selectedConversationProvider.notifier).select(null);
     }
-    _text.value = TextEditingValue(
-      text: back.prompt,
-      selection: TextSelection.collapsed(offset: back.prompt.length),
-    );
-    _focus.requestFocus();
+    // After the frame that swaps the columns for the conversation: the
+    // field is rebuilt with the prompt and gets the focus.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focus.requestFocus();
+      _text.value = TextEditingValue(
+        text: back.prompt,
+        selection: TextSelection.collapsed(offset: back.prompt.length),
+      );
+    });
+    setState(() {});
   }
 
   Future<void> _send(Workspace? ws, Conversation? conv) async {
