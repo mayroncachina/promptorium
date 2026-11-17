@@ -826,6 +826,11 @@ class ManagedHooks {
     if (on.isEmpty && extra.isEmpty) return null;
     final dir = Directory(dirOf(sessionId));
     await dir.create(recursive: true);
+    // A new process reads the log from the start: a log left by a process
+    // that ended without its cleanup (the app was killed) would show its
+    // blocks again (SPEC-085: a resolved block coming back).
+    final oldLog = File(logOf(sessionId));
+    if (await oldLog.exists()) await oldLog.delete();
     if (on.isEmpty) {
       final settings = File('${dir.path}/settings.json');
       await settings.writeAsString(jsonEncode(extra));

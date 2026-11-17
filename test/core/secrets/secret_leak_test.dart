@@ -21,9 +21,11 @@ import 'fake_secrets.dart';
 /// database, the notifications, `debugPrint` or the rendered timeline.
 void main() {
   // Fake, built at run time; "SENTINELA" makes a leak easy to spot.
-  final stripe = ['sk', 'live', 'SENTINELA${fakeChars(24, seed: 70)}'].join(
-    '_',
-  );
+  final stripe = [
+    'sk',
+    'live',
+    'SENTINELA${fakeChars(24, seed: 70)}',
+  ].join('_');
   const password = 'S3nh4SENTINELA';
   final pieces = [stripe, stripe.substring(8), password, 'SENTINELA'];
 
@@ -62,18 +64,15 @@ void main() {
         useWorktree: false,
       ),
     );
-    final cfg =
-        jsonDecode(
-              File('${hooks.dirOf(id)}/hooks-config.json').readAsStringSync(),
-            )
-            as Map;
+    final cfg = jsonDecode(
+      File('${hooks.dirOf(id)}/hooks-config.json').readAsStringSync(),
+    ) as Map;
     expect(cfg['segredos'], hooks.secretsOf(id));
 
     // The agent wrote the key and a .env, then tries to commit.
     Directory('$repo/src/config').createSync(recursive: true);
-    File(
-      '$repo/src/config/pagamento.ts',
-    ).writeAsStringSync("export const stripeKey = '$stripe';\n");
+    File('$repo/src/config/pagamento.ts')
+        .writeAsStringSync("export const stripeKey = '$stripe';\n");
     File('$repo/.env').writeAsStringSync(
       'DATABASE_URL=postgres://app:$password@db/loja\nSTRIPE_SECRET=$stripe\n',
     );
@@ -117,9 +116,9 @@ void main() {
       }),
     );
     await until(
-      () async => (await c.read(sessionsRepoProvider).events(
-        id,
-      )).any((e) => e.type == AppEventTypes.secrets),
+      () async =>
+          (await c.read(sessionsRepoProvider).events(id))
+              .any((e) => e.type == AppEventTypes.secrets),
     );
     expect(c.read(secretBlocksProvider)[sessionSecretKey(id)], isNotNull);
 

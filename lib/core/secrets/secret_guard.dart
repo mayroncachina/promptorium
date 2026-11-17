@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
 import '../../features/project/project_config.dart';
+import '../../features/secrets/secret_blocks.dart';
 import '../claude/managed_hooks.dart' show secretsEnabledSettingKey;
 import '../git/git_service.dart';
 import 'gitleaks.dart';
@@ -13,7 +14,16 @@ import 'secret_rules.dart';
 import 'secret_scanner.dart';
 
 /// What is checked (SPEC-085 R1, R5).
-enum SecretCheckKind { commit, push }
+enum SecretCheckKind {
+  /// Everything a commit may take (index, working tree, untracked).
+  commit,
+
+  /// Only the index (the manual commit when something is staged).
+  staged,
+
+  /// The commits not on any remote yet.
+  push,
+}
 
 /// Who commits (R14): each has its switch.
 enum SecretOrigin {
@@ -168,9 +178,11 @@ class SecretGuard {
     required int workspaceId,
   }) async {
     final git = _ref.read(gitServiceFactoryProvider)(worktree);
-    final diff = kind == SecretCheckKind.commit
-        ? await commitDiff(git)
-        : await pushDiff(git);
+    final diff = switch (kind) {
+      SecretCheckKind.commit => await commitDiff(git),
+      SecretCheckKind.staged => await stagedDiff(git),
+      SecretCheckKind.push => await pushDiff(git),
+    };
     final s = await salt();
     final res = scanSecrets(
       diff,
@@ -207,6 +219,8 @@ class SecretGuard {
     SecretCheckKind kind, {
     required int workspaceId,
     required SecretOrigin origin,
+    String? title,
+    int? specId,
   }) async {
     if (!prefs.covers(origin)) return;
     final SecretScan res;
@@ -216,7 +230,27 @@ class SecretGuard {
       debugPrint('vigia de segredos: git falhou em $worktree — $e');
       return;
     }
-    if (res.clean) return;
+    final blocks = _ref.read(secretBlocksProvider.notifier);
+    if (res.clean) {
+      blocks.remove(appSecretKey(worktree));
+      return;
+    }
+    // R5: a commit / push of the app waits for the person ("Segredo
+    // encontrado" in Início, Atividades and on the card of the Quadro).
+    if (origin == SecretOrigin.app) {
+      blocks.add(
+        PendingSecret(
+          key: appSecretKey(worktree),
+          workspaceId: workspaceId,
+          specId: specId,
+          title: title ?? worktree.split('/').last,
+          findings: res.findings,
+          at: DateTime.now(),
+          action: kind == SecretCheckKind.push ? 'push' : 'commit',
+          worktree: worktree,
+        ),
+      );
+    }
     throw SecretsFound(
       findings: res.findings,
       kind: kind,

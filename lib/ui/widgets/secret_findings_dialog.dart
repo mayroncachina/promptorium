@@ -63,8 +63,16 @@ class SecretActionButton extends StatelessWidget {
     if (primary) {
       return FilledButton(
         style: style.copyWith(
-          backgroundColor: const WidgetStatePropertyAll(AppColors.amber),
-          foregroundColor: const WidgetStatePropertyAll(AppColors.onAmber),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (st) => st.contains(WidgetState.disabled)
+                ? AppColors.amber.withValues(alpha: .25)
+                : AppColors.amber,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (st) => st.contains(WidgetState.disabled)
+                ? AppColors.textMuted
+                : AppColors.onAmber,
+          ),
         ),
         onPressed: onPressed,
         child: Text(label),
@@ -114,31 +122,39 @@ class SecretFindingHeader extends StatelessWidget {
           color: AppColors.textSecondary,
         ),
         const SizedBox(width: 6),
-        Flexible(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: f.path,
-                  style: const TextStyle(color: AppColors.text),
-                ),
-                if (f.line != null)
+        Expanded(
+          child: Row(
+            children: [
+              Flexible(
+                child: Text.rich(
                   TextSpan(
-                    text: ':${f.line}',
-                    style: const TextStyle(color: AppColors.textMuted),
+                    children: [
+                      TextSpan(
+                        text: f.path,
+                        style: const TextStyle(color: AppColors.text),
+                      ),
+                      if (f.line != null)
+                        TextSpan(
+                          text: ':${f.line}',
+                          style: const TextStyle(color: AppColors.textMuted),
+                        ),
+                    ],
                   ),
-              ],
-            ),
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontFamily: AppFonts.mono, fontSize: 12.5),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: AppFonts.mono,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SecretRuleChip(f.ruleName),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
-        SecretRuleChip(f.ruleName),
-        const SizedBox(width: 8),
-        const Spacer(),
-        Flexible(
-          flex: 2,
+        const SizedBox(width: 12),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
           child: Text(
             f.masked,
             key: ValueKey('secret-masked-${f.path}-${f.line}'),
@@ -209,10 +225,14 @@ class SecretFindingTile extends StatelessWidget {
     this.ignoreLabel = 'Ignorar com justificativa…',
     this.resolution,
     this.note,
+    this.enabled = true,
   });
 
   final SecretFinding finding;
   final VoidCallback? onRemove, onIgnore, onOpen;
+
+  /// False while an action runs: the buttons stay, disabled.
+  final bool enabled;
   final String ignoreLabel;
 
   /// How it was handled (`removido`, `ignorado`, `pedido`); null = open.
@@ -282,13 +302,13 @@ class SecretFindingTile extends StatelessWidget {
                       SecretActionButton(
                         key: ValueKey('secret-remove-${finding.path}'),
                         label: 'Remover',
-                        onPressed: onRemove,
+                        onPressed: enabled ? onRemove : null,
                       ),
                     if (onIgnore != null)
                       SecretActionButton(
                         key: ValueKey('secret-ignore-${finding.path}'),
                         label: ignoreLabel,
-                        onPressed: onIgnore,
+                        onPressed: enabled ? onIgnore : null,
                       ),
                     if (onOpen != null)
                       SecretActionButton(
@@ -584,6 +604,184 @@ class _SecretWaiverDialogState extends State<SecretWaiverDialog> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The window of a commit / push of the app or of the Código stopped by
+/// the Vigia de segredos (R5, R6, R9). The actions come from the caller;
+/// it closes with `true` once nothing is left (the caller redoes the
+/// action), `false` / null otherwise.
+class SecretFindingsDialog extends StatefulWidget {
+  const SecretFindingsDialog({
+    super.key,
+    required this.findings,
+    required this.onRemove,
+    required this.onIgnore,
+    required this.onOpen,
+    this.manual = false,
+    this.push = false,
+    this.title,
+  });
+
+  final List<SecretFinding> findings;
+
+  /// "Remover": true when the finding is gone (a file left the index); a
+  /// secret in the code opens the file and stays (the app does not
+  /// rewrite code).
+  final Future<bool> Function(SecretFinding f) onRemove;
+
+  /// "Ignorar com justificativa…" / "Commitar mesmo assim…": true once
+  /// recorded.
+  final Future<bool> Function(SecretFinding f) onIgnore;
+  final Future<void> Function(SecretFinding f) onOpen;
+
+  /// The Código's commit (R6): "Commitar mesmo assim…".
+  final bool manual;
+
+  /// A push (the secret is in a commit not sent yet).
+  final bool push;
+  final String? title;
+
+  @override
+  State<SecretFindingsDialog> createState() => _SecretFindingsDialogState();
+}
+
+class _SecretFindingsDialogState extends State<SecretFindingsDialog> {
+  late final List<SecretFinding> _open = [...widget.findings];
+  bool _busy = false;
+
+  Future<void> _act(
+    SecretFinding f,
+    Future<bool> Function(SecretFinding) job,
+  ) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      if (await job(f)) _open.remove(f);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (_open.isEmpty && mounted) Navigator.of(context).pop(true);
+  }
+
+  Future<void> _removeFiles() async {
+    for (final f in [..._open]) {
+      if (f.isFile) await _act(f, widget.onRemove);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = widget.findings.length;
+    final onlyFiles = _open.isNotEmpty && _open.every((f) => f.isFile);
+    final title =
+        widget.title ??
+        (widget.manual
+            ? (n == 1 && widget.findings.single.isFile
+                  ? 'Este commit leva um arquivo de ambiente'
+                  : 'Este commit leva $n ${n == 1 ? 'segredo' : 'segredos'}')
+            : 'O app parou: $n ${n == 1 ? 'segredo' : 'segredos'} no que ia '
+                  '${widget.push ? 'subir' : 'para o commit'}');
+    return Dialog(
+      backgroundColor: AppColors.panelSolid,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    size: 18,
+                    color: AppColors.amber,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.manual
+                    ? 'Remover tira o arquivo do commit e põe no .gitignore. '
+                          'O arquivo fica no disco.'
+                    : 'O app parou antes do commit dos arquivos pendentes e do '
+                          'push. Nada saiu da sua máquina.',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              for (final f in widget.findings)
+                SecretFindingTile(
+                  key: ValueKey('secret-dialog-${f.path}-${f.line}'),
+                  finding: f,
+                  resolution: _open.contains(f) ? null : 'removido',
+                  note: widget.push ? 'em um commit ainda não enviado' : null,
+                  ignoreLabel: widget.manual
+                      ? 'Commitar mesmo assim…'
+                      : 'Ignorar com justificativa…',
+                  enabled: !_busy,
+                  onRemove: () => _act(f, widget.onRemove),
+                  onIgnore: () => _act(f, widget.onIgnore),
+                  onOpen: () => widget.onOpen(f),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                widget.manual
+                    ? 'Se o segredo já foi enviado, troque-o no provedor.'
+                    : 'No Autopilot e no Corrigir CI automático, a spec para '
+                          'aqui em “precisa de você”. Se o segredo já foi '
+                          'enviado, troque-o no provedor.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  SecretActionButton(
+                    key: const ValueKey('secret-dialog-close'),
+                    label: 'Fechar',
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  if (widget.manual && onlyFiles) ...[
+                    const SizedBox(width: 8),
+                    SecretActionButton(
+                      key: const ValueKey('secret-dialog-remove-commit'),
+                      label: 'Remover e commitar',
+                      primary: true,
+                      onPressed: _busy ? null : _removeFiles,
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import '../../secrets/secret_flow.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -484,7 +486,12 @@ class VibeBar extends ConsumerWidget {
       ?..hideCurrentSnackBar()
       ..showAppToast(SnackBar(content: Text(m)));
     try {
-      final r = await ref.read(vibeServiceProvider).sendToReview(spec.id);
+      final r = await withSecretGuard(
+        context,
+        ref,
+        () => ref.read(vibeServiceProvider).sendToReview(spec.id),
+      );
+      if (r == null) return;
       final msg = r.ok
           ? '${spec.code} foi para o Review.'
           : 'O gate de ${spec.code} falhou: veja o relatório na conversa.';

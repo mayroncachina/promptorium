@@ -154,14 +154,14 @@ Canvas para validar: [Vigia de segredos](https://claude.ai/artifact/EWDq9ALnW9HX
 
 ## Critérios de aceite
 
-- [ ] As regras acham chaves, tokens, chaves privadas, `.env` e alta entropia só nas linhas adicionadas, com as exceções [R3, R4] verificar: flutter test test/core/secrets/secret_scanner_test.dart
-- [ ] Nenhum achado mostra mais que o prefixo público e o tamanho, e o valor não aparece em log, timeline, banco nem `debugPrint` [R8] verificar: flutter test test/core/secrets/secret_leak_test.dart
-- [ ] O hook nega `git commit`, `git push` e `gh pr create` com achado e libera o resto; tempo esgotado libera [R1, R16] verificar: flutter test test/core/claude/managed_hooks_secrets_test.dart
-- [ ] O Dart e o Python dão os mesmos achados no corpus [R13] verificar: flutter test test/core/secrets/secret_parity_test.dart
-- [ ] "Criar PR", "arquivos restantes", a VIBE e o commit da tela Código param com achado e abrem a janela [R5, R6] verificar: flutter test test/core/secrets/secret_guard_test.dart
-- [ ] Remover, ignorar com justificativa e abrir o arquivo funcionam, e o ignorado não volta a bloquear [R9, R11, R12] verificar: flutter test test/features/sessions/widgets/secret_block_card_test.dart
-- [ ] No app, uma sessão real que commita um `.env` e uma chave Stripe de mentira é bloqueada, o cartão mostra os valores mascarados e "Remover" deixa o commit passar [R1–R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-085/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R16] verificar: flutter analyze
+- [x] As regras acham chaves, tokens, chaves privadas, `.env` e alta entropia só nas linhas adicionadas, com as exceções [R3, R4] verificar: flutter test test/core/secrets/secret_scanner_test.dart
+- [x] Nenhum achado mostra mais que o prefixo público e o tamanho, e o valor não aparece em log, timeline, banco nem `debugPrint` [R8] verificar: flutter test test/core/secrets/secret_leak_test.dart
+- [x] O hook nega `git commit`, `git push` e `gh pr create` com achado e libera o resto; tempo esgotado libera [R1, R16] verificar: flutter test test/core/claude/managed_hooks_secrets_test.dart
+- [x] O Dart e o Python dão os mesmos achados no corpus [R13] verificar: flutter test test/core/secrets/secret_parity_test.dart
+- [x] "Criar PR", "arquivos restantes", a VIBE e o commit da tela Código param com achado e abrem a janela [R5, R6] verificar: flutter test test/core/secrets/secret_guard_test.dart
+- [x] Remover, ignorar com justificativa e abrir o arquivo funcionam, e o ignorado não volta a bloquear [R9, R11, R12] verificar: flutter test test/features/sessions/widgets/secret_block_card_test.dart
+- [x] No app, uma sessão real que commita um `.env` e uma chave Stripe de mentira é bloqueada, o cartão mostra os valores mascarados e "Remover" deixa o commit passar [R1–R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-085/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R16] verificar: flutter analyze
 
 ## Decisões em aberto
 

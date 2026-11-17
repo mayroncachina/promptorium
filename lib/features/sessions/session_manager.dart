@@ -603,13 +603,31 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// A message of the app to the agent (the Vigia de segredos, SPEC-085
   /// R9): delivered like [notifyUserEdit] (now, in the running turn, or
   /// with the next message).
-  Future<bool> notifyAgent(String id, String text) async {
+  ///
+  /// [resume]: a session without a process is resumed with the message
+  /// (the agent repeats the commit, R9).
+  Future<bool> notifyAgent(
+    String id,
+    String text, {
+    bool resume = false,
+  }) async {
     final list = _notices.putIfAbsent(id, () => []);
     if (!list.contains(text)) {
       list.add(text);
       await _durable((r) => r.addNotice(id, text));
     }
     final p = _procs[id];
+    if (p == null && resume && !_shuttingDown) {
+      final all = await _takeNotices(id) ?? [text];
+      try {
+        await send(id, all.join('\n'));
+        return true;
+      } catch (e) {
+        _notices.putIfAbsent(id, () => []).addAll(all);
+        debugPrint('sessão $id: aviso do vigia fica para a próxima — $e');
+        return false;
+      }
+    }
     if (p == null || p.pending.isNotEmpty || p.stopping) return false;
     if (p.busy) {
       await _sendMidTurn(id, p);

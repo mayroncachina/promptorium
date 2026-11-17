@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -60,6 +61,13 @@ void main() {
       tmp.deleteSync(recursive: true);
     });
 
+    /// Messages the session got (resumed with the notice, R9).
+    Future<List<String>> sent() async => [
+      for (final e in await c.read(sessionsRepoProvider).events(sid))
+        if (e.type == AppEventTypes.user)
+          (jsonDecode(e.json) as Map)['text'] as String,
+    ];
+
     /// The findings of what a commit would take now, as a block of the
     /// session's timeline.
     Future<SecretBlockItem> block() async {
@@ -107,9 +115,7 @@ void main() {
       expect(staged, isNot(contains('.env')));
       expect(File('$repo/.gitignore').readAsStringSync(), contains('/.env'));
       expect(File('$repo/.env').existsSync(), isTrue);
-      expect(c.read(sessionManagerProvider.notifier).pendingNotices(sid), [
-        secretsResolvedMessage,
-      ]);
+      expect(await sent(), [secretsResolvedMessage]);
       expect(c.read(secretBlocksProvider), isEmpty);
       // Nothing left for the next commit.
       final again = await c
@@ -125,7 +131,7 @@ void main() {
       await c
           .read(secretActionsProvider)
           .removeInSession(sid, b, b.findings.single);
-      expect(c.read(sessionManagerProvider.notifier).pendingNotices(sid), [
+      expect(await sent(), [
         'Tire o segredo de pag.ts:1 e leia de uma variável de ambiente '
             '(`STRIPE_SECRET`); depois repita o commit.',
       ]);
@@ -151,7 +157,7 @@ void main() {
       expect(rows.single.fingerprint, f.fingerprint);
       final events = await c.read(sessionsRepoProvider).events(sid);
       expect(
-        events.last.json,
+        events.lastWhere((e) => e.type == AppEventTypes.secretResolved).json,
         contains('Ignorado: Stripe live key em pag.ts:1 — chave de teste'),
       );
       // The same value in another file passes too (scope "valor").
