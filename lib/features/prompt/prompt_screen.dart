@@ -21,6 +21,7 @@ import 'plan_ready.dart';
 import 'prompt_actions.dart';
 import 'refine_changes.dart';
 import 'refine_origin.dart';
+import '../snippets/snippet_actions.dart';
 import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
@@ -85,8 +86,28 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     }
   }
 
+  /// Unregisters it as the target of an inserted snippet (SPEC-078 R8).
+  late final VoidCallback _unregister;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregister = ref
+        .read(composerTargetProvider)
+        .register(ComposerTarget(controller: _text, focusNode: _focus));
+    // A snippet inserted from another screen opened this one (R8).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final s = ref.read(pendingSnippetInsertProvider.notifier).take();
+      if (s == null) return;
+      insertFencedSnippet(_text, s);
+      _focus.requestFocus();
+    });
+  }
+
   @override
   void dispose() {
+    _unregister();
     _text.dispose();
     _focus.dispose();
     super.dispose();

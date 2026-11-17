@@ -274,4 +274,28 @@ void main() {
       await db.close();
     },
   );
+
+  test('v28 → v29 (SPEC-078) creates the snippets of a workspace', () async {
+    final schema = await verifier.schemaAt(28);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.snippets)
+        .insert(
+          SnippetsCompanion.insert(
+            workspaceId: 1,
+            name: 'Atrasados',
+            nameKey: 'atrasados',
+            body: 'select 1;',
+            bodyHash: 'h',
+          ),
+        );
+    final row = await db.select(db.snippets).getSingle();
+    expect(row.uses, 0);
+    expect(row.lastUsedAt, equals(null));
+    expect(row.description, '');
+    await db.close();
+  });
 }
