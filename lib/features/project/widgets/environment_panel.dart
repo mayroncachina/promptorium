@@ -215,6 +215,8 @@ class _EnvironmentPanelState extends ConsumerState<EnvironmentPanel> {
             ),
           );
         }
+      case EnvProblem.clipboardMissing:
+        children.add(_Hint('Para colar imagens, instale: ${item.command}'));
       case EnvProblem.timeout || null:
         break;
     }
