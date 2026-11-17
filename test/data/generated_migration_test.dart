@@ -298,4 +298,29 @@ void main() {
     expect(row.description, '');
     await db.close();
   });
+
+  test('v29 → v30 (SPEC-085) creates the secret waivers', () async {
+    final schema = await verifier.schemaAt(29);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.secretWaivers)
+        .insert(
+          SecretWaiversCompanion.insert(
+            workspaceId: 1,
+            rule: 'env-file',
+            path: '.env',
+            fingerprint: 'f',
+            scope: 'arquivo',
+            reason: 'arquivo local de teste',
+            origin: 'sessao:s1',
+          ),
+        );
+    final row = await db.select(db.secretWaivers).getSingle();
+    expect(row.scope, 'arquivo');
+    await db.close();
+  });
 }
+
