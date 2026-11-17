@@ -1,9 +1,10 @@
 ---
 id: SPEC-078
-status: rascunho
+status: aprovada
 tipo: melhoria
 depende-de: SPEC-077
 issue: 269
+versão: 0.19.0
 ---
 
 # Snippets salvos
@@ -85,17 +86,17 @@ Issue: [#269](https://github.com/mayroncachina/promptorium/issues/269) (sub-issu
 - Salvar um trecho selecionado (parte de um bloco ou texto fora de bloco). Salva-se o bloco inteiro; o trecho se ajusta depois no editor (R10).
 - Pastas, tags e cores de snippet.
 
-## Decisões em aberto
+## Decisões
 
-- P1 · **Onde ficam os snippets: banco ou arquivo no projeto.** Num arquivo (`.promptorium/snippets/atrasados.sql`), eles entram no git, aparecem no diff do agente, se repetem em cada worktree de spec e exigem tratar `.gitignore` e conflitos. No banco, ficam junto dos prompts salvos e das conversas, por workspace, e a origem aponta para a conversa sem copiar nada. **Recomendação:** **banco**, numa tabela `snippets` por workspace (R5). Compartilhar com o time fica para uma exportação futura.
-- P2 · **Por workspace ou globais.** O pedido é "snippet do projeto", e uma query do `loja-api` não serve no `site-institucional`. **Recomendação:** **por workspace**; a paleta mostra os do workspace ativo.
-- P3 · **Onde gerenciar.** Opções: uma aba "Snippets" em Ferramentas, uma tela nova no menu, ou um diálogo aberto da paleta e do painel do Prompt. Ferramentas é de agentes, skills e MCP, e uma tela nova é demais para uma lista curta. **Recomendação:** **diálogo Snippets** (R9) mais a **seção no painel do Prompt** (R13), onde o snippet é usado.
-- P4 · **Inserir como bloco cercado ou texto puro.** Cercado, o Claude lê como código e sabe a linguagem; texto puro mistura a query com a pergunta. **Recomendação:** **bloco cercado** com a linguagem (R8). Quem quer texto puro usa Copiar.
-- P5 · **Prefixo da paleta.** `>`, `#` e `:` já estão em uso. **Recomendação:** **`$`**, de "trecho guardado", fácil de lembrar e sem conflito.
-- P6 · **Snippets no `/` do composer.** Seria um terceiro caminho, mas o `/` lista prompts (texto que vira pedido), e misturar código ali confunde. **Recomendação:** **não** nesta spec; paleta e painel bastam.
-- P7 · **Nome sugerido.** **Recomendação:** o primeiro comentário do bloco, depois o título da conversa com a linguagem (R3). Pedir ao Claude um nome custaria um turno e tempo.
-- P8 · **Onde aparece o botão Salvar.** Na tela Specs o bloco é parte de um documento do repositório, não de uma resposta, e não há origem. **Recomendação:** **só na timeline e no plano pronto** (R1).
-- P9 · **Código já salvo.** Comparar o código exato do bloco com os snippets do workspace custa uma consulta por bloco. **Recomendação:** guardar o hash (SHA-1) do código numa coluna indexada e consultar por hash; o provider cacheia o conjunto de hashes do workspace, então a timeline não faz uma consulta por bloco.
+- P1 · **Onde ficam os snippets: banco ou arquivo no projeto.** Num arquivo (`.promptorium/snippets/atrasados.sql`), eles entram no git, aparecem no diff do agente, se repetem em cada worktree de spec e exigem tratar `.gitignore` e conflitos. No banco, ficam junto dos prompts salvos e das conversas, por workspace, e a origem aponta para a conversa sem copiar nada. **Decidido:** **banco**, numa tabela `snippets` por workspace (R5). Compartilhar com o time fica para uma exportação futura.
+- P2 · **Por workspace ou globais.** O pedido é "snippet do projeto", e uma query do `loja-api` não serve no `site-institucional`. **Decidido:** **por workspace**; a paleta mostra os do workspace ativo.
+- P3 · **Onde gerenciar.** Opções: uma aba "Snippets" em Ferramentas, uma tela nova no menu, ou um diálogo aberto da paleta e do painel do Prompt. Ferramentas é de agentes, skills e MCP, e uma tela nova é demais para uma lista curta. **Decidido:** **diálogo Snippets** (R9) mais a **seção no painel do Prompt** (R13), onde o snippet é usado.
+- P4 · **Inserir como bloco cercado ou texto puro.** Cercado, o Claude lê como código e sabe a linguagem; texto puro mistura a query com a pergunta. **Decidido:** **bloco cercado** com a linguagem (R8). Quem quer texto puro usa Copiar.
+- P5 · **Prefixo da paleta.** `>`, `#` e `:` já estão em uso. **Decidido:** **`$`**, de "trecho guardado", fácil de lembrar e sem conflito.
+- P6 · **Snippets no `/` do composer.** Seria um terceiro caminho, mas o `/` lista prompts (texto que vira pedido), e misturar código ali confunde. **Decidido:** **não** nesta spec; paleta e painel bastam.
+- P7 · **Nome sugerido.** **Decidido:** o primeiro comentário do bloco, depois o título da conversa com a linguagem (R3). Pedir ao Claude um nome custaria um turno e tempo.
+- P8 · **Onde aparece o botão Salvar.** Na tela Specs o bloco é parte de um documento do repositório, não de uma resposta, e não há origem. **Decidido:** **só na timeline e no plano pronto** (R1).
+- P9 · **Código já salvo.** Comparar o código exato do bloco com os snippets do workspace custa uma consulta por bloco. **Decidido:** guardar o hash (SHA-1) do código numa coluna indexada e consultar por hash; o provider cacheia o conjunto de hashes do workspace, então a timeline não faz uma consulta por bloco.
 
 ## Design
 
@@ -124,7 +125,7 @@ Canvas para validar: [Snippets salvos](https://claude.ai/artifact/GxygfLvsPiwVLJ
 
 ### Migração
 
-Sim. **v29** (número provisório: outra spec em andamento pode pegar o 29 antes; quem chegar depois renumera): cria a tabela `snippets` e o índice `(workspace_id, body_hash)`. Atualizar `drift_schemas/drift_schema_v29.json`, `schema_versions.dart` e o teste de migração.
+Sim. **v29** (a única migração da 0.19.0): cria a tabela `snippets` e o índice `(workspace_id, body_hash)`. Atualizar `drift_schemas/drift_schema_v29.json`, `schema_versions.dart` e o teste de migração.
 
 ### Arquivos tocados
 
