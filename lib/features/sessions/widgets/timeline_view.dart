@@ -8,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../ui/theme/motion.dart';
 import '../../../ui/theme/tokens.dart';
+import '../../../ui/widgets/copy_button.dart';
 import '../../../ui/widgets/diff_view.dart';
+import '../../../ui/widgets/markdown/app_markdown.dart';
 import '../../../ui/widgets/motion_enter.dart';
 import '../edit_diff.dart';
 import '../session_manager.dart';
@@ -554,7 +556,7 @@ class _UserBubble extends StatelessWidget {
   }
 }
 
-class _AssistantText extends StatelessWidget {
+class _AssistantText extends StatefulWidget {
   const _AssistantText(this.item, {this.nested = false, this.name = 'Claude'});
 
   final AssistantTextItem item;
@@ -562,7 +564,18 @@ class _AssistantText extends StatelessWidget {
   final String name;
 
   @override
+  State<_AssistantText> createState() => _AssistantTextState();
+}
+
+class _AssistantTextState extends State<_AssistantText> {
+  /// Pointer over the message or focus inside it: shows Copiar mensagem
+  /// (SPEC-077 R7).
+  bool _hover = false;
+  bool _focus = false;
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final theme = Theme.of(context);
     final style = MarkdownStyleSheet.fromTheme(theme).copyWith(
       p: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.45),
@@ -572,44 +585,77 @@ class _AssistantText extends StatelessWidget {
         color: AppColors.amber,
         backgroundColor: Colors.transparent,
       ),
-      codeblockDecoration: BoxDecoration(
-        color: AppColors.panel,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border),
-      ),
+    );
+    final head = Text(
+      '${widget.nested ? 'Subagente' : widget.name} · ${formatClock(item.at)}'
+      '${item.live ? ' · escrevendo…' : ''}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
     );
     return Align(
       alignment: Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${nested ? 'Subagente' : name} · ${formatClock(item.at)}'
-              '${item.live ? ' · escrevendo…' : ''}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (v) => setState(() => _focus = v),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (item.live)
+                  // Same height as the finished header: no jump at the end.
+                  SizedBox(
+                    height: 24,
+                    child: Align(alignment: Alignment.centerLeft, child: head),
+                  )
+                else
+                  SizedBox(
+                    height: 24,
+                    child: Row(
+                      children: [
+                        Flexible(child: head),
+                        const SizedBox(width: 6),
+                        // Kept in the tree (and in the Tab order) while
+                        // hidden: focusing it shows it.
+                        Opacity(
+                          opacity: _hover || _focus ? 1 : 0,
+                          child: CopyButton(
+                            key: const ValueKey('copy-message'),
+                            text: () => item.text,
+                            iconOnly: true,
+                            tooltip: 'Copiar mensagem (markdown)',
+                            semanticLabel: 'Copiar mensagem',
+                            announcement: 'Mensagem copiada',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                if (item.live)
+                  Text(
+                    '${item.text}▍',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.text,
+                      height: 1.45,
+                    ),
+                  )
+                else
+                  AppMarkdown(
+                    data: item.text,
+                    styleSheet: style,
+                    collapseLongCode: true,
+                    owner: item,
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
-            if (item.live)
-              Text(
-                '${item.text}▍',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.text,
-                  height: 1.45,
-                ),
-              )
-            else
-              MarkdownBody(
-                data: item.text,
-                styleSheet: style,
-                selectable: true,
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -696,6 +742,11 @@ String _subagentSummary(ToolItem t) {
 class _ToolCardState extends State<ToolCard>
     with SingleTickerProviderStateMixin {
   bool _open = false;
+
+  /// Pointer over the card or focus inside it: shows Copiar comando
+  /// (SPEC-077 R9).
+  bool _hover = false;
+  bool _focusIn = false;
   final _focus = FocusNode(debugLabel: 'tool card');
   ToolExpandHost? _host;
 
@@ -850,6 +901,9 @@ class _ToolCardState extends State<ToolCard>
         ),
     ];
 
+    final cmd = t.name == 'Bash' ? t.input['command'] : null;
+    final command = cmd is String && cmd.trim().isNotEmpty ? cmd : null;
+
     final target = info?.outside ?? false
         ? (editFilePath(t.input) ?? toolTarget(t.name, t.input))
         : (info?.target ?? toolTarget(t.name, t.input, root: widget.root));
@@ -893,6 +947,22 @@ class _ToolCardState extends State<ToolCard>
                   style: _mono,
                 ),
               ),
+              if (command != null) ...[
+                const SizedBox(width: 6),
+                // In the tree (and the Tab order) while hidden: focusing it
+                // shows it.
+                Opacity(
+                  opacity: _hover || _focusIn ? 1 : 0,
+                  child: CopyButton(
+                    key: ValueKey('tool-copy-command-${t.id}'),
+                    iconOnly: true,
+                    text: () => command,
+                    tooltip: 'Copiar comando',
+                    semanticLabel: 'Copiar comando',
+                    announcement: 'Comando copiado',
+                  ),
+                ),
+              ],
               for (final w in trailing) ...[
                 const SizedBox(width: 10),
                 DefaultTextStyle.merge(style: _mono, child: w),
@@ -913,6 +983,7 @@ class _ToolCardState extends State<ToolCard>
 
     final flash = _flash;
     Widget card(Widget child) {
+      child = _hoverable(command != null, child);
       if (flash == null || flash.isDismissed || flash.isCompleted) {
         return Container(
           key: ValueKey('tool-${t.id}'),
@@ -1034,4 +1105,18 @@ class _ToolCardState extends State<ToolCard>
       ),
     );
   }
+
+  /// [child] tracking hover and focus inside it, for Copiar comando (R9).
+  Widget _hoverable(bool on, Widget child) => !on
+      ? child
+      : MouseRegion(
+          onEnter: (_) => setState(() => _hover = true),
+          onExit: (_) => setState(() => _hover = false),
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (v) => setState(() => _focusIn = v),
+            child: child,
+          ),
+        );
 }
