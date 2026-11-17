@@ -34,6 +34,7 @@ import '../../features/specs/specs_screen.dart';
 import '../../features/specs/workspace_watcher.dart';
 import '../../features/board/board_screen.dart';
 import '../../features/activities/activities_screen.dart';
+import '../../features/resume/widgets/resume_host.dart';
 import '../../core/update/update_check.dart';
 import '../../data/providers.dart';
 import '../theme/glass.dart';
@@ -434,54 +435,59 @@ class _AppShellState extends ConsumerState<AppShell> {
           child: Scaffold(
             backgroundColor: AppColors.background,
             // The shell floats in glass over the backdrop (SPEC-049 R2).
-            body: Padding(
-              padding: const EdgeInsets.all(shellGap),
-              child: Column(
-                children: [
-                  AppGlass(
-                    radius: 14,
-                    child: TitleBar(
-                      section: section,
-                      onOpenPalette: _openPalette,
-                      onAction: () => _onAction(section),
-                      onWorkspace: () => showWorkspacePicker(context),
+            // SPEC-080: presence, the journal and the "Retomar" card.
+            body: ResumeHost(
+              child: Padding(
+                padding: const EdgeInsets.all(shellGap),
+                child: Column(
+                  children: [
+                    AppGlass(
+                      radius: 14,
+                      child: TitleBar(
+                        section: section,
+                        onOpenPalette: _openPalette,
+                        onAction: () => _onAction(section),
+                        onWorkspace: () => showWorkspacePicker(context),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: shellGap),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        AppGlass(
-                          radius: 16,
-                          child: SideBar(active: section, onSelect: _goNav),
-                        ),
-                        const SizedBox(width: shellGap),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: SectionTransition(
-                                  section: section,
-                                  child: KeyedSubtree(
-                                    key: ValueKey('screen-${section.name}'),
-                                    child: _screenFor(section),
+                    const SizedBox(height: shellGap),
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppGlass(
+                            radius: 16,
+                            child: SideBar(active: section, onSelect: _goNav),
+                          ),
+                          const SizedBox(width: shellGap),
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: SectionTransition(
+                                    section: section,
+                                    child: KeyedSubtree(
+                                      key: ValueKey('screen-${section.name}'),
+                                      child: _screenFor(section),
+                                    ),
                                   ),
                                 ),
-                              ),
-                              // Approvals of sessions / conversations that are
-                              // not on screen, answerable from anywhere.
-                              const Positioned.fill(child: GlobalApprovals()),
-                              const FirstRunHost(),
-                            ],
+                                // Approvals of sessions / conversations that are
+                                // not on screen, answerable from anywhere.
+                                const Positioned.fill(child: GlobalApprovals()),
+                                // SPEC-080 R10, R11: over the screen, not modal.
+                                const Positioned.fill(child: ResumeOverlay()),
+                                const FirstRunHost(),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: shellGap),
-                  const AppGlass(radius: 12, child: StatusFooter()),
-                ],
+                    const SizedBox(height: shellGap),
+                    const AppGlass(radius: 12, child: StatusFooter()),
+                  ],
+                ),
               ),
             ),
           ),
