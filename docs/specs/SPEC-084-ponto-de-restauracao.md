@@ -1,6 +1,7 @@
 ---
 id: SPEC-084
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 issue: 270
 ---
@@ -21,7 +22,7 @@ Esta spec:
 - põe um botão **"Desfazer o que o agente fez"** na sessão, que volta o último turno em um clique, mesmo com o git sujo;
 - mostra antes **o que vai mudar**, separa o que a pessoa editou depois do turno e deixa refazer o que foi desfeito.
 
-Issue: [#270](https://github.com/mayroncachina/promptorium/issues/270) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
+Issue: [#270](https://github.com/mayroncachina/promptorium/issues/270) (sub-issue de [#278](https://github.com/mayroncachina/promptorium/issues/278))
 
 Mockup: [canvas do Claude Design](https://claude.ai/artifact/4kUbHocUqgLjPcXTuWYCg5). Capturas em `docs/mockups/spec-084/`:
 
@@ -144,12 +145,12 @@ O ponto é um commit feito com o `snapshot()` (índice temporário + `commit-tre
 
 ## Decisões em aberto
 
-- P1 · **Mecanismo: ref oculta ou worktree.** **Recomendação:** **commit numa ref oculta** (`refs/promptorium/restore/<sessão>/<turno>-inicio|fim`), feito pelo `GitService.snapshot()` que já existe (índice temporário + `commit-tree`), e não `git stash create` (não guarda os não rastreados) nem uma worktree por turno (copia o projeto, é lenta, não guarda o estado do worktree em uso). Ver "Por que uma ref oculta" acima.
-- P2 · **O que o botão principal desfaz.** **Recomendação:** **o último turno**, com o rótulo "Desfazer o último turno". Desfazer a sessão inteira com um clique é destrutivo demais para o botão do cabeçalho; quem quer voltar mais usa "Voltar a antes deste turno…" num ponto mais velho (R9), que soma os turnos.
-- P3 · **Desfazer com o turno rodando.** **Recomendação:** **não**. O botão fica desativado durante o turno (o agente estaria escrevendo nos mesmos arquivos). A janela oferece "Parar e desfazer" quando aberta pelo ponto com a sessão ocupada.
-- P4 · **Commits já enviados.** **Recomendação:** **não reescrever** a branch remota. A janela avisa e troca o botão por "Desfazer só os arquivos" (R12). Reescrever com `--force-with-lease` fica para outra spec, se pedirem.
-- P5 · **Quem grava ponto.** **Recomendação:** sessões (todas, com ou sem worktree, Claude e Codex), etapas de spec e VIBEs. **Não** as conversas do Prompt na raiz (rodam em Perguntar/Planejar e quase nunca editam) nem o planner. Se a conversa do Prompt estiver em modo que edita, entra numa spec futura.
-- P6 · **Retenção.** **Recomendação:** os **últimos 20 turnos por sessão**, tudo apagado com a sessão integrada, descartada ou apagada, e **14 dias** sem uso. Configurável (R14). O espaço é pequeno porque o git guarda cada versão de arquivo uma vez só; o que pesa são arquivos grandes, que ficam fora acima de 20 MB (R4).
-- P7 · **Edições da pessoa junto com o agente.** **Recomendação:** **dois pontos por turno** (início e fim), para separar o que o agente fez (início→fim) do que a pessoa fez depois (fim→agora), mais a lista de edições pela tela Código para o que foi feito durante o turno. O que a pessoa mexeu depois vem desmarcado; nada que não mudou no turno é tocado. Uma edição feita num editor externo durante o turno não tem como ser separada e conta como do agente; a janela mostra o diff do arquivo para conferir.
-- P8 · **Sessões em worktree.** **Recomendação:** o ponto é do **worktree em que a sessão roda**. As refs ficam no repositório principal (são compartilhadas por todos os worktrees), com a sessão no nome, então um worktree nunca restaura o ponto de outro. Quando o worktree é removido (merge ou descartar), os pontos da sessão vão junto (R13).
-- P9 · **Limite dos não rastreados grandes.** **Recomendação:** **20 MB por arquivo**, listados na nota da timeline e na janela como "não volta". Sem limite, um `dump.sql` de 2 GB entraria no repositório a cada turno.
+- P1 · **Mecanismo: ref oculta ou worktree.** **Decidido:** **commit numa ref oculta** (`refs/promptorium/restore/<sessão>/<turno>-inicio|fim`), feito pelo `GitService.snapshot()` que já existe (índice temporário + `commit-tree`), e não `git stash create` (não guarda os não rastreados) nem uma worktree por turno (copia o projeto, é lenta, não guarda o estado do worktree em uso). Ver "Por que uma ref oculta" acima.
+- P2 · **O que o botão principal desfaz.** **Decidido:** **o último turno**, com o rótulo "Desfazer o último turno". Desfazer a sessão inteira com um clique é destrutivo demais para o botão do cabeçalho; quem quer voltar mais usa "Voltar a antes deste turno…" num ponto mais velho (R9), que soma os turnos.
+- P3 · **Desfazer com o turno rodando.** **Decidido:** **não**. O botão fica desativado durante o turno (o agente estaria escrevendo nos mesmos arquivos). A janela oferece "Parar e desfazer" quando aberta pelo ponto com a sessão ocupada.
+- P4 · **Commits já enviados.** **Decidido:** **não reescrever** a branch remota. A janela avisa e troca o botão por "Desfazer só os arquivos" (R12). Reescrever com `--force-with-lease` fica para outra spec, se pedirem.
+- P5 · **Quem grava ponto.** **Decidido:** sessões (todas, com ou sem worktree, Claude e Codex), etapas de spec e VIBEs. **Não** as conversas do Prompt na raiz (rodam em Perguntar/Planejar e quase nunca editam) nem o planner. Se a conversa do Prompt estiver em modo que edita, entra numa spec futura.
+- P6 · **Retenção.** **Decidido:** os **últimos 20 turnos por sessão**, tudo apagado com a sessão integrada, descartada ou apagada, e **14 dias** sem uso. Configurável (R14). O espaço é pequeno porque o git guarda cada versão de arquivo uma vez só; o que pesa são arquivos grandes, que ficam fora acima de 20 MB (R4).
+- P7 · **Edições da pessoa junto com o agente.** **Decidido:** **dois pontos por turno** (início e fim), para separar o que o agente fez (início→fim) do que a pessoa fez depois (fim→agora), mais a lista de edições pela tela Código para o que foi feito durante o turno. O que a pessoa mexeu depois vem desmarcado; nada que não mudou no turno é tocado. Uma edição feita num editor externo durante o turno não tem como ser separada e conta como do agente; a janela mostra o diff do arquivo para conferir.
+- P8 · **Sessões em worktree.** **Decidido:** o ponto é do **worktree em que a sessão roda**. As refs ficam no repositório principal (são compartilhadas por todos os worktrees), com a sessão no nome, então um worktree nunca restaura o ponto de outro. Quando o worktree é removido (merge ou descartar), os pontos da sessão vão junto (R13).
+- P9 · **Limite dos não rastreados grandes.** **Decidido:** **20 MB por arquivo**, listados na nota da timeline e na janela como "não volta". Sem limite, um `dump.sql` de 2 GB entraria no repositório a cada turno.
