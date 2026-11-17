@@ -1,6 +1,7 @@
 ---
 id: SPEC-080
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 depende-de: SPEC-076
 issue: 274
@@ -31,7 +32,7 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/WSsmky38kLxdN4Za4GK
 | `3-inicio.png` | Depois de fechar: a faixa "Desde a sua última visita" no topo do Início, com o que ainda não foi resolvido | R12, R13 |
 | `4-configuracoes.png` | Configurações › Retomar de onde parei: quando mostrar, o tempo fora, o que entra e o "visto por último" | R14, R15 |
 
-Issue: [#274](https://github.com/mayroncachina/promptorium/issues/274) (sub-issue de [#268](https://github.com/mayroncachina/promptorium/issues/268))
+Issue: [#274](https://github.com/mayroncachina/promptorium/issues/274) (sub-issue de [#278](https://github.com/mayroncachina/promptorium/issues/278))
 
 ## Requisitos
 
@@ -114,14 +115,14 @@ Issue: [#274](https://github.com/mayroncachina/promptorium/issues/274) (sub-issu
 
 ## Decisões em aberto
 
-- P1 · **O que conta como "fora".** Opções: (a) só o app fechado; (b) a janela sem foco; (c) sem foco **ou** sem nenhuma tecla, clique ou rolagem no app. **Recomendação:** **(c), com 30 min** (R2). Sem foco sozinho não pega quem sai com o app na frente; a ociosidade do sistema operacional exigiria código nativo.
-- P2 · **Onde guardar o visto por último.** **Recomendação:** **`app_settings`** (`resume.lastSeenAt`), uma hora só para o app, não por workspace. A pessoa é uma, e o cartão junta os workspaces. Gravar no máximo uma vez por minuto evita escrever no banco a cada tecla.
-- P3 · **De onde vem o "Terminou".** Opções: (a) uma tabela nova de diário, escrita quando as coisas terminam; (b) montar na hora a partir das tabelas que existem (sessões com `endedAt`, `step_runs`, specs); (c) reaproveitar as notificações. **Recomendação:** **(a)** mais a conferência do GitHub ao abrir (R7). A (b) não sabe de CI nem de PR mergeado fora do app, e a (c) não tem workspace, tipo nem ação, e encheria o sino.
-- P4 · **Cartão modal ou não.** **Recomendação:** **não modal** (R10). A pessoa pode querer olhar o Quadro por trás antes de decidir; Esc fecha e a faixa do Início guarda o resto.
-- P5 · **Ao voltar com o app aberto: cartão grande ou compacto.** **Recomendação:** **compacto no canto** (R11), que expande. Um cartão grande a cada volta do almoço cansa.
-- P6 · **Quanto tempo o diário guarda.** **Recomendação:** **14 dias**. Cobre um fim de semana longo e férias curtas sem crescer o banco.
-- P7 · **Juntar eventos.** **Recomendação:** **um item por spec, PR ou release** (R8), com o resto no detalhe. Três linhas da mesma spec escondem as outras.
-- P8 · **Contar a fila do Autopilot em "Continua rodando".** **Recomendação:** **não**; a fila aparece numa linha só ("Autopilot: 2 specs na fila"), sem item por spec, para o cartão não repetir a Atividades.
+- P1 · **O que conta como "fora".** Opções: (a) só o app fechado; (b) a janela sem foco; (c) sem foco **ou** sem nenhuma tecla, clique ou rolagem no app. **Decidido:** **(c), com 30 min** (R2). Sem foco sozinho não pega quem sai com o app na frente; a ociosidade do sistema operacional exigiria código nativo.
+- P2 · **Onde guardar o visto por último.** **Decidido:** **`app_settings`** (`resume.lastSeenAt`), uma hora só para o app, não por workspace. A pessoa é uma, e o cartão junta os workspaces. Gravar no máximo uma vez por minuto evita escrever no banco a cada tecla.
+- P3 · **De onde vem o "Terminou".** Opções: (a) uma tabela nova de diário, escrita quando as coisas terminam; (b) montar na hora a partir das tabelas que existem (sessões com `endedAt`, `step_runs`, specs); (c) reaproveitar as notificações. **Decidido:** **(a)** mais a conferência do GitHub ao abrir (R7). A (b) não sabe de CI nem de PR mergeado fora do app, e a (c) não tem workspace, tipo nem ação, e encheria o sino.
+- P4 · **Cartão modal ou não.** **Decidido:** **não modal** (R10). A pessoa pode querer olhar o Quadro por trás antes de decidir; Esc fecha e a faixa do Início guarda o resto.
+- P5 · **Ao voltar com o app aberto: cartão grande ou compacto.** **Decidido:** **compacto no canto** (R11), que expande. Um cartão grande a cada volta do almoço cansa.
+- P6 · **Quanto tempo o diário guarda.** **Decidido:** **14 dias**. Cobre um fim de semana longo e férias curtas sem crescer o banco.
+- P7 · **Juntar eventos.** **Decidido:** **um item por spec, PR ou release** (R8), com o resto no detalhe. Três linhas da mesma spec escondem as outras.
+- P8 · **Contar a fila do Autopilot em "Continua rodando".** **Decidido:** **não**; a fila aparece numa linha só ("Autopilot: 2 specs na fila"), sem item por spec, para o cartão não repetir a Atividades.
 
 ## Design
 
