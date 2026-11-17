@@ -17,6 +17,7 @@ import 'repos/spec_drafts_repo.dart';
 import 'repos/review_comments_repo.dart';
 import 'repos/saved_prompts_repo.dart';
 import 'repos/sessions_repo.dart';
+import 'repos/snippets_repo.dart';
 import 'repos/spec_duels_repo.dart';
 import 'repos/spec_notes_repo.dart';
 import 'repos/spec_steps_repo.dart';
@@ -96,6 +97,9 @@ final stepRunsRepoProvider = Provider(
 );
 final specNotesRepoProvider = Provider(
   (ref) => SpecNotesRepo(ref.watch(appDatabaseProvider)),
+);
+final snippetsRepoProvider = Provider(
+  (ref) => SnippetsRepo(ref.watch(appDatabaseProvider)),
 );
 final durableStateRepoProvider = Provider(
   (ref) => DurableStateRepo(ref.watch(appDatabaseProvider)),
@@ -208,6 +212,17 @@ final conversationListsProvider = Provider.family<ConversationLists, int>((
 /// after leaving it).
 final savedPromptsProvider = StreamProvider.autoDispose<List<SavedPrompt>>(
   (ref) => ref.watch(savedPromptsRepoProvider).watchAll(),
+);
+
+/// Snippets of a workspace, used last first (SPEC-078 R6).
+final snippetsProvider = StreamProvider.family<List<Snippet>, int>(
+  (ref, workspaceId) => ref.watch(snippetsRepoProvider).watch(workspaceId),
+);
+
+/// Hashes of the codes saved in a workspace (P9): one query for every block
+/// of the timeline.
+final snippetHashesProvider = StreamProvider.family<Set<String>, int>(
+  (ref, workspaceId) => ref.watch(snippetsRepoProvider).hashes(workspaceId),
 );
 
 final agentSettingsProvider = StreamProvider<List<AgentSetting>>(

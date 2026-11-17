@@ -17,6 +17,7 @@ import '../sessions/widgets/session_style.dart';
 import 'app_mcp_card.dart';
 import 'automations_view.dart';
 import 'backups_view.dart';
+import 'notifications_view.dart';
 import 'orchestrator_view.dart';
 import 'providers_view.dart';
 import 'settings_choices.dart';
@@ -169,6 +170,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsSection.orchestrator => const _OrchestratorSection(),
                 SettingsSection.specRuns => const _SpecRunsSection(),
                 SettingsSection.sessions => const _SessionsSection(),
+                SettingsSection.notifications => const _Page(
+                  title: 'Notificações',
+                  intro:
+                      'Avisos do sistema quando a janela do Promptorium está '
+                      'em segundo plano.',
+                  children: [NotificationsView()],
+                ),
                 SettingsSection.appearance => const _AppearanceSection(),
                 SettingsSection.automations => const _Page(
                   title: 'Automações',
