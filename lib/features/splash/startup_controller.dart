@@ -12,6 +12,7 @@ import '../../data/providers.dart';
 import '../../ui/shell/footer_stats.dart';
 import '../board/autopilot.dart';
 import '../prompt/prompt_actions.dart' show seedSavedPrompts;
+import '../sessions/restore/restore_service.dart' show restoreServiceProvider;
 import '../sessions/session_manager.dart';
 
 /// Values produced by startup steps and consumed by later steps / the app.
@@ -196,6 +197,12 @@ class RestoreSessionsStep extends StartupStep {
     // Notices not delivered before closing; the autopilot that was on
     // resumes (not awaited: it may start sessions).
     await ctx.ref.read(sessionManagerProvider.notifier).restoreNotices();
+    // SPEC-084 R13: old restore points go (not awaited: git per workspace).
+    unawaited(
+      ctx.ref.read(restoreServiceProvider).prune().catchError((Object e) {
+        debugPrint('pontos de restauração não limpos — $e');
+      }),
+    );
     // A spec in execution: the app opens on the Quadro (F10).
     final running = await ctx.ref
         .read(appDatabaseProvider)

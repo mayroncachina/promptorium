@@ -298,4 +298,32 @@ void main() {
     expect(row.description, '');
     await db.close();
   });
+
+  test(
+    'v29 → v30 (SPEC-084) creates the restore points of a session',
+    () async {
+      final schema = await verifier.schemaAt(29);
+      schema.rawDatabase.execute(
+        "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+      );
+      final db = AppDatabase(schema.newConnection());
+      await db
+          .into(db.restorePoints)
+          .insert(
+            RestorePointsCompanion.insert(
+              workspaceId: 1,
+              worktreePath: '/r',
+              turn: 1,
+              startedAt: DateTime(2026, 11, 17, 14, 2),
+              startHead: 'a' * 40,
+              startSha: 'b' * 40,
+            ),
+          );
+      final row = await db.select(db.restorePoints).getSingle();
+      expect(row.state, 'ativo');
+      expect(row.largeFiles, '[]');
+      expect(row.endSha, equals(null));
+      await db.close();
+    },
+  );
 }

@@ -39,6 +39,7 @@ import '../review/conflict_resolution.dart' show conflictResolverProvider;
 import '../notifications/agent_alerts.dart' show alertSettingsProvider;
 import '../tasks/task_rules.dart';
 import 'app_notifier.dart';
+import 'restore/restore_service.dart';
 import 'session_changes.dart';
 import 'timeline.dart';
 import 'timeline_provider.dart';
@@ -529,6 +530,8 @@ class SessionManager extends Notifier<SessionManagerState> {
       ..calls = 0
       ..files.clear();
     _publish();
+    // SPEC-084 R1: the restore point of the turn, before the message goes.
+    final point = await _checkpoint(id, text);
     await _enqueue(id, proc, () async {
       final json = AppEventTypes.userMessage(msg, DateTime.now());
       final row = await _repo.appendEvent(
@@ -537,6 +540,7 @@ class SessionManager extends Notifier<SessionManagerState> {
         json: _encode(json),
       );
       _timeline(id).push(UnknownEvent(json), seq: row.seq);
+      if (point != null) await _restore.attachSeq(point.id, row.seq);
       await _repo.setStatus(id, SessionStatus.running);
       await _syncTask(id, SessionStatus.running);
       await _specs.onActive(id);
@@ -553,6 +557,51 @@ class SessionManager extends Notifier<SessionManagerState> {
     return p is! CodexRun || p.supportsImages;
   }
 
+  /// Restore point of the start of a turn (SPEC-084 R1–R4): a failure or
+  /// files left out only become a line in the timeline; the turn goes on.
+  Future<RestorePoint?> _checkpoint(String id, String text) async {
+    try {
+      final s = await _repo.getById(id);
+      if (s == null) return null;
+      final r = await _restore.start(
+        workspaceId: s.workspaceId,
+        worktree: s.worktreePath,
+        sessionId: id,
+        prompt: text,
+      );
+      if (r.failure != null) {
+        await _note(id, 'Ponto de restauração não gravado: ${r.failure}');
+      }
+      if (r.large.isNotEmpty) await _note(id, largeFilesNote(r.large));
+      return r.point;
+    } catch (e) {
+      debugPrint('sessão $id: ponto de restauração — $e');
+      return null;
+    }
+  }
+
+  /// "2 arquivos grandes fora do ponto: `dump.sql`, `video.mp4`" (R4).
+  static String largeFilesNote(List<String> files) {
+    final names = [for (final f in files) '`${f.split('/').last}`'].join(', ');
+    return files.length == 1
+        ? '1 arquivo grande fora do ponto: $names'
+        : '${files.length} arquivos grandes fora do ponto: $names';
+  }
+
+  /// What the agent hears after an undo, with its next message (R8).
+  static String undoNotice(int turn) =>
+      'O usuário desfez o turno $turn; os arquivos voltaram ao estado '
+      'anterior. Releia antes de alterar.';
+
+  /// Keeps [text] for the next message of [id] (the path of the manual-edit
+  /// notices), without starting a turn now (SPEC-084 R8).
+  Future<void> queueNotice(String id, String text) async {
+    final list = _notices.putIfAbsent(id, () => []);
+    if (list.contains(text)) return;
+    list.add(text);
+    await _durable((r) => r.addNotice(id, text));
+  }
+
   /// Line of the app in the session's timeline (gate results, hooks…).
   Future<void> note(String id, String text, {bool error = false}) =>
       _note(id, text, error: error);
@@ -565,6 +614,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   /// session works there (see [_notices]). Returns true when it was sent
   /// now.
   Future<bool> notifyUserEdit(String id, String path) async {
+    // SPEC-084 R7: an edit during the turn is the person's too.
+    _restore.noteUserEdit(id, path);
     final text = userEditNotice(path);
     final list = _notices.putIfAbsent(id, () => []);
     if (!list.contains(text)) {
@@ -1514,6 +1565,9 @@ class SessionManager extends Notifier<SessionManagerState> {
             .read(ciFixerProvider.notifier)
             .onResult(id, e.isSuccess ? e.result : null);
         ref.invalidate(sessionChangesProvider(id));
+        // SPEC-084 R1: the end of the turn (not awaited: the next start
+        // waits for it in the restore queue of the worktree).
+        unawaited(_restore.end(sessionId: id));
         _notify(
           e.isSuccess ? 'Sessão concluída' : 'Sessão falhou',
           p.title,
@@ -1581,6 +1635,8 @@ class SessionManager extends Notifier<SessionManagerState> {
     // SPEC-052 R2: the token dies with the process.
     await closeMcpRun(p.mcpServer, p.mcp);
     if (!ref.mounted || _shuttingDown) return;
+    // SPEC-084 R1: the process died in the middle of a turn — its end.
+    if (p.busy) await _restore.end(sessionId: id);
     if (p.released) {
       _publish();
       return;
@@ -1682,6 +1738,8 @@ class SessionManager extends Notifier<SessionManagerState> {
   }
 
   SpecRunner get _specs => ref.read(specRunnerProvider);
+
+  RestoreService get _restore => ref.read(restoreServiceProvider);
 
   SessionTimelineNotifier _timeline(String id) =>
       ref.read(sessionTimelineProvider(id).notifier);
