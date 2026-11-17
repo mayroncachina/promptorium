@@ -1,6 +1,6 @@
 ---
 id: SPEC-077
-status: rascunho
+status: aprovada
 tipo: melhoria
 issue: 266
 ---
@@ -109,25 +109,25 @@ Sem mudança de banco nem de configuração.
 
 ## Critérios de aceite
 
-- [ ] Todo bloco de código mostra a barra com a linguagem (ou `texto`), as linhas a partir de 3 e o botão Copiar [R1] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
-- [ ] Copiar põe na área de transferência o bloco exato, sem cercas, sem a linguagem e sem números de linha, com a indentação [R2] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
-- [ ] O botão vira "Copiado" por 1,5 s, anuncia ao leitor de tela e funciona com Tab + Enter/Espaço [R3, R4] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
-- [ ] O bloco tem realce pela linguagem da cerca, apelidos incluídos, e fica sem realce numa linguagem desconhecida [R5] verificar: flutter test test/ui/widgets/code_editor/code_language_test.dart
-- [ ] Cada mensagem e cada documento é um só `SelectionArea`, e selecionar e copiar atravessa parágrafo e bloco sem levar a barra [R6] verificar: flutter test test/ui/widgets/markdown/app_markdown_test.dart
-- [ ] "Copiar mensagem" copia o markdown da resposta, e "Copiar comando" copia o `command` do card Bash [R7, R9] verificar: flutter test test/features/sessions/timeline_copy_test.dart
-- [ ] Na timeline, um bloco com mais de 24 linhas chega recolhido em 16, expande, recolhe e copia inteiro; fora da timeline não recolhe [R8] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
-- [ ] Não sobra `MarkdownBody` fora do `AppMarkdown` [R10] verificar: grep -rn "MarkdownBody(" lib
-- [ ] No app, a query SQL de uma resposta do Prompt é copiada pelo botão e colada inteira no DBeaver (ou num editor), e a seleção do meio do parágrafo até o meio da query não se perde, nos temas sólido e vidro [R2, R6, R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-077/app/`)
-- [ ] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
+- [x] Todo bloco de código mostra a barra com a linguagem (ou `texto`), as linhas a partir de 3 e o botão Copiar [R1] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
+- [x] Copiar põe na área de transferência o bloco exato, sem cercas, sem a linguagem e sem números de linha, com a indentação [R2] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
+- [x] O botão vira "Copiado" por 1,5 s, anuncia ao leitor de tela e funciona com Tab + Enter/Espaço [R3, R4] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
+- [x] O bloco tem realce pela linguagem da cerca, apelidos incluídos, e fica sem realce numa linguagem desconhecida [R5] verificar: flutter test test/ui/widgets/code_editor/code_language_test.dart
+- [x] Cada mensagem e cada documento é um só `SelectionArea`, e selecionar e copiar atravessa parágrafo e bloco sem levar a barra [R6] verificar: flutter test test/ui/widgets/markdown/app_markdown_test.dart
+- [x] "Copiar mensagem" copia o markdown da resposta, e "Copiar comando" copia o `command` do card Bash [R7, R9] verificar: flutter test test/features/sessions/timeline_copy_test.dart
+- [x] Na timeline, um bloco com mais de 24 linhas chega recolhido em 16, expande, recolhe e copia inteiro; fora da timeline não recolhe [R8] verificar: flutter test test/ui/widgets/markdown/code_block_test.dart
+- [x] Não sobra `MarkdownBody` fora do `AppMarkdown` [R10] verificar: grep -rn "MarkdownBody(" lib
+- [x] No app, a query SQL de uma resposta do Prompt é copiada pelo botão e colada inteira no DBeaver (ou num editor), e a seleção do meio do parágrafo até o meio da query não se perde, nos temas sólido e vidro [R2, R6, R11] verificar: manual (app isolado com `XDG_DATA_HOME`, prints em `docs/mockups/spec-077/app/`)
+- [x] O projeto compila e a análise estática passa [R1–R11] verificar: flutter analyze
 
 ## Decisões
 
-Para decidir no canvas, com o usuário. Cada uma tem uma recomendação, que é o que a spec já descreve:
+Decididas no canvas, com o usuário, que aceitou todas as recomendações:
 
-- P1 · **Botão sempre visível ou só no hover.** Recomendação: **sempre visível**, discreto, ganhando contraste no hover. No hover ele some para quem usa só o teclado e para quem não sabe que o botão existe. A barra também mostra a linguagem, o que ajuda a ler.
-- P2 · **Realce de sintaxe.** Recomendação: **entra**. O `re_highlight` e o tema já estão no app, e o custo é pequeno com o cache. Sem realce, a query de 40 linhas é um bloco cinza difícil de ler.
-- P3 · **Limite para recolher.** Recomendação: **mais de 24 linhas recolhe, mostrando 16**, só na timeline. Alternativa: nunca recolher, o que é mais simples, mas uma query de 80 linhas empurra a conversa para longe.
-- P4 · **Rolagem vertical dentro do bloco** (altura máxima fixa em vez de recolher). Recomendação: **não**. Rolagem dentro de rolagem prende a roda do mouse na timeline.
-- P5 · **"Copiar mensagem" copia markdown ou texto puro.** Recomendação: **markdown**, como o Claude escreveu, com as cercas. Colado num chat, num issue ou numa spec, continua formatado. Para texto puro, a pessoa seleciona e usa Ctrl+C (R6).
-- P6 · **"Copiar comando" no card Bash.** Recomendação: **entra**, só no hover ou foco do card, para não poluir a timeline. O comando já aparece cortado em uma linha no card, e hoje só a visão ampliada copia.
-- P7 · **Toast além do "Copiado" no botão.** Recomendação: **sem toast** no bloco. O retorno fica no lugar onde a pessoa clicou. Os outros botões "Copiar" do app continuam com o toast.
+- P1 · **Botão sempre visível ou só no hover.** **Decidido:** **sempre visível** e discreto, ganhando contraste no hover. No hover ele sumiria para quem usa só o teclado e para quem não sabe que o botão existe. A barra também mostra a linguagem, o que ajuda a ler.
+- P2 · **Realce de sintaxe.** **Decidido:** **entra**, com o `re_highlight` e o tema do editor (`promptoriumCodeTheme`). O custo é pequeno com o cache.
+- P3 · **Limite para recolher.** **Decidido:** na timeline, um bloco com **mais de 24 linhas chega recolhido em 16**, com "Mostrar as outras N linhas" e, expandido, um segundo Copiar embaixo.
+- P4 · **Rolagem vertical dentro do bloco.** **Decidido:** **não**. Rolagem dentro de rolagem prende a roda do mouse na timeline.
+- P5 · **"Copiar mensagem" copia markdown ou texto puro.** **Decidido:** **markdown**, como o Claude escreveu, com as cercas. Para texto puro, a pessoa seleciona e usa Ctrl+C (R6).
+- P6 · **"Copiar comando" no card Bash.** **Decidido:** **entra**, só no hover ou com o foco no card.
+- P7 · **Toast além do "Copiado" no botão.** **Decidido:** **sem toast** no bloco. O retorno é o próprio "✓ Copiado" por 1,5 s, anunciado ao leitor de tela. Os outros botões "Copiar" do app continuam com o toast.
