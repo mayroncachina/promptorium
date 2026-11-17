@@ -361,6 +361,10 @@ class AutoReviewer {
       workspaceId: ws.id,
       cwd: spec.worktreePath!,
       timeout: timeout,
+      // SPEC-081 R2: the reviewer of the spec, by round.
+      specId: specId,
+      usageSource: UsageSource.revisor,
+      usageStep: 'rodada $round',
       // The Orquestrador only uses the Claude Code (D5).
       providerId: rule == null ? null : 'claude',
       options: ClaudeOptions(
@@ -520,6 +524,9 @@ class AutoReviewer {
         workspaceId: ws.id,
         cwd: s.worktreePath,
         timeout: timeout,
+        specId: s.specId,
+        usageSource: UsageSource.revisor,
+        usageStep: 'rodada $round',
         options: ClaudeOptions(
           model: config.reviewer.model,
           appendSystemPrompt: builtinReviewerPrompt,

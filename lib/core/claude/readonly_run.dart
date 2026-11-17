@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/agent_registry.dart';
 import '../providers/provider_preferences.dart';
 import '../../data/providers.dart';
+import '../../features/cost/usage_ledger.dart';
 import 'claude_args.dart';
 import 'claude_cli.dart';
 import 'claude_event.dart';
@@ -57,6 +58,10 @@ Object? structuredOutput(Result r) {
 ///
 /// Model, effort and auto-compact not set in [options] come from the planner
 /// defaults of Configurações ([RunPrefs]).
+///
+/// Its turn goes to `usage_entries` (SPEC-081 R1) with [specId],
+/// [usageSource] and [usageStep] (who called it on which spec, R2; or the
+/// spec by its [specCode]).
 Future<Result> runReadOnlyClaude(
   Ref ref, {
   required String cwd,
@@ -67,6 +72,10 @@ Future<Result> runReadOnlyClaude(
   String? providerId,
   Future<void>? cancelled,
   String denyMessage = 'O planner do Promptorium é somente leitura.',
+  int? specId,
+  String? specCode,
+  UsageSource? usageSource,
+  String? usageStep,
 }) async {
   final prefs = ref.read(runPrefsProvider);
   final sourceId = options.resumeId;
@@ -194,7 +203,24 @@ Future<Result> runReadOnlyClaude(
   }
   try {
     await process.send(prompt);
-    return await response;
+    final result = await response;
+    await ref
+        .read(usageLedgerProvider)
+        .record(
+          workspaceId: workspaceId ?? ref.read(activeWorkspaceProvider)?.id,
+          specId: specId,
+          specCode: specCode,
+          source:
+              usageSource ??
+              (specId == null && specCode == null
+                  ? UsageSource.livre
+                  : UsageSource.outros),
+          step: usageStep,
+          model: resultModel(result, options.model),
+          usage: result.usage,
+          costUsd: result.totalCostUsd,
+        );
+    return result;
   } finally {
     finished = true;
     await process.stop(timeout: const Duration(seconds: 2));

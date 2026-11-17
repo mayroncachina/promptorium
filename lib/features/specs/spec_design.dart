@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cost/usage_ledger.dart';
 import '../../core/claude/claude_args.dart';
 import '../../core/claude/claude_event.dart' show Result;
 import '../../core/claude/readonly_run.dart';
@@ -363,6 +364,9 @@ class SpecDesigner {
         workspaceId: ws.id,
         cancelled: cancelled,
         cwd: ws.path,
+        // SPEC-081 R2: "Outros" when it runs on a spec that exists.
+        specCode: specCodeInText(request),
+        usageSource: UsageSource.outros,
         options: ClaudeOptions(
           permissionMode: ClaudePermissionMode.defaultMode,
           disallowedTools: ClaudeCodeProvider.readOnlyDisallowedTools,

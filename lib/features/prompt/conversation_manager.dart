@@ -24,6 +24,7 @@ import '../mcp/mcp_rules.dart';
 import '../sessions/session_manager.dart'
     show LiveTool, PendingApproval, liveTextLine, sessionIdGeneratorProvider;
 import '../sessions/timeline.dart';
+import '../cost/usage_ledger.dart';
 import '../sessions/timeline_provider.dart';
 import '../specs/spec_service.dart' show specServiceProvider;
 import 'refine_origin.dart';
@@ -115,6 +116,9 @@ class _Run {
   /// Claude session id used by this process (`--session-id` / `--resume`).
   final String sid;
   double lastCost;
+
+  /// Last `total_cost_usd` of this process (SPEC-081 R1).
+  double? seenCost;
   bool busy = false;
   DateTime? busySince;
   bool stopping = false;
@@ -557,6 +561,12 @@ class ConversationManager extends Notifier<ConversationManagerState> {
         final i = r.recent.indexWhere((t) => t.id == e.toolUseId);
         if (i >= 0) r.recent[i] = r.recent[i].finished();
       case Result():
+        final turn = turnCost(
+          e.totalCostUsd,
+          lastSeen: r.seenCost,
+          stored: r.lastCost,
+        );
+        r.seenCost = e.totalCostUsd;
         r.lastCost = math.max(r.lastCost, e.totalCostUsd);
         final u = e.usage;
         await _repo.recordResult(
@@ -569,6 +579,10 @@ class ConversationManager extends Notifier<ConversationManagerState> {
           tokensOut: u.outputTokens,
         );
         await _repo.countMessage(id);
+        // SPEC-081 R1: one entry per turn (VIBE, refinement, Prompt).
+        await ref
+            .read(usageLedgerProvider)
+            .recordConversationTurn(id, e, costUsd: turn);
         r.busy = false;
       case RateLimit():
         await ref.read(usageTrackerProvider).handle(e);

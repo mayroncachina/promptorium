@@ -106,3 +106,33 @@ enum StepRunResult {
   /// The gate failed and the step went up a rung of the ladder.
   escalated,
 }
+
+/// What spent a turn (`usage_entries.source`, schema v30; SPEC-081 R2).
+enum UsageSource {
+  /// The session of a step (`REVn` included).
+  etapa,
+
+  /// The automatic reviewer (`claude -p`, by round).
+  revisor,
+
+  /// A turn the CI fixer sent to the session of the spec.
+  ci,
+
+  /// A conversation with `conversations.specId`.
+  vibe,
+
+  /// A conversation with `refineSpecCode`.
+  refino,
+
+  /// The step classifier and step decisions of the Orchestrator.
+  orquestrador,
+
+  /// The verification of the spec and the answers to its questions.
+  verificacao,
+
+  /// Anything else that runs on a spec (prototype screens).
+  outros,
+
+  /// A turn without a spec (free Prompt, loose sessions, Projeto).
+  livre,
+}
