@@ -556,6 +556,34 @@ class GitService {
     return r.exitCode == 0;
   }
 
+  /// Text of [path] (relative to the repository) at [rev]
+  /// (`git show <rev>:<path>`); null when the file is not there or [rev]
+  /// does not exist (SPEC-082 R7).
+  Future<String?> show(String rev, String path) async {
+    try {
+      return await git([
+        'show',
+        '${_arg(rev, 'revisão')}:${_arg(path, 'caminho')}',
+      ]);
+    } on GitException catch (e) {
+      if (e.exitCode != null) return null;
+      rethrow;
+    }
+  }
+
+  /// `git merge-base <a> <b>` (null when there is none or a ref is
+  /// unknown).
+  Future<String?> mergeBase(String a, String b) async {
+    try {
+      final out = (await git(['merge-base', _arg(a, 'ref'), _arg(b, 'ref')]))
+          .trim();
+      return out.isEmpty ? null : out;
+    } on GitException catch (e) {
+      if (e.exitCode != null) return null;
+      rethrow;
+    }
+  }
+
   /// Full hash of HEAD (null in a repository without commits).
   Future<String?> headSha() async {
     try {
