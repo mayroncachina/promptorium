@@ -21,6 +21,8 @@ import 'plan_ready.dart';
 import 'prompt_actions.dart';
 import 'refine_changes.dart';
 import 'refine_origin.dart';
+import '../snippets/snippet_actions.dart';
+import '../snippets/snippet_scope.dart';
 import 'spec_batch.dart';
 import 'spec_from_answer.dart';
 import 'widgets/answer_spec_bar.dart';
@@ -85,8 +87,28 @@ class _PromptScreenState extends ConsumerState<PromptScreen> {
     }
   }
 
+  /// Unregisters it as the target of an inserted snippet (SPEC-078 R8).
+  late final VoidCallback _unregister;
+
+  @override
+  void initState() {
+    super.initState();
+    _unregister = ref
+        .read(composerTargetProvider)
+        .register(ComposerTarget(controller: _text, focusNode: _focus));
+    // A snippet inserted from another screen opened this one (R8).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final s = ref.read(pendingSnippetInsertProvider.notifier).take();
+      if (s == null) return;
+      insertFencedSnippet(_text, s);
+      _focus.requestFocus();
+    });
+  }
+
   @override
   void dispose() {
+    _unregister();
     _text.dispose();
     _focus.dispose();
     super.dispose();
@@ -835,33 +857,36 @@ class _Conversation extends ConsumerWidget {
             ],
           );
 
-    return TimelineListView(
-      key: ValueKey('conversation-timeline-${c.id}'),
-      items: snap.items,
-      loading: snap.loading,
-      root: workspace?.path,
-      waitingTools: {for (final a in approvals) ?a.request.toolUseId},
-      footer: footer,
-      maxWidth: 760,
-      assistantName: 'Claude Code · ${modelLabel(c.model)}',
-      emptyText: 'Sem mensagens ainda.',
-      editInfo: progress == null ? null : (t) => progress.edits[t.id],
-      answerFooter: (item) {
-        final specs = detectAnswerSpecs(item.text);
-        if (specs.isEmpty) return null;
-        if (specs.length == 1) {
-          return AnswerSpecBar(conversation: c, spec: specs.single);
-        }
-        final answer = finishedAnswers(snap.items).indexOf(item);
-        return AnswerSpecsBar(
-          conversation: c,
-          items: [
-            for (var i = 0; i < specs.length; i++)
-              SpecBatchItem.of(i, specs[i]),
-          ],
-          answer: answer < 0 ? null : answer,
-        );
-      },
+    return SnippetScope(
+      origin: SnippetOrigin.conversation(c),
+      child: TimelineListView(
+        key: ValueKey('conversation-timeline-${c.id}'),
+        items: snap.items,
+        loading: snap.loading,
+        root: workspace?.path,
+        waitingTools: {for (final a in approvals) ?a.request.toolUseId},
+        footer: footer,
+        maxWidth: 760,
+        assistantName: 'Claude Code · ${modelLabel(c.model)}',
+        emptyText: 'Sem mensagens ainda.',
+        editInfo: progress == null ? null : (t) => progress.edits[t.id],
+        answerFooter: (item) {
+          final specs = detectAnswerSpecs(item.text);
+          if (specs.isEmpty) return null;
+          if (specs.length == 1) {
+            return AnswerSpecBar(conversation: c, spec: specs.single);
+          }
+          final answer = finishedAnswers(snap.items).indexOf(item);
+          return AnswerSpecsBar(
+            conversation: c,
+            items: [
+              for (var i = 0; i < specs.length; i++)
+                SpecBatchItem.of(i, specs[i]),
+            ],
+            answer: answer < 0 ? null : answer,
+          );
+        },
+      ),
     );
   }
 }

@@ -149,6 +149,17 @@ class ToolExpandedController extends Notifier<ToolExpanded?> {
     state = state!.copyWith(toolId: _tools()[_index() + 1].id);
   }
 
+  /// Brings card [toolId] of [sessionId] into view, focused and
+  /// highlighted, without expanding it (SPEC-082 "Abrir na Timeline").
+  void reveal(String sessionId, String toolId) {
+    state = ToolExpanded(
+      sessionId: sessionId,
+      toolId: toolId,
+      open: false,
+      seq: ++_seq,
+    );
+  }
+
   /// Back to the layout; the last tool shown gets the focus (R8).
   void close() {
     final s = state;

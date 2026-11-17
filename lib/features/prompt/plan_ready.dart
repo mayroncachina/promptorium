@@ -9,11 +9,13 @@ import '../../data/providers.dart';
 import '../../ui/shell/navigation.dart';
 import '../../ui/theme/tokens.dart';
 import '../../ui/widgets/app_toast.dart';
+import '../notifications/alert_target.dart' show AlertSpotlight;
 import '../project/project_config.dart';
 import '../sessions/new_session_dialog.dart';
 import '../sessions/session_manager.dart' show PendingApproval, slugify;
 import '../sessions/widgets/session_style.dart';
 import '../specs/spec_service.dart' show selectedSpecProvider;
+import '../snippets/snippet_scope.dart';
 import 'conversation_manager.dart';
 import 'prompt_actions.dart';
 import 'widgets/split_specs_dialog.dart';
@@ -147,6 +149,16 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
   bool _busy = false;
   bool _open = false;
 
+  /// "Implementar como sessão": the focus after a click on the notification
+  /// (SPEC-086 R7).
+  final _primary = FocusNode(debugLabel: 'plan-primary');
+
+  @override
+  void dispose() {
+    _primary.dispose();
+    super.dispose();
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.maybeOf(context)
       ?..hideCurrentSnackBar()
@@ -245,6 +257,17 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final a = widget.approval;
+    if (a == null) return _card();
+    return AlertSpotlight(
+      requestId: a.requestId,
+      primary: _primary,
+      radius: 10,
+      child: _card(),
+    );
+  }
+
+  Widget _card() {
     final pending = widget.approval != null;
     final summary = planSummary(widget.plan);
     return Container(
@@ -295,18 +318,21 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
             constraints: BoxConstraints(maxHeight: _open ? 480 : 160),
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: SingleChildScrollView(
-              child: AppMarkdown(
-                data: widget.plan,
-                styleSheet: MarkdownStyleSheet(
-                  p: const TextStyle(fontSize: 12, color: AppColors.text),
-                  listBullet: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.text,
-                  ),
-                  code: const TextStyle(
-                    fontFamily: AppFonts.mono,
-                    fontSize: 11,
-                    color: AppColors.amber,
+              child: SnippetScope(
+                origin: SnippetOrigin.conversation(widget.conversation),
+                child: AppMarkdown(
+                  data: widget.plan,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 12, color: AppColors.text),
+                    listBullet: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.text,
+                    ),
+                    code: const TextStyle(
+                      fontFamily: AppFonts.mono,
+                      fontSize: 11,
+                      color: AppColors.amber,
+                    ),
                   ),
                 ),
               ),
@@ -326,6 +352,7 @@ class _PlanReadyCardState extends ConsumerState<PlanReadyCard> {
               children: [
                 AmberButton(
                   key: const ValueKey('plan-as-session'),
+                  focusNode: _primary,
                   label: 'Implementar como sessão',
                   onTap: _busy ? null : _asSession,
                 ),
