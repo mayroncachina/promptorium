@@ -1,6 +1,7 @@
 ---
 id: SPEC-083
-status: rascunho
+status: aprovada
+versão: 0.20.0
 tipo: recurso
 issue: 277
 ---
@@ -75,13 +76,13 @@ Mockup: [canvas do Claude Design](https://claude.ai/artifact/CPGpYsSQTNWjHkckZDj
 
 ## Decisões em aberto
 
-- P1 · **Como ler a imagem da área de transferência no Linux.** (a) `wl-paste` e `xclip` pela linha de comando; (b) um plugin com código nativo (`super_clipboard`, `pasteboard`); (c) um canal de plataforma próprio com GTK. **Recomendação: (a).** O app já chama muitas ferramentas pelo `ProcessRunner` e já confere o ambiente. As duas ferramentas são pequenas e estão nos repositórios de todas as distribuições. Um plugin nativo traria compilação extra (o `super_clipboard` precisa de Rust) para uma leitura só. Sem a ferramenta, o arrastar e o "Anexar print…" continuam funcionando.
-- P2 · **Quantos prints por spec.** **Recomendação: até 4.** Um bug costuma ter um ou dois (antes e depois, ou a tela e o erro), e uma referência, uma ou duas telas. Mais que isso pesa no turno do planner e no repositório.
-- P3 · **Reduzir a imagem.** Mandar como veio ou reduzir para 1568 px no lado maior. **Recomendação: reduzir.** É o tamanho em que o modelo lê a imagem sem perder detalhe. Um print de tela 4K pesaria vários MB no repositório e no turno, sem ganho.
-- P4 · **Bug ou referência: escolha obrigatória.** **Recomendação: obrigatória, por print.** A regra da marca (R7, R9) só vale para referência, e o tipo da spec (`bug`) só para bug. Adivinhar erraria justo no caso que importa: um print de outro app tratado como bug deste.
-- P5 · **A guarda da marca bloqueia ou só avisa.** **Recomendação: bloqueia "Criar spec"**, com o botão para o planner reescrever. A regra é do usuário ("proibir copiar a marca"); um aviso que deixa passar vira hábito de ignorar. A spec criada mantém o aviso no lint, para quem editar depois.
-- P6 · **Onde guardar as marcas encontradas.** Na spec (frontmatter), no banco ou no `index.json` da pasta de mockups. **Recomendação: no `index.json` da pasta**, que já é do app (SPEC-022). Na spec, o nome da marca ficaria escrito justamente onde não pode aparecer; no banco, se perderia ao abrir o repositório em outro computador.
-- P7 · **Nome dos arquivos.** `print-1.png` ou o nome original. **Recomendação: `print-N`**, com a extensão do formato. O nome original de uma captura ("Captura de tela de 2026-11-16 14-32-10.png") tem espaços e data, e às vezes o nome do app de onde veio.
+- P1 · **Como ler a imagem da área de transferência no Linux.** (a) `wl-paste` e `xclip` pela linha de comando; (b) um plugin com código nativo (`super_clipboard`, `pasteboard`); (c) um canal de plataforma próprio com GTK. **Decidido: (a).** O app já chama muitas ferramentas pelo `ProcessRunner` e já confere o ambiente. As duas ferramentas são pequenas e estão nos repositórios de todas as distribuições. Um plugin nativo traria compilação extra (o `super_clipboard` precisa de Rust) para uma leitura só. Sem a ferramenta, o arrastar e o "Anexar print…" continuam funcionando.
+- P2 · **Quantos prints por spec.** **Decidido: até 4.** Um bug costuma ter um ou dois (antes e depois, ou a tela e o erro), e uma referência, uma ou duas telas. Mais que isso pesa no turno do planner e no repositório.
+- P3 · **Reduzir a imagem.** Mandar como veio ou reduzir para 1568 px no lado maior. **Decidido: reduzir.** É o tamanho em que o modelo lê a imagem sem perder detalhe. Um print de tela 4K pesaria vários MB no repositório e no turno, sem ganho.
+- P4 · **Bug ou referência: escolha obrigatória.** **Decidido: obrigatória, por print.** A regra da marca (R7, R9) só vale para referência, e o tipo da spec (`bug`) só para bug. Adivinhar erraria justo no caso que importa: um print de outro app tratado como bug deste.
+- P5 · **A guarda da marca bloqueia ou só avisa.** **Decidido: bloqueia "Criar spec"**, com o botão para o planner reescrever. A regra é do usuário ("proibir copiar a marca"); um aviso que deixa passar vira hábito de ignorar. A spec criada mantém o aviso no lint, para quem editar depois.
+- P6 · **Onde guardar as marcas encontradas.** Na spec (frontmatter), no banco ou no `index.json` da pasta de mockups. **Decidido: no `index.json` da pasta**, que já é do app (SPEC-022). Na spec, o nome da marca ficaria escrito justamente onde não pode aparecer; no banco, se perderia ao abrir o repositório em outro computador.
+- P7 · **Nome dos arquivos.** `print-1.png` ou o nome original. **Decidido: `print-N`**, com a extensão do formato. O nome original de uma captura ("Captura de tela de 2026-11-16 14-32-10.png") tem espaços e data, e às vezes o nome do app de onde veio.
 
 ## Design
 
