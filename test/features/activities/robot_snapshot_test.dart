@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:promptorium/features/activities/activity.dart';
 import 'package:promptorium/features/activities/widgets/robot_avatar.dart';
