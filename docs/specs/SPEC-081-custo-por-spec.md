@@ -3,6 +3,7 @@ id: SPEC-081
 status: rascunho
 tipo: recurso
 depende-de: SPEC-076
+issue: 271
 ---
 
 # Custo por spec
