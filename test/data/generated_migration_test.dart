@@ -298,4 +298,28 @@ void main() {
     expect(row.description, '');
     await db.close();
   });
+
+  test('v29 → v30 (SPEC-080) creates the journal of a workspace', () async {
+    final schema = await verifier.schemaAt(29);
+    schema.rawDatabase.execute(
+      "INSERT INTO workspaces (id, path, name) VALUES (1, '/r', 'r')",
+    );
+    final db = AppDatabase(schema.newConnection());
+    await db
+        .into(db.activityEvents)
+        .insert(
+          ActivityEventsCompanion.insert(
+            workspaceId: 1,
+            kind: 'gate',
+            outcome: 'failed',
+            title: 'SPEC-077',
+            groupKey: 'spec:1',
+            at: DateTime(2026, 11, 16),
+          ),
+        );
+    final row = await db.select(db.activityEvents).getSingle();
+    expect(row.seed, equals(null));
+    expect(row.detail, '');
+    await db.close();
+  });
 }

@@ -38,6 +38,9 @@ const v2Sessions =
 /// Drops what came after [version] from a database created with the
 /// current schema and stamps [version] (the next open migrates it again).
 Future<void> downgrade(AppDatabase db, int version) async {
+  if (version < 30) {
+    await db.customStatement('DROP TABLE IF EXISTS activity_events');
+  }
   if (version < 29) {
     await db.customStatement('DROP TABLE IF EXISTS snippets');
   }
@@ -657,5 +660,52 @@ void main() {
 
     await db.customStatement('DELETE FROM workspaces WHERE id = 1');
     expect(await db.select(db.snippets).get(), isEmpty);
+  });
+
+  // SPEC-080 R6.
+  test('v29 → v30 creates the journal by workspace with its index; deleting '
+      'the workspace deletes it', () async {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+    final tmp = Directory.systemTemp.createTempSync('promptorium-mig30-');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final file = File('${tmp.path}/db.sqlite');
+    var db = AppDatabase(NativeDatabase(file));
+    await db.ensureOpen();
+    await db.customStatement(
+      "INSERT INTO workspaces (path, name) VALUES ('/r', 'r')",
+    );
+    await downgrade(db, 29);
+    await db.close();
+    db = AppDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+    await db.ensureOpen();
+    final v = await db.customSelect('PRAGMA user_version').getSingle();
+    expect(v.data.values.single, appSchemaVersion);
+    final index = await db
+        .customSelect(
+          "SELECT sql FROM sqlite_master WHERE name = 'activity_events_at'",
+        )
+        .getSingle();
+    expect(index.read<String>('sql'), contains('workspace_id, at'));
+
+    await db
+        .into(db.activityEvents)
+        .insert(
+          ActivityEventsCompanion.insert(
+            workspaceId: 1,
+            kind: 'pr',
+            outcome: 'ok',
+            title: 'PR #267',
+            groupKey: 'pr:267',
+            at: DateTime(2026, 11, 16, 23, 14),
+            prNumber: const Value(267),
+          ),
+        );
+    final row = await db.select(db.activityEvents).getSingle();
+    expect(row.detail, '');
+    expect(row.prNumber, 267);
+
+    await db.customStatement('DELETE FROM workspaces WHERE id = 1');
+    expect(await db.select(db.activityEvents).get(), isEmpty);
   });
 }

@@ -15,7 +15,7 @@ export 'enums.dart';
 part 'app_database.g.dart';
 
 /// Current schema (see the migrations; `drift_schemas/` has v8 onwards).
-const appSchemaVersion = 29;
+const appSchemaVersion = 30;
 
 /// JSON array of strings stored in a TEXT column (`tasks.dependsOn`,
 /// `agent_settings.mcpServers`).
@@ -843,6 +843,35 @@ class Snippets extends Table {
   ];
 }
 
+/// The journal of what finished (SPEC-080 R6, schema v30): by workspace,
+/// kept 14 days. The "Retomar de onde parei" card is built from it.
+@TableIndex(name: 'activity_events_at', columns: {#workspaceId, #at})
+class ActivityEvents extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workspaceId =>
+      integer().references(Workspaces, #id, onDelete: KeyAction.cascade)();
+
+  /// spec, gate, pr, ci, release, session, conversation, autopilot.
+  TextColumn get kind => text()();
+
+  /// ok, failed, attention.
+  TextColumn get outcome => text()();
+  TextColumn get title => text()();
+  TextColumn get detail => text().withDefault(const Constant(''))();
+
+  /// The robot's seed (SPEC-076 R5); null = an icon.
+  TextColumn get seed => text().nullable()();
+  IntColumn get specId => integer().nullable()();
+  TextColumn get sessionId => text().nullable()();
+  IntColumn get conversationId => integer().nullable()();
+  IntColumn get prNumber => integer().nullable()();
+  TextColumn get releaseTag => text().nullable()();
+
+  /// Events with the same key become one item of the card (R8).
+  TextColumn get groupKey => text()();
+  DateTimeColumn get at => dateTime()();
+}
+
 /// Key/value preferences (see `AppSettingKeys`).
 class AppSettings extends Table {
   TextColumn get key => text()();
@@ -880,6 +909,7 @@ class AppSettings extends Table {
     StepRuns,
     SpecNotes,
     Snippets,
+    ActivityEvents,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1280,6 +1310,13 @@ class AppDatabase extends _$AppDatabase {
             if (await _hasTable('snippets')) return;
             await m.createTable(v.snippets);
             await m.createIndex(v.snippetsBodyHash);
+          },
+          // v30: the journal of what finished (SPEC-080 R6) and its index
+          // by workspace and time.
+          from29To30: (m, v) async {
+            if (await _hasTable('activity_events')) return;
+            await m.createTable(v.activityEvents);
+            await m.createIndex(v.activityEventsAt);
           },
         ),
       );
