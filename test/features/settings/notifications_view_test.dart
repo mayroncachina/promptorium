@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:promptorium/core/system/desktop_notifications.dart';
 import 'package:promptorium/data/providers.dart';
 import 'package:promptorium/features/notifications/agent_alerts.dart';
 import 'package:promptorium/features/sessions/app_notifier.dart';
